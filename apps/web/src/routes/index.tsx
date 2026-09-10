@@ -46,6 +46,7 @@ const REPO_URL = 'https://github.com/mertbuilds/keepyourattention';
 const BUILDER_URL = 'https://mertbuilds.com';
 const STARTER_URL = 'https://cleanstarter.dev';
 const SUPERVISE_URL = '/supervise';
+const WHY_URL = '/why';
 const PROFILE_MIME = 'application/x-apple-aspen-config';
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 /** Above every other icon in the fan, whatever the stack order says. */
@@ -148,54 +149,6 @@ const styles = create({
     height: 16,
     margin: 0,
     width: 16,
-  },
-  // One site of one app. The same pill whether it is a button or, for an app
-  // with no known site, a plain label.
-  chip: {
-    alignItems: 'center',
-    borderRadius: 999,
-    borderStyle: 'solid',
-    borderWidth: '1px',
-    boxShadow: {
-      ':focus-visible': `0 0 0 3px ${colors.border}`,
-      default: 'none',
-    },
-    display: 'inline-flex',
-    fontFamily: 'inherit',
-    fontSize: font.sizeSm,
-    lineHeight: 1,
-    outlineStyle: 'none',
-    paddingBlock: 6,
-    paddingInline: spacing.s2,
-  },
-  chipArtwork: {
-    borderRadius: 5,
-    height: 20,
-    width: 20,
-  },
-  chipEmpty: {
-    backgroundColor: 'transparent',
-    borderColor: colors.border,
-    color: colors.muted,
-  },
-  // Off means the site is out of the filter, so it reads as struck out.
-  chipOff: {
-    backgroundColor: 'transparent',
-    borderColor: colors.border,
-    color: colors.muted,
-    cursor: 'pointer',
-    textDecorationLine: 'line-through',
-  },
-  chipOn: {
-    backgroundColor: colors.fg,
-    borderColor: colors.fg,
-    color: colors.bg,
-    cursor: 'pointer',
-  },
-  chipRow: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: spacing.s1,
   },
   choice: {
     display: 'flex',
@@ -354,6 +307,12 @@ const styles = create({
     lineHeight: 1.04,
     margin: 0,
     textWrap: 'balance',
+  },
+  heroWhy: {
+    color: colors.muted,
+    display: 'inline-block',
+    fontSize: font.sizeSm,
+    marginBlockStart: spacing.s3,
   },
   lead: {
     color: colors.muted,
@@ -562,17 +521,33 @@ const styles = create({
     margin: 0,
     textWrap: 'balance',
   },
+  siteEmpty: {
+    alignItems: 'center',
+    color: colors.muted,
+    display: 'flex',
+    fontSize: font.sizeSm,
+    height: 28,
+  },
   siteGroup: {
     display: 'flex',
     flexDirection: 'column',
-    gap: spacing.s2,
+    gap: spacing.s1,
     minWidth: 0,
+  },
+  siteGroupArtwork: {
+    borderRadius: 5,
+    height: 20,
+    width: 20,
   },
   siteGroupHead: {
     alignItems: 'center',
     display: 'flex',
     gap: spacing.s2,
     minWidth: 0,
+  },
+  siteGroupName: {
+    fontWeight: font.weightMedium,
+    overflowWrap: 'anywhere',
   },
   siteGroups: {
     display: 'grid',
@@ -584,6 +559,24 @@ const styles = create({
     listStyleType: 'none',
     margin: 0,
     padding: 0,
+  },
+  siteHost: {
+    fontFamily: MONOSPACE,
+    fontSize: font.sizeSm,
+    fontWeight: font.weightRegular,
+    overflowWrap: 'anywhere',
+  },
+  // Unticked means the site is out of the filter, so it steps back.
+  siteHostOff: {
+    color: colors.muted,
+  },
+  siteHostOn: {
+    color: colors.fg,
+  },
+  siteRow: {
+    gap: spacing.s2,
+    height: 28,
+    minWidth: 0,
   },
   skeletonRow: {
     height: 40,
@@ -1445,6 +1438,9 @@ function Generator() {
           <span>{m.home_hero_line_1()}</span>
           <span {...props(styles.heroQuiet)}>{m.home_hero_line_2()}</span>
         </h1>
+        <a href={WHY_URL} {...props(styles.heroWhy)}>
+          {m.home_why_link()}
+        </a>
       </header>
 
       <div {...props(styles.content)}>
@@ -1724,32 +1720,32 @@ function Generator() {
                       <AppArtwork
                         meta={meta[app.bundleId]}
                         name={app.name}
-                        style={styles.chipArtwork}
+                        style={styles.siteGroupArtwork}
                       />
-                      <span {...props(styles.appName)}>{app.name}</span>
+                      <span {...props(styles.siteGroupName)}>{app.name}</span>
                     </span>
-                    <span {...props(styles.chipRow)}>
-                      {sites.length === 0 ? (
-                        <span {...props(styles.chip, styles.chipEmpty)}>
-                          {m.gen_web_derived_none()}
-                        </span>
-                      ) : (
-                        sites.map((site) => (
-                          <button
-                            aria-pressed={!excludedSites.includes(site)}
-                            key={site}
-                            onClick={() => toggleSite(site)}
-                            type="button"
+                    {sites.length === 0 ? (
+                      <span {...props(styles.siteEmpty)}>{m.gen_web_derived_none()}</span>
+                    ) : (
+                      sites.map((site) => (
+                        <Label key={site} style={styles.siteRow}>
+                          <input
+                            checked={!excludedSites.includes(site)}
+                            onChange={() => toggleSite(site)}
+                            type="checkbox"
+                            {...props(styles.checkbox)}
+                          />
+                          <span
                             {...props(
-                              styles.chip,
-                              excludedSites.includes(site) ? styles.chipOff : styles.chipOn,
+                              styles.siteHost,
+                              excludedSites.includes(site) ? styles.siteHostOff : styles.siteHostOn,
                             )}
                           >
                             {siteLabel(site)}
-                          </button>
-                        ))
-                      )}
-                    </span>
+                          </span>
+                        </Label>
+                      ))
+                    )}
                   </li>
                 ))}
               </ul>
