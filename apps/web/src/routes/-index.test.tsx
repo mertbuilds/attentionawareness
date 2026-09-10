@@ -91,6 +91,20 @@ function speaker(): HTMLElement {
   return screen.getByRole('button', { name: m.home_math_sound_label() });
 }
 
+/** The dial's display, read as one string: the number and its unit. */
+function readout(): string {
+  const row = speaker().parentElement;
+  if (row === null) {
+    throw new Error('The speaker should sit beside the readout');
+  }
+  return row.textContent ?? '';
+}
+
+/** What the display reads at a given number of hours. */
+function hoursReading(hours: number): string {
+  return `${m.home_math_hours({ hours })}${m.home_math_hours_unit()}`;
+}
+
 /** The lines of the ledger under the bar. */
 function ledgerLines(): NodeListOf<HTMLLIElement> {
   const list = screen.getByRole('heading', { name: m.home_ledger_title() }).nextElementSibling;
@@ -100,14 +114,9 @@ function ledgerLines(): NodeListOf<HTMLLIElement> {
   return list.querySelectorAll('li');
 }
 
-/** The burned part of the bar: the element the years label sits in. */
-function burnedRegion(years: string): HTMLElement {
-  const label = screen.getByText(m.home_math_bar_years({ years }));
-  const region = label.parentElement;
-  if (region === null) {
-    throw new Error('The years label should sit inside the burned region');
-  }
-  return region;
+/** The sentence under the dial: the years the habit takes out of the next 20. */
+function mathResult(): HTMLElement {
+  return screen.getByText(m.home_math_result_after(), { exact: false });
 }
 
 async function downloadedXml(): Promise<string> {
@@ -138,15 +147,12 @@ describe('Generator', () => {
     expect(screen.queryAllByRole('separator')).toHaveLength(0);
   });
 
-  it('opens the math on four hours a day, a quarter of the bar burned', async () => {
+  it('opens the math on four hours a day, five of the next twenty years', async () => {
     await renderPage();
 
     expect(screen.getByRole('slider')).toHaveValue('4');
-    expect(screen.getByText(m.home_math_hours({ hours: 4 }))).toBeInTheDocument();
-    expect(screen.getByText(m.home_math_result_after(), { exact: false })).toBeInTheDocument();
-    // StyleX carries a dynamic width in an inline custom property, not in
-    // `style.width`, so the attribute itself is what holds the five years.
-    expect(burnedRegion('5').getAttribute('style')).toContain('25%');
+    expect(readout()).toBe(hoursReading(4));
+    expect(mathResult()).toHaveTextContent('5');
   });
 
   it('marks every half hour of the travel with its own detent', async () => {
@@ -161,9 +167,8 @@ describe('Generator', () => {
 
     fireEvent.change(screen.getByRole('slider'), { target: { value: '6' } });
 
-    expect(screen.getByText(m.home_math_hours({ hours: 6 }))).toBeInTheDocument();
-    expect(screen.getByText(m.home_math_bar_years({ years: '7.5' }))).toBeInTheDocument();
-    expect(burnedRegion('7.5').getAttribute('style')).toContain('37.5%');
+    expect(readout()).toBe(hoursReading(6));
+    expect(mathResult()).toHaveTextContent('7.5');
   });
 
   it('bills more of the ledger the longer the day is', async () => {
@@ -502,7 +507,7 @@ describe('Generator', () => {
 
     await renderPage();
 
-    expect(screen.getByText(m.home_math_bar_years({ years: '7.5' }))).toBeInTheDocument();
+    expect(mathResult()).toHaveTextContent('7.5');
     expect(screen.getAllByRole('button', { name: m.gen_app_remove() })).toHaveLength(2);
     expect(screen.getByText('com.burbn.instagram')).toBeInTheDocument();
     expect(screen.getByText('com.zhiliaoapp.musically')).toBeInTheDocument();

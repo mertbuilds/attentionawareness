@@ -5,7 +5,6 @@ import {
   formatYears,
   ledgerItems,
   screenHours,
-  screenPercent,
 } from './attention-math.ts';
 
 describe('formatYears', () => {
@@ -34,13 +33,6 @@ describe('formatHours', () => {
   it('groups thousands the way the locale does', () => {
     expect(formatHours(4, 'en')).toBe('29,200');
     expect(formatHours(4, 'tr')).toBe('29.200');
-  });
-});
-
-describe('screenPercent', () => {
-  it('measures the years against the whole horizon', () => {
-    expect(screenPercent(4)).toBe(25);
-    expect(screenPercent(8)).toBe(50);
   });
 });
 
