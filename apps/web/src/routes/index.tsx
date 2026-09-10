@@ -30,6 +30,7 @@ import {
 import { layout } from '../lib/layout.ts';
 import { buildProfile, presets } from '../lib/profile/index.ts';
 import type { BlockedApp, ProfileConfig } from '../lib/profile/index.ts';
+import { normalizeUrl, sitesForApp, sitesForApps } from '../lib/sites.ts';
 import { m } from '../paraglide/messages.js';
 
 export const Route = createFileRoute('/')({
@@ -42,6 +43,8 @@ const SEARCH_LIMIT = 10;
 const SKELETON_ROWS = [0, 1, 2];
 const FALLBACK_COUNTRY = 'us';
 const REPO_URL = 'https://github.com/mertbuilds/keepyourattention';
+const BUILDER_URL = 'https://mertbuilds.com';
+const STARTER_URL = 'https://cleanstarter.dev';
 const SUPERVISE_URL = '/supervise';
 const PROFILE_MIME = 'application/x-apple-aspen-config';
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
@@ -56,11 +59,24 @@ const COPY_FEEDBACK_MS = 2000;
  * is not legal in a bundle id, so this can never collide with an app's row.
  */
 const RESET_ARMED = 'reset:apps';
+/** A chip names a host; the scheme carries nothing the user needs to read. */
+const SITE_SCHEME = /^https?:\/\//u;
 
 type WebMode = ProfileConfig['webFilter']['mode'];
 
 /** Raw textarea buffers. The parsed arrays live in the config. */
-type UrlText = { allowed: string; denied: string; permitted: string };
+type UrlText = { allowed: string; custom: string; permitted: string };
+
+/**
+ * What `kya:config` holds. The blocked sites are derived from the blocked
+ * apps, so only the two lists that cannot be derived are stored next to the
+ * config: the user's own urls, and the derived ones they turned off.
+ */
+type StoredState = {
+  config: ProfileConfig;
+  customSites: Array<string>;
+  excludedSites: Array<string>;
+};
 
 /**
  * What the App Store knows about one blocked app. The config stores only a
@@ -133,6 +149,54 @@ const styles = create({
     margin: 0,
     width: 16,
   },
+  // One site of one app. The same pill whether it is a button or, for an app
+  // with no known site, a plain label.
+  chip: {
+    alignItems: 'center',
+    borderRadius: 999,
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    boxShadow: {
+      ':focus-visible': `0 0 0 3px ${colors.border}`,
+      default: 'none',
+    },
+    display: 'inline-flex',
+    fontFamily: 'inherit',
+    fontSize: font.sizeSm,
+    lineHeight: 1,
+    outlineStyle: 'none',
+    paddingBlock: 6,
+    paddingInline: spacing.s2,
+  },
+  chipArtwork: {
+    borderRadius: 5,
+    height: 20,
+    width: 20,
+  },
+  chipEmpty: {
+    backgroundColor: 'transparent',
+    borderColor: colors.border,
+    color: colors.muted,
+  },
+  // Off means the site is out of the filter, so it reads as struck out.
+  chipOff: {
+    backgroundColor: 'transparent',
+    borderColor: colors.border,
+    color: colors.muted,
+    cursor: 'pointer',
+    textDecorationLine: 'line-through',
+  },
+  chipOn: {
+    backgroundColor: colors.fg,
+    borderColor: colors.fg,
+    color: colors.bg,
+    cursor: 'pointer',
+  },
+  chipRow: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: spacing.s1,
+  },
   choice: {
     display: 'flex',
     flexDirection: 'column',
@@ -168,6 +232,12 @@ const styles = create({
     gap: spacing.s16,
     maxWidth: 760,
     width: '100%',
+  },
+  derivedTitle: {
+    color: colors.muted,
+    fontSize: font.sizeSm,
+    fontWeight: font.weightMedium,
+    margin: 0,
   },
   fan: {
     alignItems: 'center',
@@ -355,9 +425,9 @@ const styles = create({
     fontWeight: font.weightMedium,
     minWidth: 48,
   },
-  // Twice the button's own type. The box keeps its size; only the glyph grows.
+  // Bigger than the button's own type. The box keeps its size; only the glyph grows.
   removeGlyph: {
-    fontSize: '1.6rem',
+    fontSize: '1.12rem',
     lineHeight: 1,
   },
   removeIdle: {
@@ -491,6 +561,29 @@ const styles = create({
     lineHeight: 1.2,
     margin: 0,
     textWrap: 'balance',
+  },
+  siteGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s2,
+    minWidth: 0,
+  },
+  siteGroupHead: {
+    alignItems: 'center',
+    display: 'flex',
+    gap: spacing.s2,
+    minWidth: 0,
+  },
+  siteGroups: {
+    display: 'grid',
+    gap: spacing.s4,
+    gridTemplateColumns: {
+      '@media (min-width: 640px)': '1fr 1fr',
+      default: '1fr',
+    },
+    listStyleType: 'none',
+    margin: 0,
+    padding: 0,
   },
   skeletonRow: {
     height: 40,
@@ -664,27 +757,109 @@ function parseLines(text: string): Array<string> {
     .filter((line) => line !== '');
 }
 
-function urlTextOf(config: ProfileConfig): UrlText {
+function urlTextOf(config: ProfileConfig, customSites: ReadonlyArray<string>): UrlText {
   const filter = config.webFilter;
   return {
     allowed: filter.mode === 'allow' ? filter.allowedUrls.join('\n') : '',
-    denied: filter.mode === 'deny' ? filter.deniedUrls.join('\n') : '',
+    custom: customSites.join('\n'),
     permitted: filter.mode === 'deny' ? filter.permittedUrls.join('\n') : '',
   };
 }
 
-function readStoredConfig(): ProfileConfig | null {
+/** A site as a chip names it: `https://youtu.be` is youtu.be. */
+function siteLabel(url: string): string {
+  return url.replace(SITE_SCHEME, '');
+}
+
+/**
+ * What the deny list actually blocks: every site the blocked apps imply,
+ * minus the ones the user turned off, then their own urls. Listed once each,
+ * in that order.
+ */
+function deniedUrlsOf(
+  apps: ReadonlyArray<BlockedApp>,
+  customSites: ReadonlyArray<string>,
+  excludedSites: ReadonlyArray<string>,
+): Array<string> {
+  const excluded = new Set(excludedSites);
+  const urls = new Set(sitesForApps(apps).filter((site) => !excluded.has(site)));
+  for (const site of customSites) {
+    const url = normalizeUrl(site);
+    if (url !== '') {
+      urls.add(url);
+    }
+  }
+  return [...urls];
+}
+
+/**
+ * The config as the builder reads it. `deniedUrls` is derived, so the config
+ * carries no editable copy of it: this is where the derivation lands, right
+ * before the profile is built, downloaded or stored.
+ */
+function withDerivedSites(
+  config: ProfileConfig,
+  customSites: ReadonlyArray<string>,
+  excludedSites: ReadonlyArray<string>,
+): ProfileConfig {
+  const filter = config.webFilter;
+  if (filter.mode !== 'deny') {
+    return config;
+  }
+  return {
+    ...config,
+    webFilter: {
+      ...filter,
+      deniedUrls: deniedUrlsOf(config.blockedApps, customSites, excludedSites),
+    },
+  };
+}
+
+/**
+ * The urls a config stored before sites were derived: everything its own apps
+ * now imply comes back on its own, so only the rest stays the user's list.
+ */
+function customSitesOf(config: ProfileConfig): Array<string> {
+  const filter = config.webFilter;
+  if (filter.mode !== 'deny') {
+    return [];
+  }
+  const derived = new Set(sitesForApps(config.blockedApps));
+  return filter.deniedUrls
+    .map((url) => normalizeUrl(url))
+    .filter((url) => url !== '' && !derived.has(url));
+}
+
+function readStored(): StoredState | null {
+  let value: unknown;
   try {
     const raw = globalThis.localStorage.getItem(STORAGE_KEY);
-    return raw === null ? null : (JSON.parse(raw) as ProfileConfig);
+    if (raw === null) {
+      return null;
+    }
+    value = JSON.parse(raw);
   } catch {
     return null;
   }
+  if (typeof value !== 'object' || value === null) {
+    return null;
+  }
+  const stored = value as Partial<StoredState>;
+  if (stored.config !== undefined) {
+    return {
+      config: stored.config,
+      customSites: stored.customSites ?? [],
+      excludedSites: stored.excludedSites ?? [],
+    };
+  }
+  // A bare config predates the derived sites: migrate it in place.
+  const config = value as ProfileConfig;
+  return { config, customSites: customSitesOf(config), excludedSites: [] };
 }
 
-function writeStoredConfig(config: ProfileConfig): void {
+function writeStored(state: StoredState): void {
   try {
-    globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+    globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch {
     // Private mode or a full quota must not break the generator.
   }
@@ -815,7 +990,11 @@ function AppIconFan({ apps, meta }: { apps: ReadonlyArray<BlockedApp>; meta: Met
 
 function Generator() {
   const [config, setConfig] = useState<ProfileConfig>(presets.mert);
-  const [urlText, setUrlText] = useState<UrlText>(urlTextOf(presets.mert));
+  // The user's own urls, and the derived ones they turned off. Everything else
+  // in the deny list comes from the blocked apps.
+  const [customSites, setCustomSites] = useState<Array<string>>([]);
+  const [excludedSites, setExcludedSites] = useState<Array<string>>([]);
+  const [urlText, setUrlText] = useState<UrlText>(urlTextOf(presets.mert, []));
   const [country, setCountry] = useState(FALLBACK_COUNTRY);
   const [meta, setMeta] = useState<MetaCache>({});
   const [query, setQuery] = useState('');
@@ -835,7 +1014,24 @@ function Generator() {
   const storefrontMenu = useRef<HTMLDivElement>(null);
   const xmlBlock = useRef<HTMLPreElement>(null);
 
-  const xml = useMemo(() => safeBuild(config), [config]);
+  const effectiveConfig = useMemo(
+    () => withDerivedSites(config, customSites, excludedSites),
+    [config, customSites, excludedSites],
+  );
+  const xml = useMemo(() => safeBuild(effectiveConfig), [effectiveConfig]);
+  // One row per blocked app, so the chips can say which app brought which site.
+  const appSites = useMemo(
+    () =>
+      config.blockedApps.map((app) => ({
+        app,
+        sites: sitesForApp(app.bundleId, app.sellerUrl).sites.map((site) => normalizeUrl(site)),
+      })),
+    [config.blockedApps],
+  );
+  const derivedCount = useMemo(() => {
+    const excluded = new Set(excludedSites);
+    return sitesForApps(config.blockedApps).filter((site) => !excluded.has(site)).length;
+  }, [config.blockedApps, excludedSites]);
   const blockedIds = useMemo(
     () => new Set(config.blockedApps.map((app) => app.bundleId)),
     [config.blockedApps],
@@ -868,18 +1064,20 @@ function Generator() {
   // rule leaves to an effect, and it runs once, so nothing cascades.
   /* oxlint-disable react/set-state-in-effect -- one-shot restore from browser-only storage */
   useEffect(() => {
-    const stored = readStoredConfig();
+    const stored = readStored();
     if (stored !== null) {
       // Identity is no longer editable, so a config saved while it was must not
       // carry its own values back in.
       const restored = {
-        ...stored,
+        ...stored.config,
         displayName: presets.mert.displayName,
         identifier: presets.mert.identifier,
         organization: presets.mert.organization,
       };
       setConfig(restored);
-      setUrlText(urlTextOf(restored));
+      setCustomSites(stored.customSites);
+      setExcludedSites(stored.excludedSites);
+      setUrlText(urlTextOf(restored, stored.customSites));
     }
     const preferred = initialStorefront();
     if (preferred !== FALLBACK_COUNTRY) {
@@ -1010,9 +1208,22 @@ function Generator() {
     return () => clearTimeout(timer);
   }, [copyState]);
 
+  // The three pieces are stored together, so every change writes all of them.
+  function persist(
+    nextConfig: ProfileConfig,
+    nextCustom: ReadonlyArray<string>,
+    nextExcluded: ReadonlyArray<string>,
+  ) {
+    writeStored({
+      config: withDerivedSites(nextConfig, nextCustom, nextExcluded),
+      customSites: [...nextCustom],
+      excludedSites: [...nextExcluded],
+    });
+  }
+
   function update(next: ProfileConfig) {
     setConfig(next);
-    writeStoredConfig(next);
+    persist(next, customSites, excludedSites);
   }
 
   function onQueryChange(value: string) {
@@ -1070,12 +1281,13 @@ function Generator() {
       [app.bundleId]: { developer: app.developer, iconUrl: app.iconUrl },
     }));
     // The stored name is the short one: the grid and the fan have no room for
-    // the App Store tagline, and the config is what both of them read.
+    // the App Store tagline, and the config is what both of them read. The
+    // seller url rides along, because the sites of an uncurated app come from it.
     update({
       ...config,
       blockedApps: [
         ...config.blockedApps,
-        { bundleId: app.bundleId, name: shortAppName(app.name) },
+        { bundleId: app.bundleId, name: shortAppName(app.name), sellerUrl: app.sellerUrl },
       ],
     });
   }
@@ -1110,7 +1322,8 @@ function Generator() {
       update({
         ...config,
         webFilter: {
-          deniedUrls: parseLines(urlText.denied),
+          // Derived, and written in by `withDerivedSites` on the way out.
+          deniedUrls: [],
           mode,
           permittedUrls: parseLines(urlText.permitted),
         },
@@ -1124,12 +1337,21 @@ function Generator() {
     update({ ...config, webFilter: { mode } });
   }
 
-  function onDeniedChange(text: string) {
-    setUrlText({ ...urlText, denied: text });
-    const filter = config.webFilter;
-    if (filter.mode === 'deny') {
-      update({ ...config, webFilter: { ...filter, deniedUrls: parseLines(text) } });
-    }
+  function onCustomChange(text: string) {
+    const next = parseLines(text);
+    setUrlText({ ...urlText, custom: text });
+    setCustomSites(next);
+    persist(config, next, excludedSites);
+  }
+
+  // A derived site the user turns off stays off while its app stays blocked,
+  // so the exclusion is remembered by url, not by app.
+  function toggleSite(site: string) {
+    const next = excludedSites.includes(site)
+      ? excludedSites.filter((url) => url !== site)
+      : [...excludedSites, site];
+    setExcludedSites(next);
+    persist(config, customSites, next);
   }
 
   function onPermittedChange(text: string) {
@@ -1191,7 +1413,8 @@ function Generator() {
     }
   }
 
-  const filter = config.webFilter;
+  // The derived list is what the profile carries, so it is what the card counts.
+  const filter = effectiveConfig.webFilter;
   // Only a deny list "blocks sites"; an allow list blocks everything else.
   const blockedSites = filter.mode === 'deny' ? filter.deniedUrls.length : 0;
   const siteSummary =
@@ -1491,16 +1714,56 @@ function Generator() {
             </Label>
           </div>
           {filter.mode === 'deny' ? (
-            <Field>
-              <FieldLabel htmlFor="denied-urls">{m.gen_web_denied_label()}</FieldLabel>
-              <textarea
-                id="denied-urls"
-                onChange={(event) => onDeniedChange(event.target.value)}
-                value={urlText.denied}
-                {...props(styles.textarea)}
-              />
-              <FieldDescription>{m.gen_web_lines_help()}</FieldDescription>
-            </Field>
+            <div {...props(styles.section)}>
+              <h3 {...props(styles.derivedTitle)}>{m.gen_web_derived_title()}</h3>
+              <p {...props(layout.muted)}>{m.gen_web_derived_count({ count: derivedCount })}</p>
+              <ul {...props(styles.siteGroups)}>
+                {appSites.map(({ app, sites }) => (
+                  <li key={app.bundleId} {...props(styles.siteGroup)}>
+                    <span {...props(styles.siteGroupHead)}>
+                      <AppArtwork
+                        meta={meta[app.bundleId]}
+                        name={app.name}
+                        style={styles.chipArtwork}
+                      />
+                      <span {...props(styles.appName)}>{app.name}</span>
+                    </span>
+                    <span {...props(styles.chipRow)}>
+                      {sites.length === 0 ? (
+                        <span {...props(styles.chip, styles.chipEmpty)}>
+                          {m.gen_web_derived_none()}
+                        </span>
+                      ) : (
+                        sites.map((site) => (
+                          <button
+                            aria-pressed={!excludedSites.includes(site)}
+                            key={site}
+                            onClick={() => toggleSite(site)}
+                            type="button"
+                            {...props(
+                              styles.chip,
+                              excludedSites.includes(site) ? styles.chipOff : styles.chipOn,
+                            )}
+                          >
+                            {siteLabel(site)}
+                          </button>
+                        ))
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <Field>
+                <FieldLabel htmlFor="custom-urls">{m.gen_web_custom_label()}</FieldLabel>
+                <textarea
+                  id="custom-urls"
+                  onChange={(event) => onCustomChange(event.target.value)}
+                  value={urlText.custom}
+                  {...props(styles.textarea)}
+                />
+                <FieldDescription>{m.gen_web_custom_help()}</FieldDescription>
+              </Field>
+            </div>
           ) : null}
           {filter.mode === 'deny' ? (
             <Field>
@@ -1642,6 +1905,16 @@ function Generator() {
             {m.gen_footer_open_source()}{' '}
             <a href={REPO_URL} rel="noreferrer" target="_blank">
               {m.gen_footer_repo()}
+            </a>
+          </p>
+          <p {...props(layout.muted)}>
+            {m.gen_footer_built_by()}{' '}
+            <a href={BUILDER_URL} rel="noreferrer" target="_blank">
+              {m.gen_footer_builder()}
+            </a>{' '}
+            {m.gen_footer_built_with()}{' '}
+            <a href={STARTER_URL} rel="noreferrer" target="_blank">
+              {m.gen_footer_starter()}
             </a>
           </p>
           <p {...props(layout.muted)}>{m.gen_footer_not_apple()}</p>
