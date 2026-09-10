@@ -18,14 +18,15 @@ import { colors, font, radius, spacing } from '@keepyourattention/ui/tokens.styl
 import { create, keyframes, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { AppResult } from '../lib/app-search.ts';
 import {
   defaultStorefront,
   flagEmoji,
   lookupApps,
   searchApps,
+  shortAppName,
+  storefrontLabel,
   storefronts,
 } from '../lib/app-search.ts';
 import { layout } from '../lib/layout.ts';
@@ -50,23 +51,13 @@ const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 const POPPED_DEPTH = 99;
 /** How long an armed Remove waits for its second click before standing down. */
 const REMOVE_CONFIRM_MS = 3000;
-/** Narrowest the floating panel gets, however small the tile it hangs off. */
-const PANEL_MIN_WIDTH = 360;
-/** Breathing room kept between the panel and every viewport edge. */
-const PANEL_MARGIN = 16;
-/** Distance from the tile to the panel. */
-const PANEL_GAP = 8;
-/** Below this much room under the tile the panel flips above it instead. */
-const PANEL_MIN_HEIGHT = 240;
+/**
+ * The armed control is tracked by id, and the reset link needs one too. A colon
+ * is not legal in a bundle id, so this can never collide with an app's row.
+ */
+const RESET_ARMED = 'reset:apps';
 
 type WebMode = ProfileConfig['webFilter']['mode'];
-
-/**
- * Where the floating panel sits, in viewport coordinates. Exactly one of `top`
- * and `bottom` is a number: the panel hangs off whichever edge keeps it on
- * screen, which is also how it needs no height measurement to flip.
- */
-type PanelPosition = { bottom: number | null; left: number; top: number | null; width: number };
 
 /** Raw textarea buffers. The parsed arrays live in the config. */
 type UrlText = { allowed: string; denied: string; permitted: string };
@@ -79,70 +70,13 @@ type UrlText = { allowed: string; denied: string; permitted: string };
 type AppMeta = { developer: string; iconUrl: string };
 type MetaCache = Record<string, AppMeta | null>;
 
-/** The panel eases in from just under its anchor; it never animates out. */
-const panelEnter = keyframes({
+/** The results drop in from just under the bar; they never animate out. */
+const resultsEnter = keyframes({
   from: { opacity: 0, transform: 'translateY(4px)' },
   to: { opacity: 1, transform: 'translateY(0)' },
 });
 
 const styles = create({
-  addTile: {
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-    // Grey at rest so the tile reads as an invitation, not as content. Border
-    // and text move together, and the "+" and the name inherit this color.
-    borderColor: {
-      ':focus-visible': colors.fg,
-      ':hover': colors.fg,
-      default: colors.muted,
-    },
-    borderRadius: 11,
-    borderStyle: 'dashed',
-    borderWidth: '1px',
-    boxSizing: 'border-box',
-    color: {
-      ':focus-visible': colors.fg,
-      ':hover': colors.fg,
-      default: colors.muted,
-    },
-    cursor: 'pointer',
-    display: 'flex',
-    fontFamily: 'inherit',
-    fontSize: 'inherit',
-    gap: spacing.s3,
-    minWidth: 0,
-    padding: spacing.s2,
-    textAlign: 'start',
-    transitionDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: '150ms',
-    },
-    transitionProperty: 'border-color, color',
-    width: '100%',
-  },
-  addTileActive: {
-    borderColor: colors.fg,
-    color: colors.fg,
-  },
-  addTileHint: {
-    fontSize: font.sizeSm,
-  },
-  addTileIcon: {
-    alignItems: 'center',
-    // Follows the tile's own border color, hover included.
-    borderColor: 'inherit',
-    borderRadius: 11,
-    borderStyle: 'dashed',
-    borderWidth: '1px',
-    boxSizing: 'border-box',
-    display: 'flex',
-    flexShrink: 0,
-    fontSize: 24,
-    height: 48,
-    justifyContent: 'center',
-    lineHeight: 1,
-    width: 48,
-  },
   appGrid: {
     display: 'grid',
     gap: spacing.s3,
@@ -216,14 +150,14 @@ const styles = create({
     },
     cursor: 'pointer',
     display: 'flex',
+    flexShrink: 0,
     fontFamily: 'inherit',
     fontSize: 18,
     height: 28,
-    insetInlineEnd: 6,
     justifyContent: 'center',
     lineHeight: 1,
+    marginInlineEnd: 6,
     padding: 0,
-    position: 'absolute',
     width: 28,
   },
   content: {
@@ -311,25 +245,23 @@ const styles = create({
   fanStack: (depth: number) => ({
     zIndex: depth,
   }),
-  flagButton: {
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-    borderRadius: radius.base,
-    borderStyle: 'none',
-    borderWidth: 0,
-    cursor: 'pointer',
-    display: 'flex',
-    fontFamily: 'inherit',
-    fontSize: 18,
-    height: 28,
-    justifyContent: 'center',
-    lineHeight: 1,
-    opacity: {
-      ':hover': 1,
-      default: 0.85,
-    },
-    padding: 0,
-    width: 30,
+  // Rides inside the popped icon, so it keeps its 8px gap through the pop.
+  fanTooltip: {
+    backgroundColor: colors.fg,
+    borderRadius: 999,
+    color: colors.bg,
+    fontSize: 12,
+    fontWeight: font.weightRegular,
+    insetBlockEnd: 'calc(100% + 8px)',
+    insetInlineStart: '50%',
+    lineHeight: 1.4,
+    paddingBlock: 4,
+    paddingInline: 8,
+    pointerEvents: 'none',
+    position: 'absolute',
+    transform: 'translateX(-50%)',
+    whiteSpace: 'nowrap',
+    zIndex: 1,
   },
   footer: {
     display: 'flex',
@@ -393,45 +325,6 @@ const styles = create({
     },
     paddingInline: spacing.s4,
   },
-  panel: {
-    animationDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: '150ms',
-    },
-    animationName: panelEnter,
-    animationTimingFunction: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
-    backgroundColor: colors.bg,
-    borderColor: colors.border,
-    borderRadius: 12,
-    borderStyle: 'solid',
-    borderWidth: '1px',
-    boxShadow: {
-      '@media (prefers-color-scheme: dark)': '0 12px 40px rgba(0, 0, 0, 0.35)',
-      default: '0 12px 40px rgba(0, 0, 0, 0.12)',
-    },
-    boxSizing: 'border-box',
-    color: colors.fg,
-    display: 'flex',
-    flexDirection: 'column',
-    fontFamily: font.family,
-    gap: spacing.s3,
-    padding: spacing.s3,
-    position: 'fixed',
-    zIndex: 100,
-  },
-  panelAt: (left: number, top: number | null, bottom: number | null, width: number) => ({
-    bottom,
-    left,
-    top,
-    width,
-  }),
-  panelResults: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s2,
-    maxHeight: 360,
-    overflowY: 'auto',
-  },
   pre: {
     backgroundColor: 'transparent',
     borderColor: colors.border,
@@ -457,26 +350,121 @@ const styles = create({
   removeIdle: {
     minWidth: 48,
   },
+  resetArmed: {
+    color: {
+      ':hover': colors.error,
+      default: colors.error,
+    },
+    fontWeight: font.weightMedium,
+  },
+  // Sits in the subtitle sentence, so it takes the paragraph's own type.
+  resetLink: {
+    backgroundColor: 'transparent',
+    borderStyle: 'none',
+    borderWidth: 0,
+    color: {
+      ':hover': colors.fg,
+      default: colors.muted,
+    },
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    fontSize: 'inherit',
+    padding: 0,
+    textDecorationLine: 'underline',
+  },
   resultArtwork: {
     borderRadius: 9,
     height: 40,
     width: 40,
+  },
+  // Hangs off the bar instead of pushing the grid down, so the page under it
+  // never moves while the user types.
+  resultsPanel: {
+    animationDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: '150ms',
+    },
+    animationName: resultsEnter,
+    animationTimingFunction: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
+    backgroundColor: colors.bg,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    boxShadow: {
+      '@media (prefers-color-scheme: dark)': '0 12px 40px rgba(0, 0, 0, 0.35)',
+      default: '0 12px 40px rgba(0, 0, 0, 0.12)',
+    },
+    boxSizing: 'border-box',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s2,
+    insetBlockStart: 'calc(100% + 6px)',
+    insetInlineStart: 0,
+    maxHeight: 360,
+    overflowY: 'auto',
+    padding: spacing.s3,
+    position: 'absolute',
+    width: '100%',
+    zIndex: 10,
   },
   row: {
     display: 'flex',
     flexWrap: 'wrap',
     gap: spacing.s2,
   },
-  // Room at both ends for the flag and the clear button, reserved whether or
-  // not the clear button is showing, so the text never jumps.
-  searchInput: {
-    paddingInlineEnd: 40,
-    paddingInlineStart: 44,
-  },
-  searchRow: {
+  // One pill around the country control, the field and the clear button, so
+  // the three read as a single input and the ring belongs to all of them.
+  searchBar: {
     alignItems: 'center',
+    backgroundColor: colors.bg,
+    borderColor: {
+      ':focus-within': colors.fg,
+      default: colors.border,
+    },
+    borderRadius: 999,
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    boxShadow: {
+      ':focus-within': `0 0 0 3px ${colors.border}`,
+      default: 'none',
+    },
+    boxSizing: 'border-box',
     display: 'flex',
+    height: 40,
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: '150ms',
+    },
+    transitionProperty: 'border-color, box-shadow',
+    width: '100%',
+  },
+  searchDivider: {
+    backgroundColor: colors.border,
+    flexShrink: 0,
+    height: '60%',
+    width: 1,
+  },
+  // The bar owns the border and the ring, so the field itself carries neither.
+  searchField: {
+    borderRadius: 0,
+    borderStyle: 'none',
+    borderWidth: 0,
+    boxShadow: {
+      ':focus-visible': 'none',
+      default: 'none',
+    },
+    flexGrow: 1,
+    flexShrink: 1,
+    height: '100%',
+    minWidth: 0,
+    paddingInline: spacing.s3,
+    width: 'auto',
+  },
+  // Anchors the results dropdown to the bar above it.
+  searchWrap: {
     position: 'relative',
+    width: '100%',
   },
   section: {
     display: 'flex',
@@ -527,6 +515,35 @@ const styles = create({
     margin: 0,
     paddingInlineStart: spacing.s4,
   },
+  storefrontButton: {
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderStyle: 'none',
+    borderWidth: 0,
+    color: {
+      ':hover': colors.fg,
+      default: colors.muted,
+    },
+    cursor: 'pointer',
+    display: 'flex',
+    fontFamily: 'inherit',
+    fontSize: font.sizeSm,
+    gap: spacing.s2,
+    height: '100%',
+    lineHeight: 1,
+    // Long country names give way to the field instead of pushing it off.
+    maxWidth: '50%',
+    minWidth: 0,
+    paddingBlock: 0,
+    paddingInline: spacing.s4,
+  },
+  // Narrower and shorter than a page input: it lives inside a popover.
+  storefrontFilter: {
+    borderRadius: radius.base,
+    fontSize: font.sizeSm,
+    height: 32,
+    paddingInline: spacing.s2,
+  },
   storefrontFlag: {
     fontSize: 16,
     lineHeight: 1,
@@ -543,20 +560,20 @@ const styles = create({
     },
     display: 'flex',
     flexDirection: 'column',
+    gap: spacing.s1,
     insetBlockStart: 'calc(100% + 6px)',
     insetInlineStart: 0,
-    maxHeight: 240,
-    minWidth: 200,
-    overflowY: 'auto',
+    minWidth: 220,
     padding: spacing.s1,
     position: 'absolute',
-    zIndex: 1,
+    // Over the results dropdown, which hangs off the same bar.
+    zIndex: 20,
   },
-  // Anchors the flag button and its list over the input's leading edge.
+  // Anchors the country list directly under the control it belongs to.
   storefrontMenu: {
-    insetBlockStart: 6,
-    insetInlineStart: 6,
-    position: 'absolute',
+    alignSelf: 'stretch',
+    display: 'flex',
+    position: 'relative',
   },
   storefrontOption: {
     alignItems: 'center',
@@ -581,6 +598,13 @@ const styles = create({
   },
   storefrontOptionSelected: {
     fontWeight: font.weightMedium,
+  },
+  // 175 storefronts do not fit on a screen, so only the options scroll.
+  storefrontOptions: {
+    display: 'flex',
+    flexDirection: 'column',
+    maxHeight: 320,
+    overflowY: 'auto',
   },
   subTitle: {
     fontSize: font.sizeLg,
@@ -659,44 +683,6 @@ function initialStorefront(): string {
   return storefronts.some((storefront) => storefront.code === code) ? code : FALLBACK_COUNTRY;
 }
 
-function storefrontLabel(code: string): string {
-  return storefronts.find((storefront) => storefront.code === code)?.label ?? code;
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max);
-}
-
-/**
- * Places the floating panel against the tile at `rect`, once. The panel does
- * not follow its anchor afterwards, so the measurement has to be enough on its
- * own: it is clamped inside the viewport, and when the tile sits too low it is
- * anchored by its bottom edge instead, which needs no panel height to work.
- */
-function panelPositionFor(rect: DOMRect): PanelPosition {
-  const viewportWidth = globalThis.innerWidth;
-  const viewportHeight = globalThis.innerHeight;
-  const width = Math.min(Math.max(rect.width, PANEL_MIN_WIDTH), viewportWidth - PANEL_MARGIN * 2);
-  const left = clamp(rect.left, PANEL_MARGIN, viewportWidth - width - PANEL_MARGIN);
-  const roomBelow = viewportHeight - rect.bottom - PANEL_GAP - PANEL_MARGIN;
-  const roomAbove = rect.top - PANEL_GAP - PANEL_MARGIN;
-  if (roomBelow < PANEL_MIN_HEIGHT && roomAbove > roomBelow) {
-    return { bottom: viewportHeight - rect.top + PANEL_GAP, left, top: null, width };
-  }
-  return { bottom: null, left, top: rect.bottom + PANEL_GAP, width };
-}
-
-/** A resize never re-anchors the panel; it only pulls it back on screen. */
-function clampToViewport(position: PanelPosition): PanelPosition {
-  const viewportWidth = globalThis.innerWidth;
-  const width = Math.min(position.width, viewportWidth - PANEL_MARGIN * 2);
-  return {
-    ...position,
-    left: clamp(position.left, PANEL_MARGIN, viewportWidth - width - PANEL_MARGIN),
-    width,
-  };
-}
-
 /** Stand-in artwork for an app the App Store did not answer for. */
 function initials(name: string): string {
   return name.trim().slice(0, 2).toUpperCase();
@@ -756,10 +742,12 @@ function AppArtwork({
 /**
  * The blocked apps as a stack of cards. Hover pops one icon to the front and
  * eases its neighbours aside; touch, which has no hover, toggles the same pop
- * on tap.
+ * on tap. The popped icon names itself in a tooltip, so the fan reads without
+ * a pointer resting on it. Only one icon pops, so one tooltip id is enough.
  */
 function AppIconFan({ apps, meta }: { apps: ReadonlyArray<BlockedApp>; meta: MetaCache }) {
   const [popped, setPopped] = useState<string | null>(null);
+  const tooltipId = useId();
   const poppedIndex = apps.findIndex((app) => app.bundleId === popped);
   const hasPop = poppedIndex !== -1;
 
@@ -767,6 +755,7 @@ function AppIconFan({ apps, meta }: { apps: ReadonlyArray<BlockedApp>; meta: Met
     <span {...props(styles.fan)}>
       {apps.map((app, index) => (
         <button
+          aria-describedby={popped === app.bundleId ? tooltipId : undefined}
           aria-label={app.name}
           key={app.bundleId}
           onBlur={() => setPopped(null)}
@@ -800,6 +789,11 @@ function AppIconFan({ apps, meta }: { apps: ReadonlyArray<BlockedApp>; meta: Met
           )}
         >
           <AppArtwork meta={meta[app.bundleId]} name={app.name} style={styles.fanArtwork} />
+          {popped === app.bundleId ? (
+            <span id={tooltipId} role="tooltip" {...props(styles.fanTooltip)}>
+              {app.name}
+            </span>
+          ) : null}
         </button>
       ))}
     </span>
@@ -815,14 +809,15 @@ function Generator() {
   const [results, setResults] = useState<Array<AppResult>>([]);
   const [searching, setSearching] = useState(false);
   const [searchFailed, setSearchFailed] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [panelPosition, setPanelPosition] = useState<PanelPosition | null>(null);
+  // Dismissing the results keeps the query: typing or focusing brings them back.
+  const [resultsOpen, setResultsOpen] = useState(true);
   const [storefrontOpen, setStorefrontOpen] = useState(false);
+  const [storefrontQuery, setStorefrontQuery] = useState('');
   const [armedRemove, setArmedRemove] = useState<string | null>(null);
   const [showXml, setShowXml] = useState(false);
   const searchInput = useRef<HTMLInputElement>(null);
-  const addTile = useRef<HTMLButtonElement>(null);
-  const panel = useRef<HTMLDivElement>(null);
+  const searchWrap = useRef<HTMLDivElement>(null);
+  const storefrontFilter = useRef<HTMLInputElement>(null);
   const storefrontMenu = useRef<HTMLDivElement>(null);
 
   const xml = useMemo(() => safeBuild(config), [config]);
@@ -838,6 +833,19 @@ function Generator() {
         .join(','),
     [config.blockedApps, meta],
   );
+  // An empty query is not a search, so it renders no dropdown at all.
+  const resultsShown = resultsOpen && query.trim() !== '';
+  // 175 countries need a filter. A code matches too, so "us" finds its store.
+  const storefrontMatches = useMemo(() => {
+    const term = storefrontQuery.trim().toLowerCase();
+    if (term === '') {
+      return storefronts;
+    }
+    return storefronts.filter(
+      (storefront) =>
+        storefront.label.toLowerCase().includes(term) || storefront.code.includes(term),
+    );
+  }, [storefrontQuery]);
 
   // localStorage and navigator exist only in the browser: reading either during
   // render would desync the SSR HTML from the first client render. Adopting
@@ -908,35 +916,21 @@ function Generator() {
     };
   }, [country, query]);
 
-  // The input mounts with the panel, so the focus has to wait for that render.
+  // Both dropdowns are dismissed from outside themselves: a pointer anywhere
+  // else, or Escape. The country list goes first, so one Escape never closes
+  // both at once.
   useEffect(() => {
-    if (searchOpen) {
-      searchInput.current?.focus();
-    }
-  }, [searchOpen]);
-
-  // A floating panel is dismissed from outside itself: a pointer anywhere else,
-  // or Escape. The tile is excluded because it owns the toggle — closing on its
-  // pointerdown would only let its own click reopen the panel.
-  useEffect(() => {
-    if (!searchOpen) {
+    if (!resultsShown && !storefrontOpen) {
       return;
-    }
-    function dismiss() {
-      setSearchOpen(false);
-      setStorefrontOpen(false);
-      setPanelPosition(null);
-      addTile.current?.focus();
     }
     function onPointerDown(event: PointerEvent) {
       const target = event.target as Node | null;
       if (storefrontMenu.current?.contains(target) !== true) {
         setStorefrontOpen(false);
       }
-      if (panel.current?.contains(target) === true || addTile.current?.contains(target) === true) {
-        return;
+      if (searchWrap.current?.contains(target) !== true) {
+        setResultsOpen(false);
       }
-      dismiss();
     }
     function onKeyDown(event: KeyboardEvent) {
       if (event.key !== 'Escape') {
@@ -947,7 +941,7 @@ function Generator() {
         searchInput.current?.focus();
         return;
       }
-      dismiss();
+      setResultsOpen(false);
     }
     document.addEventListener('pointerdown', onPointerDown);
     document.addEventListener('keydown', onKeyDown);
@@ -955,20 +949,14 @@ function Generator() {
       document.removeEventListener('pointerdown', onPointerDown);
       document.removeEventListener('keydown', onKeyDown);
     };
-  }, [searchOpen, storefrontOpen]);
+  }, [resultsShown, storefrontOpen]);
 
-  // The panel is placed once and stays there, scrolling included. A resize is
-  // the one thing that can strand it off screen, so that alone re-clamps it.
+  // The filter mounts with the country list, so its focus waits for that render.
   useEffect(() => {
-    if (!searchOpen) {
-      return;
+    if (storefrontOpen) {
+      storefrontFilter.current?.focus();
     }
-    function onResize() {
-      setPanelPosition((current) => (current === null ? null : clampToViewport(current)));
-    }
-    globalThis.addEventListener('resize', onResize);
-    return () => globalThis.removeEventListener('resize', onResize);
-  }, [searchOpen]);
+  }, [storefrontOpen]);
 
   // An armed Remove is a trap for the next stray click, so it stands down on
   // its own: Escape, or a few seconds of the user doing something else.
@@ -998,6 +986,7 @@ function Generator() {
     setQuery(value);
     setSearchFailed(false);
     setSearching(value.trim() !== '');
+    setResultsOpen(true);
   }
 
   // Emptying the query re-runs the search effect, whose cleanup aborts whatever
@@ -1010,26 +999,35 @@ function Generator() {
     searchInput.current?.focus();
   }
 
-  function openSearch() {
-    const rect = addTile.current?.getBoundingClientRect();
-    if (rect === undefined) {
-      return;
-    }
-    setPanelPosition(panelPositionFor(rect));
-    setSearchOpen(true);
-  }
-
-  function closeSearch() {
-    setSearchOpen(false);
-    setStorefrontOpen(false);
-    setPanelPosition(null);
-    addTile.current?.focus();
+  function toggleStorefront() {
+    setStorefrontQuery('');
+    setStorefrontOpen(!storefrontOpen);
   }
 
   function pickStorefront(code: string) {
     setCountry(code);
     setStorefrontOpen(false);
+    setStorefrontQuery('');
     searchInput.current?.focus();
+  }
+
+  // The list is long, so the arrows walk it from the filter without a mouse.
+  function onStorefrontKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') {
+      return;
+    }
+    const options = [
+      ...(storefrontMenu.current?.querySelectorAll<HTMLButtonElement>('[role="option"]') ?? []),
+    ];
+    if (options.length === 0) {
+      return;
+    }
+    event.preventDefault();
+    const step = event.key === 'ArrowDown' ? 1 : -1;
+    const current = options.indexOf(document.activeElement as HTMLButtonElement);
+    const first = step === 1 ? 0 : options.length - 1;
+    const next = current === -1 ? first : (current + step + options.length) % options.length;
+    options[next]?.focus();
   }
 
   function addApp(app: AppResult) {
@@ -1038,9 +1036,14 @@ function Generator() {
       ...current,
       [app.bundleId]: { developer: app.developer, iconUrl: app.iconUrl },
     }));
+    // The stored name is the short one: the grid and the fan have no room for
+    // the App Store tagline, and the config is what both of them read.
     update({
       ...config,
-      blockedApps: [...config.blockedApps, { bundleId: app.bundleId, name: app.name }],
+      blockedApps: [
+        ...config.blockedApps,
+        { bundleId: app.bundleId, name: shortAppName(app.name) },
+      ],
     });
   }
 
@@ -1056,6 +1059,17 @@ function Generator() {
       return;
     }
     setArmedRemove(bundleId);
+  }
+
+  // The same two-step, on the whole list: one click arms, the next resets. Only
+  // the blocked apps go back; the rest of the config is the user's own work.
+  function onResetClick() {
+    if (armedRemove === RESET_ARMED) {
+      setArmedRemove(null);
+      update({ ...config, blockedApps: [...presets.mert.blockedApps] });
+      return;
+    }
+    setArmedRemove(RESET_ARMED);
   }
 
   function setWebMode(mode: WebMode) {
@@ -1186,7 +1200,153 @@ function Generator() {
             <h2 {...props(styles.sectionTitle)}>{m.home_apps_title()}</h2>
             <Badge variant="outline">{m.gen_needs_supervision()}</Badge>
           </div>
-          <p {...props(layout.muted)}>{m.home_apps_subtitle()}</p>
+          <p {...props(layout.muted)}>
+            {m.home_apps_subtitle()}{' '}
+            <button
+              onBlur={() => setArmedRemove(null)}
+              onClick={onResetClick}
+              type="button"
+              {...props(styles.resetLink, armedRemove === RESET_ARMED && styles.resetArmed)}
+            >
+              {armedRemove === RESET_ARMED ? m.gen_remove_confirm() : m.gen_apps_reset()}
+            </button>
+          </p>
+          <div ref={searchWrap} {...props(styles.searchWrap)}>
+            <div {...props(styles.searchBar)}>
+              <div
+                onKeyDown={onStorefrontKeyDown}
+                ref={storefrontMenu}
+                {...props(styles.storefrontMenu)}
+              >
+                <button
+                  aria-expanded={storefrontOpen}
+                  aria-haspopup="listbox"
+                  aria-label={m.gen_storefront_label()}
+                  id="storefront"
+                  onClick={toggleStorefront}
+                  type="button"
+                  {...props(styles.storefrontButton)}
+                >
+                  {/* Hidden from the name, so the control reads as its country
+                      and not as an unpronounceable flag. */}
+                  <span aria-hidden="true" {...props(styles.storefrontFlag)}>
+                    {flagEmoji(country)}
+                  </span>
+                  <span {...props(styles.truncate)}>{storefrontLabel(country)}</span>
+                </button>
+                {storefrontOpen ? (
+                  <div {...props(styles.storefrontList)}>
+                    <Input
+                      aria-label={m.gen_storefront_filter()}
+                      onChange={(event) => setStorefrontQuery(event.target.value)}
+                      placeholder={m.gen_storefront_filter()}
+                      ref={storefrontFilter}
+                      style={styles.storefrontFilter}
+                      value={storefrontQuery}
+                    />
+                    <div
+                      aria-label={m.gen_storefront_label()}
+                      role="listbox"
+                      {...props(styles.storefrontOptions)}
+                    >
+                      {storefrontMatches.map((storefront) => (
+                        <button
+                          aria-selected={storefront.code === country}
+                          key={storefront.code}
+                          onClick={() => pickStorefront(storefront.code)}
+                          role="option"
+                          type="button"
+                          {...props(
+                            styles.storefrontOption,
+                            storefront.code === country && styles.storefrontOptionSelected,
+                          )}
+                        >
+                          <span aria-hidden="true" {...props(styles.storefrontFlag)}>
+                            {flagEmoji(storefront.code)}
+                          </span>
+                          <span>{storefront.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+              <span aria-hidden="true" {...props(styles.searchDivider)} />
+              <Input
+                aria-label={m.gen_app_search_label()}
+                id="app-search"
+                onChange={(event) => onQueryChange(event.target.value)}
+                onFocus={() => setResultsOpen(true)}
+                placeholder={m.gen_app_search_placeholder()}
+                ref={searchInput}
+                style={styles.searchField}
+                value={query}
+              />
+              {query === '' ? null : (
+                <button
+                  aria-label={m.gen_app_search_clear()}
+                  onClick={clearSearch}
+                  type="button"
+                  {...props(styles.clearButton)}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+            {resultsShown ? (
+              <div {...props(styles.resultsPanel)}>
+                {searchFailed ? (
+                  <p role="alert" {...props(layout.muted)}>
+                    {m.gen_app_search_error()}
+                  </p>
+                ) : null}
+                {searching ? (
+                  <ul {...props(styles.list)}>
+                    {SKELETON_ROWS.map((row) => (
+                      <li key={row}>
+                        <Skeleton style={styles.skeletonRow} />
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                {!searching && results.length === 0 && !searchFailed ? (
+                  <p {...props(layout.muted)}>{m.gen_app_results_empty()}</p>
+                ) : null}
+                {!searching && results.length > 0 ? (
+                  <ul {...props(styles.list)}>
+                    {results.map((app) => (
+                      <li key={app.bundleId} {...props(styles.appRow)}>
+                        <img
+                          alt={shortAppName(app.name)}
+                          src={app.iconUrl}
+                          {...props(styles.artwork, styles.resultArtwork)}
+                        />
+                        <span {...props(styles.appText)}>
+                          {/* The full App Store title stays one hover away. */}
+                          <span title={app.name} {...props(styles.appName)}>
+                            {shortAppName(app.name)}
+                          </span>
+                          <span title={app.developer} {...props(layout.muted, styles.truncate)}>
+                            {app.developer}
+                          </span>
+                          <span title={app.bundleId} {...props(styles.mono, styles.truncate)}>
+                            {app.bundleId}
+                          </span>
+                        </span>
+                        <Button
+                          disabled={blockedIds.has(app.bundleId)}
+                          onClick={() => addApp(app)}
+                          variant="outline"
+                        >
+                          {blockedIds.has(app.bundleId) ? m.gen_app_added() : m.gen_app_add()}
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
           {config.blockedApps.length === 0 ? (
             <p {...props(layout.muted)}>{m.gen_apps_empty()}</p>
           ) : null}
@@ -1221,165 +1381,7 @@ function Generator() {
                 </Button>
               </li>
             ))}
-            {/* The trigger is a tile of the grid, not a control below it. */}
-            <li>
-              <button
-                aria-expanded={searchOpen}
-                aria-haspopup="dialog"
-                aria-label={m.gen_app_search_open()}
-                onClick={() => (searchOpen ? closeSearch() : openSearch())}
-                ref={addTile}
-                type="button"
-                {...props(styles.addTile, searchOpen && styles.addTileActive)}
-              >
-                <span aria-hidden="true" {...props(styles.addTileIcon)}>
-                  +
-                </span>
-                <span {...props(styles.appText)}>
-                  <span {...props(styles.appName)}>{m.gen_app_search_open()}</span>
-                  <span {...props(styles.addTileHint)}>{m.gen_app_search_hint()}</span>
-                </span>
-              </button>
-            </li>
           </ul>
-          {searchOpen && panelPosition !== null
-            ? createPortal(
-                <div
-                  aria-label={m.gen_app_search_open()}
-                  aria-modal="false"
-                  ref={panel}
-                  role="dialog"
-                  {...props(
-                    styles.panel,
-                    styles.panelAt(
-                      panelPosition.left,
-                      panelPosition.top,
-                      panelPosition.bottom,
-                      panelPosition.width,
-                    ),
-                  )}
-                >
-                  <div {...props(styles.searchRow)}>
-                    <div ref={storefrontMenu} {...props(styles.storefrontMenu)}>
-                      <button
-                        aria-expanded={storefrontOpen}
-                        aria-haspopup="listbox"
-                        aria-label={m.gen_storefront_label()}
-                        id="storefront"
-                        onClick={() => setStorefrontOpen(!storefrontOpen)}
-                        title={storefrontLabel(country)}
-                        type="button"
-                        {...props(styles.flagButton)}
-                      >
-                        {flagEmoji(country)}
-                      </button>
-                      {storefrontOpen ? (
-                        <div
-                          aria-label={m.gen_storefront_label()}
-                          role="listbox"
-                          {...props(styles.storefrontList)}
-                        >
-                          {storefronts.map((storefront) => (
-                            <button
-                              aria-selected={storefront.code === country}
-                              key={storefront.code}
-                              onClick={() => pickStorefront(storefront.code)}
-                              role="option"
-                              type="button"
-                              {...props(
-                                styles.storefrontOption,
-                                storefront.code === country && styles.storefrontOptionSelected,
-                              )}
-                            >
-                              {/* Hidden from the name, so an option reads as its
-                                  country and not as an unpronounceable flag. */}
-                              <span aria-hidden="true" {...props(styles.storefrontFlag)}>
-                                {flagEmoji(storefront.code)}
-                              </span>
-                              <span>{storefront.label}</span>
-                            </button>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                    <Input
-                      aria-label={m.gen_app_search_label()}
-                      id="app-search"
-                      onChange={(event) => onQueryChange(event.target.value)}
-                      placeholder={m.gen_app_search_placeholder()}
-                      ref={searchInput}
-                      style={styles.searchInput}
-                      value={query}
-                    />
-                    {query === '' ? null : (
-                      <button
-                        aria-label={m.gen_app_search_clear()}
-                        onClick={clearSearch}
-                        type="button"
-                        {...props(styles.clearButton)}
-                      >
-                        ×
-                      </button>
-                    )}
-                  </div>
-                  {/* An empty query is not a search: the panel is just the input. */}
-                  {query.trim() === '' ? null : (
-                    <div {...props(styles.panelResults)}>
-                      {searchFailed ? (
-                        <p role="alert" {...props(layout.muted)}>
-                          {m.gen_app_search_error()}
-                        </p>
-                      ) : null}
-                      {searching ? (
-                        <ul {...props(styles.list)}>
-                          {SKELETON_ROWS.map((row) => (
-                            <li key={row}>
-                              <Skeleton style={styles.skeletonRow} />
-                            </li>
-                          ))}
-                        </ul>
-                      ) : null}
-                      {!searching && results.length === 0 && !searchFailed ? (
-                        <p {...props(layout.muted)}>{m.gen_app_results_empty()}</p>
-                      ) : null}
-                      {!searching && results.length > 0 ? (
-                        <ul {...props(styles.list)}>
-                          {results.map((app) => (
-                            <li key={app.bundleId} {...props(styles.appRow)}>
-                              <img
-                                alt={app.name}
-                                src={app.iconUrl}
-                                {...props(styles.artwork, styles.resultArtwork)}
-                              />
-                              <span {...props(styles.appText)}>
-                                <span {...props(styles.appName)}>{app.name}</span>
-                                <span
-                                  title={app.developer}
-                                  {...props(layout.muted, styles.truncate)}
-                                >
-                                  {app.developer}
-                                </span>
-                                <span title={app.bundleId} {...props(styles.mono, styles.truncate)}>
-                                  {app.bundleId}
-                                </span>
-                              </span>
-                              <Button
-                                disabled={blockedIds.has(app.bundleId)}
-                                onClick={() => addApp(app)}
-                                variant="outline"
-                              >
-                                {blockedIds.has(app.bundleId) ? m.gen_app_added() : m.gen_app_add()}
-                              </Button>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : null}
-                    </div>
-                  )}
-                </div>,
-                document.body,
-              )
-            : null}
         </section>
 
         <Separator />
