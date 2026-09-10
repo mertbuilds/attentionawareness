@@ -705,6 +705,7 @@ function Generator() {
           <li>{m.gen_install_step_transfer()}</li>
           <li>{m.gen_install_step_settings()}</li>
           <li>{m.gen_install_step_reboot()}</li>
+          <li>{m.gen_install_step_unsupervised()}</li>
         </ol>
         <p {...props(layout.muted)}>{m.gen_install_note()}</p>
       </section>
