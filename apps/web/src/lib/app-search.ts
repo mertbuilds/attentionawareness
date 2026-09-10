@@ -1,4 +1,5 @@
 const SEARCH_URL = 'https://itunes.apple.com/search';
+const LOOKUP_URL = 'https://itunes.apple.com/lookup';
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 25;
 const FALLBACK_STOREFRONT = 'us';
@@ -11,14 +12,20 @@ export type AppResult = {
   name: string;
 };
 
-type SearchOptions = {
+type LookupOptions = {
   country?: string;
   fetchImpl?: typeof fetch;
-  limit?: number;
   signal?: AbortSignal;
 };
 
-/** Shape of one `entity=software` row as returned by the iTunes Search API. */
+type SearchOptions = LookupOptions & {
+  limit?: number;
+};
+
+/** What both `entity=software` endpoints answer with. */
+type SoftwarePayload = { results?: Array<SoftwareResult> };
+
+/** Shape of one `entity=software` row as returned by the iTunes APIs. */
 type SoftwareResult = {
   artistName?: string;
   artworkUrl100?: string;
@@ -109,8 +116,40 @@ export async function searchApps(term: string, options?: SearchOptions): Promise
     throw new AppSearchError(response.status);
   }
 
-  const payload = (await response.json()) as { results?: Array<SoftwareResult> };
-  // A row without a bundle id identifies no app, so it is not a usable result.
+  return toAppResults((await response.json()) as SoftwarePayload);
+}
+
+/**
+ * Reads apps the caller already knows the bundle ids of (the blocked list)
+ * through Apple's lookup endpoint, which takes the whole set in one comma
+ * separated `bundleId` parameter. Ids the storefront does not carry are simply
+ * absent from the answer, so the caller decides what an unmatched id means.
+ */
+export async function lookupApps(
+  bundleIds: ReadonlyArray<string>,
+  options?: LookupOptions,
+): Promise<Array<AppResult>> {
+  const ids = bundleIds.map((bundleId) => bundleId.trim()).filter((bundleId) => bundleId !== '');
+  if (ids.length === 0) {
+    return [];
+  }
+
+  const url = new URL(LOOKUP_URL);
+  url.searchParams.set('bundleId', ids.join(','));
+  url.searchParams.set('country', options?.country ?? defaultStorefront());
+  url.searchParams.set('entity', 'software');
+
+  const fetchImpl = options?.fetchImpl ?? globalThis.fetch.bind(globalThis);
+  const response = await fetchImpl(url.toString(), { signal: options?.signal ?? null });
+  if (!response.ok) {
+    throw new AppSearchError(response.status);
+  }
+
+  return toAppResults((await response.json()) as SoftwarePayload);
+}
+
+/** A row without a bundle id identifies no app, so it is not a usable result. */
+function toAppResults(payload: SoftwarePayload): Array<AppResult> {
   return (payload.results ?? []).flatMap((result) =>
     result.bundleId
       ? [
