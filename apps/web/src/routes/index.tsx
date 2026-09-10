@@ -47,6 +47,7 @@ import { buildProfile, presets } from '../lib/profile/index.ts';
 import type { BlockedApp, ProfileConfig } from '../lib/profile/index.ts';
 import { decodeShare } from '../lib/share.ts';
 import { normalizeUrl, sitesForApp, sitesForApps } from '../lib/sites.ts';
+import { playTick, primeTickSound } from '../lib/tick-sound.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
 
@@ -56,7 +57,13 @@ export const Route = createFileRoute('/')({
 
 const STORAGE_KEY = 'kya:config';
 const HOURS_KEY = 'kya:hours';
+const SOUND_KEY = 'kya:sound';
 const GENERATED_KEY = 'kya:generated';
+/**
+ * The one chromatic colour on the page. It is not a token: the palette's
+ * error red is a warning, and this is a loss, so it stays pure in both themes.
+ */
+const RED = '#ff1f1f';
 const SEARCH_DEBOUNCE_MS = 300;
 const SEARCH_LIMIT = 10;
 const SKELETON_ROWS = [0, 1, 2];
@@ -84,13 +91,22 @@ const HOURS_MIN = 1;
 const HOURS_MAX = 10;
 const HOURS_STEP = 0.5;
 const HOURS_DEFAULT = 4;
-/** The four days the control offers, each with the life it describes. */
-const HOURS_PICKS = [
-  { anchor: m.home_math_pick_2_anchor, hours: 2, value: m.home_math_pick_2 },
-  { anchor: m.home_math_pick_4_anchor, hours: 4, value: m.home_math_pick_4 },
-  { anchor: m.home_math_pick_6_anchor, hours: 6, value: m.home_math_pick_6 },
-  { anchor: m.home_math_pick_8_anchor, hours: 8, value: m.home_math_pick_8 },
-];
+/** The machined knob, and the rail the ticks are measured against. */
+const KNOB_WIDTH = 28;
+const KNOB_HEIGHT = 44;
+const TRACK_HEIGHT = 4;
+/**
+ * One detent per half hour of travel, each with the fraction of the rail it
+ * sits at. The knob only ever stops on these, so the marks are the truth.
+ */
+const TICKS = Array.from({ length: (HOURS_MAX - HOURS_MIN) / HOURS_STEP + 1 }, (_, index) => {
+  const value = HOURS_MIN + index * HOURS_STEP;
+  return {
+    at: (value - HOURS_MIN) / (HOURS_MAX - HOURS_MIN),
+    value,
+    whole: Number.isInteger(value),
+  };
+});
 
 type WebMode = ProfileConfig['webFilter']['mode'];
 
@@ -195,7 +211,7 @@ const styles = create({
   // Solid from 12px in, transparent at the edge itself: the boundary reads as
   // burned rather than cut. Its own width is the container the label reads.
   barBurn: {
-    backgroundImage: `linear-gradient(to right, transparent 0px, ${colors.error} 12px)`,
+    backgroundImage: `linear-gradient(to right, transparent 0px, ${RED} 12px)`,
     // Inside the 1px border, so the corner stays concentric with the bar's 8px.
     borderEndEndRadius: 7,
     borderStartEndRadius: 7,
@@ -227,7 +243,7 @@ const styles = create({
   barLabel: {
     color: {
       '@container (min-width: 140px)': colors.bg,
-      default: colors.error,
+      default: RED,
     },
     fontSize: font.sizeSm,
     fontWeight: font.weightMedium,
@@ -242,7 +258,7 @@ const styles = create({
   },
   // The one colour on the page, and it is a loss, never a score.
   burn: {
-    color: colors.error,
+    color: RED,
     transitionDuration: {
       '@media (prefers-reduced-motion: reduce)': '0ms',
       default: '400ms',
@@ -317,6 +333,20 @@ const styles = create({
     fontWeight: font.weightMedium,
     margin: 0,
   },
+  // The control: rail and detents on the left, the number they read on the
+  // right. On a phone the number drops under the rail instead of squeezing it.
+  dial: {
+    alignItems: 'center',
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: spacing.s4,
+    width: '100%',
+  },
+  dialRail: {
+    flexBasis: 240,
+    flexGrow: 1,
+    minWidth: 0,
+  },
   factGrid: {
     display: 'grid',
     gap: spacing.s6,
@@ -340,18 +370,6 @@ const styles = create({
     lineHeight: 1.6,
     margin: 0,
     textWrap: 'balance',
-  },
-  // The slider is the second-line control: its label is the value it holds.
-  fine: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s2,
-    width: '100%',
-  },
-  fineText: {
-    color: colors.muted,
-    fontSize: 12,
-    fontVariantNumeric: 'tabular-nums',
   },
   footer: {
     display: 'flex',
@@ -449,61 +467,6 @@ const styles = create({
     },
     paddingInline: spacing.s4,
   },
-  // Big enough to answer with a thumb, and tall enough for the anchor under
-  // the number to wrap on a phone without the four boxes losing their row.
-  pick: {
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-    borderColor: {
-      ':hover': colors.fg,
-      default: colors.border,
-    },
-    borderRadius: radius.base,
-    borderStyle: 'solid',
-    borderWidth: '1px',
-    color: {
-      ':hover': colors.fg,
-      default: colors.muted,
-    },
-    cursor: 'pointer',
-    display: 'flex',
-    flexDirection: 'column',
-    fontFamily: 'inherit',
-    gap: spacing.s2,
-    justifyContent: 'center',
-    minHeight: 72,
-    paddingBlock: spacing.s3,
-    paddingInline: spacing.s2,
-    textAlign: 'center',
-    transitionDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: '150ms',
-    },
-    transitionProperty: 'border-color, color',
-    transitionTimingFunction: 'ease-out',
-  },
-  pickAnchor: {
-    color: colors.muted,
-    fontSize: 12,
-    lineHeight: 1.3,
-    textWrap: 'balance',
-  },
-  pickOn: {
-    borderColor: colors.fg,
-    color: colors.fg,
-  },
-  pickRow: {
-    display: 'grid',
-    gap: spacing.s2,
-    gridTemplateColumns: 'repeat(4, 1fr)',
-    width: '100%',
-  },
-  pickValue: {
-    fontSize: 24,
-    fontVariantNumeric: 'tabular-nums',
-    fontWeight: font.weightMedium,
-    lineHeight: 1,
-  },
   playGlyph: {
     display: 'block',
     height: 28,
@@ -541,6 +504,21 @@ const styles = create({
   },
   quiet: {
     color: colors.muted,
+  },
+  // The instrument's own display: one number, monospaced, never reflowing.
+  readout: {
+    fontFamily: MONOSPACE,
+    fontSize: 40,
+    fontVariantNumeric: 'tabular-nums',
+    fontWeight: font.weightMedium,
+    letterSpacing: '-0.02em',
+    lineHeight: 1,
+  },
+  readoutRow: {
+    alignItems: 'center',
+    display: 'flex',
+    flexShrink: 0,
+    gap: spacing.s2,
   },
   // The one destructive colour on the page: it means "this click deletes".
   removeArmed: {
@@ -755,11 +733,88 @@ const styles = create({
     height: 40,
     width: '100%',
   },
+  // The native input, dressed as a machined dial. The browser keeps the
+  // keyboard, the detents and the screen reader; it gives up only its looks.
   slider: {
-    accentColor: colors.fg,
+    '::-moz-range-thumb': {
+      backgroundColor: colors.fg,
+      backgroundImage: `linear-gradient(to right, transparent calc(50% - 0.5px), ${colors.bg} calc(50% - 0.5px), ${colors.bg} calc(50% + 0.5px), transparent calc(50% + 0.5px))`,
+      borderRadius: 6,
+      borderStyle: 'none',
+      borderWidth: 0,
+      boxShadow: 'inset 0 0 0 1px rgba(0, 0, 0, 0.28), 0 1px 3px rgba(0, 0, 0, 0.24)',
+      height: KNOB_HEIGHT,
+      width: KNOB_WIDTH,
+    },
+    '::-moz-range-track': {
+      backgroundColor: colors.border,
+      borderRadius: 999,
+      height: TRACK_HEIGHT,
+    },
+    '::-webkit-slider-runnable-track': {
+      backgroundColor: colors.border,
+      borderRadius: 999,
+      height: TRACK_HEIGHT,
+    },
+    // A groove down the middle and a darker line around the edge: the two
+    // marks that make a solid block read as a machined part.
+    '::-webkit-slider-thumb': {
+      appearance: 'none',
+      backgroundColor: colors.fg,
+      backgroundImage: `linear-gradient(to right, transparent calc(50% - 0.5px), ${colors.bg} calc(50% - 0.5px), ${colors.bg} calc(50% + 0.5px), transparent calc(50% + 0.5px))`,
+      borderRadius: 6,
+      boxShadow: 'inset 0 0 0 1px rgba(0, 0, 0, 0.28), 0 1px 3px rgba(0, 0, 0, 0.24)',
+      height: KNOB_HEIGHT,
+      // Centres the knob on the track: (4 - 44) / 2.
+      marginTop: -20,
+      scale: {
+        ':active': 1.03,
+        ':hover': 1.03,
+        default: 1,
+      },
+      transitionDuration: {
+        '@media (prefers-reduced-motion: reduce)': '0ms',
+        default: '150ms',
+      },
+      transitionProperty: 'scale',
+      transitionTimingFunction: 'ease-out',
+      width: KNOB_WIDTH,
+    },
+    appearance: 'none',
+    backgroundColor: 'transparent',
     cursor: 'pointer',
+    display: 'block',
+    height: KNOB_HEIGHT,
+    margin: 0,
     minWidth: 0,
+    padding: 0,
     width: '100%',
+  },
+  sliderLabel: {
+    display: 'block',
+    width: '100%',
+  },
+  // The speaker is a hint, not a headline: it only colours up on hover.
+  soundButton: {
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderStyle: 'none',
+    borderWidth: 0,
+    color: {
+      ':hover': colors.fg,
+      default: colors.muted,
+    },
+    cursor: 'pointer',
+    display: 'flex',
+    height: 40,
+    justifyContent: 'center',
+    padding: 0,
+    width: 40,
+  },
+  soundGlyph: {
+    display: 'block',
+    height: 18,
+    width: 18,
   },
   srOnly: {
     borderWidth: 0,
@@ -908,6 +963,40 @@ const styles = create({
     padding: spacing.s2,
     resize: 'vertical',
     width: '100%',
+  },
+  tick: {
+    backgroundColor: colors.border,
+    height: 5,
+    insetBlockStart: 0,
+    position: 'absolute',
+    transform: 'translateX(-50%)',
+    width: 1,
+  },
+  // The knob's centre travels between the two ends of the rail, not between
+  // the two ends of the box, so the marks are measured the same way.
+  tickAt: (at: number) => ({
+    insetInlineStart: `calc(${KNOB_WIDTH / 2}px + (100% - ${KNOB_WIDTH}px) * ${at})`,
+  }),
+  tickNumber: {
+    color: colors.muted,
+    fontFamily: MONOSPACE,
+    fontSize: 10,
+    insetBlockStart: 12,
+    insetInlineStart: '50%',
+    lineHeight: 1,
+    position: 'absolute',
+    transform: 'translateX(-50%)',
+  },
+  // Under the track, one mark per detent: the reader can see where the knob
+  // will stop before they let go of it.
+  tickRail: {
+    height: 26,
+    position: 'relative',
+    width: '100%',
+  },
+  tickWhole: {
+    backgroundColor: colors.muted,
+    height: 9,
   },
   tileArtwork: {
     borderRadius: 11,
@@ -1081,6 +1170,40 @@ function writeHours(hours: number): void {
   }
 }
 
+/** The remembered speaker choice, or `null` when the reader never made one. */
+function readSound(): boolean | null {
+  try {
+    const stored = globalThis.localStorage.getItem(SOUND_KEY);
+    return stored === null ? null : stored === 'true';
+  } catch {
+    return null;
+  }
+}
+
+function writeSound(on: boolean): void {
+  try {
+    globalThis.localStorage.setItem(SOUND_KEY, String(on));
+  } catch {
+    // Private mode or a full quota must not break the slider.
+  }
+}
+
+/**
+ * Whether a detent may click. Reduced motion silences the default, because a
+ * click is one more thing happening at the reader; a reader who turned the
+ * speaker on themselves has answered that question already.
+ */
+function tickAllowed(on: boolean, chosen: boolean): boolean {
+  if (!on) {
+    return false;
+  }
+  if (chosen) {
+    return true;
+  }
+  const query = (globalThis as { matchMedia?: (media: string) => MediaQueryList }).matchMedia;
+  return query === undefined || !query('(prefers-reduced-motion: reduce)').matches;
+}
+
 /** Whether this reader has already downloaded or copied a profile. */
 function readGenerated(): boolean {
   try {
@@ -1153,6 +1276,10 @@ function safeBuild(config: ProfileConfig): string | null {
 function Generator() {
   // What the reader tells the math section their day looks like.
   const [hours, setHours] = useState(HOURS_DEFAULT);
+  // The detents click by default, and remember it once the reader says either
+  // way. `soundChosen` is what separates the default from an answer.
+  const [sound, setSound] = useState(true);
+  const [soundChosen, setSoundChosen] = useState(false);
   const [config, setConfig] = useState<ProfileConfig>(presets.mert);
   // The user's own urls, and the derived ones they turned off. Everything else
   // in the deny list comes from the blocked apps.
@@ -1262,6 +1389,11 @@ function Generator() {
       setFriendYears(formatYears(shared.hours));
     } else if (storedHours !== null) {
       setHours(storedHours);
+    }
+    const storedSound = readSound();
+    if (storedSound !== null) {
+      setSound(storedSound);
+      setSoundChosen(true);
     }
     if (readGenerated()) {
       setGenerated(true);
@@ -1414,8 +1546,31 @@ function Generator() {
   }
 
   function onHoursChange(value: number) {
+    // One click per detent, and a lower one where the travel runs out.
+    if (value !== hours && tickAllowed(sound, soundChosen)) {
+      primeTickSound();
+      playTick({ end: value === HOURS_MIN || value === HOURS_MAX });
+    }
     setHours(value);
     writeHours(value);
+  }
+
+  // Browsers only hand out an audio device inside a gesture, so the pointer
+  // that is about to drag the knob is what opens it.
+  function armSound() {
+    if (tickAllowed(sound, soundChosen)) {
+      primeTickSound();
+    }
+  }
+
+  function toggleSound() {
+    const next = !sound;
+    setSound(next);
+    setSoundChosen(true);
+    writeSound(next);
+    if (next) {
+      primeTickSound();
+    }
   }
 
   function onQueryChange(value: string) {
@@ -1699,35 +1854,66 @@ function Generator() {
       <div {...props(styles.content)}>
         <section {...props(styles.section)}>
           <h2 {...props(styles.sectionTitle)}>{m.home_math_title()}</h2>
-          {/* Four anchors carry the answer; the slider is only for the reader
-              who knows their own number to the half hour. */}
-          <div aria-label={m.home_math_pick_label()} role="radiogroup" {...props(styles.pickRow)}>
-            {HOURS_PICKS.map((pick) => (
+          <div {...props(styles.dial)}>
+            <div {...props(styles.dialRail)}>
+              <Label style={styles.sliderLabel}>
+                <span {...props(styles.srOnly)}>{m.home_math_slider_label()}</span>
+                <input
+                  max={HOURS_MAX}
+                  min={HOURS_MIN}
+                  onChange={(event) => onHoursChange(Number(event.target.value))}
+                  onPointerDown={armSound}
+                  step={HOURS_STEP}
+                  type="range"
+                  value={hours}
+                  {...props(styles.slider)}
+                />
+              </Label>
+              {/* The detents, drawn where the knob lands on each of them. The
+                  input already says all of this to a screen reader. */}
+              <div aria-hidden="true" {...props(styles.tickRail)}>
+                {TICKS.map((tick) => (
+                  <span
+                    key={tick.value}
+                    {...props(styles.tick, tick.whole && styles.tickWhole, styles.tickAt(tick.at))}
+                  >
+                    {tick.whole ? <span {...props(styles.tickNumber)}>{tick.value}</span> : null}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div {...props(styles.readoutRow)}>
+              <span {...props(styles.readout)}>{m.home_math_hours({ hours })}</span>
               <button
-                aria-checked={hours === pick.hours}
-                key={pick.hours}
-                onClick={() => onHoursChange(pick.hours)}
-                role="radio"
+                aria-label={m.home_math_sound_label()}
+                aria-pressed={sound}
+                onClick={toggleSound}
                 type="button"
-                {...props(styles.pick, hours === pick.hours && styles.pickOn)}
+                {...props(styles.soundButton)}
               >
-                <span {...props(styles.pickValue)}>{pick.value()}</span>
-                <span {...props(styles.pickAnchor)}>{pick.anchor()}</span>
+                <svg aria-hidden="true" viewBox="0 0 18 18" {...props(styles.soundGlyph)}>
+                  <path d="M4 7H2v4h2l3.5 3V4L4 7Z" fill="currentColor" />
+                  {sound ? (
+                    <path
+                      d="M10.5 6.5a3.4 3.4 0 0 1 0 5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                      strokeWidth="1.4"
+                    />
+                  ) : (
+                    <path
+                      d="m10.5 6.5 4 5m0-5-4 5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                      strokeWidth="1.4"
+                    />
+                  )}
+                </svg>
               </button>
-            ))}
+            </div>
           </div>
-          <Label style={styles.fine}>
-            <span {...props(styles.fineText)}>{m.home_math_fine({ hours })}</span>
-            <input
-              max={HOURS_MAX}
-              min={HOURS_MIN}
-              onChange={(event) => onHoursChange(Number(event.target.value))}
-              step={HOURS_STEP}
-              type="range"
-              value={hours}
-              {...props(styles.slider)}
-            />
-          </Label>
           <p {...props(layout.muted)}>{m.home_math_help()}</p>
           {/* The years are the loss, so they are the only red in the line. */}
           <p {...props(styles.mathResult)}>
