@@ -10,14 +10,14 @@ const DAYS_PER_YEAR = 365;
 const HOURS_ROUNDING = 100;
 /** A full bar, in percent. */
 const FULL_PERCENT = 100;
-/** How long one book takes to read, in hours. */
-const HOURS_PER_BOOK = 8;
+/** How long one book takes to read: 80,000 words at 240 a minute. */
+const HOURS_PER_BOOK = 6;
 /** What the ledger pays the reader for the hours they gave away. */
 const DOLLARS_PER_HOUR = 20;
-/** The red is never absent, and it is never stronger than at eight hours. */
-const BURN_MIN_OPACITY = 0.35;
+/** The red is never absent, and it is full at the end of the slider. */
+const BURN_MIN_OPACITY = 0.3;
 const BURN_MIN_HOURS = 1;
-const BURN_FULL_HOURS = 8;
+const BURN_FULL_HOURS = 10;
 /** Opacity and percent both carry two decimals; nothing finer is visible. */
 const PRECISION = 100;
 
@@ -102,8 +102,8 @@ export function screenPercent(hoursPerDay: number): number {
 }
 
 /**
- * How present the red is. An hour a day is a stain; eight hours and up is the
- * full colour, because past a working day there is nothing left to shade.
+ * How present the red is. An hour a day is a stain; the end of the slider is
+ * the full colour, with nothing held back.
  */
 export function burnOpacity(hoursPerDay: number): number {
   const span = BURN_FULL_HOURS - BURN_MIN_HOURS;

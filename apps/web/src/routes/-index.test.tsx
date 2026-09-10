@@ -86,9 +86,9 @@ function customSites(): HTMLTextAreaElement {
   return screen.getByLabelText(m.gen_web_custom_label()) as HTMLTextAreaElement;
 }
 
-/** One of the four anchored answers, found by the hours it stands for. */
-function pick(label: RegExp): HTMLElement {
-  return screen.getByRole('radio', { name: label });
+/** The speaker toggle beside the readout. */
+function speaker(): HTMLElement {
+  return screen.getByRole('button', { name: m.home_math_sound_label() });
 }
 
 /** The lines of the ledger under the bar. */
@@ -141,43 +141,50 @@ describe('Generator', () => {
   it('opens the math on four hours a day, a quarter of the bar burned', async () => {
     await renderPage();
 
-    expect(pick(/4h/)).toBeChecked();
+    expect(screen.getByRole('slider')).toHaveValue('4');
+    expect(screen.getByText(m.home_math_hours({ hours: 4 }))).toBeInTheDocument();
     expect(screen.getByText(m.home_math_result_after(), { exact: false })).toBeInTheDocument();
     // StyleX carries a dynamic width in an inline custom property, not in
     // `style.width`, so the attribute itself is what holds the five years.
     expect(burnedRegion('5').getAttribute('style')).toContain('25%');
   });
 
-  it('answers the question from an anchored pick', async () => {
+  it('marks every half hour of the travel with its own detent', async () => {
     await renderPage();
+    const rail = screen.getByRole('slider').closest('div')?.parentElement;
 
-    await userEvent.click(pick(/6h/));
-
-    expect(pick(/6h/)).toBeChecked();
-    expect(pick(/4h/)).not.toBeChecked();
-    expect(screen.getByText(m.home_math_bar_years({ years: '7.5' }))).toBeInTheDocument();
+    expect(rail?.querySelectorAll('div[aria-hidden="true"] > span')).toHaveLength(19);
   });
 
-  it('recounts the years when the fine-tune slider moves', async () => {
+  it('recounts the years when the slider moves', async () => {
     await renderPage();
 
     fireEvent.change(screen.getByRole('slider'), { target: { value: '6' } });
 
+    expect(screen.getByText(m.home_math_hours({ hours: 6 }))).toBeInTheDocument();
     expect(screen.getByText(m.home_math_bar_years({ years: '7.5' }))).toBeInTheDocument();
-    // A value of its own is nobody's anchor, so the picks stand down.
-    fireEvent.change(screen.getByRole('slider'), { target: { value: '6.5' } });
-    expect(pick(/6h/)).not.toBeChecked();
+    expect(burnedRegion('7.5').getAttribute('style')).toContain('37.5%');
   });
 
   it('bills more of the ledger the longer the day is', async () => {
     await renderPage();
     expect(ledgerLines()).toHaveLength(5);
 
-    await userEvent.click(pick(/8h/));
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '8' } });
     expect(ledgerLines()).toHaveLength(8);
 
     fireEvent.change(screen.getByRole('slider'), { target: { value: '1' } });
     expect(ledgerLines()).toHaveLength(2);
+  });
+
+  it('remembers the speaker the reader turned off', async () => {
+    await renderPage();
+    expect(speaker()).toHaveAttribute('aria-pressed', 'true');
+
+    await userEvent.click(speaker());
+
+    expect(speaker()).toHaveAttribute('aria-pressed', 'false');
+    expect(globalThis.localStorage.getItem('kya:sound')).toBe('false');
   });
 
   it('states the deal as three facts', async () => {

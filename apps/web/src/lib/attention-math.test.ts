@@ -45,13 +45,13 @@ describe('screenPercent', () => {
 });
 
 describe('burnOpacity', () => {
-  it('opens faint and reaches full colour at a working day', () => {
-    expect(burnOpacity(1)).toBe(0.35);
-    expect(burnOpacity(8)).toBe(1);
+  it('opens faint and reaches full colour at the end of the slider', () => {
+    expect(burnOpacity(1)).toBe(0.3);
+    expect(burnOpacity(10)).toBe(1);
   });
 
   it('never goes past full, however long the day is', () => {
-    expect(burnOpacity(10)).toBe(1);
+    expect(burnOpacity(12)).toBe(1);
   });
 });
 
@@ -65,12 +65,12 @@ describe('ledgerItems', () => {
   it('counts the books and the money the hours were worth', () => {
     const items = ledgerItems(4, 'en');
     expect(items.map((item) => item.key)).toEqual(['books', 'dinners', 'body', 'career', 'money']);
-    expect(items[0]?.number).toBe('3,650');
+    expect(items[0]?.number).toBe('4,867');
     expect(items.at(-1)?.number).toBe('$584,000');
   });
 
   it('groups the numbers the way the locale does', () => {
-    expect(ledgerItems(4, 'tr')[0]?.number).toBe('3.650');
+    expect(ledgerItems(4, 'tr')[0]?.number).toBe('4.867');
   });
 
   it('leaves the lines that carry no number without one', () => {
