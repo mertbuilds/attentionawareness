@@ -47,6 +47,7 @@ describe('Generator', () => {
     const xml = await downloadedXml();
     expect(xml).toContain('com.atebits.Tweetie2');
     expect(xml).toContain('<integer>1</integer>');
+    expect(xml).toContain('<key>ContentFilterUUID</key>');
   });
 
   it('drops the web filter payload when the filter is turned off', async () => {

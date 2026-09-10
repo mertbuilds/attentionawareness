@@ -1,4 +1,5 @@
 import {
+  Badge,
   Button,
   Card,
   CardContent,
@@ -181,6 +182,12 @@ const styles = create({
     letterSpacing: '-0.02em',
     margin: 0,
     textWrap: 'balance',
+  },
+  titleRow: {
+    alignItems: 'center',
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: spacing.s2,
   },
 });
 
@@ -386,6 +393,8 @@ function Generator() {
   }
 
   const filter = config.webFilter;
+  // Only a deny list "blocks sites"; an allow list blocks everything else.
+  const blockedSites = filter.mode === 'deny' ? filter.deniedUrls.length : 0;
   const siteSummary =
     filter.mode === 'deny'
       ? m.gen_summary_sites_blocked({ count: filter.deniedUrls.length })
@@ -398,8 +407,10 @@ function Generator() {
       <header {...props(styles.header)}>
         <h1 {...props(styles.title)}>{m.app_name()}</h1>
         <p>{m.app_tagline()}</p>
+        <h2 {...props(styles.sectionTitle)}>{m.gen_tiers_title()}</h2>
+        <p {...props(layout.muted)}>{m.gen_tier_sites()}</p>
         <p {...props(layout.muted)}>
-          {m.gen_supervised_note()} <a href="/supervise">{m.gen_supervise_link()}</a>
+          {m.gen_tier_supervised()} <a href="/supervise">{m.gen_supervise_link()}</a>
         </p>
       </header>
 
@@ -456,7 +467,10 @@ function Generator() {
       <Separator />
 
       <section {...props(styles.section)}>
-        <h2 {...props(styles.sectionTitle)}>{m.gen_apps_title()}</h2>
+        <div {...props(styles.titleRow)}>
+          <h2 {...props(styles.sectionTitle)}>{m.gen_apps_title()}</h2>
+          <Badge variant="outline">{m.gen_needs_supervision()}</Badge>
+        </div>
         <Field>
           <FieldLabel htmlFor="storefront">{m.gen_storefront_label()}</FieldLabel>
           <Select
@@ -627,24 +641,30 @@ function Generator() {
           </Label>
         ) : null}
         {filter.mode === 'off' ? null : (
-          <Label>
-            <input
-              checked={config.allowPrivateBrowsing}
-              onChange={(event) =>
-                update({ ...config, allowPrivateBrowsing: event.target.checked })
-              }
-              type="checkbox"
-              {...props(styles.checkbox)}
-            />
-            {m.gen_web_private_browsing()}
-          </Label>
+          <div {...props(styles.titleRow)}>
+            <Label>
+              <input
+                checked={config.allowPrivateBrowsing}
+                onChange={(event) =>
+                  update({ ...config, allowPrivateBrowsing: event.target.checked })
+                }
+                type="checkbox"
+                {...props(styles.checkbox)}
+              />
+              {m.gen_web_private_browsing()}
+            </Label>
+            <Badge variant="outline">{m.gen_needs_supervision()}</Badge>
+          </div>
         )}
       </section>
 
       <Separator />
 
       <section {...props(styles.section)}>
-        <h2 {...props(styles.sectionTitle)}>{m.gen_restrictions_title()}</h2>
+        <div {...props(styles.titleRow)}>
+          <h2 {...props(styles.sectionTitle)}>{m.gen_restrictions_title()}</h2>
+          <Badge variant="outline">{m.gen_needs_supervision()}</Badge>
+        </div>
         <div {...props(styles.choice)}>
           <Label>
             <input
@@ -689,6 +709,9 @@ function Generator() {
               </li>
               <li>{config.lockRemoval ? m.gen_summary_locked_on() : m.gen_summary_locked_off()}</li>
             </ul>
+            {blockedSites > 0 ? (
+              <p {...props(layout.muted)}>{m.gen_summary_tier({ sites: blockedSites })}</p>
+            ) : null}
             <div {...props(styles.row)}>
               <Button disabled={xml === null} onClick={download}>
                 {m.gen_download()}

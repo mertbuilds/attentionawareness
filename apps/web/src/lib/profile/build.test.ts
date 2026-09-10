@@ -217,7 +217,25 @@ describe('buildProfile', () => {
     expect(xml).not.toContain('com.apple.webcontent-filter');
     expect(xml).not.toContain('SafariHistoryRetentionEnabled');
     expect(xml).not.toContain('AutoFilterEnabled');
+    expect(xml).not.toContain('ContentFilterUUID');
     expect(xml).toContain('<string>com.apple.applicationaccess</string>');
+  });
+
+  // Without it an unsupervised iPhone rejects the profile outright.
+  it('emits an uppercase ContentFilterUUID after FilterType in both filter modes', () => {
+    const filters: Array<ProfileConfig['webFilter']> = [
+      { deniedUrls: ['https://x.com'], mode: 'deny', permittedUrls: [] },
+      { allowedUrls: ['https://claude.ai'], mode: 'allow' },
+    ];
+    for (const webFilter of filters) {
+      const xml = buildProfile(config({ webFilter }), { uuid: sequentialUuid() });
+      expect(xml).toContain(
+        [
+          '      <key>FilterType</key><string>BuiltIn</string>',
+          '      <key>ContentFilterUUID</key><string>DDDDDDDD-DDDD-4DDD-8DDD-DDDDDDDDDDDD</string>',
+        ].join('\n'),
+      );
+    }
   });
 
   it('inverts allowPrivateBrowsing into SafariHistoryRetentionEnabled', () => {
