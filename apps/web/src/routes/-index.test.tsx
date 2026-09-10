@@ -86,6 +86,30 @@ function customSites(): HTMLTextAreaElement {
   return screen.getByLabelText(m.gen_web_custom_label()) as HTMLTextAreaElement;
 }
 
+/** One of the four anchored answers, found by the hours it stands for. */
+function pick(label: RegExp): HTMLElement {
+  return screen.getByRole('radio', { name: label });
+}
+
+/** The lines of the ledger under the bar. */
+function ledgerLines(): NodeListOf<HTMLLIElement> {
+  const list = screen.getByRole('heading', { name: m.home_ledger_title() }).nextElementSibling;
+  if (list === null) {
+    throw new Error('The ledger heading should be followed by its list');
+  }
+  return list.querySelectorAll('li');
+}
+
+/** The burned part of the bar: the element the years label sits in. */
+function burnedRegion(years: string): HTMLElement {
+  const label = screen.getByText(m.home_math_bar_years({ years }));
+  const region = label.parentElement;
+  if (region === null) {
+    throw new Error('The years label should sit inside the burned region');
+  }
+  return region;
+}
+
 async function downloadedXml(): Promise<string> {
   const blob = createObjectURL.mock.calls.at(-1)?.[0];
   if (blob === undefined) {
@@ -114,20 +138,46 @@ describe('Generator', () => {
     expect(screen.queryAllByRole('separator')).toHaveLength(0);
   });
 
-  it('opens the math on four hours a day, drawn as twenty year blocks', async () => {
-    const { container } = await renderPage();
-
-    expect(screen.getByText(m.home_math_result({ years: '5' }))).toBeInTheDocument();
-    expect(container.querySelectorAll('div[aria-hidden="true"] > span')).toHaveLength(20);
-  });
-
-  it('recounts the years when the slider moves', async () => {
+  it('opens the math on four hours a day, a quarter of the bar burned', async () => {
     await renderPage();
 
-    fireEvent.change(screen.getByLabelText(m.home_math_slider_label()), { target: { value: '6' } });
+    expect(pick(/4h/)).toBeChecked();
+    expect(screen.getByText(m.home_math_result_after(), { exact: false })).toBeInTheDocument();
+    // StyleX carries a dynamic width in an inline custom property, not in
+    // `style.width`, so the attribute itself is what holds the five years.
+    expect(burnedRegion('5').getAttribute('style')).toContain('25%');
+  });
 
-    expect(screen.getByText(m.home_math_result({ years: '7.5' }))).toBeInTheDocument();
-    expect(screen.getByText(m.home_math_axis_end({ years: '7.5' }))).toBeInTheDocument();
+  it('answers the question from an anchored pick', async () => {
+    await renderPage();
+
+    await userEvent.click(pick(/6h/));
+
+    expect(pick(/6h/)).toBeChecked();
+    expect(pick(/4h/)).not.toBeChecked();
+    expect(screen.getByText(m.home_math_bar_years({ years: '7.5' }))).toBeInTheDocument();
+  });
+
+  it('recounts the years when the fine-tune slider moves', async () => {
+    await renderPage();
+
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '6' } });
+
+    expect(screen.getByText(m.home_math_bar_years({ years: '7.5' }))).toBeInTheDocument();
+    // A value of its own is nobody's anchor, so the picks stand down.
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '6.5' } });
+    expect(pick(/6h/)).not.toBeChecked();
+  });
+
+  it('bills more of the ledger the longer the day is', async () => {
+    await renderPage();
+    expect(ledgerLines()).toHaveLength(5);
+
+    await userEvent.click(pick(/8h/));
+    expect(ledgerLines()).toHaveLength(8);
+
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '1' } });
+    expect(ledgerLines()).toHaveLength(2);
   });
 
   it('states the deal as three facts', async () => {
@@ -445,7 +495,7 @@ describe('Generator', () => {
 
     await renderPage();
 
-    expect(screen.getByText(m.home_math_result({ years: '7.5' }))).toBeInTheDocument();
+    expect(screen.getByText(m.home_math_bar_years({ years: '7.5' }))).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: m.gen_app_remove() })).toHaveLength(2);
     expect(screen.getByText('com.burbn.instagram')).toBeInTheDocument();
     expect(screen.getByText('com.zhiliaoapp.musically')).toBeInTheDocument();

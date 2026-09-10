@@ -36,11 +36,7 @@ const styles = create({
     alignItems: 'center',
     display: 'flex',
     gap: spacing.s2,
-    insetBlockEnd: spacing.s4,
-    insetInlineEnd: spacing.s4,
-    position: 'fixed',
-    // Over the page, under nothing: the only fixed furniture on the site.
-    zIndex: 30,
+    marginBlockStart: spacing.s2,
   },
   control: {
     alignItems: 'center',
@@ -71,7 +67,7 @@ const styles = create({
     display: 'flex',
     position: 'relative',
   },
-  // Opens upwards: the cluster sits on the bottom edge of the window.
+  // Opens upwards: the cluster is the last row of the page footer.
   list: {
     backgroundColor: colors.bg,
     borderColor: colors.border,
@@ -145,9 +141,9 @@ const styles = create({
 });
 
 /**
- * Theme and language, parked in the bottom-right corner of every page. The
- * theme is written to `<html data-theme>`; the language goes through Paraglide,
- * which sets its cookie and reloads the document.
+ * Theme and language, the last row of the page footer. The theme is written to
+ * `<html data-theme>`; the language goes through Paraglide, which sets its
+ * cookie and reloads the document.
  */
 export function Preferences() {
   // The stored choice is never read during the first render: the server has no
