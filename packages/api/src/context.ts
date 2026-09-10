@@ -1,4 +1,4 @@
-import type { Db } from '@web-starter/db';
+import type { Db } from '@keepyourattention/db';
 
 /**
  * Structural session shape (mirrors Better Auth's session without importing

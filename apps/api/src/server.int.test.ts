@@ -1,7 +1,7 @@
+import { router } from '@keepyourattention/api';
+import type { Db } from '@keepyourattention/db';
+import { parseServerEnv, type ServerEnv } from '@keepyourattention/env/server';
 import { call, ORPCError } from '@orpc/server';
-import { router } from '@web-starter/api';
-import type { Db } from '@web-starter/db';
-import { parseServerEnv, type ServerEnv } from '@web-starter/env/server';
 import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, beforeEach, describe, expect, inject, it } from 'vitest';
 import { recordStripeEvent } from './billing/events.ts';

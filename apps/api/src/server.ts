@@ -1,13 +1,13 @@
 import cors from '@fastify/cors';
+import { router } from '@keepyourattention/api';
+import type { Db } from '@keepyourattention/db';
+import type { ServerEnv } from '@keepyourattention/env/server';
 import { OpenAPIGenerator } from '@orpc/openapi';
 import { OpenAPIHandler } from '@orpc/openapi/fastify';
 import { RPCHandler } from '@orpc/server/fastify';
 import { ZodToJsonSchemaConverter } from '@orpc/zod/zod4';
 import scalarApiReference from '@scalar/fastify-api-reference';
 import { setupFastifyErrorHandler } from '@sentry/node';
-import { router } from '@web-starter/api';
-import type { Db } from '@web-starter/db';
-import type { ServerEnv } from '@web-starter/env/server';
 import { fromNodeHeaders } from 'better-auth/node';
 import type { DrainContext } from 'evlog';
 import { createAxiomDrain } from 'evlog/axiom';
@@ -122,7 +122,7 @@ export async function buildServer(options: { db: Db; env: ServerEnv }): Promise<
 
   app.get('/openapi.json', async () =>
     openAPIGenerator.generate(router, {
-      info: { title: 'web-starter API', version: '0.0.0' },
+      info: { title: 'keepyourattention API', version: '0.0.0' },
       servers: [{ url: '/api' }],
     }),
   );

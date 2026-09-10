@@ -8,7 +8,8 @@ const API_URL = `http://localhost:${API_PORT}`;
 const WEB_URL = `http://localhost:${WEB_PORT}`;
 
 // Requires the compose Postgres (host port 5433) to be running: `docker compose up -d`.
-const DATABASE_URL = 'postgresql://webstarter:webstarter@localhost:5433/webstarter';
+const DATABASE_URL =
+  'postgresql://keepyourattention:keepyourattention@localhost:5433/keepyourattention';
 
 export default defineConfig({
   forbidOnly: !!process.env.CI,

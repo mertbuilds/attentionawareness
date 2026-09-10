@@ -1,5 +1,5 @@
 {
-  "name": "@web-starter/ui",
+  "name": "@keepyourattention/ui",
   "private": true,
   "type": "module",
   "exports": {
@@ -22,6 +22,7 @@
     "sonner": "^2.0.8"
   },
   "devDependencies": {
+    "@keepyourattention/config": "workspace:*",
     "@storybook/addon-vitest": "^10.5.10",
     "@storybook/react-vite": "^10.5.10",
     "@stylexjs/unplugin": "^0.19.0",
@@ -29,7 +30,6 @@
     "@types/react-dom": "^19.2.5",
     "@vitest/browser": "^4.1.11",
     "@vitest/browser-playwright": "^4.1.11",
-    "@web-starter/config": "workspace:*",
     "playwright": "^1.62.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

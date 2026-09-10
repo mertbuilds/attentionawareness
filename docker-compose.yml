@@ -4,13 +4,13 @@ services:
     ports:
       - '5433:5432'
     environment:
-      POSTGRES_USER: webstarter
-      POSTGRES_PASSWORD: webstarter
-      POSTGRES_DB: webstarter
+      POSTGRES_USER: keepyourattention
+      POSTGRES_PASSWORD: keepyourattention
+      POSTGRES_DB: keepyourattention
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U webstarter -d webstarter']
+      test: ['CMD-SHELL', 'pg_isready -U keepyourattention -d keepyourattention']
       interval: 2s
       timeout: 3s
       retries: 15
@@ -29,7 +29,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://webstarter:webstarter@postgres:5432/webstarter
+      DATABASE_URL: postgresql://keepyourattention:keepyourattention@postgres:5432/keepyourattention
       NODE_ENV: production
     ports:
       - '3001:3001'

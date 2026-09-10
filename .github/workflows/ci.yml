@@ -37,7 +37,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       # Storybook story tests run in real Chromium (vitest browser mode).
-      - run: pnpm --filter @web-starter/ui exec playwright install chromium --with-deps
+      - run: pnpm --filter @keepyourattention/ui exec playwright install chromium --with-deps
       # api integration tests boot Testcontainers postgres:17 (Docker is present on ubuntu runners).
       - run: pnpm test
 
@@ -51,11 +51,11 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @web-starter/e2e exec playwright install chromium --with-deps
+      - run: pnpm --filter @keepyourattention/e2e exec playwright install chromium --with-deps
       - run: docker compose up -d --wait postgres
-      - run: pnpm --filter @web-starter/db migrate
+      - run: pnpm --filter @keepyourattention/db migrate
         env:
-          DATABASE_URL: postgresql://webstarter:webstarter@localhost:5433/webstarter
+          DATABASE_URL: postgresql://keepyourattention:keepyourattention@localhost:5433/keepyourattention
       - run: pnpm e2e
       - uses: actions/upload-artifact@v4
         if: failure()

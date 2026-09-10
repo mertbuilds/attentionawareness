@@ -1,5 +1,5 @@
 {
-  "extends": "@web-starter/config/tsconfig.base.json",
+  "extends": "@keepyourattention/config/tsconfig.base.json",
   "compilerOptions": {
     "types": ["node"]
   },

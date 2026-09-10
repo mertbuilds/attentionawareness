@@ -10,7 +10,7 @@ if [[ -f .env ]]; then
   source .env
   set +a
 fi
-export DATABASE_URL="${DATABASE_URL:-postgresql://webstarter:webstarter@localhost:5433/webstarter}"
+export DATABASE_URL="${DATABASE_URL:-postgresql://keepyourattention:keepyourattention@localhost:5433/keepyourattention}"
 
 echo "» Dropping postgres volume..."
 docker compose down --volumes
@@ -19,12 +19,12 @@ echo "» Starting postgres..."
 docker compose up --detach --wait postgres
 
 echo "» Generating Prisma client..."
-pnpm --filter @web-starter/db generate
+pnpm --filter @keepyourattention/db generate
 
 echo "» Applying migrations..."
-pnpm --filter @web-starter/db migrate
+pnpm --filter @keepyourattention/db migrate
 
 echo "» Seeding..."
-pnpm --filter @web-starter/db seed
+pnpm --filter @keepyourattention/db seed
 
 echo "✓ Database reset complete."

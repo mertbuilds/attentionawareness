@@ -1,7 +1,7 @@
+import type { AppRouter } from '@keepyourattention/api';
 import { createORPCClient } from '@orpc/client';
 import { RPCLink } from '@orpc/client/fetch';
 import type { RouterClient } from '@orpc/server';
-import type { AppRouter } from '@web-starter/api';
 import { clientEnv } from './env.ts';
 
 const link = new RPCLink({

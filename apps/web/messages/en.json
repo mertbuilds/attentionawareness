@@ -1,6 +1,6 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
-  "app_name": "web-starter",
+  "app_name": "keepyourattention",
   "app_tagline": "A bulletproof starting point for new products.",
   "auth_email_label": "Email",
   "auth_email_placeholder": "you@example.com",

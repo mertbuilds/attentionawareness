@@ -1,4 +1,4 @@
-# web-starter
+# keepyourattention
 
 Opinionated full-stack boilerplate for starting new products. One architecture, every product — so knowledge (yours and your agents') compounds instead of resetting. Everything runs locally against emulators; agents can break and reset anything without touching prod.
 
@@ -33,20 +33,20 @@ sudo pnpm exec portless proxy start --https   # one-time: local HTTPS proxy on 4
 pnpm dev        # mprocs: postgres + emulators + api + web + storybook
 ```
 
-First run: `pnpm db:reset` seeds the database. Open https://web-starter.localhost, sign up, subscribe through the emulated Stripe checkout.
+First run: `pnpm db:reset` seeds the database. Open https://keepyourattention.localhost, sign up, subscribe through the emulated Stripe checkout.
 
 Local URLs come from [portless](https://portless.sh) — stable named HTTPS domains instead of ports:
 
 | Service   | URL                                                                    |
 | --------- | ---------------------------------------------------------------------- |
-| web       | https://web-starter.localhost                                          |
-| api       | https://api.web-starter.localhost                                      |
-| API docs  | https://api.web-starter.localhost/docs                                 |
-| storybook | https://storybook.web-starter.localhost                                |
+| web       | https://keepyourattention.localhost                                    |
+| api       | https://api.keepyourattention.localhost                                |
+| API docs  | https://api.keepyourattention.localhost/docs                           |
+| storybook | https://storybook.keepyourattention.localhost                          |
 | postgres  | localhost:5433 (raw TCP, no proxy)                                     |
 | emulate   | https://{stripe,google,resend}.emulate.localhost (upstream :5100-5102) |
 
-`pnpm exec portless service install` starts the proxy on boot. Postgres is plain TCP — connect DataGrip/psql to `localhost:5433` (`webstarter` / `webstarter` / db `webstarter`).
+`pnpm exec portless service install` starts the proxy on boot. Postgres is plain TCP — connect DataGrip/psql to `localhost:5433` (`keepyourattention` / `keepyourattention` / db `keepyourattention`).
 
 ## Commands
 

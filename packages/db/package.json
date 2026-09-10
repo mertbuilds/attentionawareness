@@ -1,5 +1,5 @@
 {
-  "name": "@web-starter/db",
+  "name": "@keepyourattention/db",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -22,9 +22,9 @@
     "pg": "^8.23.0"
   },
   "devDependencies": {
+    "@keepyourattention/config": "workspace:*",
     "@types/node": "^24.10.1",
     "@types/pg": "^8.15.4",
-    "@web-starter/config": "workspace:*",
     "prisma": "^7.10.0",
     "typescript": "^7.0.2"
   }
