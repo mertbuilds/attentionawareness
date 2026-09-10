@@ -35,7 +35,7 @@ import {
   storefrontLabel,
   storefronts,
 } from '../lib/app-search.ts';
-import { burnOpacity, formatHours, formatYears, ledgerItems } from '../lib/attention-math.ts';
+import { formatYears, ledgerItems } from '../lib/attention-math.ts';
 import { layout } from '../lib/layout.ts';
 import { buildProfile, presets } from '../lib/profile/index.ts';
 import type { BlockedApp, ProfileConfig } from '../lib/profile/index.ts';
@@ -57,7 +57,7 @@ const GENERATED_KEY = 'kya:generated';
  * The one chromatic colour on the page. It is not a token: the palette's
  * error red is a warning, and this is a loss, so it stays pure in both themes.
  */
-const RED = '#ff1f1f';
+const ACCENT = '#ff4f00';
 const SEARCH_DEBOUNCE_MS = 300;
 const SEARCH_LIMIT = 10;
 const SKELETON_ROWS = [0, 1, 2];
@@ -84,7 +84,7 @@ const SITE_SCHEME = /^https?:\/\//u;
 const HOURS_MIN = 1;
 const HOURS_MAX = 10;
 const HOURS_STEP = 0.5;
-const HOURS_DEFAULT = 4;
+const HOURS_DEFAULT = 2;
 /** The machined knob, and the rail the ticks are measured against. */
 const KNOB_WIDTH = 28;
 const KNOB_HEIGHT = 44;
@@ -192,17 +192,8 @@ const styles = create({
   },
   // The one colour on the page, and it is a loss, never a score.
   burn: {
-    color: RED,
-    transitionDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: '400ms',
-    },
-    transitionProperty: 'opacity',
-    transitionTimingFunction: 'ease-out',
+    color: ACCENT,
   },
-  burnInk: (opacity: number) => ({
-    opacity,
-  }),
   checkbox: {
     accentColor: colors.fg,
     flexShrink: 0,
@@ -745,6 +736,16 @@ const styles = create({
     padding: 0,
     width: '100%',
   },
+  // The travelled part of the rail, so the dial reads its own setting. The
+  // stop always falls under the knob, which is what hides the seam.
+  sliderFill: (percent: number) => ({
+    '::-moz-range-track': {
+      backgroundImage: `linear-gradient(to right, ${ACCENT} 0 ${percent}%, ${colors.border} ${percent}% 100%)`,
+    },
+    '::-webkit-slider-runnable-track': {
+      backgroundImage: `linear-gradient(to right, ${ACCENT} 0 ${percent}%, ${colors.border} ${percent}% 100%)`,
+    },
+  }),
   sliderLabel: {
     display: 'block',
     width: '100%',
@@ -1750,11 +1751,10 @@ function Generator() {
         ? m.gen_copy_fallback()
         : m.gen_copy();
 
-  // The two numbers the whole narrative is written around.
+  // The number the whole narrative is written around.
   const years = formatYears(hours);
-  const totalHours = formatHours(hours, getLocale());
-  // How much red the day has earned, and what it has already cost.
-  const burn = burnOpacity(hours);
+  // How far along the rail the dial has been turned, and what it has cost.
+  const travelled = ((hours - HOURS_MIN) / (HOURS_MAX - HOURS_MIN)) * 100;
   const ledger = ledgerItems(hours, getLocale());
 
   const dealFacts = [
@@ -1822,7 +1822,7 @@ function Generator() {
                   step={HOURS_STEP}
                   type="range"
                   value={hours}
-                  {...props(styles.slider)}
+                  {...props(styles.slider, styles.sliderFill(travelled))}
                 />
               </Label>
               {/* The detents, drawn where the knob lands on each of them. The
@@ -1874,10 +1874,9 @@ function Generator() {
             </div>
           </div>
           <p {...props(layout.muted)}>{m.home_math_help()}</p>
-          {/* The years are the loss, so they are the only red in the line. */}
+          {/* The years are the loss, so they are the only colour in the line. */}
           <p {...props(styles.mathResult)}>
-            {m.home_math_result_before()}{' '}
-            <span {...props(styles.burn, styles.burnInk(burn))}>{years}</span>{' '}
+            {m.home_math_result_before()} <span {...props(styles.burn)}>{years}</span>{' '}
             {m.home_math_result_after()}
           </p>
           <h3 {...props(styles.ledgerTitle)}>{m.home_ledger_title()}</h3>
@@ -1886,7 +1885,7 @@ function Generator() {
               <li key={item.key} {...props(styles.ledgerItem)}>
                 {item.number === undefined ? null : (
                   <>
-                    <span {...props(styles.burn, styles.burnInk(burn))}>{item.number}</span>{' '}
+                    <span {...props(styles.burn)}>{item.number}</span>{' '}
                   </>
                 )}
                 {item.text}
@@ -1909,13 +1908,6 @@ function Generator() {
         </section>
 
         <section {...props(styles.section)}>
-          {/* The years are the point of the line, so they are the only part of
-              it in full contrast. */}
-          <p {...props(styles.mathResult)}>
-            <span {...props(styles.quiet)}>{m.home_buys_before()}</span> {years}{' '}
-            <span {...props(styles.quiet)}>{m.home_buys_after()}</span>
-          </p>
-          <p {...props(styles.lead)}>{m.home_buys_summary({ hours: totalHours })}</p>
           <div {...props(styles.factGrid)}>
             {dealFacts.map((fact) => (
               <p key={fact} {...props(styles.factValue)}>

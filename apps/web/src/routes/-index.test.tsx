@@ -147,12 +147,12 @@ describe('Generator', () => {
     expect(screen.queryAllByRole('separator')).toHaveLength(0);
   });
 
-  it('opens the math on four hours a day, five of the next twenty years', async () => {
+  it('opens the math on two hours a day, two and a half of the next twenty years', async () => {
     await renderPage();
 
-    expect(screen.getByRole('slider')).toHaveValue('4');
-    expect(readout()).toBe(hoursReading(4));
-    expect(mathResult()).toHaveTextContent('5');
+    expect(screen.getByRole('slider')).toHaveValue('2');
+    expect(readout()).toBe(hoursReading(2));
+    expect(mathResult()).toHaveTextContent('2.5');
   });
 
   it('marks every half hour of the travel with its own detent', async () => {
@@ -173,7 +173,7 @@ describe('Generator', () => {
 
   it('bills more of the ledger the longer the day is', async () => {
     await renderPage();
-    expect(ledgerLines()).toHaveLength(5);
+    expect(ledgerLines()).toHaveLength(3);
 
     fireEvent.change(screen.getByRole('slider'), { target: { value: '8' } });
     expect(ledgerLines()).toHaveLength(8);
@@ -463,7 +463,7 @@ describe('Generator', () => {
 
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText(m.share_heading_output())).toBeInTheDocument();
-    expect(within(dialog).getByText(m.share_card_years({ years: '5' }))).toBeInTheDocument();
+    expect(within(dialog).getByText(m.share_card_years({ years: '2.5' }))).toBeInTheDocument();
     expect(within(dialog).getByRole('link', { name: m.share_x() })).toHaveAttribute(
       'href',
       expect.stringContaining('intent/post'),
@@ -498,7 +498,7 @@ describe('Generator', () => {
 
     await userEvent.click(within(dialog).getByRole('button', { name: m.share_copy() }));
 
-    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('keepyourattention.com/?h=4'));
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('keepyourattention.com/?h=2'));
     expect(within(dialog).getByRole('button', { name: m.share_copied() })).toBeInTheDocument();
   });
 
