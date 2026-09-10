@@ -54,9 +54,10 @@ const { Route } = await import('./index.tsx');
 
 async function renderPage() {
   const Page = (Route as unknown as { component: React.ComponentType }).component;
-  render(<Page />);
+  const view = render(<Page />);
   // Flush the mount-time artwork lookup so its state update stays inside act().
   await act(async () => {});
+  return view;
 }
 
 const BLOCKED_APPS = presets.mert.blockedApps.length;
@@ -114,6 +115,36 @@ describe('Generator', () => {
   it('draws no rules between the sections', async () => {
     await renderPage();
     expect(screen.queryAllByRole('separator')).toHaveLength(0);
+  });
+
+  it('opens the math on four hours a day, drawn as twenty year blocks', async () => {
+    const { container } = await renderPage();
+
+    expect(screen.getByText(m.home_math_result({ years: '5' }))).toBeInTheDocument();
+    expect(container.querySelectorAll('div[aria-hidden="true"] > span')).toHaveLength(20);
+  });
+
+  it('recounts the years when the slider moves', async () => {
+    await renderPage();
+
+    fireEvent.change(screen.getByLabelText(m.home_math_slider_label()), { target: { value: '6' } });
+
+    expect(screen.getByText(m.home_math_result({ years: '7.5' }))).toBeInTheDocument();
+    expect(screen.getByText(m.home_math_axis_end({ years: '7.5' }))).toBeInTheDocument();
+  });
+
+  it('states the deal as three facts', async () => {
+    await renderPage();
+
+    expect(screen.getByText(m.home_deal_install_title())).toBeInTheDocument();
+    expect(screen.getByText(m.home_deal_free_title())).toBeInTheDocument();
+    expect(screen.getByText(m.home_deal_time_title())).toBeInTheDocument();
+  });
+
+  it('answers six objections', async () => {
+    const { container } = await renderPage();
+
+    expect(container.querySelectorAll('dt')).toHaveLength(6);
   });
 
   it('shows the search bar without any click', async () => {
