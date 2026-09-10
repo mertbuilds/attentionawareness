@@ -77,6 +77,11 @@ describe('Generator', () => {
     expect(screen.getAllByRole('button', { name: m.gen_app_remove() })).toHaveLength(BLOCKED_APPS);
   });
 
+  it('draws no rules between the sections', async () => {
+    await renderPage();
+    expect(screen.queryAllByRole('separator')).toHaveLength(0);
+  });
+
   it('shows the search bar without any click', async () => {
     await renderPage();
     expect(searchInput()).toBeVisible();
@@ -231,6 +236,18 @@ describe('Generator', () => {
     expect(xml).toContain('com.atebits.Tweetie2');
     expect(xml).toContain('<integer>1</integer>');
     expect(xml).toContain('<key>ContentFilterUUID</key>');
+  });
+
+  it('copies the shown XML and says so on the button', async () => {
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+    await renderPage();
+    await userEvent.click(screen.getByRole('button', { name: m.gen_show_xml() }));
+
+    await userEvent.click(screen.getByRole('button', { name: m.gen_copy() }));
+
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('<plist'));
+    expect(screen.getByRole('button', { name: m.gen_copied() })).toBeInTheDocument();
   });
 
   it('drops the web filter payload when the filter is turned off', async () => {

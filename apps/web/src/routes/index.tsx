@@ -7,11 +7,9 @@ import {
   CardTitle,
   Field,
   FieldDescription,
-  FieldError,
   FieldLabel,
   Input,
   Label,
-  Separator,
   Skeleton,
 } from '@keepyourattention/ui';
 import { colors, font, radius, spacing } from '@keepyourattention/ui/tokens.stylex';
@@ -51,6 +49,8 @@ const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 const POPPED_DEPTH = 99;
 /** How long an armed Remove waits for its second click before standing down. */
 const REMOVE_CONFIRM_MS = 3000;
+/** How long the Copy button holds its "Copied" label before standing down. */
+const COPY_FEEDBACK_MS = 2000;
 /**
  * The armed control is tracked by id, and the reset link needs one too. A colon
  * is not legal in a bundle id, so this can never collide with an app's row.
@@ -163,10 +163,9 @@ const styles = create({
   content: {
     display: 'flex',
     flexDirection: 'column',
-    gap: {
-      '@media (min-width: 640px)': spacing.s16,
-      default: spacing.s12,
-    },
+    // Nothing is drawn between the sections any more, so the gap carries the
+    // rhythm on its own at every width.
+    gap: spacing.s16,
     maxWidth: 760,
     width: '100%',
   },
@@ -338,6 +337,15 @@ const styles = create({
     overflow: 'auto',
     padding: spacing.s3,
   },
+  // Rides over the top-right corner of the XML and stays there while it scrolls.
+  preCopy: {
+    insetBlockStart: 8,
+    insetInlineEnd: 8,
+    position: 'absolute',
+  },
+  preWrap: {
+    position: 'relative',
+  },
   // The one destructive colour on the page: it means "this click deletes".
   removeArmed: {
     color: {
@@ -346,6 +354,11 @@ const styles = create({
     },
     fontWeight: font.weightMedium,
     minWidth: 48,
+  },
+  // Twice the button's own type. The box keeps its size; only the glyph grows.
+  removeGlyph: {
+    fontSize: '1.6rem',
+    lineHeight: 1,
   },
   removeIdle: {
     minWidth: 48,
@@ -500,12 +513,6 @@ const styles = create({
   stepLink: {
     display: 'inline-block',
     marginBlockStart: spacing.s2,
-  },
-  stepNumber: {
-    color: colors.muted,
-    fontFamily: MONOSPACE,
-    fontSize: font.sizeSm,
-    fontVariantNumeric: 'tabular-nums',
   },
   steps: {
     display: 'flex',
@@ -821,10 +828,12 @@ function Generator() {
   const [storefrontQuery, setStorefrontQuery] = useState('');
   const [armedRemove, setArmedRemove] = useState<string | null>(null);
   const [showXml, setShowXml] = useState(false);
+  const [copyState, setCopyState] = useState<'copied' | 'fallback' | 'idle'>('idle');
   const searchInput = useRef<HTMLInputElement>(null);
   const searchWrap = useRef<HTMLDivElement>(null);
   const storefrontFilter = useRef<HTMLInputElement>(null);
   const storefrontMenu = useRef<HTMLDivElement>(null);
+  const xmlBlock = useRef<HTMLPreElement>(null);
 
   const xml = useMemo(() => safeBuild(config), [config]);
   const blockedIds = useMemo(
@@ -861,8 +870,16 @@ function Generator() {
   useEffect(() => {
     const stored = readStoredConfig();
     if (stored !== null) {
-      setConfig(stored);
-      setUrlText(urlTextOf(stored));
+      // Identity is no longer editable, so a config saved while it was must not
+      // carry its own values back in.
+      const restored = {
+        ...stored,
+        displayName: presets.mert.displayName,
+        identifier: presets.mert.identifier,
+        organization: presets.mert.organization,
+      };
+      setConfig(restored);
+      setUrlText(urlTextOf(restored));
     }
     const preferred = initialStorefront();
     if (preferred !== FALLBACK_COUNTRY) {
@@ -982,6 +999,16 @@ function Generator() {
       document.removeEventListener('keydown', onKeyDown);
     };
   }, [armedRemove]);
+
+  // "Copied" is the whole receipt for a copy, so it goes back to "Copy" on its
+  // own. A failed copy keeps its label: the clipboard is still out of reach.
+  useEffect(() => {
+    if (copyState !== 'copied') {
+      return;
+    }
+    const timer = setTimeout(() => setCopyState('idle'), COPY_FEEDBACK_MS);
+    return () => clearTimeout(timer);
+  }, [copyState]);
 
   function update(next: ProfileConfig) {
     setConfig(next);
@@ -1135,6 +1162,35 @@ function Generator() {
     URL.revokeObjectURL(url);
   }
 
+  // Dragging a selection across a scrolling block is miserable, so one click
+  // anywhere in it takes the whole thing.
+  function selectXml() {
+    const block = xmlBlock.current;
+    const selection = window.getSelection();
+    if (block === null || selection === null) {
+      return;
+    }
+    const range = document.createRange();
+    range.selectNodeContents(block);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+
+  // No clipboard at all (insecure origin) and a denied one both land here: the
+  // XML gets selected instead, so Cmd+C still carries it out.
+  async function copyXml() {
+    if (xml === null) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(xml);
+      setCopyState('copied');
+    } catch {
+      selectXml();
+      setCopyState('fallback');
+    }
+  }
+
   const filter = config.webFilter;
   // Only a deny list "blocks sites"; an allow list blocks everything else.
   const blockedSites = filter.mode === 'deny' ? filter.deniedUrls.length : 0;
@@ -1144,6 +1200,13 @@ function Generator() {
       : filter.mode === 'allow'
         ? m.gen_summary_sites_allowed({ count: filter.allowedUrls.length })
         : m.gen_summary_sites_none();
+
+  const copyLabel =
+    copyState === 'copied'
+      ? m.gen_copied()
+      : copyState === 'fallback'
+        ? m.gen_copy_fallback()
+        : m.gen_copy();
 
   const howItWorks = [
     { body: m.home_how_profile_body(), guide: false, title: m.home_how_profile_title() },
@@ -1185,8 +1248,7 @@ function Generator() {
             {howItWorks.map((step, index) => (
               <Card key={step.title}>
                 <CardHeader>
-                  <span {...props(styles.stepNumber)}>{index + 1}</span>
-                  <CardTitle>{step.title}</CardTitle>
+                  <CardTitle>{m.home_step_heading({ n: index + 1, title: step.title })}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p {...props(styles.stepBody)}>{step.body}</p>
@@ -1383,47 +1445,16 @@ function Generator() {
                   style={armedRemove === app.bundleId ? styles.removeArmed : styles.removeIdle}
                   variant="ghost"
                 >
-                  {armedRemove === app.bundleId ? m.gen_remove_confirm() : '×'}
+                  {armedRemove === app.bundleId ? (
+                    m.gen_remove_confirm()
+                  ) : (
+                    <span {...props(styles.removeGlyph)}>×</span>
+                  )}
                 </Button>
               </li>
             ))}
           </ul>
         </section>
-
-        <Separator />
-
-        <section {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>{m.gen_identity_title()}</h2>
-          <Field data-invalid={xml === null || undefined}>
-            <FieldLabel htmlFor="identifier">{m.gen_identifier_label()}</FieldLabel>
-            <Input
-              aria-invalid={xml === null || undefined}
-              id="identifier"
-              onChange={(event) => update({ ...config, identifier: event.target.value })}
-              value={config.identifier}
-            />
-            <FieldDescription>{m.gen_identifier_help()}</FieldDescription>
-            {xml === null ? <FieldError>{m.gen_identifier_error()}</FieldError> : null}
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="display-name">{m.gen_display_name_label()}</FieldLabel>
-            <Input
-              id="display-name"
-              onChange={(event) => update({ ...config, displayName: event.target.value })}
-              value={config.displayName}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="organization">{m.gen_organization_label()}</FieldLabel>
-            <Input
-              id="organization"
-              onChange={(event) => update({ ...config, organization: event.target.value })}
-              value={config.organization}
-            />
-          </Field>
-        </section>
-
-        <Separator />
 
         <section {...props(styles.section)}>
           <h2 {...props(styles.sectionTitle)}>{m.gen_web_title()}</h2>
@@ -1524,8 +1555,6 @@ function Generator() {
           )}
         </section>
 
-        <Separator />
-
         <section {...props(styles.section)}>
           <div {...props(styles.titleRow)}>
             <h2 {...props(styles.sectionTitle)}>{m.gen_restrictions_title()}</h2>
@@ -1557,8 +1586,6 @@ function Generator() {
           </div>
         </section>
 
-        <Separator />
-
         <section {...props(styles.section)}>
           <Card>
             <CardHeader>
@@ -1588,7 +1615,16 @@ function Generator() {
                   {showXml ? m.gen_hide_xml() : m.gen_show_xml()}
                 </Button>
               </div>
-              {showXml && xml !== null ? <pre {...props(styles.pre)}>{xml}</pre> : null}
+              {showXml && xml !== null ? (
+                <div {...props(styles.preWrap)}>
+                  <pre onClick={selectXml} ref={xmlBlock} {...props(styles.pre)}>
+                    {xml}
+                  </pre>
+                  <Button onClick={() => void copyXml()} style={styles.preCopy} variant="outline">
+                    {copyLabel}
+                  </Button>
+                </div>
+              ) : null}
             </CardContent>
           </Card>
           <h3 {...props(styles.subTitle)}>{m.gen_install_title()}</h3>
@@ -1600,8 +1636,6 @@ function Generator() {
           </ol>
           <p {...props(layout.muted)}>{m.gen_install_note()}</p>
         </section>
-
-        <Separator />
 
         <footer {...props(styles.footer)}>
           <p {...props(layout.muted)}>
