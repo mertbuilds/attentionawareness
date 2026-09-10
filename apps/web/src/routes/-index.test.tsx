@@ -106,6 +106,11 @@ describe('Generator', () => {
     expect(screen.getAllByRole('button', { name: m.gen_app_remove() })).toHaveLength(BLOCKED_APPS);
   });
 
+  it('sends the long version of the pitch to /why', async () => {
+    await renderPage();
+    expect(screen.getByRole('link', { name: m.home_why_link() })).toHaveAttribute('href', '/why');
+  });
+
   it('draws no rules between the sections', async () => {
     await renderPage();
     expect(screen.queryAllByRole('separator')).toHaveLength(0);
@@ -280,13 +285,14 @@ describe('Generator', () => {
     expect(await downloadedXml()).not.toContain('https://youtu.be');
   });
 
-  it('drops a derived site the user turns off', async () => {
+  it('drops a derived site the user unticks', async () => {
     await renderPage();
-    const chip = screen.getByRole('button', { name: 'x.com', pressed: true });
+    const site = screen.getByRole('checkbox', { name: 'x.com' });
+    expect(site).toBeChecked();
 
-    await userEvent.click(chip);
+    await userEvent.click(site);
 
-    expect(screen.getByRole('button', { name: 'x.com' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('checkbox', { name: 'x.com' })).not.toBeChecked();
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
     expect(await downloadedXml()).not.toContain('<string>https://x.com</string>');
   });

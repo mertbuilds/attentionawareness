@@ -1,11 +1,18 @@
 /*
- * shadcn-style CSS variables consumed by src/lib/tokens.stylex.ts.
- * Black/white system: pure black-on-white, grays only for borders/muted/
- * disabled. Destructive/error is the one chromatic exception: red.
- * Dark mode flips via prefers-color-scheme. Radius: 8px surfaces (cards,
- * dialogs, popovers); pill controls (buttons, inputs) use radius.full.
+ * shadcn-style CSS variables consumed by src/lib/tokens.stylex.ts, plus the
+ * app-level `--kya-*` colors consumed by src/tokens.stylex.ts. Black/white
+ * system: pure black-on-white, grays only for borders/muted/disabled.
+ * Destructive/error is the one chromatic exception: red. Radius: 8px surfaces
+ * (cards, dialogs, popovers); pill controls (buttons, inputs) use radius.full.
+ *
+ * Theme has three states. `:root` holds light. The dark values are written
+ * twice: once behind the system preference (skipped when light is forced),
+ * once behind the forced attribute. `data-theme` absent = follow the system.
+ * Both blocks must stay in sync: a var defined in one and not the other is how
+ * a half-dark page happens.
  */
 :root {
+  color-scheme: light dark;
   --background: #ffffff;
   --foreground: #000000;
   --card: #ffffff;
@@ -34,10 +41,17 @@
   --sidebar-ring: #8a8a8a;
   --radius: 8px;
   --font-sans: 'Suisse Intl', 'Inter Variable', system-ui, sans-serif;
+  --kya-bg: #ffffff;
+  --kya-border: #d4d4d4;
+  --kya-disabled: #8a8a8a;
+  --kya-error: #dc2626;
+  --kya-fg: #000000;
+  --kya-muted: #8a8a8a;
+  --kya-warning: #d97706;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --background: #000000;
     --foreground: #ffffff;
     --card: #000000;
@@ -64,7 +78,59 @@
     --sidebar-accent-foreground: #ffffff;
     --sidebar-border: #3f3f3f;
     --sidebar-ring: #8a8a8a;
+    --kya-bg: #000000;
+    --kya-border: #3f3f3f;
+    --kya-disabled: #8a8a8a;
+    --kya-error: #f87171;
+    --kya-fg: #ffffff;
+    --kya-muted: #8a8a8a;
+    --kya-warning: #fbbf24;
   }
+}
+
+/* Forced dark. Same specificity as the media block above, so it has to come
+   after it to win when the system says light. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: #000000;
+  --card-foreground: #ffffff;
+  --popover: #000000;
+  --popover-foreground: #ffffff;
+  --primary: #ffffff;
+  --primary-foreground: #000000;
+  --secondary: #1a1a1a;
+  --secondary-foreground: #ffffff;
+  --muted: #1a1a1a;
+  --muted-foreground: #8a8a8a;
+  --accent: #1a1a1a;
+  --accent-foreground: #ffffff;
+  --destructive: #f87171;
+  --border: #3f3f3f;
+  --input: #3f3f3f;
+  --ring: #8a8a8a;
+  --sidebar: #000000;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #ffffff;
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent: #1a1a1a;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #3f3f3f;
+  --sidebar-ring: #8a8a8a;
+  --kya-bg: #000000;
+  --kya-border: #3f3f3f;
+  --kya-disabled: #8a8a8a;
+  --kya-error: #f87171;
+  --kya-fg: #ffffff;
+  --kya-muted: #8a8a8a;
+  --kya-warning: #fbbf24;
+}
+
+/* Forced light needs no values: the `:root` block already holds them, and the
+   dark media block skips this attribute. Only the native controls need telling. */
+:root[data-theme='light'] {
+  color-scheme: light;
 }
 
 /* Links: foreground with underline in the black/white system — never browser
