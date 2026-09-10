@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  burnOpacity,
   formatHours,
   formatYears,
-  HORIZON_YEARS,
+  ledgerItems,
   screenHours,
-  yearFill,
+  screenPercent,
 } from './attention-math.ts';
 
 describe('formatYears', () => {
@@ -36,16 +37,46 @@ describe('formatHours', () => {
   });
 });
 
-describe('yearFill', () => {
-  it('fills every year the total passes and nothing after it', () => {
-    expect(yearFill(4, 0)).toBe(100);
-    expect(yearFill(4, 4)).toBe(100);
-    expect(yearFill(4, 5)).toBe(0);
-    expect(yearFill(4, HORIZON_YEARS - 1)).toBe(0);
+describe('screenPercent', () => {
+  it('measures the years against the whole horizon', () => {
+    expect(screenPercent(4)).toBe(25);
+    expect(screenPercent(8)).toBe(50);
+  });
+});
+
+describe('burnOpacity', () => {
+  it('opens faint and reaches full colour at a working day', () => {
+    expect(burnOpacity(1)).toBe(0.35);
+    expect(burnOpacity(8)).toBe(1);
   });
 
-  it('fills the year the total lands in part of the way', () => {
-    expect(yearFill(3, 3)).toBe(75);
-    expect(yearFill(6, 7)).toBe(50);
+  it('never goes past full, however long the day is', () => {
+    expect(burnOpacity(10)).toBe(1);
+  });
+});
+
+describe('ledgerItems', () => {
+  it('adds a line for every threshold the day passes', () => {
+    expect(ledgerItems(1, 'en')).toHaveLength(2);
+    expect(ledgerItems(4, 'en')).toHaveLength(5);
+    expect(ledgerItems(8, 'en')).toHaveLength(8);
+  });
+
+  it('counts the books and the money the hours were worth', () => {
+    const items = ledgerItems(4, 'en');
+    expect(items.map((item) => item.key)).toEqual(['books', 'dinners', 'body', 'career', 'money']);
+    expect(items[0]?.number).toBe('3,650');
+    expect(items.at(-1)?.number).toBe('$584,000');
+  });
+
+  it('groups the numbers the way the locale does', () => {
+    expect(ledgerItems(4, 'tr')[0]?.number).toBe('3.650');
+  });
+
+  it('leaves the lines that carry no number without one', () => {
+    expect(ledgerItems(2, 'en')[1]).toEqual({
+      key: 'dinners',
+      text: 'every dinner with the people you love, for 20 years',
+    });
   });
 });

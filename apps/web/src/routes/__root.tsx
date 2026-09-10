@@ -1,7 +1,6 @@
 import { PostHogProvider } from '@posthog/react';
 import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-router';
 import { useEffect, type ReactNode } from 'react';
-import { Preferences } from '../components/preferences.tsx';
 import { clientEnv } from '../lib/env.ts';
 import { themeScript } from '../lib/theme.ts';
 import { getLocale } from '../paraglide/runtime.js';
@@ -57,7 +56,6 @@ function RootComponent() {
   return (
     <RootDocument>
       <Outlet />
-      <Preferences />
     </RootDocument>
   );
 }

@@ -23,6 +23,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppArtwork, artworkStyles } from '../components/app-artwork.tsx';
 import type { MetaCache } from '../components/app-artwork.tsx';
 import { AppIconFan, fanStyles } from '../components/app-icon-fan.tsx';
+import { Preferences } from '../components/preferences.tsx';
 import { ShareCard } from '../components/share-card.tsx';
 import type { AppResult } from '../lib/app-search.ts';
 import {
@@ -34,7 +35,13 @@ import {
   storefrontLabel,
   storefronts,
 } from '../lib/app-search.ts';
-import { formatHours, formatYears, HORIZON_YEARS, yearFill } from '../lib/attention-math.ts';
+import {
+  burnOpacity,
+  formatHours,
+  formatYears,
+  ledgerItems,
+  screenPercent,
+} from '../lib/attention-math.ts';
 import { layout } from '../lib/layout.ts';
 import { buildProfile, presets } from '../lib/profile/index.ts';
 import type { BlockedApp, ProfileConfig } from '../lib/profile/index.ts';
@@ -77,8 +84,13 @@ const HOURS_MIN = 1;
 const HOURS_MAX = 10;
 const HOURS_STEP = 0.5;
 const HOURS_DEFAULT = 4;
-/** One block per year of the horizon the math projects over. */
-const YEAR_BLOCKS = Array.from({ length: HORIZON_YEARS }, (_, year) => year);
+/** The four days the control offers, each with the life it describes. */
+const HOURS_PICKS = [
+  { anchor: m.home_math_pick_2_anchor, hours: 2, value: m.home_math_pick_2 },
+  { anchor: m.home_math_pick_4_anchor, hours: 4, value: m.home_math_pick_4 },
+  { anchor: m.home_math_pick_6_anchor, hours: 6, value: m.home_math_pick_6 },
+  { anchor: m.home_math_pick_8_anchor, hours: 8, value: m.home_math_pick_8 },
+];
 
 type WebMode = ProfileConfig['webFilter']['mode'];
 
@@ -95,6 +107,12 @@ type StoredState = {
   customSites: Array<string>;
   excludedSites: Array<string>;
 };
+
+/** A new line of the bill rises into place. Lines that are paid off just go. */
+const ledgerEnter = keyframes({
+  from: { opacity: 0, transform: 'translateY(6px)' },
+  to: { opacity: 1, transform: 'translateY(0)' },
+});
 
 /** The results drop in from just under the bar; they never animate out. */
 const resultsEnter = keyframes({
@@ -162,6 +180,79 @@ const styles = create({
     marginInlineStart: 'auto',
     padding: 0,
   },
+  // Twenty years, outlined and empty. Everything inside it is still the
+  // reader's; the red is what the habit has already claimed.
+  bar: {
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    boxSizing: 'border-box',
+    height: 56,
+    position: 'relative',
+    width: '100%',
+  },
+  // Solid from 12px in, transparent at the edge itself: the boundary reads as
+  // burned rather than cut. Its own width is the container the label reads.
+  barBurn: {
+    backgroundImage: `linear-gradient(to right, transparent 0px, ${colors.error} 12px)`,
+    // Inside the 1px border, so the corner stays concentric with the bar's 8px.
+    borderEndEndRadius: 7,
+    borderStartEndRadius: 7,
+    containerType: 'inline-size',
+    insetBlockEnd: 0,
+    insetBlockStart: 0,
+    insetInlineEnd: 0,
+    position: 'absolute',
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: '400ms',
+    },
+    transitionProperty: 'width, opacity',
+    transitionTimingFunction: 'ease-out',
+  },
+  barEnds: {
+    color: colors.muted,
+    display: 'flex',
+    fontSize: 12,
+    gap: spacing.s2,
+    justifyContent: 'space-between',
+  },
+  barFill: (percent: number, opacity: number) => ({
+    opacity,
+    width: `${percent}%`,
+  }),
+  // Inside the burned region while it is wide enough to hold the words, and
+  // just outside its edge when it is not.
+  barLabel: {
+    color: {
+      '@container (min-width: 140px)': colors.bg,
+      default: colors.error,
+    },
+    fontSize: font.sizeSm,
+    fontWeight: font.weightMedium,
+    insetBlockStart: '50%',
+    insetInlineEnd: {
+      '@container (min-width: 140px)': spacing.s3,
+      default: 'calc(100% + 8px)',
+    },
+    position: 'absolute',
+    transform: 'translateY(-50%)',
+    whiteSpace: 'nowrap',
+  },
+  // The one colour on the page, and it is a loss, never a score.
+  burn: {
+    color: colors.error,
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: '400ms',
+    },
+    transitionProperty: 'opacity',
+    transitionTimingFunction: 'ease-out',
+  },
+  burnInk: (opacity: number) => ({
+    opacity,
+  }),
   checkbox: {
     accentColor: colors.fg,
     flexShrink: 0,
@@ -250,6 +341,18 @@ const styles = create({
     margin: 0,
     textWrap: 'balance',
   },
+  // The slider is the second-line control: its label is the value it holds.
+  fine: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s2,
+    width: '100%',
+  },
+  fineText: {
+    color: colors.muted,
+    fontSize: 12,
+    fontVariantNumeric: 'tabular-nums',
+  },
   footer: {
     display: 'flex',
     flexDirection: 'column',
@@ -270,23 +373,40 @@ const styles = create({
     margin: 0,
     textWrap: 'balance',
   },
-  // Holds the width of its widest reading, so the slider beside it never steps
-  // sideways while the number changes.
-  hoursValue: {
-    fontSize: 'clamp(28px, 4vw, 36px)',
-    fontVariantNumeric: 'tabular-nums',
-    fontWeight: font.weightBold,
-    letterSpacing: '-0.02em',
-    lineHeight: 1,
-    minWidth: '2.8em',
-    textAlign: 'end',
-  },
   lead: {
     color: colors.muted,
     fontSize: 18,
     lineHeight: 1.5,
     margin: 0,
     textWrap: 'pretty',
+  },
+  ledger: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s2,
+    listStyleType: 'none',
+    margin: 0,
+    padding: 0,
+  },
+  // A line arrives when the day earns it; it leaves the moment it stops
+  // applying, because an exit would soften what it says.
+  ledgerItem: {
+    animationDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: '220ms',
+    },
+    animationName: ledgerEnter,
+    animationTimingFunction: 'ease-out',
+    fontSize: 18,
+    lineHeight: 1.4,
+    textWrap: 'pretty',
+  },
+  ledgerTitle: {
+    color: colors.muted,
+    fontSize: font.sizeMd,
+    fontWeight: font.weightMedium,
+    margin: 0,
+    marginBlockStart: spacing.s2,
   },
   list: {
     display: 'flex',
@@ -295,13 +415,6 @@ const styles = create({
     listStyleType: 'none',
     margin: 0,
     padding: 0,
-  },
-  mathAxis: {
-    color: colors.muted,
-    display: 'flex',
-    fontSize: font.sizeSm,
-    gap: spacing.s2,
-    justifyContent: 'space-between',
   },
   mathResult: {
     fontSize: 'clamp(40px, 4.6vw, 56px)',
@@ -335,6 +448,61 @@ const styles = create({
       default: spacing.s12,
     },
     paddingInline: spacing.s4,
+  },
+  // Big enough to answer with a thumb, and tall enough for the anchor under
+  // the number to wrap on a phone without the four boxes losing their row.
+  pick: {
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderColor: {
+      ':hover': colors.fg,
+      default: colors.border,
+    },
+    borderRadius: radius.base,
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    color: {
+      ':hover': colors.fg,
+      default: colors.muted,
+    },
+    cursor: 'pointer',
+    display: 'flex',
+    flexDirection: 'column',
+    fontFamily: 'inherit',
+    gap: spacing.s2,
+    justifyContent: 'center',
+    minHeight: 72,
+    paddingBlock: spacing.s3,
+    paddingInline: spacing.s2,
+    textAlign: 'center',
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: '150ms',
+    },
+    transitionProperty: 'border-color, color',
+    transitionTimingFunction: 'ease-out',
+  },
+  pickAnchor: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 1.3,
+    textWrap: 'balance',
+  },
+  pickOn: {
+    borderColor: colors.fg,
+    color: colors.fg,
+  },
+  pickRow: {
+    display: 'grid',
+    gap: spacing.s2,
+    gridTemplateColumns: 'repeat(4, 1fr)',
+    width: '100%',
+  },
+  pickValue: {
+    fontSize: 24,
+    fontVariantNumeric: 'tabular-nums',
+    fontWeight: font.weightMedium,
+    lineHeight: 1,
   },
   playGlyph: {
     display: 'block',
@@ -593,16 +761,6 @@ const styles = create({
     minWidth: 0,
     width: '100%',
   },
-  sliderLabel: {
-    flexGrow: 1,
-    minWidth: 0,
-  },
-  sliderRow: {
-    alignItems: 'center',
-    display: 'flex',
-    gap: spacing.s4,
-    width: '100%',
-  },
   srOnly: {
     borderWidth: 0,
     clip: 'rect(0, 0, 0, 0)',
@@ -782,42 +940,6 @@ const styles = create({
     gap: spacing.s2,
     justifyContent: 'center',
     maxWidth: '100%',
-    width: '100%',
-  },
-  yearBlock: {
-    borderColor: colors.border,
-    borderRadius: 2,
-    borderStyle: 'solid',
-    borderWidth: '1px',
-    boxSizing: 'border-box',
-    color: colors.fg,
-    // Ten blocks a row on a phone, all twenty on anything wider: each basis
-    // leaves room for exactly that many once the 4px gaps are paid for.
-    flexBasis: {
-      '@media (min-width: 640px)': 'calc(5% - 4px)',
-      default: 'calc(10% - 4px)',
-    },
-    flexGrow: 1,
-    height: {
-      '@media (min-width: 640px)': 48,
-      default: 40,
-    },
-    transitionDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: '200ms',
-    },
-    transitionProperty: 'background-image',
-    transitionTimingFunction: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
-  },
-  // The block's own colour is the fill, so one gradient stop carries the year:
-  // filled up to the stop, outline after it.
-  yearBlockFill: (percent: number) => ({
-    backgroundImage: `linear-gradient(to right, currentColor ${percent}%, transparent ${percent}%)`,
-  }),
-  yearRow: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: spacing.s1,
     width: '100%',
   },
 });
@@ -1520,6 +1642,9 @@ function Generator() {
   // The two numbers the whole narrative is written around.
   const years = formatYears(hours);
   const totalHours = formatHours(hours, getLocale());
+  // How much red the day has earned, and what it has already cost.
+  const burn = burnOpacity(hours);
+  const ledger = ledgerItems(hours, getLocale());
 
   const dealFacts = [
     m.home_deal_install_title(),
@@ -1574,39 +1699,67 @@ function Generator() {
       <div {...props(styles.content)}>
         <section {...props(styles.section)}>
           <h2 {...props(styles.sectionTitle)}>{m.home_math_title()}</h2>
-          <div {...props(styles.sliderRow)}>
-            <Label style={styles.sliderLabel}>
-              <span {...props(styles.srOnly)}>{m.home_math_slider_label()}</span>
-              <input
-                max={HOURS_MAX}
-                min={HOURS_MIN}
-                onChange={(event) => onHoursChange(Number(event.target.value))}
-                step={HOURS_STEP}
-                type="range"
-                value={hours}
-                {...props(styles.slider)}
-              />
-            </Label>
-            <span {...props(styles.hoursValue)}>{m.home_math_hours({ hours })}</span>
-          </div>
-          <p {...props(layout.muted)}>{m.home_math_help()}</p>
-          <p {...props(styles.mathResult)}>{m.home_math_result({ years })}</p>
-          {/* Twenty years as twenty blocks. The reading is in the summary below
-              it, so the row itself says nothing to a screen reader. */}
-          <div aria-hidden="true" {...props(styles.yearRow)}>
-            {YEAR_BLOCKS.map((year) => (
-              <span
-                key={year}
-                {...props(styles.yearBlock, styles.yearBlockFill(yearFill(hours, year)))}
-              />
+          {/* Four anchors carry the answer; the slider is only for the reader
+              who knows their own number to the half hour. */}
+          <div aria-label={m.home_math_pick_label()} role="radiogroup" {...props(styles.pickRow)}>
+            {HOURS_PICKS.map((pick) => (
+              <button
+                aria-checked={hours === pick.hours}
+                key={pick.hours}
+                onClick={() => onHoursChange(pick.hours)}
+                role="radio"
+                type="button"
+                {...props(styles.pick, hours === pick.hours && styles.pickOn)}
+              >
+                <span {...props(styles.pickValue)}>{pick.value()}</span>
+                <span {...props(styles.pickAnchor)}>{pick.anchor()}</span>
+              </button>
             ))}
           </div>
-          <p {...props(styles.srOnly)}>{m.home_math_blocks_summary({ years })}</p>
-          <div {...props(styles.mathAxis)}>
-            <span>{m.home_math_axis_start()}</span>
-            <span>{m.home_math_axis_end({ years })}</span>
+          <Label style={styles.fine}>
+            <span {...props(styles.fineText)}>{m.home_math_fine({ hours })}</span>
+            <input
+              max={HOURS_MAX}
+              min={HOURS_MIN}
+              onChange={(event) => onHoursChange(Number(event.target.value))}
+              step={HOURS_STEP}
+              type="range"
+              value={hours}
+              {...props(styles.slider)}
+            />
+          </Label>
+          <p {...props(layout.muted)}>{m.home_math_help()}</p>
+          {/* The years are the loss, so they are the only red in the line. */}
+          <p {...props(styles.mathResult)}>
+            {m.home_math_result_before()}{' '}
+            <span {...props(styles.burn, styles.burnInk(burn))}>{years}</span>{' '}
+            {m.home_math_result_after()}
+          </p>
+          <div {...props(styles.barEnds)}>
+            <span>{m.home_math_bar_start()}</span>
+            <span>{m.home_math_bar_end()}</span>
           </div>
-          <p {...props(layout.muted)}>{m.home_math_secondary({ hours })}</p>
+          {/* One bar, burning in from the end of the twenty years. The reading
+              is in the summary below it, so the bar says nothing itself. */}
+          <div aria-hidden="true" {...props(styles.bar)}>
+            <div {...props(styles.barBurn, styles.barFill(screenPercent(hours), burn))}>
+              <span {...props(styles.barLabel)}>{m.home_math_bar_years({ years })}</span>
+            </div>
+          </div>
+          <p {...props(styles.srOnly)}>{m.home_math_blocks_summary({ years })}</p>
+          <h3 {...props(styles.ledgerTitle)}>{m.home_ledger_title()}</h3>
+          <ul {...props(styles.ledger)}>
+            {ledger.map((item) => (
+              <li key={item.key} {...props(styles.ledgerItem)}>
+                {item.number === undefined ? null : (
+                  <>
+                    <span {...props(styles.burn, styles.burnInk(burn))}>{item.number}</span>{' '}
+                  </>
+                )}
+                {item.text}
+              </li>
+            ))}
+          </ul>
         </section>
 
         <section {...props(styles.section)}>
@@ -2151,6 +2304,7 @@ function Generator() {
             </a>
           </p>
           <p {...props(layout.muted)}>{m.gen_footer_not_apple()}</p>
+          <Preferences />
         </footer>
       </div>
     </main>

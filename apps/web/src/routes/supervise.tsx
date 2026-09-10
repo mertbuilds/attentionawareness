@@ -12,6 +12,7 @@ import { colors, font, radius, spacing } from '@keepyourattention/ui/tokens.styl
 import { create, props } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
+import { Preferences } from '../components/preferences.tsx';
 import { layout } from '../lib/layout.ts';
 import { m } from '../paraglide/messages.js';
 
@@ -441,6 +442,7 @@ function SuperviseGuide() {
             </a>
           </p>
           <p {...props(layout.muted)}>{m.gen_footer_not_apple()}</p>
+          <Preferences />
         </footer>
       </div>
     </main>
