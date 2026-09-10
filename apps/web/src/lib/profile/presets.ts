@@ -7,7 +7,6 @@ export const presets: Record<'mert' | 'stopa' | 'minimal', ProfileConfig> = {
     allowPrivateBrowsing: true,
     autoFilterAdult: false,
     blockedApps: [
-      { bundleId: 'com.atebits.Tweetie2', name: 'X' },
       { bundleId: 'com.burbn.instagram', name: 'Instagram' },
       { bundleId: 'com.burbn.barcelona', name: 'Threads' },
       { bundleId: 'com.zhiliaoapp.musically', name: 'TikTok' },
@@ -19,6 +18,7 @@ export const presets: Record<'mert' | 'stopa' | 'minimal', ProfileConfig> = {
       { bundleId: 'com.linkedin.LinkedIn', name: 'LinkedIn' },
       { bundleId: 'pinterest', name: 'Pinterest' },
       { bundleId: 'com.amazon.aiv.AIVApp', name: 'Prime Video' },
+      { bundleId: 'com.atebits.Tweetie2', name: 'X' },
     ],
     displayName: 'keepyourattention',
     identifier: 'com.keepyourattention.profile',
