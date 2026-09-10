@@ -98,6 +98,8 @@ describe('Generator', () => {
   beforeEach(() => {
     createObjectURL.mockClear();
     globalThis.localStorage.clear();
+    // A shared link is read off the address bar, so every test starts on a bare one.
+    window.history.replaceState({}, '', '/');
   });
 
   it('opens with the headline and the recommended apps', async () => {
@@ -150,8 +152,13 @@ describe('Generator', () => {
 
   it('names the hovered app in a tooltip', async () => {
     await renderPage();
+    // The headline and the share card both draw a fan; either one answers.
+    const [youtube] = screen.getAllByRole('button', { name: 'YouTube' });
+    if (youtube === undefined) {
+      throw new Error('The preset should render a YouTube icon');
+    }
 
-    await userEvent.hover(screen.getByRole('button', { name: 'YouTube' }));
+    await userEvent.hover(youtube);
 
     expect(screen.getByRole('tooltip')).toHaveTextContent('YouTube');
   });
@@ -380,6 +387,49 @@ describe('Generator', () => {
 
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining('<plist'));
     expect(screen.getByRole('button', { name: m.gen_copied() })).toBeInTheDocument();
+  });
+
+  it('shows the years on a share card and points the buttons at the intents', async () => {
+    await renderPage();
+
+    expect(screen.getByText(m.share_card_years({ years: '5' }))).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: m.share_x() })).toHaveAttribute(
+      'href',
+      expect.stringContaining('intent/post'),
+    );
+  });
+
+  it('copies the share link and says so on the button', async () => {
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+    await renderPage();
+
+    await userEvent.click(screen.getByRole('button', { name: m.share_copy() }));
+
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('keepyourattention.com/?h=4'));
+    expect(screen.getByRole('button', { name: m.share_copied() })).toBeInTheDocument();
+  });
+
+  it('opens on the hours and the apps a shared link carries', async () => {
+    window.history.replaceState({}, '', '/?h=6&a=ig,tt');
+
+    await renderPage();
+
+    expect(screen.getByText(m.home_math_result({ years: '7.5' }))).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: m.gen_app_remove() })).toHaveLength(2);
+    expect(screen.getByText('com.burbn.instagram')).toBeInTheDocument();
+    expect(screen.getByText('com.zhiliaoapp.musically')).toBeInTheDocument();
+    expect(screen.getByText(m.share_banner({ years: '7.5' }))).toBeInTheDocument();
+  });
+
+  it('keeps the shared list out of storage until the reader changes something', async () => {
+    window.history.replaceState({}, '', '/?h=6&a=ig,tt');
+    await renderPage();
+    expect(globalThis.localStorage.getItem('kya:config')).toBeNull();
+
+    await userEvent.click(screen.getByRole('button', { name: m.share_banner_dismiss() }));
+
+    expect(screen.queryByText(m.share_banner({ years: '7.5' }))).not.toBeInTheDocument();
   });
 
   it('drops the web filter payload when the filter is turned off', async () => {
