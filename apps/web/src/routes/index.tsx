@@ -14,9 +14,12 @@ import {
 } from '@keepyourattention/ui';
 import { colors, font, radius, spacing } from '@keepyourattention/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
-import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AppArtwork, artworkStyles } from '../components/app-artwork.tsx';
+import type { MetaCache } from '../components/app-artwork.tsx';
+import { AppIconFan, fanStyles } from '../components/app-icon-fan.tsx';
+import { ShareCard } from '../components/share-card.tsx';
 import type { AppResult } from '../lib/app-search.ts';
 import {
   defaultStorefront,
@@ -31,6 +34,7 @@ import { formatHours, formatYears, HORIZON_YEARS, yearFill } from '../lib/attent
 import { layout } from '../lib/layout.ts';
 import { buildProfile, presets } from '../lib/profile/index.ts';
 import type { BlockedApp, ProfileConfig } from '../lib/profile/index.ts';
+import { decodeShare } from '../lib/share.ts';
 import { normalizeUrl, sitesForApp, sitesForApps } from '../lib/sites.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
@@ -52,8 +56,6 @@ const SUPERVISE_URL = '/supervise';
 const STOPA_URL = 'https://stopa.io/post/297';
 const PROFILE_MIME = 'application/x-apple-aspen-config';
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
-/** Above every other icon in the fan, whatever the stack order says. */
-const POPPED_DEPTH = 99;
 /** How long an armed Remove waits for its second click before standing down. */
 const REMOVE_CONFIRM_MS = 3000;
 /** How long the Copy button holds its "Copied" label before standing down. */
@@ -89,14 +91,6 @@ type StoredState = {
   excludedSites: Array<string>;
 };
 
-/**
- * What the App Store knows about one blocked app. The config stores only a
- * bundle id and a name, so artwork and developer are fetched and cached here:
- * `undefined` is still loading, `null` is a storefront that has no such app.
- */
-type AppMeta = { developer: string; iconUrl: string };
-type MetaCache = Record<string, AppMeta | null>;
-
 /** The results drop in from just under the bar; they never animate out. */
 const resultsEnter = keyframes({
   from: { opacity: 0, transform: 'translateY(4px)' },
@@ -131,27 +125,37 @@ const styles = create({
     gap: spacing.s1,
     minWidth: 0,
   },
-  artwork: {
+  banner: {
+    alignItems: 'center',
     borderColor: colors.border,
+    borderRadius: 999,
     borderStyle: 'solid',
     borderWidth: '1px',
     boxSizing: 'border-box',
-    display: 'block',
-    flexShrink: 0,
-    objectFit: 'cover',
-  },
-  artworkInitials: {
-    alignItems: 'center',
     color: colors.muted,
     display: 'flex',
     fontSize: font.sizeSm,
-    fontWeight: font.weightMedium,
-    justifyContent: 'center',
-    letterSpacing: '0.02em',
-    lineHeight: 1,
+    gap: spacing.s2,
+    maxWidth: 760,
+    paddingBlock: spacing.s2,
+    paddingInline: spacing.s4,
+    textWrap: 'pretty',
+    width: '100%',
   },
-  artworkPending: {
-    backgroundColor: colors.border,
+  bannerDismiss: {
+    backgroundColor: 'transparent',
+    borderStyle: 'none',
+    borderWidth: 0,
+    color: {
+      ':hover': colors.fg,
+      default: colors.muted,
+    },
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    fontSize: 18,
+    lineHeight: 1,
+    marginInlineStart: 'auto',
+    padding: 0,
   },
   checkbox: {
     accentColor: colors.fg,
@@ -225,23 +229,6 @@ const styles = create({
       default: '1fr',
     },
   },
-  fan: {
-    alignItems: 'center',
-    display: 'inline-flex',
-    marginInline: '0.3em',
-    verticalAlign: 'middle',
-  },
-  fanArtwork: {
-    borderRadius: 9,
-    height: {
-      '@media (min-width: 640px)': 40,
-      default: 32,
-    },
-    width: {
-      '@media (min-width: 640px)': 40,
-      default: 32,
-    },
-  },
   fanHeadline: {
     fontSize: 'clamp(22px, 3.2vw, 28px)',
     fontWeight: font.weightBold,
@@ -249,74 +236,6 @@ const styles = create({
     lineHeight: 1.6,
     margin: 0,
     textWrap: 'balance',
-  },
-  fanItem: {
-    backgroundColor: 'transparent',
-    borderRadius: 9,
-    borderStyle: 'none',
-    borderWidth: 0,
-    boxShadow: {
-      ':focus-visible': `0 0 0 3px ${colors.muted}`,
-      default: null,
-    },
-    cursor: 'pointer',
-    display: 'block',
-    lineHeight: 0,
-    margin: 0,
-    outlineStyle: 'none',
-    padding: 0,
-    position: 'relative',
-    transitionDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: '220ms',
-    },
-    transitionProperty: 'transform',
-    transitionTimingFunction: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
-  },
-  fanNudgeEnd: {
-    transform: {
-      '@media (prefers-reduced-motion: reduce)': 'none',
-      default: 'translateX(4px)',
-    },
-  },
-  fanNudgeStart: {
-    transform: {
-      '@media (prefers-reduced-motion: reduce)': 'none',
-      default: 'translateX(-4px)',
-    },
-  },
-  fanOverlap: {
-    marginInlineStart: {
-      '@media (min-width: 640px)': -24,
-      default: -19,
-    },
-  },
-  fanPop: {
-    transform: {
-      '@media (prefers-reduced-motion: reduce)': 'none',
-      default: 'translateY(-8px) scale(1.15)',
-    },
-  },
-  fanStack: (depth: number) => ({
-    zIndex: depth,
-  }),
-  // Rides inside the popped icon, so it keeps its 8px gap through the pop.
-  fanTooltip: {
-    backgroundColor: colors.fg,
-    borderRadius: 999,
-    color: colors.bg,
-    fontSize: 12,
-    fontWeight: font.weightRegular,
-    insetBlockEnd: 'calc(100% + 8px)',
-    insetInlineStart: '50%',
-    lineHeight: 1.4,
-    paddingBlock: 4,
-    paddingInline: 8,
-    pointerEvents: 'none',
-    position: 'absolute',
-    transform: 'translateX(-50%)',
-    whiteSpace: 'nowrap',
-    zIndex: 1,
   },
   footer: {
     display: 'flex',
@@ -1055,9 +974,18 @@ function initialStorefront(): string {
   return storefronts.some((storefront) => storefront.code === code) ? code : FALLBACK_COUNTRY;
 }
 
-/** Stand-in artwork for an app the App Store did not answer for. */
-function initials(name: string): string {
-  return name.trim().slice(0, 2).toUpperCase();
+/** The names the recommended list already knows, keyed by bundle id. */
+const PRESET_NAMES: Record<string, string> = Object.fromEntries(
+  presets.mert.blockedApps.map((app) => [app.bundleId, app.name]),
+);
+
+/**
+ * One app out of a shared link. A link carries bundle ids and nothing else, so
+ * a name the recommended list does not know falls back to the last label of
+ * the id, which reads well enough until the App Store lookup lands.
+ */
+function sharedApp(bundleId: string): BlockedApp {
+  return { bundleId, name: PRESET_NAMES[bundleId] ?? bundleId.split('.').at(-1) ?? bundleId };
 }
 
 /**
@@ -1092,86 +1020,6 @@ function safeBuild(config: ProfileConfig): string | null {
   }
 }
 
-/** Apple's own icon, a neutral tile while it loads, initials when it never comes. */
-function AppArtwork({
-  meta,
-  name,
-  style,
-}: {
-  meta: AppMeta | null | undefined;
-  name: string;
-  style: StyleXStyles;
-}) {
-  if (meta === undefined) {
-    return <span {...props(styles.artwork, styles.artworkPending, style)} />;
-  }
-  if (meta === null || meta.iconUrl === '') {
-    return <span {...props(styles.artwork, styles.artworkInitials, style)}>{initials(name)}</span>;
-  }
-  return <img alt={name} src={meta.iconUrl} {...props(styles.artwork, style)} />;
-}
-
-/**
- * The blocked apps as a stack of cards. Hover pops one icon to the front and
- * eases its neighbours aside; touch, which has no hover, toggles the same pop
- * on tap. The popped icon names itself in a tooltip, so the fan reads without
- * a pointer resting on it. Only one icon pops, so one tooltip id is enough.
- */
-function AppIconFan({ apps, meta }: { apps: ReadonlyArray<BlockedApp>; meta: MetaCache }) {
-  const [popped, setPopped] = useState<string | null>(null);
-  const tooltipId = useId();
-  const poppedIndex = apps.findIndex((app) => app.bundleId === popped);
-  const hasPop = poppedIndex !== -1;
-
-  return (
-    <span {...props(styles.fan)}>
-      {apps.map((app, index) => (
-        <button
-          aria-describedby={popped === app.bundleId ? tooltipId : undefined}
-          aria-label={app.name}
-          key={app.bundleId}
-          onBlur={() => setPopped(null)}
-          onFocus={() => setPopped(app.bundleId)}
-          onPointerEnter={(event) => {
-            if (event.pointerType !== 'touch') {
-              setPopped(app.bundleId);
-            }
-          }}
-          onPointerLeave={(event) => {
-            if (event.pointerType !== 'touch') {
-              setPopped(null);
-            }
-          }}
-          onPointerUp={(event) => {
-            // A touch never hovers, so the tap itself is the toggle.
-            if (event.pointerType === 'touch') {
-              setPopped(popped === app.bundleId ? null : app.bundleId);
-            }
-          }}
-          type="button"
-          {...props(
-            styles.fanItem,
-            index > 0 && styles.fanOverlap,
-            // Earlier icons overlap later ones: the first app owns the top of
-            // the stack, the last one the bottom.
-            styles.fanStack(popped === app.bundleId ? POPPED_DEPTH : apps.length - index),
-            popped === app.bundleId && styles.fanPop,
-            hasPop && poppedIndex === index + 1 && styles.fanNudgeStart,
-            hasPop && poppedIndex === index - 1 && styles.fanNudgeEnd,
-          )}
-        >
-          <AppArtwork meta={meta[app.bundleId]} name={app.name} style={styles.fanArtwork} />
-          {popped === app.bundleId ? (
-            <span id={tooltipId} role="tooltip" {...props(styles.fanTooltip)}>
-              {app.name}
-            </span>
-          ) : null}
-        </button>
-      ))}
-    </span>
-  );
-}
-
 function Generator() {
   // What the reader tells the math section their day looks like.
   const [hours, setHours] = useState(HOURS_DEFAULT);
@@ -1194,6 +1042,11 @@ function Generator() {
   const [armedRemove, setArmedRemove] = useState<string | null>(null);
   const [showXml, setShowXml] = useState(false);
   const [copyState, setCopyState] = useState<'copied' | 'fallback' | 'idle'>('idle');
+  // The second share block only makes sense once there is something to share.
+  const [downloaded, setDownloaded] = useState(false);
+  // The years the link that brought the reader here was bragging about. It is
+  // the friend's number, so the reader's own slider never rewrites it.
+  const [friendYears, setFriendYears] = useState<string | null>(null);
   const searchInput = useRef<HTMLInputElement>(null);
   const searchWrap = useRef<HTMLDivElement>(null);
   const storefrontFilter = useRef<HTMLInputElement>(null);
@@ -1251,6 +1104,7 @@ function Generator() {
   /* oxlint-disable react/set-state-in-effect -- one-shot restore from browser-only storage */
   useEffect(() => {
     const stored = readStored();
+    const shared = decodeShare(globalThis.location.search);
     if (stored !== null) {
       // Identity is no longer editable, so a config saved while it was must not
       // carry its own values back in.
@@ -1264,9 +1118,16 @@ function Generator() {
       setCustomSites(stored.customSites);
       setExcludedSites(stored.excludedSites);
       setUrlText(urlTextOf(restored, stored.customSites));
+    } else if (shared.bundleIds.length > 0) {
+      // A shared list is a suggestion, not the reader's own work: it is not
+      // written to storage until they change something themselves.
+      setConfig({ ...presets.mert, blockedApps: shared.bundleIds.map(sharedApp) });
     }
     const storedHours = readHours();
-    if (storedHours !== null) {
+    if (shared.hours !== undefined) {
+      setHours(shared.hours);
+      setFriendYears(formatYears(shared.hours));
+    } else if (storedHours !== null) {
       setHours(storedHours);
     }
     const preferred = initialStorefront();
@@ -1577,6 +1438,7 @@ function Generator() {
     anchor.click();
     anchor.remove();
     URL.revokeObjectURL(url);
+    setDownloaded(true);
   }
 
   // Dragging a selection across a scrolling block is miserable, so one click
@@ -1667,6 +1529,19 @@ function Generator() {
 
   return (
     <main {...props(styles.page)}>
+      {friendYears === null ? null : (
+        <div {...props(styles.banner)}>
+          <span>{m.share_banner({ years: friendYears })}</span>
+          <button
+            aria-label={m.share_banner_dismiss()}
+            onClick={() => setFriendYears(null)}
+            type="button"
+            {...props(styles.bannerDismiss)}
+          >
+            ×
+          </button>
+        </div>
+      )}
       <header {...props(styles.hero)}>
         <h1 {...props(styles.heroTitle)}>
           <span>{m.home_hero_line_1()}</span>
@@ -1710,6 +1585,13 @@ function Generator() {
             <span>{m.home_math_axis_end({ years })}</span>
           </div>
           <p {...props(layout.muted)}>{m.home_math_secondary({ hours })}</p>
+          <ShareCard
+            apps={config.blockedApps}
+            heading={m.share_heading_years()}
+            hours={hours}
+            meta={meta}
+            years={years}
+          />
         </section>
 
         <section {...props(styles.section)}>
@@ -1717,7 +1599,7 @@ function Generator() {
           <h2 {...props(styles.fanHeadline)}>
             {m.home_fan_before()}
             {config.blockedApps.length === 0 ? (
-              <span {...props(styles.fan)}>{m.home_fan_empty()}</span>
+              <span {...props(fanStyles.fan)}>{m.home_fan_empty()}</span>
             ) : (
               <AppIconFan apps={config.blockedApps} meta={meta} />
             )}
@@ -1939,7 +1821,7 @@ function Generator() {
                         <img
                           alt={shortAppName(app.name)}
                           src={app.iconUrl}
-                          {...props(styles.artwork, styles.resultArtwork)}
+                          {...props(artworkStyles.artwork, styles.resultArtwork)}
                         />
                         <span {...props(styles.appText)}>
                           {/* The full App Store title stays one hover away. */}
@@ -2216,6 +2098,15 @@ function Generator() {
                     {copyLabel}
                   </Button>
                 </div>
+              ) : null}
+              {downloaded ? (
+                <ShareCard
+                  apps={config.blockedApps}
+                  heading={m.share_heading_output()}
+                  hours={hours}
+                  meta={meta}
+                  years={years}
+                />
               ) : null}
             </CardContent>
           </Card>

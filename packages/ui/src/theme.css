@@ -134,18 +134,20 @@
 }
 
 /* Links: foreground with underline in the black/white system — never browser
-   blue/purple, and :visited must not diverge. */
-a {
+   blue/purple, and :visited must not diverge. These rules sit outside StyleX's
+   layers, so they beat every component style: a Button rendered as an anchor
+   has to be excluded by hand, or it draws a link underline through its pill. */
+a:not([data-slot='button']) {
   color: inherit;
   text-decoration-line: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 2px;
 }
 
-a:visited {
+a:not([data-slot='button']):visited {
   color: inherit;
 }
 
-a:hover {
+a:not([data-slot='button']):hover {
   text-decoration-thickness: 2px;
 }
