@@ -28,6 +28,7 @@
   "gen_display_name_label": "Display name",
   "gen_organization_label": "Organization",
   "gen_app_search_open": "Add app to block",
+  "gen_app_search_hint": "search the app store",
   "gen_storefront_label": "App Store country",
   "gen_app_search_label": "Search the App Store",
   "gen_app_search_placeholder": "Instagram",
