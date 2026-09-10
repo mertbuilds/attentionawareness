@@ -107,11 +107,6 @@ describe('Generator', () => {
     expect(screen.getAllByRole('button', { name: m.gen_app_remove() })).toHaveLength(BLOCKED_APPS);
   });
 
-  it('sends the long version of the pitch to /why', async () => {
-    await renderPage();
-    expect(screen.getByRole('link', { name: m.home_why_link() })).toHaveAttribute('href', '/why');
-  });
-
   it('draws no rules between the sections', async () => {
     await renderPage();
     expect(screen.queryAllByRole('separator')).toHaveLength(0);

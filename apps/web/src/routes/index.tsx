@@ -49,7 +49,6 @@ const REPO_URL = 'https://github.com/mertbuilds/keepyourattention';
 const BUILDER_URL = 'https://mertbuilds.com';
 const STARTER_URL = 'https://cleanstarter.dev';
 const SUPERVISE_URL = '/supervise';
-const WHY_URL = '/why';
 const STOPA_URL = 'https://stopa.io/post/297';
 const PROFILE_MIME = 'application/x-apple-aspen-config';
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
@@ -341,12 +340,6 @@ const styles = create({
     lineHeight: 1.04,
     margin: 0,
     textWrap: 'balance',
-  },
-  heroWhy: {
-    color: colors.muted,
-    display: 'inline-block',
-    fontSize: font.sizeSm,
-    marginBlockStart: spacing.s3,
   },
   // Holds the width of its widest reading, so the slider beside it never steps
   // sideways while the number changes.
@@ -1679,9 +1672,6 @@ function Generator() {
           <span>{m.home_hero_line_1()}</span>
           <span {...props(styles.heroQuiet)}>{m.home_hero_line_2()}</span>
         </h1>
-        <a href={WHY_URL} {...props(styles.heroWhy)}>
-          {m.home_why_link()}
-        </a>
       </header>
 
       <div {...props(styles.content)}>
