@@ -44,11 +44,31 @@ describe('Generator', () => {
     globalThis.localStorage?.clear();
   });
 
-  it('opens with the headline and the default preset', async () => {
+  it('opens with the headline and the recommended apps', async () => {
     await renderPage();
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(m.home_hero_line_1());
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(m.home_hero_line_2());
     expect(screen.getAllByRole('button', { name: m.gen_app_remove() })).toHaveLength(11);
+  });
+
+  it('reveals the search panel only when asked for it', async () => {
+    await renderPage();
+    expect(screen.queryByLabelText(m.gen_app_search_label())).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(m.gen_storefront_label())).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: m.gen_app_search_open() }));
+
+    expect(screen.getByLabelText(m.gen_app_search_label())).toBeInTheDocument();
+    expect(screen.getByRole('combobox')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: m.gen_app_search_open() })).not.toBeInTheDocument();
+  });
+
+  it('lists nothing while the search box is empty', async () => {
+    await renderPage();
+    await userEvent.click(screen.getByRole('button', { name: m.gen_app_search_open() }));
+
+    expect(screen.queryByRole('button', { name: m.gen_app_add() })).not.toBeInTheDocument();
+    expect(screen.queryByText(m.gen_app_results_empty())).not.toBeInTheDocument();
   });
 
   it('downloads the built profile', async () => {
@@ -70,6 +90,7 @@ describe('Generator', () => {
 
   it('shows the picked storefront in the trigger', async () => {
     await renderPage();
+    await userEvent.click(screen.getByRole('button', { name: m.gen_app_search_open() }));
     const trigger = screen.getByRole('combobox');
     expect(trigger).toHaveTextContent('United States');
 
