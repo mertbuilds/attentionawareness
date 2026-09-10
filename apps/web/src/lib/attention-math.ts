@@ -12,12 +12,6 @@ const HOURS_ROUNDING = 100;
 const HOURS_PER_BOOK = 6;
 /** What the ledger pays the reader for the hours they gave away. */
 const DOLLARS_PER_HOUR = 20;
-/** The red is never absent, and it is full at the end of the slider. */
-const BURN_MIN_OPACITY = 0.3;
-const BURN_MIN_HOURS = 1;
-const BURN_FULL_HOURS = 10;
-/** The opacity carries two decimals; nothing finer is visible. */
-const PRECISION = 100;
 
 /** How far ahead the page projects a daily habit. */
 export const HORIZON_YEARS = 20;
@@ -94,16 +88,6 @@ export function formatHours(hoursPerDay: number, locale: string): string {
 }
 
 /**
- * How present the red is. An hour a day is a stain; the end of the slider is
- * the full colour, with nothing held back.
- */
-export function burnOpacity(hoursPerDay: number): number {
-  const span = BURN_FULL_HOURS - BURN_MIN_HOURS;
-  const progress = Math.min(1, Math.max(0, (hoursPerDay - BURN_MIN_HOURS) / span));
-  return round(BURN_MIN_OPACITY + progress * (1 - BURN_MIN_OPACITY));
-}
-
-/**
  * What the habit takes, as sentences. Every line the day has earned, in the
  * order the page prints them, each with its own leading number where it has
  * one. The numbers are grouped for the reader's locale, and so is the text.
@@ -123,8 +107,4 @@ export function ledgerItems(hoursPerDay: number, locale: Locale): Array<LedgerIt
 /** The waking hours inside the screen years, unrounded: the ledger counts them. */
 function exactHours(hoursPerDay: number): number {
   return screenYears(hoursPerDay) * DAYS_PER_YEAR * WAKING_HOURS;
-}
-
-function round(value: number): number {
-  return Math.round(value * PRECISION) / PRECISION;
 }

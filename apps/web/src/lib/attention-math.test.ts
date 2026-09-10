@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  burnOpacity,
-  formatHours,
-  formatYears,
-  ledgerItems,
-  screenHours,
-} from './attention-math.ts';
+import { formatHours, formatYears, ledgerItems, screenHours } from './attention-math.ts';
 
 describe('formatYears', () => {
   it('turns hours a day into years of the next twenty', () => {
@@ -33,17 +27,6 @@ describe('formatHours', () => {
   it('groups thousands the way the locale does', () => {
     expect(formatHours(4, 'en')).toBe('29,200');
     expect(formatHours(4, 'tr')).toBe('29.200');
-  });
-});
-
-describe('burnOpacity', () => {
-  it('opens faint and reaches full colour at the end of the slider', () => {
-    expect(burnOpacity(1)).toBe(0.3);
-    expect(burnOpacity(10)).toBe(1);
-  });
-
-  it('never goes past full, however long the day is', () => {
-    expect(burnOpacity(12)).toBe(1);
   });
 });
 
