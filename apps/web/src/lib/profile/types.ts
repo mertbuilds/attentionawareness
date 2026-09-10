@@ -2,6 +2,8 @@
 export type BlockedApp = {
   bundleId: string;
   name: string;
+  /** Apple's developer website, kept so the app's sites can be derived. */
+  sellerUrl?: string | undefined;
 };
 
 export type ProfileConfig = {

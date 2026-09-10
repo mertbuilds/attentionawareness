@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { presets } from '../lib/profile/index.ts';
@@ -14,17 +14,33 @@ const createObjectURL = vi.fn<(blob: Blob) => string>(() => 'blob:profile');
 URL.createObjectURL = createObjectURL;
 URL.revokeObjectURL = vi.fn();
 
-/** The one app the stubbed App Store answers a search with. */
+// This jsdom exposes no Storage either, and the saved config is read from one.
+const storage = new Map<string, string>();
+Object.defineProperty(globalThis, 'localStorage', {
+  configurable: true,
+  value: {
+    clear: () => storage.clear(),
+    getItem: (key: string) => storage.get(key) ?? null,
+    removeItem: (key: string) => storage.delete(key),
+    setItem: (key: string, value: string) => storage.set(key, value),
+  },
+});
+
+/**
+ * The one app the stubbed App Store answers a search with. No curated entry
+ * carries its bundle id, so its site is the one behind the seller url.
+ */
 const SEARCH_RESULT = {
-  artistName: 'Snap, Inc.',
-  artworkUrl100: 'https://example.test/snapchat.png',
-  bundleId: 'com.toyopagroup.picaboo',
+  artistName: 'Example, Inc.',
+  artworkUrl100: 'https://example.test/example.png',
+  bundleId: 'com.example.chat',
+  sellerUrl: 'https://www.example.com/mobile',
   trackId: 447_188_370,
-  trackName: 'Snapchat - Video & Photo Chat',
+  trackName: 'Example - Video & Photo Chat',
 };
 
 /** The same app as the UI names it: the title without its tagline. */
-const SEARCH_RESULT_NAME = 'Snapchat';
+const SEARCH_RESULT_NAME = 'Example';
 
 // Tests stay offline. The mount-time lookup answers with nothing, so every
 // blocked icon falls back to an initials tile; a search answers with one app.
@@ -55,6 +71,20 @@ function countryButton(): HTMLElement {
   return screen.getByRole('button', { name: m.gen_storefront_label() });
 }
 
+/** The remove button of one blocked app, found through its bundle id. */
+function removeButtonFor(bundleId: string): HTMLElement {
+  const row = screen.getByText(bundleId).closest('li');
+  if (row === null) {
+    throw new Error(`No blocked row for ${bundleId}`);
+  }
+  return within(row as HTMLElement).getByRole('button', { name: m.gen_app_remove() });
+}
+
+/** The textarea holding the sites the user added by hand. */
+function customSites(): HTMLTextAreaElement {
+  return screen.getByLabelText(m.gen_web_custom_label()) as HTMLTextAreaElement;
+}
+
 async function downloadedXml(): Promise<string> {
   const blob = createObjectURL.mock.calls.at(-1)?.[0];
   if (blob === undefined) {
@@ -66,8 +96,7 @@ async function downloadedXml(): Promise<string> {
 describe('Generator', () => {
   beforeEach(() => {
     createObjectURL.mockClear();
-    // jsdom here exposes no Storage; the guard keeps the reset honest if it does.
-    globalThis.localStorage?.clear();
+    globalThis.localStorage.clear();
   });
 
   it('opens with the headline and the recommended apps', async () => {
@@ -163,27 +192,28 @@ describe('Generator', () => {
   it('drops the matching apps under the bar and hides them on Escape', async () => {
     await renderPage();
 
-    await userEvent.type(searchInput(), 'snap');
+    await userEvent.type(searchInput(), 'exam');
     expect(await screen.findByText(SEARCH_RESULT_NAME)).toBeInTheDocument();
 
     await userEvent.keyboard('{Escape}');
 
     expect(screen.queryByText(SEARCH_RESULT_NAME)).not.toBeInTheDocument();
     // The query survives the dismissal; only the dropdown is gone.
-    expect(searchInput()).toHaveValue('snap');
+    expect(searchInput()).toHaveValue('exam');
   });
 
   it('adds a searched app under its short name', async () => {
     await renderPage();
 
-    await userEvent.type(searchInput(), 'snap');
+    await userEvent.type(searchInput(), 'exam');
     await userEvent.click(await screen.findByRole('button', { name: m.gen_app_add() }));
 
     expect(screen.getAllByRole('button', { name: m.gen_app_remove() })).toHaveLength(
       BLOCKED_APPS + 1,
     );
-    // Once in the result row, once in the grid: never the App Store tagline.
-    expect(screen.getAllByText(SEARCH_RESULT_NAME)).toHaveLength(2);
+    // In the result row, in the grid and over its site chips: never the App
+    // Store tagline.
+    expect(screen.getAllByText(SEARCH_RESULT_NAME)).toHaveLength(3);
     expect(screen.queryByText(SEARCH_RESULT.trackName)).not.toBeInTheDocument();
   });
 
@@ -226,6 +256,76 @@ describe('Generator', () => {
     expect(screen.getAllByRole('button', { name: m.gen_app_remove() })).toHaveLength(
       BLOCKED_APPS - 1,
     );
+  });
+
+  it('blocks the sites its blocked apps imply', async () => {
+    await renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
+
+    const xml = await downloadedXml();
+    expect(xml).toContain('<string>https://x.com</string>');
+    expect(xml).toContain('<string>https://twitter.com</string>');
+    expect(xml).toContain('<string>https://youtu.be</string>');
+  });
+
+  it('drops the sites of an app that is removed', async () => {
+    await renderPage();
+    const remove = removeButtonFor('com.google.ios.youtube');
+    await userEvent.click(remove);
+    await userEvent.click(remove);
+
+    fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
+
+    expect(await downloadedXml()).not.toContain('https://youtu.be');
+  });
+
+  it('drops a derived site the user turns off', async () => {
+    await renderPage();
+    const chip = screen.getByRole('button', { name: 'x.com', pressed: true });
+
+    await userEvent.click(chip);
+
+    expect(screen.getByRole('button', { name: 'x.com' })).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
+    expect(await downloadedXml()).not.toContain('<string>https://x.com</string>');
+  });
+
+  it('blocks a site the user types under more sites', async () => {
+    await renderPage();
+
+    fireEvent.change(customSites(), { target: { value: 'https://news.ycombinator.com' } });
+
+    fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
+    expect(await downloadedXml()).toContain('<string>https://news.ycombinator.com</string>');
+  });
+
+  it('blocks the site behind a searched app', async () => {
+    await renderPage();
+
+    await userEvent.type(searchInput(), 'exam');
+    await userEvent.click(await screen.findByRole('button', { name: m.gen_app_add() }));
+
+    fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
+    expect(await downloadedXml()).toContain('<string>https://example.com</string>');
+  });
+
+  it('keeps the urls of an older stored config that no app implies', async () => {
+    globalThis.localStorage.setItem(
+      'kya:config',
+      JSON.stringify({
+        ...presets.mert,
+        webFilter: {
+          deniedUrls: ['https://x.com', 'https://custom.example'],
+          mode: 'deny',
+          permittedUrls: [],
+        },
+      }),
+    );
+
+    await renderPage();
+
+    expect(customSites().value.split('\n')).toEqual(['https://custom.example']);
   });
 
   it('downloads the built profile', async () => {
