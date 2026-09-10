@@ -531,11 +531,10 @@ const styles = create({
     gap: spacing.s2,
     height: '100%',
     lineHeight: 1,
-    // Long country names give way to the field instead of pushing it off.
-    maxWidth: '50%',
     minWidth: 0,
     paddingBlock: 0,
     paddingInline: spacing.s4,
+    whiteSpace: 'nowrap',
   },
   // Narrower and shorter than a page input: it lives inside a popover.
   storefrontFilter: {
@@ -569,10 +568,17 @@ const styles = create({
     // Over the results dropdown, which hangs off the same bar.
     zIndex: 20,
   },
-  // Anchors the country list directly under the control it belongs to.
+  // Anchors the country list directly under the control it belongs to. The cap
+  // belongs here and not on the button: a percentage on the button would
+  // resolve against this wrapper, which is itself only as wide as the button,
+  // so it would halve the control instead of measuring it against the bar. The
+  // field never takes width from the country name, only a name long enough to
+  // pass 40% of the bar gives way, and then the label ellipsizes.
   storefrontMenu: {
     alignSelf: 'stretch',
     display: 'flex',
+    flexShrink: 0,
+    maxWidth: '40%',
     position: 'relative',
   },
   storefrontOption: {
