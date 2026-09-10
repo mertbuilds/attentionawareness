@@ -15,6 +15,7 @@ const instagram = {
   artworkUrl100: 'https://is1.mzstatic.com/image/100x100.jpg',
   artworkUrl60: 'https://is1.mzstatic.com/image/60x60.jpg',
   bundleId: 'com.burbn.instagram',
+  sellerUrl: 'http://instagram.com/',
   trackId: 389_801_252,
   trackName: 'Instagram',
 };
@@ -73,8 +74,19 @@ describe('searchApps', () => {
         iconUrl: 'https://is1.mzstatic.com/image/100x100.jpg',
         id: 389_801_252,
         name: 'Instagram',
+        sellerUrl: 'http://instagram.com/',
       },
     ]);
+  });
+
+  it('has no seller url when Apple sends none', async () => {
+    const fetchImpl = fetchStub({
+      resultCount: 1,
+      results: [{ ...instagram, sellerUrl: undefined }],
+    });
+
+    const results = await searchApps('instagram', { fetchImpl });
+    expect(results[0]?.sellerUrl).toBeUndefined();
   });
 
   it('drops results without a bundle id', async () => {
@@ -137,6 +149,7 @@ describe('lookupApps', () => {
         iconUrl: 'https://is1.mzstatic.com/image/100x100.jpg',
         id: 389_801_252,
         name: 'Instagram',
+        sellerUrl: 'http://instagram.com/',
       },
     ]);
   });

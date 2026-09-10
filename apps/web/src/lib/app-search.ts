@@ -17,6 +17,8 @@ export type AppResult = {
   iconUrl: string;
   id: number;
   name: string;
+  /** Apple's developer website for the app, absent on rows that carry none. */
+  sellerUrl?: string | undefined;
 };
 
 type LookupOptions = {
@@ -38,6 +40,7 @@ type SoftwareResult = {
   artworkUrl100?: string;
   artworkUrl60?: string;
   bundleId?: string;
+  sellerUrl?: string;
   trackId?: number;
   trackName?: string;
 };
@@ -229,6 +232,7 @@ function toAppResults(payload: SoftwarePayload): Array<AppResult> {
             iconUrl: result.artworkUrl100 ?? result.artworkUrl60 ?? '',
             id: result.trackId ?? 0,
             name: result.trackName ?? '',
+            sellerUrl: result.sellerUrl,
           },
         ]
       : [],
