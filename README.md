@@ -4,6 +4,10 @@ Opinionated full-stack boilerplate for starting new products. One architecture, 
 
 Founding decisions live in [docs/adr/0001-stack.md](docs/adr/0001-stack.md). Agent rules and workflow live in [AGENTS.md](AGENTS.md).
 
+## The phone tool
+
+`cli/supervise.py` turns an iPhone into a supervised device without erasing it, by patching a local Finder backup. Supervision is what lets a configuration profile lock the phone down: a Safari allowlist, no App Store, no app installs. It is a standalone Python script with no dependencies, outside the pnpm workspace. See [cli/README.md](cli/README.md).
+
 ## Stack
 
 | Layer       | Choice                                                                          |
@@ -97,3 +101,7 @@ Local dev needs none of these. Production needs:
 
 - **emulate.dev has no Stripe subscriptions** (`/v1/subscriptions`, `customer.subscription.*`): checkout works locally, but the subscription upgrade flow 500s at `stripe.subscriptions.list`. Fallback: `pnpm stripe:listen` with a Stripe test account. Upstream PR to [vercel-labs/emulate](https://github.com/vercel-labs/emulate) is the real fix.
 - **Compose Postgres binds host port 5433** (5432 is commonly taken). Inside the network it's still 5432.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
