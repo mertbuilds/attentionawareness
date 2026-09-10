@@ -68,12 +68,6 @@ const styles = create({
     insetInlineEnd: spacing.s4,
     position: 'absolute',
   },
-  heading: {
-    fontSize: font.sizeLg,
-    fontWeight: font.weightBold,
-    letterSpacing: '-0.01em',
-    margin: 0,
-  },
   share: {
     display: 'flex',
     flexDirection: 'column',
@@ -85,16 +79,15 @@ const styles = create({
  * The receipt for the years the reader just took back: a card they can
  * screenshot, and the three places they can post it. The card is DOM and not
  * an image, so it always shows the list the generator is holding right now.
+ * The heading belongs to whatever opens it, so this renders none.
  */
 export function ShareCard({
   apps,
-  heading,
   hours,
   meta,
   years,
 }: {
   apps: ReadonlyArray<BlockedApp>;
-  heading: string;
   hours: number;
   meta: MetaCache;
   years: string;
@@ -133,7 +126,6 @@ export function ShareCard({
 
   return (
     <div {...props(styles.share)}>
-      <h3 {...props(styles.heading)}>{heading}</h3>
       <div {...props(styles.card)}>
         <p {...props(styles.cardAbove)}>{m.share_card_above()}</p>
         <p {...props(styles.cardYears)}>{m.share_card_years({ years })}</p>
