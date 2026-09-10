@@ -23,7 +23,7 @@ import { colors, font, radius, spacing } from '@keepyourattention/ui/tokens.styl
 import { create, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AppResult } from '../lib/app-search.ts';
 import { defaultStorefront, lookupApps, searchApps, storefronts } from '../lib/app-search.ts';
 import { layout } from '../lib/layout.ts';
@@ -71,7 +71,7 @@ const styles = create({
     display: 'grid',
     gap: spacing.s3,
     gridTemplateColumns: {
-      '@media (min-width: 560px)': 'repeat(auto-fill, minmax(240px, 1fr))',
+      '@media (min-width: 640px)': '1fr 1fr',
       default: '1fr',
     },
     listStyleType: 'none',
@@ -298,14 +298,9 @@ const styles = create({
     gap: spacing.s2,
   },
   searchPanel: {
-    borderColor: colors.border,
-    borderRadius: radius.base,
-    borderStyle: 'solid',
-    borderWidth: '1px',
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s3,
-    padding: spacing.s4,
   },
   section: {
     display: 'flex',
@@ -555,7 +550,9 @@ function Generator() {
   const [results, setResults] = useState<Array<AppResult>>([]);
   const [searching, setSearching] = useState(false);
   const [searchFailed, setSearchFailed] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [showXml, setShowXml] = useState(false);
+  const searchInput = useRef<HTMLInputElement>(null);
 
   const xml = useMemo(() => safeBuild(config), [config]);
   const blockedIds = useMemo(
@@ -640,14 +637,16 @@ function Generator() {
     };
   }, [country, query]);
 
+  // The input mounts with the panel, so the focus has to wait for that render.
+  useEffect(() => {
+    if (searchOpen) {
+      searchInput.current?.focus();
+    }
+  }, [searchOpen]);
+
   function update(next: ProfileConfig) {
     setConfig(next);
     writeStoredConfig(next);
-  }
-
-  function applyPreset(preset: ProfileConfig) {
-    update(preset);
-    setUrlText(urlTextOf(preset));
   }
 
   function onQueryChange(value: string) {
@@ -840,103 +839,95 @@ function Generator() {
               ))}
             </ul>
           )}
-          <div {...props(styles.searchPanel)}>
-            <Field>
-              <FieldLabel htmlFor="storefront">{m.gen_storefront_label()}</FieldLabel>
-              <Select
-                items={storefrontItems}
-                onValueChange={(value: string | null) => setCountry(value ?? FALLBACK_COUNTRY)}
-                value={country}
-              >
-                <SelectTrigger id="storefront">
-                  {/* Read the label off our own state: the trigger then always
-                      agrees with the storefront the search actually queries. */}
-                  <SelectValue>{() => storefrontLabel(country)}</SelectValue>
-                </SelectTrigger>
-                {/* A plain dropdown below the trigger. Aligning the selected
-                    item with the trigger drops the whole list over the cursor. */}
-                <SelectContent alignItemWithTrigger={false}>
-                  {storefrontItems.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
+          {searchOpen ? (
+            <div {...props(styles.searchPanel)}>
+              <Field>
+                <FieldLabel htmlFor="storefront">{m.gen_storefront_label()}</FieldLabel>
+                <Select
+                  items={storefrontItems}
+                  onValueChange={(value: string | null) => setCountry(value ?? FALLBACK_COUNTRY)}
+                  value={country}
+                >
+                  <SelectTrigger id="storefront">
+                    {/* Read the label off our own state: the trigger then always
+                        agrees with the storefront the search actually queries. */}
+                    <SelectValue>{() => storefrontLabel(country)}</SelectValue>
+                  </SelectTrigger>
+                  {/* A plain dropdown below the trigger. Aligning the selected
+                      item with the trigger drops the whole list over the cursor. */}
+                  <SelectContent alignItemWithTrigger={false}>
+                    {storefrontItems.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="app-search">{m.gen_app_search_label()}</FieldLabel>
+                <Input
+                  id="app-search"
+                  onChange={(event) => onQueryChange(event.target.value)}
+                  placeholder={m.gen_app_search_placeholder()}
+                  ref={searchInput}
+                  value={query}
+                />
+              </Field>
+              {searchFailed ? (
+                <p role="alert" {...props(layout.muted)}>
+                  {m.gen_app_search_error()}
+                </p>
+              ) : null}
+              {searching ? (
+                <ul {...props(styles.list)}>
+                  {SKELETON_ROWS.map((row) => (
+                    <li key={row}>
+                      <Skeleton style={styles.skeletonRow} />
+                    </li>
                   ))}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="app-search">{m.gen_app_search_label()}</FieldLabel>
-              <Input
-                id="app-search"
-                onChange={(event) => onQueryChange(event.target.value)}
-                placeholder={m.gen_app_search_placeholder()}
-                value={query}
-              />
-            </Field>
-            {searchFailed ? (
-              <p role="alert" {...props(layout.muted)}>
-                {m.gen_app_search_error()}
-              </p>
-            ) : null}
-            {searching ? (
-              <ul {...props(styles.list)}>
-                {SKELETON_ROWS.map((row) => (
-                  <li key={row}>
-                    <Skeleton style={styles.skeletonRow} />
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            {!searching && query.trim() !== '' && results.length === 0 && !searchFailed ? (
-              <p {...props(layout.muted)}>{m.gen_app_results_empty()}</p>
-            ) : null}
-            {!searching && results.length > 0 ? (
-              <ul {...props(styles.list)}>
-                {results.map((app) => (
-                  <li key={app.bundleId} {...props(styles.appRow)}>
-                    <img
-                      alt={app.name}
-                      src={app.iconUrl}
-                      {...props(styles.artwork, styles.resultArtwork)}
-                    />
-                    <span {...props(styles.appText)}>
-                      <span {...props(styles.appName)}>{app.name}</span>
-                      <span title={app.developer} {...props(layout.muted, styles.truncate)}>
-                        {app.developer}
+                </ul>
+              ) : null}
+              {!searching && query.trim() !== '' && results.length === 0 && !searchFailed ? (
+                <p {...props(layout.muted)}>{m.gen_app_results_empty()}</p>
+              ) : null}
+              {!searching && query.trim() !== '' && results.length > 0 ? (
+                <ul {...props(styles.list)}>
+                  {results.map((app) => (
+                    <li key={app.bundleId} {...props(styles.appRow)}>
+                      <img
+                        alt={app.name}
+                        src={app.iconUrl}
+                        {...props(styles.artwork, styles.resultArtwork)}
+                      />
+                      <span {...props(styles.appText)}>
+                        <span {...props(styles.appName)}>{app.name}</span>
+                        <span title={app.developer} {...props(layout.muted, styles.truncate)}>
+                          {app.developer}
+                        </span>
+                        <span title={app.bundleId} {...props(styles.mono, styles.truncate)}>
+                          {app.bundleId}
+                        </span>
                       </span>
-                      <span title={app.bundleId} {...props(styles.mono, styles.truncate)}>
-                        {app.bundleId}
-                      </span>
-                    </span>
-                    <Button
-                      disabled={blockedIds.has(app.bundleId)}
-                      onClick={() => addApp(app)}
-                      variant="outline"
-                    >
-                      {blockedIds.has(app.bundleId) ? m.gen_app_added() : m.gen_app_add()}
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-        </section>
-
-        <Separator />
-
-        <section {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>{m.gen_presets_title()}</h2>
-          <div {...props(styles.row)}>
-            <Button onClick={() => applyPreset(presets.mert)} variant="outline">
-              {m.gen_preset_mert()}
-            </Button>
-            <Button onClick={() => applyPreset(presets.stopa)} variant="outline">
-              {m.gen_preset_stopa()}
-            </Button>
-            <Button onClick={() => applyPreset(presets.minimal)} variant="outline">
-              {m.gen_preset_minimal()}
-            </Button>
-          </div>
+                      <Button
+                        disabled={blockedIds.has(app.bundleId)}
+                        onClick={() => addApp(app)}
+                        variant="outline"
+                      >
+                        {blockedIds.has(app.bundleId) ? m.gen_app_added() : m.gen_app_add()}
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : (
+            <div {...props(styles.row)}>
+              <Button onClick={() => setSearchOpen(true)} variant="ghost">
+                {m.gen_app_search_open()}
+              </Button>
+            </div>
+          )}
         </section>
 
         <Separator />
