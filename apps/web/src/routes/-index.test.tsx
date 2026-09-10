@@ -60,7 +60,18 @@ describe('Generator', () => {
 
     expect(screen.getByLabelText(m.gen_app_search_label())).toBeInTheDocument();
     expect(screen.getByRole('combobox')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: m.gen_app_search_open() })).not.toBeInTheDocument();
+  });
+
+  it('closes the search panel when the tile is clicked again', async () => {
+    await renderPage();
+    const trigger = screen.getByRole('button', { name: m.gen_app_search_open() });
+
+    await userEvent.click(trigger);
+    expect(screen.getByLabelText(m.gen_app_search_label())).toBeInTheDocument();
+
+    await userEvent.click(trigger);
+    expect(screen.queryByLabelText(m.gen_app_search_label())).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(m.gen_storefront_label())).not.toBeInTheDocument();
   });
 
   it('lists nothing while the search box is empty', async () => {

@@ -67,6 +67,59 @@ type AppMeta = { developer: string; iconUrl: string };
 type MetaCache = Record<string, AppMeta | null>;
 
 const styles = create({
+  addTile: {
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderColor: {
+      ':hover': colors.fg,
+      default: colors.border,
+    },
+    borderRadius: 11,
+    borderStyle: 'dashed',
+    borderWidth: '1px',
+    boxSizing: 'border-box',
+    color: {
+      ':hover': colors.fg,
+      default: colors.muted,
+    },
+    cursor: 'pointer',
+    display: 'flex',
+    fontFamily: 'inherit',
+    fontSize: 'inherit',
+    gap: spacing.s3,
+    minWidth: 0,
+    padding: spacing.s2,
+    textAlign: 'start',
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: '150ms',
+    },
+    transitionProperty: 'border-color, color',
+    width: '100%',
+  },
+  addTileActive: {
+    borderColor: colors.fg,
+    color: colors.fg,
+  },
+  addTileHint: {
+    fontSize: font.sizeSm,
+  },
+  addTileIcon: {
+    alignItems: 'center',
+    // Follows the tile's own border color, hover included.
+    borderColor: 'inherit',
+    borderRadius: 11,
+    borderStyle: 'dashed',
+    borderWidth: '1px',
+    boxSizing: 'border-box',
+    display: 'flex',
+    flexShrink: 0,
+    fontSize: 24,
+    height: 48,
+    justifyContent: 'center',
+    lineHeight: 1,
+    width: 48,
+  },
   appGrid: {
     display: 'grid',
     gap: spacing.s3,
@@ -805,40 +858,53 @@ function Generator() {
           <p {...props(layout.muted)}>{m.home_apps_subtitle()}</p>
           {config.blockedApps.length === 0 ? (
             <p {...props(layout.muted)}>{m.gen_apps_empty()}</p>
-          ) : (
-            <ul {...props(styles.appGrid)}>
-              {config.blockedApps.map((app) => (
-                <li key={app.bundleId} {...props(styles.appRow)}>
-                  <AppArtwork
-                    meta={meta[app.bundleId]}
-                    name={app.name}
-                    style={styles.tileArtwork}
-                  />
-                  <span {...props(styles.appText)}>
-                    <span {...props(styles.appName)}>{app.name}</span>
-                    {meta[app.bundleId]?.developer ? (
-                      <span
-                        title={meta[app.bundleId]?.developer}
-                        {...props(layout.muted, styles.truncate)}
-                      >
-                        {meta[app.bundleId]?.developer}
-                      </span>
-                    ) : null}
-                    <span title={app.bundleId} {...props(styles.mono, styles.truncate)}>
-                      {app.bundleId}
+          ) : null}
+          <ul {...props(styles.appGrid)}>
+            {config.blockedApps.map((app) => (
+              <li key={app.bundleId} {...props(styles.appRow)}>
+                <AppArtwork meta={meta[app.bundleId]} name={app.name} style={styles.tileArtwork} />
+                <span {...props(styles.appText)}>
+                  <span {...props(styles.appName)}>{app.name}</span>
+                  {meta[app.bundleId]?.developer ? (
+                    <span
+                      title={meta[app.bundleId]?.developer}
+                      {...props(layout.muted, styles.truncate)}
+                    >
+                      {meta[app.bundleId]?.developer}
                     </span>
+                  ) : null}
+                  <span title={app.bundleId} {...props(styles.mono, styles.truncate)}>
+                    {app.bundleId}
                   </span>
-                  <Button
-                    aria-label={m.gen_app_remove()}
-                    onClick={() => removeApp(app.bundleId)}
-                    variant="ghost"
-                  >
-                    ×
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
+                </span>
+                <Button
+                  aria-label={m.gen_app_remove()}
+                  onClick={() => removeApp(app.bundleId)}
+                  variant="ghost"
+                >
+                  ×
+                </Button>
+              </li>
+            ))}
+            {/* The trigger is a tile of the grid, not a control below it. */}
+            <li>
+              <button
+                aria-expanded={searchOpen}
+                aria-label={m.gen_app_search_open()}
+                onClick={() => setSearchOpen(!searchOpen)}
+                type="button"
+                {...props(styles.addTile, searchOpen && styles.addTileActive)}
+              >
+                <span aria-hidden="true" {...props(styles.addTileIcon)}>
+                  +
+                </span>
+                <span {...props(styles.appText)}>
+                  <span {...props(styles.appName)}>{m.gen_app_search_open()}</span>
+                  <span {...props(styles.addTileHint)}>{m.gen_app_search_hint()}</span>
+                </span>
+              </button>
+            </li>
+          </ul>
           {searchOpen ? (
             <div {...props(styles.searchPanel)}>
               <Field>
@@ -921,13 +987,7 @@ function Generator() {
                 </ul>
               ) : null}
             </div>
-          ) : (
-            <div {...props(styles.row)}>
-              <Button onClick={() => setSearchOpen(true)} variant="ghost">
-                {m.gen_app_search_open()}
-              </Button>
-            </div>
-          )}
+          ) : null}
         </section>
 
         <Separator />
