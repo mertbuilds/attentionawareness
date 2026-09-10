@@ -27,17 +27,20 @@ import {
   storefrontLabel,
   storefronts,
 } from '../lib/app-search.ts';
+import { formatHours, formatYears, HORIZON_YEARS, yearFill } from '../lib/attention-math.ts';
 import { layout } from '../lib/layout.ts';
 import { buildProfile, presets } from '../lib/profile/index.ts';
 import type { BlockedApp, ProfileConfig } from '../lib/profile/index.ts';
 import { normalizeUrl, sitesForApp, sitesForApps } from '../lib/sites.ts';
 import { m } from '../paraglide/messages.js';
+import { getLocale } from '../paraglide/runtime.js';
 
 export const Route = createFileRoute('/')({
   component: Generator,
 });
 
 const STORAGE_KEY = 'kya:config';
+const HOURS_KEY = 'kya:hours';
 const SEARCH_DEBOUNCE_MS = 300;
 const SEARCH_LIMIT = 10;
 const SKELETON_ROWS = [0, 1, 2];
@@ -47,6 +50,7 @@ const BUILDER_URL = 'https://mertbuilds.com';
 const STARTER_URL = 'https://cleanstarter.dev';
 const SUPERVISE_URL = '/supervise';
 const WHY_URL = '/why';
+const STOPA_URL = 'https://stopa.io/post/297';
 const PROFILE_MIME = 'application/x-apple-aspen-config';
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 /** Above every other icon in the fan, whatever the stack order says. */
@@ -62,6 +66,13 @@ const COPY_FEEDBACK_MS = 2000;
 const RESET_ARMED = 'reset:apps';
 /** A chip names a host; the scheme carries nothing the user needs to read. */
 const SITE_SCHEME = /^https?:\/\//u;
+/** What the screen-time slider offers, in hours a day. */
+const HOURS_MIN = 1;
+const HOURS_MAX = 10;
+const HOURS_STEP = 0.5;
+const HOURS_DEFAULT = 4;
+/** One block per year of the horizon the math projects over. */
+const YEAR_BLOCKS = Array.from({ length: HORIZON_YEARS }, (_, year) => year);
 
 type WebMode = ProfileConfig['webFilter']['mode'];
 
@@ -186,11 +197,34 @@ const styles = create({
     maxWidth: 760,
     width: '100%',
   },
+  defDesc: {
+    color: colors.muted,
+    lineHeight: 1.5,
+    marginBlockEnd: spacing.s3,
+    marginInlineStart: 0,
+    textWrap: 'pretty',
+  },
+  defList: {
+    margin: 0,
+  },
+  defTerm: {
+    fontWeight: font.weightMedium,
+    lineHeight: 1.5,
+    textWrap: 'pretty',
+  },
   derivedTitle: {
     color: colors.muted,
     fontSize: font.sizeSm,
     fontWeight: font.weightMedium,
     margin: 0,
+  },
+  factGrid: {
+    display: 'grid',
+    gap: spacing.s6,
+    gridTemplateColumns: {
+      '@media (min-width: 640px)': 'repeat(3, 1fr)',
+      default: '1fr',
+    },
   },
   fan: {
     alignItems: 'center',
@@ -314,6 +348,17 @@ const styles = create({
     fontSize: font.sizeSm,
     marginBlockStart: spacing.s3,
   },
+  // Holds the width of its widest reading, so the slider beside it never steps
+  // sideways while the number changes.
+  hoursValue: {
+    fontSize: 'clamp(28px, 4vw, 36px)',
+    fontVariantNumeric: 'tabular-nums',
+    fontWeight: font.weightBold,
+    letterSpacing: '-0.02em',
+    lineHeight: 1,
+    minWidth: '2.8em',
+    textAlign: 'end',
+  },
   lead: {
     color: colors.muted,
     fontSize: 18,
@@ -328,6 +373,22 @@ const styles = create({
     listStyleType: 'none',
     margin: 0,
     padding: 0,
+  },
+  mathAxis: {
+    color: colors.muted,
+    display: 'flex',
+    fontSize: font.sizeSm,
+    gap: spacing.s2,
+    justifyContent: 'space-between',
+  },
+  mathResult: {
+    fontSize: 'clamp(28px, 4.6vw, 44px)',
+    fontVariantNumeric: 'tabular-nums',
+    fontWeight: font.weightBold,
+    letterSpacing: '-0.025em',
+    lineHeight: 1.12,
+    margin: 0,
+    textWrap: 'balance',
   },
   mono: {
     color: colors.muted,
@@ -353,6 +414,11 @@ const styles = create({
     },
     paddingInline: spacing.s4,
   },
+  playGlyph: {
+    display: 'block',
+    height: 28,
+    width: 28,
+  },
   pre: {
     backgroundColor: 'transparent',
     borderColor: colors.border,
@@ -374,6 +440,14 @@ const styles = create({
   },
   preWrap: {
     position: 'relative',
+  },
+  proofGrid: {
+    display: 'grid',
+    gap: spacing.s3,
+    gridTemplateColumns: {
+      '@media (min-width: 640px)': 'repeat(3, 1fr)',
+      default: '1fr',
+    },
   },
   // The one destructive colour on the page: it means "this click deletes".
   removeArmed: {
@@ -582,6 +656,33 @@ const styles = create({
     height: 40,
     width: '100%',
   },
+  slider: {
+    accentColor: colors.fg,
+    cursor: 'pointer',
+    minWidth: 0,
+    width: '100%',
+  },
+  sliderLabel: {
+    flexGrow: 1,
+    minWidth: 0,
+  },
+  sliderRow: {
+    alignItems: 'center',
+    display: 'flex',
+    gap: spacing.s4,
+    width: '100%',
+  },
+  srOnly: {
+    borderWidth: 0,
+    clip: 'rect(0, 0, 0, 0)',
+    height: '1px',
+    margin: '-1px',
+    overflow: 'hidden',
+    padding: 0,
+    position: 'absolute',
+    whiteSpace: 'nowrap',
+    width: '1px',
+  },
   stepBody: {
     color: colors.muted,
     lineHeight: 1.5,
@@ -725,10 +826,32 @@ const styles = create({
     resize: 'vertical',
     width: '100%',
   },
+  tile: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s1,
+  },
   tileArtwork: {
     borderRadius: 11,
     height: 48,
     width: 48,
+  },
+  tileGrid: {
+    display: 'grid',
+    gap: spacing.s6,
+    gridTemplateColumns: {
+      '@media (min-width: 640px)': '1fr 1fr',
+      default: '1fr',
+    },
+  },
+  tileValue: {
+    fontSize: 'clamp(24px, 3.4vw, 32px)',
+    fontVariantNumeric: 'tabular-nums',
+    fontWeight: font.weightBold,
+    letterSpacing: '-0.02em',
+    lineHeight: 1.15,
+    margin: 0,
+    textWrap: 'balance',
   },
   titleRow: {
     alignItems: 'center',
@@ -740,6 +863,59 @@ const styles = create({
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
+  },
+  // Reserved space for the walkthrough clip, which is not shot yet.
+  video: {
+    alignItems: 'center',
+    aspectRatio: '16 / 9',
+    borderColor: colors.border,
+    borderRadius: radius.base,
+    borderStyle: 'dashed',
+    borderWidth: '1px',
+    color: colors.muted,
+    display: 'flex',
+    flexDirection: 'column',
+    fontSize: font.sizeSm,
+    gap: spacing.s2,
+    justifyContent: 'center',
+    maxWidth: '100%',
+    width: '100%',
+  },
+  yearBlock: {
+    borderColor: colors.border,
+    borderRadius: 2,
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    boxSizing: 'border-box',
+    color: colors.fg,
+    // Ten blocks a row on a phone, all twenty on anything wider: each basis
+    // leaves room for exactly that many once the 4px gaps are paid for.
+    flexBasis: {
+      '@media (min-width: 640px)': 'calc(5% - 4px)',
+      default: 'calc(10% - 4px)',
+    },
+    flexGrow: 1,
+    height: {
+      '@media (min-width: 640px)': 48,
+      default: 40,
+    },
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: '200ms',
+    },
+    transitionProperty: 'background-image',
+    transitionTimingFunction: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
+  },
+  // The block's own colour is the fill, so one gradient stop carries the year:
+  // filled up to the stop, outline after it.
+  yearBlockFill: (percent: number) => ({
+    backgroundImage: `linear-gradient(to right, currentColor ${percent}%, transparent ${percent}%)`,
+  }),
+  yearRow: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: spacing.s1,
+    width: '100%',
   },
 });
 
@@ -855,6 +1031,28 @@ function writeStored(state: StoredState): void {
     globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch {
     // Private mode or a full quota must not break the generator.
+  }
+}
+
+/** The remembered slider value, or `null` when nothing usable is stored. */
+function readHours(): number | null {
+  try {
+    const stored = globalThis.localStorage.getItem(HOURS_KEY);
+    if (stored === null) {
+      return null;
+    }
+    const hours = Number(stored);
+    return Number.isFinite(hours) && hours >= HOURS_MIN && hours <= HOURS_MAX ? hours : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeHours(hours: number): void {
+  try {
+    globalThis.localStorage.setItem(HOURS_KEY, String(hours));
+  } catch {
+    // Private mode or a full quota must not break the slider.
   }
 }
 
@@ -982,6 +1180,8 @@ function AppIconFan({ apps, meta }: { apps: ReadonlyArray<BlockedApp>; meta: Met
 }
 
 function Generator() {
+  // What the reader tells the math section their day looks like.
+  const [hours, setHours] = useState(HOURS_DEFAULT);
   const [config, setConfig] = useState<ProfileConfig>(presets.mert);
   // The user's own urls, and the derived ones they turned off. Everything else
   // in the deny list comes from the blocked apps.
@@ -1071,6 +1271,10 @@ function Generator() {
       setCustomSites(stored.customSites);
       setExcludedSites(stored.excludedSites);
       setUrlText(urlTextOf(restored, stored.customSites));
+    }
+    const storedHours = readHours();
+    if (storedHours !== null) {
+      setHours(storedHours);
     }
     const preferred = initialStorefront();
     if (preferred !== FALLBACK_COUNTRY) {
@@ -1217,6 +1421,11 @@ function Generator() {
   function update(next: ProfileConfig) {
     setConfig(next);
     persist(next, customSites, excludedSites);
+  }
+
+  function onHoursChange(value: number) {
+    setHours(value);
+    writeHours(value);
   }
 
   function onQueryChange(value: string) {
@@ -1424,11 +1633,43 @@ function Generator() {
         ? m.gen_copy_fallback()
         : m.gen_copy();
 
+  // The two numbers the whole narrative is written around.
+  const years = formatYears(hours);
+  const totalHours = formatHours(hours, getLocale());
+
+  const whatYearsBuy = [
+    { body: m.home_buys_hours_body(), value: m.home_buys_hours_title({ hours: totalHours }) },
+    { body: m.home_buys_languages_body(), value: m.home_buys_languages_title() },
+    { body: m.home_buys_instrument_body(), value: m.home_buys_instrument_title() },
+    { body: m.home_buys_reading_body(), value: m.home_buys_reading_title() },
+  ];
+
+  const dealFacts = [
+    { body: m.home_deal_install_body(), value: m.home_deal_install_title() },
+    { body: m.home_deal_free_body(), value: m.home_deal_free_title() },
+    { body: m.home_deal_time_body(), value: m.home_deal_time_title() },
+  ];
+
   const howItWorks = [
     { body: m.home_how_profile_body(), guide: false, title: m.home_how_profile_title() },
     { body: m.home_how_websites_body(), guide: false, title: m.home_how_websites_title() },
     { body: m.home_how_apps_body(), guide: false, title: m.home_how_apps_title() },
     { body: m.home_how_supervision_body(), guide: true, title: m.home_how_supervision_title() },
+  ];
+
+  const proofPoints = [
+    { body: m.home_proof_months_body(), title: m.home_proof_months_title() },
+    { body: m.home_proof_minutes_body(), title: m.home_proof_minutes_title() },
+    { body: m.home_proof_blocked_body(), title: m.home_proof_blocked_title() },
+  ];
+
+  const objections = [
+    { desc: m.home_faq_data_desc(), term: m.home_faq_data_term() },
+    { desc: m.home_faq_undo_desc(), term: m.home_faq_undo_term() },
+    { desc: m.home_faq_updates_desc(), term: m.home_faq_updates_term() },
+    { desc: m.home_faq_keep_desc(), term: m.home_faq_keep_term() },
+    { desc: m.home_faq_apple_desc(), term: m.home_faq_apple_term() },
+    { desc: m.home_faq_mac_desc(), term: m.home_faq_mac_term() },
   ];
 
   return (
@@ -1445,6 +1686,44 @@ function Generator() {
 
       <div {...props(styles.content)}>
         <section {...props(styles.section)}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_math_title()}</h2>
+          <div {...props(styles.sliderRow)}>
+            <Label style={styles.sliderLabel}>
+              <span {...props(styles.srOnly)}>{m.home_math_slider_label()}</span>
+              <input
+                max={HOURS_MAX}
+                min={HOURS_MIN}
+                onChange={(event) => onHoursChange(Number(event.target.value))}
+                step={HOURS_STEP}
+                type="range"
+                value={hours}
+                {...props(styles.slider)}
+              />
+            </Label>
+            <span {...props(styles.hoursValue)}>{m.home_math_hours({ hours })}</span>
+          </div>
+          <p {...props(layout.muted)}>{m.home_math_help()}</p>
+          <p {...props(styles.mathResult)}>{m.home_math_result({ years })}</p>
+          {/* Twenty years as twenty blocks. The reading is in the summary below
+              it, so the row itself says nothing to a screen reader. */}
+          <div aria-hidden="true" {...props(styles.yearRow)}>
+            {YEAR_BLOCKS.map((year) => (
+              <span
+                key={year}
+                {...props(styles.yearBlock, styles.yearBlockFill(yearFill(hours, year)))}
+              />
+            ))}
+          </div>
+          <p {...props(styles.srOnly)}>{m.home_math_blocks_summary({ years })}</p>
+          <div {...props(styles.mathAxis)}>
+            <span>{m.home_math_axis_start()}</span>
+            <span>{m.home_math_axis_end({ years })}</span>
+          </div>
+          <p {...props(layout.muted)}>{m.home_math_secondary({ hours })}</p>
+        </section>
+
+        <section {...props(styles.section)}>
+          <p {...props(styles.lead)}>{m.home_other_side()}</p>
           <h2 {...props(styles.fanHeadline)}>
             {m.home_fan_before()}
             {config.blockedApps.length === 0 ? (
@@ -1457,12 +1736,40 @@ function Generator() {
         </section>
 
         <section {...props(styles.section)}>
-          <p {...props(styles.lead)}>{m.home_intro_1()}</p>
-          <p {...props(styles.lead)}>{m.home_intro_2()}</p>
+          <h2 {...props(styles.sectionTitle)}>{m.home_buys_title({ years })}</h2>
+          <div {...props(styles.tileGrid)}>
+            {whatYearsBuy.map((tile) => (
+              <div key={tile.value} {...props(styles.tile)}>
+                <p {...props(styles.tileValue)}>{tile.value}</p>
+                <p {...props(styles.stepBody)}>{tile.body}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section {...props(styles.section)}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_deal_title()}</h2>
+          <div {...props(styles.factGrid)}>
+            {dealFacts.map((fact) => (
+              <div key={fact.value} {...props(styles.tile)}>
+                <p {...props(styles.tileValue)}>{fact.value}</p>
+                <p {...props(styles.stepBody)}>{fact.body}</p>
+              </div>
+            ))}
+          </div>
+          <p {...props(styles.lead)}>{m.home_deal_closing()}</p>
         </section>
 
         <section {...props(styles.section)}>
           <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
+          <div {...props(styles.video)}>
+            <svg aria-hidden="true" viewBox="0 0 24 24" {...props(styles.playGlyph)}>
+              {/* The triangle's weight sits at its base, so its box leans right
+                  of centre: that is what makes it look centred. */}
+              <path d="M9 6 19 12 9 18Z" fill="currentColor" />
+            </svg>
+            <span>{m.home_video_placeholder()}</span>
+          </div>
           <div {...props(styles.stepGrid)}>
             {howItWorks.map((step, index) => (
               <Card key={step.title}>
@@ -1481,6 +1788,42 @@ function Generator() {
             ))}
           </div>
         </section>
+
+        <section {...props(styles.section)}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_proof_title()}</h2>
+          <div {...props(styles.proofGrid)}>
+            {proofPoints.map((point) => (
+              <Card key={point.title}>
+                <CardHeader>
+                  <CardTitle>{point.title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p {...props(styles.stepBody)}>{point.body}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <p {...props(layout.muted)}>
+            {m.home_proof_lineage()}{' '}
+            <a href={STOPA_URL} rel="noreferrer" target="_blank">
+              {m.home_proof_lineage_link()}
+            </a>
+          </p>
+        </section>
+
+        <section {...props(styles.section)}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_faq_title()}</h2>
+          <dl {...props(styles.defList)}>
+            {objections.map((objection) => (
+              <div key={objection.term}>
+                <dt {...props(styles.defTerm)}>{objection.term}</dt>
+                <dd {...props(styles.defDesc)}>{objection.desc}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+
+        <h2 {...props(styles.sectionTitle)}>{m.home_tool_title()}</h2>
 
         <section {...props(styles.section)}>
           <div {...props(styles.titleRow)}>
