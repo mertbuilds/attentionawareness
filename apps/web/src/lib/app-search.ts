@@ -8,6 +8,8 @@ const REGIONAL_INDICATOR_A = 127_462;
 /** Code point of the ASCII letter A. */
 const UPPERCASE_A = 65;
 const ALPHA_2 = /^[a-z]{2}$/iu;
+/** What the App Store puts between an app's name and its tagline. */
+const NAME_SEPARATORS = [' - ', ' – ', ' — ', ': ', ' | ', ' · '];
 
 export type AppResult = {
   bundleId: string;
@@ -56,29 +58,55 @@ export class AppSearchError extends Error {
 }
 
 /**
- * App Store storefronts offered in the picker. Results are storefront-scoped:
- * an app missing from one country's store is absent from its results, so the
- * user picks the store they actually install from.
+ * Every country the App Store ships to, as ISO 3166-1 alpha-2 codes. Results
+ * are storefront-scoped: an app missing from one country's store is absent from
+ * its results, so the user picks the store they actually install from.
  */
-export const storefronts: Array<{ code: string; label: string }> = [
-  { code: 'us', label: 'United States' },
-  { code: 'gb', label: 'United Kingdom' },
-  { code: 'de', label: 'Germany' },
-  { code: 'fr', label: 'France' },
-  { code: 'tr', label: 'Türkiye' },
-  { code: 'ar', label: 'Argentina' },
-  { code: 'br', label: 'Brazil' },
-  { code: 'in', label: 'India' },
-  { code: 'jp', label: 'Japan' },
-  { code: 'kr', label: 'South Korea' },
-  { code: 'es', label: 'Spain' },
-  { code: 'it', label: 'Italy' },
-  { code: 'nl', label: 'Netherlands' },
-  { code: 'se', label: 'Sweden' },
-  { code: 'ca', label: 'Canada' },
-  { code: 'au', label: 'Australia' },
-  { code: 'mx', label: 'Mexico' },
-];
+const STOREFRONT_CODES = `
+  af al dz ao ai ag ar am au at az bs bh bb by be
+  bz bj bm bt bo ba bw br vg bn bg bf kh cm ca cv
+  ky td cl cn co cr ci hr cy cz dk dm do ec eg sv
+  gq ee sz et fj fi fr ga gm ge de gh gr gd gt gw
+  gy hn hk hu is in id iq ie il it jm jp jo kz ke
+  kr xk kw kg la lv lb lr ly lt lu mo mg mw my mv
+  ml mt mr mu mx fm md mn me ms ma mz mm na np nl
+  nz ni ne ng mk no om pk pw pa pg py pe ph pl pt
+  qa ro ru rw kn lc vc ws sa sn rs sc sl sg sk si
+  sb za es lk sr se ch st tw tj tz th to tt tn tr
+  tm tc ug ua ae gb us uy uz vu ve vn ye zm zw
+`
+  .trim()
+  .split(/\s+/u);
+
+/** Storefronts CLDR carries no region name for, or names differently. */
+const STOREFRONT_NAMES: Record<string, string> = { xk: 'Kosovo' };
+
+const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+
+/**
+ * The English name of a storefront: `tr` is Türkiye. A code CLDR cannot name —
+ * and anything that is not a region code at all — is its own label, uppercased,
+ * so the picker never renders a blank row.
+ */
+export function storefrontLabel(code: string): string {
+  const normalized = code.trim().toLowerCase();
+  const known = STOREFRONT_NAMES[normalized];
+  if (known !== undefined) {
+    return known;
+  }
+  const upper = normalized.toUpperCase();
+  try {
+    return regionNames.of(upper) ?? upper;
+  } catch {
+    return upper;
+  }
+}
+
+/** The storefronts as the picker lists them: named, and sorted by name. */
+export const storefronts: Array<{ code: string; label: string }> = STOREFRONT_CODES.map((code) => ({
+  code,
+  label: storefrontLabel(code),
+})).sort((left, right) => left.label.localeCompare(right.label, 'en'));
 
 /**
  * An ISO 3166-1 alpha-2 country code as its flag emoji: `tr` is the pair of
@@ -94,6 +122,27 @@ export function flagEmoji(code: string): string {
     letters.charCodeAt(0) - UPPERCASE_A + REGIONAL_INDICATOR_A,
     letters.charCodeAt(1) - UPPERCASE_A + REGIONAL_INDICATOR_A,
   );
+}
+
+/**
+ * The name an app is known by, taken out of its App Store title: "TikTok -
+ * Videos, Shop & LIVE" is TikTok. Apple's `trackName` carries a marketing
+ * tagline after a separator, which no icon or list row has room for. A title
+ * that only ends on a separator keeps it, so a name is never cut to nothing.
+ */
+export function shortAppName(trackName: string): string {
+  const name = trackName.trim();
+  let cut = -1;
+  for (const separator of NAME_SEPARATORS) {
+    const index = name.indexOf(separator);
+    if (index <= 0 || name.slice(index + separator.length).trim() === '') {
+      continue;
+    }
+    if (cut === -1 || index < cut) {
+      cut = index;
+    }
+  }
+  return cut === -1 ? name : name.slice(0, cut).trim();
 }
 
 /**

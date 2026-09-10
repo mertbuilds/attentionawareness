@@ -5,6 +5,9 @@ import {
   flagEmoji,
   lookupApps,
   searchApps,
+  shortAppName,
+  storefrontLabel,
+  storefronts,
 } from './app-search.ts';
 
 const instagram = {
@@ -188,5 +191,62 @@ describe('flagEmoji', () => {
     expect(flagEmoji('tur')).toBe('');
     expect(flagEmoji('t1')).toBe('');
     expect(flagEmoji('🇹🇷')).toBe('');
+  });
+});
+
+describe('shortAppName', () => {
+  it('drops the tagline after the separator', () => {
+    expect(shortAppName('TikTok - Videos, Shop & LIVE')).toBe('TikTok');
+    expect(shortAppName('Spotify: Music and Podcasts')).toBe('Spotify');
+    expect(shortAppName('Adobe Scan: PDF & OCR Scanner')).toBe('Adobe Scan');
+    expect(shortAppName('Threads – say more')).toBe('Threads');
+    expect(shortAppName('Photos — edit & share')).toBe('Photos');
+    expect(shortAppName('Slack | Work happens here')).toBe('Slack');
+    expect(shortAppName('Arc · the browser')).toBe('Arc');
+  });
+
+  it('cuts at the first separator only', () => {
+    expect(shortAppName('Booking.com: Hotels & Travel')).toBe('Booking.com');
+    expect(shortAppName('Gmail - Email by Google: fast')).toBe('Gmail');
+  });
+
+  it('keeps a title that carries no tagline', () => {
+    expect(shortAppName('X')).toBe('X');
+    expect(shortAppName('  Instagram  ')).toBe('Instagram');
+    expect(shortAppName('Yahoo! Mail')).toBe('Yahoo! Mail');
+  });
+
+  it('keeps a title with nothing after the separator', () => {
+    expect(shortAppName('Notes: ')).toBe('Notes:');
+    expect(shortAppName(': Notes')).toBe(': Notes');
+  });
+});
+
+describe('storefronts', () => {
+  it('offers every App Store country', () => {
+    expect(storefronts.length).toBeGreaterThan(150);
+    expect(storefronts.map((storefront) => storefront.code)).toContain('tr');
+  });
+
+  it('lists them by name', () => {
+    const labels = storefronts.map((storefront) => storefront.label);
+    expect([...labels].sort((left, right) => left.localeCompare(right, 'en'))).toEqual(labels);
+  });
+});
+
+describe('storefrontLabel', () => {
+  it('names a storefront in English', () => {
+    expect(storefrontLabel('tr')).toBe('Türkiye');
+    expect(storefrontLabel('us')).toBe('United States');
+    expect(storefrontLabel(' GB ')).toBe('United Kingdom');
+  });
+
+  it('names Kosovo, which CLDR may not carry', () => {
+    expect(storefrontLabel('xk')).toBe('Kosovo');
+  });
+
+  it('falls back to the code it cannot name', () => {
+    expect(storefrontLabel('qq')).toBe('QQ');
+    expect(storefrontLabel('nowhere')).toBe('NOWHERE');
   });
 });

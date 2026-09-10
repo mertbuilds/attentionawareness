@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { presets } from '../lib/profile/index.ts';
@@ -14,11 +14,24 @@ const createObjectURL = vi.fn<(blob: Blob) => string>(() => 'blob:profile');
 URL.createObjectURL = createObjectURL;
 URL.revokeObjectURL = vi.fn();
 
-// The blocked apps look their artwork up on mount. Tests stay offline: Apple
-// answers with nothing, so every icon falls back to an initials tile.
-const fetchMock = vi.fn(
-  async () => new Response(JSON.stringify({ resultCount: 0, results: [] }), { status: 200 }),
-);
+/** The one app the stubbed App Store answers a search with. */
+const SEARCH_RESULT = {
+  artistName: 'Snap, Inc.',
+  artworkUrl100: 'https://example.test/snapchat.png',
+  bundleId: 'com.toyopagroup.picaboo',
+  trackId: 447_188_370,
+  trackName: 'Snapchat - Video & Photo Chat',
+};
+
+/** The same app as the UI names it: the title without its tagline. */
+const SEARCH_RESULT_NAME = 'Snapchat';
+
+// Tests stay offline. The mount-time lookup answers with nothing, so every
+// blocked icon falls back to an initials tile; a search answers with one app.
+const fetchMock = vi.fn(async (input: string) => {
+  const results = input.includes('/search') ? [SEARCH_RESULT] : [];
+  return new Response(JSON.stringify({ resultCount: results.length, results }), { status: 200 });
+});
 globalThis.fetch = fetchMock as unknown as typeof fetch;
 
 const { Route } = await import('./index.tsx');
@@ -32,14 +45,14 @@ async function renderPage() {
 
 const BLOCKED_APPS = presets.mert.blockedApps.length;
 
-/** The tile that opens the floating search panel. */
-function addTile(): HTMLElement {
-  return screen.getByRole('button', { name: m.gen_app_search_open() });
+/** The always-visible search field at the top of the recommended apps. */
+function searchInput(): HTMLElement {
+  return screen.getByLabelText(m.gen_app_search_label());
 }
 
-async function openSearchPanel(): Promise<HTMLElement> {
-  await userEvent.click(addTile());
-  return screen.getByRole('dialog', { name: m.gen_app_search_open() });
+/** The country control inside the search bar. */
+function countryButton(): HTMLElement {
+  return screen.getByRole('button', { name: m.gen_storefront_label() });
 }
 
 async function downloadedXml(): Promise<string> {
@@ -64,62 +77,76 @@ describe('Generator', () => {
     expect(screen.getAllByRole('button', { name: m.gen_app_remove() })).toHaveLength(BLOCKED_APPS);
   });
 
-  it('opens the search as a floating panel focused on its input', async () => {
+  it('shows the search bar without any click', async () => {
     await renderPage();
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-
-    const panel = await openSearchPanel();
-
-    expect(panel).toHaveAttribute('aria-modal', 'false');
-    expect(within(panel).getByLabelText(m.gen_app_search_label())).toHaveFocus();
+    expect(searchInput()).toBeVisible();
+    expect(countryButton()).toBeVisible();
   });
 
-  it('closes the search panel when the tile is clicked again', async () => {
+  it('names the hovered app in a tooltip', async () => {
     await renderPage();
 
-    await openSearchPanel();
-    await userEvent.click(addTile());
+    await userEvent.hover(screen.getByRole('button', { name: 'YouTube' }));
 
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(m.gen_app_search_label())).not.toBeInTheDocument();
+    expect(screen.getByRole('tooltip')).toHaveTextContent('YouTube');
   });
 
-  it('closes the search panel on Escape and hands focus back to the tile', async () => {
+  it('picks the storefront from the country control in the search bar', async () => {
     await renderPage();
-    await openSearchPanel();
+    expect(countryButton()).toHaveTextContent('United States');
 
-    await userEvent.keyboard('{Escape}');
-
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(addTile()).toHaveFocus();
-  });
-
-  it('closes the search panel on a pointer outside it', async () => {
-    await renderPage();
-    await openSearchPanel();
-
-    await userEvent.click(screen.getByRole('heading', { level: 1 }));
-
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-  });
-
-  it('picks the storefront from the flag inside the search input', async () => {
-    await renderPage();
-    await openSearchPanel();
-    const flag = screen.getByRole('button', { name: m.gen_storefront_label() });
-    expect(flag).toHaveTextContent('🇺🇸');
-
-    await userEvent.click(flag);
+    await userEvent.click(countryButton());
     await userEvent.click(screen.getByRole('option', { name: 'Türkiye' }));
 
-    expect(flag).toHaveTextContent('🇹🇷');
+    expect(countryButton()).toHaveTextContent('Türkiye');
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
-    expect(screen.getByLabelText(m.gen_app_search_label())).toHaveFocus();
+    expect(searchInput()).toHaveFocus();
+  });
+
+  it('filters the country list by name or code', async () => {
+    await renderPage();
+
+    await userEvent.click(countryButton());
+    const filter = screen.getByLabelText(m.gen_storefront_filter());
+    expect(filter).toHaveFocus();
+    expect(screen.getAllByRole('option').length).toBeGreaterThan(150);
+
+    await userEvent.type(filter, 'türk');
+    expect(screen.getAllByRole('option')).toHaveLength(1);
+
+    await userEvent.clear(filter);
+    await userEvent.type(filter, 'jp');
+    expect(screen.getByRole('option', { name: 'Japan' })).toBeInTheDocument();
+  });
+
+  it('resets the apps to the recommended list after a second click', async () => {
+    await renderPage();
+    const [first] = screen.getAllByRole('button', { name: m.gen_app_remove() });
+    if (first === undefined) {
+      throw new Error('The preset should render a remove button');
+    }
+    await userEvent.click(first);
+    await userEvent.click(first);
+    expect(screen.getAllByRole('button', { name: m.gen_app_remove() })).toHaveLength(
+      BLOCKED_APPS - 1,
+    );
+
+    const reset = screen.getByRole('button', { name: m.gen_apps_reset() });
+    await userEvent.click(reset);
+    expect(reset).toHaveTextContent(m.gen_remove_confirm());
+    // Arming alone changes nothing.
+    expect(screen.getAllByRole('button', { name: m.gen_app_remove() })).toHaveLength(
+      BLOCKED_APPS - 1,
+    );
+
+    await userEvent.click(reset);
+
+    expect(screen.getAllByRole('button', { name: m.gen_app_remove() })).toHaveLength(BLOCKED_APPS);
+    expect(reset).toHaveTextContent(m.gen_apps_reset());
   });
 
   it('lists nothing while the search box is empty', async () => {
     await renderPage();
-    await openSearchPanel();
 
     expect(screen.queryByRole('button', { name: m.gen_app_add() })).not.toBeInTheDocument();
     expect(screen.queryByText(m.gen_app_results_empty())).not.toBeInTheDocument();
@@ -128,18 +155,43 @@ describe('Generator', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('drops the matching apps under the bar and hides them on Escape', async () => {
+    await renderPage();
+
+    await userEvent.type(searchInput(), 'snap');
+    expect(await screen.findByText(SEARCH_RESULT_NAME)).toBeInTheDocument();
+
+    await userEvent.keyboard('{Escape}');
+
+    expect(screen.queryByText(SEARCH_RESULT_NAME)).not.toBeInTheDocument();
+    // The query survives the dismissal; only the dropdown is gone.
+    expect(searchInput()).toHaveValue('snap');
+  });
+
+  it('adds a searched app under its short name', async () => {
+    await renderPage();
+
+    await userEvent.type(searchInput(), 'snap');
+    await userEvent.click(await screen.findByRole('button', { name: m.gen_app_add() }));
+
+    expect(screen.getAllByRole('button', { name: m.gen_app_remove() })).toHaveLength(
+      BLOCKED_APPS + 1,
+    );
+    // Once in the result row, once in the grid: never the App Store tagline.
+    expect(screen.getAllByText(SEARCH_RESULT_NAME)).toHaveLength(2);
+    expect(screen.queryByText(SEARCH_RESULT.trackName)).not.toBeInTheDocument();
+  });
+
   it('empties the query from the clear button inside the input', async () => {
     await renderPage();
-    await openSearchPanel();
-    const input = screen.getByLabelText(m.gen_app_search_label());
 
-    await userEvent.type(input, 'insta');
-    expect(input).toHaveValue('insta');
+    await userEvent.type(searchInput(), 'insta');
+    expect(searchInput()).toHaveValue('insta');
 
     await userEvent.click(screen.getByRole('button', { name: m.gen_app_search_clear() }));
 
-    expect(input).toHaveValue('');
-    expect(input).toHaveFocus();
+    expect(searchInput()).toHaveValue('');
+    expect(searchInput()).toHaveFocus();
     expect(screen.queryByRole('button', { name: m.gen_app_add() })).not.toBeInTheDocument();
     expect(screen.queryByText(m.gen_app_results_empty())).not.toBeInTheDocument();
   });
