@@ -152,13 +152,8 @@ describe('Generator', () => {
 
   it('names the hovered app in a tooltip', async () => {
     await renderPage();
-    // The headline and the share card both draw a fan; either one answers.
-    const [youtube] = screen.getAllByRole('button', { name: 'YouTube' });
-    if (youtube === undefined) {
-      throw new Error('The preset should render a YouTube icon');
-    }
 
-    await userEvent.hover(youtube);
+    await userEvent.hover(screen.getByRole('button', { name: 'YouTube' }));
 
     expect(screen.getByRole('tooltip')).toHaveTextContent('YouTube');
   });
@@ -386,28 +381,63 @@ describe('Generator', () => {
     await userEvent.click(screen.getByRole('button', { name: m.gen_copy() }));
 
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining('<plist'));
+    // The copy also opens the share dialog, which holds the rest of the page
+    // inert: the button underneath only answers again once it is dismissed.
+    await userEvent.keyboard('{Escape}');
     expect(screen.getByRole('button', { name: m.gen_copied() })).toBeInTheDocument();
   });
 
-  it('shows the years on a share card and points the buttons at the intents', async () => {
+  it('keeps the share dialog shut until a profile has left the page', async () => {
     await renderPage();
 
-    expect(screen.getByText(m.share_card_years({ years: '5' }))).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: m.share_x() })).toHaveAttribute(
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: m.share_reopen() })).not.toBeInTheDocument();
+  });
+
+  it('opens the share dialog on the download, and reopens it on request', async () => {
+    await renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText(m.share_heading_output())).toBeInTheDocument();
+    expect(within(dialog).getByText(m.share_card_years({ years: '5' }))).toBeInTheDocument();
+    expect(within(dialog).getByRole('link', { name: m.share_x() })).toHaveAttribute(
       'href',
       expect.stringContaining('intent/post'),
     );
+
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    // The second click is the reader's own, so the dialog comes back.
+    await userEvent.click(screen.getByRole('button', { name: m.share_reopen() }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
   });
 
-  it('copies the share link and says so on the button', async () => {
+  it('opens the share dialog when the XML is copied instead', async () => {
     const writeText = vi.fn(async () => {});
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
     await renderPage();
+    await userEvent.click(screen.getByRole('button', { name: m.gen_show_xml() }));
 
-    await userEvent.click(screen.getByRole('button', { name: m.share_copy() }));
+    await userEvent.click(screen.getByRole('button', { name: m.gen_copy() }));
+
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    expect(globalThis.localStorage.getItem('kya:generated')).toBe('true');
+  });
+
+  it('copies the share link from the dialog', async () => {
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+    await renderPage();
+    fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
+    const dialog = await screen.findByRole('dialog');
+
+    await userEvent.click(within(dialog).getByRole('button', { name: m.share_copy() }));
 
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining('keepyourattention.com/?h=4'));
-    expect(screen.getByRole('button', { name: m.share_copied() })).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: m.share_copied() })).toBeInTheDocument();
   });
 
   it('opens on the hours and the apps a shared link carries', async () => {

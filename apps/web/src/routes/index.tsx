@@ -5,6 +5,10 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
   Field,
   FieldDescription,
   FieldLabel,
@@ -45,6 +49,7 @@ export const Route = createFileRoute('/')({
 
 const STORAGE_KEY = 'kya:config';
 const HOURS_KEY = 'kya:hours';
+const GENERATED_KEY = 'kya:generated';
 const SEARCH_DEBOUNCE_MS = 300;
 const SEARCH_LIMIT = 10;
 const SKELETON_ROWS = [0, 1, 2];
@@ -229,6 +234,14 @@ const styles = create({
       default: '1fr',
     },
   },
+  factValue: {
+    fontSize: 'clamp(24px, 3.4vw, 32px)',
+    fontWeight: font.weightMedium,
+    letterSpacing: '-0.02em',
+    lineHeight: 1.15,
+    margin: 0,
+    textWrap: 'balance',
+  },
   fanHeadline: {
     fontSize: 'clamp(22px, 3.2vw, 28px)',
     fontWeight: font.weightBold,
@@ -246,9 +259,6 @@ const styles = create({
   hero: {
     maxWidth: 760,
     width: '100%',
-  },
-  heroQuiet: {
-    color: colors.muted,
   },
   heroTitle: {
     display: 'flex',
@@ -294,7 +304,7 @@ const styles = create({
     justifyContent: 'space-between',
   },
   mathResult: {
-    fontSize: 'clamp(28px, 4.6vw, 44px)',
+    fontSize: 'clamp(40px, 4.6vw, 56px)',
     fontVariantNumeric: 'tabular-nums',
     fontWeight: font.weightBold,
     letterSpacing: '-0.025em',
@@ -360,6 +370,9 @@ const styles = create({
       '@media (min-width: 640px)': 'repeat(3, 1fr)',
       default: '1fr',
     },
+  },
+  quiet: {
+    color: colors.muted,
   },
   // The one destructive colour on the page: it means "this click deletes".
   removeArmed: {
@@ -500,12 +513,18 @@ const styles = create({
     gap: spacing.s3,
   },
   sectionTitle: {
-    fontSize: 'clamp(22px, 3.2vw, 28px)',
-    fontWeight: font.weightBold,
+    fontSize: 28,
+    fontWeight: font.weightMedium,
     letterSpacing: '-0.02em',
     lineHeight: 1.2,
     margin: 0,
     textWrap: 'balance',
+  },
+  shareDialog: {
+    maxWidth: {
+      '@media (min-width: 640px)': 560,
+      default: 'calc(100% - 2rem)',
+    },
   },
   siteEmpty: {
     alignItems: 'center',
@@ -718,12 +737,6 @@ const styles = create({
     maxHeight: 320,
     overflowY: 'auto',
   },
-  subTitle: {
-    fontSize: font.sizeLg,
-    fontWeight: font.weightBold,
-    letterSpacing: '-0.01em',
-    margin: 0,
-  },
   textarea: {
     backgroundColor: 'transparent',
     borderColor: colors.border,
@@ -738,32 +751,10 @@ const styles = create({
     resize: 'vertical',
     width: '100%',
   },
-  tile: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s1,
-  },
   tileArtwork: {
     borderRadius: 11,
     height: 48,
     width: 48,
-  },
-  tileGrid: {
-    display: 'grid',
-    gap: spacing.s6,
-    gridTemplateColumns: {
-      '@media (min-width: 640px)': '1fr 1fr',
-      default: '1fr',
-    },
-  },
-  tileValue: {
-    fontSize: 'clamp(24px, 3.4vw, 32px)',
-    fontVariantNumeric: 'tabular-nums',
-    fontWeight: font.weightBold,
-    letterSpacing: '-0.02em',
-    lineHeight: 1.15,
-    margin: 0,
-    textWrap: 'balance',
   },
   titleRow: {
     alignItems: 'center',
@@ -968,6 +959,23 @@ function writeHours(hours: number): void {
   }
 }
 
+/** Whether this reader has already downloaded or copied a profile. */
+function readGenerated(): boolean {
+  try {
+    return globalThis.localStorage.getItem(GENERATED_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function writeGenerated(): void {
+  try {
+    globalThis.localStorage.setItem(GENERATED_KEY, 'true');
+  } catch {
+    // Private mode or a full quota must not break the generator.
+  }
+}
+
 /** The browser's own storefront, but only if the picker offers it. */
 function initialStorefront(): string {
   const code = defaultStorefront();
@@ -1042,8 +1050,9 @@ function Generator() {
   const [armedRemove, setArmedRemove] = useState<string | null>(null);
   const [showXml, setShowXml] = useState(false);
   const [copyState, setCopyState] = useState<'copied' | 'fallback' | 'idle'>('idle');
-  // The second share block only makes sense once there is something to share.
-  const [downloaded, setDownloaded] = useState(false);
+  // There is nothing to brag about until a profile has left the page.
+  const [generated, setGenerated] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   // The years the link that brought the reader here was bragging about. It is
   // the friend's number, so the reader's own slider never rewrites it.
   const [friendYears, setFriendYears] = useState<string | null>(null);
@@ -1052,6 +1061,8 @@ function Generator() {
   const storefrontFilter = useRef<HTMLInputElement>(null);
   const storefrontMenu = useRef<HTMLDivElement>(null);
   const xmlBlock = useRef<HTMLPreElement>(null);
+  // The dialog opens itself once. After that the reader asks for it.
+  const sharePrompted = useRef(false);
 
   const effectiveConfig = useMemo(
     () => withDerivedSites(config, customSites, excludedSites),
@@ -1129,6 +1140,9 @@ function Generator() {
       setFriendYears(formatYears(shared.hours));
     } else if (storedHours !== null) {
       setHours(storedHours);
+    }
+    if (readGenerated()) {
+      setGenerated(true);
     }
     const preferred = initialStorefront();
     if (preferred !== FALLBACK_COUNTRY) {
@@ -1426,6 +1440,20 @@ function Generator() {
     }
   }
 
+  /**
+   * A profile has left the page, by download or by clipboard. That is the
+   * moment the share dialog is worth showing, and it shows itself only the
+   * first time in a session: the button under the profile reopens it.
+   */
+  function markGenerated() {
+    setGenerated(true);
+    writeGenerated();
+    if (!sharePrompted.current) {
+      sharePrompted.current = true;
+      setShareOpen(true);
+    }
+  }
+
   function download() {
     if (xml === null) {
       return;
@@ -1438,7 +1466,7 @@ function Generator() {
     anchor.click();
     anchor.remove();
     URL.revokeObjectURL(url);
-    setDownloaded(true);
+    markGenerated();
   }
 
   // Dragging a selection across a scrolling block is miserable, so one click
@@ -1464,6 +1492,7 @@ function Generator() {
     try {
       await navigator.clipboard.writeText(xml);
       setCopyState('copied');
+      markGenerated();
     } catch {
       selectXml();
       setCopyState('fallback');
@@ -1492,17 +1521,10 @@ function Generator() {
   const years = formatYears(hours);
   const totalHours = formatHours(hours, getLocale());
 
-  const whatYearsBuy = [
-    { body: m.home_buys_hours_body(), value: m.home_buys_hours_title({ hours: totalHours }) },
-    { body: m.home_buys_languages_body(), value: m.home_buys_languages_title() },
-    { body: m.home_buys_instrument_body(), value: m.home_buys_instrument_title() },
-    { body: m.home_buys_reading_body(), value: m.home_buys_reading_title() },
-  ];
-
   const dealFacts = [
-    { body: m.home_deal_install_body(), value: m.home_deal_install_title() },
-    { body: m.home_deal_free_body(), value: m.home_deal_free_title() },
-    { body: m.home_deal_time_body(), value: m.home_deal_time_title() },
+    m.home_deal_install_title(),
+    m.home_deal_free_title(),
+    m.home_deal_time_title(),
   ];
 
   const howItWorks = [
@@ -1545,7 +1567,7 @@ function Generator() {
       <header {...props(styles.hero)}>
         <h1 {...props(styles.heroTitle)}>
           <span>{m.home_hero_line_1()}</span>
-          <span {...props(styles.heroQuiet)}>{m.home_hero_line_2()}</span>
+          <span {...props(styles.quiet)}>{m.home_hero_line_2()}</span>
         </h1>
       </header>
 
@@ -1585,13 +1607,6 @@ function Generator() {
             <span>{m.home_math_axis_end({ years })}</span>
           </div>
           <p {...props(layout.muted)}>{m.home_math_secondary({ hours })}</p>
-          <ShareCard
-            apps={config.blockedApps}
-            heading={m.share_heading_years()}
-            hours={hours}
-            meta={meta}
-            years={years}
-          />
         </section>
 
         <section {...props(styles.section)}>
@@ -1608,28 +1623,21 @@ function Generator() {
         </section>
 
         <section {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_buys_title({ years })}</h2>
-          <div {...props(styles.tileGrid)}>
-            {whatYearsBuy.map((tile) => (
-              <div key={tile.value} {...props(styles.tile)}>
-                <p {...props(styles.tileValue)}>{tile.value}</p>
-                <p {...props(styles.stepBody)}>{tile.body}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_deal_title()}</h2>
+          {/* The years are the point of the line, so they are the only part of
+              it in full contrast. */}
+          <p {...props(styles.mathResult)}>
+            <span {...props(styles.quiet)}>{m.home_buys_before()}</span> {years}{' '}
+            <span {...props(styles.quiet)}>{m.home_buys_after()}</span>
+          </p>
+          <p {...props(styles.lead)}>{m.home_buys_summary({ hours: totalHours })}</p>
           <div {...props(styles.factGrid)}>
             {dealFacts.map((fact) => (
-              <div key={fact.value} {...props(styles.tile)}>
-                <p {...props(styles.tileValue)}>{fact.value}</p>
-                <p {...props(styles.stepBody)}>{fact.body}</p>
-              </div>
+              <p key={fact} {...props(styles.factValue)}>
+                {fact}
+              </p>
             ))}
           </div>
-          <p {...props(styles.lead)}>{m.home_deal_closing()}</p>
+          <p {...props(styles.stepBody)}>{m.home_deal_closing()}</p>
         </section>
 
         <section {...props(styles.section)}>
@@ -2063,7 +2071,7 @@ function Generator() {
         <section {...props(styles.section)}>
           <Card>
             <CardHeader>
-              <CardTitle>{m.gen_output_title()}</CardTitle>
+              <CardTitle style={styles.sectionTitle}>{m.gen_output_title()}</CardTitle>
             </CardHeader>
             <CardContent {...props(styles.section)}>
               <ul {...props(styles.list)}>
@@ -2088,6 +2096,11 @@ function Generator() {
                 <Button onClick={() => setShowXml(!showXml)} variant="outline">
                   {showXml ? m.gen_hide_xml() : m.gen_show_xml()}
                 </Button>
+                {generated ? (
+                  <Button onClick={() => setShareOpen(true)} variant="outline">
+                    {m.share_reopen()}
+                  </Button>
+                ) : null}
               </div>
               {showXml && xml !== null ? (
                 <div {...props(styles.preWrap)}>
@@ -2099,18 +2112,9 @@ function Generator() {
                   </Button>
                 </div>
               ) : null}
-              {downloaded ? (
-                <ShareCard
-                  apps={config.blockedApps}
-                  heading={m.share_heading_output()}
-                  hours={hours}
-                  meta={meta}
-                  years={years}
-                />
-              ) : null}
             </CardContent>
           </Card>
-          <h3 {...props(styles.subTitle)}>{m.gen_install_title()}</h3>
+          <h3 {...props(styles.sectionTitle)}>{m.gen_install_title()}</h3>
           <ol {...props(styles.steps)}>
             <li>{m.gen_install_step_transfer()}</li>
             <li>{m.gen_install_step_settings()}</li>
@@ -2119,6 +2123,15 @@ function Generator() {
           </ol>
           <p {...props(layout.muted)}>{m.gen_install_note()}</p>
         </section>
+
+        <Dialog onOpenChange={setShareOpen} open={shareOpen}>
+          <DialogContent style={styles.shareDialog}>
+            <DialogHeader>
+              <DialogTitle style={styles.sectionTitle}>{m.share_heading_output()}</DialogTitle>
+            </DialogHeader>
+            <ShareCard apps={config.blockedApps} hours={hours} meta={meta} years={years} />
+          </DialogContent>
+        </Dialog>
 
         <footer {...props(styles.footer)}>
           <p {...props(layout.muted)}>
