@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "web-starter-web",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  // Custom entry: wraps @tanstack/react-start/server-entry with paraglide + evlog.
+  "main": "src/server.ts",
+  // evlog ships logs itself; Workers observability would duplicate them.
+  "observability": {
+    "enabled": false,
+  },
+}

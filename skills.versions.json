@@ -1,0 +1,65 @@
+{
+  "_comment": "Maps deps to their agent-skill sources. scripts/skills-check.ts warns when a mapped dep's installed major version drifts from checkedMajor (re-run `npx skills update` and bump) or when a dep listed here has no installed skill. Deps with source null have no worthwhile skill yet \u2014 re-check occasionally with `npx skills find <dep>`.",
+  "deps": {
+    "better-auth": {
+      "source": "better-auth/skills",
+      "skills": ["better-auth-best-practices", "email-and-password-best-practices"],
+      "checkedMajor": 1
+    },
+    "prisma": {
+      "source": "prisma/skills",
+      "skills": ["prisma-database-setup", "prisma-client-api", "prisma-cli"],
+      "checkedMajor": 7
+    },
+    "stripe": {
+      "source": "stripe/ai",
+      "skills": ["stripe-best-practices"],
+      "checkedMajor": 22
+    },
+    "posthog-js": {
+      "source": "posthog/posthog-for-claude",
+      "skills": ["posthog-instrumentation"],
+      "checkedMajor": 1
+    },
+    "@sentry/node": {
+      "source": "getsentry/sentry-for-ai",
+      "skills": ["sentry-node-sdk", "sentry-cloudflare-sdk", "sentry-fix-issues"],
+      "checkedMajor": 10
+    },
+    "@tanstack/react-start": {
+      "source": "deckardger/tanstack-agent-skills",
+      "skills": ["tanstack-start-best-practices", "tanstack-query-best-practices"],
+      "checkedMajor": 1
+    },
+    "evlog": {
+      "source": "hugorcd/evlog",
+      "skills": ["review-logging-patterns"],
+      "checkedMajor": 2
+    },
+    "emulate": {
+      "source": "vercel-labs/emulate",
+      "skills": ["emulate", "stripe", "google", "resend"],
+      "checkedMajor": 0
+    },
+    "@orpc/server": {
+      "source": "local",
+      "skills": ["orpc"],
+      "checkedMajor": 1
+    },
+    "@stylexjs/stylex": {
+      "source": "local",
+      "skills": ["stylex"],
+      "checkedMajor": 0
+    },
+    "@base-ui/react": {
+      "source": "local",
+      "skills": ["shadcn-cssinjs"],
+      "checkedMajor": 1
+    },
+    "storybook": {
+      "source": "local",
+      "skills": ["storybook"],
+      "checkedMajor": 10
+    }
+  }
+}

@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+env:
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec turbo run lint typecheck build
+      - run: pnpm format:check
+      - run: pnpm skills:check
+      - name: react-doctor
+        run: npx -y react-doctor@0.9.13 --yes --no-telemetry --no-supply-chain --project apps/web,packages/ui .
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Storybook story tests run in real Chromium (vitest browser mode).
+      - run: pnpm --filter @web-starter/ui exec playwright install chromium --with-deps
+      # api integration tests boot Testcontainers postgres:17 (Docker is present on ubuntu runners).
+      - run: pnpm test
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @web-starter/e2e exec playwright install chromium --with-deps
+      - run: docker compose up -d --wait postgres
+      - run: pnpm --filter @web-starter/db migrate
+        env:
+          DATABASE_URL: postgresql://webstarter:webstarter@localhost:5433/webstarter
+      - run: pnpm e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: e2e/test-results
+          retention-days: 7

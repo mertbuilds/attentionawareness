@@ -1,0 +1,22 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
+  "labels": ["deps"],
+  "rangeStrategy": "bump",
+  "packageRules": [
+    {
+      "groupName": "minor and patch",
+      "matchUpdateTypes": ["minor", "patch"],
+      "schedule": ["before 9am on monday"]
+    },
+    {
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
+    }
+  ],
+  "prConcurrentLimit": 5,
+  "postUpdateOptions": ["pnpmDedupe"],
+  "prBodyNotes": [
+    "After merging a major bump of a dep mapped in skills.versions.json: run `npx skills update`, re-verify the skill against the new major, bump `checkedMajor`."
+  ]
+}

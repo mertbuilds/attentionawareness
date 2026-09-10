@@ -1,0 +1,25 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=$(jq -r '.tool_input.file_path // empty'); case \"$f\" in *.ts|*.tsx|*.js|*.jsx|*.json|*.css|*.md) cd \"$CLAUDE_PROJECT_DIR\" && pnpm exec oxfmt \"$f\" >/dev/null 2>&1; case \"$f\" in *.ts|*.tsx|*.js|*.jsx) pnpm exec oxlint --fix \"$f\" >/dev/null 2>&1 ;; esac ;; esac; exit 0"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && pnpm typecheck >/dev/null 2>&1 || { echo 'typecheck failed — run pnpm typecheck' >&2; exit 2; }"
+          }
+        ]
+      }
+    ]
+  }
+}

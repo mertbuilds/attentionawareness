@@ -1,0 +1,24 @@
+name: Preview cleanup
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  drop-preview-schema:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Drop pr_N schema
+        if: env.DATABASE_URL_PREVIEW != ''
+        run: |
+          # Dokploy previews sharing one preview Postgres isolate per-PR state in
+          # a pr_<n> schema (search_path). Drop it when the PR closes.
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+          psql "$DATABASE_URL_PREVIEW" -c "DROP SCHEMA IF EXISTS pr_${{ github.event.pull_request.number }} CASCADE;"
+        env:
+          DATABASE_URL_PREVIEW: ${{ secrets.DATABASE_URL_PREVIEW }}
+      - name: Nothing to clean
+        if: env.DATABASE_URL_PREVIEW == ''
+        run: echo "DATABASE_URL_PREVIEW secret not set — no preview schema to drop."
+        env:
+          DATABASE_URL_PREVIEW: ${{ secrets.DATABASE_URL_PREVIEW }}

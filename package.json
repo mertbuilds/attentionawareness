@@ -1,0 +1,49 @@
+{
+  "name": "web-starter",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "bad-day": "bash scripts/bad-day.sh",
+    "build": "turbo run build",
+    "db:migrate": "pnpm --filter @web-starter/db migrate",
+    "db:reset": "bash scripts/reset.sh",
+    "db:studio": "pnpm --filter @web-starter/db studio",
+    "dev": "mprocs",
+    "e2e": "pnpm --filter @web-starter/e2e e2e",
+    "emulate": "emulate --service stripe,google,resend --seed emulate.config.yaml -p 5100 --portless",
+    "fonts": "bash scripts/fetch-fonts.sh",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
+    "lint": "oxlint --type-aware --type-check",
+    "prepare": "git rev-parse --git-dir >/dev/null 2>&1 && lefthook install || echo 'lefthook install skipped (no git repo)'",
+    "rename": "bash scripts/rename.sh",
+    "skills:check": "node scripts/skills-check.ts",
+    "storybook": "pnpm --filter @web-starter/ui storybook",
+    "stripe:listen": "echo 'Requires Stripe CLI + test-mode account (opt-in fallback for customer.subscription.* webhooks — emulate does not emit them).' && stripe listen --forward-to https://api.web-starter.localhost/api/auth/stripe/webhook",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.2",
+    "@commitlint/config-conventional": "^21.2.2",
+    "@nkzw/eslint-plugin": "^2.0.0",
+    "@nkzw/oxlint-config": "^2.0.1",
+    "emulate": "0.10.0",
+    "eslint-plugin-no-only-tests": "^3.4.0",
+    "eslint-plugin-perfectionist": "^5.11.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-unused-imports": "^4.4.1",
+    "lefthook": "^2.1.12",
+    "mprocs": "0.9.6",
+    "oxfmt": "^0.66.0",
+    "oxlint": "^1.81.0",
+    "oxlint-tsgolint": "^7.0.2001",
+    "portless": "0.15.6",
+    "turbo": "^2.10.12",
+    "typescript": "^7.0.2"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "pnpm@11.25.0"
+}
