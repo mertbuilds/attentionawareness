@@ -8,8 +8,6 @@ const WAKING_HOURS = 16;
 const DAYS_PER_YEAR = 365;
 /** The screen hours are an estimate, so they are shown to the nearest hundred. */
 const HOURS_ROUNDING = 100;
-/** A full bar, in percent. */
-const FULL_PERCENT = 100;
 /** How long one book takes to read: 80,000 words at 240 a minute. */
 const HOURS_PER_BOOK = 6;
 /** What the ledger pays the reader for the hours they gave away. */
@@ -18,7 +16,7 @@ const DOLLARS_PER_HOUR = 20;
 const BURN_MIN_OPACITY = 0.3;
 const BURN_MIN_HOURS = 1;
 const BURN_FULL_HOURS = 10;
-/** Opacity and percent both carry two decimals; nothing finer is visible. */
+/** The opacity carries two decimals; nothing finer is visible. */
 const PRECISION = 100;
 
 /** How far ahead the page projects a daily habit. */
@@ -93,12 +91,6 @@ export function screenHours(hoursPerDay: number): number {
 /** The hours grouped the way the reader's locale groups thousands. */
 export function formatHours(hoursPerDay: number, locale: string): string {
   return new Intl.NumberFormat(locale).format(screenHours(hoursPerDay));
-}
-
-/** How much of the horizon the habit takes, in percent of the bar. */
-export function screenPercent(hoursPerDay: number): number {
-  const percent = (screenYears(hoursPerDay) / HORIZON_YEARS) * FULL_PERCENT;
-  return round(Math.min(FULL_PERCENT, Math.max(0, percent)));
 }
 
 /**

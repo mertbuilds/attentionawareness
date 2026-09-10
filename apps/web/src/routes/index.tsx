@@ -35,13 +35,7 @@ import {
   storefrontLabel,
   storefronts,
 } from '../lib/app-search.ts';
-import {
-  burnOpacity,
-  formatHours,
-  formatYears,
-  ledgerItems,
-  screenPercent,
-} from '../lib/attention-math.ts';
+import { burnOpacity, formatHours, formatYears, ledgerItems } from '../lib/attention-math.ts';
 import { layout } from '../lib/layout.ts';
 import { buildProfile, presets } from '../lib/profile/index.ts';
 import type { BlockedApp, ProfileConfig } from '../lib/profile/index.ts';
@@ -195,66 +189,6 @@ const styles = create({
     lineHeight: 1,
     marginInlineStart: 'auto',
     padding: 0,
-  },
-  // Twenty years, outlined and empty. Everything inside it is still the
-  // reader's; the red is what the habit has already claimed.
-  bar: {
-    borderColor: colors.border,
-    borderRadius: 8,
-    borderStyle: 'solid',
-    borderWidth: '1px',
-    boxSizing: 'border-box',
-    height: 56,
-    position: 'relative',
-    width: '100%',
-  },
-  // Solid from 12px in, transparent at the edge itself: the boundary reads as
-  // burned rather than cut. Its own width is the container the label reads.
-  barBurn: {
-    backgroundImage: `linear-gradient(to right, transparent 0px, ${RED} 12px)`,
-    // Inside the 1px border, so the corner stays concentric with the bar's 8px.
-    borderEndEndRadius: 7,
-    borderStartEndRadius: 7,
-    containerType: 'inline-size',
-    insetBlockEnd: 0,
-    insetBlockStart: 0,
-    insetInlineEnd: 0,
-    position: 'absolute',
-    transitionDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: '400ms',
-    },
-    transitionProperty: 'width, opacity',
-    transitionTimingFunction: 'ease-out',
-  },
-  barEnds: {
-    color: colors.muted,
-    display: 'flex',
-    fontSize: 12,
-    gap: spacing.s2,
-    justifyContent: 'space-between',
-  },
-  barFill: (percent: number, opacity: number) => ({
-    opacity,
-    width: `${percent}%`,
-  }),
-  // Inside the burned region while it is wide enough to hold the words, and
-  // just outside its edge when it is not.
-  barLabel: {
-    color: {
-      '@container (min-width: 140px)': colors.bg,
-      default: RED,
-    },
-    fontSize: font.sizeSm,
-    fontWeight: font.weightMedium,
-    insetBlockStart: '50%',
-    insetInlineEnd: {
-      '@container (min-width: 140px)': spacing.s3,
-      default: 'calc(100% + 8px)',
-    },
-    position: 'absolute',
-    transform: 'translateY(-50%)',
-    whiteSpace: 'nowrap',
   },
   // The one colour on the page, and it is a loss, never a score.
   burn: {
@@ -507,18 +441,39 @@ const styles = create({
   },
   // The instrument's own display: one number, monospaced, never reflowing.
   readout: {
-    fontFamily: MONOSPACE,
-    fontSize: 40,
-    fontVariantNumeric: 'tabular-nums',
-    fontWeight: font.weightMedium,
-    letterSpacing: '-0.02em',
-    lineHeight: 1,
+    alignItems: 'baseline',
+    display: 'flex',
+    flexShrink: 0,
+    gap: 4,
   },
   readoutRow: {
     alignItems: 'center',
     display: 'flex',
     flexShrink: 0,
     gap: spacing.s2,
+  },
+  readoutUnit: {
+    color: colors.muted,
+    flexShrink: 0,
+    fontFamily: MONOSPACE,
+    fontSize: 20,
+    fontWeight: font.weightMedium,
+    lineHeight: 1,
+  },
+  // A half hour is one character wider than a whole one, so the box is sized
+  // for the longest reading and the number is set against its right edge. The
+  // rail beside it keeps its width while the knob moves.
+  readoutValue: {
+    flexShrink: 0,
+    fontFamily: MONOSPACE,
+    fontSize: 40,
+    fontVariantNumeric: 'tabular-nums',
+    fontWeight: font.weightMedium,
+    letterSpacing: '-0.02em',
+    lineHeight: 1,
+    textAlign: 'right',
+    whiteSpace: 'nowrap',
+    width: '5ch',
   },
   // The one destructive colour on the page: it means "this click deletes".
   removeArmed: {
@@ -806,6 +761,7 @@ const styles = create({
     },
     cursor: 'pointer',
     display: 'flex',
+    flexShrink: 0,
     height: 40,
     justifyContent: 'center',
     padding: 0,
@@ -1883,7 +1839,10 @@ function Generator() {
               </div>
             </div>
             <div {...props(styles.readoutRow)}>
-              <span {...props(styles.readout)}>{m.home_math_hours({ hours })}</span>
+              <span {...props(styles.readout)}>
+                <span {...props(styles.readoutValue)}>{m.home_math_hours({ hours })}</span>
+                <span {...props(styles.readoutUnit)}>{m.home_math_hours_unit()}</span>
+              </span>
               <button
                 aria-label={m.home_math_sound_label()}
                 aria-pressed={sound}
@@ -1921,18 +1880,6 @@ function Generator() {
             <span {...props(styles.burn, styles.burnInk(burn))}>{years}</span>{' '}
             {m.home_math_result_after()}
           </p>
-          <div {...props(styles.barEnds)}>
-            <span>{m.home_math_bar_start()}</span>
-            <span>{m.home_math_bar_end()}</span>
-          </div>
-          {/* One bar, burning in from the end of the twenty years. The reading
-              is in the summary below it, so the bar says nothing itself. */}
-          <div aria-hidden="true" {...props(styles.bar)}>
-            <div {...props(styles.barBurn, styles.barFill(screenPercent(hours), burn))}>
-              <span {...props(styles.barLabel)}>{m.home_math_bar_years({ years })}</span>
-            </div>
-          </div>
-          <p {...props(styles.srOnly)}>{m.home_math_blocks_summary({ years })}</p>
           <h3 {...props(styles.ledgerTitle)}>{m.home_ledger_title()}</h3>
           <ul {...props(styles.ledger)}>
             {ledger.map((item) => (
