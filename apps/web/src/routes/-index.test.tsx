@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { userEvent } from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { m } from '../paraglide/messages.js';
 
@@ -12,11 +13,20 @@ const createObjectURL = vi.fn<(blob: Blob) => string>(() => 'blob:profile');
 URL.createObjectURL = createObjectURL;
 URL.revokeObjectURL = vi.fn();
 
+// The blocked apps look their artwork up on mount. Tests stay offline: Apple
+// answers with nothing, so every icon falls back to an initials tile.
+const fetchMock = vi.fn(
+  async () => new Response(JSON.stringify({ resultCount: 0, results: [] }), { status: 200 }),
+);
+globalThis.fetch = fetchMock as unknown as typeof fetch;
+
 const { Route } = await import('./index.tsx');
 
-function renderPage() {
+async function renderPage() {
   const Page = (Route as unknown as { component: React.ComponentType }).component;
   render(<Page />);
+  // Flush the mount-time artwork lookup so its state update stays inside act().
+  await act(async () => {});
 }
 
 async function downloadedXml(): Promise<string> {
@@ -34,14 +44,15 @@ describe('Generator', () => {
     globalThis.localStorage?.clear();
   });
 
-  it('renders the default preset with its blocked apps', () => {
-    renderPage();
-    expect(screen.getByRole('heading', { level: 1, name: m.app_name() })).toBeInTheDocument();
+  it('opens with the headline and the default preset', async () => {
+    await renderPage();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(m.home_hero_line_1());
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(m.home_hero_line_2());
     expect(screen.getAllByRole('button', { name: m.gen_app_remove() })).toHaveLength(11);
   });
 
   it('downloads the built profile', async () => {
-    renderPage();
+    await renderPage();
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
     expect(createObjectURL).toHaveBeenCalledTimes(1);
     const xml = await downloadedXml();
@@ -51,9 +62,22 @@ describe('Generator', () => {
   });
 
   it('drops the web filter payload when the filter is turned off', async () => {
-    renderPage();
+    await renderPage();
     fireEvent.click(screen.getByLabelText(m.gen_web_mode_off()));
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
     expect(await downloadedXml()).not.toContain('com.apple.webcontent-filter');
+  });
+
+  it('shows the picked storefront in the trigger', async () => {
+    await renderPage();
+    const trigger = screen.getByRole('combobox');
+    expect(trigger).toHaveTextContent('United States');
+
+    await userEvent.click(trigger);
+    await userEvent.click(await screen.findByRole('option', { name: 'Türkiye' }));
+
+    await waitFor(() => {
+      expect(trigger).toHaveTextContent('Türkiye');
+    });
   });
 });

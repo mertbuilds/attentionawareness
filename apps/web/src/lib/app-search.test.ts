@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { AppSearchError, defaultStorefront, searchApps } from './app-search.ts';
+import { AppSearchError, defaultStorefront, lookupApps, searchApps } from './app-search.ts';
 
 const instagram = {
   artistName: 'Instagram, Inc.',
@@ -100,6 +100,52 @@ describe('searchApps', () => {
     await searchApps('instagram', { fetchImpl, signal: controller.signal });
 
     expect(fetchImpl.mock.calls[0]?.[1]?.signal).toBe(controller.signal);
+  });
+});
+
+describe('lookupApps', () => {
+  it('asks for every bundle id in one storefront-scoped request', async () => {
+    const fetchImpl = fetchStub({ resultCount: 0, results: [] });
+    await lookupApps([' com.burbn.instagram ', 'com.reddit.Reddit', ''], {
+      country: 'tr',
+      fetchImpl,
+    });
+
+    const url = requestedUrl(fetchImpl);
+    expect(`${url.origin}${url.pathname}`).toBe('https://itunes.apple.com/lookup');
+    expect(url.searchParams.get('bundleId')).toBe('com.burbn.instagram,com.reddit.Reddit');
+    expect(url.searchParams.get('country')).toBe('tr');
+    expect(url.searchParams.get('entity')).toBe('software');
+  });
+
+  it('maps rows to the same shape as a search', async () => {
+    const fetchImpl = fetchStub({ resultCount: 1, results: [instagram] });
+
+    expect(await lookupApps(['com.burbn.instagram'], { fetchImpl })).toEqual([
+      {
+        bundleId: 'com.burbn.instagram',
+        developer: 'Instagram, Inc.',
+        iconUrl: 'https://is1.mzstatic.com/image/100x100.jpg',
+        id: 389_801_252,
+        name: 'Instagram',
+      },
+    ]);
+  });
+
+  it('returns nothing for an empty list without calling the API', async () => {
+    const fetchImpl = fetchStub({ resultCount: 0, results: [] });
+
+    expect(await lookupApps(['  '], { fetchImpl })).toEqual([]);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('throws AppSearchError carrying the status on a failed request', async () => {
+    const fetchImpl = fetchStub({}, 503);
+
+    const error = await lookupApps(['com.burbn.instagram'], { fetchImpl }).catch(
+      (error: unknown) => error,
+    );
+    expect(error).toMatchObject({ name: 'AppSearchError', status: 503 });
   });
 });
 

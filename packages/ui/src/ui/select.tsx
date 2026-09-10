@@ -168,6 +168,9 @@ const styles = create({
       ':focus-visible': `0 0 0 3px color-mix(in oklab, ${colors.ring} 50%, transparent)`,
       default: null,
     },
+    // A <button> does not inherit `color`: without this it falls back to the
+    // UA `buttontext` (black), which stays black in dark mode.
+    color: colors.foreground,
     cursor: {
       ':disabled': 'not-allowed',
       default: 'pointer',
@@ -218,6 +221,10 @@ const styles = create({
     height: '1.75rem',
   },
   value: {
+    color: {
+      ':is([data-placeholder])': colors.mutedForeground,
+      default: colors.foreground,
+    },
     display: 'flex',
     flex: 1,
     textAlign: 'left',
