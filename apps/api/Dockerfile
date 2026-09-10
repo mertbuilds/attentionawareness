@@ -25,4 +25,4 @@ COPY apps/api ./apps/api
 WORKDIR /repo/apps/api
 EXPOSE 3001
 # Apply migrations, then start. Node 24 runs TypeScript natively.
-CMD ["sh", "-c", "pnpm --filter @web-starter/db migrate && node src/index.ts"]
+CMD ["sh", "-c", "pnpm --filter @keepyourattention/db migrate && node src/index.ts"]

@@ -1,4 +1,4 @@
-import type { ServerEnv } from '@web-starter/env/server';
+import type { ServerEnv } from '@keepyourattention/env/server';
 
 /**
  * Fixed price id seeded into the emulate.dev Stripe emulator

@@ -19,7 +19,7 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @web-starter/web build
+      - run: pnpm --filter @keepyourattention/web build
         env:
           # Point the preview at the Dokploy api preview when it exists, else staging.
           VITE_API_URL: ${{ vars.PREVIEW_API_URL || vars.API_URL }}

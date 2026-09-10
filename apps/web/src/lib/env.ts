@@ -1,4 +1,4 @@
-import { parseClientEnv } from '@web-starter/env/client';
+import { parseClientEnv } from '@keepyourattention/env/client';
 
 export const clientEnv = parseClientEnv({
   VITE_API_URL: import.meta.env['VITE_API_URL'] as string | undefined,

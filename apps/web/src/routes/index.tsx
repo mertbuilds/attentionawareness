@@ -1,5 +1,3 @@
-import { create, props } from '@stylexjs/stylex';
-import { createFileRoute, Link } from '@tanstack/react-router';
 import {
   Badge,
   Button,
@@ -9,8 +7,10 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from '@web-starter/ui';
-import { colors, font, spacing } from '@web-starter/ui/tokens.stylex';
+} from '@keepyourattention/ui';
+import { colors, font, spacing } from '@keepyourattention/ui/tokens.stylex';
+import { create, props } from '@stylexjs/stylex';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { layout } from '../lib/layout.ts';
 import { api } from '../lib/orpc.ts';
 import { m } from '../paraglide/messages.js';

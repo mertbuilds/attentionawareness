@@ -1,4 +1,4 @@
-import { createDb, type Db } from '@web-starter/db';
+import { createDb, type Db } from '@keepyourattention/db';
 import { inject } from 'vitest';
 
 /** Connects to the Testcontainers Postgres provided by global-setup. */

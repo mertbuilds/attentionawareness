@@ -1,6 +1,6 @@
+import { createDb } from '@keepyourattention/db';
+import { parseServerEnv } from '@keepyourattention/env/server';
 import { init as initSentry } from '@sentry/node';
-import { createDb } from '@web-starter/db';
-import { parseServerEnv } from '@web-starter/env/server';
 import { initLogger } from 'evlog';
 import { buildServer } from './server.ts';
 

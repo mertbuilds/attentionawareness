@@ -1,5 +1,5 @@
+import { colors, font, spacing } from '@keepyourattention/ui/tokens.stylex';
 import { create } from '@stylexjs/stylex';
-import { colors, font, spacing } from '@web-starter/ui/tokens.stylex';
 
 /**
  * Shared page-shell styles. Routes compose these with registry components

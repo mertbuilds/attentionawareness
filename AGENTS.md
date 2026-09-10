@@ -1,4 +1,4 @@
-# web-starter
+# keepyourattention
 
 Opinionated monorepo boilerplate. Every product starts as a copy of this repo. Keep it minimal: nothing gets added until a product needs it.
 
@@ -35,7 +35,7 @@ e2e/      Playwright smoke spec.
 | `pnpm rename`       | Rename the template to your product (`pnpm rename acme-app`)         |
 | `pnpm skills:check` | Verify installed agent skills match dep majors                       |
 
-Web app (`apps/web`): `pnpm --filter @web-starter/web dev` (:3000 standalone, or portless-assigned `PORT` under `pnpm dev`; needs api on `VITE_API_URL`), `build` (Workers bundle), `deploy` (build + `wrangler deploy`), `cf-typegen` (binding types).
+Web app (`apps/web`): `pnpm --filter @keepyourattention/web dev` (:3000 standalone, or portless-assigned `PORT` under `pnpm dev`; needs api on `VITE_API_URL`), `build` (Workers bundle), `deploy` (build + `wrangler deploy`), `cf-typegen` (binding types).
 
 ## Local URLs (portless)
 
@@ -43,16 +43,16 @@ Web app (`apps/web`): `pnpm --filter @web-starter/web dev` (:3000 standalone, or
 
 | Service   | URL                                                                                    | Without portless   |
 | --------- | -------------------------------------------------------------------------------------- | ------------------ |
-| web       | https://web-starter.localhost                                                          | :3000              |
-| api       | https://api.web-starter.localhost                                                      | :3001 (`API_PORT`) |
-| storybook | https://storybook.web-starter.localhost                                                | :6006              |
+| web       | https://keepyourattention.localhost                                                    | :3000              |
+| api       | https://api.keepyourattention.localhost                                                | :3001 (`API_PORT`) |
+| storybook | https://storybook.keepyourattention.localhost                                          | :6006              |
 | postgres  | — (raw TCP, not proxyable) localhost:5433                                              | localhost:5433     |
 | emulate   | https://{stripe,google,resend}.emulate.localhost (via --portless; upstream :5100-5102) | same               |
 
 - First run needs one-time setup in a terminal: `sudo pnpm exec portless proxy start --https` (binds 443, generates + trusts a local CA). After that the proxy auto-starts. `pnpm exec portless service install` makes it start on boot.
 - portless injects `PORT` (4000-4999 pool) into each app; api prefers `PORT` over `API_PORT`, vite reads it in `vite.config.ts`. emulate sits at base 5100 to stay out of that pool and registers https://{stripe,google,resend}.emulate.localhost aliases via --portless. Node processes calling those HTTPS aliases need NODE_EXTRA_CA_CERTS=~/.portless/ca.pem (wired in mprocs.yaml for the api pane); plain http://localhost:510x always works as fallback.
-- Agents: check the api with `curl https://api.web-starter.localhost/health`; docs at `https://api.web-starter.localhost/docs`. If TLS is in the way, `--no-tls` on portless or curl `-k`.
-- Cookies: web and api are sibling subdomains, so Better Auth sets `Domain=.web-starter.localhost` (see `createAuth` — same mechanism as prod `app.x.com`/`api.x.com`). Plain `localhost:port` dev still works and needs no cookie domain.
+- Agents: check the api with `curl https://api.keepyourattention.localhost/health`; docs at `https://api.keepyourattention.localhost/docs`. If TLS is in the way, `--no-tls` on portless or curl `-k`.
+- Cookies: web and api are sibling subdomains, so Better Auth sets `Domain=.keepyourattention.localhost` (see `createAuth` — same mechanism as prod `app.x.com`/`api.x.com`). Plain `localhost:port` dev still works and needs no cookie domain.
 - e2e stays port-based (CI has no portless proxy).
 
 Docker: plain `docker compose up -d` starts only Postgres (dev). The `api` container is behind a profile — `docker compose --profile full up -d --build` runs the prod-shaped stack (migrate on start, port 3001).
@@ -71,7 +71,7 @@ Docker: plain `docker compose up -d` starts only Postgres (dev). The `api` conta
 - Two token layers, both ours: `src/lib/tokens.stylex.ts` (component tokens — shadcn CSS variables from `src/theme.css`, grayscale, `--radius: 4px`, dark via `prefers-color-scheme`) and `src/tokens.stylex.ts` (app-level layout: `spacing`, `font`, raw `palette`). Components use the lib tokens; app layout uses the app tokens. Never raw color values.
 - One radius (4px — the lib radius scale is pinned to it). Black and white plus grays. Font stack `'Suisse Intl', 'Inter Variable', system-ui` — Suisse woff2 files are licensed, gitignored, fetched with `pnpm fonts` (`FONT_BUCKET_URL`); without them Inter Variable is the visual fallback. Components inherit the font from the app body; they set none themselves.
 - Current set: Button, Input, Field (label/error composition), Dialog, Select, Table, Label, Separator, Skeleton, Toaster (sonner, next-themes dropped). Grow on demand from the registry.
-- A story is the test: every component has colocated `*.stories.tsx` with `play` interaction tests. `pnpm --filter @web-starter/ui test` runs them in real Chromium via the Storybook Vitest addon (Vitest browser mode). `pnpm storybook` serves them on :6006.
+- A story is the test: every component has colocated `*.stories.tsx` with `play` interaction tests. `pnpm --filter @keepyourattention/ui test` runs them in real Chromium via the Storybook Vitest addon (Vitest browser mode). `pnpm storybook` serves them on :6006.
 
 ## Web (`apps/web`)
 
@@ -103,7 +103,7 @@ Docker: plain `docker compose up -d` starts only Postgres (dev). The `api` conta
 Test pyramid, bottom-up — everything runs with `pnpm test` (turbo) except e2e:
 
 - **Unit** (`*.test.ts` / `*.test.tsx`): api unit tests use a stub `Db` (no Docker); web unit tests run in jsdom (Vitest + Testing Library) with router/auth-client mocked; `src/lib/errors.ts` mapping is covered here.
-- **Component** (`packages/ui`): stories are the tests — `play` functions run in real Chromium via `@storybook/addon-vitest` (`pnpm --filter @web-starter/ui test`).
+- **Component** (`packages/ui`): stories are the tests — `play` functions run in real Chromium via `@storybook/addon-vitest` (`pnpm --filter @keepyourattention/ui test`).
 - **Integration** (`apps/api/src/*.int.test.ts`): Vitest project `integration` boots one Testcontainers `postgres:17-alpine` per run (`src/test/global-setup.ts`), applies committed migrations, and truncates all tables between tests (`src/test/db.ts` — Prisma has no per-test rollback). Auth flows go through `app.inject()`; oRPC procedures are called directly with `call()` and a hand-built context. Requires Docker.
 - **E2E** (`e2e/`): `pnpm e2e` — Playwright boots emulate Stripe (:4000), api (:3021, compose Postgres on :5433 must be up) and web (:3020) via `webServer`, then runs `smoke.spec.ts`: signup → dashboard → logout → login → subscribe attempt (asserts the documented emulate subscription gap degrades to a localized error, not a crash). Tests wait for `html[data-hydrated]` (set by a root effect) before touching forms — interacting pre-hydration triggers a native GET submit.
 

@@ -1,6 +1,6 @@
 import { stripe } from '@better-auth/stripe';
-import { createDb, type Db } from '@web-starter/db';
-import { parseServerEnv, type ServerEnv } from '@web-starter/env/server';
+import { createDb, type Db } from '@keepyourattention/db';
+import { parseServerEnv, type ServerEnv } from '@keepyourattention/env/server';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { genericOAuth, openAPI } from 'better-auth/plugins';
@@ -9,7 +9,8 @@ import { recordStripeEvent } from './billing/events.ts';
 import { getPlans } from './billing/plans.ts';
 
 const DEV_SECRET = 'dev-secret-do-not-use-in-production';
-const LOCAL_DATABASE_URL = 'postgresql://webstarter:webstarter@localhost:5433/webstarter';
+const LOCAL_DATABASE_URL =
+  'postgresql://keepyourattention:keepyourattention@localhost:5433/keepyourattention';
 
 /**
  * Splits STRIPE_API_BASE (e.g. http://localhost:4009) into the Stripe SDK's
@@ -85,8 +86,8 @@ export function createAuth(options: { db: Db; env: ServerEnv }) {
   const baseUrl = env.BETTER_AUTH_URL ?? 'http://localhost:3001';
 
   // Cookies must span web + api when they are sibling subdomains — in production
-  // (app.x.com / api.x.com) and locally behind portless (web-starter.localhost /
-  // api.web-starter.localhost). Plain localhost:port dev is same-site and needs nothing.
+  // (app.x.com / api.x.com) and locally behind portless (keepyourattention.localhost /
+  // api.keepyourattention.localhost). Plain localhost:port dev is same-site and needs nothing.
   const apiHost = new URL(baseUrl).hostname;
   const webHost = new URL(webUrl).hostname;
   const sharedParent =

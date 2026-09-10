@@ -1,5 +1,5 @@
 {
-  "name": "@web-starter/api",
+  "name": "@keepyourattention/api",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,15 +10,15 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@keepyourattention/db": "workspace:*",
     "@orpc/client": "^1.15.0",
     "@orpc/contract": "^1.15.0",
     "@orpc/server": "^1.15.0",
-    "@web-starter/db": "workspace:*",
     "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@keepyourattention/config": "workspace:*",
     "@types/node": "^24.10.1",
-    "@web-starter/config": "workspace:*",
     "typescript": "^7.0.2"
   }
 }

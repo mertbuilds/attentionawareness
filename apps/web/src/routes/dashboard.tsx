@@ -1,5 +1,3 @@
-import { create, props } from '@stylexjs/stylex';
-import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import {
   Badge,
   Button,
@@ -10,8 +8,10 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from '@web-starter/ui';
-import { colors, font, spacing } from '@web-starter/ui/tokens.stylex';
+} from '@keepyourattention/ui';
+import { colors, font, spacing } from '@keepyourattention/ui/tokens.stylex';
+import { create, props } from '@stylexjs/stylex';
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { authClient } from '../lib/auth.ts';
 import { messageForError } from '../lib/errors.ts';

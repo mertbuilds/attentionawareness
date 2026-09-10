@@ -3,8 +3,8 @@ import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-r
 import { useEffect, type ReactNode } from 'react';
 import { clientEnv } from '../lib/env.ts';
 import { getLocale } from '../paraglide/runtime.js';
-import '@web-starter/ui/fonts.css';
-import '@web-starter/ui/theme.css';
+import '@keepyourattention/ui/fonts.css';
+import '@keepyourattention/ui/theme.css';
 import '../app.css';
 
 if (import.meta.env.DEV && typeof window !== 'undefined') {
@@ -37,7 +37,7 @@ export const Route = createRootRoute({
       // oxlint-disable-next-line text-encoding-identifier-case -- HTML meta charset must be "utf-8"
       { charSet: 'utf-8' },
       { content: 'width=device-width, initial-scale=1', name: 'viewport' },
-      { title: 'web-starter' },
+      { title: 'keepyourattention' },
     ],
   }),
 });

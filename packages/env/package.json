@@ -1,5 +1,5 @@
 {
-  "name": "@web-starter/env",
+  "name": "@keepyourattention/env",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -14,8 +14,8 @@
     "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@keepyourattention/config": "workspace:*",
     "@types/node": "^24.10.1",
-    "@web-starter/config": "workspace:*",
     "typescript": "^7.0.2"
   }
 }
