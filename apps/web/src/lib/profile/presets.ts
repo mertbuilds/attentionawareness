@@ -20,10 +20,10 @@ export const presets: Record<'mert' | 'stopa' | 'minimal', ProfileConfig> = {
       { bundleId: 'pinterest', name: 'Pinterest' },
       { bundleId: 'com.amazon.aiv.AIVApp', name: 'Prime Video' },
     ],
-    displayName: 'Dumbphone',
-    identifier: 'com.example.dumbphone',
+    displayName: 'keepyourattention',
+    identifier: 'com.keepyourattention.profile',
     lockRemoval: true,
-    organization: 'Me',
+    organization: 'keepyourattention',
     webFilter: {
       deniedUrls: [
         'https://x.com',
@@ -53,10 +53,10 @@ export const presets: Record<'mert' | 'stopa' | 'minimal', ProfileConfig> = {
     allowPrivateBrowsing: true,
     autoFilterAdult: false,
     blockedApps: [],
-    displayName: 'Dumbphone',
-    identifier: 'com.example.dumbphone',
+    displayName: 'keepyourattention',
+    identifier: 'com.keepyourattention.profile',
     lockRemoval: false,
-    organization: 'Me',
+    organization: 'keepyourattention',
     webFilter: { mode: 'off' },
   },
   stopa: {
@@ -64,10 +64,10 @@ export const presets: Record<'mert' | 'stopa' | 'minimal', ProfileConfig> = {
     allowPrivateBrowsing: true,
     autoFilterAdult: false,
     blockedApps: [],
-    displayName: 'Dumbphone',
-    identifier: 'com.example.dumbphone',
+    displayName: 'keepyourattention',
+    identifier: 'com.keepyourattention.profile',
     lockRemoval: true,
-    organization: 'Me',
+    organization: 'keepyourattention',
     webFilter: {
       allowedUrls: [
         'https://maps.google.com',
