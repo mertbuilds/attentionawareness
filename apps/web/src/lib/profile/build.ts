@@ -164,7 +164,7 @@ function webFilterLines(config: ProfileConfig, nextUuid: () => string): Array<st
 }
 
 /**
- * Builds the .mobileconfig XML for a dumbphone setup. Pure: pass `uuid` to get
+ * Builds the .mobileconfig XML for a keepyourattention profile. Pure: pass `uuid` to get
  * deterministic output, otherwise every build mints fresh payload UUIDs.
  */
 export function buildProfile(config: ProfileConfig, options?: { uuid?: () => string }): string {
