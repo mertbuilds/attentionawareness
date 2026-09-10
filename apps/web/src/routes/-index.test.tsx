@@ -1,6 +1,7 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { presets } from '../lib/profile/index.ts';
 import { m } from '../paraglide/messages.js';
 
 // The page only needs the route factory; unit tests render the component itself.
@@ -29,6 +30,18 @@ async function renderPage() {
   await act(async () => {});
 }
 
+const BLOCKED_APPS = presets.mert.blockedApps.length;
+
+/** The tile that opens the floating search panel. */
+function addTile(): HTMLElement {
+  return screen.getByRole('button', { name: m.gen_app_search_open() });
+}
+
+async function openSearchPanel(): Promise<HTMLElement> {
+  await userEvent.click(addTile());
+  return screen.getByRole('dialog', { name: m.gen_app_search_open() });
+}
+
 async function downloadedXml(): Promise<string> {
   const blob = createObjectURL.mock.calls.at(-1)?.[0];
   if (blob === undefined) {
@@ -48,38 +61,114 @@ describe('Generator', () => {
     await renderPage();
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(m.home_hero_line_1());
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(m.home_hero_line_2());
-    expect(screen.getAllByRole('button', { name: m.gen_app_remove() })).toHaveLength(11);
+    expect(screen.getAllByRole('button', { name: m.gen_app_remove() })).toHaveLength(BLOCKED_APPS);
   });
 
-  it('reveals the search panel only when asked for it', async () => {
+  it('opens the search as a floating panel focused on its input', async () => {
     await renderPage();
-    expect(screen.queryByLabelText(m.gen_app_search_label())).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(m.gen_storefront_label())).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: m.gen_app_search_open() }));
+    const panel = await openSearchPanel();
 
-    expect(screen.getByLabelText(m.gen_app_search_label())).toBeInTheDocument();
-    expect(screen.getByRole('combobox')).toBeInTheDocument();
+    expect(panel).toHaveAttribute('aria-modal', 'false');
+    expect(within(panel).getByLabelText(m.gen_app_search_label())).toHaveFocus();
   });
 
   it('closes the search panel when the tile is clicked again', async () => {
     await renderPage();
-    const trigger = screen.getByRole('button', { name: m.gen_app_search_open() });
 
-    await userEvent.click(trigger);
-    expect(screen.getByLabelText(m.gen_app_search_label())).toBeInTheDocument();
+    await openSearchPanel();
+    await userEvent.click(addTile());
 
-    await userEvent.click(trigger);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.queryByLabelText(m.gen_app_search_label())).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(m.gen_storefront_label())).not.toBeInTheDocument();
+  });
+
+  it('closes the search panel on Escape and hands focus back to the tile', async () => {
+    await renderPage();
+    await openSearchPanel();
+
+    await userEvent.keyboard('{Escape}');
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(addTile()).toHaveFocus();
+  });
+
+  it('closes the search panel on a pointer outside it', async () => {
+    await renderPage();
+    await openSearchPanel();
+
+    await userEvent.click(screen.getByRole('heading', { level: 1 }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('picks the storefront from the flag inside the search input', async () => {
+    await renderPage();
+    await openSearchPanel();
+    const flag = screen.getByRole('button', { name: m.gen_storefront_label() });
+    expect(flag).toHaveTextContent('🇺🇸');
+
+    await userEvent.click(flag);
+    await userEvent.click(screen.getByRole('option', { name: 'Türkiye' }));
+
+    expect(flag).toHaveTextContent('🇹🇷');
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(screen.getByLabelText(m.gen_app_search_label())).toHaveFocus();
   });
 
   it('lists nothing while the search box is empty', async () => {
     await renderPage();
-    await userEvent.click(screen.getByRole('button', { name: m.gen_app_search_open() }));
+    await openSearchPanel();
 
     expect(screen.queryByRole('button', { name: m.gen_app_add() })).not.toBeInTheDocument();
     expect(screen.queryByText(m.gen_app_results_empty())).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: m.gen_app_search_clear() }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('empties the query from the clear button inside the input', async () => {
+    await renderPage();
+    await openSearchPanel();
+    const input = screen.getByLabelText(m.gen_app_search_label());
+
+    await userEvent.type(input, 'insta');
+    expect(input).toHaveValue('insta');
+
+    await userEvent.click(screen.getByRole('button', { name: m.gen_app_search_clear() }));
+
+    expect(input).toHaveValue('');
+    expect(input).toHaveFocus();
+    expect(screen.queryByRole('button', { name: m.gen_app_add() })).not.toBeInTheDocument();
+    expect(screen.queryByText(m.gen_app_results_empty())).not.toBeInTheDocument();
+  });
+
+  it('asks for a second click before removing an app', async () => {
+    await renderPage();
+    const [first, second] = screen.getAllByRole('button', { name: m.gen_app_remove() });
+    if (first === undefined || second === undefined) {
+      throw new Error('The preset should render at least two remove buttons');
+    }
+
+    await userEvent.click(first);
+    expect(first).toHaveTextContent(m.gen_remove_confirm());
+    expect(screen.getAllByRole('button', { name: m.gen_app_remove() })).toHaveLength(
+      BLOCKED_APPS - 1,
+    );
+
+    // Arming another row stands the first one down: only one can be armed.
+    await userEvent.click(second);
+    expect(first).toHaveTextContent('×');
+    expect(second).toHaveTextContent(m.gen_remove_confirm());
+
+    await userEvent.click(second);
+    expect(
+      screen.queryByRole('button', { name: m.gen_app_remove_confirm() }),
+    ).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: m.gen_app_remove() })).toHaveLength(
+      BLOCKED_APPS - 1,
+    );
   });
 
   it('downloads the built profile', async () => {
@@ -97,19 +186,5 @@ describe('Generator', () => {
     fireEvent.click(screen.getByLabelText(m.gen_web_mode_off()));
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
     expect(await downloadedXml()).not.toContain('com.apple.webcontent-filter');
-  });
-
-  it('shows the picked storefront in the trigger', async () => {
-    await renderPage();
-    await userEvent.click(screen.getByRole('button', { name: m.gen_app_search_open() }));
-    const trigger = screen.getByRole('combobox');
-    expect(trigger).toHaveTextContent('United States');
-
-    await userEvent.click(trigger);
-    await userEvent.click(await screen.findByRole('option', { name: 'Türkiye' }));
-
-    await waitFor(() => {
-      expect(trigger).toHaveTextContent('Türkiye');
-    });
   });
 });

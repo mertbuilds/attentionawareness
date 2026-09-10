@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { AppSearchError, defaultStorefront, lookupApps, searchApps } from './app-search.ts';
+import {
+  AppSearchError,
+  defaultStorefront,
+  flagEmoji,
+  lookupApps,
+  searchApps,
+} from './app-search.ts';
 
 const instagram = {
   artistName: 'Instagram, Inc.',
@@ -163,5 +169,24 @@ describe('defaultStorefront', () => {
   it('falls back to the US store when there is no navigator (SSR)', () => {
     vi.stubGlobal('navigator', undefined);
     expect(defaultStorefront()).toBe('us');
+  });
+});
+
+describe('flagEmoji', () => {
+  it('turns an alpha-2 code into regional indicator symbols', () => {
+    expect(flagEmoji('tr')).toBe('🇹🇷');
+    expect(flagEmoji('us')).toBe('🇺🇸');
+  });
+
+  it('accepts any casing and surrounding space', () => {
+    expect(flagEmoji(' DE ')).toBe('🇩🇪');
+  });
+
+  it('has no flag for anything that is not two letters', () => {
+    expect(flagEmoji('')).toBe('');
+    expect(flagEmoji('t')).toBe('');
+    expect(flagEmoji('tur')).toBe('');
+    expect(flagEmoji('t1')).toBe('');
+    expect(flagEmoji('🇹🇷')).toBe('');
   });
 });
