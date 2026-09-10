@@ -1915,7 +1915,6 @@ function Generator() {
               </p>
             ))}
           </div>
-          <p {...props(styles.stepBody)}>{m.home_deal_closing()}</p>
         </section>
 
         <section {...props(styles.section)}>
