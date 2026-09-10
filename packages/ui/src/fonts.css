@@ -1,0 +1,28 @@
+/*
+ * Suisse Intl is licensed — the woff2 files are gitignored and fetched via
+ * `pnpm fonts` (scripts/fetch-fonts.sh). When the files are absent the
+ * browser falls through to Inter Variable (bundled) then system-ui.
+ */
+@font-face {
+  font-display: swap;
+  font-family: 'Suisse Intl';
+  font-style: normal;
+  font-weight: 400;
+  src: url('../fonts/SuisseIntl-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-display: swap;
+  font-family: 'Suisse Intl';
+  font-style: normal;
+  font-weight: 500;
+  src: url('../fonts/SuisseIntl-Medium.woff2') format('woff2');
+}
+
+@font-face {
+  font-display: swap;
+  font-family: 'Suisse Intl';
+  font-style: normal;
+  font-weight: 700;
+  src: url('../fonts/SuisseIntl-Bold.woff2') format('woff2');
+}

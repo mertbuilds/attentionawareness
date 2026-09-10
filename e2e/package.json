@@ -1,0 +1,15 @@
+{
+  "name": "@web-starter/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^24.10.1",
+    "@web-starter/config": "workspace:*",
+    "typescript": "^7.0.2"
+  }
+}

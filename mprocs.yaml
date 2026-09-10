@@ -1,0 +1,20 @@
+procs:
+  postgres:
+    shell: docker compose up postgres
+    stop:
+      send-keys: ['<C-c>']
+  emulate:
+    # --portless registers https://{stripe,google,resend}.emulate.localhost aliases;
+    # upstream ports stay at 5100+ (out of portless's 4000-4999 PORT pool).
+    shell: pnpm emulate
+  api:
+    # https://api.web-starter.localhost — portless injects PORT; api prefers it over API_PORT.
+    # NODE_EXTRA_CA_CERTS: Node ignores the macOS trust store, so outbound HTTPS to the
+    # *.emulate.localhost aliases needs the portless CA explicitly.
+    shell: NODE_EXTRA_CA_CERTS="$HOME/.portless/ca.pem" pnpm exec portless api.web-starter pnpm --filter api dev
+  web:
+    # https://web-starter.localhost
+    shell: pnpm exec portless web-starter pnpm --filter @web-starter/web dev
+  storybook:
+    # https://storybook.web-starter.localhost — storybook respects --port only, so pass PORT through.
+    shell: pnpm exec portless storybook.web-starter sh -c 'pnpm --filter @web-starter/ui exec storybook dev --port "$PORT" --no-open'

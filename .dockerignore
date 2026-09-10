@@ -1,0 +1,12 @@
+**/node_modules
+**/.turbo
+**/dist
+**/.vite
+**/.output
+**/storybook-static
+**/generated
+.git
+.env
+.env.*
+!.env.example
+docs

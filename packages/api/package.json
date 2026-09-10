@@ -1,0 +1,24 @@
+{
+  "name": "@web-starter/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@orpc/client": "^1.15.0",
+    "@orpc/contract": "^1.15.0",
+    "@orpc/server": "^1.15.0",
+    "@web-starter/db": "workspace:*",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "@web-starter/config": "workspace:*",
+    "typescript": "^7.0.2"
+  }
+}
