@@ -1,0 +1,158 @@
+# supervise.py
+
+A Mac command line tool that turns on iOS supervised mode without erasing the iPhone.
+
+It patches one flag inside a local Finder backup. You then restore that backup in Finder,
+and the iPhone starts again as a supervised device with your data still on it.
+
+## What supervised mode is
+
+Supervision is the state Apple gives to a device that a school or a company owns. A
+supervised iPhone accepts configuration profiles that a normal iPhone refuses. Those
+profiles are the only way to lock a phone down properly:
+
+- A Safari allowlist. The phone reaches the sites you name and no others.
+- The App Store removed from the phone.
+- App installation and app removal blocked.
+- Single App Mode, and many other restriction keys.
+
+Without supervision you only get Screen Time. Screen Time is a reminder, not a wall. You
+can turn it off in a few taps, which is exactly what a distracted brain does.
+
+## Why Apple's path erases the phone
+
+Apple turns on supervision through Apple Configurator with the Prepare action. Prepare
+enrolls the device and wipes it first. That is fine for a fleet of new phones from a box.
+It is painful for the phone you already use.
+
+## How this tool avoids the erase
+
+Supervision is recorded on the phone in a single property list file:
+
+```
+Library/ConfigurationProfiles/CloudConfigurationDetails.plist
+```
+
+That file has a boolean key named `IsSupervised`. The file is part of a normal Finder
+backup. The tool finds the file inside an unencrypted backup on your Mac, sets the flag
+to true, and keeps the file the exact byte size that the backup index records. A restore
+writes the patched file back to the phone, and the phone reads itself as supervised.
+
+Nothing on the phone is erased, because a backup restore is not an erase.
+
+## What you need
+
+- A Mac.
+- A cable.
+- An iPhone with enough free space on the Mac for a full backup.
+- An unencrypted Finder backup. In Finder, select the iPhone, then clear the checkbox
+  `Encrypt local backup`, then click `Back Up Now`. Encrypted backups do not work in this
+  version, because the tool cannot read them.
+- Full Disk Access for your terminal application. Backups live in a folder that macOS
+  protects. Open System Settings, then Privacy & Security, then Full Disk Access. Add your
+  terminal application, turn the switch on, quit the terminal fully, and start it again.
+- Find My iPhone off, and Stolen Device Protection off, during the restore. Finder refuses
+  to restore while Find My is on.
+
+## Usage
+
+The tool has no dependencies. Python 3.12 or newer is enough.
+
+```
+python3 cli/supervise.py check
+python3 cli/supervise.py patch
+python3 cli/supervise.py unpatch
+python3 cli/supervise.py verify
+python3 cli/supervise.py run
+```
+
+- `check` lists every backup on the Mac with the folder name, the device name, the iOS
+  version, the backup date, whether it is encrypted, and the current `IsSupervised` value.
+  Add `--json` for machine readable output.
+- `patch` sets the flag. It shows you what it will change and asks for confirmation.
+  Add `--yes` to skip the question.
+- `unpatch` puts back the untouched copies that `patch` saved.
+- `verify` asks the connected iPhone whether it is supervised. It uses `cfgutil` from
+  Apple Configurator.
+- `run` does check, then patch, then verify, with a pause for the restore.
+
+If the Mac holds a backup of more than one device, add `--udid <UDID>`. Run `check` to read
+the UDIDs.
+
+Finder also keeps dated archive copies of a backup beside the live folder, for example
+`00008140-001878AE0CF9401C-20260910-162122`. Both folders hold the same UDID, so `check`
+prints the folder name and the kind of each one: `current` or `Finder archive copy`. The
+commands use the current folder, and they say which folder they use. To work on an archive
+copy, pass the folder name: `--udid <folder name>`.
+
+Exit codes: `0` for success, `1` for a problem you must fix, `2` for an unexpected error.
+
+## Step by step
+
+1. Connect the iPhone. Open Finder and select the device.
+2. Clear the checkbox `Encrypt local backup`. Click `Back Up Now`. Wait for the end.
+3. Run `python3 cli/supervise.py check`. Read the backup date. It must be the backup you
+   just made. `IsSupervised` must be `false`.
+4. Run `python3 cli/supervise.py patch`. Read the plan and confirm. The tool prints the
+   folder that holds the untouched copies. Keep that path.
+5. On the iPhone, turn off Stolen Device Protection.
+6. On the iPhone, turn off Find My iPhone.
+7. In Finder, click `Restore Backup` and pick the backup you patched. The phone restarts
+   and then restores its apps and data. This takes a while.
+8. Open Settings on the iPhone. The banner at the top says that this iPhone is supervised.
+9. Turn Find My iPhone on again.
+10. Run `python3 cli/supervise.py verify`.
+
+## What you keep and what you lose
+
+You keep your photos, messages, notes, health data, app data, settings, and your home
+screen layout. A backup restore is a full restore.
+
+You lose some convenience:
+
+- Apps download again from the App Store. This needs time and network.
+- Some apps ask you to log in again. Apps that store a token in the keychain usually
+  survive, but banking apps and some two factor apps do not.
+- Face ID needs a new enrollment.
+- Apple Pay cards need to be added again.
+- The Apple Watch may need to be paired again.
+
+Set aside an evening. Do not do this an hour before you need the phone.
+
+## Verified on
+
+| Date       | Device     | iOS    | Backup              | Result                                                    |
+| ---------- | ---------- | ------ | ------------------- | --------------------------------------------------------- |
+| 2026-09-10 | iPhone17,3 | 26.6.1 | Finder, unencrypted | Settings showed the phone as supervised after the restore |
+
+If you run this on another version, please open an issue with the device and the iOS
+version, and say whether it worked.
+
+## Caveats
+
+- Apple does not support this procedure. It is a patch of a private file inside a backup.
+- iOS 27 may change how a restore handles this file. Test on a phone you can rebuild.
+- Encrypted backups do not work in this version.
+- The organization name stays empty, so the supervision banner shows no company name.
+  The tool does not write `OrganizationName` in this version.
+- The tool never touches the phone. It only writes inside the backup folder on the Mac.
+- Before any write, the tool copies the original file and `Manifest.db` to
+  `.../MobileSync/Backup/keepyourattention-pristine/<UDID>-<timestamp>/` and prints the path.
+
+## How to undo
+
+Two ways:
+
+- Undo the patch in the backup: run `python3 cli/supervise.py unpatch`. This puts back the
+  untouched copies. It only helps before a restore.
+- Remove supervision from the phone: erase the phone. Settings, then General, then Transfer
+  or Reset iPhone, then Erase All Content and Settings. Then restore a backup that was made
+  before the patch. Supervision does not survive an erase.
+
+## Credits
+
+The mechanism comes from this Ask Different thread:
+https://apple.stackexchange.com/questions/285128
+
+And from Stepan Parunashvili's write up:
+https://stopa.io/post/297

@@ -32,3 +32,8 @@ test-results/
 
 # os
 .DS_Store
+
+# python (cli/)
+__pycache__/
+*.py[cod]
+.venv/
