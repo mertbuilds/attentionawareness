@@ -9,6 +9,7 @@ export const presets: Record<'mert' | 'stopa' | 'minimal', ProfileConfig> = {
     blockedApps: [
       { bundleId: 'com.atebits.Tweetie2', name: 'X' },
       { bundleId: 'com.burbn.instagram', name: 'Instagram' },
+      { bundleId: 'com.burbn.barcelona', name: 'Threads' },
       { bundleId: 'com.zhiliaoapp.musically', name: 'TikTok' },
       { bundleId: 'com.google.ios.youtube', name: 'YouTube' },
       { bundleId: 'com.reddit.Reddit', name: 'Reddit' },
@@ -31,6 +32,8 @@ export const presets: Record<'mert' | 'stopa' | 'minimal', ProfileConfig> = {
         'https://m.youtube.com',
         'https://youtu.be',
         'https://instagram.com',
+        'https://threads.net',
+        'https://www.threads.com',
         'https://tiktok.com',
         'https://facebook.com',
         'https://reddit.com',

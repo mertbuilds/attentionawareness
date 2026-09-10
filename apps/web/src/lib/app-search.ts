@@ -3,6 +3,11 @@ const LOOKUP_URL = 'https://itunes.apple.com/lookup';
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 25;
 const FALLBACK_STOREFRONT = 'us';
+/** Code point of 🇦, the regional indicator symbol the letter A maps to. */
+const REGIONAL_INDICATOR_A = 127_462;
+/** Code point of the ASCII letter A. */
+const UPPERCASE_A = 65;
+const ALPHA_2 = /^[a-z]{2}$/iu;
 
 export type AppResult = {
   bundleId: string;
@@ -74,6 +79,22 @@ export const storefronts: Array<{ code: string; label: string }> = [
   { code: 'au', label: 'Australia' },
   { code: 'mx', label: 'Mexico' },
 ];
+
+/**
+ * An ISO 3166-1 alpha-2 country code as its flag emoji: `tr` is the pair of
+ * regional indicator symbols fonts draw as 🇹🇷. Anything that is not two
+ * letters names no country, so it gets no flag.
+ */
+export function flagEmoji(code: string): string {
+  const letters = code.trim().toUpperCase();
+  if (!ALPHA_2.test(letters)) {
+    return '';
+  }
+  return String.fromCodePoint(
+    letters.charCodeAt(0) - UPPERCASE_A + REGIONAL_INDICATOR_A,
+    letters.charCodeAt(1) - UPPERCASE_A + REGIONAL_INDICATOR_A,
+  );
+}
 
 /**
  * Storefront to search first, derived from the browser locale region

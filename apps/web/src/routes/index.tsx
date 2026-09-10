@@ -11,21 +11,23 @@ import {
   FieldLabel,
   Input,
   Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Separator,
   Skeleton,
 } from '@keepyourattention/ui';
 import { colors, font, radius, spacing } from '@keepyourattention/ui/tokens.stylex';
-import { create, props } from '@stylexjs/stylex';
+import { create, keyframes, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { AppResult } from '../lib/app-search.ts';
-import { defaultStorefront, lookupApps, searchApps, storefronts } from '../lib/app-search.ts';
+import {
+  defaultStorefront,
+  flagEmoji,
+  lookupApps,
+  searchApps,
+  storefronts,
+} from '../lib/app-search.ts';
 import { layout } from '../lib/layout.ts';
 import { buildProfile, presets } from '../lib/profile/index.ts';
 import type { BlockedApp, ProfileConfig } from '../lib/profile/index.ts';
@@ -46,14 +48,25 @@ const PROFILE_MIME = 'application/x-apple-aspen-config';
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 /** Above every other icon in the fan, whatever the stack order says. */
 const POPPED_DEPTH = 99;
-
-/** `Select` shows an item's label instead of the raw storefront code. */
-const storefrontItems = storefronts.map((storefront) => ({
-  label: storefront.label,
-  value: storefront.code,
-}));
+/** How long an armed Remove waits for its second click before standing down. */
+const REMOVE_CONFIRM_MS = 3000;
+/** Narrowest the floating panel gets, however small the tile it hangs off. */
+const PANEL_MIN_WIDTH = 360;
+/** Breathing room kept between the panel and every viewport edge. */
+const PANEL_MARGIN = 16;
+/** Distance from the tile to the panel. */
+const PANEL_GAP = 8;
+/** Below this much room under the tile the panel flips above it instead. */
+const PANEL_MIN_HEIGHT = 240;
 
 type WebMode = ProfileConfig['webFilter']['mode'];
+
+/**
+ * Where the floating panel sits, in viewport coordinates. Exactly one of `top`
+ * and `bottom` is a number: the panel hangs off whichever edge keeps it on
+ * screen, which is also how it needs no height measurement to flip.
+ */
+type PanelPosition = { bottom: number | null; left: number; top: number | null; width: number };
 
 /** Raw textarea buffers. The parsed arrays live in the config. */
 type UrlText = { allowed: string; denied: string; permitted: string };
@@ -66,19 +79,29 @@ type UrlText = { allowed: string; denied: string; permitted: string };
 type AppMeta = { developer: string; iconUrl: string };
 type MetaCache = Record<string, AppMeta | null>;
 
+/** The panel eases in from just under its anchor; it never animates out. */
+const panelEnter = keyframes({
+  from: { opacity: 0, transform: 'translateY(4px)' },
+  to: { opacity: 1, transform: 'translateY(0)' },
+});
+
 const styles = create({
   addTile: {
     alignItems: 'center',
     backgroundColor: 'transparent',
+    // Grey at rest so the tile reads as an invitation, not as content. Border
+    // and text move together, and the "+" and the name inherit this color.
     borderColor: {
+      ':focus-visible': colors.fg,
       ':hover': colors.fg,
-      default: colors.border,
+      default: colors.muted,
     },
     borderRadius: 11,
     borderStyle: 'dashed',
     borderWidth: '1px',
     boxSizing: 'border-box',
     color: {
+      ':focus-visible': colors.fg,
       ':hover': colors.fg,
       default: colors.muted,
     },
@@ -181,6 +204,28 @@ const styles = create({
     flexDirection: 'column',
     gap: spacing.s1,
   },
+  clearButton: {
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderRadius: radius.base,
+    borderStyle: 'none',
+    borderWidth: 0,
+    color: {
+      ':hover': colors.fg,
+      default: colors.muted,
+    },
+    cursor: 'pointer',
+    display: 'flex',
+    fontFamily: 'inherit',
+    fontSize: 18,
+    height: 28,
+    insetInlineEnd: 6,
+    justifyContent: 'center',
+    lineHeight: 1,
+    padding: 0,
+    position: 'absolute',
+    width: 28,
+  },
   content: {
     display: 'flex',
     flexDirection: 'column',
@@ -266,13 +311,34 @@ const styles = create({
   fanStack: (depth: number) => ({
     zIndex: depth,
   }),
+  flagButton: {
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderRadius: radius.base,
+    borderStyle: 'none',
+    borderWidth: 0,
+    cursor: 'pointer',
+    display: 'flex',
+    fontFamily: 'inherit',
+    fontSize: 18,
+    height: 28,
+    justifyContent: 'center',
+    lineHeight: 1,
+    opacity: {
+      ':hover': 1,
+      default: 0.85,
+    },
+    padding: 0,
+    width: 30,
+  },
   footer: {
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s1,
   },
+  // Same column as `content`, so the hero and every section share a left edge.
   hero: {
-    maxWidth: 900,
+    maxWidth: 760,
     width: '100%',
   },
   heroQuiet: {
@@ -281,7 +347,7 @@ const styles = create({
   heroTitle: {
     display: 'flex',
     flexDirection: 'column',
-    fontSize: 'clamp(40px, 7.5vw, 64px)',
+    fontSize: 'clamp(36px, 6.4vw, 54px)',
     fontWeight: font.weightBold,
     letterSpacing: '-0.035em',
     lineHeight: 1.04,
@@ -327,6 +393,45 @@ const styles = create({
     },
     paddingInline: spacing.s4,
   },
+  panel: {
+    animationDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: '150ms',
+    },
+    animationName: panelEnter,
+    animationTimingFunction: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
+    backgroundColor: colors.bg,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    boxShadow: {
+      '@media (prefers-color-scheme: dark)': '0 12px 40px rgba(0, 0, 0, 0.35)',
+      default: '0 12px 40px rgba(0, 0, 0, 0.12)',
+    },
+    boxSizing: 'border-box',
+    color: colors.fg,
+    display: 'flex',
+    flexDirection: 'column',
+    fontFamily: font.family,
+    gap: spacing.s3,
+    padding: spacing.s3,
+    position: 'fixed',
+    zIndex: 100,
+  },
+  panelAt: (left: number, top: number | null, bottom: number | null, width: number) => ({
+    bottom,
+    left,
+    top,
+    width,
+  }),
+  panelResults: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s2,
+    maxHeight: 360,
+    overflowY: 'auto',
+  },
   pre: {
     backgroundColor: 'transparent',
     borderColor: colors.border,
@@ -340,6 +445,18 @@ const styles = create({
     overflow: 'auto',
     padding: spacing.s3,
   },
+  // The one destructive colour on the page: it means "this click deletes".
+  removeArmed: {
+    color: {
+      ':hover': colors.error,
+      default: colors.error,
+    },
+    fontWeight: font.weightMedium,
+    minWidth: 48,
+  },
+  removeIdle: {
+    minWidth: 48,
+  },
   resultArtwork: {
     borderRadius: 9,
     height: 40,
@@ -350,10 +467,16 @@ const styles = create({
     flexWrap: 'wrap',
     gap: spacing.s2,
   },
-  searchPanel: {
+  // Room at both ends for the flag and the clear button, reserved whether or
+  // not the clear button is showing, so the text never jumps.
+  searchInput: {
+    paddingInlineEnd: 40,
+    paddingInlineStart: 44,
+  },
+  searchRow: {
+    alignItems: 'center',
     display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s3,
+    position: 'relative',
   },
   section: {
     display: 'flex',
@@ -403,6 +526,61 @@ const styles = create({
     gap: spacing.s1,
     margin: 0,
     paddingInlineStart: spacing.s4,
+  },
+  storefrontFlag: {
+    fontSize: 16,
+    lineHeight: 1,
+  },
+  storefrontList: {
+    backgroundColor: colors.bg,
+    borderColor: colors.border,
+    borderRadius: radius.base,
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    boxShadow: {
+      '@media (prefers-color-scheme: dark)': '0 12px 40px rgba(0, 0, 0, 0.35)',
+      default: '0 12px 40px rgba(0, 0, 0, 0.12)',
+    },
+    display: 'flex',
+    flexDirection: 'column',
+    insetBlockStart: 'calc(100% + 6px)',
+    insetInlineStart: 0,
+    maxHeight: 240,
+    minWidth: 200,
+    overflowY: 'auto',
+    padding: spacing.s1,
+    position: 'absolute',
+    zIndex: 1,
+  },
+  // Anchors the flag button and its list over the input's leading edge.
+  storefrontMenu: {
+    insetBlockStart: 6,
+    insetInlineStart: 6,
+    position: 'absolute',
+  },
+  storefrontOption: {
+    alignItems: 'center',
+    backgroundColor: {
+      ':hover': colors.border,
+      default: 'transparent',
+    },
+    borderRadius: radius.base,
+    borderStyle: 'none',
+    borderWidth: 0,
+    color: colors.fg,
+    cursor: 'pointer',
+    display: 'flex',
+    fontFamily: 'inherit',
+    fontSize: font.sizeSm,
+    gap: spacing.s2,
+    paddingBlock: spacing.s1,
+    paddingInline: spacing.s2,
+    textAlign: 'start',
+    whiteSpace: 'nowrap',
+    width: '100%',
+  },
+  storefrontOptionSelected: {
+    fontWeight: font.weightMedium,
   },
   subTitle: {
     fontSize: font.sizeLg,
@@ -483,6 +661,40 @@ function initialStorefront(): string {
 
 function storefrontLabel(code: string): string {
   return storefronts.find((storefront) => storefront.code === code)?.label ?? code;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+/**
+ * Places the floating panel against the tile at `rect`, once. The panel does
+ * not follow its anchor afterwards, so the measurement has to be enough on its
+ * own: it is clamped inside the viewport, and when the tile sits too low it is
+ * anchored by its bottom edge instead, which needs no panel height to work.
+ */
+function panelPositionFor(rect: DOMRect): PanelPosition {
+  const viewportWidth = globalThis.innerWidth;
+  const viewportHeight = globalThis.innerHeight;
+  const width = Math.min(Math.max(rect.width, PANEL_MIN_WIDTH), viewportWidth - PANEL_MARGIN * 2);
+  const left = clamp(rect.left, PANEL_MARGIN, viewportWidth - width - PANEL_MARGIN);
+  const roomBelow = viewportHeight - rect.bottom - PANEL_GAP - PANEL_MARGIN;
+  const roomAbove = rect.top - PANEL_GAP - PANEL_MARGIN;
+  if (roomBelow < PANEL_MIN_HEIGHT && roomAbove > roomBelow) {
+    return { bottom: viewportHeight - rect.top + PANEL_GAP, left, top: null, width };
+  }
+  return { bottom: null, left, top: rect.bottom + PANEL_GAP, width };
+}
+
+/** A resize never re-anchors the panel; it only pulls it back on screen. */
+function clampToViewport(position: PanelPosition): PanelPosition {
+  const viewportWidth = globalThis.innerWidth;
+  const width = Math.min(position.width, viewportWidth - PANEL_MARGIN * 2);
+  return {
+    ...position,
+    left: clamp(position.left, PANEL_MARGIN, viewportWidth - width - PANEL_MARGIN),
+    width,
+  };
 }
 
 /** Stand-in artwork for an app the App Store did not answer for. */
@@ -604,8 +816,14 @@ function Generator() {
   const [searching, setSearching] = useState(false);
   const [searchFailed, setSearchFailed] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [panelPosition, setPanelPosition] = useState<PanelPosition | null>(null);
+  const [storefrontOpen, setStorefrontOpen] = useState(false);
+  const [armedRemove, setArmedRemove] = useState<string | null>(null);
   const [showXml, setShowXml] = useState(false);
   const searchInput = useRef<HTMLInputElement>(null);
+  const addTile = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  const storefrontMenu = useRef<HTMLDivElement>(null);
 
   const xml = useMemo(() => safeBuild(config), [config]);
   const blockedIds = useMemo(
@@ -697,6 +915,80 @@ function Generator() {
     }
   }, [searchOpen]);
 
+  // A floating panel is dismissed from outside itself: a pointer anywhere else,
+  // or Escape. The tile is excluded because it owns the toggle — closing on its
+  // pointerdown would only let its own click reopen the panel.
+  useEffect(() => {
+    if (!searchOpen) {
+      return;
+    }
+    function dismiss() {
+      setSearchOpen(false);
+      setStorefrontOpen(false);
+      setPanelPosition(null);
+      addTile.current?.focus();
+    }
+    function onPointerDown(event: PointerEvent) {
+      const target = event.target as Node | null;
+      if (storefrontMenu.current?.contains(target) !== true) {
+        setStorefrontOpen(false);
+      }
+      if (panel.current?.contains(target) === true || addTile.current?.contains(target) === true) {
+        return;
+      }
+      dismiss();
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== 'Escape') {
+        return;
+      }
+      if (storefrontOpen) {
+        setStorefrontOpen(false);
+        searchInput.current?.focus();
+        return;
+      }
+      dismiss();
+    }
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [searchOpen, storefrontOpen]);
+
+  // The panel is placed once and stays there, scrolling included. A resize is
+  // the one thing that can strand it off screen, so that alone re-clamps it.
+  useEffect(() => {
+    if (!searchOpen) {
+      return;
+    }
+    function onResize() {
+      setPanelPosition((current) => (current === null ? null : clampToViewport(current)));
+    }
+    globalThis.addEventListener('resize', onResize);
+    return () => globalThis.removeEventListener('resize', onResize);
+  }, [searchOpen]);
+
+  // An armed Remove is a trap for the next stray click, so it stands down on
+  // its own: Escape, or a few seconds of the user doing something else.
+  useEffect(() => {
+    if (armedRemove === null) {
+      return;
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setArmedRemove(null);
+      }
+    }
+    const timer = setTimeout(() => setArmedRemove(null), REMOVE_CONFIRM_MS);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [armedRemove]);
+
   function update(next: ProfileConfig) {
     setConfig(next);
     writeStoredConfig(next);
@@ -706,6 +998,38 @@ function Generator() {
     setQuery(value);
     setSearchFailed(false);
     setSearching(value.trim() !== '');
+  }
+
+  // Emptying the query re-runs the search effect, whose cleanup aborts whatever
+  // request the last keystroke started, so there is nothing left to cancel here.
+  function clearSearch() {
+    setQuery('');
+    setResults([]);
+    setSearching(false);
+    setSearchFailed(false);
+    searchInput.current?.focus();
+  }
+
+  function openSearch() {
+    const rect = addTile.current?.getBoundingClientRect();
+    if (rect === undefined) {
+      return;
+    }
+    setPanelPosition(panelPositionFor(rect));
+    setSearchOpen(true);
+  }
+
+  function closeSearch() {
+    setSearchOpen(false);
+    setStorefrontOpen(false);
+    setPanelPosition(null);
+    addTile.current?.focus();
+  }
+
+  function pickStorefront(code: string) {
+    setCountry(code);
+    setStorefrontOpen(false);
+    searchInput.current?.focus();
   }
 
   function addApp(app: AppResult) {
@@ -720,11 +1044,18 @@ function Generator() {
     });
   }
 
-  function removeApp(bundleId: string) {
-    update({
-      ...config,
-      blockedApps: config.blockedApps.filter((app) => app.bundleId !== bundleId),
-    });
+  // Removing is one click away from undoable and one click away from gone, so
+  // the first click only arms the button. Only one row can be armed at a time.
+  function onRemoveClick(bundleId: string) {
+    if (armedRemove === bundleId) {
+      setArmedRemove(null);
+      update({
+        ...config,
+        blockedApps: config.blockedApps.filter((app) => app.bundleId !== bundleId),
+      });
+      return;
+    }
+    setArmedRemove(bundleId);
   }
 
   function setWebMode(mode: WebMode) {
@@ -878,11 +1209,15 @@ function Generator() {
                   </span>
                 </span>
                 <Button
-                  aria-label={m.gen_app_remove()}
-                  onClick={() => removeApp(app.bundleId)}
+                  aria-label={
+                    armedRemove === app.bundleId ? m.gen_app_remove_confirm() : m.gen_app_remove()
+                  }
+                  onBlur={() => setArmedRemove(null)}
+                  onClick={() => onRemoveClick(app.bundleId)}
+                  style={armedRemove === app.bundleId ? styles.removeArmed : styles.removeIdle}
                   variant="ghost"
                 >
-                  ×
+                  {armedRemove === app.bundleId ? m.gen_remove_confirm() : '×'}
                 </Button>
               </li>
             ))}
@@ -890,8 +1225,10 @@ function Generator() {
             <li>
               <button
                 aria-expanded={searchOpen}
+                aria-haspopup="dialog"
                 aria-label={m.gen_app_search_open()}
-                onClick={() => setSearchOpen(!searchOpen)}
+                onClick={() => (searchOpen ? closeSearch() : openSearch())}
+                ref={addTile}
                 type="button"
                 {...props(styles.addTile, searchOpen && styles.addTileActive)}
               >
@@ -905,89 +1242,144 @@ function Generator() {
               </button>
             </li>
           </ul>
-          {searchOpen ? (
-            <div {...props(styles.searchPanel)}>
-              <Field>
-                <FieldLabel htmlFor="storefront">{m.gen_storefront_label()}</FieldLabel>
-                <Select
-                  items={storefrontItems}
-                  onValueChange={(value: string | null) => setCountry(value ?? FALLBACK_COUNTRY)}
-                  value={country}
+          {searchOpen && panelPosition !== null
+            ? createPortal(
+                <div
+                  aria-label={m.gen_app_search_open()}
+                  aria-modal="false"
+                  ref={panel}
+                  role="dialog"
+                  {...props(
+                    styles.panel,
+                    styles.panelAt(
+                      panelPosition.left,
+                      panelPosition.top,
+                      panelPosition.bottom,
+                      panelPosition.width,
+                    ),
+                  )}
                 >
-                  <SelectTrigger id="storefront">
-                    {/* Read the label off our own state: the trigger then always
-                        agrees with the storefront the search actually queries. */}
-                    <SelectValue>{() => storefrontLabel(country)}</SelectValue>
-                  </SelectTrigger>
-                  {/* A plain dropdown below the trigger. Aligning the selected
-                      item with the trigger drops the whole list over the cursor. */}
-                  <SelectContent alignItemWithTrigger={false}>
-                    {storefrontItems.map((item) => (
-                      <SelectItem key={item.value} value={item.value}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="app-search">{m.gen_app_search_label()}</FieldLabel>
-                <Input
-                  id="app-search"
-                  onChange={(event) => onQueryChange(event.target.value)}
-                  placeholder={m.gen_app_search_placeholder()}
-                  ref={searchInput}
-                  value={query}
-                />
-              </Field>
-              {searchFailed ? (
-                <p role="alert" {...props(layout.muted)}>
-                  {m.gen_app_search_error()}
-                </p>
-              ) : null}
-              {searching ? (
-                <ul {...props(styles.list)}>
-                  {SKELETON_ROWS.map((row) => (
-                    <li key={row}>
-                      <Skeleton style={styles.skeletonRow} />
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-              {!searching && query.trim() !== '' && results.length === 0 && !searchFailed ? (
-                <p {...props(layout.muted)}>{m.gen_app_results_empty()}</p>
-              ) : null}
-              {!searching && query.trim() !== '' && results.length > 0 ? (
-                <ul {...props(styles.list)}>
-                  {results.map((app) => (
-                    <li key={app.bundleId} {...props(styles.appRow)}>
-                      <img
-                        alt={app.name}
-                        src={app.iconUrl}
-                        {...props(styles.artwork, styles.resultArtwork)}
-                      />
-                      <span {...props(styles.appText)}>
-                        <span {...props(styles.appName)}>{app.name}</span>
-                        <span title={app.developer} {...props(layout.muted, styles.truncate)}>
-                          {app.developer}
-                        </span>
-                        <span title={app.bundleId} {...props(styles.mono, styles.truncate)}>
-                          {app.bundleId}
-                        </span>
-                      </span>
-                      <Button
-                        disabled={blockedIds.has(app.bundleId)}
-                        onClick={() => addApp(app)}
-                        variant="outline"
+                  <div {...props(styles.searchRow)}>
+                    <div ref={storefrontMenu} {...props(styles.storefrontMenu)}>
+                      <button
+                        aria-expanded={storefrontOpen}
+                        aria-haspopup="listbox"
+                        aria-label={m.gen_storefront_label()}
+                        id="storefront"
+                        onClick={() => setStorefrontOpen(!storefrontOpen)}
+                        title={storefrontLabel(country)}
+                        type="button"
+                        {...props(styles.flagButton)}
                       >
-                        {blockedIds.has(app.bundleId) ? m.gen_app_added() : m.gen_app_add()}
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-            </div>
-          ) : null}
+                        {flagEmoji(country)}
+                      </button>
+                      {storefrontOpen ? (
+                        <div
+                          aria-label={m.gen_storefront_label()}
+                          role="listbox"
+                          {...props(styles.storefrontList)}
+                        >
+                          {storefronts.map((storefront) => (
+                            <button
+                              aria-selected={storefront.code === country}
+                              key={storefront.code}
+                              onClick={() => pickStorefront(storefront.code)}
+                              role="option"
+                              type="button"
+                              {...props(
+                                styles.storefrontOption,
+                                storefront.code === country && styles.storefrontOptionSelected,
+                              )}
+                            >
+                              {/* Hidden from the name, so an option reads as its
+                                  country and not as an unpronounceable flag. */}
+                              <span aria-hidden="true" {...props(styles.storefrontFlag)}>
+                                {flagEmoji(storefront.code)}
+                              </span>
+                              <span>{storefront.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                    <Input
+                      aria-label={m.gen_app_search_label()}
+                      id="app-search"
+                      onChange={(event) => onQueryChange(event.target.value)}
+                      placeholder={m.gen_app_search_placeholder()}
+                      ref={searchInput}
+                      style={styles.searchInput}
+                      value={query}
+                    />
+                    {query === '' ? null : (
+                      <button
+                        aria-label={m.gen_app_search_clear()}
+                        onClick={clearSearch}
+                        type="button"
+                        {...props(styles.clearButton)}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                  {/* An empty query is not a search: the panel is just the input. */}
+                  {query.trim() === '' ? null : (
+                    <div {...props(styles.panelResults)}>
+                      {searchFailed ? (
+                        <p role="alert" {...props(layout.muted)}>
+                          {m.gen_app_search_error()}
+                        </p>
+                      ) : null}
+                      {searching ? (
+                        <ul {...props(styles.list)}>
+                          {SKELETON_ROWS.map((row) => (
+                            <li key={row}>
+                              <Skeleton style={styles.skeletonRow} />
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+                      {!searching && results.length === 0 && !searchFailed ? (
+                        <p {...props(layout.muted)}>{m.gen_app_results_empty()}</p>
+                      ) : null}
+                      {!searching && results.length > 0 ? (
+                        <ul {...props(styles.list)}>
+                          {results.map((app) => (
+                            <li key={app.bundleId} {...props(styles.appRow)}>
+                              <img
+                                alt={app.name}
+                                src={app.iconUrl}
+                                {...props(styles.artwork, styles.resultArtwork)}
+                              />
+                              <span {...props(styles.appText)}>
+                                <span {...props(styles.appName)}>{app.name}</span>
+                                <span
+                                  title={app.developer}
+                                  {...props(layout.muted, styles.truncate)}
+                                >
+                                  {app.developer}
+                                </span>
+                                <span title={app.bundleId} {...props(styles.mono, styles.truncate)}>
+                                  {app.bundleId}
+                                </span>
+                              </span>
+                              <Button
+                                disabled={blockedIds.has(app.bundleId)}
+                                onClick={() => addApp(app)}
+                                variant="outline"
+                              >
+                                {blockedIds.has(app.bundleId) ? m.gen_app_added() : m.gen_app_add()}
+                              </Button>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+                    </div>
+                  )}
+                </div>,
+                document.body,
+              )
+            : null}
         </section>
 
         <Separator />
