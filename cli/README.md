@@ -1,4 +1,4 @@
-# supervise.py
+# supervise
 
 A Mac command line tool that turns on iOS supervised mode without erasing the iPhone.
 
@@ -54,16 +54,32 @@ Nothing on the phone is erased, because a backup restore is not an erase.
 - Find My iPhone off, and Stolen Device Protection off, during the restore. Finder refuses
   to restore while Find My is on.
 
-## Usage
-
-The tool has no dependencies. Python 3.12 or newer is enough.
+## Install
 
 ```
-python3 cli/supervise.py check
-python3 cli/supervise.py patch
-python3 cli/supervise.py unpatch
-python3 cli/supervise.py verify
-python3 cli/supervise.py run
+curl -fsSL https://keepyourattention.com/install.sh | sh
+```
+
+The installer checks that this is a Mac with `python3`, downloads one file to
+`~/.local/bin/supervise`, and makes it executable. If `~/.local/bin` is not on your PATH, it
+prints the line to add. It edits none of your files.
+
+With pipx instead:
+
+```
+pipx install supervise-iphone
+```
+
+## Usage
+
+The tool has no dependencies. Python 3.9 or newer is enough.
+
+```
+supervise check
+supervise patch
+supervise unpatch
+supervise verify
+supervise run
 ```
 
 - `check` lists every backup on the Mac with the folder name, the device name, the iOS
@@ -75,6 +91,9 @@ python3 cli/supervise.py run
 - `verify` asks the connected iPhone whether it is supervised. It uses `cfgutil` from
   Apple Configurator.
 - `run` does check, then patch, then verify, with a pause for the restore.
+- `update` downloads the newest single file over the installed one. A pipx install prints
+  the pipx command instead.
+- `--version` prints the version.
 
 If the Mac holds a backup of more than one device, add `--udid <UDID>`. Run `check` to read
 the UDIDs.
@@ -91,17 +110,17 @@ Exit codes: `0` for success, `1` for a problem you must fix, `2` for an unexpect
 
 1. Connect the iPhone. Open Finder and select the device.
 2. Clear the checkbox `Encrypt local backup`. Click `Back Up Now`. Wait for the end.
-3. Run `python3 cli/supervise.py check`. Read the backup date. It must be the backup you
-   just made. `IsSupervised` must be `false`.
-4. Run `python3 cli/supervise.py patch`. Read the plan and confirm. The tool prints the
-   folder that holds the untouched copies. Keep that path.
+3. Run `supervise check`. Read the backup date. It must be the backup you just made.
+   `IsSupervised` must be `false`.
+4. Run `supervise patch`. Read the plan and confirm. The tool prints the folder that holds
+   the untouched copies. Keep that path.
 5. On the iPhone, turn off Stolen Device Protection.
 6. On the iPhone, turn off Find My iPhone.
 7. In Finder, click `Restore Backup` and pick the backup you patched. The phone restarts
    and then restores its apps and data. This takes a while.
 8. Open Settings on the iPhone. The banner at the top says that this iPhone is supervised.
 9. Turn Find My iPhone on again.
-10. Run `python3 cli/supervise.py verify`.
+10. Run `supervise verify`.
 
 ## What you keep and what you lose
 
@@ -143,11 +162,30 @@ version, and say whether it worked.
 
 Two ways:
 
-- Undo the patch in the backup: run `python3 cli/supervise.py unpatch`. This puts back the
+- Undo the patch in the backup: run `supervise unpatch`. This puts back the
   untouched copies. It only helps before a restore.
 - Remove supervision from the phone: erase the phone. Settings, then General, then Transfer
   or Reset iPhone, then Erase All Content and Settings. Then restore a backup that was made
   before the patch. Supervision does not survive an erase.
+
+## Development
+
+The code lives in `cli/src/supervise_iphone/`. `cli/supervise.py` is a shim that runs the
+package straight from a checkout: `python3 cli/supervise.py check`.
+
+```
+cd cli && python3 -m unittest discover -s tests
+```
+
+Release step: build the single file that the installer downloads, then commit it.
+
+```
+python3 cli/build_single.py
+```
+
+That writes `cli/dist/supervise`, a copy of the package module with a shebang on top.
+`install.sh` downloads that file from `main`, so a change to the package reaches users only
+after the rebuilt file is committed.
 
 ## Credits
 

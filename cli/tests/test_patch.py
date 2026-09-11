@@ -10,9 +10,9 @@ from contextlib import redirect_stdout
 from datetime import datetime
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-import supervise  # noqa: E402
+from supervise_iphone import cli as supervise  # noqa: E402
 
 UDID = "00008140-000A1B2C3D4E5F60"
 OTHER_UDID = "00008140-000B2C3D4E5F6071"

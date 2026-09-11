@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "supervise-iphone"
+# Keep in step with __version__ in src/supervise_iphone/cli.py.
+version = "0.1.0"
+description = "Turn on iOS supervised mode without erasing the iPhone."
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+authors = [{ name = "Mert Duzgun" }]
+keywords = ["backup", "ios", "iphone", "macos", "supervision"]
+classifiers = [
+  "Environment :: Console",
+  "Intended Audience :: End Users/Desktop",
+  "Operating System :: MacOS :: MacOS X",
+  "Programming Language :: Python :: 3",
+  "Topic :: Utilities",
+]
+dependencies = []
+
+[project.scripts]
+supervise = "supervise_iphone.cli:main"
+
+[project.urls]
+Homepage = "https://keepyourattention.com"
+Issues = "https://github.com/mertbuilds/keepyourattention/issues"
+Source = "https://github.com/mertbuilds/keepyourattention"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/supervise_iphone"]
