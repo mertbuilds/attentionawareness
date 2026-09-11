@@ -1,6 +1,6 @@
+import { MARK_PATHS, MARK_RADIUS, MARK_VIEWBOX } from '@attentionawareness/ui/brand';
 import { create, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
-import { MARK_PATHS, MARK_RADIUS, MARK_VIEWBOX } from './brand-mark-paths.ts';
 
 /** Black tile, white letters. The mark is the mark in either theme. */
 const BACKGROUND = '#000000';

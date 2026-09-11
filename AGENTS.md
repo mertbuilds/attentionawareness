@@ -10,8 +10,14 @@ apps/
           Mostly client-only: SSR, routes, PostHog, Sentry, Paraglide i18n.
           No auth, no database. Server routes: the PostHog ingest proxy and
           `/api/sign`, which signs the profile with the Developer ID key.
+  extension/
+          MV3 browser extension (Chromium first). One content script injects
+          per-site CSS from `src/rules/*.css`; `storage` is the only
+          permission. Two Vite builds: pages, then the content script as an
+          IIFE. See its README.
 packages/
   ui/     StyleX tokens + Base UI wrappers + Storybook. Black/white, 4px radius, Suisse Intl.
+          `@attentionawareness/ui/brand` holds the outlined "aa" mark both apps draw from.
   env/    Zod-validated client env schema. All env access goes through here.
   config/ Shared tsconfig base.
 cli/      `supervise`, standard-library Python, outside the pnpm workspace (pytest in cli/tests).

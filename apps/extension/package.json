@@ -1,0 +1,22 @@
+{
+  "name": "@attentionawareness/extension",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build && vite build --config vite.config.content.ts",
+    "e2e": "playwright test",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@attentionawareness/config": "workspace:*",
+    "@playwright/test": "^1.62.1",
+    "@types/css-tree": "^3.2.0",
+    "@types/node": "^24.10.1",
+    "css-tree": "^3.2.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2",
+    "vitest": "4.1.11"
+  }
+}
