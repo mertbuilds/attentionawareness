@@ -133,6 +133,29 @@ to `dist` — the file a store upload takes. It is packed from inside `dist` wit
 the system `zip`, so the manifest sits at the root of the archive, and it is
 gitignored: the zip is build output, cut fresh from whatever `dist` holds.
 
+## Store
+
+```sh
+pnpm --filter @attentionawareness/extension build
+pnpm --filter @attentionawareness/extension store:shots
+```
+
+`store/` is the Chrome Web Store submission: `listing.md` is every field the
+dashboard asks for, ready to paste, `store/README.md` is the order to do it in,
+and the three `shot-*.png` are the screenshots the listing takes, 1280x800
+each. The policy they point at is `PRIVACY.md`, next to this file.
+
+`store:shots` launches Chromium with `dist` loaded unpacked and writes the
+three. The build is not chained: it shoots whatever `dist` holds, so build
+first. Two of them are composed, the popup at its own 320px and the options
+page at 720px laid on a black canvas, because a store screenshot is 1280x800
+and anything narrower comes out stretched. The third is youtube.com itself, and
+is the one that can come back thin: the consent wall is a page of Google's, so
+the script tries it in English, says what happened and moves on rather than
+shooting the wall. A signed out home feed is empty on a fresh profile too, so
+when no video tile comes back the shot is taken on search instead, which is
+populated signed out and is one of the surfaces the Shorts shelf comes off.
+
 ## Test
 
 ```sh
