@@ -32,11 +32,6 @@ const THEME_NAMES: Record<ThemeChoice, () => string> = {
 };
 
 const styles = create({
-  cluster: {
-    alignItems: 'center',
-    display: 'flex',
-    gap: spacing.s2,
-  },
   control: {
     alignItems: 'center',
     backgroundColor: colors.bg,
@@ -140,16 +135,38 @@ const styles = create({
 });
 
 /**
- * Theme and language, the last row of the page footer. The theme is written to
- * `<html data-theme>`; the language goes through Paraglide, which sets its
- * cookie and reloads the document.
+ * The theme control, written to `<html data-theme>`. It sits at the foot of the
+ * page, under the language switch.
  */
-export function Preferences() {
+export function ThemeSwitch() {
   // The stored choice is never read during the first render: the server has no
   // localStorage, and a render that disagreed with the SSR HTML would detach
   // the hydrated tree. The head script already painted the right theme, so the
   // control catching up one render later is invisible.
   const theme = useSyncExternalStore(subscribeTheme, readTheme, serverTheme);
+
+  return (
+    <div aria-label={m.pref_theme_label()} role="group" {...props(styles.segmented)}>
+      {themeChoices.map((choice) => (
+        <button
+          aria-pressed={choice === theme}
+          key={choice}
+          onClick={() => applyTheme(choice)}
+          type="button"
+          {...props(styles.segment, choice === theme && styles.segmentOn)}
+        >
+          {THEME_NAMES[choice]()}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * The language control. It goes through Paraglide, which sets its cookie and
+ * reloads the document.
+ */
+export function LanguageSwitch() {
   const [languageOpen, setLanguageOpen] = useState(false);
   const languageMenu = useRef<HTMLDivElement>(null);
   const locale = getLocale();
@@ -184,56 +201,41 @@ export function Preferences() {
   }
 
   return (
-    <div {...props(styles.cluster)}>
-      <div aria-label={m.pref_theme_label()} role="group" {...props(styles.segmented)}>
-        {themeChoices.map((choice) => (
-          <button
-            aria-pressed={choice === theme}
-            key={choice}
-            onClick={() => applyTheme(choice)}
-            type="button"
-            {...props(styles.segment, choice === theme && styles.segmentOn)}
-          >
-            {THEME_NAMES[choice]()}
-          </button>
-        ))}
-      </div>
-      <div ref={languageMenu} {...props(styles.languageMenu)}>
-        <button
-          aria-expanded={languageOpen}
-          aria-haspopup="listbox"
-          aria-label={m.pref_language_label()}
-          onClick={() => setLanguageOpen(!languageOpen)}
-          type="button"
-          {...props(styles.control)}
-        >
-          {/* Hidden from the name, so the control reads as its language and
-              not as an unpronounceable flag. */}
-          <span aria-hidden="true" {...props(styles.flag)}>
-            {LANGUAGE_FLAGS[locale]}
-          </span>
-          <span>{LANGUAGE_NAMES[locale]()}</span>
-        </button>
-        {languageOpen ? (
-          <div aria-label={m.pref_language_label()} role="listbox" {...props(styles.list)}>
-            {locales.map((code) => (
-              <button
-                aria-selected={code === locale}
-                key={code}
-                onClick={() => pickLocale(code)}
-                role="option"
-                type="button"
-                {...props(styles.option, code === locale && styles.optionSelected)}
-              >
-                <span aria-hidden="true" {...props(styles.flag)}>
-                  {LANGUAGE_FLAGS[code]}
-                </span>
-                <span>{LANGUAGE_NAMES[code]()}</span>
-              </button>
-            ))}
-          </div>
-        ) : null}
-      </div>
+    <div ref={languageMenu} {...props(styles.languageMenu)}>
+      <button
+        aria-expanded={languageOpen}
+        aria-haspopup="listbox"
+        aria-label={m.pref_language_label()}
+        onClick={() => setLanguageOpen(!languageOpen)}
+        type="button"
+        {...props(styles.control)}
+      >
+        {/* Hidden from the name, so the control reads as its language and
+            not as an unpronounceable flag. */}
+        <span aria-hidden="true" {...props(styles.flag)}>
+          {LANGUAGE_FLAGS[locale]}
+        </span>
+        <span>{LANGUAGE_NAMES[locale]()}</span>
+      </button>
+      {languageOpen ? (
+        <div aria-label={m.pref_language_label()} role="listbox" {...props(styles.list)}>
+          {locales.map((code) => (
+            <button
+              aria-selected={code === locale}
+              key={code}
+              onClick={() => pickLocale(code)}
+              role="option"
+              type="button"
+              {...props(styles.option, code === locale && styles.optionSelected)}
+            >
+              <span aria-hidden="true" {...props(styles.flag)}>
+                {LANGUAGE_FLAGS[code]}
+              </span>
+              <span>{LANGUAGE_NAMES[code]()}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
