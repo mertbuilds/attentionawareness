@@ -33,7 +33,7 @@ export const sentences = {
 export const siteStrings: Readonly<Record<SiteId, { hides: string; name: string }>> = {
   instagram: { hides: 'Reels, Explore grid, suggestions', name: 'Instagram' },
   tiktok: { hides: 'Everything', name: 'TikTok' },
-  x: { hides: 'For you tab, trends, Grok', name: 'X' },
+  x: { hides: 'For you tab, trends', name: 'X' },
   youtube: { hides: 'Shorts everywhere', name: 'YouTube' },
 };
 

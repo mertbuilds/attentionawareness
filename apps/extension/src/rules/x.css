@@ -1,10 +1,9 @@
 /*
  * X: x.com, twitter.com.
  *
- * Hides: the "For you" tab on the home timeline, the trends and the news block
- * in the right sidebar, and the Grok and Premium entries in the nav and in the
- * drawer. Explore stays, because search lives behind it; the Following feed,
- * notifications, messages and the profile stay untouched.
+ * Hides: the "For you" tab on the home timeline, and the trends and the news
+ * block in the right sidebar. Explore stays, because search lives behind it;
+ * the Following feed, notifications, messages and the profile stay untouched.
  *
  * The hooks are `data-testid` attributes, the only names X does not hash. The
  * "For you" tab is taken out of flow instead of being set to `display: none`:
@@ -23,11 +22,5 @@ nav [data-testid='ScrollSnap-List'] > div:first-child {
 [data-testid='sidebarColumn'] [data-testid='news_sidebar'],
 [data-testid='sidebarColumn'] section:has([data-testid='trend']),
 [data-testid='sidebarColumn'] section:has([data-testid='news_sidebar']) {
-  display: none !important;
-}
-
-[data-testid='GrokDrawer'],
-[data-testid='premium-hub-tab'],
-a[href='/i/grok'] {
   display: none !important;
 }
