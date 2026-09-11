@@ -19,7 +19,7 @@ import {
 import { colors, font, radius, spacing } from '@keepyourattention/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { AppArtwork, artworkStyles } from '../components/app-artwork.tsx';
 import type { MetaCache } from '../components/app-artwork.tsx';
 import { AppIconFan, fanStyles } from '../components/app-icon-fan.tsx';
@@ -68,12 +68,24 @@ const STARTER_URL = 'https://cleanstarter.dev';
 const SUPERVISE_URL = '/supervise';
 const STOPA_URL = 'https://stopa.io/post/297';
 const READING_SPEED_URL = 'https://doi.org/10.1016/j.jml.2019.104047';
+/**
+ * The clip that shows where the real number lives, both empty until the
+ * founder shoots it and drops the files in. The video wins when it is set, the
+ * gif is the fallback, and with neither the popover holds its placeholder.
+ */
+const SCREEN_TIME_VIDEO_URL = '';
+const SCREEN_TIME_GIF_URL = '';
 const PROFILE_MIME = 'application/x-apple-aspen-config';
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 /** How long an armed Remove waits for its second click before standing down. */
 const REMOVE_CONFIRM_MS = 3000;
 /** How long the Copy button holds its "Copied" label before standing down. */
 const COPY_FEEDBACK_MS = 2000;
+/**
+ * The popover hangs a few pixels under its button, so the pointer crosses bare
+ * page on its way in. This is how long that trip is allowed to take.
+ */
+const HELP_GRACE_MS = 120;
 /**
  * The armed control is tracked by id, and the reset link needs one too. A colon
  * is not legal in a bundle id, so this can never collide with an app's row.
@@ -118,6 +130,12 @@ type StoredState = {
   customSites: Array<string>;
   excludedSites: Array<string>;
 };
+
+/** The popover rises the last few pixels into place under its button. */
+const helpEnter = keyframes({
+  from: { opacity: 0, transform: 'translateY(-4px)' },
+  to: { opacity: 1, transform: 'translateY(0)' },
+});
 
 /** A new line of the bill rises into place. Lines that are paid off just go. */
 const ledgerEnter = keyframes({
@@ -301,6 +319,109 @@ const styles = create({
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s1,
+  },
+  // The helper sentence, folded into a ring the question can be asked from.
+  helpButton: {
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    color: {
+      ':focus-visible': colors.fg,
+      ':hover': colors.fg,
+      default: colors.muted,
+    },
+    cursor: 'pointer',
+    display: 'flex',
+    flexShrink: 0,
+    fontFamily: 'inherit',
+    fontSize: 12,
+    fontWeight: font.weightRegular,
+    height: 20,
+    justifyContent: 'center',
+    letterSpacing: 'normal',
+    lineHeight: 1,
+    padding: 0,
+    width: 20,
+  },
+  // The clip is not shot yet, so the slot holds the space it will take.
+  helpClip: {
+    alignItems: 'center',
+    aspectRatio: '16 / 9',
+    borderColor: colors.border,
+    borderRadius: radius.base,
+    borderStyle: 'dashed',
+    borderWidth: '1px',
+    boxSizing: 'border-box',
+    color: colors.muted,
+    display: 'flex',
+    fontSize: font.sizeSm,
+    justifyContent: 'center',
+    width: '100%',
+  },
+  helpMedia: {
+    aspectRatio: '16 / 9',
+    borderRadius: radius.base,
+    display: 'block',
+    objectFit: 'cover',
+    width: '100%',
+  },
+  // Hangs under the button, aligned to its left edge. It sits inside a heading,
+  // so it takes back the type the heading set.
+  helpPopover: {
+    animationDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: '150ms',
+    },
+    animationName: helpEnter,
+    animationTimingFunction: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
+    backgroundColor: colors.bg,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    boxShadow: {
+      '@media (prefers-color-scheme: dark)': '0 12px 40px rgba(0, 0, 0, 0.35)',
+      default: '0 12px 40px rgba(0, 0, 0, 0.12)',
+    },
+    boxSizing: 'border-box',
+    display: 'flex',
+    flexDirection: 'column',
+    fontWeight: font.weightRegular,
+    gap: spacing.s2,
+    insetBlockStart: 'calc(100% + 8px)',
+    insetInlineStart: 0,
+    letterSpacing: 'normal',
+    // A phone is narrower than the box, and nothing on the page may scroll
+    // sideways.
+    maxWidth: 'calc(100vw - 32px)',
+    padding: spacing.s3,
+    position: 'absolute',
+    textAlign: 'start',
+    width: 320,
+    zIndex: 20,
+  },
+  helpText: {
+    color: colors.muted,
+    fontSize: font.sizeSm,
+    lineHeight: 1.5,
+    margin: 0,
+    textWrap: 'pretty',
+  },
+  helpTitle: {
+    fontSize: 14,
+    fontWeight: font.weightMedium,
+    lineHeight: 1.4,
+    margin: 0,
+  },
+  // Rides at the end of the question, and anchors the popover under it.
+  helpWrap: {
+    display: 'inline-flex',
+    marginInlineStart: spacing.s2,
+    position: 'relative',
+    verticalAlign: 'middle',
   },
   // Same column as `content`, so the hero and every section share a left edge.
   hero: {
@@ -1239,6 +1360,129 @@ function safeBuild(config: ProfileConfig): string | null {
   }
 }
 
+/**
+ * The question mark at the end of the question. Hover, focus or a tap opens a
+ * popover that says where the real number lives and, once the clip is shot,
+ * shows it being found. A pointer that leaves gets a moment to reach the
+ * popover before it closes, because the two do not touch.
+ */
+function ScreenTimeHelp() {
+  const [open, setOpen] = useState(false);
+  const popoverId = useId();
+  const wrap = useRef<HTMLSpanElement>(null);
+  const grace = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // A grace period that outlives the popover must not fire into nothing.
+  useEffect(
+    () => () => {
+      if (grace.current !== null) {
+        clearTimeout(grace.current);
+      }
+    },
+    [],
+  );
+
+  // Dismissed from outside itself: a pointer anywhere else, or Escape.
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    function onPointerDown(event: PointerEvent) {
+      if (wrap.current?.contains(event.target as Node | null) !== true) {
+        setOpen(false);
+      }
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open]);
+
+  function clearGrace() {
+    if (grace.current !== null) {
+      clearTimeout(grace.current);
+      grace.current = null;
+    }
+  }
+
+  function show() {
+    clearGrace();
+    setOpen(true);
+  }
+
+  function hide() {
+    clearGrace();
+    setOpen(false);
+  }
+
+  function hideAfterGrace() {
+    clearGrace();
+    grace.current = setTimeout(() => setOpen(false), HELP_GRACE_MS);
+  }
+
+  return (
+    <span
+      onPointerEnter={(event) => {
+        if (event.pointerType !== 'touch') {
+          show();
+        }
+      }}
+      onPointerLeave={(event) => {
+        if (event.pointerType !== 'touch') {
+          hideAfterGrace();
+        }
+      }}
+      ref={wrap}
+      {...props(styles.helpWrap)}
+    >
+      <button
+        aria-describedby={open ? popoverId : undefined}
+        aria-label={m.home_math_help_label()}
+        onBlur={hide}
+        onClick={show}
+        onFocus={show}
+        type="button"
+        {...props(styles.helpButton)}
+      >
+        ?
+      </button>
+      {open ? (
+        <span id={popoverId} role="tooltip" {...props(styles.helpPopover)}>
+          <span {...props(styles.helpTitle)}>{m.home_math_help_title()}</span>
+          <span {...props(styles.helpText)}>{m.home_math_help_body()}</span>
+          {SCREEN_TIME_VIDEO_URL === '' ? (
+            SCREEN_TIME_GIF_URL === '' ? (
+              <span {...props(styles.helpClip)}>{m.home_math_help_clip()}</span>
+            ) : (
+              <img
+                alt={m.home_math_help_body()}
+                src={SCREEN_TIME_GIF_URL}
+                {...props(styles.helpMedia)}
+              />
+            )
+          ) : (
+            <video
+              autoPlay
+              loop
+              muted
+              playsInline
+              src={SCREEN_TIME_VIDEO_URL}
+              {...props(styles.helpMedia)}
+            />
+          )}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 function Generator() {
   // What the reader tells the math section their day looks like.
   const [hours, setHours] = useState(HOURS_DEFAULT);
@@ -1818,7 +2062,10 @@ function Generator() {
 
       <div {...props(styles.content)}>
         <section {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_math_title()}</h2>
+          <h2 {...props(styles.sectionTitle)}>
+            {m.home_math_title()}
+            <ScreenTimeHelp />
+          </h2>
           <div {...props(styles.dial)}>
             <div {...props(styles.dialRail)}>
               <Label style={styles.sliderLabel}>
@@ -1882,7 +2129,6 @@ function Generator() {
               </button>
             </div>
           </div>
-          <p {...props(layout.muted)}>{m.home_math_help()}</p>
           {/* The years are the loss, so they are the only colour in the line. */}
           <p {...props(styles.mathResult)}>
             {m.home_math_result_before()} <span {...props(styles.burn)}>{years}</span>{' '}
