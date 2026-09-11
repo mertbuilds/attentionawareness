@@ -131,8 +131,16 @@ function asWebFilter(value: unknown): ProfileConfig['webFilter'] {
 }
 
 /**
- * The reader chooses what to block. Everything that decides whether the
- * profile can be undone is the server's, and is written here, not read.
+ * A trial profile is the reader's call, so the lock travels with the body; a
+ * body that says nothing about it stays locked.
+ */
+function asLockRemoval(value: unknown): boolean {
+  return value === undefined ? true : asBoolean(value, 'lockRemoval');
+}
+
+/**
+ * The reader chooses what to block and whether this one is a trial. The
+ * identity of the profile is the server's, and is written here, not read.
  */
 function parseConfig(body: unknown): ProfileConfig {
   const config = asRecord(asRecord(body, 'body').config, 'config');
@@ -143,7 +151,7 @@ function parseConfig(body: unknown): ProfileConfig {
     blockedApps: asBlockedApps(config.blockedApps),
     displayName: BRAND,
     identifier: `${IDENTIFIER_PREFIX}${crypto.randomUUID().toLowerCase()}`,
-    lockRemoval: true,
+    lockRemoval: asLockRemoval(config.lockRemoval),
     organization: BRAND,
     webFilter: asWebFilter(config.webFilter),
   };

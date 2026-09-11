@@ -1530,17 +1530,19 @@ function writePermanent(acknowledged: boolean): void {
 
 /**
  * What the signer is given: the reader's choices, and nothing else. The
- * identifier, the name and the removal lock are the server's to write, so a
- * download can never be made looser than the one before it.
+ * identifier, the name and the organization are the server's to write, so no
+ * two downloads can collide. The removal lock travels, because trial mode is
+ * the reader's call.
  */
 function signPayload(
   config: ProfileConfig,
-): Omit<ProfileConfig, 'displayName' | 'identifier' | 'lockRemoval' | 'organization'> {
+): Omit<ProfileConfig, 'displayName' | 'identifier' | 'organization'> {
   return {
     allowAppStore: config.allowAppStore,
     allowPrivateBrowsing: config.allowPrivateBrowsing,
     autoFilterAdult: config.autoFilterAdult,
     blockedApps: config.blockedApps,
+    lockRemoval: config.lockRemoval,
     webFilter: config.webFilter,
   };
 }
@@ -2008,8 +2010,8 @@ function Generator() {
     const shared = decodeShare(globalThis.location.search);
     if (stored !== null) {
       // Identity is no longer editable, so a config saved while it was must not
-      // carry its own values back in. The removal lock is no longer a choice
-      // either: a config saved without it comes back with it on.
+      // carry its own values back in. Trial mode is not remembered either: a
+      // saved config comes back permanent, and the box is ticked again or not.
       const restored = {
         ...stored.config,
         displayName: presets.mert.displayName,
@@ -2550,6 +2552,9 @@ function Generator() {
   const deniedSites = filter.mode === 'deny' ? filter.deniedUrls : [];
   const previewSites = deniedSites.slice(0, PREVIEW_SITES);
   const hiddenSites = deniedSites.length - previewSites.length;
+  // Trial mode is the removal lock turned around: a trial profile comes off in
+  // Settings, so the download asks for no acknowledgement.
+  const trial = !config.lockRemoval;
 
   const copyLabel =
     copyState === 'copied'
@@ -3205,6 +3210,18 @@ function Generator() {
             />
             {m.gen_web_auto_filter()}
           </Label>
+          <div {...props(styles.choice)}>
+            <Label>
+              <input
+                checked={trial}
+                onChange={(event) => update({ ...config, lockRemoval: !event.target.checked })}
+                type="checkbox"
+                {...props(controls.base, controls.checkbox)}
+              />
+              {m.gen_trial_check()}
+            </Label>
+            <p {...props(layout.muted)}>{m.gen_trial_help()}</p>
+          </div>
         </section>
 
         <section {...props(styles.section)}>
@@ -3265,21 +3282,23 @@ function Generator() {
                   ) : null}
                 </div>
               </div>
-              <Label>
-                <input
-                  checked={permanent}
-                  onChange={(event) => onPermanentChange(event.target.checked)}
-                  type="checkbox"
-                  {...props(controls.base, controls.checkbox)}
-                />
-                {m.gen_permanent_check()}
-              </Label>
+              {trial ? null : (
+                <Label>
+                  <input
+                    checked={permanent}
+                    onChange={(event) => onPermanentChange(event.target.checked)}
+                    type="checkbox"
+                    {...props(controls.base, controls.checkbox)}
+                  />
+                  {m.gen_permanent_check()}
+                </Label>
+              )}
               <div {...props(styles.row)}>
                 <Button
-                  disabled={xml === null || !supervised || !permanent || signing}
+                  disabled={xml === null || !supervised || (!trial && !permanent) || signing}
                   onClick={() => void download()}
                 >
-                  {signing ? m.gen_signing() : m.gen_download()}
+                  {signing ? m.gen_signing() : trial ? m.gen_download_trial() : m.gen_download()}
                 </Button>
                 <Button onClick={() => setShowXml(!showXml)} variant="outline">
                   {showXml ? m.gen_hide_xml() : m.gen_show_xml()}
