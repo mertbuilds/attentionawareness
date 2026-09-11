@@ -45,8 +45,8 @@ describe('ledgerItems', () => {
   });
 
   it('anchors the books in a year, with the count left to the leading number', () => {
-    expect(ledgerItems(4, 'en')[0]?.text).toBe('books you will never read. about 183 a year');
-    expect(ledgerItems(2, 'en')[0]?.text).toBe('books you will never read. about 91 a year');
+    expect(ledgerItems(4, 'en')[0]?.text).toBe('books you will never read. About 183 a year');
+    expect(ledgerItems(2, 'en')[0]?.text).toBe('books you will never read. About 91 a year');
   });
 
   it('groups the numbers the way the locale does', () => {
@@ -56,7 +56,7 @@ describe('ledgerItems', () => {
   it('leaves the lines that carry no number without one', () => {
     expect(ledgerItems(2, 'en')[1]).toEqual({
       key: 'dinners',
-      text: 'every dinner with the people you love, for 20 years',
+      text: 'Every dinner with the people you love, for 20 years',
     });
   });
 });
