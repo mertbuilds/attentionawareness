@@ -4,7 +4,7 @@ import { presets } from './profile/index.ts';
 import { decodeShare, encodeShare, shareTargets, shareText, SITE_URL } from './share.ts';
 
 /** The twelve apps the generator opens with, as the share text names them. */
-const RECOMMENDED = presets.mert.blockedApps.map((app) => app.name.toLowerCase());
+const RECOMMENDED = presets.mert.blockedApps.map((app) => app.name);
 
 const URL_WITH_STATE = `${SITE_URL}/?h=4&a=ig,tt`;
 
@@ -75,18 +75,18 @@ describe('shareText', () => {
 
     expect(text).toBe(
       m.share_text_more(
-        { apps: 'instagram, threads, tiktok', count: 9, url: URL_WITH_STATE, years: '5' },
+        { apps: 'Instagram, Threads, TikTok', count: 9, url: URL_WITH_STATE, years: '5' },
         { locale: 'en' },
       ),
     );
     expect(text).toContain(URL_WITH_STATE);
     // The fourth app onwards is counted, never named.
-    expect(text).not.toContain('youtube');
+    expect(text).not.toContain('YouTube');
   });
 
   it('names them all when there are three or fewer', () => {
     const text = shareText({
-      appNames: ['instagram', 'tiktok'],
+      appNames: ['Instagram', 'TikTok'],
       locale: 'en',
       url: URL_WITH_STATE,
       years: '2.5',
@@ -94,11 +94,11 @@ describe('shareText', () => {
 
     expect(text).toBe(
       m.share_text_all(
-        { apps: 'instagram, tiktok', url: URL_WITH_STATE, years: '2.5' },
+        { apps: 'Instagram, TikTok', url: URL_WITH_STATE, years: '2.5' },
         { locale: 'en' },
       ),
     );
-    expect(text).toContain('instagram, tiktok');
+    expect(text).toContain('Instagram, TikTok');
   });
 });
 

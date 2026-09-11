@@ -158,8 +158,8 @@ export function ShareCard({
     () => `${SITE_URL}/?${encodeShare({ bundleIds: apps.map((app) => app.bundleId), hours })}`,
     [apps, hours],
   );
-  // Lowercased with no locale: Turkish would turn Instagram's I into an ı.
-  const appNames = useMemo(() => apps.map((app) => app.name.toLowerCase()), [apps]);
+  // The names keep the casing the catalog gives them: "TikTok", not "tiktok".
+  const appNames = useMemo(() => apps.map((app) => app.name), [apps]);
   const { apps: named, rest } = shareApps(appNames);
   const targets = shareTargets(shareText({ appNames, locale, url, years }), url);
 
