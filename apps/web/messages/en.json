@@ -43,7 +43,7 @@
   "home_how_profile_title": "a profile, not an app",
   "home_how_profile_body": "iphones accept configuration profiles, the same files companies use to manage work phones. this tool builds one for you in your browser. nothing is uploaded.",
   "home_how_websites_title": "websites",
-  "home_how_websites_body": "the profile turns on ios's built-in web filter with your list of blocked sites. it works in safari and in every in-app browser.",
+  "home_how_websites_body": "the profile turns on ios's built-in web filter with your list of blocked sites. it works in every browser on the phone.",
   "home_how_apps_title": "apps",
   "home_how_apps_body": "ios can hide apps by their bundle id. hidden apps can still be downloaded from the app store, but the icon never appears and they cannot open.",
   "home_how_supervision_title": "supervision",
