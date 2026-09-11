@@ -71,6 +71,11 @@ async function renderPage() {
 
 const BLOCKED_APPS = presets.mert.blockedApps.length;
 
+/** Step 1's gate: nothing leaves the page until this box is ticked. */
+async function tickSupervised(): Promise<void> {
+  await userEvent.click(screen.getByRole('checkbox', { name: m.gen_step1_check() }));
+}
+
 /** The always-visible search field at the top of the recommended apps. */
 function searchInput(): HTMLElement {
   return screen.getByLabelText(m.gen_app_search_label());
@@ -313,6 +318,60 @@ describe('Generator', () => {
     );
   });
 
+  it('leads the how-it-works cards with supervision', async () => {
+    await renderPage();
+
+    expect(
+      screen.getByText(m.home_step_heading({ n: 1, title: m.home_how_supervision_title() })),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(m.home_step_heading({ n: 4, title: m.home_how_websites_title() })),
+    ).toBeInTheDocument();
+  });
+
+  it('badges nothing as needing supervision, because everything does', async () => {
+    await renderPage();
+
+    expect(screen.queryByText(/needs supervision/i)).not.toBeInTheDocument();
+  });
+
+  it('keeps the profile behind the supervision tick', async () => {
+    await renderPage();
+
+    expect(screen.getByRole('button', { name: m.gen_download() })).toBeDisabled();
+    expect(screen.getByText(m.gen_step_gate())).toBeInTheDocument();
+
+    await tickSupervised();
+
+    expect(screen.getByRole('button', { name: m.gen_download() })).toBeEnabled();
+    expect(screen.queryByText(m.gen_step_gate())).not.toBeInTheDocument();
+    expect(globalThis.localStorage.getItem('kya:supervised')).toBe('true');
+  });
+
+  it('opens on the supervision tick it remembered', async () => {
+    globalThis.localStorage.setItem('kya:supervised', 'true');
+
+    await renderPage();
+
+    expect(screen.getByRole('checkbox', { name: m.gen_step1_check() })).toBeChecked();
+    expect(screen.getByRole('button', { name: m.gen_download() })).toBeEnabled();
+  });
+
+  it('locks the profile removal without asking, even on an older config', async () => {
+    globalThis.localStorage.setItem(
+      'kya:config',
+      JSON.stringify({ ...presets.mert, lockRemoval: false }),
+    );
+    await renderPage();
+    await tickSupervised();
+
+    expect(screen.queryByText(/lock the profile/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
+
+    expect(await downloadedXml()).toContain('<key>PayloadRemovalDisallowed</key><true/>');
+  });
+
   it('answers six objections', async () => {
     const { container } = await renderPage();
 
@@ -467,6 +526,7 @@ describe('Generator', () => {
 
   it('blocks the sites its blocked apps imply', async () => {
     await renderPage();
+    await tickSupervised();
 
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
 
@@ -478,6 +538,7 @@ describe('Generator', () => {
 
   it('drops the sites of an app that is removed', async () => {
     await renderPage();
+    await tickSupervised();
     const remove = removeButtonFor('com.google.ios.youtube');
     await userEvent.click(remove);
     await userEvent.click(remove);
@@ -489,6 +550,7 @@ describe('Generator', () => {
 
   it('drops a derived site the user unticks', async () => {
     await renderPage();
+    await tickSupervised();
     const site = screen.getByRole('checkbox', { name: 'x.com' });
     expect(site).toBeChecked();
 
@@ -501,6 +563,7 @@ describe('Generator', () => {
 
   it('blocks a site the reader adds in the last row of the box', async () => {
     await renderPage();
+    await tickSupervised();
 
     await userEvent.type(screen.getByLabelText(m.gen_web_add_label()), 'news.ycombinator.com');
     await userEvent.keyboard('{Enter}');
@@ -512,6 +575,7 @@ describe('Generator', () => {
 
   it('asks for a second click before deleting a site', async () => {
     await renderPage();
+    await tickSupervised();
     const remove = siteDelete('x.com');
 
     await userEvent.click(remove);
@@ -529,6 +593,7 @@ describe('Generator', () => {
 
   it('edits the host of a site the reader added', async () => {
     await renderPage();
+    await tickSupervised();
 
     await userEvent.type(screen.getByLabelText(m.gen_web_add_label()), 'old.example');
     await userEvent.keyboard('{Enter}');
@@ -555,6 +620,7 @@ describe('Generator', () => {
 
     await renderPage();
 
+    await tickSupervised();
     expect(siteRow('old.example')).toHaveValue('old.example');
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
     expect(await downloadedXml()).toContain('<string>https://old.example</string>');
@@ -562,6 +628,7 @@ describe('Generator', () => {
 
   it('blocks the site behind a searched app', async () => {
     await renderPage();
+    await tickSupervised();
 
     await userEvent.type(searchInput(), 'exam');
     await userEvent.click(await screen.findByRole('button', { name: m.gen_app_add() }));
@@ -590,6 +657,7 @@ describe('Generator', () => {
 
   it('downloads the built profile', async () => {
     await renderPage();
+    await tickSupervised();
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
     expect(createObjectURL).toHaveBeenCalledTimes(1);
     const xml = await downloadedXml();
@@ -602,6 +670,7 @@ describe('Generator', () => {
     const writeText = vi.fn(async () => {});
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
     await renderPage();
+    await tickSupervised();
     await userEvent.click(screen.getByRole('button', { name: m.gen_show_xml() }));
 
     await userEvent.click(screen.getByRole('button', { name: m.gen_copy() }));
@@ -622,6 +691,7 @@ describe('Generator', () => {
 
   it('opens the share dialog on the download, and reopens it on request', async () => {
     await renderPage();
+    await tickSupervised();
 
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
 
@@ -645,6 +715,7 @@ describe('Generator', () => {
     const writeText = vi.fn(async () => {});
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
     await renderPage();
+    await tickSupervised();
     await userEvent.click(screen.getByRole('button', { name: m.gen_show_xml() }));
 
     await userEvent.click(screen.getByRole('button', { name: m.gen_copy() }));
@@ -657,6 +728,7 @@ describe('Generator', () => {
     const writeText = vi.fn(async () => {});
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
     await renderPage();
+    await tickSupervised();
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
     const dialog = await screen.findByRole('dialog');
 
@@ -690,6 +762,7 @@ describe('Generator', () => {
 
   it('drops the web filter payload when the filter is turned off', async () => {
     await renderPage();
+    await tickSupervised();
     fireEvent.click(screen.getByLabelText(m.gen_web_mode_off()));
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
     expect(await downloadedXml()).not.toContain('com.apple.webcontent-filter');

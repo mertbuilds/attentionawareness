@@ -38,6 +38,7 @@ import {
   storefronts,
 } from '../lib/app-search.ts';
 import { formatYears, ledgerItems } from '../lib/attention-math.ts';
+import { controls } from '../lib/controls.ts';
 import { layout } from '../lib/layout.ts';
 import { buildProfile, presets } from '../lib/profile/index.ts';
 import type { BlockedApp, ProfileConfig } from '../lib/profile/index.ts';
@@ -54,6 +55,7 @@ export const Route = createFileRoute('/')({
 const STORAGE_KEY = 'kya:config';
 const SOUND_KEY = 'kya:sound';
 const GENERATED_KEY = 'kya:generated';
+const SUPERVISED_KEY = 'kya:supervised';
 /**
  * The one display size on the page. Only the hero lines and the years the
  * habit costs are set in it; every other heading is one step down.
@@ -235,13 +237,6 @@ const styles = create({
   // The one colour on the page, and it is a loss, never a score.
   burn: {
     color: accent.base,
-  },
-  checkbox: {
-    accentColor: accent.base,
-    flexShrink: 0,
-    height: 16,
-    margin: 0,
-    width: 16,
   },
   choice: {
     display: 'flex',
@@ -1079,6 +1074,12 @@ const styles = create({
       default: '1fr',
     },
   },
+  // The small caption and the title it names, as one block over a step.
+  stepHeader: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s1,
+  },
   stepLink: {
     display: 'inline-block',
     marginBlockStart: spacing.s2,
@@ -1240,12 +1241,6 @@ const styles = create({
     borderRadius: 11,
     height: 48,
     width: 48,
-  },
-  titleRow: {
-    alignItems: 'center',
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: spacing.s2,
   },
   truncate: {
     overflow: 'hidden',
@@ -1462,6 +1457,23 @@ function readGenerated(): boolean {
 function writeGenerated(): void {
   try {
     globalThis.localStorage.setItem(GENERATED_KEY, 'true');
+  } catch {
+    // Private mode or a full quota must not break the generator.
+  }
+}
+
+/** Whether this reader has said their iPhone is supervised. */
+function readSupervised(): boolean {
+  try {
+    return globalThis.localStorage.getItem(SUPERVISED_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function writeSupervised(supervised: boolean): void {
+  try {
+    globalThis.localStorage.setItem(SUPERVISED_KEY, String(supervised));
   } catch {
     // Private mode or a full quota must not break the generator.
   }
@@ -1764,6 +1776,9 @@ function Generator() {
   const [copyState, setCopyState] = useState<'copied' | 'fallback' | 'idle'>('idle');
   // There is nothing to brag about until a profile has left the page.
   const [generated, setGenerated] = useState(false);
+  // Step 1 is the gate: a profile is worth nothing on an unsupervised phone,
+  // so nothing leaves the page until the reader says theirs is supervised.
+  const [supervised, setSupervised] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   // The years the link that brought the reader here was bragging about. It is
   // the friend's number, so the reader's own slider never rewrites it.
@@ -1847,11 +1862,13 @@ function Generator() {
     const shared = decodeShare(globalThis.location.search);
     if (stored !== null) {
       // Identity is no longer editable, so a config saved while it was must not
-      // carry its own values back in.
+      // carry its own values back in. The removal lock is no longer a choice
+      // either: a config saved without it comes back with it on.
       const restored = {
         ...stored.config,
         displayName: presets.mert.displayName,
         identifier: presets.mert.identifier,
+        lockRemoval: true,
         organization: presets.mert.organization,
       };
       setConfig(restored);
@@ -1875,6 +1892,9 @@ function Generator() {
     }
     if (readGenerated()) {
       setGenerated(true);
+    }
+    if (readSupervised()) {
+      setSupervised(true);
     }
     const preferred = initialStorefront();
     if (preferred !== FALLBACK_COUNTRY) {
@@ -2050,6 +2070,11 @@ function Generator() {
     if (next) {
       primeTickSound();
     }
+  }
+
+  function onSupervisedChange(next: boolean) {
+    setSupervised(next);
+    writeSupervised(next);
   }
 
   function onQueryChange(value: string) {
@@ -2345,11 +2370,12 @@ function Generator() {
     { label: m.home_deal_time_label(), value: m.home_deal_time_value() },
   ];
 
+  // Supervision leads: it is the step the other three stand on.
   const howItWorks = [
-    { body: m.home_how_profile_body(), guide: false, title: m.home_how_profile_title() },
-    { body: m.home_how_websites_body(), guide: false, title: m.home_how_websites_title() },
-    { body: m.home_how_apps_body(), guide: false, title: m.home_how_apps_title() },
     { body: m.home_how_supervision_body(), guide: true, title: m.home_how_supervision_title() },
+    { body: m.home_how_profile_body(), guide: false, title: m.home_how_profile_title() },
+    { body: m.home_how_apps_body(), guide: false, title: m.home_how_apps_title() },
+    { body: m.home_how_websites_body(), guide: false, title: m.home_how_websites_title() },
   ];
 
   const proofPoints = [
@@ -2567,13 +2593,33 @@ function Generator() {
           </dl>
         </section>
 
-        <h2 {...props(styles.sectionTitle)}>{m.home_tool_title()}</h2>
+        <section {...props(styles.section)}>
+          <div {...props(styles.stepHeader)}>
+            <p {...props(styles.label)}>{m.gen_step1_label()}</p>
+            <h2 {...props(styles.sectionTitle)}>{m.gen_step1_title()}</h2>
+          </div>
+          <p {...props(layout.muted)}>{m.gen_step1_body()}</p>
+          <div {...props(styles.row)}>
+            <Button render={<a href={SUPERVISE_URL} />}>{m.gen_step1_cta()}</Button>
+          </div>
+          <Label>
+            <input
+              checked={supervised}
+              onChange={(event) => onSupervisedChange(event.target.checked)}
+              type="checkbox"
+              {...props(controls.base, controls.checkbox)}
+            />
+            {m.gen_step1_check()}
+          </Label>
+        </section>
+
+        <div {...props(styles.stepHeader)}>
+          <p {...props(styles.label)}>{m.gen_step2_label()}</p>
+          <h2 {...props(styles.sectionTitle)}>{m.gen_step2_title()}</h2>
+        </div>
 
         <section {...props(styles.section)}>
-          <div {...props(styles.titleRow)}>
-            <h2 {...props(styles.sectionTitle)}>{m.home_apps_title()}</h2>
-            <Badge variant="outline">{m.gen_needs_supervision()}</Badge>
-          </div>
+          <h2 {...props(styles.sectionTitle)}>{m.home_apps_title()}</h2>
           <p {...props(layout.muted)}>
             {m.home_apps_subtitle()}{' '}
             <button
@@ -2771,7 +2817,7 @@ function Generator() {
                 name="web-mode"
                 onChange={() => setWebMode('deny')}
                 type="radio"
-                {...props(styles.checkbox)}
+                {...props(controls.base, controls.radio)}
               />
               {m.gen_web_mode_deny()}
             </Label>
@@ -2781,7 +2827,7 @@ function Generator() {
                 name="web-mode"
                 onChange={() => setWebMode('allow')}
                 type="radio"
-                {...props(styles.checkbox)}
+                {...props(controls.base, controls.radio)}
               />
               {m.gen_web_mode_allow()}
             </Label>
@@ -2791,7 +2837,7 @@ function Generator() {
                 name="web-mode"
                 onChange={() => setWebMode('off')}
                 type="radio"
-                {...props(styles.checkbox)}
+                {...props(controls.base, controls.radio)}
               />
               {m.gen_web_mode_off()}
             </Label>
@@ -2812,7 +2858,7 @@ function Generator() {
                         checked={row.enabled}
                         onChange={() => toggleRow(row)}
                         type="checkbox"
-                        {...props(styles.checkbox)}
+                        {...props(controls.base, controls.checkbox)}
                       />
                       <span
                         {...props(
@@ -2849,7 +2895,7 @@ function Generator() {
                         checked={row.enabled}
                         onChange={() => toggleRow(row)}
                         type="checkbox"
-                        {...props(styles.checkbox)}
+                        {...props(controls.base, controls.checkbox)}
                       />
                       <SiteHostField
                         label={m.gen_web_row_edit({ site: siteLabel(row.url) })}
@@ -2922,58 +2968,38 @@ function Generator() {
                 checked={config.autoFilterAdult}
                 onChange={(event) => update({ ...config, autoFilterAdult: event.target.checked })}
                 type="checkbox"
-                {...props(styles.checkbox)}
+                {...props(controls.base, controls.checkbox)}
               />
               {m.gen_web_auto_filter()}
             </Label>
           ) : null}
-          {filter.mode === 'off' ? null : (
-            <div {...props(styles.titleRow)}>
-              <Label>
-                <input
-                  checked={config.allowPrivateBrowsing}
-                  onChange={(event) =>
-                    update({ ...config, allowPrivateBrowsing: event.target.checked })
-                  }
-                  type="checkbox"
-                  {...props(styles.checkbox)}
-                />
-                {m.gen_web_private_browsing()}
-              </Label>
-              <Badge variant="outline">{m.gen_needs_supervision()}</Badge>
-            </div>
-          )}
         </section>
 
         <section {...props(styles.section)}>
-          <div {...props(styles.titleRow)}>
-            <h2 {...props(styles.sectionTitle)}>{m.gen_restrictions_title()}</h2>
-            <Badge variant="outline">{m.gen_needs_supervision()}</Badge>
-          </div>
+          <h2 {...props(styles.sectionTitle)}>{m.gen_restrictions_title()}</h2>
           <div {...props(styles.choice)}>
             <Label>
               <input
                 checked={config.allowAppStore}
                 onChange={(event) => update({ ...config, allowAppStore: event.target.checked })}
                 type="checkbox"
-                {...props(styles.checkbox)}
+                {...props(controls.base, controls.checkbox)}
               />
               {m.gen_allow_app_store()}
             </Label>
             <p {...props(layout.muted)}>{m.gen_allow_app_store_help()}</p>
           </div>
-          <div {...props(styles.choice)}>
-            <Label>
-              <input
-                checked={config.lockRemoval}
-                onChange={(event) => update({ ...config, lockRemoval: event.target.checked })}
-                type="checkbox"
-                {...props(styles.checkbox)}
-              />
-              {m.gen_lock_removal()}
-            </Label>
-            <p {...props(layout.muted)}>{m.gen_lock_removal_help()}</p>
-          </div>
+          <Label>
+            <input
+              checked={config.allowPrivateBrowsing}
+              onChange={(event) =>
+                update({ ...config, allowPrivateBrowsing: event.target.checked })
+              }
+              type="checkbox"
+              {...props(controls.base, controls.checkbox)}
+            />
+            {m.gen_web_private_browsing()}
+          </Label>
         </section>
 
         <section {...props(styles.section)}>
@@ -3031,28 +3057,35 @@ function Generator() {
                   </Badge>
                 </div>
               </div>
-              {blockedSites > 0 ? (
-                <p {...props(layout.muted)}>{m.gen_summary_tier({ sites: blockedSites })}</p>
-              ) : null}
               <div {...props(styles.row)}>
-                <Button disabled={xml === null} onClick={download}>
+                <Button disabled={xml === null || !supervised} onClick={download}>
                   {m.gen_download()}
                 </Button>
                 <Button onClick={() => setShowXml(!showXml)} variant="outline">
                   {showXml ? m.gen_hide_xml() : m.gen_show_xml()}
                 </Button>
                 {generated ? (
-                  <Button onClick={() => setShareOpen(true)} variant="outline">
+                  <Button
+                    disabled={!supervised}
+                    onClick={() => setShareOpen(true)}
+                    variant="outline"
+                  >
                     {m.share_reopen()}
                   </Button>
                 ) : null}
               </div>
+              {supervised ? null : <p {...props(layout.muted)}>{m.gen_step_gate()}</p>}
               {showXml && xml !== null ? (
                 <div {...props(styles.preWrap)}>
                   <pre onClick={selectXml} ref={xmlBlock} {...props(styles.pre)}>
                     {xml}
                   </pre>
-                  <Button onClick={() => void copyXml()} style={styles.preCopy} variant="outline">
+                  <Button
+                    disabled={!supervised}
+                    onClick={() => void copyXml()}
+                    style={styles.preCopy}
+                    variant="outline"
+                  >
                     {copyLabel}
                   </Button>
                 </div>
@@ -3064,7 +3097,7 @@ function Generator() {
             <li>{m.gen_install_step_transfer()}</li>
             <li>{m.gen_install_step_settings()}</li>
             <li>{m.gen_install_step_reboot()}</li>
-            <li>{m.gen_install_step_unsupervised()}</li>
+            <li>{m.gen_install_step_supervise_first()}</li>
           </ol>
           <p {...props(layout.muted)}>{m.gen_install_note()}</p>
         </section>

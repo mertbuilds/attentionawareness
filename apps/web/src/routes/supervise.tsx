@@ -13,7 +13,7 @@ import { create, props } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { SiteFooter } from '../components/site-footer.tsx';
-import { accent } from '../lib/accent.stylex.ts';
+import { controls } from '../lib/controls.ts';
 import { layout } from '../lib/layout.ts';
 import { m } from '../paraglide/messages.js';
 
@@ -46,12 +46,8 @@ const styles = create({
     paddingInlineStart: spacing.s4,
   },
   checkbox: {
-    accentColor: accent.base,
-    flexShrink: 0,
-    height: 16,
     // Sits on the first line of a wrapping label instead of its top edge.
-    marginBlockStart: 4,
-    width: 16,
+    marginBlockStart: 3,
   },
   checkItem: {
     marginBlockEnd: spacing.s2,
@@ -301,7 +297,7 @@ function SuperviseGuide() {
                     checked={checked.includes(item.id)}
                     onChange={() => toggle(item.id)}
                     type="checkbox"
-                    {...props(styles.checkbox)}
+                    {...props(controls.base, controls.checkbox, styles.checkbox)}
                   />
                   {item.text}
                 </Label>
@@ -411,9 +407,6 @@ function SuperviseGuide() {
               <a href={TECH_LOCKDOWN_URL} rel="noreferrer" target="_blank">
                 {m.sup_alt_nomac_link()}
               </a>
-            </li>
-            <li {...props(styles.bulletItem)}>
-              {m.sup_alt_nosupervision()} <a href={HOME_URL}>{m.sup_alt_nosupervision_link()}</a>
             </li>
             <li {...props(styles.bulletItem)}>
               {m.sup_alt_erase()}{' '}

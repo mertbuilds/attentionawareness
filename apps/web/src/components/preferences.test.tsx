@@ -26,7 +26,7 @@ Object.defineProperty(globalThis, 'localStorage', {
   },
 });
 
-const { Preferences } = await import('./preferences.tsx');
+const { LanguageSwitch, ThemeSwitch } = await import('./preferences.tsx');
 
 describe('Preferences', () => {
   beforeEach(() => {
@@ -36,7 +36,7 @@ describe('Preferences', () => {
   });
 
   it('names the language it is currently showing', () => {
-    render(<Preferences />);
+    render(<LanguageSwitch />);
     expect(screen.getByRole('button', { name: m.pref_language_label() })).toHaveTextContent(
       m.pref_language_en(),
     );
@@ -44,7 +44,7 @@ describe('Preferences', () => {
   });
 
   it('switches the locale from the listbox', async () => {
-    render(<Preferences />);
+    render(<LanguageSwitch />);
 
     await userEvent.click(screen.getByRole('button', { name: m.pref_language_label() }));
     await userEvent.click(screen.getByRole('option', { name: m.pref_language_tr() }));
@@ -54,7 +54,7 @@ describe('Preferences', () => {
   });
 
   it('opens on system and forces the theme the user picks', async () => {
-    render(<Preferences />);
+    render(<ThemeSwitch />);
     expect(
       screen.getByRole('button', { name: m.pref_theme_system(), pressed: true }),
     ).toBeVisible();
@@ -72,7 +72,7 @@ describe('Preferences', () => {
 
   it('reads the remembered choice after mount', () => {
     globalThis.localStorage.setItem(THEME_KEY, 'light');
-    render(<Preferences />);
+    render(<ThemeSwitch />);
     expect(screen.getByRole('button', { name: m.pref_theme_light(), pressed: true })).toBeVisible();
   });
 });
