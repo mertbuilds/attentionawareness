@@ -45,7 +45,7 @@ import { buildProfile, presets } from '../lib/profile/index.ts';
 import type { BlockedApp, ProfileConfig } from '../lib/profile/index.ts';
 import { decodeShare } from '../lib/share.ts';
 import { normalizeUrl, sitesForApp, sitesForApps } from '../lib/sites.ts';
-import { playTick, primeTickSound } from '../lib/tick-sound.ts';
+import { playTick, primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
 import { useIsMobile } from '../lib/use-is-mobile.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
@@ -262,21 +262,11 @@ const styles = create({
     padding: 0,
   },
   // The one colour on the page, and it is a loss, never a score. The number is
-  // set in even figures and given the width of its longest reading, so dragging
-  // the dial moves nothing in the sentence but the digits themselves.
+  // set in even figures so dragging the dial moves nothing in the sentence but
+  // the digits themselves.
   burn: {
     color: accent.base,
-    display: 'inline-block',
     fontVariantNumeric: 'tabular-nums',
-    textAlign: 'right',
-  },
-  // "1" through "12".
-  burnHours: {
-    minWidth: '2ch',
-  },
-  // "5" through "15", and the decimal readings between them.
-  burnYears: {
-    minWidth: '4ch',
   },
   choice: {
     display: 'flex',
@@ -2018,6 +2008,27 @@ function Generator() {
   }, []);
   /* oxlint-enable react/set-state-in-effect */
 
+  // iOS Safari does not count the pointerdown on the knob as the gesture that
+  // opens an audio device, so the first gesture it does accept anywhere on the
+  // page opens one. Once that works there is nothing left to listen for.
+  useEffect(() => {
+    const gestures = ['touchend', 'pointerup', 'click'] as const;
+    function stop() {
+      for (const gesture of gestures) {
+        document.removeEventListener(gesture, unlock);
+      }
+    }
+    function unlock() {
+      if (unlockTickSound()) {
+        stop();
+      }
+    }
+    for (const gesture of gestures) {
+      document.addEventListener(gesture, unlock, { once: true, passive: true });
+    }
+    return stop;
+  }, []);
+
   // Artwork is the only color on the page, and the config carries no icons, so
   // ids nothing is known about are looked up in one request. Caching every
   // answer, misses included, empties the list and stops the effect.
@@ -2575,12 +2586,16 @@ function Generator() {
             <div {...props(styles.dialRail)}>
               <Label style={styles.sliderLabel}>
                 <span {...props(styles.srOnly)}>{m.home_math_slider_label()}</span>
+                {/* The end of the gesture, not its start, is what iOS accepts as
+                    leave to open an audio device, so it gets its own handlers. */}
                 <input
                   aria-valuetext={hoursReading}
                   max={HOURS_MAX}
                   min={HOURS_MIN}
                   onChange={(event) => onHoursChange(Number(event.target.value))}
                   onPointerDown={armSound}
+                  onPointerUp={unlockTickSound}
+                  onTouchEnd={unlockTickSound}
                   step={HOURS_STEP}
                   type="range"
                   value={hours}
@@ -2630,11 +2645,11 @@ function Generator() {
               costs, so those two numbers are the only colour in the line. */}
           <p {...props(styles.mathResult)}>
             {m.home_math_result_hours_before()}
-            <span {...props(styles.burn, styles.burnHours)}>{hoursText}</span>
+            <span {...props(styles.burn)}>{hoursText}</span>
             {hours === 1
               ? m.home_math_result_hours_between_one()
               : m.home_math_result_hours_between()}
-            <span {...props(styles.burn, styles.burnYears)}>{years}</span>
+            <span {...props(styles.burn)}>{years}</span>
             {m.home_math_result_hours_after()}
           </p>
           <h3 {...props(styles.label)}>{m.home_ledger_title()}</h3>
