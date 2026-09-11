@@ -74,7 +74,7 @@ const READING_SPEED_URL = 'https://doi.org/10.1016/j.jml.2019.104047';
  * placeholder. Both widen to `string` so the other two branches keep
  * type-checking whichever one carries a url.
  */
-const SCREEN_TIME_VIDEO_URL: string = '/media/screentime-v1.mp4';
+const SCREEN_TIME_VIDEO_URL: string = '/media/screentime-v2.mp4';
 const SCREEN_TIME_GIF_URL: string = '';
 const PROFILE_MIME = 'application/x-apple-aspen-config';
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
@@ -407,7 +407,7 @@ const styles = create({
   // stands behind it in both themes, the way a player letterboxes.
   helpSlot: {
     alignSelf: 'center',
-    aspectRatio: '720 / 1400',
+    aspectRatio: '720 / 1120',
     backgroundColor: palette.black,
     borderRadius: 12,
     display: 'flex',

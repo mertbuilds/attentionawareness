@@ -227,7 +227,7 @@ describe('Generator', () => {
 
     const clip = screen.getByRole('tooltip').querySelector('video');
     expect(clip).not.toBeNull();
-    expect(clip?.src).toMatch(/\/media\/screentime-v1\.mp4$/);
+    expect(clip?.src).toMatch(/\/media\/screentime-v2\.mp4$/);
   });
 
   it('states the deal as three facts', async () => {
