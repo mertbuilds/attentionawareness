@@ -31,7 +31,7 @@ export const sentences = {
 
 /** Each site's name, and the one line of what goes with it. */
 export const siteStrings: Readonly<Record<SiteId, { hides: string; name: string }>> = {
-  instagram: { hides: 'Reels, Explore, suggestions', name: 'Instagram' },
+  instagram: { hides: 'Reels, Explore grid, suggestions', name: 'Instagram' },
   tiktok: { hides: 'Everything', name: 'TikTok' },
   x: { hides: 'For you tab, trends, Grok', name: 'X' },
   youtube: { hides: 'Shorts everywhere', name: 'YouTube' },

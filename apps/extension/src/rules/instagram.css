@@ -1,10 +1,15 @@
 /*
  * Instagram: instagram.com and its subdomains.
  *
- * Hides: the Reels and Explore entries in the nav, the Reels and Explore pages
- * themselves, the "Suggested for you" blocks in the sidebar and in the feed,
- * and the "For you" tab on the home feed. The feed, stories, messages and the
- * profile stay.
+ * Hides: the Reels entry in the nav, the Reels page, the Explore page's grid
+ * and its tabs, the "Suggested for you" blocks in the sidebar and in the feed,
+ * and the "For you" tab on the home feed. The feed, stories, messages, search
+ * and the profile stay.
+ *
+ * The nav's `a[href='/explore/']` stays: on the desktop layout that link is
+ * the Search entry, so hiding it takes search with it. Explore is cut one
+ * level inside the page instead, where `main > div` holds the search box, the
+ * tabs and the grid, and only the child with the input survives.
  *
  * Instagram generates its class names, so the hooks here are hrefs: the nav
  * links, and the "See all" link every suggestion block carries. The page level
@@ -16,23 +21,23 @@
  */
 
 a[href='/reels/'],
-a[href='/explore/'],
 li:has(> a[href='/reels/']),
-li:has(> a[href='/explore/']),
-li:has(> div > a[href='/reels/']),
-li:has(> div > a[href='/explore/']) {
+li:has(> div > a[href='/reels/']) {
   display: none !important;
 }
 
-html[data-aa-path^='/reels'] main,
-html[data-aa-path^='/explore'] main {
+html[data-aa-path^='/reels'] main {
   display: none !important;
 }
 
-section:has(> div a[href='/explore/people/']) {
+html[data-aa-path^='/explore'] main > div > div:not(:has(input)) {
   display: none !important;
 }
 
-html[data-aa-path='/'] main [role='tablist'] [role='tab']:first-child {
+div:has(> div > a[href='/explore/people/']) {
+  display: none !important;
+}
+
+html[data-aa-path='/'] main [role='tablist'] > div:first-child {
   display: none !important;
 }

@@ -8,6 +8,8 @@ dist/
 .output/
 .vite/
 storybook-static/
+# the packed extension, rebuilt by `pnpm --filter @attentionawareness/extension zip`
+apps/extension/*.zip
 
 # caches
 .turbo/

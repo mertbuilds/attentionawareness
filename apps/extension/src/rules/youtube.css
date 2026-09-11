@@ -7,10 +7,12 @@
  * feed, subscriptions, search and the watch page stay.
  *
  * The hooks are YouTube's own custom element names and the `is-shorts`
- * attribute it puts on its own shelves. Both outlive its class names. `:has()`
- * reaches the section around a shelf so a removed shelf leaves no empty row.
- * The /shorts/ rules read `html[data-aa-path]`, which the content script keeps
- * in step with `location.pathname`, because YouTube never reloads.
+ * attribute it puts on its own shelves. Both outlive its class names. The
+ * Playables shelf carries no attribute of its own, so it is reached by the
+ * /playables link inside it. `:has()` reaches the section around a shelf so a
+ * removed shelf leaves no empty row. The /shorts/ rules read
+ * `html[data-aa-path]`, which the content script keeps in step with
+ * `location.pathname`, because YouTube never reloads.
  *
  * Verified 2026-09-11, except the Playables shelf, which YouTube shows by
  * region; its rule is inert where the shelf is absent.
@@ -29,8 +31,8 @@ yt-tab-shape[tab-title='Shorts'] {
   display: none !important;
 }
 
-ytd-rich-shelf-renderer[is-playables],
-ytd-rich-section-renderer:has(ytd-rich-shelf-renderer[is-playables]) {
+ytd-rich-section-renderer:has(a[href^='/playables']),
+ytd-rich-shelf-renderer:has(a[href^='/playables']) {
   display: none !important;
 }
 
