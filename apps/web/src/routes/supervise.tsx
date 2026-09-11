@@ -26,7 +26,6 @@ export const Route = createFileRoute('/supervise')({
 const HOME_URL = '/';
 /** The brand in prose, the way the root document spells it. */
 const SITE_NAME = 'Attention Awareness';
-const TECH_LOCKDOWN_URL = 'https://www.techlockdown.com';
 const STOPA_URL = 'https://stopa.io/post/297';
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 
@@ -384,12 +383,6 @@ function SuperviseGuide() {
         <section {...props(styles.section)}>
           <h2 {...props(styles.sectionTitle)}>{m.sup_alt_title()}</h2>
           <ul {...props(styles.bullets)}>
-            <li {...props(styles.bulletItem)}>
-              {m.sup_alt_nomac()}{' '}
-              <a href={TECH_LOCKDOWN_URL} rel="noreferrer" target="_blank">
-                {m.sup_alt_nomac_link()}
-              </a>
-            </li>
             <li {...props(styles.bulletItem)}>
               {m.sup_alt_erase()}{' '}
               <a href={STOPA_URL} rel="noreferrer" target="_blank">
