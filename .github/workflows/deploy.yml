@@ -38,7 +38,6 @@ jobs:
       - run: pnpm --filter @keepyourattention/web build
         if: env.CF_API_TOKEN != ''
         env:
-          VITE_API_URL: ${{ vars.API_URL }}
           VITE_POSTHOG_KEY: ${{ vars.POSTHOG_KEY }}
           VITE_SENTRY_DSN: ${{ vars.WEB_SENTRY_DSN }}
       - name: Deploy to Cloudflare Workers
@@ -55,17 +54,3 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ vars.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ vars.SENTRY_WEB_PROJECT }}
-
-  api:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger Dokploy deploy
-        if: env.DOKPLOY_WEBHOOK_URL != ''
-        run: curl -fsS -X POST "$DOKPLOY_WEBHOOK_URL"
-        env:
-          DOKPLOY_WEBHOOK_URL: ${{ secrets.DOKPLOY_WEBHOOK_URL }}
-      - name: No Dokploy webhook configured
-        if: env.DOKPLOY_WEBHOOK_URL == ''
-        run: echo "DOKPLOY_WEBHOOK_URL secret not set — api deploy skipped."
-        env:
-          DOKPLOY_WEBHOOK_URL: ${{ secrets.DOKPLOY_WEBHOOK_URL }}

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Rename the template to your product. Rewrites every tracked file (plus .env) in one diff.
 # Usage: scripts/rename.sh <new-name>   (kebab-case, lowercase, e.g. acme-app)
-# Touches: package scope, wrangler worker name, portless hosts, Postgres creds, titles, lockfile.
+# Touches: package scope, wrangler worker name, portless hosts, titles, lockfile.
 # Leaves docs/adr as history and keeps the mertbuilds/web-starter template pointer in README.
 set -euo pipefail
 

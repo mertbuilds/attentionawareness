@@ -3,13 +3,11 @@ packages:
   - packages/*
   - e2e
 allowBuilds:
-  '@prisma/engines': true
   '@sentry/cli': true
   core-js: false
   cpu-features: false
   esbuild: true
   lefthook: true
-  prisma: true
   protobufjs: false
   ssh2: false
   workerd: true
@@ -54,7 +52,6 @@ minimumReleaseAgeExclude:
   - '@oxlint/binding-win32-x64-msvc@1.81.0'
   - oxfmt@0.66.0
   - oxlint@1.81.0
-  - stripe@22.6.1
   - '@cloudflare/vite-plugin@1.54.3'
   - '@posthog/core@1.50.2'
   - miniflare@5.20260831.0-alpha

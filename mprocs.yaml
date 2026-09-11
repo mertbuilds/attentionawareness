@@ -1,17 +1,4 @@
 procs:
-  postgres:
-    shell: docker compose up postgres
-    stop:
-      send-keys: ['<C-c>']
-  emulate:
-    # --portless registers https://{stripe,google,resend}.emulate.localhost aliases;
-    # upstream ports stay at 5100+ (out of portless's 4000-4999 PORT pool).
-    shell: pnpm emulate
-  api:
-    # https://api.keepyourattention.localhost — portless injects PORT; api prefers it over API_PORT.
-    # NODE_EXTRA_CA_CERTS: Node ignores the macOS trust store, so outbound HTTPS to the
-    # *.emulate.localhost aliases needs the portless CA explicitly.
-    shell: NODE_EXTRA_CA_CERTS="$HOME/.portless/ca.pem" pnpm exec portless api.keepyourattention pnpm --filter api dev
   web:
     # https://keepyourattention.localhost
     shell: pnpm exec portless keepyourattention pnpm --filter @keepyourattention/web dev
