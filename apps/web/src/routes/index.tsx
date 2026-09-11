@@ -54,11 +54,6 @@ export const Route = createFileRoute('/')({
   component: Generator,
 });
 
-const STORAGE_KEY = 'aa:config';
-const SOUND_KEY = 'aa:sound';
-const GENERATED_KEY = 'aa:generated';
-const SUPERVISED_KEY = 'aa:supervised';
-const PERMANENT_KEY = 'aa:permanent-ack';
 /**
  * The one display size on the page. Only the hero lines and the years the
  * habit costs are set in it; every other heading is one step down.
@@ -92,8 +87,6 @@ const PROFILE_FILENAME = 'attentionawareness.mobileconfig';
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 /** How long an armed Remove waits for its second click before standing down. */
 const REMOVE_CONFIRM_MS = 3000;
-/** How long the Copy button holds its "Copied" label before standing down. */
-const COPY_FEEDBACK_MS = 2000;
 /**
  * The popover hangs a few pixels under its button, so the pointer crosses bare
  * page on its way in. This is how long that trip is allowed to take.
@@ -175,19 +168,6 @@ type CustomSite = { enabled: boolean; url: string };
 type SiteRow =
   | { apps: Array<BlockedApp>; enabled: boolean; kind: 'derived'; url: string }
   | { enabled: boolean; index: number; kind: 'custom'; url: string };
-
-/**
- * What `aa:config` holds. The blocked sites are derived from the blocked
- * apps, so only the lists that cannot be derived are stored next to the
- * config: the user's own urls, the derived ones they turned off, and the
- * derived ones they deleted outright.
- */
-type StoredState = {
-  config: ProfileConfig;
-  customSites: Array<CustomSite>;
-  excludedSites: Array<string>;
-  removedSites: Array<string>;
-};
 
 /** The popover rises the last few pixels into place under its button. */
 const helpEnter = keyframes({
@@ -609,25 +589,6 @@ const styles = create({
     height: 28,
     width: 28,
   },
-  pre: {
-    backgroundColor: 'transparent',
-    borderColor: colors.border,
-    borderRadius: radius.base,
-    borderStyle: 'solid',
-    borderWidth: '1px',
-    fontFamily: MONOSPACE,
-    fontSize: font.sizeSm,
-    margin: 0,
-    maxHeight: 360,
-    overflow: 'auto',
-    padding: spacing.s3,
-  },
-  // Rides over the top-right corner of the XML and stays there while it scrolls.
-  preCopy: {
-    insetBlockStart: 8,
-    insetInlineEnd: 8,
-    position: 'absolute',
-  },
   // The profile as a picture of itself: the icons it hides, the hosts it
   // turns away, and the two switches that need a supervised phone.
   preview: {
@@ -693,9 +654,6 @@ const styles = create({
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s2,
-  },
-  preWrap: {
-    position: 'relative',
   },
   proofGrid: {
     display: 'grid',
@@ -1373,95 +1331,6 @@ function withDerivedSites(
 }
 
 /**
- * The urls a config stored before sites were derived: everything its own apps
- * now imply comes back on its own, so only the rest stays the user's list.
- */
-function customSitesOf(config: ProfileConfig): Array<CustomSite> {
-  const filter = config.webFilter;
-  if (filter.mode !== 'deny') {
-    return [];
-  }
-  const derived = new Set(sitesForApps(config.blockedApps));
-  return filter.deniedUrls
-    .map((url) => normalizeUrl(url))
-    .filter((url) => url !== '' && !derived.has(url))
-    .map((url) => ({ enabled: true, url }));
-}
-
-/** An older `customSites` held bare urls, and every one of those is switched on. */
-function customSitesFrom(value: unknown): Array<CustomSite> {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return (value as Array<unknown>).flatMap((site) => {
-    if (typeof site === 'string') {
-      return [{ enabled: true, url: site }];
-    }
-    if (typeof site !== 'object' || site === null) {
-      return [];
-    }
-    const stored = site as Partial<CustomSite>;
-    return typeof stored.url === 'string'
-      ? [{ enabled: stored.enabled !== false, url: stored.url }]
-      : [];
-  });
-}
-
-function readStored(): StoredState | null {
-  let value: unknown;
-  try {
-    const raw = globalThis.localStorage.getItem(STORAGE_KEY);
-    if (raw === null) {
-      return null;
-    }
-    value = JSON.parse(raw);
-  } catch {
-    return null;
-  }
-  if (typeof value !== 'object' || value === null) {
-    return null;
-  }
-  const stored = value as Partial<StoredState>;
-  if (stored.config !== undefined) {
-    return {
-      config: stored.config,
-      customSites: customSitesFrom(stored.customSites),
-      excludedSites: stored.excludedSites ?? [],
-      removedSites: stored.removedSites ?? [],
-    };
-  }
-  // A bare config predates the derived sites: migrate it in place.
-  const config = value as ProfileConfig;
-  return { config, customSites: customSitesOf(config), excludedSites: [], removedSites: [] };
-}
-
-function writeStored(state: StoredState): void {
-  try {
-    globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // Private mode or a full quota must not break the generator.
-  }
-}
-
-/** The remembered speaker choice, or `null` when the reader never made one. */
-function readSound(): boolean | null {
-  try {
-    const stored = globalThis.localStorage.getItem(SOUND_KEY);
-    return stored === null ? null : stored === 'true';
-  } catch {
-    return null;
-  }
-}
-
-function writeSound(on: boolean): void {
-  try {
-    globalThis.localStorage.setItem(SOUND_KEY, String(on));
-  } catch {
-    // Private mode or a full quota must not break the slider.
-  }
-}
-
-/**
  * Whether a detent may click. Reduced motion silences the default, because a
  * click is one more thing happening at the reader; a reader who turned the
  * speaker on themselves has answered that question already.
@@ -1475,57 +1344,6 @@ function tickAllowed(on: boolean, chosen: boolean): boolean {
   }
   const query = (globalThis as { matchMedia?: (media: string) => MediaQueryList }).matchMedia;
   return query === undefined || !query('(prefers-reduced-motion: reduce)').matches;
-}
-
-/** Whether this reader has already downloaded or copied a profile. */
-function readGenerated(): boolean {
-  try {
-    return globalThis.localStorage.getItem(GENERATED_KEY) === 'true';
-  } catch {
-    return false;
-  }
-}
-
-function writeGenerated(): void {
-  try {
-    globalThis.localStorage.setItem(GENERATED_KEY, 'true');
-  } catch {
-    // Private mode or a full quota must not break the generator.
-  }
-}
-
-/** Whether this reader has said their iPhone is supervised. */
-function readSupervised(): boolean {
-  try {
-    return globalThis.localStorage.getItem(SUPERVISED_KEY) === 'true';
-  } catch {
-    return false;
-  }
-}
-
-function writeSupervised(supervised: boolean): void {
-  try {
-    globalThis.localStorage.setItem(SUPERVISED_KEY, String(supervised));
-  } catch {
-    // Private mode or a full quota must not break the generator.
-  }
-}
-
-/** Whether this reader has taken in that an installed profile cannot come off. */
-function readPermanent(): boolean {
-  try {
-    return globalThis.localStorage.getItem(PERMANENT_KEY) === 'true';
-  } catch {
-    return false;
-  }
-}
-
-function writePermanent(acknowledged: boolean): void {
-  try {
-    globalThis.localStorage.setItem(PERMANENT_KEY, String(acknowledged));
-  } catch {
-    // Private mode or a full quota must not break the generator.
-  }
 }
 
 /**
@@ -1914,8 +1732,6 @@ function Generator() {
   const [storefrontOpen, setStorefrontOpen] = useState(false);
   const [storefrontQuery, setStorefrontQuery] = useState('');
   const [armedRemove, setArmedRemove] = useState<string | null>(null);
-  const [showXml, setShowXml] = useState(false);
-  const [copyState, setCopyState] = useState<'copied' | 'fallback' | 'idle'>('idle');
   // There is nothing to brag about until a profile has left the page.
   const [generated, setGenerated] = useState(false);
   // Step 1 is the gate: a profile is worth nothing on an unsupervised phone,
@@ -1935,7 +1751,6 @@ function Generator() {
   const searchWrap = useRef<HTMLDivElement>(null);
   const storefrontFilter = useRef<HTMLInputElement>(null);
   const storefrontMenu = useRef<HTMLDivElement>(null);
-  const xmlBlock = useRef<HTMLPreElement>(null);
   // The dialog opens itself once. After that the reader asks for it.
   const sharePrompted = useRef(false);
 
@@ -2000,52 +1815,21 @@ function Generator() {
     );
   }, [storefrontQuery]);
 
-  // localStorage and navigator exist only in the browser: reading either during
-  // render would desync the SSR HTML from the first client render. Adopting
-  // what they hold IS synchronizing with an external system, the one case the
-  // rule leaves to an effect, and it runs once, so nothing cascades.
-  /* oxlint-disable react/set-state-in-effect -- one-shot restore from browser-only storage */
+  // The address bar and navigator exist only in the browser: reading either
+  // during render would desync the SSR HTML from the first client render.
+  // Adopting what they hold IS synchronizing with an external system, the one
+  // case the rule leaves to an effect, and it runs once, so nothing cascades.
+  /* oxlint-disable react/set-state-in-effect -- one-shot read of browser-only state */
   useEffect(() => {
-    const stored = readStored();
     const shared = decodeShare(globalThis.location.search);
-    if (stored !== null) {
-      // Identity is no longer editable, so a config saved while it was must not
-      // carry its own values back in. Trial mode is not remembered either: a
-      // saved config comes back permanent, and the box is ticked again or not.
-      const restored = {
-        ...stored.config,
-        displayName: presets.mert.displayName,
-        identifier: presets.mert.identifier,
-        lockRemoval: true,
-        organization: presets.mert.organization,
-      };
-      setConfig(restored);
-      setCustomSites(stored.customSites);
-      setExcludedSites(stored.excludedSites);
-      setRemovedSites(stored.removedSites);
-      setUrlText(urlTextOf(restored));
-    } else if (shared.bundleIds.length > 0) {
-      // A shared list is a suggestion, not the reader's own work: it is not
-      // written to storage until they change something themselves.
+    if (shared.bundleIds.length > 0) {
+      // A shared list is a suggestion, not the reader's own work: it only
+      // stands in for the recommended one until they change something.
       setConfig({ ...presets.mert, blockedApps: shared.bundleIds.map(sharedApp) });
     }
     if (shared.hours !== undefined) {
       setHours(shared.hours);
       setFriendYears(formatYears(shared.hours));
-    }
-    const storedSound = readSound();
-    if (storedSound !== null) {
-      setSound(storedSound);
-      setSoundChosen(true);
-    }
-    if (readGenerated()) {
-      setGenerated(true);
-    }
-    if (readSupervised()) {
-      setSupervised(true);
-    }
-    if (readPermanent()) {
-      setPermanent(true);
     }
     const preferred = initialStorefront();
     if (preferred !== FALLBACK_COUNTRY) {
@@ -2187,36 +1971,6 @@ function Generator() {
     };
   }, [armedRemove]);
 
-  // "Copied" is the whole receipt for a copy, so it goes back to "Copy" on its
-  // own. A failed copy keeps its label: the clipboard is still out of reach.
-  useEffect(() => {
-    if (copyState !== 'copied') {
-      return;
-    }
-    const timer = setTimeout(() => setCopyState('idle'), COPY_FEEDBACK_MS);
-    return () => clearTimeout(timer);
-  }, [copyState]);
-
-  // The four pieces are stored together, so every change writes all of them.
-  function persist(
-    nextConfig: ProfileConfig,
-    nextCustom: ReadonlyArray<CustomSite>,
-    nextExcluded: ReadonlyArray<string>,
-    nextRemoved: ReadonlyArray<string>,
-  ) {
-    writeStored({
-      config: withDerivedSites(nextConfig, nextCustom, nextExcluded, nextRemoved),
-      customSites: [...nextCustom],
-      excludedSites: [...nextExcluded],
-      removedSites: [...nextRemoved],
-    });
-  }
-
-  function update(next: ProfileConfig) {
-    setConfig(next);
-    persist(next, customSites, excludedSites, removedSites);
-  }
-
   function onHoursChange(value: number) {
     // One click per detent, and a lower one where the travel runs out.
     if (value !== hours && tickAllowed(sound, soundChosen)) {
@@ -2238,20 +1992,9 @@ function Generator() {
     const next = !sound;
     setSound(next);
     setSoundChosen(true);
-    writeSound(next);
     if (next) {
       primeTickSound();
     }
-  }
-
-  function onSupervisedChange(next: boolean) {
-    setSupervised(next);
-    writeSupervised(next);
-  }
-
-  function onPermanentChange(next: boolean) {
-    setPermanent(next);
-    writePermanent(next);
   }
 
   function onQueryChange(value: string) {
@@ -2311,7 +2054,7 @@ function Generator() {
     // The stored name is the short one: the grid and the fan have no room for
     // the App Store tagline, and the config is what both of them read. The
     // seller url rides along, because the sites of an uncurated app come from it.
-    update({
+    setConfig({
       ...config,
       blockedApps: [
         ...config.blockedApps,
@@ -2325,7 +2068,7 @@ function Generator() {
   function onRemoveClick(bundleId: string) {
     if (armedRemove === bundleId) {
       setArmedRemove(null);
-      update({
+      setConfig({
         ...config,
         blockedApps: config.blockedApps.filter((app) => app.bundleId !== bundleId),
       });
@@ -2344,7 +2087,6 @@ function Generator() {
       setConfig(next);
       setExcludedSites([]);
       setRemovedSites([]);
-      persist(next, customSites, [], []);
       return;
     }
     setArmedRemove(RESET_ARMED);
@@ -2352,7 +2094,7 @@ function Generator() {
 
   function setWebMode(mode: WebMode) {
     if (mode === 'deny') {
-      update({
+      setConfig({
         ...config,
         webFilter: {
           // Derived, and written in by `withDerivedSites` on the way out.
@@ -2364,10 +2106,10 @@ function Generator() {
       return;
     }
     if (mode === 'allow') {
-      update({ ...config, webFilter: { allowedUrls: parseLines(urlText.allowed), mode } });
+      setConfig({ ...config, webFilter: { allowedUrls: parseLines(urlText.allowed), mode } });
       return;
     }
-    update({ ...config, webFilter: { mode } });
+    setConfig({ ...config, webFilter: { mode } });
   }
 
   // A derived site the user turns off stays off while its app stays blocked,
@@ -2378,14 +2120,12 @@ function Generator() {
         ? excludedSites.filter((url) => url !== row.url)
         : [...excludedSites, row.url];
       setExcludedSites(next);
-      persist(config, customSites, next, removedSites);
       return;
     }
     const next = customSites.map((site, index) =>
       index === row.index ? { ...site, enabled: !site.enabled } : site,
     );
     setCustomSites(next);
-    persist(config, next, excludedSites, removedSites);
   }
 
   // The same two-step as an app row: the first click only arms the ×. A derived
@@ -2401,12 +2141,10 @@ function Generator() {
     if (row.kind === 'derived') {
       const next = [...removedSites, row.url];
       setRemovedSites(next);
-      persist(config, customSites, excludedSites, next);
       return;
     }
     const next = customSites.filter((_, index) => index !== row.index);
     setCustomSites(next);
-    persist(config, next, excludedSites, removedSites);
   }
 
   // Only the user's own rows are editable, and the field hands over nothing
@@ -2418,7 +2156,6 @@ function Generator() {
     }
     const next = customSites.map((site, index) => (index === position ? { ...site, url } : site));
     setCustomSites(next);
-    persist(config, next, excludedSites, removedSites);
   }
 
   // One more site, typed into the last row of the box. A blank and a site the
@@ -2431,14 +2168,13 @@ function Generator() {
     }
     const next = [...customSites, { enabled: true, url }];
     setCustomSites(next);
-    persist(config, next, excludedSites, removedSites);
   }
 
   function onPermittedChange(text: string) {
     setUrlText({ ...urlText, permitted: text });
     const filter = config.webFilter;
     if (filter.mode === 'deny') {
-      update({ ...config, webFilter: { ...filter, permittedUrls: parseLines(text) } });
+      setConfig({ ...config, webFilter: { ...filter, permittedUrls: parseLines(text) } });
     }
   }
 
@@ -2446,18 +2182,17 @@ function Generator() {
     setUrlText({ ...urlText, allowed: text });
     const filter = config.webFilter;
     if (filter.mode === 'allow') {
-      update({ ...config, webFilter: { ...filter, allowedUrls: parseLines(text) } });
+      setConfig({ ...config, webFilter: { ...filter, allowedUrls: parseLines(text) } });
     }
   }
 
   /**
-   * A profile has left the page, by download or by clipboard. That is the
-   * moment the share dialog is worth showing, and it shows itself only the
-   * first time in a session: the button under the profile reopens it.
+   * A profile has left the page. That is the moment the share dialog is worth
+   * showing, and it shows itself only the first time in a session: the button
+   * under the profile reopens it.
    */
   function markGenerated() {
     setGenerated(true);
-    writeGenerated();
     if (!sharePrompted.current) {
       sharePrompted.current = true;
       setShareOpen(true);
@@ -2477,7 +2212,7 @@ function Generator() {
 
   /**
    * The file the reader installs is signed, and only the server can sign it.
-   * The XML below is built here and stays here: it is the same profile, minus
+   * The local build is what the button waits on: it is the same profile, minus
    * the signature and the identifier the server mints for this one download.
    */
   async function download() {
@@ -2505,36 +2240,6 @@ function Generator() {
     }
   }
 
-  // Dragging a selection across a scrolling block is miserable, so one click
-  // anywhere in it takes the whole thing.
-  function selectXml() {
-    const block = xmlBlock.current;
-    const selection = window.getSelection();
-    if (block === null || selection === null) {
-      return;
-    }
-    const range = document.createRange();
-    range.selectNodeContents(block);
-    selection.removeAllRanges();
-    selection.addRange(range);
-  }
-
-  // No clipboard at all (insecure origin) and a denied one both land here: the
-  // XML gets selected instead, so Cmd+C still carries it out.
-  async function copyXml() {
-    if (xml === null) {
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(xml);
-      setCopyState('copied');
-      markGenerated();
-    } catch {
-      selectXml();
-      setCopyState('fallback');
-    }
-  }
-
   // The derived list is what the profile carries, so it is what the card counts.
   const filter = effectiveConfig.webFilter;
   // Only a deny list "blocks sites"; an allow list blocks everything else.
@@ -2555,13 +2260,6 @@ function Generator() {
   // Trial mode is the removal lock turned around: a trial profile comes off in
   // Settings, so the download asks for no acknowledgement.
   const trial = !config.lockRemoval;
-
-  const copyLabel =
-    copyState === 'copied'
-      ? m.gen_copied()
-      : copyState === 'fallback'
-        ? m.gen_copy_fallback()
-        : m.gen_copy();
 
   // The number the whole narrative is written around, and the dial's own
   // reading: the sentence prints it, and the slider says it out loud.
@@ -2601,6 +2299,8 @@ function Generator() {
     { desc: m.home_faq_keep_desc(), term: m.home_faq_keep_term() },
     { desc: m.home_faq_apple_desc(), term: m.home_faq_apple_term() },
     { desc: m.home_faq_mac_desc(), term: m.home_faq_mac_term() },
+    { desc: m.home_faq_android_desc(), term: m.home_faq_android_term() },
+    { desc: m.home_faq_windows_desc(), term: m.home_faq_windows_term() },
   ];
 
   return (
@@ -2817,7 +2517,7 @@ function Generator() {
           <Label>
             <input
               checked={supervised}
-              onChange={(event) => onSupervisedChange(event.target.checked)}
+              onChange={(event) => setSupervised(event.target.checked)}
               type="checkbox"
               {...props(controls.base, controls.checkbox)}
             />
@@ -3182,7 +2882,7 @@ function Generator() {
             <Label>
               <input
                 checked={config.allowAppStore}
-                onChange={(event) => update({ ...config, allowAppStore: event.target.checked })}
+                onChange={(event) => setConfig({ ...config, allowAppStore: event.target.checked })}
                 type="checkbox"
                 {...props(controls.base, controls.checkbox)}
               />
@@ -3194,7 +2894,7 @@ function Generator() {
             <input
               checked={config.allowPrivateBrowsing}
               onChange={(event) =>
-                update({ ...config, allowPrivateBrowsing: event.target.checked })
+                setConfig({ ...config, allowPrivateBrowsing: event.target.checked })
               }
               type="checkbox"
               {...props(controls.base, controls.checkbox)}
@@ -3204,7 +2904,7 @@ function Generator() {
           <Label>
             <input
               checked={config.autoFilterAdult}
-              onChange={(event) => update({ ...config, autoFilterAdult: event.target.checked })}
+              onChange={(event) => setConfig({ ...config, autoFilterAdult: event.target.checked })}
               type="checkbox"
               {...props(controls.base, controls.checkbox)}
             />
@@ -3214,7 +2914,7 @@ function Generator() {
             <Label>
               <input
                 checked={trial}
-                onChange={(event) => update({ ...config, lockRemoval: !event.target.checked })}
+                onChange={(event) => setConfig({ ...config, lockRemoval: !event.target.checked })}
                 type="checkbox"
                 {...props(controls.base, controls.checkbox)}
               />
@@ -3286,7 +2986,7 @@ function Generator() {
                 <Label>
                   <input
                     checked={permanent}
-                    onChange={(event) => onPermanentChange(event.target.checked)}
+                    onChange={(event) => setPermanent(event.target.checked)}
                     type="checkbox"
                     {...props(controls.base, controls.checkbox)}
                   />
@@ -3300,9 +3000,6 @@ function Generator() {
                 >
                   {signing ? m.gen_signing() : trial ? m.gen_download_trial() : m.gen_download()}
                 </Button>
-                <Button onClick={() => setShowXml(!showXml)} variant="outline">
-                  {showXml ? m.gen_hide_xml() : m.gen_show_xml()}
-                </Button>
                 {generated ? (
                   <Button
                     disabled={!supervised}
@@ -3315,24 +3012,6 @@ function Generator() {
               </div>
               {supervised ? null : <p {...props(layout.muted)}>{m.gen_step_gate()}</p>}
               {signFailure === null ? null : <p {...props(layout.muted)}>{signFailure}</p>}
-              {showXml && xml !== null ? (
-                <>
-                  <div {...props(styles.preWrap)}>
-                    <pre onClick={selectXml} ref={xmlBlock} {...props(styles.pre)}>
-                      {xml}
-                    </pre>
-                    <Button
-                      disabled={!supervised}
-                      onClick={() => void copyXml()}
-                      style={styles.preCopy}
-                      variant="outline"
-                    >
-                      {copyLabel}
-                    </Button>
-                  </div>
-                  <p {...props(layout.muted)}>{m.gen_xml_unsigned_note()}</p>
-                </>
-              ) : null}
             </CardContent>
           </Card>
           <h3 {...props(styles.sectionTitle)}>{m.gen_install_title()}</h3>
