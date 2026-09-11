@@ -1,11 +1,11 @@
-import { spacing } from '@keepyourattention/ui/tokens.stylex';
+import { spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import type { ReactNode } from 'react';
 import { layout } from '../lib/layout.ts';
 import { m } from '../paraglide/messages.js';
 import { PreferencesRow } from './preferences.tsx';
 
-const REPO_URL = 'https://github.com/mertbuilds/keepyourattention';
+const REPO_URL = 'https://github.com/mertbuilds/attentionawareness';
 const BUILDER_URL = 'https://mertbuilds.com';
 /**
  * Where a link stands inside a sentence. The message is written with the link

@@ -1,5 +1,5 @@
 {
-  "name": "@keepyourattention/web",
+  "name": "@attentionawareness/web",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -13,8 +13,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@keepyourattention/env": "workspace:*",
-    "@keepyourattention/ui": "workspace:*",
+    "@attentionawareness/env": "workspace:*",
+    "@attentionawareness/ui": "workspace:*",
     "@posthog/react": "^1.10.5",
     "@sentry/tanstackstart-react": "^10.73.0",
     "@stylexjs/stylex": "^0.19.0",
@@ -29,9 +29,9 @@
     "vaul": "^1.1.2"
   },
   "devDependencies": {
+    "@attentionawareness/config": "workspace:*",
     "@cloudflare/vite-plugin": "^1.54.3",
     "@inlang/paraglide-js": "^2.25.0",
-    "@keepyourattention/config": "workspace:*",
     "@stylexjs/unplugin": "^0.19.0",
     "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "16.3.3",

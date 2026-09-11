@@ -1,6 +1,6 @@
 declare module 'virtual:stylex:runtime';
 
-declare module '@keepyourattention/ui/fonts.css' {
+declare module '@attentionawareness/ui/fonts.css' {
   const css: string;
   export default css;
 }

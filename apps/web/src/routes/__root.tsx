@@ -4,8 +4,8 @@ import { useEffect, type ReactNode } from 'react';
 import { clientEnv } from '../lib/env.ts';
 import { themeScript } from '../lib/theme.ts';
 import { getLocale } from '../paraglide/runtime.js';
-import '@keepyourattention/ui/fonts.css';
-import '@keepyourattention/ui/theme.css';
+import '@attentionawareness/ui/fonts.css';
+import '@attentionawareness/ui/theme.css';
 import '../app.css';
 
 if (import.meta.env.DEV && typeof window !== 'undefined') {
@@ -38,7 +38,7 @@ export const Route = createRootRoute({
       // oxlint-disable-next-line text-encoding-identifier-case -- HTML meta charset must be "utf-8"
       { charSet: 'utf-8' },
       { content: 'width=device-width, initial-scale=1', name: 'viewport' },
-      { title: 'keepyourattention' },
+      { title: 'attentionawareness' },
     ],
     // Head scripts run before the first paint, which is the whole point of this
     // one: it stamps `data-theme` from localStorage so a forced light/dark

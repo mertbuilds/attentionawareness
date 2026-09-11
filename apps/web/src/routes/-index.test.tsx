@@ -53,7 +53,7 @@ const SEARCH_RESULT = {
 const SEARCH_RESULT_NAME = 'Example';
 
 /** The identifier the signer mints, which the page only ever sees signed. */
-const SIGNED_IDENTIFIER = 'com.keepyourattention.4d2f6e1a-0b7c-4c38-9a51-6f0d2b8e77c3';
+const SIGNED_IDENTIFIER = 'com.attentionawareness.4d2f6e1a-0b7c-4c38-9a51-6f0d2b8e77c3';
 
 // Tests stay offline. The mount-time lookup answers with nothing, so every
 // blocked icon falls back to an initials tile; a search answers with one app.
@@ -65,9 +65,9 @@ async function answer(input: string, init?: RequestInit): Promise<Response> {
     return new Response(
       buildProfile({
         ...config,
-        displayName: 'keepyourattention',
+        displayName: 'attentionawareness',
         identifier: SIGNED_IDENTIFIER,
-        organization: 'keepyourattention',
+        organization: 'attentionawareness',
       }),
       { status: 200 },
     );
@@ -473,7 +473,7 @@ describe('Generator', () => {
 
     expect(screen.getByRole('link', { name: m.gen_footer_open_source_link() })).toHaveAttribute(
       'href',
-      'https://github.com/mertbuilds/keepyourattention',
+      'https://github.com/mertbuilds/attentionawareness',
     );
   });
 
@@ -1035,7 +1035,7 @@ describe('Generator', () => {
 
     await userEvent.click(within(dialog).getByRole('button', { name: m.share_copy() }));
 
-    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('keepyourattention.com/?h=4'));
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('attentionawareness.com/?h=4'));
     expect(within(dialog).getByRole('button', { name: m.share_copied() })).toBeInTheDocument();
   });
 

@@ -1,12 +1,12 @@
 {
-  "name": "keepyourattention",
+  "name": "attentionawareness",
   "private": true,
   "type": "module",
   "scripts": {
     "bad-day": "bash scripts/bad-day.sh",
     "build": "turbo run build",
     "dev": "mprocs",
-    "e2e": "pnpm --filter @keepyourattention/e2e e2e",
+    "e2e": "pnpm --filter @attentionawareness/e2e e2e",
     "fonts": "bash scripts/fetch-fonts.sh",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
@@ -14,7 +14,7 @@
     "prepare": "git rev-parse --git-dir >/dev/null 2>&1 && lefthook install || echo 'lefthook install skipped (no git repo)'",
     "rename": "bash scripts/rename.sh",
     "skills:check": "node scripts/skills-check.ts",
-    "storybook": "pnpm --filter @keepyourattention/ui storybook",
+    "storybook": "pnpm --filter @attentionawareness/ui storybook",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck"
   },

@@ -1,4 +1,4 @@
-import { colors, palette, radius } from '@keepyourattention/ui/tokens.stylex';
+import { colors, palette, radius } from '@attentionawareness/ui/tokens.stylex';
 import { create } from '@stylexjs/stylex';
 import { accent } from './accent.stylex.ts';
 

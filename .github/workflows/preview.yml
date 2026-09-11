@@ -19,7 +19,7 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @keepyourattention/web build
+      - run: pnpm --filter @attentionawareness/web build
       - name: Upload preview version
         id: upload
         uses: cloudflare/wrangler-action@v3

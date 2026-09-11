@@ -1,4 +1,4 @@
-# keepyourattention
+# attentionawareness
 
 Opinionated boilerplate for starting new products. One architecture, every product — so knowledge (yours and your agents') compounds instead of resetting. The site is static and client-only: it runs entirely in the browser, so there is nothing to break in prod.
 
@@ -6,7 +6,7 @@ Founding decisions live in [docs/adr/0001-stack.md](docs/adr/0001-stack.md). Age
 
 ## The phone tool
 
-The `supervise` command turns an iPhone into a supervised device without erasing it, by patching a local Finder backup. Supervision is what lets a configuration profile lock the phone down: a Safari allowlist, no App Store, no app installs. It is standard library Python with no dependencies, in `cli/`, outside the pnpm workspace. Install it with `curl -fsSL https://keepyourattention.com/install.sh | sh`. See [cli/README.md](cli/README.md).
+The `supervise` command turns an iPhone into a supervised device without erasing it, by patching a local Finder backup. Supervision is what lets a configuration profile lock the phone down: a Safari allowlist, no App Store, no app installs. It is standard library Python with no dependencies, in `cli/`, outside the pnpm workspace. Install it with `curl -fsSL https://attentionawareness.com/install.sh | sh`. See [cli/README.md](cli/README.md).
 
 ## Stack
 
@@ -33,14 +33,14 @@ sudo pnpm exec portless proxy start --https   # one-time: local HTTPS proxy on 4
 pnpm dev        # mprocs: web + storybook
 ```
 
-Open https://keepyourattention.localhost and build a profile.
+Open https://attentionawareness.localhost and build a profile.
 
 Local URLs come from [portless](https://portless.sh) — stable named HTTPS domains instead of ports:
 
-| Service   | URL                                           |
-| --------- | --------------------------------------------- |
-| web       | https://keepyourattention.localhost           |
-| storybook | https://storybook.keepyourattention.localhost |
+| Service   | URL                                            |
+| --------- | ---------------------------------------------- |
+| web       | https://attentionawareness.localhost           |
+| storybook | https://storybook.attentionawareness.localhost |
 
 `pnpm exec portless service install` starts the proxy on boot.
 

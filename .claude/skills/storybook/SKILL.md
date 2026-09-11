@@ -5,7 +5,7 @@ description: Storybook documentation index — where to find current docs for wr
 
 # Storybook Docs Skill
 
-This repo uses Storybook 10 (react-vite) in `packages/ui`. Stories are colocated (`Button.stories.tsx`) and double as component tests via `@storybook/addon-vitest` (browser mode, headless Chromium) — `pnpm --filter @keepyourattention/ui test` runs them.
+This repo uses Storybook 10 (react-vite) in `packages/ui`. Stories are colocated (`Button.stories.tsx`) and double as component tests via `@storybook/addon-vitest` (browser mode, headless Chromium) — `pnpm --filter @attentionawareness/ui test` runs them.
 
 ## Source of truth
 
@@ -35,7 +35,7 @@ Always pass `?renderer=react&language=ts` — this repo is React + TS.
 ## Repo conventions
 
 - One story file per component, colocated in the component's dir. Story = test: every component ships at least one `play` interaction test (`@storybook/test` userEvent/expect).
-- Styling in stories uses `@keepyourattention/ui` tokens only — no raw colors, no className/style props alongside StyleX (see the `stylex` skill).
+- Styling in stories uses `@attentionawareness/ui` tokens only — no raw colors, no className/style props alongside StyleX (see the `stylex` skill).
 - `.storybook/main.ts` wires StyleX through `viteFinal`; `previewHead` links `/virtual:stylex.css` (empty until first story compiles — expected, not a bug).
-- Root `pnpm storybook` serves :6006; flag-passing needs `pnpm --filter @keepyourattention/ui exec storybook dev --no-open` (pnpm filter can't forward flags).
+- Root `pnpm storybook` serves :6006; flag-passing needs `pnpm --filter @attentionawareness/ui exec storybook dev --no-open` (pnpm filter can't forward flags).
 - No official Storybook agent skill exists (checked 2026-09-02; storybookjs/storybook `.claude/skills/` are internal maintenance skills) — this local skill is the mapping; re-check when bumping majors.

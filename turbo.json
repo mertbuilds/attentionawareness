@@ -16,12 +16,12 @@
     "typecheck": {
       "dependsOn": ["^build"]
     },
-    "@keepyourattention/web#build": {
+    "@attentionawareness/web#build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**", "src/routeTree.gen.ts", "src/paraglide/**"]
     },
-    "@keepyourattention/web#typecheck": {
-      "dependsOn": ["@keepyourattention/web#build"]
+    "@attentionawareness/web#typecheck": {
+      "dependsOn": ["@attentionawareness/web#build"]
     }
   }
 }

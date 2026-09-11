@@ -15,8 +15,8 @@ import {
   Input,
   Label,
   Skeleton,
-} from '@keepyourattention/ui';
-import { colors, font, palette, radius, spacing } from '@keepyourattention/ui/tokens.stylex';
+} from '@attentionawareness/ui';
+import { colors, font, palette, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
@@ -88,7 +88,7 @@ const PROFILE_MIME = 'application/x-apple-aspen-config';
 /** The signer. The key is the founder's and never leaves the server. */
 const SIGN_URL = '/api/sign';
 /** The server names the profile, so every download saves under one name. */
-const PROFILE_FILENAME = 'keepyourattention.mobileconfig';
+const PROFILE_FILENAME = 'attentionawareness.mobileconfig';
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 /** How long an armed Remove waits for its second click before standing down. */
 const REMOVE_CONFIRM_MS = 3000;

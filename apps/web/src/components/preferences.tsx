@@ -1,4 +1,4 @@
-import { colors, font, radius, spacing } from '@keepyourattention/ui/tokens.stylex';
+import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {

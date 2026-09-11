@@ -1,7 +1,7 @@
 procs:
   web:
-    # https://keepyourattention.localhost
-    shell: pnpm exec portless keepyourattention pnpm --filter @keepyourattention/web dev
+    # https://attentionawareness.localhost
+    shell: pnpm exec portless attentionawareness pnpm --filter @attentionawareness/web dev
   storybook:
-    # https://storybook.keepyourattention.localhost — storybook respects --port only, so pass PORT through.
-    shell: pnpm exec portless storybook.keepyourattention sh -c 'pnpm --filter @keepyourattention/ui exec storybook dev --port "$PORT" --no-open'
+    # https://storybook.attentionawareness.localhost — storybook respects --port only, so pass PORT through.
+    shell: pnpm exec portless storybook.attentionawareness sh -c 'pnpm --filter @attentionawareness/ui exec storybook dev --port "$PORT" --no-open'

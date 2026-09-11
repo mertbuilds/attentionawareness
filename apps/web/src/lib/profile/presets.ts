@@ -20,10 +20,10 @@ export const presets: Record<'mert' | 'stopa' | 'minimal', ProfileConfig> = {
       { bundleId: 'com.amazon.aiv.AIVApp', name: 'Prime Video' },
       { bundleId: 'com.atebits.Tweetie2', name: 'X' },
     ],
-    displayName: 'keepyourattention',
-    identifier: 'com.keepyourattention.profile',
+    displayName: 'attentionawareness',
+    identifier: 'com.attentionawareness.profile',
     lockRemoval: true,
-    organization: 'keepyourattention',
+    organization: 'attentionawareness',
     webFilter: {
       deniedUrls: [
         'https://x.com',
@@ -53,10 +53,10 @@ export const presets: Record<'mert' | 'stopa' | 'minimal', ProfileConfig> = {
     allowPrivateBrowsing: true,
     autoFilterAdult: false,
     blockedApps: [],
-    displayName: 'keepyourattention',
-    identifier: 'com.keepyourattention.profile',
+    displayName: 'attentionawareness',
+    identifier: 'com.attentionawareness.profile',
     lockRemoval: false,
-    organization: 'keepyourattention',
+    organization: 'attentionawareness',
     webFilter: { mode: 'off' },
   },
   stopa: {
@@ -64,10 +64,10 @@ export const presets: Record<'mert' | 'stopa' | 'minimal', ProfileConfig> = {
     allowPrivateBrowsing: true,
     autoFilterAdult: false,
     blockedApps: [],
-    displayName: 'keepyourattention',
-    identifier: 'com.keepyourattention.profile',
+    displayName: 'attentionawareness',
+    identifier: 'com.attentionawareness.profile',
     lockRemoval: true,
-    organization: 'keepyourattention',
+    organization: 'attentionawareness',
     webFilter: {
       allowedUrls: [
         'https://maps.google.com',

@@ -17,7 +17,7 @@ structure (PKCS#7, DER) and gives iOS three things:
   a looser copy of an installed profile, not even a copy built from the XML on
   this site.
 - **A unique identifier per download.** `POST /api/sign` mints
-  `com.keepyourattention.<uuid>` for every single download and ignores whatever
+  `com.attentionawareness.<uuid>` for every single download and ignores whatever
   the browser sent. Two downloads are two different profiles: the second one
   stacks on the first instead of replacing it. Together with
   `PayloadRemovalDisallowed`, an installed profile comes off an erased phone
@@ -125,10 +125,10 @@ SIGNING_CERT_PEM="-----BEGIN CERTIFICATE-----\nMIIF...\n-----END CERTIFICATE----
 
 ```sh
 # what the server produced, verified against the system roots
-security cms -D -i keepyourattention.mobileconfig | head
+security cms -D -i attentionawareness.mobileconfig | head
 
 # the certificates that rode along
-openssl pkcs7 -inform der -in keepyourattention.mobileconfig -print_certs -noout
+openssl pkcs7 -inform der -in attentionawareness.mobileconfig -print_certs -noout
 ```
 
 The second command must list the leaf **and** the Apple intermediate. If it

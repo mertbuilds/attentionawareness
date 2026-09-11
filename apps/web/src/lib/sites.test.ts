@@ -14,10 +14,10 @@ const profileConfig: ProfileConfig = {
   allowPrivateBrowsing: true,
   autoFilterAdult: false,
   blockedApps: [],
-  displayName: 'keepyourattention',
-  identifier: 'com.keepyourattention.profile',
+  displayName: 'attentionawareness',
+  identifier: 'com.attentionawareness.profile',
   lockRemoval: true,
-  organization: 'keepyourattention',
+  organization: 'attentionawareness',
   webFilter: { mode: 'off' },
 };
 

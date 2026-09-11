@@ -1,4 +1,4 @@
-# keepyourattention
+# attentionawareness
 
 Opinionated monorepo boilerplate. Every product starts as a copy of this repo. Keep it minimal: nothing gets added until a product needs it.
 
@@ -32,16 +32,16 @@ e2e/      Playwright smoke spec.
 | `pnpm rename`       | Rename the template to your product (`pnpm rename acme-app`)       |
 | `pnpm skills:check` | Verify installed agent skills match dep majors                     |
 
-Web app (`apps/web`): `pnpm --filter @keepyourattention/web dev` (:3000 standalone, or portless-assigned `PORT` under `pnpm dev`), `build` (Workers bundle), `deploy` (build + `wrangler deploy`), `cf-typegen` (binding types).
+Web app (`apps/web`): `pnpm --filter @attentionawareness/web dev` (:3000 standalone, or portless-assigned `PORT` under `pnpm dev`), `build` (Workers bundle), `deploy` (build + `wrangler deploy`), `cf-typegen` (binding types).
 
 ## Local URLs (portless)
 
 `pnpm dev` serves the HTTP apps behind [portless](https://portless.sh) — stable named HTTPS URLs instead of ports:
 
-| Service   | URL                                           | Without portless |
-| --------- | --------------------------------------------- | ---------------- |
-| web       | https://keepyourattention.localhost           | :3000            |
-| storybook | https://storybook.keepyourattention.localhost | :6006            |
+| Service   | URL                                            | Without portless |
+| --------- | ---------------------------------------------- | ---------------- |
+| web       | https://attentionawareness.localhost           | :3000            |
+| storybook | https://storybook.attentionawareness.localhost | :6006            |
 
 - First run needs one-time setup in a terminal: `sudo pnpm exec portless proxy start --https` (binds 443, generates + trusts a local CA). After that the proxy auto-starts. `pnpm exec portless service install` makes it start on boot.
 - portless injects `PORT` (4000-4999 pool) into each app; vite reads it in `vite.config.ts`, storybook takes it as `--port`. If TLS is in the way, `--no-tls` on portless or curl `-k`.
@@ -53,7 +53,7 @@ Web app (`apps/web`): `pnpm --filter @keepyourattention/web dev` (:3000 standalo
 - Two token layers, both ours: `src/lib/tokens.stylex.ts` (component tokens — shadcn CSS variables from `src/theme.css`, grayscale, `--radius: 4px`, dark via `prefers-color-scheme`) and `src/tokens.stylex.ts` (app-level layout: `spacing`, `font`, raw `palette`). Components use the lib tokens; app layout uses the app tokens. Never raw color values.
 - One radius (4px — the lib radius scale is pinned to it). Black and white plus grays. Font stack `'Suisse Intl', 'Inter Variable', system-ui` — Suisse woff2 files are licensed, gitignored, fetched with `pnpm fonts` (`FONT_BUCKET_URL`); without them Inter Variable is the visual fallback. Components inherit the font from the app body; they set none themselves.
 - Current set: Button, Input, Field (label/error composition), Dialog, Select, Table, Label, Separator, Skeleton, Toaster (sonner, next-themes dropped). Grow on demand from the registry.
-- A story is the test: every component has colocated `*.stories.tsx` with `play` interaction tests. `pnpm --filter @keepyourattention/ui test` runs them in real Chromium via the Storybook Vitest addon (Vitest browser mode). `pnpm storybook` serves them on :6006.
+- A story is the test: every component has colocated `*.stories.tsx` with `play` interaction tests. `pnpm --filter @attentionawareness/ui test` runs them in real Chromium via the Storybook Vitest addon (Vitest browser mode). `pnpm storybook` serves them on :6006.
 
 ## Web (`apps/web`)
 
@@ -66,7 +66,7 @@ Web app (`apps/web`): `pnpm --filter @keepyourattention/web dev` (:3000 standalo
 
 ### Profile signing
 
-- `POST /api/sign` (`src/routes/api.sign.ts`) takes the reader's config, validates it by hand, forces the identifier (`com.keepyourattention.<uuid>`), the display name and the organization, takes `lockRemoval` from the body (locked unless the reader ticks trial mode), builds the XML with `buildProfile` and returns a CMS-signed DER `.mobileconfig`. Every download is a new profile that stacks: none can loosen or replace one already installed.
+- `POST /api/sign` (`src/routes/api.sign.ts`) takes the reader's config, validates it by hand, forces the identifier (`com.attentionawareness.<uuid>`), the display name and the organization, takes `lockRemoval` from the body (locked unless the reader ticks trial mode), builds the XML with `buildProfile` and returns a CMS-signed DER `.mobileconfig`. Every download is a new profile that stacks: none can loosen or replace one already installed.
 - `src/lib/sign.ts` does the CMS `SignedData` with pkijs on the Worker's own WebCrypto. The browser never holds the key; "Copy XML" still copies the unsigned local build.
 - Bindings `SIGNING_CERT_PEM`, `SIGNING_CHAIN_PEM`, `SIGNING_KEY_PKCS8_PEM` reach the route through `setSigningSecrets(env)` in `src/server.ts`, because a handler cannot see the Worker `env` on its own. Missing secrets answer `503` and the page says signing is unavailable, so local dev works without them. Details in `docs/signing.md`.
 
@@ -79,7 +79,7 @@ Web app (`apps/web`): `pnpm --filter @keepyourattention/web dev` (:3000 standalo
 Test pyramid, bottom-up — everything runs with `pnpm test` (turbo) except e2e:
 
 - **Unit** (`*.test.ts` / `*.test.tsx`): web unit tests run in jsdom (Vitest + Testing Library) with the router mocked; the generator page, profile builder, app search, share links and message-catalog parity are covered here.
-- **Component** (`packages/ui`): stories are the tests — `play` functions run in real Chromium via `@storybook/addon-vitest` (`pnpm --filter @keepyourattention/ui test`).
+- **Component** (`packages/ui`): stories are the tests — `play` functions run in real Chromium via `@storybook/addon-vitest` (`pnpm --filter @attentionawareness/ui test`).
 - **E2E** (`e2e/`): `pnpm e2e` — Playwright boots the web app (:3020) via `webServer` and runs `smoke.spec.ts`: the landing page loads, hydrates and shows the hero line. Tests wait for `html[data-hydrated]` (set by a root effect) before asserting.
 - **CLI** (`cli/tests`): pytest, standard library only — `python3 -m pytest cli/tests`. Outside turbo.
 

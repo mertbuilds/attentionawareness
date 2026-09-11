@@ -35,7 +35,7 @@ jobs:
         run: pnpm fonts
         env:
           FONT_BUCKET_URL: ${{ secrets.FONT_BUCKET_URL }}
-      - run: pnpm --filter @keepyourattention/web build
+      - run: pnpm --filter @attentionawareness/web build
         if: env.CF_API_TOKEN != ''
         env:
           VITE_POSTHOG_KEY: ${{ vars.POSTHOG_KEY }}

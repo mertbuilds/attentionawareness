@@ -59,10 +59,10 @@ importers:
 
   apps/web:
     dependencies:
-      '@keepyourattention/env':
+      '@attentionawareness/env':
         specifier: workspace:*
         version: link:../../packages/env
-      '@keepyourattention/ui':
+      '@attentionawareness/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       '@posthog/react':
@@ -102,15 +102,15 @@ importers:
         specifier: ^1.1.2
         version: 1.1.2(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
     devDependencies:
+      '@attentionawareness/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@cloudflare/vite-plugin':
         specifier: ^1.54.3
         version: 1.54.3(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))(wrangler@4.128.0)
       '@inlang/paraglide-js':
         specifier: ^2.25.0
         version: 2.25.0(typescript@7.0.2)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
-      '@keepyourattention/config':
-        specifier: workspace:*
-        version: link:../../packages/config
       '@stylexjs/unplugin':
         specifier: ^0.19.0
         version: 0.19.0(supports-color@10.2.2)(unplugin@2.3.11)
@@ -156,7 +156,7 @@ importers:
 
   e2e:
     devDependencies:
-      '@keepyourattention/config':
+      '@attentionawareness/config':
         specifier: workspace:*
         version: link:../packages/config
       '@playwright/test':
@@ -177,7 +177,7 @@ importers:
         specifier: ^4.5.4
         version: 4.5.4
     devDependencies:
-      '@keepyourattention/config':
+      '@attentionawareness/config':
         specifier: workspace:*
         version: link:../config
       '@types/node':
@@ -205,7 +205,7 @@ importers:
         specifier: ^2.0.8
         version: 2.0.8(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
     devDependencies:
-      '@keepyourattention/config':
+      '@attentionawareness/config':
         specifier: workspace:*
         version: link:../config
       '@storybook/addon-vitest':
