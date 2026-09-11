@@ -48,7 +48,7 @@
   "home_how_apps_body": "ios can hide apps by their bundle id. hidden apps can still be downloaded from the app store, but the icon never appears and they cannot open.",
   "home_how_supervision_title": "supervision",
   "home_how_supervision_body": "required. supervision is a device mode apple built for schools and companies. it makes the profile unremovable and lets ios hide apps. apple's official way erases the phone; our guide keeps everything. about 45 minutes, once.",
-  "home_proof_title": "it works. we did it this week.",
+  "home_proof_title": "it works, we did it many times",
   "home_proof_months_title": "two months on it",
   "home_proof_months_body": "the builder has run this on his own iphone since july 2026. screen time is down to 1.5 hrs from 5.5 hrs.",
   "home_proof_minutes_title": "40 minutes, nothing lost",
