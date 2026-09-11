@@ -7,33 +7,69 @@ const END_SECONDS = 0.04;
 const PEAK_GAIN = 0.25;
 /** An exponential ramp cannot reach zero, so it lands just under hearing. */
 const SILENCE = 0.0001;
+/** One sample at the lowest rate every browser accepts: the unlock buffer. */
+const UNLOCK_RATE = 22_050;
 
 /** The one device the page opens, kept for every later click. */
 let context: AudioContext | null = null;
 
 /**
- * Opens the audio device. A browser only grants one inside a gesture, so this
- * is called from the pointer that is about to move the slider; where there is
- * no Web Audio at all (a worker, an old browser, jsdom) it does nothing and
- * every later click is silent.
+ * The device, opened on first ask. Where there is no Web Audio at all (a
+ * worker, an old browser, jsdom) there is no device and every click is silent.
  */
-export function primeTickSound(): void {
+function openDevice(): AudioContext | null {
   if (context === null) {
     const create = (globalThis as { AudioContext?: typeof AudioContext }).AudioContext;
     if (create === undefined) {
-      return;
+      return null;
     }
     try {
       context = new create();
     } catch {
-      return;
+      return null;
     }
   }
-  if (context.state === 'suspended') {
-    context.resume().catch(() => {
-      // A device the browser will not open is simply a slider without sound.
-    });
+  return context;
+}
+
+function wake(device: AudioContext): void {
+  device.resume().catch(() => {
+    // A device the browser will not open is simply a slider without sound.
+  });
+}
+
+/**
+ * Opens the audio device. A browser only grants one inside a gesture, so this
+ * is called from the pointer that is about to move the slider.
+ */
+export function primeTickSound(): void {
+  const device = openDevice();
+  if (device !== null && device.state === 'suspended') {
+    wake(device);
   }
+}
+
+/**
+ * The same, for iOS Safari, which does not count a pointerdown as a gesture and
+ * leaves the device asleep until something has actually run through it: one
+ * silent sample is that something. Answers whether the device is open, so the
+ * gesture that opened it can be the last one listened for.
+ */
+export function unlockTickSound(): boolean {
+  const device = openDevice();
+  if (device === null) {
+    return false;
+  }
+  try {
+    wake(device);
+    const source = device.createBufferSource();
+    source.buffer = device.createBuffer(1, 1, UNLOCK_RATE);
+    source.connect(device.destination);
+    source.start(0);
+  } catch {
+    return false;
+  }
+  return true;
 }
 
 /** One detent. The ends of the travel get a lower, longer thunk. */
@@ -42,6 +78,10 @@ export function playTick({ end = false }: { end?: boolean } = {}): void {
     return;
   }
   try {
+    // A device left asleep by a backgrounded tab schedules nothing audible.
+    if (context.state === 'suspended') {
+      wake(context);
+    }
     const now = context.currentTime;
     const seconds = end ? END_SECONDS : TICK_SECONDS;
     const oscillator = context.createOscillator();
