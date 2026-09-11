@@ -60,7 +60,7 @@ const SUPERVISED_KEY = 'kya:supervised';
  * The one display size on the page. Only the hero lines and the years the
  * habit costs are set in it; every other heading is one step down.
  */
-const DISPLAY_SIZE = 'clamp(40px, 4.6vw, 56px)';
+const DISPLAY_SIZE = 'clamp(32px, 3.8vw, 44px)';
 /** The air between two sections, wider than anything inside one. */
 const SECTION_GAP = 96;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -466,8 +466,8 @@ const styles = create({
     flexDirection: 'column',
     fontSize: DISPLAY_SIZE,
     fontWeight: font.weightBold,
-    letterSpacing: '-0.035em',
-    lineHeight: 1.04,
+    letterSpacing: '-0.02em',
+    lineHeight: 1.1,
     margin: 0,
     textWrap: 'balance',
   },
@@ -530,8 +530,8 @@ const styles = create({
     fontSize: DISPLAY_SIZE,
     fontVariantNumeric: 'tabular-nums',
     fontWeight: font.weightBold,
-    letterSpacing: '-0.025em',
-    lineHeight: 1.12,
+    letterSpacing: '-0.02em',
+    lineHeight: 1.1,
     margin: 0,
     textWrap: 'balance',
   },
