@@ -25,17 +25,19 @@ function copyStatic(): Plugin {
 }
 
 /**
- * The two extension pages. The content script is a second build
- * (`vite.config.content.ts`) because it needs a different output format.
+ * The two extension pages. The content script and the service worker are
+ * builds of their own (`vite.config.content.ts`, `vite.config.background.ts`)
+ * because they need a different output format.
  *
  * The pages are React and StyleX, the same versions and the same unplugin the
- * web app runs: the popup draws the shared tokens, the shared theme and the
- * licensed Suisse woff2, so it has to compile them the same way. StyleX
- * appends its CSS to the first stylesheet the build emits, which is the one
- * the popup entry imports.
+ * web app runs: they draw the shared tokens, the shared theme and the licensed
+ * Suisse woff2, so they have to compile them the same way. StyleX appends its
+ * CSS to one stylesheet of the build's, which is why the two pages share a
+ * single one: split per page, one of them would come out unstyled.
  */
 export default defineConfig({
   build: {
+    cssCodeSplit: false,
     emptyOutDir: true,
     outDir: dist,
     rollupOptions: {

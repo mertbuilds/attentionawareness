@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vite build && vite build --config vite.config.content.ts",
+    "build": "vite build && vite build --config vite.config.content.ts && vite build --config vite.config.background.ts",
     "e2e": "playwright test",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"

@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { beforeEach, expect, test } from 'vitest';
 import { defaultSettings } from '../lib/storage.ts';
-import { SITE_ORDER, siteStrings, strings } from '../lib/strings.ts';
+import { sentences, SITE_ORDER, siteStrings, strings } from '../lib/strings.ts';
 import { mockChrome } from '../test/chrome.ts';
 import { Popup } from './popup.tsx';
 
@@ -44,6 +44,18 @@ test('a site switch writes only its own site', async () => {
 
   expect(extension.store['sites']).toEqual({ ...defaultSettings.sites, youtube: false });
   expect(extension.store['enabled']).toBeUndefined();
+});
+
+test('counts the custom rules that are on, and says nothing when none are', async () => {
+  extension = mockChrome({
+    custom: [
+      { css: 'a{}', domain: 'a.example', enabled: true, id: 'one' },
+      { css: 'b{}', domain: 'b.example', enabled: false, id: 'two' },
+    ],
+  });
+  render(<Popup />);
+
+  expect(await screen.findByText(sentences.customCount(1))).toBeVisible();
 });
 
 test('the footer opens the options page and the site', async () => {

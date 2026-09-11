@@ -37,11 +37,16 @@ let injected = false;
  * that flashes out of view instead costs nothing.
  */
 apply(defaultSettings);
-syncPath();
 
-document.addEventListener('DOMContentLoaded', syncNote);
-window.addEventListener('popstate', syncPath);
-setInterval(syncPath, PATH_POLL_MS);
+// A host reached through a custom rule is none of the four, so there is no
+// path for a rule to key on and no surface to leave a note in place of. The
+// script injects the reader's CSS and touches nothing else on the page.
+if (site !== null) {
+  syncPath();
+  document.addEventListener('DOMContentLoaded', syncNote);
+  window.addEventListener('popstate', syncPath);
+  setInterval(syncPath, PATH_POLL_MS);
+}
 
 // oxlint-disable-next-line unicorn/prefer-top-level-await -- a content script is not a module, so this file is built as an IIFE, and an IIFE has no top level to await at
 void start();

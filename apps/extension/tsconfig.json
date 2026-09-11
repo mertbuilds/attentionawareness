@@ -9,6 +9,7 @@
     "e2e",
     "playwright.config.ts",
     "src",
+    "vite.config.background.ts",
     "vite.config.content.ts",
     "vite.config.ts",
     "vitest.config.ts"
