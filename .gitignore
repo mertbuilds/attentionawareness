@@ -12,6 +12,7 @@ storybook-static/
 # caches
 .turbo/
 .wrangler/
+apps/web/.tanstack/
 coverage/
 *.tsbuildinfo
 

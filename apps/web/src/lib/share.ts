@@ -75,8 +75,9 @@ export function encodeShare({ bundleIds, hours }: ShareState): string {
 
 /**
  * The inverse, reading a link nobody promised to keep intact: an unusable `h`
- * is no hours at all, one outside the slider's range is clamped into it, and
- * an entry that names neither a code nor a plausible bundle id is dropped.
+ * is no hours at all, one outside the slider's range is clamped into it, one
+ * between two of its stops is rounded onto the nearer, and an entry that names
+ * neither a code nor a plausible bundle id is dropped.
  */
 export function decodeShare(search: string): { bundleIds: Array<string>; hours?: number } {
   let params: URLSearchParams;
@@ -100,7 +101,7 @@ export function decodeShare(search: string): { bundleIds: Array<string>; hours?:
   if (raw === '' || !Number.isFinite(hours)) {
     return { bundleIds };
   }
-  return { bundleIds, hours: Math.min(Math.max(hours, HOURS_MIN), HOURS_MAX) };
+  return { bundleIds, hours: Math.min(Math.max(Math.round(hours), HOURS_MIN), HOURS_MAX) };
 }
 
 /**

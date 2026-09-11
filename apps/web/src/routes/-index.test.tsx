@@ -254,13 +254,15 @@ describe('Generator', () => {
     expect(mathNumbers()).toEqual(['4', '5']);
   });
 
-  it('marks every half hour of the travel with its own detent', async () => {
+  it('marks every whole hour of the travel with its own numbered detent', async () => {
     await renderPage();
     const rail = screen.getByRole('slider').closest('div')?.parentElement;
     const marks = Array.from(rail?.querySelectorAll('div[aria-hidden="true"] > span') ?? []);
 
-    expect(marks).toHaveLength(23);
+    expect(marks).toHaveLength(12);
+    expect(marks.at(0)).toHaveTextContent('1');
     expect(marks.at(-1)).toHaveTextContent('12');
+    expect(screen.getByRole('slider')).toHaveAttribute('step', '1');
   });
 
   it('recounts the years when the slider moves', async () => {
@@ -280,9 +282,9 @@ describe('Generator', () => {
 
     expect(screen.getByRole('slider')).toHaveAttribute('aria-valuetext', hoursReading(4));
 
-    fireEvent.change(screen.getByRole('slider'), { target: { value: '5.5' } });
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '5' } });
 
-    expect(screen.getByRole('slider')).toHaveAttribute('aria-valuetext', hoursReading(5.5));
+    expect(screen.getByRole('slider')).toHaveAttribute('aria-valuetext', hoursReading(5));
     expect(screen.queryByText(m.home_math_hours_unit())).not.toBeInTheDocument();
   });
 

@@ -28,7 +28,7 @@ describe('encodeShare', () => {
 
 describe('decodeShare', () => {
   it('reads back everything encodeShare wrote', () => {
-    const state = { bundleIds: presets.mert.blockedApps.map((app) => app.bundleId), hours: 7.5 };
+    const state = { bundleIds: presets.mert.blockedApps.map((app) => app.bundleId), hours: 7 };
     expect(decodeShare(encodeShare(state))).toEqual(state);
   });
 
@@ -49,6 +49,11 @@ describe('decodeShare', () => {
 
   it('keeps hours the slider can reach', () => {
     expect(decodeShare('h=12').hours).toBe(12);
+  });
+
+  it('rounds hours onto the stop the slider has', () => {
+    expect(decodeShare('h=7.5').hours).toBe(8);
+    expect(decodeShare('h=4.2').hours).toBe(4);
   });
 
   it('clamps hours into the range the slider offers', () => {
