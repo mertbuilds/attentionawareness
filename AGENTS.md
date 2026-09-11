@@ -73,7 +73,8 @@ Web app (`apps/web`): `pnpm --filter @attentionawareness/web dev` (:3000 standal
 
 ### Deploy
 
-- `pnpm --filter @attentionawareness/web deploy` = `vite build`, then `wrangler deploy`. The Cloudflare vite plugin writes the deploy-time config to `dist/server/wrangler.json` and points `.wrangler/deploy/config.json` at it, so wrangler ships the built config rather than `wrangler.jsonc` itself. Push to main does the same from CI (`deploy.yml`); the command is for a one-off.
+- `pnpm --filter @attentionawareness/web deploy` = `pnpm build`, then `wrangler deploy`. The Cloudflare vite plugin writes the deploy-time config to `dist/server/wrangler.json` and points `.wrangler/deploy/config.json` at it, so wrangler ships the built config rather than `wrangler.jsonc` itself. Push to main does the same from CI (`deploy.yml`); the command is for a one-off.
+- Always build through `pnpm build` (`NODE_ENV=production vite build --mode production`), never a bare `vite build`. `envDir` is the repo root, whose `.env` sets `NODE_ENV=development`, and Vite applies that whenever `NODE_ENV` is unset. `import.meta.env.DEV` follows `NODE_ENV` rather than mode, so a bare build ships dev-only code (react-grab, the `virtual:stylex` dev stylesheet) to production even though mode already defaults to `production`. `vite.config.ts` throws on any `build` where mode or `NODE_ENV` is not `production`, so this cannot happen silently.
 - `wrangler.jsonc` carries `account_id` and four custom domains: `attentionawareness.com` (canonical), `www.attentionawareness.com`, and the old name `keepyourattention.com` + its `www`. `canonicalRedirect` (`src/lib/canonical.ts`, called from `src/server.ts`) answers the last three with a 301 to the apex, path and query kept.
 - Secrets are set on the Worker, never built in: from `apps/web`, `wrangler secret put SIGNING_CERT_PEM < cert.pem`, and the same for `SIGNING_CHAIN_PEM` and `SIGNING_KEY_PKCS8_PEM`. Details in `docs/signing.md`.
 

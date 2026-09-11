@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vite build",
+    "build": "NODE_ENV=production vite build --mode production",
     "cf-typegen": "wrangler types",
     "deploy": "pnpm build && wrangler deploy",
     "dev": "vite dev",

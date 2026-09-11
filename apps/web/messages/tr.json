@@ -239,8 +239,6 @@
   "sup_notes_organization": "Bir Mac ile ve şirket MDM'i olmadan denetime almak, telefonun aracı çalıştıran kişi tarafından \"denetlendiği\" anlamına gelir; kurum adı boş görünür",
   "sup_notes_roadmap": "Bir Windows sürümü ve şifreli yedek desteği listede",
   "sup_alt_title": "Alternatifler",
-  "sup_alt_nomac": "Mac yoksa: Tech Lockdown aynı işi birkaç tıkla yapan bir Windows/Mac aracını ücretli planının parçası olarak satıyor",
-  "sup_alt_nomac_link": "Tech Lockdown",
   "sup_alt_erase": "Silme yolu: sıfırdan başlamak sorun değilse, Apple Configurator'ın \"Prepare\" adımını \"Supervise devices\" işaretli çalıştır, sonra telefonu yeni gibi kur",
   "sup_alt_erase_link": "stopa.io/post/297",
   "sup_footer_back": "Oluşturucuya dön",

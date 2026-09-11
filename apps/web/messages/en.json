@@ -239,8 +239,6 @@
   "sup_notes_organization": "Supervising with a Mac and no company MDM means the phone is \"supervised by\" whoever ran the tool; the organization name shows empty",
   "sup_notes_roadmap": "A Windows version, and encrypted backup support, are on the list",
   "sup_alt_title": "Alternatives",
-  "sup_alt_nomac": "No Mac: Tech Lockdown sells a Windows/Mac tool that does the same in a few clicks, as part of a paid plan",
-  "sup_alt_nomac_link": "Tech Lockdown",
   "sup_alt_erase": "Erase path: if you do not mind starting fresh, Apple Configurator's \"Prepare\" with \"Supervise devices\" ticked, then set the phone up as new",
   "sup_alt_erase_link": "stopa.io/post/297",
   "sup_footer_back": "Back to the generator",
