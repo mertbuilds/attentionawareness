@@ -134,6 +134,8 @@
   "gen_web_private_browsing": "Gizli sekmelere ve geçmişi silmeye izin ver",
   "gen_restrictions_title": "Kısıtlamalar",
   "gen_more_settings": "Daha fazla ayar",
+  "gen_allow_app_store": "App Store açık kalsın",
+  "gen_allow_app_store_help": "Kapatmak uygulama güncellemelerini de durdurur; banka ve havayolu uygulamaları bozulur. Uygulamaları isimle engellemek genellikle daha iyidir.",
   "gen_trial_check": "Deneme modu: Bu profili sonra kaldırabilirim",
   "gen_trial_help": "Varsayılan olarak kapalı. Deneme profili Ayarlardan kaldırılabilir. Kararını verdiğinde kapat ve profili tekrar indir.",
   "gen_output_title": "Profilin",

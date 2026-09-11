@@ -132,9 +132,7 @@ function restrictionsLines(config: ProfileConfig, uuid: string): Array<string> {
     stringLine(KEY_INDENT, 'PayloadUUID', uuid),
     `${KEY_INDENT}${PAYLOAD_VERSION}`,
     stringLine(KEY_INDENT, 'PayloadDisplayName', 'Restrictions'),
-    // The App Store always stays: without it nothing updates, and banking and
-    // airline apps break. Blocking apps by name is what this profile is for.
-    boolLine(KEY_INDENT, 'allowAppInstallation', true),
+    boolLine(KEY_INDENT, 'allowAppInstallation', config.allowAppStore),
   ];
   if (config.blockedApps.length > 0) {
     lines.push(

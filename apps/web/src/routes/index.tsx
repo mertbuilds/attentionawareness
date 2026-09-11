@@ -573,13 +573,24 @@ const styles = create({
     gap: spacing.s3,
     paddingBlockStart: spacing.s3,
   },
-  moreSummary: {
-    // Anything but `list-item` drops the browser's own marker, so the chevron
-    // below is the only one.
-    '::after': {
-      content: '"▾"',
-      fontSize: 10,
+  // Closed it points right; open it points down, and a reader who asked for
+  // less motion gets the turn without the sweep.
+  moreChevron: {
+    display: 'block',
+    height: 12,
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0s',
+      default: '150ms',
     },
+    transitionProperty: 'transform',
+    width: 12,
+  },
+  moreChevronOpen: {
+    transform: 'rotate(90deg)',
+  },
+  // The svg chevron is the only marker: anything but `list-item` drops the
+  // browser's own, and Safari's is hidden in app.css.
+  moreSummary: {
     alignItems: 'center',
     color: {
       ':hover': colors.fg,
@@ -1436,6 +1447,7 @@ function signPayload(
   config: ProfileConfig,
 ): Omit<ProfileConfig, 'displayName' | 'identifier' | 'organization'> {
   return {
+    allowAppStore: config.allowAppStore,
     allowPrivateBrowsing: config.allowPrivateBrowsing,
     autoFilterAdult: config.autoFilterAdult,
     blockedApps: config.blockedApps,
@@ -2059,6 +2071,9 @@ function Generator() {
   const [storefrontOpen, setStorefrontOpen] = useState(false);
   const [storefrontQuery, setStorefrontQuery] = useState('');
   const [armedRemove, setArmedRemove] = useState<string | null>(null);
+  // StyleX cannot reach `details[open] > summary`, so the chevron is turned
+  // from React and the element itself stays the source of truth.
+  const [moreOpen, setMoreOpen] = useState(false);
   // There is nothing to brag about until a profile has left the page.
   const [generated, setGenerated] = useState(false);
   // The second gate, on the download alone: an installed profile comes off an
@@ -3250,8 +3265,24 @@ function Generator() {
             </Label>
             <p {...props(layout.muted)}>{m.gen_trial_help()}</p>
           </div>
-          <details>
-            <summary {...props(styles.moreSummary)}>{m.gen_more_settings()}</summary>
+          <details onToggle={(event) => setMoreOpen(event.currentTarget.open)}>
+            <summary {...props(styles.moreSummary)}>
+              {m.gen_more_settings()}
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 12 12"
+                {...props(styles.moreChevron, moreOpen && styles.moreChevronOpen)}
+              >
+                <path
+                  d="m4.5 2.5 3.5 3.5-3.5 3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.4"
+                />
+              </svg>
+            </summary>
             <div {...props(styles.moreBody)}>
               <Label>
                 <input
@@ -3264,6 +3295,20 @@ function Generator() {
                 />
                 {m.gen_web_private_browsing()}
               </Label>
+              <div {...props(styles.choice)}>
+                <Label>
+                  <input
+                    checked={config.allowAppStore}
+                    onChange={(event) =>
+                      setConfig({ ...config, allowAppStore: event.target.checked })
+                    }
+                    type="checkbox"
+                    {...props(controls.base, controls.checkbox)}
+                  />
+                  {m.gen_allow_app_store()}
+                </Label>
+                <p {...props(layout.muted)}>{m.gen_allow_app_store_help()}</p>
+              </div>
             </div>
           </details>
         </section>

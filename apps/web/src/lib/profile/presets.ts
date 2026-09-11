@@ -3,6 +3,7 @@ import type { ProfileConfig } from './types.ts';
 /** Starting points the builder UI clones — never mutate one in place. */
 export const presets: Record<'mert' | 'stopa' | 'minimal', ProfileConfig> = {
   mert: {
+    allowAppStore: true,
     allowPrivateBrowsing: true,
     autoFilterAdult: true,
     blockedApps: [
@@ -50,6 +51,7 @@ export const presets: Record<'mert' | 'stopa' | 'minimal', ProfileConfig> = {
     },
   },
   minimal: {
+    allowAppStore: true,
     allowPrivateBrowsing: true,
     autoFilterAdult: false,
     blockedApps: [],
@@ -60,6 +62,7 @@ export const presets: Record<'mert' | 'stopa' | 'minimal', ProfileConfig> = {
     webFilter: { mode: 'off' },
   },
   stopa: {
+    allowAppStore: true,
     allowPrivateBrowsing: true,
     autoFilterAdult: false,
     blockedApps: [],

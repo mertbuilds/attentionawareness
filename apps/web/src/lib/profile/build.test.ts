@@ -4,6 +4,7 @@ import { presets } from './presets.ts';
 import type { ProfileConfig } from './types.ts';
 
 const baseConfig: ProfileConfig = {
+  allowAppStore: true,
   allowPrivateBrowsing: true,
   autoFilterAdult: false,
   blockedApps: [{ bundleId: 'com.atebits.Tweetie2', name: 'X' }],
@@ -116,8 +117,13 @@ describe('buildProfile', () => {
     expect(() => buildProfile(config({ identifier: 'com.example.dumb-phone' }))).not.toThrow();
   });
 
-  it('always leaves the App Store installable', () => {
-    expect(buildProfile(config({}))).toContain('<key>allowAppInstallation</key><true/>');
+  it('always emits the restrictions payload with allowAppInstallation', () => {
+    expect(buildProfile(config({ allowAppStore: true }))).toContain(
+      '<key>allowAppInstallation</key><true/>',
+    );
+    expect(buildProfile(config({ allowAppStore: false }))).toContain(
+      '<key>allowAppInstallation</key><false/>',
+    );
   });
 
   it('omits blockedAppBundleIDs when no apps are blocked', () => {

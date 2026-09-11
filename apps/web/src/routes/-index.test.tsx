@@ -80,6 +80,11 @@ const struck = create({ text: { color: colors.muted, textDecorationLine: 'line-t
 
 const STRUCK_CLASSES = String(props(struck.text).className).split(' ');
 
+/** The chevron's open state is a turn, so its class is what says it turned. */
+const turned = create({ chevron: { transform: 'rotate(90deg)' } });
+
+const TURNED_CLASSES = String(props(turned.chevron).className).split(' ');
+
 function expectStruckThrough(element: HTMLElement, yes = true): void {
   for (const name of STRUCK_CLASSES) {
     if (yes) {
@@ -878,6 +883,7 @@ describe('Generator', () => {
     const posted = fetchMock.mock.calls.find(([input]) => input === '/api/sign')?.[1];
     const { config } = JSON.parse(String(posted?.body)) as { config: Record<string, unknown> };
     expect(Object.keys(config).sort()).toEqual([
+      'allowAppStore',
       'allowPrivateBrowsing',
       'autoFilterAdult',
       'blockedApps',
@@ -1162,6 +1168,44 @@ describe('Generator', () => {
     await userEvent.click(screen.getByText(m.gen_more_settings()));
 
     expect(details).toHaveAttribute('open');
+  });
+
+  it('turns the chevron when more settings opens', async () => {
+    await renderPage();
+    const summary = screen.getByText(m.gen_more_settings());
+    const chevron = summary.querySelector('svg');
+
+    expect(chevron).not.toBeNull();
+    for (const name of TURNED_CLASSES) {
+      expect(chevron).not.toHaveClass(name);
+    }
+
+    await userEvent.click(summary);
+
+    expect(summary.closest('details')).toHaveAttribute('open');
+    await waitFor(() => {
+      for (const name of TURNED_CLASSES) {
+        expect(chevron).toHaveClass(name);
+      }
+    });
+  });
+
+  it('keeps the App Store under more settings, ticked', async () => {
+    await renderPage();
+    const box = screen.getByRole('checkbox', { name: m.gen_allow_app_store() });
+
+    expect(box.closest('details')).not.toBeNull();
+    expect(box).toBeChecked();
+  });
+
+  it('takes the App Store away when the reader unticks it', async () => {
+    await renderPage();
+    await tickPermanent();
+
+    await userEvent.click(screen.getByRole('checkbox', { name: m.gen_allow_app_store() }));
+    fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
+
+    expect(await downloadedXml()).toContain('<key>allowAppInstallation</key><false/>');
   });
 
   it('drops the web filter payload when the filter is turned off', async () => {

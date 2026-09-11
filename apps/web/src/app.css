@@ -12,3 +12,9 @@ body {
   color: var(--foreground);
   margin: 0;
 }
+
+/* The more-settings disclosure draws its own chevron, so Safari's triangle
+   goes away here as well as through `list-style`. */
+summary::-webkit-details-marker {
+  display: none;
+}

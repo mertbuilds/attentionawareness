@@ -145,6 +145,7 @@ function asLockRemoval(value: unknown): boolean {
 function parseConfig(body: unknown): ProfileConfig {
   const config = asRecord(asRecord(body, 'body').config, 'config');
   return {
+    allowAppStore: asBoolean(config.allowAppStore, 'allowAppStore'),
     allowPrivateBrowsing: asBoolean(config.allowPrivateBrowsing, 'allowPrivateBrowsing'),
     autoFilterAdult: asBoolean(config.autoFilterAdult, 'autoFilterAdult'),
     blockedApps: asBlockedApps(config.blockedApps),
