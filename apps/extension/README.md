@@ -26,8 +26,8 @@ After a rebuild, hit **Reload** on the extension card. Settings live in
 
 ## How it works
 
-One content script, no background service worker, no `scripting` permission.
-It reads the settings, picks the rule file for the host, and injects a single
+One content script. It reads the settings, picks the rule file for the host,
+appends the reader's own rules for it, and injects a single
 `<style id="aa-rules">` into `document.documentElement`. Turning a switch off
 removes that element; nothing is undone, because nothing was done to the page.
 
@@ -48,6 +48,41 @@ removes that element; nothing is undone, because nothing was done to the page.
   Everything read back is checked key by key against the defaults, because
   storage is shared with every other version of the extension the profile has
   ever run.
+- On a host reached through a custom rule alone the script injects that CSS and
+  nothing else: no path attribute, no poll, no note. There is no site there to
+  keep in step with.
+
+## Custom CSS
+
+The options page (the popup's "Custom CSS" link, or the extension's Details
+page) is a list of rules: a domain, a switch, and a block of CSS. A domain
+covers the host and everything under it, the same match the four built-in
+sites use, so `reddit.com` takes `old.reddit.com`. Rules apply on top of the
+built-in ones and are stored under `custom`, which is why settings are written
+key by key: `storage.sync` caps one item at 8KB, and this is the key that
+grows.
+
+- Whatever is typed into the domain field is reduced to the host inside it:
+  `https://Reddit.com/r/x` is stored as `reddit.com`. Anything that is not a
+  host is refused with a line under the row and never written.
+- **A domain outside the four sites asks for that site once.** The manifest
+  declares `optional_host_permissions: ["<all_urls>"]` and the page calls
+  `chrome.permissions.request` straight out of the blur or the click that
+  committed the rule, because the browser only grants one inside a user
+  gesture. Refuse it and the rule stays off, saying so under the row; grant it
+  and it is granted for good.
+- `src/background.ts` is the service worker the grant needs afterwards. On install, on
+  startup, when `custom` changes and when a permission is added, it reconciles
+  one dynamic registration (`aa-custom`) whose matches are every granted custom
+  host, through `chrome.scripting.registerContentScripts`. It skips the four
+  static hosts, which the manifest already covers and which would otherwise get
+  the script twice, and it skips hosts whose permission is not held, because
+  one bad match rejects the whole call. `desiredMatches` in
+  `src/lib/registration.ts` is that decision as a pure function, and is what
+  the tests cover.
+- Edits are debounced 300ms and then written whole; "Saved" appears when the
+  write lands. Remove takes two clicks, the second within three seconds, the
+  same as the site's own rows.
 
 ## The popup
 
@@ -57,6 +92,7 @@ wide: the brand, the master switch, one row per site saying what goes with it,
 and two quiet links out. It follows the system colour scheme and nothing else,
 because a popup this size has no room to argue about themes.
 
+- Under the footer it says how many custom rules are on, when any are.
 - The switches are ours: `<button role="switch" aria-checked>`, named by the row
   they sit in. A checkbox cannot be a switch to a screen reader, and the native
   one paints its off state gray, which the dark theme reads as already off. On
@@ -70,14 +106,17 @@ because a popup this size has no room to argue about themes.
 
 ## Build
 
-Two Vite builds, because a content script is not a module: it has to arrive as
-one self-contained IIFE, and Vite takes one output format per build.
+Three Vite builds, because neither a content script nor a service worker is a
+module: each has to arrive as one self-contained IIFE, and Vite takes one
+output format per build.
 
 - `vite.config.ts` builds `popup.html` and `options.html` through React and
-  StyleX, plus the manifest and icons copied byte for byte. StyleX appends its
-  CSS to the first stylesheet the build emits, which is the one `popup.tsx`
-  imports.
+  StyleX, plus the manifest and icons copied byte for byte. The two pages share
+  one stylesheet (`cssCodeSplit: false`, both importing `src/page.css`): StyleX
+  appends its CSS to a single asset of the build's, and split per page one of
+  them would come out unstyled.
 - `vite.config.content.ts` builds `content.ts` into `dist/content.js`.
+- `vite.config.background.ts` builds `background.ts` into `dist/background.js`.
 
 The icons are generated: `node scripts/render-brand.ts` from the repo root
 renders them from the licensed Suisse Intl, along with the web app's favicons
@@ -91,14 +130,24 @@ pnpm --filter @attentionawareness/extension e2e    # playwright, needs a build
 ```
 
 Vitest runs two environments, split by file name: `*.test.ts` in node for the
-settings merge, host matching, the CSS the builder composes, and that every rule
-file parses with zero errors (a rule file that does not parse is one the browser
-drops silently, leaving the feed where it was); `*.test.tsx` in jsdom with
-Testing Library for the popup.
+settings merge, host matching, domain normalisation, which hosts want a dynamic
+registration, the CSS the builder composes, and that every rule file parses with
+zero errors (a rule file that does not parse is one the browser drops silently,
+leaving the feed where it was); `*.test.tsx` in jsdom with Testing Library for
+the popup and the options page. `content.test.ts` is the one file that asks for
+jsdom by docblock, because the content script is not React and what it has to
+prove is that a custom-only host gets the CSS and nothing else.
 
 The smoke tests are the real thing: they launch Chromium with `dist` loaded
 unpacked. The first serves YouTube's Shorts markup from an intercepted route,
 asserts the shelf is hidden, flips the master switch in the popup, and asserts
 it comes back. The second opens the popup itself, counts the switches, checks
-that the licensed Suisse actually loaded, and screenshots it light and dark
-(`AA_SCREENSHOT_DIR` says where; otherwise Playwright's output dir).
+that the licensed Suisse actually loaded, and screenshots it light and dark.
+The third writes two rules through the options page, screenshots that, and
+asserts the first one hides its element on an intercepted youtube.com.
+`AA_SCREENSHOT_DIR` says where the shots go; otherwise Playwright's output dir.
+
+That third test stays on a built-in host on purpose: Chromium's host permission
+prompt is a native dialog, outside the page, and Playwright cannot answer it.
+A rule for a new domain is the one path the smoke tests cannot walk, so walk it
+by hand after a build.

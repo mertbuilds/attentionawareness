@@ -8,6 +8,18 @@ export type CustomRule = {
   id: string;
 };
 
+/**
+ * A new rule's id. It only has to stay distinct from the ids already in the
+ * list: it names a row while it is being edited and keys nothing else.
+ * `crypto.randomUUID` is missing on insecure origins, which an extension page
+ * never is, and in engines older than this one is built for.
+ */
+export function newRuleId(): string {
+  return typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 /** Everything the extension keeps, all of it in `chrome.storage.sync`. */
 export type Settings = {
   custom: Array<CustomRule>;

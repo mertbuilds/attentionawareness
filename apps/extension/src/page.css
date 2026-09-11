@@ -1,4 +1,6 @@
-/* The popup shell. StyleX build output is appended to this asset. */
+/* The shell both extension pages sit in. StyleX build output is appended to
+   this asset: the build emits one stylesheet for the whole of it, because
+   StyleX picks a single asset to append to and two would leave one page bare. */
 html {
   background: var(--background);
 }

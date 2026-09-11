@@ -12,9 +12,10 @@ apps/
           `/api/sign`, which signs the profile with the Developer ID key.
   extension/
           MV3 browser extension (Chromium first). One content script injects
-          per-site CSS from `src/rules/*.css`; `storage` is the only
-          permission. Two Vite builds: pages, then the content script as an
-          IIFE. See its README.
+          per-site CSS from `src/rules/*.css` plus the reader's own rules from
+          the options page; `storage` and `scripting`, with host access for a
+          custom domain asked for once. Three Vite builds: pages, then the
+          content script and the service worker as IIFEs. See its README.
 packages/
   ui/     StyleX tokens + Base UI wrappers + Storybook. Black/white, 4px radius, Suisse Intl.
           `@attentionawareness/ui/brand` holds the outlined "aa" mark both apps draw from.

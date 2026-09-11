@@ -22,6 +22,11 @@ const FIXTURE = `<!doctype html><html><head><title>YouTube</title></head><body>
 <ytd-guide-entry-renderer id="guide"><a title="Shorts">Shorts</a></ytd-guide-entry-renderer>
 </body></html>`;
 
+/** What a custom rule is pointed at: a page with nothing of YouTube's in it. */
+const CUSTOM_FIXTURE = `<!doctype html><html><head><title>YouTube</title></head><body>
+<div id="aa-fixture">fixture</div>
+</body></html>`;
+
 test('hides the Shorts shelf, and stops when the extension is turned off', async () => {
   await withExtension(async (context) => {
     const page = await context.newPage();
@@ -85,13 +90,53 @@ test('the popup draws a switch per site, in the licensed type', async () => {
   });
 });
 
+test('a rule written on the options page reaches the page it names', async () => {
+  await withExtension(async (context) => {
+    const options = await openExtensionPage(context, 'options.html');
+
+    // Two hosts the manifest already grants, on purpose: a domain of its own
+    // raises Chromium's host permission prompt, which is a native dialog
+    // outside the page and one Playwright cannot answer. That path is checked
+    // by hand after a build; the README says so.
+    await addRule(options, 'youtube.com', '#aa-fixture { display: none !important }');
+    await addRule(options, 'x.com', '#aa-fixture { outline: 2px solid red }');
+    await expect(options.getByText(strings.saved)).toBeVisible();
+
+    await options.setViewportSize({ height: 640, width: 900 });
+    for (const colorScheme of ['light', 'dark'] as const) {
+      await options.emulateMedia({ colorScheme });
+      await options.screenshot({
+        fullPage: true,
+        path: screenshot(test.info().outputPath(), colorScheme, 'options'),
+      });
+    }
+
+    const page = await context.newPage();
+    await page.route('https://www.youtube.com/**', (route) =>
+      route.fulfill({ body: CUSTOM_FIXTURE, contentType: 'text/html' }),
+    );
+    await page.goto('https://www.youtube.com/');
+
+    await expect.poll(() => display(page, '#aa-fixture')).toBe('none');
+  });
+});
+
+/** One rule, added and filled in the way a reader would. */
+async function addRule(options: Page, domain: string, css: string): Promise<void> {
+  await options.getByRole('button', { name: strings.add }).click();
+  const domainField = options.getByRole('textbox', { name: strings.domainLabel }).last();
+  await domainField.fill(domain);
+  await domainField.blur();
+  await options.getByRole('textbox', { name: strings.cssLabel }).last().fill(css);
+}
+
 /**
- * Where the two popup screenshots land. `AA_SCREENSHOT_DIR` is for looking at
- * them; without it they go where Playwright keeps a run's output.
+ * Where the page screenshots land. `AA_SCREENSHOT_DIR` is for looking at them;
+ * without it they go where Playwright keeps a run's output.
  */
-function screenshot(outputDir: string, colorScheme: 'dark' | 'light'): string {
-  const name = colorScheme === 'light' ? 'ext-popup.png' : 'ext-popup-dark.png';
-  return path.join(process.env['AA_SCREENSHOT_DIR'] ?? outputDir, name);
+function screenshot(outputDir: string, colorScheme: 'dark' | 'light', page = 'popup'): string {
+  const suffix = colorScheme === 'light' ? '' : '-dark';
+  return path.join(process.env['AA_SCREENSHOT_DIR'] ?? outputDir, `ext-${page}${suffix}.png`);
 }
 
 /**
@@ -115,8 +160,12 @@ async function withExtension(run: (context: BrowserContext) => Promise<void>): P
 }
 
 async function openPopup(context: BrowserContext): Promise<Page> {
+  return openExtensionPage(context, 'popup.html');
+}
+
+async function openExtensionPage(context: BrowserContext, file: string): Promise<Page> {
   const page = await context.newPage();
-  await page.goto(`chrome-extension://${unpackedExtensionId(dist)}/popup.html`);
+  await page.goto(`chrome-extension://${unpackedExtensionId(dist)}/${file}`);
   return page;
 }
 

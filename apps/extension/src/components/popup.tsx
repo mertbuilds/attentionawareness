@@ -9,7 +9,7 @@ import {
   setSettings,
   type Settings,
 } from '../lib/storage.ts';
-import { SITE_ORDER, siteStrings, strings } from '../lib/strings.ts';
+import { sentences, SITE_ORDER, siteStrings, strings } from '../lib/strings.ts';
 import { BrandMark } from './brand-mark.tsx';
 import { Switch } from './switch.tsx';
 
@@ -114,6 +114,7 @@ export function Popup() {
   // empty frame that fills in.
   const [settings, showSettings] = useState<Settings>(defaultSettings);
   const masterLabel = useId();
+  const customCount = settings.custom.filter((rule) => rule.enabled).length;
 
   useEffect(() => {
     void getSettings().then(showSettings);
@@ -178,6 +179,10 @@ export function Popup() {
           {strings.website}
         </button>
       </div>
+
+      {customCount > 0 ? (
+        <span {...props(styles.hides)}>{sentences.customCount(customCount)}</span>
+      ) : null}
     </div>
   );
 }

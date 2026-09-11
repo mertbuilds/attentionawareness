@@ -1,12 +1,12 @@
 import { createRoot } from 'react-dom/client';
-import { Popup } from './components/popup.tsx';
+import { Options } from './components/options.tsx';
 import '@attentionawareness/ui/fonts.css';
 import '@attentionawareness/ui/theme.css';
 import './page.css';
 
 const container = document.getElementById('root');
 if (container === null) {
-  throw new Error('popup.html has no #root');
+  throw new Error('options.html has no #root');
 }
 
-createRoot(container).render(<Popup />);
+createRoot(container).render(<Options />);
