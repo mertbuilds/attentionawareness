@@ -220,12 +220,14 @@ describe('Generator', () => {
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
   });
 
-  it('holds the slot the clip will take until there is a clip', async () => {
+  it('plays the screen-time clip inside the popover', async () => {
     await renderPage();
 
     await userEvent.hover(helpButton());
 
-    expect(screen.getByText(m.home_math_help_clip())).toBeInTheDocument();
+    const clip = screen.getByRole('tooltip').querySelector('video');
+    expect(clip).not.toBeNull();
+    expect(clip?.src).toMatch(/\/media\/screentime-v1\.mp4$/);
   });
 
   it('states the deal as three facts', async () => {
