@@ -71,6 +71,12 @@ Web app (`apps/web`): `pnpm --filter @attentionawareness/web dev` (:3000 standal
 - Sentry: client init in `__root.tsx` only when `VITE_SENTRY_DSN` is set.
 - StyleX in routes: import `../app.css` (build injection target) — there is no importable `virtual:stylex.css` module; in dev the plugin middleware serves the CSS itself.
 
+### Deploy
+
+- `pnpm --filter @attentionawareness/web deploy` = `vite build`, then `wrangler deploy`. The Cloudflare vite plugin writes the deploy-time config to `dist/server/wrangler.json` and points `.wrangler/deploy/config.json` at it, so wrangler ships the built config rather than `wrangler.jsonc` itself. Push to main does the same from CI (`deploy.yml`); the command is for a one-off.
+- `wrangler.jsonc` carries `account_id` and four custom domains: `attentionawareness.com` (canonical), `www.attentionawareness.com`, and the old name `keepyourattention.com` + its `www`. `canonicalRedirect` (`src/lib/canonical.ts`, called from `src/server.ts`) answers the last three with a 301 to the apex, path and query kept.
+- Secrets are set on the Worker, never built in: from `apps/web`, `wrangler secret put SIGNING_CERT_PEM < cert.pem`, and the same for `SIGNING_CHAIN_PEM` and `SIGNING_KEY_PKCS8_PEM`. Details in `docs/signing.md`.
+
 ### Profile signing
 
 - `POST /api/sign` (`src/routes/api.sign.ts`) takes the reader's config, validates it by hand, forces the identifier (`com.attentionawareness.<uuid>`), the display name and the organization, takes `lockRemoval` from the body (locked unless the reader ticks trial mode), builds the XML with `buildProfile` and returns a CMS-signed DER `.mobileconfig`. Every download is a new profile that stacks: none can loosen or replace one already installed.

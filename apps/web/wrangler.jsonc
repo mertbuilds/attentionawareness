@@ -1,10 +1,19 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "attentionawareness-web",
+  "account_id": "e13d54eaa30780f8012d3f192ea0fecd",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
   // Custom entry: wraps @tanstack/react-start/server-entry with paraglide + evlog.
   "main": "src/server.ts",
+  // The apex is the canonical host. The other three are custom domains on this
+  // same Worker so `canonicalRedirect` in src/server.ts can 301 them itself.
+  "routes": [
+    { "pattern": "attentionawareness.com", "custom_domain": true },
+    { "pattern": "www.attentionawareness.com", "custom_domain": true },
+    { "pattern": "keepyourattention.com", "custom_domain": true },
+    { "pattern": "www.keepyourattention.com", "custom_domain": true },
+  ],
   // evlog ships logs itself; Workers observability would duplicate them.
   "observability": {
     "enabled": false,
