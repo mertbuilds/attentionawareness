@@ -12,7 +12,6 @@ export default defineConfig({
     '.turbo',
     'storybook-static',
     '.wrangler',
-    'packages/db/generated',
     'apps/web/src/paraglide',
     'apps/web/src/routeTree.gen.ts',
     'apps/web/worker-configuration.d.ts',

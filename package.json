@@ -5,12 +5,8 @@
   "scripts": {
     "bad-day": "bash scripts/bad-day.sh",
     "build": "turbo run build",
-    "db:migrate": "pnpm --filter @keepyourattention/db migrate",
-    "db:reset": "bash scripts/reset.sh",
-    "db:studio": "pnpm --filter @keepyourattention/db studio",
     "dev": "mprocs",
     "e2e": "pnpm --filter @keepyourattention/e2e e2e",
-    "emulate": "emulate --service stripe,google,resend --seed emulate.config.yaml -p 5100 --portless",
     "fonts": "bash scripts/fetch-fonts.sh",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
@@ -19,7 +15,6 @@
     "rename": "bash scripts/rename.sh",
     "skills:check": "node scripts/skills-check.ts",
     "storybook": "pnpm --filter @keepyourattention/ui storybook",
-    "stripe:listen": "echo 'Requires Stripe CLI + test-mode account (opt-in fallback for customer.subscription.* webhooks — emulate does not emit them).' && stripe listen --forward-to https://api.keepyourattention.localhost/api/auth/stripe/webhook",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck"
   },
@@ -28,7 +23,6 @@
     "@commitlint/config-conventional": "^21.2.2",
     "@nkzw/eslint-plugin": "^2.0.0",
     "@nkzw/oxlint-config": "^2.0.1",
-    "emulate": "0.10.0",
     "eslint-plugin-no-only-tests": "^3.4.0",
     "eslint-plugin-perfectionist": "^5.11.0",
     "eslint-plugin-react-hooks": "^7.1.1",

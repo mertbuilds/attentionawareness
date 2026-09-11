@@ -138,9 +138,6 @@ function webFilterLines(config: ProfileConfig, nextUuid: () => string): Array<st
     `${KEY_INDENT}${PAYLOAD_VERSION}`,
     stringLine(KEY_INDENT, 'PayloadDisplayName', 'Web Filter'),
     stringLine(KEY_INDENT, 'FilterType', 'BuiltIn'),
-    // An unsupervised iPhone refuses the whole profile without this key, and a
-    // supervised one accepts it, so it is unconditional.
-    stringLine(KEY_INDENT, 'ContentFilterUUID', nextUuid()),
     boolLine(KEY_INDENT, 'AutoFilterEnabled', webFilter.mode === 'deny' && config.autoFilterAdult),
     boolLine(KEY_INDENT, 'SafariHistoryRetentionEnabled', !config.allowPrivateBrowsing),
   ];

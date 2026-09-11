@@ -32,16 +32,13 @@ const THEME_NAMES: Record<ThemeChoice, () => string> = {
 };
 
 const styles = create({
-  // Height, border, radius and text size are the segmented control's, so the
-  // two boxes of the row are one shape repeated.
   control: {
     alignItems: 'center',
     backgroundColor: colors.bg,
     borderColor: colors.border,
-    borderRadius: 10,
+    borderRadius: radius.base,
     borderStyle: 'solid',
     borderWidth: '1px',
-    boxSizing: 'border-box',
     color: {
       ':hover': colors.fg,
       default: colors.muted,
@@ -49,12 +46,11 @@ const styles = create({
     cursor: 'pointer',
     display: 'flex',
     fontFamily: 'inherit',
-    fontSize: font.sizeSm,
+    fontSize: 12,
     gap: spacing.s1,
-    height: 36,
     lineHeight: 1,
-    paddingBlock: 0,
-    paddingInline: 14,
+    paddingBlock: 6,
+    paddingInline: spacing.s2,
     whiteSpace: 'nowrap',
   },
   flag: {
@@ -116,41 +112,37 @@ const styles = create({
   },
   segment: {
     backgroundColor: 'transparent',
+    borderRadius: radius.base,
     borderStyle: 'none',
     borderWidth: 0,
+    boxSizing: 'border-box',
     color: {
       ':hover': colors.fg,
       default: colors.muted,
     },
     cursor: 'pointer',
     fontFamily: 'inherit',
-    fontSize: font.sizeSm,
+    fontSize: 12,
+    height: 24,
     lineHeight: 1,
-    paddingBlock: 0,
-    paddingInline: 14,
+    paddingBlock: 5,
+    paddingInline: spacing.s2,
   },
-  // No inner padding: the segments fill the box edge to edge, so the picked
-  // one is a flush fill instead of a pill floating inside a frame.
+  // 28px is what the language button next to it comes out at on its own, so
+  // the two boxes of the row are level. The segments fill what is left inside
+  // the padding, which keeps the picked one at the same 1px inset as before.
   segmented: {
-    alignItems: 'stretch',
+    alignItems: 'center',
     backgroundColor: colors.bg,
     borderColor: colors.border,
-    borderRadius: 10,
+    borderRadius: radius.base,
     borderStyle: 'solid',
     borderWidth: '1px',
     boxSizing: 'border-box',
     display: 'flex',
-    height: 36,
-  },
-  // The outer 10px less the 1px border, so a filled end segment follows the
-  // curve of the box instead of poking a square corner through it.
-  segmentFirst: {
-    borderEndStartRadius: 9,
-    borderStartStartRadius: 9,
-  },
-  segmentLast: {
-    borderEndEndRadius: 9,
-    borderStartEndRadius: 9,
+    gap: 2,
+    height: 28,
+    padding: 1,
   },
   segmentOn: {
     backgroundColor: colors.fg,
@@ -171,18 +163,13 @@ export function ThemeSwitch() {
 
   return (
     <div aria-label={m.pref_theme_label()} role="group" {...props(styles.segmented)}>
-      {themeChoices.map((choice, index) => (
+      {themeChoices.map((choice) => (
         <button
           aria-pressed={choice === theme}
           key={choice}
           onClick={() => applyTheme(choice)}
           type="button"
-          {...props(
-            styles.segment,
-            index === 0 && styles.segmentFirst,
-            index === themeChoices.length - 1 && styles.segmentLast,
-            choice === theme && styles.segmentOn,
-          )}
+          {...props(styles.segment, choice === theme && styles.segmentOn)}
         >
           {THEME_NAMES[choice]()}
         </button>

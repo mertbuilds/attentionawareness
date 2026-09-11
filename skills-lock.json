@@ -1,59 +1,11 @@
 {
   "version": 1,
   "skills": {
-    "better-auth-best-practices": {
-      "source": "better-auth/skills",
-      "sourceType": "github",
-      "skillPath": "better-auth/best-practices/SKILL.md",
-      "computedHash": "0c30be0e118c2b7a0c4c57bd9e63bf110c7e420a79ec6ce7997153f3b1e066ee"
-    },
-    "email-and-password-best-practices": {
-      "source": "better-auth/skills",
-      "sourceType": "github",
-      "skillPath": "better-auth/emailAndPassword/SKILL.md",
-      "computedHash": "863886759f729081e265941f4f72c503835d55a1f34f6d63cebe6571159fff4a"
-    },
-    "emulate": {
-      "source": "vercel-labs/emulate",
-      "sourceType": "github",
-      "skillPath": "skills/emulate/SKILL.md",
-      "computedHash": "613dbaaa41f1f5f3be1c7916d353a23137427a49640ca15b782c7bd642cdca44"
-    },
-    "google": {
-      "source": "vercel-labs/emulate",
-      "sourceType": "github",
-      "skillPath": "skills/google/SKILL.md",
-      "computedHash": "ae6509fa842e45ed027a29d78e2d03f7dd6ae9a821e4a36dd50abe16b8a0c2ee"
-    },
     "posthog-instrumentation": {
       "source": "posthog/posthog-for-claude",
       "sourceType": "github",
       "skillPath": "skills/posthog-instrumentation/SKILL.md",
       "computedHash": "a9a30a63accd756ef41009f987ac75812ab1e855b30ea5d6153e0fed16ebf22d"
-    },
-    "prisma-cli": {
-      "source": "prisma/skills",
-      "sourceType": "github",
-      "skillPath": "prisma-cli/SKILL.md",
-      "computedHash": "129e77cba93984b88d66cf0f66d5788f5487431f17f189a1ab2d839976874e3b"
-    },
-    "prisma-client-api": {
-      "source": "prisma/skills",
-      "sourceType": "github",
-      "skillPath": "prisma-client-api/SKILL.md",
-      "computedHash": "cbbabff961c8e16b2d59f8c1ffb4e7e20be52154e778ab95121e0211d6d09969"
-    },
-    "prisma-database-setup": {
-      "source": "prisma/skills",
-      "sourceType": "github",
-      "skillPath": "prisma-database-setup/SKILL.md",
-      "computedHash": "6a991a2530a6da7131e3fc71c353e8278702d0146b8b6e1d2fdfc2d3d0a21bd2"
-    },
-    "resend": {
-      "source": "vercel-labs/emulate",
-      "sourceType": "github",
-      "skillPath": "skills/resend/SKILL.md",
-      "computedHash": "befe9541ba124f54974f2af5ef7bbbb35b1e2009d4870ab3cb5f7ba80a0ae8e6"
     },
     "review-logging-patterns": {
       "source": "hugorcd/evlog",
@@ -72,24 +24,6 @@
       "sourceType": "github",
       "skillPath": "skills-legacy/sentry-fix-issues/SKILL.md",
       "computedHash": "0ef2103f20d698acc56d856a07a372a0a68cb02bad654d0dacb4e2ffe87e98b5"
-    },
-    "sentry-node-sdk": {
-      "source": "getsentry/sentry-for-ai",
-      "sourceType": "github",
-      "skillPath": "skills-legacy/sentry-node-sdk/SKILL.md",
-      "computedHash": "bb6688a6e3c89e52bea2c3c10feab48fe7662392bd20e73745226111d8fd6da9"
-    },
-    "stripe": {
-      "source": "vercel-labs/emulate",
-      "sourceType": "github",
-      "skillPath": "skills/stripe/SKILL.md",
-      "computedHash": "d2e822c16e3e7698b719e9dd06e21ed1019cc37a62e29c1b51718da838ee106d"
-    },
-    "stripe-best-practices": {
-      "source": "stripe/ai",
-      "sourceType": "github",
-      "skillPath": "skills/stripe-best-practices/SKILL.md",
-      "computedHash": "5a7f79fbbaefef48f0666ea756c2fad7adcc2839f44f89674ac2a2ac980fd3be"
     },
     "tanstack-query-best-practices": {
       "source": "deckardger/tanstack-agent-skills",

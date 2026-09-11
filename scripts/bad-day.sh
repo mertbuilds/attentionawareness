@@ -27,14 +27,12 @@ done < <(find . -name node_modules -type d -prune -not -path './.git/*')
 
 for extra in \
   .turbo \
-  apps/api/dist \
   apps/web/.output \
   apps/web/.wrangler \
   apps/web/dist \
   apps/web/src/paraglide \
   e2e/playwright-report \
   e2e/test-results \
-  packages/db/generated \
   packages/ui/storybook-static \
   packages/ui/dist; do
   [[ -e "$extra" ]] && TARGETS+=("$extra")
@@ -67,4 +65,4 @@ else
   pnpm install
 fi
 
-echo "✓ Bad day handled. Run 'pnpm db:reset' too if the database is part of the problem."
+echo '✓ Bad day handled.'

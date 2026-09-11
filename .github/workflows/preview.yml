@@ -20,9 +20,6 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @keepyourattention/web build
-        env:
-          # Point the preview at the Dokploy api preview when it exists, else staging.
-          VITE_API_URL: ${{ vars.PREVIEW_API_URL || vars.API_URL }}
       - name: Upload preview version
         id: upload
         uses: cloudflare/wrangler-action@v3
@@ -48,8 +45,3 @@ jobs:
             } else {
               await github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body });
             }
-
-  # api previews are handled by Dokploy's native Preview Deployments feature
-  # (enable per-app in the Dokploy UI; it builds the PR branch and serves it at
-  # pr-<n>.<your-api-domain> via Traefik, and tears it down on PR close).
-  # Nothing to do in Actions for that path.

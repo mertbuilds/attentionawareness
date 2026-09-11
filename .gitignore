@@ -19,8 +19,7 @@ coverage/
 .env*
 !.env.example
 
-# generated code (rebuilt by dev:setup / build)
-packages/db/generated/
+# generated code (rebuilt by build)
 apps/web/src/paraglide/
 apps/web/src/routeTree.gen.ts
 apps/web/worker-configuration.d.ts
