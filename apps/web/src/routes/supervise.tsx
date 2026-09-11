@@ -22,7 +22,7 @@ export const Route = createFileRoute('/supervise')({
   head: () => ({ meta: [{ title: m.sup_head_title() }] }),
 });
 
-const CHECKLIST_KEY = 'kya:supervise-checklist';
+const CHECKLIST_KEY = 'aa:supervise-checklist';
 const HOME_URL = '/';
 const TECH_LOCKDOWN_URL = 'https://www.techlockdown.com';
 const STOPA_URL = 'https://stopa.io/post/297';

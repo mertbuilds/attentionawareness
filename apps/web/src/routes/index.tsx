@@ -54,11 +54,11 @@ export const Route = createFileRoute('/')({
   component: Generator,
 });
 
-const STORAGE_KEY = 'kya:config';
-const SOUND_KEY = 'kya:sound';
-const GENERATED_KEY = 'kya:generated';
-const SUPERVISED_KEY = 'kya:supervised';
-const PERMANENT_KEY = 'kya:permanent-ack';
+const STORAGE_KEY = 'aa:config';
+const SOUND_KEY = 'aa:sound';
+const GENERATED_KEY = 'aa:generated';
+const SUPERVISED_KEY = 'aa:supervised';
+const PERMANENT_KEY = 'aa:permanent-ack';
 /**
  * The one display size on the page. Only the hero lines and the years the
  * habit costs are set in it; every other heading is one step down.
@@ -177,7 +177,7 @@ type SiteRow =
   | { enabled: boolean; index: number; kind: 'custom'; url: string };
 
 /**
- * What `kya:config` holds. The blocked sites are derived from the blocked
+ * What `aa:config` holds. The blocked sites are derived from the blocked
  * apps, so only the lists that cannot be derived are stored next to the
  * config: the user's own urls, the derived ones they turned off, and the
  * derived ones they deleted outright.
