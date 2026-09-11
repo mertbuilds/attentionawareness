@@ -86,12 +86,27 @@ describe('POST /api/sign', () => {
     expect(one).not.toBe(two);
   });
 
-  it('locks the profile whatever the body asks for', async () => {
+  it('locks the profile when the body says nothing about removal', async () => {
+    const response = await sign(payload());
+
+    expect(await signedXml(response)).toContain('<key>PayloadRemovalDisallowed</key><true/>');
+  });
+
+  it('leaves a trial profile removable when the body asks for one', async () => {
     const response = await sign({
       config: { ...(payload() as { config: object }).config, lockRemoval: false },
     });
 
-    expect(await signedXml(response)).toContain('<key>PayloadRemovalDisallowed</key><true/>');
+    expect(await signedXml(response)).toContain('<key>PayloadRemovalDisallowed</key><false/>');
+  });
+
+  it('turns down a removal lock that is not a boolean', async () => {
+    const response = await sign({
+      config: { ...(payload() as { config: object }).config, lockRemoval: 'no' },
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: expect.stringContaining('lockRemoval') });
   });
 
   it('turns down a bundle id that is not one', async () => {

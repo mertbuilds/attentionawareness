@@ -20,8 +20,9 @@ structure (PKCS#7, DER) and gives iOS three things:
   `com.keepyourattention.<uuid>` for every single download and ignores whatever
   the browser sent. Two downloads are two different profiles: the second one
   stacks on the first instead of replacing it. Together with
-  `PayloadRemovalDisallowed`, which the server also forces, an installed
-  profile comes off an erased phone and no other way.
+  `PayloadRemovalDisallowed`, an installed profile comes off an erased phone
+  and no other way. A trial profile is the one exception: the reader asks for
+  it, `PayloadRemovalDisallowed` is `false`, and Settings takes it off.
 
 The content is **enveloping**, not detached: the profile XML travels inside the
 signature. That is the only form Apple's profile installer reads.

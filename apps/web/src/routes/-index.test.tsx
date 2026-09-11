@@ -67,7 +67,6 @@ async function answer(input: string, init?: RequestInit): Promise<Response> {
         ...config,
         displayName: 'keepyourattention',
         identifier: SIGNED_IDENTIFIER,
-        lockRemoval: true,
         organization: 'keepyourattention',
       }),
       { status: 200 },
@@ -100,6 +99,11 @@ async function tickSupervised(): Promise<void> {
 /** The download's own gate: the profile cannot be taken off afterwards. */
 async function tickPermanent(): Promise<void> {
   await userEvent.click(screen.getByRole('checkbox', { name: m.gen_permanent_check() }));
+}
+
+/** Trial mode: the profile stays removable, so the download asks for less. */
+async function tickTrial(): Promise<void> {
+  await userEvent.click(screen.getByRole('checkbox', { name: m.gen_trial_check() }));
 }
 
 /** Both gates, which is what the download asks for. */
@@ -453,6 +457,17 @@ describe('Generator', () => {
     expect(screen.getByText(m.gen_summary_adult())).toBeInTheDocument();
   });
 
+  it('pills the profile as locked, and as removable in trial mode', async () => {
+    await renderPage();
+
+    expect(screen.getByText(m.gen_summary_locked_on())).toBeInTheDocument();
+
+    await tickTrial();
+
+    expect(screen.getByText(m.gen_summary_locked_off())).toBeInTheDocument();
+    expect(screen.queryByText(m.gen_summary_locked_on())).not.toBeInTheDocument();
+  });
+
   it('links the repository from the footer', async () => {
     await renderPage();
 
@@ -534,6 +549,36 @@ describe('Generator', () => {
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
 
     expect(await downloadedXml()).toContain('<key>PayloadRemovalDisallowed</key><true/>');
+  });
+
+  it('asks for no permanence tick in trial mode, and says which profile it hands over', async () => {
+    await renderPage();
+    await tickSupervised();
+    await tickTrial();
+
+    expect(
+      screen.queryByRole('checkbox', { name: m.gen_permanent_check() }),
+    ).not.toBeInTheDocument();
+    const download = screen.getByRole('button', { name: m.gen_download_trial() });
+    expect(download).toBeEnabled();
+
+    fireEvent.click(download);
+
+    expect(await downloadedXml()).toContain('<key>PayloadRemovalDisallowed</key><false/>');
+  });
+
+  it('asks for the permanence tick again when trial mode goes back off', async () => {
+    await renderPage();
+    await tickSupervised();
+    await tickTrial();
+    await tickTrial();
+
+    expect(screen.getByRole('checkbox', { name: m.gen_permanent_check() })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: m.gen_download() })).toBeDisabled();
+
+    await tickPermanent();
+
+    expect(screen.getByRole('button', { name: m.gen_download() })).toBeEnabled();
   });
 
   it('answers seven objections', async () => {
@@ -852,6 +897,7 @@ describe('Generator', () => {
       'allowPrivateBrowsing',
       'autoFilterAdult',
       'blockedApps',
+      'lockRemoval',
       'webFilter',
     ]);
   });
