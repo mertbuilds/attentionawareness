@@ -94,9 +94,11 @@ const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 const REMOVE_CONFIRM_MS = 3000;
 /**
  * The popover hangs a few pixels under its button, so the pointer crosses bare
- * page on its way in. This is how long that trip is allowed to take.
+ * page on its way in. This is how long that trip is allowed to take: an
+ * unhurried hand takes longer than a quick one, and the trip itself is bridged
+ * by the popovers, so the wait can be generous.
  */
-const HELP_GRACE_MS = 120;
+const HELP_GRACE_MS = 250;
 /**
  * The armed control is tracked by id, and the reset link needs one too. A colon
  * is not legal in a bundle id, so this can never collide with an app's row.
@@ -411,6 +413,16 @@ const styles = create({
   // Hangs under the button, aligned to its left edge. It sits inside a heading,
   // so it takes back the type the heading set.
   helpPopover: {
+    // The 8px of bare page under the button, covered by the box itself, so a
+    // pointer crossing into the box never leaves the pair.
+    '::before': {
+      content: '',
+      height: 8,
+      insetBlockStart: -8,
+      insetInlineEnd: 0,
+      insetInlineStart: 0,
+      position: 'absolute',
+    },
     animationDuration: {
       '@media (prefers-reduced-motion: reduce)': '0ms',
       default: '150ms',
@@ -723,6 +735,17 @@ const styles = create({
   // Sits straight under the pill, with no gap to cross: the pointer moving
   // from one to the other never leaves the pair.
   previewPopover: {
+    // The box is placed at the pill's bottom edge, so the two only ever meet
+    // at a seam. This carries the seam, and the pixel either side of it, with
+    // the box: the pointer crossing in never touches bare page.
+    '::before': {
+      content: '',
+      height: 6,
+      insetBlockStart: -6,
+      insetInlineEnd: 0,
+      insetInlineStart: 0,
+      position: 'absolute',
+    },
     animationDuration: {
       '@media (prefers-reduced-motion: reduce)': '0ms',
       default: '150ms',
@@ -1691,8 +1714,17 @@ function ScreenTimeHelp() {
         aria-describedby={open && !isMobile ? popoverId : undefined}
         aria-label={m.home_math_help_label()}
         // The sheet takes the focus with it, and a blur that closes it would
-        // shut it on the way in.
-        onBlur={isMobile ? undefined : hide}
+        // shut it on the way in. The popover hangs inside this wrapper, so
+        // only focus that lands outside the pair is a reason to close.
+        onBlur={
+          isMobile
+            ? undefined
+            : (event) => {
+                if (wrap.current?.contains(event.relatedTarget) !== true) {
+                  hide();
+                }
+              }
+        }
         onClick={show}
         onFocus={isMobile ? undefined : show}
         type="button"
@@ -1706,7 +1738,14 @@ function ScreenTimeHelp() {
           <ScreenTimeClip style={styles.helpSheetSlot} videoUrl={videoUrl} />
         </Sheet>
       ) : open ? (
-        <span id={popoverId} role="tooltip" {...props(styles.helpPopover)}>
+        <span
+          id={popoverId}
+          // A press inside the box keeps the button's focus, so the blur that
+          // would shut the box under the pointer never fires.
+          onPointerDown={(event) => event.preventDefault()}
+          role="tooltip"
+          {...props(styles.helpPopover)}
+        >
           <span {...props(styles.helpTitle)}>{m.home_math_help_title()}</span>
           <span {...props(styles.helpText)}>{m.home_math_help_body()}</span>
           <ScreenTimeClip videoUrl={videoUrl} />
@@ -1714,6 +1753,14 @@ function ScreenTimeHelp() {
       ) : null}
     </span>
   );
+}
+
+/**
+ * The popover is portalled out of its pill, so "inside the tooltip" is two
+ * subtrees, not one: the pill's wrapper and the box on the body.
+ */
+function insidePair(wrap: HTMLElement | null, popover: HTMLElement | null, node: Node | null) {
+  return wrap?.contains(node) === true || popover?.contains(node) === true;
 }
 
 /**
@@ -1739,6 +1786,8 @@ function PreviewMore({
   const [at, setAt] = useState<{ left: number; top: number }>({ left: 0, top: 0 });
   const listId = useId();
   const wrap = useRef<HTMLSpanElement>(null);
+  // The box itself, which the portal puts outside the wrapper's subtree.
+  const popover = useRef<HTMLSpanElement>(null);
   const grace = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // A grace period that outlives the popover must not fire into nothing.
@@ -1764,7 +1813,7 @@ function PreviewMore({
       }
     }
     function onPointerDown(event: PointerEvent) {
-      if (wrap.current?.contains(event.target as Node | null) !== true) {
+      if (!insidePair(wrap.current, popover.current, event.target as Node | null)) {
         setOpen(false);
       }
     }
@@ -1831,8 +1880,17 @@ function PreviewMore({
         aria-describedby={open && !isMobile ? listId : undefined}
         aria-expanded={open}
         // The sheet takes the focus with it, and a blur that closes it would
-        // shut it on the way in.
-        onBlur={isMobile ? undefined : () => setOpen(false)}
+        // shut it on the way in. A press inside the box blurs the button as
+        // well, so only focus that lands outside the pair closes it.
+        onBlur={
+          isMobile
+            ? undefined
+            : (event) => {
+                if (!insidePair(wrap.current, popover.current, event.relatedTarget)) {
+                  setOpen(false);
+                }
+              }
+        }
         onClick={show}
         onFocus={isMobile ? undefined : show}
         type="button"
@@ -1848,8 +1906,12 @@ function PreviewMore({
         createPortal(
           <span
             id={listId}
+            // A press inside the box keeps the button's focus, so the blur that
+            // would shut the box under the pointer never fires.
+            onPointerDown={(event) => event.preventDefault()}
             onPointerEnter={show}
             onPointerLeave={hideAfterGrace}
+            ref={popover}
             role="tooltip"
             {...props(styles.previewPopover, styles.previewPopoverAt(at.top, at.left))}
           >
