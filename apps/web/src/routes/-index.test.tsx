@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { presets } from '../lib/profile/index.ts';
@@ -745,6 +745,23 @@ describe('Generator', () => {
     // The second click is the reader's own, so the dialog comes back.
     await userEvent.click(screen.getByRole('button', { name: m.share_reopen() }));
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('opens the share dialog on its close button, with the card fan out of reach', async () => {
+    await renderPage();
+    await tickSupervised();
+    // The fan on the page itself is the interactive one, and stays that way.
+    expect(screen.getByRole('button', { name: 'YouTube' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).queryByRole('button', { name: 'YouTube' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    // The dialog moves the focus a tick after it mounts.
+    await waitFor(() =>
+      expect(within(dialog).getByRole('button', { name: 'Close' })).toHaveFocus(),
+    );
   });
 
   it('opens the share dialog when the XML is copied instead', async () => {

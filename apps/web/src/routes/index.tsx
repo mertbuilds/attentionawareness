@@ -3110,7 +3110,16 @@ function Generator() {
         </section>
 
         <Dialog onOpenChange={setShareOpen} open={shareOpen}>
-          <DialogContent style={styles.shareDialog}>
+          <DialogContent
+            // The download opens this dialog on its own, so the focus lands on
+            // the way out of it, not on the first control inside the card.
+            initialFocus={() =>
+              document.querySelector<HTMLElement>(
+                '[data-slot="dialog-content"] [data-slot="dialog-close"]',
+              )
+            }
+            style={styles.shareDialog}
+          >
             <DialogHeader>
               <DialogTitle style={styles.sectionTitle}>{m.share_heading_output()}</DialogTitle>
             </DialogHeader>

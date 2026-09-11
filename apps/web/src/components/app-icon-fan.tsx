@@ -22,9 +22,10 @@ const styles = create({
     height: 32,
     width: 32,
   },
-  fanItem: {
+  // The button reset and everything the pop needs; the static fan takes none
+  // of it.
+  fanButton: {
     backgroundColor: 'transparent',
-    borderRadius: 9,
     borderStyle: 'none',
     borderWidth: 0,
     boxShadow: {
@@ -32,18 +33,21 @@ const styles = create({
       default: null,
     },
     cursor: 'pointer',
-    display: 'block',
-    lineHeight: 0,
     margin: 0,
     outlineStyle: 'none',
     padding: 0,
-    position: 'relative',
     transitionDuration: {
       '@media (prefers-reduced-motion: reduce)': '0ms',
       default: '220ms',
     },
     transitionProperty: 'transform',
     transitionTimingFunction: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
+  },
+  fanItem: {
+    borderRadius: 9,
+    display: 'block',
+    lineHeight: 0,
+    position: 'relative',
   },
   fanNudgeEnd: {
     transform: {
@@ -94,12 +98,43 @@ const styles = create({
  * eases its neighbours aside; touch, which has no hover, toggles the same pop
  * on tap. The popped icon names itself in a tooltip, so the fan reads without
  * a pointer resting on it. Only one icon pops, so one tooltip id is enough.
+ *
+ * `interactive={false}` draws the same stack out of plain spans: no focus
+ * stop, no pop, no tooltip. The share card wants a picture of the fan, and a
+ * focus stop there catches the focus a dialog moves inside on open.
  */
-export function AppIconFan({ apps, meta }: { apps: ReadonlyArray<BlockedApp>; meta: MetaCache }) {
+export function AppIconFan({
+  apps,
+  interactive = true,
+  meta,
+}: {
+  apps: ReadonlyArray<BlockedApp>;
+  interactive?: boolean | undefined;
+  meta: MetaCache;
+}) {
   const [popped, setPopped] = useState<string | null>(null);
   const tooltipId = useId();
   const poppedIndex = apps.findIndex((app) => app.bundleId === popped);
   const hasPop = poppedIndex !== -1;
+
+  if (!interactive) {
+    return (
+      <span {...props(styles.fan)}>
+        {apps.map((app, index) => (
+          <span
+            key={app.bundleId}
+            {...props(
+              styles.fanItem,
+              index > 0 && styles.fanOverlap,
+              styles.fanStack(apps.length - index),
+            )}
+          >
+            <AppArtwork meta={meta[app.bundleId]} name={app.name} style={styles.fanArtwork} />
+          </span>
+        ))}
+      </span>
+    );
+  }
 
   return (
     <span {...props(styles.fan)}>
@@ -129,6 +164,7 @@ export function AppIconFan({ apps, meta }: { apps: ReadonlyArray<BlockedApp>; me
           type="button"
           {...props(
             styles.fanItem,
+            styles.fanButton,
             index > 0 && styles.fanOverlap,
             // Earlier icons overlap later ones: the first app owns the top of
             // the stack, the last one the bottom.
