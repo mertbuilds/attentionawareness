@@ -69,6 +69,23 @@ describe('buildProfile', () => {
     expect(xml).not.toContain('CCCCCCCC');
   });
 
+  it('mints its own v4 where crypto.randomUUID is missing', () => {
+    const real = crypto.randomUUID;
+    Object.defineProperty(crypto, 'randomUUID', { configurable: true, value: undefined });
+    try {
+      const uuids = [
+        ...buildProfile(baseConfig).matchAll(/<key>PayloadUUID<\/key><string>([^<]+)<\/string>/g),
+      ].map((match) => match[1] ?? '');
+      expect(uuids).toHaveLength(3);
+      expect(new Set(uuids).size).toBe(uuids.length);
+      for (const uuid of uuids) {
+        expect(uuid).toMatch(/^[\dA-F]{8}-[\dA-F]{4}-4[\dA-F]{3}-[89AB][\dA-F]{3}-[\dA-F]{12}$/);
+      }
+    } finally {
+      Object.defineProperty(crypto, 'randomUUID', { configurable: true, value: real });
+    }
+  });
+
   it('escapes XML special characters', () => {
     const xml = buildProfile(
       config({

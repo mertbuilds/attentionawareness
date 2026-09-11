@@ -25,8 +25,30 @@ export class InvalidProfileIdentifierError extends Error {
   }
 }
 
+/**
+ * `crypto.randomUUID` is secure-context only, and Safari had none before 15.4:
+ * an old iPhone, or one pointed at a plain http address, is exactly the phone
+ * this profile is built on. A payload UUID only has to be unique, and the
+ * signed download carries the server's own, so `getRandomValues` mints the v4
+ * where the shorthand is missing.
+ */
 function defaultUuid(): string {
-  return crypto.randomUUID();
+  const webCrypto: Partial<Crypto> = crypto;
+  if (webCrypto.randomUUID !== undefined) {
+    return webCrypto.randomUUID();
+  }
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  // The two nibbles that say which kind of UUID this is: version 4, variant 1.
+  bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x40;
+  bytes[8] = ((bytes[8] ?? 0) & 0x3f) | 0x80;
+  const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    hex.slice(12, 16),
+    hex.slice(16, 20),
+    hex.slice(20),
+  ].join('-');
 }
 
 /** Text nodes only, so the three structural characters are enough. */
