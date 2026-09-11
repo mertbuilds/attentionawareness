@@ -186,6 +186,18 @@ function setViewport(kind: 'desktop' | 'phone'): void {
   });
 }
 
+/** The shorthand every browser keeps for a secure origin, and only there. */
+const realRandomUuid = crypto.randomUUID;
+
+/**
+ * Safari has no `crypto.randomUUID` before 15.4, and no browser has one off a
+ * secure origin: the old iPhone this profile is for is where the local build
+ * has to hold up without it.
+ */
+function dropRandomUuid(): void {
+  Object.defineProperty(crypto, 'randomUUID', { configurable: true, value: undefined });
+}
+
 /** What the slider tells a screen reader at a given number of hours. */
 function hoursReading(hours: number): string {
   return `${m.home_math_hours({ hours })} ${m.home_math_hours_unit()}`;
@@ -224,6 +236,7 @@ describe('Generator', () => {
   beforeEach(() => {
     locale.current = 'en';
     setViewport('desktop');
+    Object.defineProperty(crypto, 'randomUUID', { configurable: true, value: realRandomUuid });
     createObjectURL.mockClear();
     fetchMock.mockClear();
     fetchMock.mockImplementation(answer);
@@ -967,6 +980,35 @@ describe('Generator', () => {
     expect(sheet).toHaveAttribute('data-vaul-drawer');
     expect(within(sheet).getByText(m.share_heading_output())).toBeInTheDocument();
     expect(within(sheet).getByRole('link', { name: m.share_x() })).toBeInTheDocument();
+  });
+
+  it('opens the download on both ticks on a phone with no randomUUID', async () => {
+    setViewport('phone');
+    dropRandomUuid();
+    await renderPage();
+
+    expect(screen.getByRole('button', { name: m.gen_download() })).toBeDisabled();
+
+    await tickGates();
+
+    expect(screen.getByRole('button', { name: m.gen_download() })).toBeEnabled();
+  });
+
+  it('shares from the phone sheet after the download, and reopens it', async () => {
+    setViewport('phone');
+    dropRandomUuid();
+    await renderPage();
+    await tickGates();
+
+    fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
+
+    expect(await screen.findByRole('dialog')).toHaveAttribute('data-vaul-drawer');
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    await userEvent.click(screen.getByRole('button', { name: m.share_reopen() }));
+
+    expect(await screen.findByRole('dialog')).toHaveAttribute('data-vaul-drawer');
   });
 
   it('opens on the hours and the apps a shared link carries', async () => {
