@@ -43,7 +43,7 @@
   "home_how_profile_title": "uygulama değil, bir profil",
   "home_how_profile_body": "iphone'lar yapılandırma profillerini kabul eder; şirketlerin iş telefonlarını yönetmek için kullandığı dosyaların aynısı. bu araç profili senin tarayıcında hazırlar. hiçbir şey sunucuya gitmez.",
   "home_how_websites_title": "web siteleri",
-  "home_how_websites_body": "profil, ios'un yerleşik web filtresini senin engel listenle açar. safari'de ve her uygulama içi tarayıcıda çalışır.",
+  "home_how_websites_body": "profil, ios'un yerleşik web filtresini engellediğin sitelerin listesiyle açar. telefondaki her tarayıcıda çalışır.",
   "home_how_apps_title": "uygulamalar",
   "home_how_apps_body": "ios uygulamaları paket kimliğine göre gizleyebilir. gizlenen uygulamalar app store'dan yine indirilebilir ama simgeleri hiç görünmez ve açılmazlar.",
   "home_how_supervision_title": "denetim",
