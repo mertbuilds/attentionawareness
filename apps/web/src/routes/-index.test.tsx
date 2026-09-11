@@ -230,12 +230,15 @@ describe('Generator', () => {
     expect(clip?.src).toMatch(/\/media\/screentime-v2\.mp4$/);
   });
 
-  it('states the deal as three facts', async () => {
+  it('states the deal as three value tiles', async () => {
     await renderPage();
 
-    expect(screen.getByText(m.home_deal_install_title())).toBeInTheDocument();
-    expect(screen.getByText(m.home_deal_free_title())).toBeInTheDocument();
-    expect(screen.getByText(m.home_deal_time_title())).toBeInTheDocument();
+    expect(screen.getByText('0')).toBeInTheDocument();
+    expect(screen.getByText('$0')).toBeInTheDocument();
+    expect(screen.getByText('45 min')).toBeInTheDocument();
+    expect(screen.getByText(m.home_deal_apps_label())).toBeInTheDocument();
+    expect(screen.getByText(m.home_deal_price_label())).toBeInTheDocument();
+    expect(screen.getByText(m.home_deal_time_label())).toBeInTheDocument();
   });
 
   it('answers six objections', async () => {

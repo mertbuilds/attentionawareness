@@ -15,16 +15,12 @@ const styles = create({
     marginInline: '0.3em',
     verticalAlign: 'middle',
   },
+  // One size at every width: the fan sits inside a 28px headline, and an icon
+  // taller than that line would push the sentence around it apart.
   fanArtwork: {
     borderRadius: 9,
-    height: {
-      '@media (min-width: 640px)': 40,
-      default: 32,
-    },
-    width: {
-      '@media (min-width: 640px)': 40,
-      default: 32,
-    },
+    height: 32,
+    width: 32,
   },
   fanItem: {
     backgroundColor: 'transparent',
@@ -62,10 +58,7 @@ const styles = create({
     },
   },
   fanOverlap: {
-    marginInlineStart: {
-      '@media (min-width: 640px)': -24,
-      default: -19,
-    },
+    marginInlineStart: -19,
   },
   fanPop: {
     transform: {
