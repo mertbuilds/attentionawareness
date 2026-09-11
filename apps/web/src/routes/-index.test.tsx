@@ -95,6 +95,18 @@ function removeButtonFor(bundleId: string): HTMLElement {
   return within(row as HTMLElement).getByRole('button', { name: m.gen_app_remove() });
 }
 
+/**
+ * The add button of one search result, found through its bundle id. The
+ * website box offers an add of its own, so the row is what tells them apart.
+ */
+function addButtonFor(bundleId: string): HTMLElement {
+  const row = screen.getByText(bundleId).closest('li');
+  if (row === null) {
+    throw new Error(`No result row for ${bundleId}`);
+  }
+  return within(row as HTMLElement).getByRole('button', { name: m.gen_app_add() });
+}
+
 /** The editable host of one row of the website box. */
 function siteRow(host: string): HTMLInputElement {
   return screen.getByLabelText(m.gen_web_row_edit({ site: host })) as HTMLInputElement;
@@ -309,12 +321,34 @@ describe('Generator', () => {
     expect(fan.lastElementChild).toHaveTextContent('+3');
   });
 
+  it('pills the adult filter in the profile preview once it is ticked', async () => {
+    await renderPage();
+
+    expect(screen.queryByText(m.gen_summary_adult())).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('checkbox', { name: m.gen_web_auto_filter() }));
+
+    expect(screen.getByText(m.gen_summary_adult())).toBeInTheDocument();
+  });
+
   it('links the repository from the footer', async () => {
     await renderPage();
 
     expect(screen.getByRole('link', { name: m.gen_footer_open_source_link() })).toHaveAttribute(
       'href',
       'https://github.com/mertbuilds/keepyourattention',
+    );
+  });
+
+  it('signs the footer as an awareness project, linked to its builder', async () => {
+    await renderPage();
+
+    const builder = screen.getByRole('link', { name: m.gen_footer_builder() });
+    expect(builder).toHaveAttribute('href', 'https://mertbuilds.com');
+    // The sentence is split around the link, so the line is read off the whole
+    // paragraph rather than one text node.
+    expect(builder.closest('p')).toHaveTextContent(
+      m.gen_footer_not_apple({ builder: m.gen_footer_builder() }),
     );
   });
 
@@ -449,7 +483,7 @@ describe('Generator', () => {
   it('lists nothing while the search box is empty', async () => {
     await renderPage();
 
-    expect(screen.queryByRole('button', { name: m.gen_app_add() })).not.toBeInTheDocument();
+    expect(screen.queryByText(SEARCH_RESULT.bundleId)).not.toBeInTheDocument();
     expect(screen.queryByText(m.gen_app_results_empty())).not.toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: m.gen_app_search_clear() }),
@@ -473,7 +507,8 @@ describe('Generator', () => {
     await renderPage();
 
     await userEvent.type(searchInput(), 'exam');
-    await userEvent.click(await screen.findByRole('button', { name: m.gen_app_add() }));
+    await screen.findByText(SEARCH_RESULT_NAME);
+    await userEvent.click(addButtonFor(SEARCH_RESULT.bundleId));
 
     expect(screen.getAllByRole('button', { name: m.gen_app_remove() })).toHaveLength(
       BLOCKED_APPS + 1,
@@ -493,7 +528,7 @@ describe('Generator', () => {
 
     expect(searchInput()).toHaveValue('');
     expect(searchInput()).toHaveFocus();
-    expect(screen.queryByRole('button', { name: m.gen_app_add() })).not.toBeInTheDocument();
+    expect(screen.queryByText(SEARCH_RESULT.bundleId)).not.toBeInTheDocument();
     expect(screen.queryByText(m.gen_app_results_empty())).not.toBeInTheDocument();
   });
 
@@ -631,7 +666,8 @@ describe('Generator', () => {
     await tickSupervised();
 
     await userEvent.type(searchInput(), 'exam');
-    await userEvent.click(await screen.findByRole('button', { name: m.gen_app_add() }));
+    await screen.findByText(SEARCH_RESULT_NAME);
+    await userEvent.click(addButtonFor(SEARCH_RESULT.bundleId));
 
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
     expect(await downloadedXml()).toContain('<string>https://example.com</string>');

@@ -7,7 +7,6 @@ import { PreferencesRow } from './preferences.tsx';
 
 const REPO_URL = 'https://github.com/mertbuilds/keepyourattention';
 const BUILDER_URL = 'https://mertbuilds.com';
-const STARTER_URL = 'https://cleanstarter.dev';
 /**
  * Where a link stands inside a sentence. The message is written with the link
  * as a placeholder and split on it, so the words around it keep their own
@@ -38,13 +37,11 @@ const styles = create({
 /**
  * The same footer on every page: what this is, who made it, and the theme and
  * language controls. A page with one more line of its own passes it in, and it
- * joins the column above the shared three.
+ * joins the column above the shared two.
  */
 export function SiteFooter({ children }: { children?: ReactNode | undefined }) {
   const [openBefore, openAfter] = m.gen_footer_open_source({ source: LINK_SLOT }).split(LINK_SLOT);
-  const [createdBefore, createdBetween, createdAfter] = m
-    .gen_footer_created({ builder: LINK_SLOT, starter: LINK_SLOT })
-    .split(LINK_SLOT);
+  const [appleBefore, appleAfter] = m.gen_footer_not_apple({ builder: LINK_SLOT }).split(LINK_SLOT);
 
   return (
     <footer {...props(styles.footer)}>
@@ -58,17 +55,12 @@ export function SiteFooter({ children }: { children?: ReactNode | undefined }) {
           {openAfter}
         </p>
         <p {...props(layout.muted)}>
-          {createdBefore}
-          <a href={STARTER_URL} rel="noreferrer" target="_blank">
-            {m.gen_footer_starter()}
-          </a>
-          {createdBetween}
+          {appleBefore}
           <a href={BUILDER_URL} rel="noreferrer" target="_blank">
             {m.gen_footer_builder()}
           </a>
-          {createdAfter}
+          {appleAfter}
         </p>
-        <p {...props(layout.muted)}>{m.gen_footer_not_apple()}</p>
       </div>
       <PreferencesRow />
     </footer>

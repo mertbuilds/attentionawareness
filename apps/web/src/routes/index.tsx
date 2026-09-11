@@ -1191,7 +1191,12 @@ const styles = create({
   },
   textarea: {
     backgroundColor: 'transparent',
-    borderColor: colors.border,
+    // The border is the focus ring, the same as the search bar and the site
+    // box, so the browser's own outline is dropped.
+    borderColor: {
+      ':focus-visible': colors.fg,
+      default: colors.border,
+    },
     borderRadius: radius.base,
     borderStyle: 'solid',
     borderWidth: '1px',
@@ -1199,6 +1204,7 @@ const styles = create({
     fontFamily: MONOSPACE,
     fontSize: font.sizeSm,
     minHeight: 120,
+    outlineStyle: 'none',
     padding: spacing.s2,
     resize: 'vertical',
     width: '100%',
@@ -3053,6 +3059,9 @@ function Generator() {
                   <Badge variant="outline">
                     {config.lockRemoval ? m.gen_summary_locked_on() : m.gen_summary_locked_off()}
                   </Badge>
+                  {config.autoFilterAdult ? (
+                    <Badge variant="outline">{m.gen_summary_adult()}</Badge>
+                  ) : null}
                 </div>
               </div>
               <div {...props(styles.row)}>
