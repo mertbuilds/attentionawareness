@@ -106,7 +106,7 @@ const PREVIEW_SITES = 6;
 const ROW_APPS = 3;
 /** What the screen-time slider offers, in hours a day. */
 const HOURS_MIN = 1;
-const HOURS_MAX = 10;
+const HOURS_MAX = 12;
 const HOURS_STEP = 0.5;
 const HOURS_DEFAULT = 4;
 /** The machined knob, and the rail the ticks are measured against. */
@@ -320,8 +320,8 @@ const styles = create({
     lineHeight: 1.5,
     textWrap: 'pretty',
   },
-  // The control: rail and detents on the left, the number they read on the
-  // right. On a phone the number drops under the rail instead of squeezing it.
+  // The control: rail and detents across the row, the speaker at the end of
+  // it. The number the dial reads is in the sentence under it.
   dial: {
     alignItems: 'center',
     display: 'flex',
@@ -659,42 +659,6 @@ const styles = create({
   },
   quiet: {
     color: colors.muted,
-  },
-  // The instrument's own display: one number, monospaced, never reflowing.
-  readout: {
-    alignItems: 'baseline',
-    display: 'flex',
-    flexShrink: 0,
-    gap: 4,
-  },
-  readoutRow: {
-    alignItems: 'center',
-    display: 'flex',
-    flexShrink: 0,
-    gap: spacing.s2,
-  },
-  readoutUnit: {
-    color: colors.muted,
-    flexShrink: 0,
-    fontFamily: MONOSPACE,
-    fontSize: 20,
-    fontWeight: font.weightMedium,
-    lineHeight: 1,
-  },
-  // A half hour is one character wider than a whole one, so the box is sized
-  // for the longest reading and the number is set against its right edge. The
-  // rail beside it keeps its width while the knob moves.
-  readoutValue: {
-    flexShrink: 0,
-    fontFamily: MONOSPACE,
-    fontSize: 40,
-    fontVariantNumeric: 'tabular-nums',
-    fontWeight: font.weightMedium,
-    letterSpacing: '-0.02em',
-    lineHeight: 1,
-    textAlign: 'right',
-    whiteSpace: 'nowrap',
-    width: '5ch',
   },
   // The one destructive colour on the page: it means "this click deletes".
   removeArmed: {
@@ -2363,8 +2327,11 @@ function Generator() {
         ? m.gen_copy_fallback()
         : m.gen_copy();
 
-  // The number the whole narrative is written around.
+  // The number the whole narrative is written around, and the dial's own
+  // reading: the sentence prints it, and the slider says it out loud.
   const years = formatYears(hours);
+  const hoursText = m.home_math_hours({ hours });
+  const hoursReading = `${hoursText} ${m.home_math_hours_unit()}`;
   // How far along the rail the dial has been turned, and what it has cost.
   const travelled = ((hours - HOURS_MIN) / (HOURS_MAX - HOURS_MIN)) * 100;
   const ledger = ledgerItems(hours, getLocale());
@@ -2432,6 +2399,7 @@ function Generator() {
               <Label style={styles.sliderLabel}>
                 <span {...props(styles.srOnly)}>{m.home_math_slider_label()}</span>
                 <input
+                  aria-valuetext={hoursReading}
                   max={HOURS_MAX}
                   min={HOURS_MIN}
                   onChange={(event) => onHoursChange(Number(event.target.value))}
@@ -2455,45 +2423,45 @@ function Generator() {
                 ))}
               </div>
             </div>
-            <div {...props(styles.readoutRow)}>
-              <span {...props(styles.readout)}>
-                <span {...props(styles.readoutValue)}>{m.home_math_hours({ hours })}</span>
-                <span {...props(styles.readoutUnit)}>{m.home_math_hours_unit()}</span>
-              </span>
-              <button
-                aria-label={m.home_math_sound_label()}
-                aria-pressed={sound}
-                onClick={toggleSound}
-                type="button"
-                {...props(styles.soundButton)}
-              >
-                <svg aria-hidden="true" viewBox="0 0 18 18" {...props(styles.soundGlyph)}>
-                  <path d="M4 7H2v4h2l3.5 3V4L4 7Z" fill="currentColor" />
-                  {sound ? (
-                    <path
-                      d="M10.5 6.5a3.4 3.4 0 0 1 0 5"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeLinecap="round"
-                      strokeWidth="1.4"
-                    />
-                  ) : (
-                    <path
-                      d="m10.5 6.5 4 5m0-5-4 5"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeLinecap="round"
-                      strokeWidth="1.4"
-                    />
-                  )}
-                </svg>
-              </button>
-            </div>
+            <button
+              aria-label={m.home_math_sound_label()}
+              aria-pressed={sound}
+              onClick={toggleSound}
+              type="button"
+              {...props(styles.soundButton)}
+            >
+              <svg aria-hidden="true" viewBox="0 0 18 18" {...props(styles.soundGlyph)}>
+                <path d="M4 7H2v4h2l3.5 3V4L4 7Z" fill="currentColor" />
+                {sound ? (
+                  <path
+                    d="M10.5 6.5a3.4 3.4 0 0 1 0 5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeWidth="1.4"
+                  />
+                ) : (
+                  <path
+                    d="m10.5 6.5 4 5m0-5-4 5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeWidth="1.4"
+                  />
+                )}
+              </svg>
+            </button>
           </div>
-          {/* The years are the loss, so they are the only colour in the line. */}
+          {/* The hours are what the reader gives and the years are what it
+              costs, so those two numbers are the only colour in the line. */}
           <p {...props(styles.mathResult)}>
-            {m.home_math_result_before()} <span {...props(styles.burn)}>{years}</span>{' '}
-            {m.home_math_result_after()}
+            {m.home_math_result_hours_before()}
+            <span {...props(styles.burn)}>{hoursText}</span>
+            {hours === 1
+              ? m.home_math_result_hours_between_one()
+              : m.home_math_result_hours_between()}
+            <span {...props(styles.burn)}>{years}</span>
+            {m.home_math_result_hours_after()}
           </p>
           <h3 {...props(styles.label)}>{m.home_ledger_title()}</h3>
           <ul {...props(styles.ledger)}>

@@ -127,7 +127,7 @@ function previewFan(apps: number): HTMLElement {
   return fan as HTMLElement;
 }
 
-/** The speaker toggle beside the readout. */
+/** The speaker toggle at the end of the dial. */
 function speaker(): HTMLElement {
   return screen.getByRole('button', { name: m.home_math_sound_label() });
 }
@@ -137,18 +137,9 @@ function helpButton(): HTMLElement {
   return screen.getByRole('button', { name: m.home_math_help_label() });
 }
 
-/** The dial's display, read as one string: the number and its unit. */
-function readout(): string {
-  const row = speaker().parentElement;
-  if (row === null) {
-    throw new Error('The speaker should sit beside the readout');
-  }
-  return row.textContent ?? '';
-}
-
-/** What the display reads at a given number of hours. */
+/** What the slider tells a screen reader at a given number of hours. */
 function hoursReading(hours: number): string {
-  return `${m.home_math_hours({ hours })}${m.home_math_hours_unit()}`;
+  return `${m.home_math_hours({ hours })} ${m.home_math_hours_unit()}`;
 }
 
 /** The lines of the ledger under the bar. */
@@ -160,9 +151,14 @@ function ledgerLines(): NodeListOf<HTMLLIElement> {
   return list.querySelectorAll('li');
 }
 
-/** The sentence under the dial: the years the habit takes out of the next 20. */
+/** The sentence under the dial: the hours, and the years they take. */
 function mathResult(): HTMLElement {
-  return screen.getByText(m.home_math_result_after(), { exact: false });
+  return screen.getByText(m.home_math_result_hours_after(), { exact: false });
+}
+
+/** The two numbers that sentence prints in the accent colour. */
+function mathNumbers(): Array<string> {
+  return Array.from(mathResult().querySelectorAll('span'), (span) => span.textContent ?? '');
 }
 
 async function downloadedXml(): Promise<string> {
@@ -198,15 +194,19 @@ describe('Generator', () => {
     await renderPage();
 
     expect(screen.getByRole('slider')).toHaveValue('4');
-    expect(readout()).toBe(hoursReading(4));
-    expect(mathResult()).toHaveTextContent('5');
+    expect(mathResult()).toHaveTextContent(
+      `4${m.home_math_result_hours_between()}5${m.home_math_result_hours_after()}`,
+    );
+    expect(mathNumbers()).toEqual(['4', '5']);
   });
 
   it('marks every half hour of the travel with its own detent', async () => {
     await renderPage();
     const rail = screen.getByRole('slider').closest('div')?.parentElement;
+    const marks = Array.from(rail?.querySelectorAll('div[aria-hidden="true"] > span') ?? []);
 
-    expect(rail?.querySelectorAll('div[aria-hidden="true"] > span')).toHaveLength(19);
+    expect(marks).toHaveLength(23);
+    expect(marks.at(-1)).toHaveTextContent('12');
   });
 
   it('recounts the years when the slider moves', async () => {
@@ -214,8 +214,22 @@ describe('Generator', () => {
 
     fireEvent.change(screen.getByRole('slider'), { target: { value: '6' } });
 
-    expect(readout()).toBe(hoursReading(6));
-    expect(mathResult()).toHaveTextContent('7.5');
+    expect(mathNumbers()).toEqual(['6', '7.5']);
+
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '12' } });
+
+    expect(mathNumbers()).toEqual(['12', '15']);
+  });
+
+  it('keeps the reading on the slider, with no display beside the rail', async () => {
+    await renderPage();
+
+    expect(screen.getByRole('slider')).toHaveAttribute('aria-valuetext', hoursReading(4));
+
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '5.5' } });
+
+    expect(screen.getByRole('slider')).toHaveAttribute('aria-valuetext', hoursReading(5.5));
+    expect(screen.queryByText(m.home_math_hours_unit())).not.toBeInTheDocument();
   });
 
   it('bills more of the ledger the longer the day is', async () => {
@@ -733,7 +747,14 @@ describe('Generator', () => {
 
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText(m.share_heading_output())).toBeInTheDocument();
-    expect(within(dialog).getByText(m.share_card_years({ years: '5' }))).toBeInTheDocument();
+    // The card paints the number and its unit in one line but two colours, so
+    // the line reads whole only from the paragraph that holds both.
+    expect(
+      within(dialog).getByText(
+        (_, element) =>
+          element?.tagName === 'P' && element.textContent === m.share_card_years({ years: '5' }),
+      ),
+    ).toBeInTheDocument();
     expect(within(dialog).getByRole('link', { name: m.share_x() })).toHaveAttribute(
       'href',
       expect.stringContaining('intent/post'),

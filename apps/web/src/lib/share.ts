@@ -11,7 +11,7 @@ const NAMED_APPS = 3;
 
 /** The slider's own range, so a tampered `h` lands somewhere it can render. */
 const HOURS_MIN = 1;
-const HOURS_MAX = 10;
+const HOURS_MAX = 12;
 
 /** Anything a bundle id may be made of. Everything else is junk. */
 const BUNDLE_ID_PATTERN = /^[a-z0-9.-]+$/iu;
