@@ -32,13 +32,16 @@ const THEME_NAMES: Record<ThemeChoice, () => string> = {
 };
 
 const styles = create({
+  // Height, border, radius and text size are the segmented control's, so the
+  // two boxes of the row are one shape repeated.
   control: {
     alignItems: 'center',
     backgroundColor: colors.bg,
     borderColor: colors.border,
-    borderRadius: radius.base,
+    borderRadius: 10,
     borderStyle: 'solid',
     borderWidth: '1px',
+    boxSizing: 'border-box',
     color: {
       ':hover': colors.fg,
       default: colors.muted,
@@ -46,11 +49,12 @@ const styles = create({
     cursor: 'pointer',
     display: 'flex',
     fontFamily: 'inherit',
-    fontSize: 12,
+    fontSize: font.sizeSm,
     gap: spacing.s1,
+    height: 36,
     lineHeight: 1,
-    paddingBlock: 6,
-    paddingInline: spacing.s2,
+    paddingBlock: 0,
+    paddingInline: 14,
     whiteSpace: 'nowrap',
   },
   flag: {
@@ -101,9 +105,17 @@ const styles = create({
   optionSelected: {
     fontWeight: font.weightMedium,
   },
+  // Theme first, language to its right. The two only break into separate
+  // lines when the column they sit in is too narrow to hold both.
+  preferencesRow: {
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: spacing.s3,
+  },
   segment: {
     backgroundColor: 'transparent',
-    borderRadius: radius.base,
     borderStyle: 'none',
     borderWidth: 0,
     color: {
@@ -112,21 +124,33 @@ const styles = create({
     },
     cursor: 'pointer',
     fontFamily: 'inherit',
-    fontSize: 12,
+    fontSize: font.sizeSm,
     lineHeight: 1,
-    paddingBlock: 5,
-    paddingInline: spacing.s2,
+    paddingBlock: 0,
+    paddingInline: 14,
   },
+  // No inner padding: the segments fill the box edge to edge, so the picked
+  // one is a flush fill instead of a pill floating inside a frame.
   segmented: {
-    alignItems: 'center',
+    alignItems: 'stretch',
     backgroundColor: colors.bg,
     borderColor: colors.border,
-    borderRadius: radius.base,
+    borderRadius: 10,
     borderStyle: 'solid',
     borderWidth: '1px',
+    boxSizing: 'border-box',
     display: 'flex',
-    gap: 2,
-    padding: 1,
+    height: 36,
+  },
+  // The outer 10px less the 1px border, so a filled end segment follows the
+  // curve of the box instead of poking a square corner through it.
+  segmentFirst: {
+    borderEndStartRadius: 9,
+    borderStartStartRadius: 9,
+  },
+  segmentLast: {
+    borderEndEndRadius: 9,
+    borderStartEndRadius: 9,
   },
   segmentOn: {
     backgroundColor: colors.fg,
@@ -136,7 +160,7 @@ const styles = create({
 
 /**
  * The theme control, written to `<html data-theme>`. It sits at the foot of the
- * page, under the language switch.
+ * page, left of the language switch.
  */
 export function ThemeSwitch() {
   // The stored choice is never read during the first render: the server has no
@@ -147,13 +171,18 @@ export function ThemeSwitch() {
 
   return (
     <div aria-label={m.pref_theme_label()} role="group" {...props(styles.segmented)}>
-      {themeChoices.map((choice) => (
+      {themeChoices.map((choice, index) => (
         <button
           aria-pressed={choice === theme}
           key={choice}
           onClick={() => applyTheme(choice)}
           type="button"
-          {...props(styles.segment, choice === theme && styles.segmentOn)}
+          {...props(
+            styles.segment,
+            index === 0 && styles.segmentFirst,
+            index === themeChoices.length - 1 && styles.segmentLast,
+            choice === theme && styles.segmentOn,
+          )}
         >
           {THEME_NAMES[choice]()}
         </button>
@@ -236,6 +265,19 @@ export function LanguageSwitch() {
           ))}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * Both controls as the single row the site footer shows: one box of segments
+ * for the theme, one button for the language, level with each other.
+ */
+export function PreferencesRow() {
+  return (
+    <div {...props(styles.preferencesRow)}>
+      <ThemeSwitch />
+      <LanguageSwitch />
     </div>
   );
 }

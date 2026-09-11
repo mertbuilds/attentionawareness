@@ -3,7 +3,7 @@ import { create, props } from '@stylexjs/stylex';
 import type { ReactNode } from 'react';
 import { layout } from '../lib/layout.ts';
 import { m } from '../paraglide/messages.js';
-import { LanguageSwitch, ThemeSwitch } from './preferences.tsx';
+import { PreferencesRow } from './preferences.tsx';
 
 const REPO_URL = 'https://github.com/mertbuilds/keepyourattention';
 const BUILDER_URL = 'https://mertbuilds.com';
@@ -16,10 +16,11 @@ const STARTER_URL = 'https://cleanstarter.dev';
 const LINK_SLOT = '\u0000';
 
 const styles = create({
-  // The lines on one side, the two controls on the other, stacked on a phone.
-  // `stretch` gives the controls the height of the lines to spread over.
+  // The lines on one side, the controls on the other. That column is only as
+  // wide as the row, which holds it against the right edge, and the row aligns
+  // itself to the foot of the text. A phone has no second column, so the row
+  // wraps under the text, on its own left edge.
   footer: {
-    alignItems: 'stretch',
     display: 'grid',
     gap: spacing.s4,
     gridTemplateColumns: {
@@ -31,18 +32,6 @@ const styles = create({
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s1,
-  },
-  // Language on the first line, theme on the last. A phone has no second
-  // column, so both sit under the text, on its own left edge.
-  prefs: {
-    alignItems: {
-      '@media (min-width: 640px)': 'flex-end',
-      default: 'flex-start',
-    },
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s2,
-    justifyContent: 'space-between',
   },
 });
 
@@ -81,10 +70,7 @@ export function SiteFooter({ children }: { children?: ReactNode | undefined }) {
         </p>
         <p {...props(layout.muted)}>{m.gen_footer_not_apple()}</p>
       </div>
-      <div {...props(styles.prefs)}>
-        <LanguageSwitch />
-        <ThemeSwitch />
-      </div>
+      <PreferencesRow />
     </footer>
   );
 }
