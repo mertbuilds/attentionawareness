@@ -347,7 +347,7 @@ describe('Generator', () => {
     await userEvent.click(speaker());
 
     expect(speaker()).toHaveAttribute('aria-pressed', 'false');
-    expect(globalThis.localStorage.getItem('kya:sound')).toBe('false');
+    expect(globalThis.localStorage.getItem('aa:sound')).toBe('false');
   });
 
   it('folds the screen-time helper into a question mark', async () => {
@@ -428,7 +428,7 @@ describe('Generator', () => {
 
   it('counts the blocked apps the preview has no room for', async () => {
     globalThis.localStorage.setItem(
-      'kya:config',
+      'aa:config',
       JSON.stringify({
         ...presets.mert,
         blockedApps: [
@@ -521,13 +521,13 @@ describe('Generator', () => {
     await tickPermanent();
 
     expect(screen.getByRole('button', { name: m.gen_download() })).toBeEnabled();
-    expect(globalThis.localStorage.getItem('kya:supervised')).toBe('true');
-    expect(globalThis.localStorage.getItem('kya:permanent-ack')).toBe('true');
+    expect(globalThis.localStorage.getItem('aa:supervised')).toBe('true');
+    expect(globalThis.localStorage.getItem('aa:permanent-ack')).toBe('true');
   });
 
   it('opens on the ticks it remembered', async () => {
-    globalThis.localStorage.setItem('kya:supervised', 'true');
-    globalThis.localStorage.setItem('kya:permanent-ack', 'true');
+    globalThis.localStorage.setItem('aa:supervised', 'true');
+    globalThis.localStorage.setItem('aa:permanent-ack', 'true');
 
     await renderPage();
 
@@ -538,7 +538,7 @@ describe('Generator', () => {
 
   it('locks the profile removal without asking, even on an older config', async () => {
     globalThis.localStorage.setItem(
-      'kya:config',
+      'aa:config',
       JSON.stringify({ ...presets.mert, lockRemoval: false }),
     );
     await renderPage();
@@ -820,7 +820,7 @@ describe('Generator', () => {
 
   it('adopts the bare urls an older custom list stored', async () => {
     globalThis.localStorage.setItem(
-      'kya:config',
+      'aa:config',
       JSON.stringify({
         config: presets.mert,
         customSites: ['https://old.example'],
@@ -850,7 +850,7 @@ describe('Generator', () => {
 
   it('keeps the urls of an older stored config that no app implies', async () => {
     globalThis.localStorage.setItem(
-      'kya:config',
+      'aa:config',
       JSON.stringify({
         ...presets.mert,
         webFilter: {
@@ -1022,7 +1022,7 @@ describe('Generator', () => {
     await userEvent.click(screen.getByRole('button', { name: m.gen_copy() }));
 
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
-    expect(globalThis.localStorage.getItem('kya:generated')).toBe('true');
+    expect(globalThis.localStorage.getItem('aa:generated')).toBe('true');
   });
 
   it('copies the share link from the dialog', async () => {
@@ -1096,7 +1096,7 @@ describe('Generator', () => {
   it('keeps the shared list out of storage until the reader changes something', async () => {
     window.history.replaceState({}, '', '/?h=6&a=ig,tt');
     await renderPage();
-    expect(globalThis.localStorage.getItem('kya:config')).toBeNull();
+    expect(globalThis.localStorage.getItem('aa:config')).toBeNull();
 
     await userEvent.click(screen.getByRole('button', { name: m.share_banner_dismiss() }));
 

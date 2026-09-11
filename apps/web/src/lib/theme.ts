@@ -1,5 +1,5 @@
 /** Where the chosen theme is remembered, per browser. */
-export const THEME_KEY = 'kya:theme';
+export const THEME_KEY = 'aa:theme';
 
 /** The three states of the theme control, in the order it renders them. */
 export const themeChoices = ['system', 'light', 'dark'] as const;
