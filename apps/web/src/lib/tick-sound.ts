@@ -4,7 +4,7 @@ const END_HZ = 700;
 const TICK_SECONDS = 0.012;
 const END_SECONDS = 0.04;
 /** Loud enough to feel mechanical, quiet enough to drag the slider with. */
-const PEAK_GAIN = 0.08;
+const PEAK_GAIN = 0.25;
 /** An exponential ramp cannot reach zero, so it lands just under hearing. */
 const SILENCE = 0.0001;
 

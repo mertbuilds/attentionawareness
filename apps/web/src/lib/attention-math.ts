@@ -8,8 +8,8 @@ const WAKING_HOURS = 16;
 const DAYS_PER_YEAR = 365;
 /** The screen hours are an estimate, so they are shown to the nearest hundred. */
 const HOURS_ROUNDING = 100;
-/** How long one book takes to read: 80,000 words at 240 a minute. */
-const HOURS_PER_BOOK = 6;
+/** How long one book takes to read: 90,000 words at 238 a minute, with the pauses. */
+const HOURS_PER_BOOK = 8;
 /** What the ledger pays the reader for the hours they gave away. */
 const DOLLARS_PER_HOUR = 20;
 
@@ -27,7 +27,7 @@ type LedgerEntry = {
   /** The hours a day from which this line is part of the reader's bill. */
   minHours: number;
   number?: (totalHours: number, format: Format) => string;
-  text: (locale: Locale) => string;
+  text: (locale: Locale, totalHours: number, format: Format) => string;
 };
 
 /**
@@ -40,7 +40,17 @@ const LEDGER: ReadonlyArray<LedgerEntry> = [
     key: 'books',
     minHours: 1,
     number: (totalHours, format) => format(totalHours / HOURS_PER_BOOK),
-    text: (locale) => m.home_ledger_books({}, { locale }),
+    text: (locale, totalHours, format) => {
+      const books = totalHours / HOURS_PER_BOOK;
+      const count = format(books);
+      const line = m.home_ledger_books(
+        { books: count, perYear: format(books / HORIZON_YEARS) },
+        { locale },
+      );
+      // The count leads the sentence in both catalogs and the page prints it as
+      // the line's accent, so the text picks up after it.
+      return line.startsWith(count) ? line.slice(count.length).trimStart() : line;
+    },
   },
   { key: 'dinners', minHours: 2, text: (locale) => m.home_ledger_dinners({}, { locale }) },
   { key: 'body', minHours: 3, text: (locale) => m.home_ledger_body({}, { locale }) },
@@ -96,7 +106,7 @@ export function ledgerItems(hoursPerDay: number, locale: Locale): Array<LedgerIt
   const totalHours = exactHours(hoursPerDay);
   const format: Format = (value) => new Intl.NumberFormat(locale).format(Math.round(value));
   return LEDGER.filter((entry) => hoursPerDay >= entry.minHours).map((entry) => {
-    const text = entry.text(locale);
+    const text = entry.text(locale, totalHours, format);
     if (entry.number === undefined) {
       return { key: entry.key, text };
     }

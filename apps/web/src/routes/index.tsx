@@ -67,6 +67,7 @@ const BUILDER_URL = 'https://mertbuilds.com';
 const STARTER_URL = 'https://cleanstarter.dev';
 const SUPERVISE_URL = '/supervise';
 const STOPA_URL = 'https://stopa.io/post/297';
+const READING_SPEED_URL = 'https://doi.org/10.1016/j.jml.2019.104047';
 const PROFILE_MIME = 'application/x-apple-aspen-config';
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 /** How long an armed Remove waits for its second click before standing down. */
@@ -342,6 +343,14 @@ const styles = create({
     animationTimingFunction: 'ease-out',
     fontSize: 18,
     lineHeight: 1.4,
+    textWrap: 'pretty',
+  },
+  // The arithmetic behind the bill, small enough to stay out of its way.
+  ledgerNote: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 1.5,
+    margin: 0,
     textWrap: 'pretty',
   },
   ledgerTitle: {
@@ -1892,6 +1901,13 @@ function Generator() {
               </li>
             ))}
           </ul>
+          <p {...props(styles.ledgerNote)}>
+            {m.home_ledger_note_before()}
+            <a href={READING_SPEED_URL} rel="noreferrer" target="_blank">
+              {m.home_ledger_note_link()}
+            </a>
+            {m.home_ledger_note_after()}
+          </p>
         </section>
 
         <section {...props(styles.section)}>
