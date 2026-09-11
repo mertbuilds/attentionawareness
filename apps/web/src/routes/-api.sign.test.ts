@@ -34,7 +34,7 @@ function payload(overrides: Partial<ProfileConfig> = {}): unknown {
 function sign(body: unknown, ip?: string): Promise<Response> {
   caller += 1;
   return post({
-    request: new Request('https://keepyourattention.com/api/sign', {
+    request: new Request('https://attentionawareness.com/api/sign', {
       body: JSON.stringify(body),
       headers: {
         'cf-connecting-ip': ip ?? `203.0.113.${caller}`,
@@ -67,7 +67,7 @@ describe('POST /api/sign', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toBe('application/x-apple-aspen-config');
     expect(response.headers.get('content-disposition')).toBe(
-      'attachment; filename="keepyourattention.mobileconfig"',
+      'attachment; filename="attentionawareness.mobileconfig"',
     );
     const xml = await signedXml(response);
     expect(xml).toContain('<key>PayloadRemovalDisallowed</key><true/>');
@@ -81,8 +81,8 @@ describe('POST /api/sign', () => {
     const identifier = /<key>PayloadIdentifier<\/key><string>([^<]+)<\/string>/u;
     const one = identifier.exec(first)?.[1] ?? '';
     const two = identifier.exec(second)?.[1] ?? '';
-    expect(one).toMatch(/^com\.keepyourattention\./u);
-    expect(two).toMatch(/^com\.keepyourattention\./u);
+    expect(one).toMatch(/^com\.attentionawareness\./u);
+    expect(two).toMatch(/^com\.attentionawareness\./u);
     expect(one).not.toBe(two);
   });
 

@@ -1,5 +1,5 @@
-import { Button } from '@keepyourattention/ui';
-import { font, palette, spacing } from '@keepyourattention/ui/tokens.stylex';
+import { Button } from '@attentionawareness/ui';
+import { font, palette, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { useEffect, useMemo, useState } from 'react';
 import { accent } from '../lib/accent.stylex.ts';

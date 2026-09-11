@@ -57,7 +57,7 @@ Nothing on the phone is erased, because a backup restore is not an erase.
 ## Install
 
 ```
-curl -fsSL https://keepyourattention.com/install.sh | sh
+curl -fsSL https://attentionawareness.com/install.sh | sh
 ```
 
 The installer checks that this is a Mac with `python3`, downloads one file to
@@ -156,7 +156,7 @@ version, and say whether it worked.
   The tool does not write `OrganizationName` in this version.
 - The tool never touches the phone. It only writes inside the backup folder on the Mac.
 - Before any write, the tool copies the original file and `Manifest.db` to
-  `.../MobileSync/Backup/keepyourattention-pristine/<UDID>-<timestamp>/` and prints the path.
+  `.../MobileSync/Backup/attentionawareness-pristine/<UDID>-<timestamp>/` and prints the path.
 
 ## How to undo
 

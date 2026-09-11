@@ -5,8 +5,8 @@ import type { SigningSecrets } from '../lib/sign.ts';
 
 /** X.500 commonName, the only attribute these throwaway names carry. */
 const COMMON_NAME = '2.5.4.3';
-const AUTHORITY = 'keepyourattention test authority';
-const LEAF = 'keepyourattention test';
+const AUTHORITY = 'attentionawareness test authority';
+const LEAF = 'attentionawareness test';
 const RSA = {
   hash: 'SHA-256',
   modulusLength: 2048,

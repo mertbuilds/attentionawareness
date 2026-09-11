@@ -4,7 +4,7 @@ import { locales } from '../paraglide/runtime.js';
 type Locale = (typeof locales)[number];
 
 /** Where a shared link points. The generator lives at the root. */
-export const SITE_URL = 'https://keepyourattention.com';
+export const SITE_URL = 'https://attentionawareness.com';
 
 /** How many apps a share names before it only counts the rest. */
 const NAMED_APPS = 3;

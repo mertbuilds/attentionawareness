@@ -7,8 +7,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@keepyourattention/ui';
-import { colors, font, radius, spacing } from '@keepyourattention/ui/tokens.stylex';
+} from '@attentionawareness/ui';
+import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';

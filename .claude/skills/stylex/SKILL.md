@@ -7,7 +7,7 @@ description: StyleX authoring guide — writing/applying/merging styles, pseudo-
 
 This document provides guidance on authoring styles with StyleX.
 
-> **Repo note (keepyourattention):** oxlint bans namespace imports (`import/no-namespace`). Use named imports instead of the `import * as stylex` shown in the examples below: `import { create, props as stylexProps, defineVars, defineConsts, createTheme, keyframes } from '@stylexjs/stylex';`. The compiler handles aliases fine — see `packages/ui` for the established pattern. All other guidance applies as written.
+> **Repo note (attentionawareness):** oxlint bans namespace imports (`import/no-namespace`). Use named imports instead of the `import * as stylex` shown in the examples below: `import { create, props as stylexProps, defineVars, defineConsts, createTheme, keyframes } from '@stylexjs/stylex';`. The compiler handles aliases fine — see `packages/ui` for the established pattern. All other guidance applies as written.
 
 ## Writing styles
 

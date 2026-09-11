@@ -24,7 +24,7 @@ export default defineConfig({
     }),
   ],
   server: {
-    // Vite ignores PORT by default; portless assigns one when proxying https://keepyourattention.localhost.
+    // Vite ignores PORT by default; portless assigns one when proxying https://attentionawareness.localhost.
     port: process.env.PORT ? Number(process.env.PORT) : 3000,
   },
 });

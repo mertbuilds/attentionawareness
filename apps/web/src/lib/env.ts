@@ -1,4 +1,4 @@
-import { parseClientEnv } from '@keepyourattention/env/client';
+import { parseClientEnv } from '@attentionawareness/env/client';
 
 export const clientEnv = parseClientEnv({
   VITE_POSTHOG_KEY: import.meta.env['VITE_POSTHOG_KEY'] as string | undefined,

@@ -35,14 +35,14 @@ EXIT_ERROR = 2
 BACKUP_ROOT = Path.home() / "Library" / "Application Support" / "MobileSync" / "Backup"
 SUPERVISION_DOMAIN = "SysSharedContainerDomain-systemgroup.com.apple.configurationprofiles"
 SUPERVISION_RELATIVE_PATH = "Library/ConfigurationProfiles/CloudConfigurationDetails.plist"
-PRISTINE_DIR_NAME = "keepyourattention-pristine"
+PRISTINE_DIR_NAME = "attentionawareness-pristine"
 PRISTINE_META_NAME = "pristine.json"
 MANIFEST_DB_NAME = "Manifest.db"
 MANIFEST_PLIST_NAME = "Manifest.plist"
 CFGUTIL = Path("/Applications/Apple Configurator.app/Contents/MacOS/cfgutil")
 ARCHIVE_SUFFIX = re.compile(r"\d+-\d+")
 UPDATE_URL = (
-    "https://raw.githubusercontent.com/mertbuilds/keepyourattention/main/cli/dist/supervise"
+    "https://raw.githubusercontent.com/mertbuilds/attentionawareness/main/cli/dist/supervise"
 )
 
 FULL_DISK_ACCESS_HELP = (

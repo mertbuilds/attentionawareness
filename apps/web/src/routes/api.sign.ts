@@ -5,13 +5,13 @@ import { signProfile } from '../lib/sign.ts';
 import { signingSecrets } from '../lib/signing-secrets.ts';
 
 const PROFILE_MIME = 'application/x-apple-aspen-config';
-const FILENAME = 'keepyourattention.mobileconfig';
+const FILENAME = 'attentionawareness.mobileconfig';
 /**
  * Every download gets its own identifier, so a second profile stacks on the
  * first instead of replacing it. Nothing installed can be loosened afterwards.
  */
-const IDENTIFIER_PREFIX = 'com.keepyourattention.';
-const BRAND = 'keepyourattention';
+const IDENTIFIER_PREFIX = 'com.attentionawareness.';
+const BRAND = 'attentionawareness';
 
 const BUNDLE_ID = /^[A-Za-z0-9.-]{2,200}$/u;
 const MAX_APPS = 200;

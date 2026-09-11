@@ -25,9 +25,9 @@ dependencies = []
 supervise = "supervise_iphone.cli:main"
 
 [project.urls]
-Homepage = "https://keepyourattention.com"
-Issues = "https://github.com/mertbuilds/keepyourattention/issues"
-Source = "https://github.com/mertbuilds/keepyourattention"
+Homepage = "https://attentionawareness.com"
+Issues = "https://github.com/mertbuilds/attentionawareness/issues"
+Source = "https://github.com/mertbuilds/attentionawareness"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/supervise_iphone"]

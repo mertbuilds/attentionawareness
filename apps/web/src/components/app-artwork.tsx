@@ -1,4 +1,4 @@
-import { colors, font } from '@keepyourattention/ui/tokens.stylex';
+import { colors, font } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 

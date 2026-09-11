@@ -2,13 +2,13 @@
 # Installer for the supervise command.
 #
 # cli/install.sh and apps/web/public/install.sh hold the same script. The public
-# copy is served at https://keepyourattention.com/install.sh, and Workers static
+# copy is served at https://attentionawareness.com/install.sh, and Workers static
 # assets need a real file, so it is a copy and not a symlink. Edit cli/install.sh,
 # then run: cp cli/install.sh apps/web/public/install.sh
 set -eu
 
 # One edit here moves the download if the repository is renamed.
-URL="https://raw.githubusercontent.com/mertbuilds/keepyourattention/main/cli/dist/supervise"
+URL="https://raw.githubusercontent.com/mertbuilds/attentionawareness/main/cli/dist/supervise"
 BIN_DIR="$HOME/.local/bin"
 TARGET="$BIN_DIR/supervise"
 

@@ -1,4 +1,4 @@
-import { colors, font, spacing } from '@keepyourattention/ui/tokens.stylex';
+import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create } from '@stylexjs/stylex';
 
 /**
