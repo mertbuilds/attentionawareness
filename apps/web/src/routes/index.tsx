@@ -2962,17 +2962,6 @@ function Generator() {
               <FieldDescription>{m.gen_web_lines_help()}</FieldDescription>
             </Field>
           ) : null}
-          {filter.mode === 'deny' ? (
-            <Label>
-              <input
-                checked={config.autoFilterAdult}
-                onChange={(event) => update({ ...config, autoFilterAdult: event.target.checked })}
-                type="checkbox"
-                {...props(controls.base, controls.checkbox)}
-              />
-              {m.gen_web_auto_filter()}
-            </Label>
-          ) : null}
         </section>
 
         <section {...props(styles.section)}>
@@ -2999,6 +2988,15 @@ function Generator() {
               {...props(controls.base, controls.checkbox)}
             />
             {m.gen_web_private_browsing()}
+          </Label>
+          <Label>
+            <input
+              checked={config.autoFilterAdult}
+              onChange={(event) => update({ ...config, autoFilterAdult: event.target.checked })}
+              type="checkbox"
+              {...props(controls.base, controls.checkbox)}
+            />
+            {m.gen_web_auto_filter()}
           </Label>
         </section>
 
