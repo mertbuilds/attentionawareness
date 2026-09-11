@@ -137,6 +137,23 @@ function helpButton(): HTMLElement {
   return screen.getByRole('button', { name: m.home_math_help_label() });
 }
 
+/**
+ * jsdom evaluates no media query of its own, and the page asks one to tell a
+ * phone from a wide window: a phone gets sheets where the page gets a popover
+ * and a dialog.
+ */
+function setViewport(kind: 'desktop' | 'phone'): void {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: (media: string) => ({
+      addEventListener: () => {},
+      matches: kind === 'phone' && media === '(max-width: 639px)',
+      media,
+      removeEventListener: () => {},
+    }),
+  });
+}
+
 /** What the slider tells a screen reader at a given number of hours. */
 function hoursReading(hours: number): string {
   return `${m.home_math_hours({ hours })} ${m.home_math_hours_unit()}`;
@@ -172,6 +189,7 @@ async function downloadedXml(): Promise<string> {
 describe('Generator', () => {
   beforeEach(() => {
     locale.current = 'en';
+    setViewport('desktop');
     createObjectURL.mockClear();
     globalThis.localStorage.clear();
     // A shared link is read off the address bar, so every test starts on a bare one.
@@ -294,6 +312,21 @@ describe('Generator', () => {
 
     const clip = screen.getByRole('tooltip').querySelector('video');
     expect(clip?.src).toMatch(/\/media\/screentime-tr\.mp4$/);
+  });
+
+  it('opens the screen-time help in a sheet on a phone', async () => {
+    setViewport('phone');
+    await renderPage();
+
+    await userEvent.click(helpButton());
+
+    const sheet = await screen.findByRole('dialog');
+    expect(sheet).toHaveAttribute('data-vaul-drawer');
+    expect(within(sheet).getByText(m.home_math_help_title())).toBeInTheDocument();
+    expect(within(sheet).getByText(m.home_math_help_body())).toBeInTheDocument();
+    expect(sheet.querySelector('video')).not.toBeNull();
+    // The popover is the wide page's alone.
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
   });
 
   it('states the deal as three value tiles', async () => {
@@ -810,6 +843,19 @@ describe('Generator', () => {
 
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining('keepyourattention.com/?h=4'));
     expect(within(dialog).getByRole('button', { name: m.share_copied() })).toBeInTheDocument();
+  });
+
+  it('opens the share card in a sheet on a phone', async () => {
+    setViewport('phone');
+    await renderPage();
+    await tickSupervised();
+
+    fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
+
+    const sheet = await screen.findByRole('dialog');
+    expect(sheet).toHaveAttribute('data-vaul-drawer');
+    expect(within(sheet).getByText(m.share_heading_output())).toBeInTheDocument();
+    expect(within(sheet).getByRole('link', { name: m.share_x() })).toBeInTheDocument();
   });
 
   it('opens on the hours and the apps a shared link carries', async () => {

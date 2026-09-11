@@ -241,5 +241,6 @@
   "pref_language_label": "Language",
   "pref_language_en": "English",
   "pref_language_tr": "Türkçe",
-  "gen_summary_adult": "Adult sites blocked"
+  "gen_summary_adult": "Adult sites blocked",
+  "sheet_close": "Close"
 }

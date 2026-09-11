@@ -25,6 +25,7 @@ import { AppArtwork, artworkStyles } from '../components/app-artwork.tsx';
 import type { MetaCache } from '../components/app-artwork.tsx';
 import { AppIconFan, fanStyles } from '../components/app-icon-fan.tsx';
 import { ShareCard } from '../components/share-card.tsx';
+import { Sheet } from '../components/sheet.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { accent } from '../lib/accent.stylex.ts';
 import type { AppResult } from '../lib/app-search.ts';
@@ -45,6 +46,7 @@ import type { BlockedApp, ProfileConfig } from '../lib/profile/index.ts';
 import { decodeShare } from '../lib/share.ts';
 import { normalizeUrl, sitesForApp, sitesForApps } from '../lib/sites.ts';
 import { playTick, primeTickSound } from '../lib/tick-sound.ts';
+import { useIsMobile } from '../lib/use-is-mobile.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
 
@@ -424,6 +426,13 @@ const styles = create({
     textAlign: 'start',
     width: 320,
     zIndex: 20,
+  },
+  // Given the whole width of a sheet, the clip takes as much of it as it was
+  // shot at and no more.
+  helpSheetSlot: {
+    alignSelf: 'center',
+    maxWidth: 320,
+    width: '100%',
   },
   // The clip is shot on a phone, so the slot it fills is portrait. Black
   // stands behind it in both themes, the way a player letterboxes.
@@ -1507,13 +1516,50 @@ function screenTimeVideoUrl(): string {
 }
 
 /**
- * The question mark at the end of the question. Hover, focus or a tap opens a
- * popover that says where the real number lives and, once the clip is shot,
- * shows it being found. A pointer that leaves gets a moment to reach the
- * popover before it closes, because the two do not touch.
+ * The recording of Screen Time being opened, in the slot it was shot for. The
+ * video wins where the reader's locale has one, the gif stands in under it,
+ * and with neither the slot holds the placeholder.
+ */
+function ScreenTimeClip({ style, videoUrl }: { style?: StyleXStyles; videoUrl: string }) {
+  return (
+    <span {...props(styles.helpSlot, style)}>
+      {videoUrl === '' ? (
+        SCREEN_TIME_GIF_URL === '' ? (
+          <span {...props(styles.helpClip)}>{m.home_math_help_clip()}</span>
+        ) : (
+          <img
+            alt={m.home_math_help_body()}
+            src={SCREEN_TIME_GIF_URL}
+            {...props(styles.helpMedia)}
+          />
+        )
+      ) : (
+        <video
+          autoPlay
+          // A new locale is a new recording, so the element starts over.
+          key={videoUrl}
+          loop
+          muted
+          playsInline
+          preload="metadata"
+          src={videoUrl}
+          {...props(styles.helpMedia)}
+        />
+      )}
+    </span>
+  );
+}
+
+/**
+ * The question mark at the end of the question. On a wide page hover, focus or
+ * a tap opens a popover that says where the real number lives and shows it
+ * being found; a pointer that leaves gets a moment to reach the popover before
+ * it closes, because the two do not touch. A phone has no room for a box
+ * hanging off a button, so there the same question opens a sheet.
  */
 function ScreenTimeHelp() {
   const videoUrl = screenTimeVideoUrl();
+  const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
   const popoverId = useId();
   const wrap = useRef<HTMLSpanElement>(null);
@@ -1529,9 +1575,10 @@ function ScreenTimeHelp() {
     [],
   );
 
-  // Dismissed from outside itself: a pointer anywhere else, or Escape.
+  // Dismissed from outside itself: a pointer anywhere else, or Escape. The
+  // sheet answers both on its own, so this is the popover's alone.
   useEffect(() => {
-    if (!open) {
+    if (!open || isMobile) {
       return;
     }
     function onPointerDown(event: PointerEvent) {
@@ -1550,7 +1597,7 @@ function ScreenTimeHelp() {
       document.removeEventListener('pointerdown', onPointerDown);
       document.removeEventListener('keydown', onKeyDown);
     };
-  }, [open]);
+  }, [isMobile, open]);
 
   function clearGrace() {
     if (grace.current !== null) {
@@ -1577,12 +1624,12 @@ function ScreenTimeHelp() {
   return (
     <span
       onPointerEnter={(event) => {
-        if (event.pointerType !== 'touch') {
+        if (!isMobile && event.pointerType !== 'touch') {
           show();
         }
       }}
       onPointerLeave={(event) => {
-        if (event.pointerType !== 'touch') {
+        if (!isMobile && event.pointerType !== 'touch') {
           hideAfterGrace();
         }
       }}
@@ -1590,45 +1637,28 @@ function ScreenTimeHelp() {
       {...props(styles.helpWrap)}
     >
       <button
-        aria-describedby={open ? popoverId : undefined}
+        aria-describedby={open && !isMobile ? popoverId : undefined}
         aria-label={m.home_math_help_label()}
-        onBlur={hide}
+        // The sheet takes the focus with it, and a blur that closes it would
+        // shut it on the way in.
+        onBlur={isMobile ? undefined : hide}
         onClick={show}
-        onFocus={show}
+        onFocus={isMobile ? undefined : show}
         type="button"
         {...props(styles.helpButton)}
       >
         ?
       </button>
-      {open ? (
+      {isMobile ? (
+        <Sheet onOpenChange={setOpen} open={open} title={m.home_math_help_title()}>
+          <span {...props(styles.helpText)}>{m.home_math_help_body()}</span>
+          <ScreenTimeClip style={styles.helpSheetSlot} videoUrl={videoUrl} />
+        </Sheet>
+      ) : open ? (
         <span id={popoverId} role="tooltip" {...props(styles.helpPopover)}>
           <span {...props(styles.helpTitle)}>{m.home_math_help_title()}</span>
           <span {...props(styles.helpText)}>{m.home_math_help_body()}</span>
-          <span {...props(styles.helpSlot)}>
-            {videoUrl === '' ? (
-              SCREEN_TIME_GIF_URL === '' ? (
-                <span {...props(styles.helpClip)}>{m.home_math_help_clip()}</span>
-              ) : (
-                <img
-                  alt={m.home_math_help_body()}
-                  src={SCREEN_TIME_GIF_URL}
-                  {...props(styles.helpMedia)}
-                />
-              )
-            ) : (
-              <video
-                autoPlay
-                // A new locale is a new recording, so the element starts over.
-                key={videoUrl}
-                loop
-                muted
-                playsInline
-                preload="metadata"
-                src={videoUrl}
-                {...props(styles.helpMedia)}
-              />
-            )}
-          </span>
+          <ScreenTimeClip videoUrl={videoUrl} />
         </span>
       ) : null}
     </span>
@@ -1716,6 +1746,8 @@ function SiteHostField({
 }
 
 function Generator() {
+  // A phone gets sheets where the wide page gets a popover and a dialog.
+  const isMobile = useIsMobile();
   // What the reader tells the math section their day looks like.
   const [hours, setHours] = useState(HOURS_DEFAULT);
   // The detents click by default, and remember it once the reader says either
@@ -3077,23 +3109,29 @@ function Generator() {
           <p {...props(layout.muted)}>{m.gen_install_note()}</p>
         </section>
 
-        <Dialog onOpenChange={setShareOpen} open={shareOpen}>
-          <DialogContent
-            // The download opens this dialog on its own, so the focus lands on
-            // the way out of it, not on the first control inside the card.
-            initialFocus={() =>
-              document.querySelector<HTMLElement>(
-                '[data-slot="dialog-content"] [data-slot="dialog-close"]',
-              )
-            }
-            style={styles.shareDialog}
-          >
-            <DialogHeader>
-              <DialogTitle style={styles.sectionTitle}>{m.share_heading_output()}</DialogTitle>
-            </DialogHeader>
+        {isMobile ? (
+          <Sheet onOpenChange={setShareOpen} open={shareOpen} title={m.share_heading_output()}>
             <ShareCard apps={config.blockedApps} hours={hours} meta={meta} years={years} />
-          </DialogContent>
-        </Dialog>
+          </Sheet>
+        ) : (
+          <Dialog onOpenChange={setShareOpen} open={shareOpen}>
+            <DialogContent
+              // The download opens this dialog on its own, so the focus lands on
+              // the way out of it, not on the first control inside the card.
+              initialFocus={() =>
+                document.querySelector<HTMLElement>(
+                  '[data-slot="dialog-content"] [data-slot="dialog-close"]',
+                )
+              }
+              style={styles.shareDialog}
+            >
+              <DialogHeader>
+                <DialogTitle style={styles.sectionTitle}>{m.share_heading_output()}</DialogTitle>
+              </DialogHeader>
+              <ShareCard apps={config.blockedApps} hours={hours} meta={meta} years={years} />
+            </DialogContent>
+          </Dialog>
+        )}
 
         <SiteFooter />
       </div>
