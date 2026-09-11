@@ -484,6 +484,33 @@ describe('Generator', () => {
     }
   });
 
+  it('keeps that list open while the pointer works inside it', async () => {
+    window.history.replaceState({}, '', CROWDED_SHARE);
+
+    await renderPage();
+
+    const fan = previewFan(BLOCKED_APPS + 3);
+    const more = within(fan as HTMLElement).getByRole('button');
+    await userEvent.hover(more);
+
+    // A press inside the box: a word being selected, or its scrollbar dragged.
+    // The box is portalled onto the body, so it is not the pill's own subtree.
+    const list = screen.getByRole('tooltip');
+    fireEvent.pointerDown(within(list).getByText(m.gen_preview_all_apps_title()));
+
+    expect(screen.getByRole('tooltip')).toBeInTheDocument();
+
+    // That press blurs the pill, and the focus it hands over lands in the box.
+    fireEvent.blur(more, { relatedTarget: list });
+
+    expect(screen.getByRole('tooltip')).toBeInTheDocument();
+
+    // Focus that leaves the pair is the one that closes it.
+    fireEvent.blur(more, { relatedTarget: document.body });
+
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+  });
+
   it('writes out every blocked site behind the count the chips stop at', async () => {
     window.history.replaceState({}, '', CROWDED_SHARE);
 
