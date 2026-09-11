@@ -114,14 +114,35 @@ const ROW_APPS = 3;
 /** What the screen-time slider offers, in hours a day. */
 const HOURS_MIN = 1;
 const HOURS_MAX = 12;
-const HOURS_STEP = 0.5;
+const HOURS_STEP = 1;
 const HOURS_DEFAULT = 4;
 /** The machined knob, and the rail the ticks are measured against. */
 const KNOB_WIDTH = 28;
 const KNOB_HEIGHT = 44;
 const TRACK_HEIGHT = 4;
 /**
- * One detent per half hour of travel, each with the fraction of the rail it
+ * The knob's face: a fine horizontal grain over the falloff of a turned edge,
+ * and a darker falloff for the moment it is held down. Fixed greys, because a
+ * machined part is the same part in either theme.
+ */
+const KNOB_BRUSH =
+  'repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 3px)';
+const KNOB_FALLOFF = 'linear-gradient(180deg, #e8e8ea 0%, #c9c9cd 45%, #a9a9ae 55%, #d6d6da 100%)';
+const KNOB_FALLOFF_PRESSED =
+  'linear-gradient(180deg, #d8d8dc 0%, #b9b9bf 45%, #999aa0 55%, #c6c6cc 100%)';
+/**
+ * The edges of that face: a lit top, a shaded bottom, and the rim around both.
+ * The rim is listed last so the two 1px lines stay on top of it.
+ */
+const KNOB_EDGES =
+  'inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 -1px 0 rgba(0, 0, 0, 0.25), inset 0 0 0 1px #6b6b70';
+/** The knob standing off the rail, and the same knob pressed into it. */
+const KNOB_SHADOW = `${KNOB_EDGES}, 0 2px 6px rgba(0, 0, 0, 0.35)`;
+const KNOB_SHADOW_PRESSED = `${KNOB_EDGES}, 0 1px 2px rgba(0, 0, 0, 0.35)`;
+/** The indicator cut into the middle of the face: 2px across, 18px tall. */
+const KNOB_NOTCH_SIZE = '2px 18px';
+/**
+ * One detent per whole hour of travel, each with the fraction of the rail it
  * sits at. The knob only ever stops on these, so the marks are the truth.
  */
 const TICKS = Array.from({ length: (HOURS_MAX - HOURS_MIN) / HOURS_STEP + 1 }, (_, index) => {
@@ -129,7 +150,6 @@ const TICKS = Array.from({ length: (HOURS_MAX - HOURS_MIN) / HOURS_STEP + 1 }, (
   return {
     at: (value - HOURS_MIN) / (HOURS_MAX - HOURS_MIN),
     value,
-    whole: Number.isInteger(value),
   };
 });
 
@@ -241,9 +261,22 @@ const styles = create({
     marginInlineStart: 'auto',
     padding: 0,
   },
-  // The one colour on the page, and it is a loss, never a score.
+  // The one colour on the page, and it is a loss, never a score. The number is
+  // set in even figures and given the width of its longest reading, so dragging
+  // the dial moves nothing in the sentence but the digits themselves.
   burn: {
     color: accent.base,
+    display: 'inline-block',
+    fontVariantNumeric: 'tabular-nums',
+    textAlign: 'right',
+  },
+  // "1" through "12".
+  burnHours: {
+    minWidth: '2ch',
+  },
+  // "5" through "15", and the decimal readings between them.
+  burnYears: {
+    minWidth: '4ch',
   },
   choice: {
     display: 'flex',
@@ -429,7 +462,9 @@ const styles = create({
     padding: spacing.s3,
     position: 'absolute',
     textAlign: 'start',
-    width: 320,
+    // The clip is what the box is for: 200px of it, plus the 12px of padding
+    // on each side. The words wrap to that, rather than the box widening.
+    width: 224,
     zIndex: 20,
   },
   // Given the whole width of a sheet, the clip takes as much of it as it was
@@ -455,6 +490,8 @@ const styles = create({
     fontSize: font.sizeSm,
     lineHeight: 1.5,
     margin: 0,
+    // Narrow box, and a path like a setting name has nowhere to break.
+    overflowWrap: 'anywhere',
     textWrap: 'pretty',
   },
   helpTitle: {
@@ -462,6 +499,7 @@ const styles = create({
     fontWeight: font.weightMedium,
     lineHeight: 1.4,
     margin: 0,
+    overflowWrap: 'anywhere',
   },
   // Rides at the end of the question, and anchors the popover under it.
   helpWrap: {
@@ -936,13 +974,24 @@ const styles = create({
   // The native input, dressed as a machined dial. The browser keeps the
   // keyboard, the detents and the screen reader; it gives up only its looks.
   slider: {
+    // Brushed aluminium: the grain and the falloff under it, with the orange
+    // indicator cut into the middle as a layer of its own. Firefox's knob and
+    // Chrome's are the same part, so they read from the same constants.
     '::-moz-range-thumb': {
-      backgroundColor: colors.fg,
-      backgroundImage: `linear-gradient(to right, transparent calc(50% - 0.5px), ${colors.bg} calc(50% - 0.5px), ${colors.bg} calc(50% + 0.5px), transparent calc(50% + 0.5px))`,
+      backgroundImage: {
+        ':active': `linear-gradient(${accent.base}, ${accent.base}), ${KNOB_BRUSH}, ${KNOB_FALLOFF_PRESSED}`,
+        default: `linear-gradient(${accent.base}, ${accent.base}), ${KNOB_BRUSH}, ${KNOB_FALLOFF}`,
+      },
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+      backgroundSize: `${KNOB_NOTCH_SIZE}, auto, auto`,
       borderRadius: 6,
       borderStyle: 'none',
       borderWidth: 0,
-      boxShadow: 'inset 0 0 0 1px rgba(0, 0, 0, 0.28), 0 1px 3px rgba(0, 0, 0, 0.24)',
+      boxShadow: {
+        ':active': KNOB_SHADOW_PRESSED,
+        default: KNOB_SHADOW,
+      },
       height: KNOB_HEIGHT,
       width: KNOB_WIDTH,
     },
@@ -956,14 +1005,21 @@ const styles = create({
       borderRadius: 999,
       height: TRACK_HEIGHT,
     },
-    // A groove down the middle and a darker line around the edge: the two
-    // marks that make a solid block read as a machined part.
+    // The same face, plus the offset that sits it on the track.
     '::-webkit-slider-thumb': {
       appearance: 'none',
-      backgroundColor: colors.fg,
-      backgroundImage: `linear-gradient(to right, transparent calc(50% - 0.5px), ${colors.bg} calc(50% - 0.5px), ${colors.bg} calc(50% + 0.5px), transparent calc(50% + 0.5px))`,
+      backgroundImage: {
+        ':active': `linear-gradient(${accent.base}, ${accent.base}), ${KNOB_BRUSH}, ${KNOB_FALLOFF_PRESSED}`,
+        default: `linear-gradient(${accent.base}, ${accent.base}), ${KNOB_BRUSH}, ${KNOB_FALLOFF}`,
+      },
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+      backgroundSize: `${KNOB_NOTCH_SIZE}, auto, auto`,
       borderRadius: 6,
-      boxShadow: 'inset 0 0 0 1px rgba(0, 0, 0, 0.28), 0 1px 3px rgba(0, 0, 0, 0.24)',
+      boxShadow: {
+        ':active': KNOB_SHADOW_PRESSED,
+        default: KNOB_SHADOW,
+      },
       height: KNOB_HEIGHT,
       // Centres the knob on the track: (4 - 44) / 2.
       marginTop: -20,
@@ -1188,8 +1244,8 @@ const styles = create({
     width: '100%',
   },
   tick: {
-    backgroundColor: colors.border,
-    height: 5,
+    backgroundColor: colors.muted,
+    height: 9,
     insetBlockStart: 0,
     position: 'absolute',
     transform: 'translateX(-50%)',
@@ -1216,10 +1272,6 @@ const styles = create({
     height: 26,
     position: 'relative',
     width: '100%',
-  },
-  tickWhole: {
-    backgroundColor: colors.muted,
-    height: 9,
   },
   tileArtwork: {
     borderRadius: 11,
@@ -2539,11 +2591,8 @@ function Generator() {
                   input already says all of this to a screen reader. */}
               <div aria-hidden="true" {...props(styles.tickRail)}>
                 {TICKS.map((tick) => (
-                  <span
-                    key={tick.value}
-                    {...props(styles.tick, tick.whole && styles.tickWhole, styles.tickAt(tick.at))}
-                  >
-                    {tick.whole ? <span {...props(styles.tickNumber)}>{tick.value}</span> : null}
+                  <span key={tick.value} {...props(styles.tick, styles.tickAt(tick.at))}>
+                    <span {...props(styles.tickNumber)}>{tick.value}</span>
                   </span>
                 ))}
               </div>
@@ -2581,11 +2630,11 @@ function Generator() {
               costs, so those two numbers are the only colour in the line. */}
           <p {...props(styles.mathResult)}>
             {m.home_math_result_hours_before()}
-            <span {...props(styles.burn)}>{hoursText}</span>
+            <span {...props(styles.burn, styles.burnHours)}>{hoursText}</span>
             {hours === 1
               ? m.home_math_result_hours_between_one()
               : m.home_math_result_hours_between()}
-            <span {...props(styles.burn)}>{years}</span>
+            <span {...props(styles.burn, styles.burnYears)}>{years}</span>
             {m.home_math_result_hours_after()}
           </p>
           <h3 {...props(styles.label)}>{m.home_ledger_title()}</h3>
