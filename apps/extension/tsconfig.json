@@ -1,0 +1,15 @@
+{
+  "extends": "@attentionawareness/config/tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["es2023", "dom", "dom.iterable"],
+    "types": ["node", "vite/client"]
+  },
+  "include": [
+    "e2e",
+    "playwright.config.ts",
+    "src",
+    "vite.config.content.ts",
+    "vite.config.ts",
+    "vitest.config.ts"
+  ]
+}

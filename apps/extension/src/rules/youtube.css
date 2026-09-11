@@ -1,0 +1,73 @@
+/*
+ * YouTube: youtube.com and its subdomains.
+ *
+ * Hides: every Shorts surface, which is the shelves on home, subscriptions,
+ * search and watch, the Shorts entry in both guides, the Shorts tab on a
+ * channel, and the /shorts/ player itself; plus the Playables shelf. The home
+ * feed, subscriptions, search and the watch page stay.
+ *
+ * The hooks are YouTube's own custom element names and the `is-shorts`
+ * attribute it puts on its own shelves. Both outlive its class names. `:has()`
+ * reaches the section around a shelf so a removed shelf leaves no empty row.
+ * The /shorts/ rules read `html[data-aa-path]`, which the content script keeps
+ * in step with `location.pathname`, because YouTube never reloads.
+ *
+ * Verified 2026-09-11, except the Playables shelf, which YouTube shows by
+ * region; its rule is inert where the shelf is absent.
+ */
+
+ytd-reel-shelf-renderer,
+ytd-rich-shelf-renderer[is-shorts],
+ytd-rich-section-renderer:has(ytd-rich-shelf-renderer[is-shorts]),
+ytd-rich-section-renderer:has(ytm-shorts-lockup-view-model) {
+  display: none !important;
+}
+
+ytd-guide-entry-renderer:has(a[title='Shorts']),
+ytd-mini-guide-entry-renderer:has(a[title='Shorts']),
+yt-tab-shape[tab-title='Shorts'] {
+  display: none !important;
+}
+
+ytd-rich-shelf-renderer[is-playables],
+ytd-rich-section-renderer:has(ytd-rich-shelf-renderer[is-playables]) {
+  display: none !important;
+}
+
+html[data-aa-path^='/shorts'] ytd-shorts {
+  display: none !important;
+}
+
+/*
+ * The note the content script leaves where the player was. It is in the page
+ * on every YouTube path, and only the Shorts path shows it.
+ */
+#aa-note {
+  display: none !important;
+}
+
+html[data-aa-path^='/shorts'] #aa-note {
+  align-items: center !important;
+  background: #000000 !important;
+  color: #ffffff !important;
+  display: flex !important;
+  flex-direction: column !important;
+  font-family: 'Suisse Intl', system-ui, sans-serif !important;
+  gap: 8px !important;
+  inset: 56px 0 0 0 !important;
+  justify-content: center !important;
+  position: fixed !important;
+  z-index: 2000 !important;
+}
+
+html[data-aa-path^='/shorts'] #aa-note p {
+  font-size: 20px !important;
+  letter-spacing: -0.02em !important;
+  line-height: 1.2 !important;
+  margin: 0 !important;
+}
+
+html[data-aa-path^='/shorts'] #aa-note p:last-child {
+  color: #8a8a8a !important;
+  font-size: 15px !important;
+}

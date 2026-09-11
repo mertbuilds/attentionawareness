@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "Attention Awareness",
+  "description": "Removes the feeds that farm your attention. X, YouTube, Instagram, TikTok, plus your own CSS.",
+  "version": "0.1.0",
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "options_page": "options.html",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "permissions": ["storage"],
+  "host_permissions": [
+    "*://x.com/*",
+    "*://twitter.com/*",
+    "*://*.youtube.com/*",
+    "*://*.instagram.com/*",
+    "*://*.tiktok.com/*"
+  ],
+  "optional_host_permissions": ["<all_urls>"],
+  "content_scripts": [
+    {
+      "all_frames": false,
+      "js": ["content.js"],
+      "matches": [
+        "*://x.com/*",
+        "*://twitter.com/*",
+        "*://*.youtube.com/*",
+        "*://*.instagram.com/*",
+        "*://*.tiktok.com/*"
+      ],
+      "run_at": "document_start"
+    }
+  ]
+}

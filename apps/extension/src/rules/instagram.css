@@ -1,0 +1,38 @@
+/*
+ * Instagram: instagram.com and its subdomains.
+ *
+ * Hides: the Reels and Explore entries in the nav, the Reels and Explore pages
+ * themselves, the "Suggested for you" blocks in the sidebar and in the feed,
+ * and the "For you" tab on the home feed. The feed, stories, messages and the
+ * profile stay.
+ *
+ * Instagram generates its class names, so the hooks here are hrefs: the nav
+ * links, and the "See all" link every suggestion block carries. The page level
+ * rules read `html[data-aa-path]`, which the content script keeps in step with
+ * `location.pathname`, because Instagram never reloads.
+ *
+ * Verified 2026-09-11, except the home feed "For you" tab, which Instagram
+ * shows to some accounts only; its rule is inert where the tab is absent.
+ */
+
+a[href='/reels/'],
+a[href='/explore/'],
+li:has(> a[href='/reels/']),
+li:has(> a[href='/explore/']),
+li:has(> div > a[href='/reels/']),
+li:has(> div > a[href='/explore/']) {
+  display: none !important;
+}
+
+html[data-aa-path^='/reels'] main,
+html[data-aa-path^='/explore'] main {
+  display: none !important;
+}
+
+section:has(> div a[href='/explore/people/']) {
+  display: none !important;
+}
+
+html[data-aa-path='/'] main [role='tablist'] [role='tab']:first-child {
+  display: none !important;
+}
