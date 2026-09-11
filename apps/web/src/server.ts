@@ -1,10 +1,14 @@
 import handler from '@tanstack/react-start/server-entry';
 import { initWorkersLogger } from 'evlog/workers';
+import { setSigningSecrets } from './lib/signing-secrets.ts';
 import { paraglideMiddleware } from './paraglide/server.js';
 
 interface WorkerEnv {
   AXIOM_DATASET?: string;
   AXIOM_TOKEN?: string;
+  SIGNING_CERT_PEM?: string;
+  SIGNING_CHAIN_PEM?: string;
+  SIGNING_KEY_PKCS8_PEM?: string;
 }
 
 interface ExecutionContextLike {
@@ -35,6 +39,9 @@ async function initLoggerOnce(env: WorkerEnv): Promise<void> {
 export default {
   async fetch(request: Request, env: WorkerEnv, ctx: ExecutionContextLike): Promise<Response> {
     await initLoggerOnce(env);
+    // Bindings reach a Worker's fetch and nothing else, so the signing route
+    // is handed them here rather than reading an env it cannot see.
+    setSigningSecrets(env);
     const { createWorkersLogger } = await import('evlog/workers');
     const log = createWorkersLogger(request, { executionCtx: ctx });
     const url = new URL(request.url);
