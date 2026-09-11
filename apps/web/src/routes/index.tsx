@@ -16,7 +16,7 @@ import {
   Label,
   Skeleton,
 } from '@keepyourattention/ui';
-import { colors, font, radius, spacing } from '@keepyourattention/ui/tokens.stylex';
+import { colors, font, palette, radius, spacing } from '@keepyourattention/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
@@ -69,12 +69,13 @@ const SUPERVISE_URL = '/supervise';
 const STOPA_URL = 'https://stopa.io/post/297';
 const READING_SPEED_URL = 'https://doi.org/10.1016/j.jml.2019.104047';
 /**
- * The clip that shows where the real number lives, both empty until the
- * founder shoots it and drops the files in. The video wins when it is set, the
- * gif is the fallback, and with neither the popover holds its placeholder.
+ * The clip that shows where the real number lives. The video wins when it is
+ * set, the gif is the fallback, and with neither the popover holds its
+ * placeholder. Both widen to `string` so the other two branches keep
+ * type-checking whichever one carries a url.
  */
-const SCREEN_TIME_VIDEO_URL = '';
-const SCREEN_TIME_GIF_URL = '';
+const SCREEN_TIME_VIDEO_URL: string = '/media/screentime-v1.mp4';
+const SCREEN_TIME_GIF_URL: string = '';
 const PROFILE_MIME = 'application/x-apple-aspen-config';
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 /** How long an armed Remove waits for its second click before standing down. */
@@ -346,25 +347,24 @@ const styles = create({
     padding: 0,
     width: 20,
   },
-  // The clip is not shot yet, so the slot holds the space it will take.
+  // What the slot says while it waits for a clip to be shot.
   helpClip: {
     alignItems: 'center',
-    aspectRatio: '16 / 9',
     borderColor: colors.border,
-    borderRadius: radius.base,
     borderStyle: 'dashed',
     borderWidth: '1px',
     boxSizing: 'border-box',
     color: colors.muted,
     display: 'flex',
     fontSize: font.sizeSm,
+    height: '100%',
     justifyContent: 'center',
+    textAlign: 'center',
     width: '100%',
   },
   helpMedia: {
-    aspectRatio: '16 / 9',
-    borderRadius: radius.base,
     display: 'block',
+    height: '100%',
     objectFit: 'cover',
     width: '100%',
   },
@@ -402,6 +402,17 @@ const styles = create({
     textAlign: 'start',
     width: 320,
     zIndex: 20,
+  },
+  // The clip is shot on a phone, so the slot it fills is portrait. Black
+  // stands behind it in both themes, the way a player letterboxes.
+  helpSlot: {
+    alignSelf: 'center',
+    aspectRatio: '720 / 1400',
+    backgroundColor: palette.black,
+    borderRadius: 12,
+    display: 'flex',
+    overflow: 'hidden',
+    width: 200,
   },
   helpText: {
     color: colors.muted,
@@ -1457,26 +1468,29 @@ function ScreenTimeHelp() {
         <span id={popoverId} role="tooltip" {...props(styles.helpPopover)}>
           <span {...props(styles.helpTitle)}>{m.home_math_help_title()}</span>
           <span {...props(styles.helpText)}>{m.home_math_help_body()}</span>
-          {SCREEN_TIME_VIDEO_URL === '' ? (
-            SCREEN_TIME_GIF_URL === '' ? (
-              <span {...props(styles.helpClip)}>{m.home_math_help_clip()}</span>
+          <span {...props(styles.helpSlot)}>
+            {SCREEN_TIME_VIDEO_URL === '' ? (
+              SCREEN_TIME_GIF_URL === '' ? (
+                <span {...props(styles.helpClip)}>{m.home_math_help_clip()}</span>
+              ) : (
+                <img
+                  alt={m.home_math_help_body()}
+                  src={SCREEN_TIME_GIF_URL}
+                  {...props(styles.helpMedia)}
+                />
+              )
             ) : (
-              <img
-                alt={m.home_math_help_body()}
-                src={SCREEN_TIME_GIF_URL}
+              <video
+                autoPlay
+                loop
+                muted
+                playsInline
+                preload="metadata"
+                src={SCREEN_TIME_VIDEO_URL}
                 {...props(styles.helpMedia)}
               />
-            )
-          ) : (
-            <video
-              autoPlay
-              loop
-              muted
-              playsInline
-              src={SCREEN_TIME_VIDEO_URL}
-              {...props(styles.helpMedia)}
-            />
-          )}
+            )}
+          </span>
         </span>
       ) : null}
     </span>
