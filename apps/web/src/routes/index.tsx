@@ -58,6 +58,13 @@ const GENERATED_KEY = 'kya:generated';
  * error red is a warning, and this is a loss, so it stays pure in both themes.
  */
 const ACCENT = '#ff4f00';
+/**
+ * The one display size on the page. Only the hero lines and the years the
+ * habit costs are set in it; every other heading is one step down.
+ */
+const DISPLAY_SIZE = 'clamp(40px, 4.6vw, 56px)';
+/** The air between two sections, wider than anything inside one. */
+const SECTION_GAP = 96;
 const SEARCH_DEBOUNCE_MS = 300;
 const SEARCH_LIMIT = 10;
 const SKELETON_ROWS = [0, 1, 2];
@@ -253,9 +260,40 @@ const styles = create({
     flexDirection: 'column',
     // Nothing is drawn between the sections any more, so the gap carries the
     // rhythm on its own at every width.
-    gap: spacing.s16,
+    gap: SECTION_GAP,
     maxWidth: 760,
     width: '100%',
+  },
+  // Three equal columns of one number and the word under it; on a phone they
+  // stack, so a tile is never narrower than the value it holds.
+  dealGrid: {
+    display: 'grid',
+    gap: spacing.s6,
+    gridTemplateColumns: {
+      '@media (min-width: 640px)': 'repeat(3, 1fr)',
+      default: '1fr',
+    },
+  },
+  dealLabel: {
+    color: colors.muted,
+    fontSize: font.sizeSm,
+    lineHeight: 1.4,
+    margin: 0,
+    textWrap: 'pretty',
+  },
+  dealTile: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s1,
+  },
+  dealValue: {
+    color: colors.fg,
+    fontSize: 40,
+    fontVariantNumeric: 'tabular-nums',
+    fontWeight: font.weightMedium,
+    letterSpacing: '-0.02em',
+    lineHeight: 1.1,
+    margin: 0,
   },
   defDesc: {
     color: colors.muted,
@@ -272,12 +310,6 @@ const styles = create({
     lineHeight: 1.5,
     textWrap: 'pretty',
   },
-  derivedTitle: {
-    color: colors.muted,
-    fontSize: font.sizeSm,
-    fontWeight: font.weightMedium,
-    margin: 0,
-  },
   // The control: rail and detents on the left, the number they read on the
   // right. On a phone the number drops under the rail instead of squeezing it.
   dial: {
@@ -292,29 +324,14 @@ const styles = create({
     flexGrow: 1,
     minWidth: 0,
   },
-  factGrid: {
-    display: 'grid',
-    gap: spacing.s6,
-    gridTemplateColumns: {
-      '@media (min-width: 640px)': 'repeat(3, 1fr)',
-      default: '1fr',
-    },
-  },
-  factValue: {
-    fontSize: 'clamp(24px, 3.4vw, 32px)',
-    fontWeight: font.weightMedium,
-    letterSpacing: '-0.02em',
-    lineHeight: 1.15,
+  // The sentence under the fan headline: the reason, not the claim.
+  fanBody: {
+    color: colors.muted,
+    fontSize: font.sizeMd,
+    lineHeight: 1.5,
     margin: 0,
-    textWrap: 'balance',
-  },
-  fanHeadline: {
-    fontSize: 'clamp(22px, 3.2vw, 28px)',
-    fontWeight: font.weightBold,
-    letterSpacing: '-0.02em',
-    lineHeight: 1.6,
-    margin: 0,
-    textWrap: 'balance',
+    maxWidth: '60ch',
+    textWrap: 'pretty',
   },
   footer: {
     display: 'flex',
@@ -442,19 +459,22 @@ const styles = create({
   heroTitle: {
     display: 'flex',
     flexDirection: 'column',
-    fontSize: 'clamp(36px, 6.4vw, 54px)',
+    fontSize: DISPLAY_SIZE,
     fontWeight: font.weightBold,
     letterSpacing: '-0.035em',
     lineHeight: 1.04,
     margin: 0,
     textWrap: 'balance',
   },
-  lead: {
+  // The page's one caption: the small line that names the group under it.
+  label: {
     color: colors.muted,
-    fontSize: 18,
-    lineHeight: 1.5,
+    fontSize: 12,
+    fontWeight: font.weightMedium,
+    letterSpacing: '0.08em',
+    lineHeight: 1.4,
     margin: 0,
-    textWrap: 'pretty',
+    textTransform: 'uppercase',
   },
   ledger: {
     display: 'flex',
@@ -462,6 +482,7 @@ const styles = create({
     gap: spacing.s2,
     listStyleType: 'none',
     margin: 0,
+    maxWidth: '60ch',
     padding: 0,
   },
   // A line arrives when the day earns it; it leaves the moment it stops
@@ -473,8 +494,9 @@ const styles = create({
     },
     animationName: ledgerEnter,
     animationTimingFunction: 'ease-out',
-    fontSize: 18,
-    lineHeight: 1.4,
+    color: colors.muted,
+    fontSize: font.sizeMd,
+    lineHeight: 1.5,
     textWrap: 'pretty',
   },
   // The arithmetic behind the bill, small enough to stay out of its way.
@@ -485,12 +507,12 @@ const styles = create({
     margin: 0,
     textWrap: 'pretty',
   },
-  ledgerTitle: {
-    color: colors.muted,
-    fontSize: font.sizeMd,
+  // The count leads its line, so it is the one thing in the bill that is not
+  // muted: colour and a step of size carry it, nothing else.
+  ledgerNumber: {
+    color: ACCENT,
+    fontSize: 18,
     fontWeight: font.weightMedium,
-    margin: 0,
-    marginBlockStart: spacing.s2,
   },
   list: {
     display: 'flex',
@@ -501,7 +523,7 @@ const styles = create({
     padding: 0,
   },
   mathResult: {
-    fontSize: 'clamp(40px, 4.6vw, 56px)',
+    fontSize: DISPLAY_SIZE,
     fontVariantNumeric: 'tabular-nums',
     fontWeight: font.weightBold,
     letterSpacing: '-0.025em',
@@ -521,10 +543,7 @@ const styles = create({
     display: 'flex',
     flexDirection: 'column',
     fontFamily: font.family,
-    gap: {
-      '@media (min-width: 640px)': spacing.s16,
-      default: spacing.s12,
-    },
+    gap: SECTION_GAP,
     minHeight: '100vh',
     paddingBlockEnd: spacing.s16,
     paddingBlockStart: {
@@ -743,12 +762,12 @@ const styles = create({
   section: {
     display: 'flex',
     flexDirection: 'column',
-    gap: spacing.s3,
+    gap: spacing.s6,
   },
   sectionTitle: {
     fontSize: 28,
     fontWeight: font.weightMedium,
-    letterSpacing: '-0.02em',
+    letterSpacing: '-0.01em',
     lineHeight: 1.2,
     margin: 0,
     textWrap: 'balance',
@@ -2024,10 +2043,11 @@ function Generator() {
   const travelled = ((hours - HOURS_MIN) / (HOURS_MAX - HOURS_MIN)) * 100;
   const ledger = ledgerItems(hours, getLocale());
 
-  const dealFacts = [
-    m.home_deal_install_title(),
-    m.home_deal_free_title(),
-    m.home_deal_time_title(),
+  // What the whole thing costs, as three numbers and the word each one means.
+  const dealTiles = [
+    { label: m.home_deal_apps_label(), value: m.home_deal_apps_value() },
+    { label: m.home_deal_price_label(), value: m.home_deal_price_value() },
+    { label: m.home_deal_time_label(), value: m.home_deal_time_value() },
   ];
 
   const howItWorks = [
@@ -2148,13 +2168,13 @@ function Generator() {
             {m.home_math_result_before()} <span {...props(styles.burn)}>{years}</span>{' '}
             {m.home_math_result_after()}
           </p>
-          <h3 {...props(styles.ledgerTitle)}>{m.home_ledger_title()}</h3>
+          <h3 {...props(styles.label)}>{m.home_ledger_title()}</h3>
           <ul {...props(styles.ledger)}>
             {ledger.map((item) => (
               <li key={item.key} {...props(styles.ledgerItem)}>
                 {item.number === undefined ? null : (
                   <>
-                    <span {...props(styles.burn)}>{item.number}</span>{' '}
+                    <span {...props(styles.ledgerNumber)}>{item.number}</span>{' '}
                   </>
                 )}
                 {item.text}
@@ -2171,8 +2191,7 @@ function Generator() {
         </section>
 
         <section {...props(styles.section)}>
-          <p {...props(styles.lead)}>{m.home_other_side()}</p>
-          <h2 {...props(styles.fanHeadline)}>
+          <h2 {...props(styles.sectionTitle)}>
             {m.home_fan_before()}
             {config.blockedApps.length === 0 ? (
               <span {...props(fanStyles.fan)}>{m.home_fan_empty()}</span>
@@ -2181,14 +2200,17 @@ function Generator() {
             )}
             {m.home_fan_after()}
           </h2>
+          <p {...props(styles.fanBody)}>{m.home_other_side()}</p>
         </section>
 
         <section {...props(styles.section)}>
-          <div {...props(styles.factGrid)}>
-            {dealFacts.map((fact) => (
-              <p key={fact} {...props(styles.factValue)}>
-                {fact}
-              </p>
+          <p {...props(styles.label)}>{m.home_deal_label()}</p>
+          <div {...props(styles.dealGrid)}>
+            {dealTiles.map((tile) => (
+              <div key={tile.label} {...props(styles.dealTile)}>
+                <p {...props(styles.dealValue)}>{tile.value}</p>
+                <p {...props(styles.dealLabel)}>{tile.label}</p>
+              </div>
             ))}
           </div>
         </section>
@@ -2487,7 +2509,7 @@ function Generator() {
           </div>
           {filter.mode === 'deny' ? (
             <div {...props(styles.section)}>
-              <h3 {...props(styles.derivedTitle)}>{m.gen_web_derived_title()}</h3>
+              <h3 {...props(styles.label)}>{m.gen_web_derived_title()}</h3>
               <p {...props(layout.muted)}>{m.gen_web_derived_count({ count: derivedCount })}</p>
               <ul {...props(styles.siteGroups)}>
                 {appSites.map(({ app, sites }) => (
