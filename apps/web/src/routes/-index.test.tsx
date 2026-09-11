@@ -1,8 +1,11 @@
+import { colors } from '@attentionawareness/ui/tokens.stylex';
+import { create, props } from '@stylexjs/stylex';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildProfile, presets } from '../lib/profile/index.ts';
 import type { ProfileConfig } from '../lib/profile/index.ts';
+import { sitesForApps } from '../lib/sites.ts';
 import { m } from '../paraglide/messages.js';
 
 // The page only needs the route factory; unit tests render the component itself.
@@ -68,6 +71,24 @@ const fetchMock = vi.fn(answer);
 globalThis.fetch = fetchMock as unknown as typeof fetch;
 
 const { Route } = await import('./index.tsx');
+/**
+ * StyleX classes are atomic and derived from the declaration itself, so the
+ * same declaration compiles to the same classes here as on the page. jsdom
+ * loads no stylesheet, so this is what a computed style would have said.
+ */
+const struck = create({ text: { color: colors.muted, textDecorationLine: 'line-through' } });
+
+const STRUCK_CLASSES = String(props(struck.text).className).split(' ');
+
+function expectStruckThrough(element: HTMLElement, yes = true): void {
+  for (const name of STRUCK_CLASSES) {
+    if (yes) {
+      expect(element).toHaveClass(name);
+    } else {
+      expect(element).not.toHaveClass(name);
+    }
+  }
+}
 
 async function renderPage() {
   const Page = (Route as unknown as { component: React.ComponentType }).component;
@@ -79,12 +100,23 @@ async function renderPage() {
 
 const BLOCKED_APPS = presets.mert.blockedApps.length;
 
-/** Step 1's gate: nothing leaves the page until this box is ticked. */
-async function tickSupervised(): Promise<void> {
-  await userEvent.click(screen.getByRole('checkbox', { name: m.gen_step1_check() }));
+/** The whole recommended list plus three apps it has never heard of. */
+const CROWDED_SHARE =
+  '/?a=fb,ig,li,nf,pi,pv,rd,sc,th,tt,tw,x,yt,com.example.one,com.example.two,com.example.three';
+
+/** A chip names a host, the way the preview writes it. */
+const SITE_SCHEME = /^https?:\/\//u;
+
+/**
+ * What the deny list holds for the shared profile. The page derives it from
+ * the blocked apps, and the crowded share carries the recommended list itself,
+ * so the recommended apps are the ones to ask.
+ */
+function deniedSites(): ReadonlyArray<string> {
+  return sitesForApps(presets.mert.blockedApps);
 }
 
-/** The download's own gate: the profile cannot be taken off afterwards. */
+/** The download's gate: the profile cannot be taken off afterwards. */
 async function tickPermanent(): Promise<void> {
   await userEvent.click(screen.getByRole('checkbox', { name: m.gen_permanent_check() }));
 }
@@ -94,10 +126,18 @@ async function tickTrial(): Promise<void> {
   await userEvent.click(screen.getByRole('checkbox', { name: m.gen_trial_check() }));
 }
 
-/** Both gates, which is what the download asks for. */
-async function tickGates(): Promise<void> {
-  await tickSupervised();
-  await tickPermanent();
+/**
+ * Types a host into a labelled site list and takes it with the row's own add
+ * button, which is the only way a site reaches one of these lists.
+ */
+async function addToList(label: string, host: string): Promise<void> {
+  const input = screen.getByLabelText(label);
+  await userEvent.type(input, host);
+  const row = input.parentElement;
+  if (row === null) {
+    throw new Error('The add field should sit in a row with its button');
+  }
+  await userEvent.click(within(row).getByRole('button', { name: m.gen_web_add_button() }));
 }
 
 /** The always-visible search field at the top of the recommended apps. */
@@ -110,23 +150,23 @@ function countryButton(): HTMLElement {
   return screen.getByRole('button', { name: m.gen_storefront_label() });
 }
 
-/** The remove button of one blocked app, found through its bundle id. */
-function removeButtonFor(bundleId: string): HTMLElement {
-  const row = screen.getByText(bundleId).closest('li');
+/** The remove button of one blocked app, found through its name. */
+function removeButtonFor(name: string): HTMLElement {
+  const row = screen.getByText(name).closest('li');
   if (row === null) {
-    throw new Error(`No blocked row for ${bundleId}`);
+    throw new Error(`No blocked row for ${name}`);
   }
   return within(row as HTMLElement).getByRole('button', { name: m.gen_app_remove() });
 }
 
 /**
- * The add button of one search result, found through its bundle id. The
- * website box offers an add of its own, so the row is what tells them apart.
+ * The add button of one search result, found through its name. The website box
+ * offers an add of its own, so the row is what tells them apart.
  */
-function addButtonFor(bundleId: string): HTMLElement {
-  const row = screen.getByText(bundleId).closest('li');
+function addButtonFor(name: string): HTMLElement {
+  const row = screen.getByText(name).closest('li');
   if (row === null) {
-    throw new Error(`No result row for ${bundleId}`);
+    throw new Error(`No result row for ${name}`);
   }
   return within(row as HTMLElement).getByRole('button', { name: m.gen_app_add() });
 }
@@ -272,14 +312,14 @@ describe('Generator', () => {
     expect(screen.queryAllByRole('separator')).toHaveLength(0);
   });
 
-  it('opens the math on four hours a day, five of the next twenty years', async () => {
+  it('opens the math on two hours a day, two and a half of the next twenty years', async () => {
     await renderPage();
 
-    expect(screen.getByRole('slider')).toHaveValue('4');
+    expect(screen.getByRole('slider')).toHaveValue('2');
     expect(mathResult()).toHaveTextContent(
-      `4${m.home_math_result_hours_between()}5${m.home_math_result_hours_after()}`,
+      `2${m.home_math_result_hours_between()}2.5${m.home_math_result_hours_after()}`,
     );
-    expect(mathNumbers()).toEqual(['4', '5']);
+    expect(mathNumbers()).toEqual(['2', '2.5']);
   });
 
   it('marks every whole hour of the travel with its own numbered detent', async () => {
@@ -308,7 +348,7 @@ describe('Generator', () => {
   it('keeps the reading on the slider, with no display beside the rail', async () => {
     await renderPage();
 
-    expect(screen.getByRole('slider')).toHaveAttribute('aria-valuetext', hoursReading(4));
+    expect(screen.getByRole('slider')).toHaveAttribute('aria-valuetext', hoursReading(2));
 
     fireEvent.change(screen.getByRole('slider'), { target: { value: '5' } });
 
@@ -318,7 +358,7 @@ describe('Generator', () => {
 
   it('bills more of the ledger the longer the day is', async () => {
     await renderPage();
-    expect(ledgerLines()).toHaveLength(5);
+    expect(ledgerLines()).toHaveLength(3);
 
     fireEvent.change(screen.getByRole('slider'), { target: { value: '8' } });
     expect(ledgerLines()).toHaveLength(8);
@@ -413,27 +453,57 @@ describe('Generator', () => {
   });
 
   it('counts the blocked apps the preview has no room for', async () => {
-    window.history.replaceState(
-      {},
-      '',
-      '/?a=fb,ig,li,nf,pi,pv,rd,sc,th,tt,tw,x,com.example.one,com.example.two,com.example.three',
-    );
+    window.history.replaceState({}, '', CROWDED_SHARE);
 
     await renderPage();
 
     const fan = previewFan(BLOCKED_APPS + 3);
+    // Twelve icons and the pill that counts the rest.
     expect(fan.children).toHaveLength(13);
-    expect(fan.lastElementChild).toHaveTextContent('+3');
+    expect(fan.lastElementChild).toHaveTextContent(`+${BLOCKED_APPS + 3 - 12}`);
   });
 
-  it('pills the adult filter in the profile preview once it is ticked', async () => {
+  it('writes out every blocked app behind that count', async () => {
+    window.history.replaceState({}, '', CROWDED_SHARE);
+
     await renderPage();
 
-    expect(screen.queryByText(m.gen_summary_adult())).not.toBeInTheDocument();
+    const fan = previewFan(BLOCKED_APPS + 3);
+    const more = within(fan as HTMLElement).getByRole('button');
+    await userEvent.click(more);
+
+    const list = screen.getByRole('tooltip');
+    expect(within(list).getByText(m.gen_preview_all_apps_title())).toBeInTheDocument();
+    for (const app of presets.mert.blockedApps) {
+      expect(within(list).getByText(app.name)).toBeInTheDocument();
+    }
+  });
+
+  it('writes out every blocked site behind the count the chips stop at', async () => {
+    window.history.replaceState({}, '', CROWDED_SHARE);
+
+    await renderPage();
+
+    const sites = deniedSites();
+    const summary = screen.getByText(m.gen_summary_sites_blocked({ count: sites.length }));
+    const more = within(summary.parentElement as HTMLElement).getByRole('button');
+    await userEvent.click(more);
+
+    const list = screen.getByRole('tooltip');
+    expect(within(list).getByText(m.gen_preview_all_sites_title())).toBeInTheDocument();
+    for (const site of sites) {
+      expect(within(list).getByText(site.replace(SITE_SCHEME, ''))).toBeInTheDocument();
+    }
+  });
+
+  it('pills the adult filter in the profile preview, and drops it when unticked', async () => {
+    await renderPage();
+
+    expect(screen.getByText(m.gen_summary_adult())).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('checkbox', { name: m.gen_web_auto_filter() }));
 
-    expect(screen.getByText(m.gen_summary_adult())).toBeInTheDocument();
+    expect(screen.queryByText(m.gen_summary_adult())).not.toBeInTheDocument();
   });
 
   it('pills the profile as locked, and as removable in trial mode', async () => {
@@ -485,17 +555,10 @@ describe('Generator', () => {
     expect(screen.queryByText(/needs supervision/i)).not.toBeInTheDocument();
   });
 
-  it('keeps the profile behind the supervision tick and the permanent one', async () => {
+  it('keeps the profile behind the permanent tick', async () => {
     await renderPage();
 
     expect(screen.getByRole('button', { name: m.gen_download() })).toBeDisabled();
-    expect(screen.getByText(m.gen_step_gate())).toBeInTheDocument();
-
-    await tickSupervised();
-
-    // Supervision opens the page; the download still waits for the second tick.
-    expect(screen.getByRole('button', { name: m.gen_download() })).toBeDisabled();
-    expect(screen.queryByText(m.gen_step_gate())).not.toBeInTheDocument();
 
     await tickPermanent();
 
@@ -504,7 +567,7 @@ describe('Generator', () => {
 
   it('hands over a locked profile unless trial mode is on', async () => {
     await renderPage();
-    await tickGates();
+    await tickPermanent();
 
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
 
@@ -513,7 +576,6 @@ describe('Generator', () => {
 
   it('asks for no permanence tick in trial mode, and says which profile it hands over', async () => {
     await renderPage();
-    await tickSupervised();
     await tickTrial();
 
     expect(
@@ -529,7 +591,6 @@ describe('Generator', () => {
 
   it('asks for the permanence tick again when trial mode goes back off', async () => {
     await renderPage();
-    await tickSupervised();
     await tickTrial();
     await tickTrial();
 
@@ -618,7 +679,7 @@ describe('Generator', () => {
   it('lists nothing while the search box is empty', async () => {
     await renderPage();
 
-    expect(screen.queryByText(SEARCH_RESULT.bundleId)).not.toBeInTheDocument();
+    expect(screen.queryByText(SEARCH_RESULT_NAME)).not.toBeInTheDocument();
     expect(screen.queryByText(m.gen_app_results_empty())).not.toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: m.gen_app_search_clear() }),
@@ -643,7 +704,7 @@ describe('Generator', () => {
 
     await userEvent.type(searchInput(), 'exam');
     await screen.findByText(SEARCH_RESULT_NAME);
-    await userEvent.click(addButtonFor(SEARCH_RESULT.bundleId));
+    await userEvent.click(addButtonFor(SEARCH_RESULT_NAME));
 
     expect(screen.getAllByRole('button', { name: m.gen_app_remove() })).toHaveLength(
       BLOCKED_APPS + 1,
@@ -663,7 +724,7 @@ describe('Generator', () => {
 
     expect(searchInput()).toHaveValue('');
     expect(searchInput()).toHaveFocus();
-    expect(screen.queryByText(SEARCH_RESULT.bundleId)).not.toBeInTheDocument();
+    expect(screen.queryByText(SEARCH_RESULT_NAME)).not.toBeInTheDocument();
     expect(screen.queryByText(m.gen_app_results_empty())).not.toBeInTheDocument();
   });
 
@@ -696,7 +757,7 @@ describe('Generator', () => {
 
   it('blocks the sites its blocked apps imply', async () => {
     await renderPage();
-    await tickGates();
+    await tickPermanent();
 
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
 
@@ -708,8 +769,8 @@ describe('Generator', () => {
 
   it('drops the sites of an app that is removed', async () => {
     await renderPage();
-    await tickGates();
-    const remove = removeButtonFor('com.google.ios.youtube');
+    await tickPermanent();
+    const remove = removeButtonFor('YouTube');
     await userEvent.click(remove);
     await userEvent.click(remove);
 
@@ -720,7 +781,7 @@ describe('Generator', () => {
 
   it('drops a derived site the user unticks', async () => {
     await renderPage();
-    await tickGates();
+    await tickPermanent();
     const site = screen.getByRole('checkbox', { name: 'x.com' });
     expect(site).toBeChecked();
 
@@ -733,7 +794,7 @@ describe('Generator', () => {
 
   it('blocks a site the reader adds in the last row of the box', async () => {
     await renderPage();
-    await tickGates();
+    await tickPermanent();
 
     await userEvent.type(screen.getByLabelText(m.gen_web_add_label()), 'news.ycombinator.com');
     await userEvent.keyboard('{Enter}');
@@ -745,7 +806,7 @@ describe('Generator', () => {
 
   it('asks for a second click before deleting a site', async () => {
     await renderPage();
-    await tickGates();
+    await tickPermanent();
     const remove = siteDelete('x.com');
 
     await userEvent.click(remove);
@@ -763,7 +824,7 @@ describe('Generator', () => {
 
   it('edits the host of a site the reader added', async () => {
     await renderPage();
-    await tickGates();
+    await tickPermanent();
 
     await userEvent.type(screen.getByLabelText(m.gen_web_add_label()), 'old.example');
     await userEvent.keyboard('{Enter}');
@@ -780,11 +841,11 @@ describe('Generator', () => {
 
   it('blocks the site behind a searched app', async () => {
     await renderPage();
-    await tickGates();
+    await tickPermanent();
 
     await userEvent.type(searchInput(), 'exam');
     await screen.findByText(SEARCH_RESULT_NAME);
-    await userEvent.click(addButtonFor(SEARCH_RESULT.bundleId));
+    await userEvent.click(addButtonFor(SEARCH_RESULT_NAME));
 
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
     expect(await downloadedXml()).toContain('<string>https://example.com</string>');
@@ -792,7 +853,7 @@ describe('Generator', () => {
 
   it('downloads the profile the server signed', async () => {
     await renderPage();
-    await tickGates();
+    await tickPermanent();
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
 
     const xml = await downloadedXml();
@@ -810,14 +871,13 @@ describe('Generator', () => {
 
   it('sends what the reader chose, and no identifier of its own', async () => {
     await renderPage();
-    await tickGates();
+    await tickPermanent();
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
 
     await downloadedXml();
     const posted = fetchMock.mock.calls.find(([input]) => input === '/api/sign')?.[1];
     const { config } = JSON.parse(String(posted?.body)) as { config: Record<string, unknown> };
     expect(Object.keys(config).sort()).toEqual([
-      'allowAppStore',
       'allowPrivateBrowsing',
       'autoFilterAdult',
       'blockedApps',
@@ -833,7 +893,7 @@ describe('Generator', () => {
         : answer(input, init),
     );
     await renderPage();
-    await tickGates();
+    await tickPermanent();
 
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
 
@@ -851,7 +911,7 @@ describe('Generator', () => {
         : answer(input, init),
     );
     await renderPage();
-    await tickGates();
+    await tickPermanent();
 
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
 
@@ -867,7 +927,7 @@ describe('Generator', () => {
 
   it('opens the share dialog on the download, and reopens it on request', async () => {
     await renderPage();
-    await tickGates();
+    await tickPermanent();
 
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
 
@@ -878,7 +938,7 @@ describe('Generator', () => {
     expect(
       within(dialog).getByText(
         (_, element) =>
-          element?.tagName === 'P' && element.textContent === m.share_card_years({ years: '5' }),
+          element?.tagName === 'P' && element.textContent === m.share_card_years({ years: '2.5' }),
       ),
     ).toBeInTheDocument();
     expect(within(dialog).getByRole('link', { name: m.share_x() })).toHaveAttribute(
@@ -896,7 +956,7 @@ describe('Generator', () => {
 
   it('opens the share dialog on its close button, with the card fan out of reach', async () => {
     await renderPage();
-    await tickGates();
+    await tickPermanent();
     // The fan on the page itself is the interactive one, and stays that way.
     expect(screen.getByRole('button', { name: 'YouTube' })).toBeInTheDocument();
 
@@ -915,20 +975,20 @@ describe('Generator', () => {
     const writeText = vi.fn(async () => {});
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
     await renderPage();
-    await tickGates();
+    await tickPermanent();
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
     const dialog = await screen.findByRole('dialog');
 
     await userEvent.click(within(dialog).getByRole('button', { name: m.share_copy() }));
 
-    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('attentionawareness.com/?h=4'));
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('attentionawareness.com/?h=2'));
     expect(within(dialog).getByRole('button', { name: m.share_copied() })).toBeInTheDocument();
   });
 
   it('opens the share card in a sheet on a phone', async () => {
     setViewport('phone');
     await renderPage();
-    await tickGates();
+    await tickPermanent();
 
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
 
@@ -945,7 +1005,7 @@ describe('Generator', () => {
 
     expect(screen.getByRole('button', { name: m.gen_download() })).toBeDisabled();
 
-    await tickGates();
+    await tickPermanent();
 
     expect(screen.getByRole('button', { name: m.gen_download() })).toBeEnabled();
   });
@@ -954,7 +1014,7 @@ describe('Generator', () => {
     setViewport('phone');
     dropRandomUuid();
     await renderPage();
-    await tickGates();
+    await tickPermanent();
 
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
 
@@ -974,8 +1034,8 @@ describe('Generator', () => {
 
     expect(mathResult()).toHaveTextContent('7.5');
     expect(screen.getAllByRole('button', { name: m.gen_app_remove() })).toHaveLength(2);
-    expect(screen.getByText('com.burbn.instagram')).toBeInTheDocument();
-    expect(screen.getByText('com.zhiliaoapp.musically')).toBeInTheDocument();
+    expect(screen.getByText('Instagram')).toBeInTheDocument();
+    expect(screen.getByText('TikTok')).toBeInTheDocument();
     expect(screen.getByText(m.share_banner({ years: '7.5' }))).toBeInTheDocument();
   });
 
@@ -1020,9 +1080,93 @@ describe('Generator', () => {
     ]);
   });
 
+  it('strikes a blocklist row out when it is unticked', async () => {
+    await renderPage();
+    const site = 'instagram.com';
+    // The same host is also a chip in the preview, so this asks the row itself.
+    const row = screen.getByRole('checkbox', { name: site }).parentElement;
+    if (row === null) {
+      throw new Error('A site checkbox should sit in its row');
+    }
+    const line = within(row).getByText(site);
+
+    expectStruckThrough(line, false);
+
+    await userEvent.click(screen.getByRole('checkbox', { name: site }));
+
+    expectStruckThrough(line);
+  });
+
+  it('keeps an unticked exception listed and out of the profile', async () => {
+    await renderPage();
+    await tickPermanent();
+
+    await addToList(m.gen_web_permitted_label(), 'example.com');
+    await userEvent.click(screen.getByRole('checkbox', { name: 'example.com' }));
+    expectStruckThrough(screen.getByText('example.com'));
+    fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
+
+    expect(await downloadedXml()).not.toContain('<string>https://example.com</string>');
+  });
+
+  it('takes an exception through the same row the blocklist uses', async () => {
+    await renderPage();
+    await tickPermanent();
+
+    await addToList(m.gen_web_permitted_label(), 'example.com');
+    fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
+
+    const xml = await downloadedXml();
+    expect(xml).toContain('<key>PermittedURLs</key>');
+    expect(xml).toContain('<string>https://example.com</string>');
+  });
+
+  it('drops an exception on the second click of its ×', async () => {
+    await renderPage();
+    await tickPermanent();
+
+    await addToList(m.gen_web_permitted_label(), 'example.com');
+    const site = 'example.com';
+    await userEvent.click(screen.getByRole('button', { name: m.gen_web_row_delete({ site }) }));
+    await userEvent.click(
+      screen.getByRole('button', { name: m.gen_web_row_delete_confirm({ site }) }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
+
+    expect(await downloadedXml()).not.toContain('<string>https://example.com</string>');
+  });
+
+  it('takes an allowed site through the same row in allow mode', async () => {
+    await renderPage();
+    await tickPermanent();
+    fireEvent.click(screen.getByLabelText(m.gen_web_mode_allow()));
+
+    await addToList(m.gen_web_allowed_label(), 'wikipedia.org');
+    fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
+
+    const xml = await downloadedXml();
+    expect(xml).toContain('<key>AllowListBookmarks</key>');
+    expect(xml).toContain('<string>https://wikipedia.org</string>');
+  });
+
+  it('folds private browsing away under more settings, ticked and closed', async () => {
+    await renderPage();
+    const box = screen.getByRole('checkbox', { name: m.gen_web_private_browsing() });
+    const details = box.closest('details');
+
+    // jsdom draws nothing, so `open` is what says the rows are folded away.
+    expect(details).not.toBeNull();
+    expect(details).not.toHaveAttribute('open');
+    expect(box).toBeChecked();
+
+    await userEvent.click(screen.getByText(m.gen_more_settings()));
+
+    expect(details).toHaveAttribute('open');
+  });
+
   it('drops the web filter payload when the filter is turned off', async () => {
     await renderPage();
-    await tickGates();
+    await tickPermanent();
     fireEvent.click(screen.getByLabelText(m.gen_web_mode_off()));
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
     expect(await downloadedXml()).not.toContain('com.apple.webcontent-filter');

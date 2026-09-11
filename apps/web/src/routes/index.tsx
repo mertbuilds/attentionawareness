@@ -10,7 +10,6 @@ import {
   DialogHeader,
   DialogTitle,
   Field,
-  FieldDescription,
   FieldLabel,
   Input,
   Label,
@@ -21,9 +20,12 @@ import { create, keyframes, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import type { ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { AppArtwork, artworkStyles } from '../components/app-artwork.tsx';
 import type { MetaCache } from '../components/app-artwork.tsx';
 import { AppIconFan, fanStyles } from '../components/app-icon-fan.tsx';
+import { GridTexture } from '../components/grid-texture.tsx';
 import { ShareCard } from '../components/share-card.tsx';
 import { Sheet } from '../components/sheet.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
@@ -66,6 +68,9 @@ const SEARCH_LIMIT = 10;
 const SKELETON_ROWS = [0, 1, 2];
 const FALLBACK_COUNTRY = 'us';
 const SUPERVISE_URL = '/supervise';
+/** The ids the two labelled site lists name their add field with. */
+const PERMITTED_INPUT_ID = 'permitted-urls';
+const ALLOWED_INPUT_ID = 'allowed-urls';
 const READING_SPEED_URL = 'https://doi.org/10.1016/j.jml.2019.104047';
 /**
  * The clip that shows where the real number lives, one recording per locale.
@@ -114,7 +119,7 @@ const ROW_APPS = 3;
 const HOURS_MIN = 1;
 const HOURS_MAX = 12;
 const HOURS_STEP = 1;
-const HOURS_DEFAULT = 4;
+const HOURS_DEFAULT = 2;
 /** The machined knob, and the rail the ticks are measured against. */
 const KNOB_WIDTH = 28;
 const KNOB_HEIGHT = 44;
@@ -153,9 +158,6 @@ const TICKS = Array.from({ length: (HOURS_MAX - HOURS_MIN) / HOURS_STEP + 1 }, (
 });
 
 type WebMode = ProfileConfig['webFilter']['mode'];
-
-/** Raw textarea buffers. The parsed arrays live in the config. */
-type UrlText = { allowed: string; permitted: string };
 
 /** A site the user typed themselves, and whether it is switched on. */
 type CustomSite = { enabled: boolean; url: string };
@@ -563,10 +565,32 @@ const styles = create({
     margin: 0,
     textWrap: 'balance',
   },
-  mono: {
-    color: colors.muted,
-    fontFamily: MONOSPACE,
+  // A disclosure with no box of its own: the summary is one more muted line
+  // in the section until it is opened.
+  moreBody: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s3,
+    paddingBlockStart: spacing.s3,
+  },
+  moreSummary: {
+    // Anything but `list-item` drops the browser's own marker, so the chevron
+    // below is the only one.
+    '::after': {
+      content: '"▾"',
+      fontSize: 10,
+    },
+    alignItems: 'center',
+    color: {
+      ':hover': colors.fg,
+      default: colors.muted,
+    },
+    cursor: 'pointer',
+    display: 'flex',
     fontSize: font.sizeSm,
+    gap: spacing.s2,
+    listStyleType: 'none',
+    width: 'fit-content',
   },
   page: {
     alignItems: 'center',
@@ -576,6 +600,9 @@ const styles = create({
     flexDirection: 'column',
     fontFamily: font.family,
     gap: SECTION_GAP,
+    // The stacking context that keeps the grid layer above the page's own
+    // background instead of behind it.
+    isolation: 'isolate',
     minHeight: '100vh',
     paddingBlockEnd: spacing.s16,
     paddingBlockStart: {
@@ -583,6 +610,8 @@ const styles = create({
       default: spacing.s12,
     },
     paddingInline: spacing.s4,
+    // The containing block the grid layer measures itself against.
+    position: 'relative',
   },
   playGlyph: {
     display: 'block',
@@ -629,6 +658,19 @@ const styles = create({
     alignItems: 'center',
     display: 'flex',
   },
+  // The whole list, written out under the pill that counts it. Long lists
+  // scroll inside the box instead of running off the card.
+  previewList: {
+    display: 'flex',
+    flexDirection: 'column',
+    fontFamily: MONOSPACE,
+    fontSize: 12,
+    gap: spacing.s1,
+    lineHeight: 1.5,
+    maxHeight: 280,
+    overflowY: 'auto',
+    overscrollBehavior: 'contain',
+  },
   previewMore: {
     borderColor: colors.border,
     borderRadius: 999,
@@ -642,6 +684,23 @@ const styles = create({
     paddingInline: spacing.s2,
   },
   // The icons read as one stack, so each one steps over the last.
+  // The pill is a button; the pill styles it, so this only undoes the chrome
+  // a button brings with it.
+  previewMoreButton: {
+    backgroundColor: 'transparent',
+    boxShadow: {
+      ':focus-visible': `0 0 0 3px ${colors.muted}`,
+      default: null,
+    },
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    margin: 0,
+    outlineStyle: 'none',
+  },
+  previewMoreWrap: {
+    display: 'inline-flex',
+    position: 'relative',
+  },
   previewOverlap: {
     marginInlineStart: -8,
   },
@@ -649,6 +708,50 @@ const styles = create({
     display: 'flex',
     flexWrap: 'wrap',
     gap: spacing.s2,
+  },
+  // Sits straight under the pill, with no gap to cross: the pointer moving
+  // from one to the other never leaves the pair.
+  previewPopover: {
+    animationDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: '150ms',
+    },
+    animationName: helpEnter,
+    animationTimingFunction: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
+    backgroundColor: colors.bg,
+    borderColor: colors.border,
+    // The same corner as the chips it counts.
+    borderRadius: radius.base,
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    boxShadow: {
+      '@media (prefers-color-scheme: dark)': '0 12px 40px rgba(0, 0, 0, 0.35)',
+      default: '0 12px 40px rgba(0, 0, 0, 0.12)',
+    },
+    boxSizing: 'border-box',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s2,
+    maxWidth: 'calc(100vw - 32px)',
+    padding: spacing.s3,
+    position: 'fixed',
+    textAlign: 'start',
+    width: 240,
+    // Over everything the page draws. The sheets and dialogs that sit higher
+    // are never open at the same time as this.
+    zIndex: 1000,
+  },
+  // The profile card clips what overflows it, so this is portalled onto the
+  // body and placed against the viewport instead of against the pill.
+  previewPopoverAt: (top: number, left: number) => ({
+    insetBlockStart: top,
+    insetInlineStart: left,
+  }),
+  previewPopoverTitle: {
+    color: colors.fg,
+    fontSize: font.sizeSm,
+    fontWeight: font.weightMedium,
+    lineHeight: 1.3,
   },
   previewSites: {
     display: 'flex',
@@ -903,8 +1006,11 @@ const styles = create({
     padding: 0,
   },
   // Unticked means the site is out of the filter, so it steps back.
+  // Unticked: still listed, and struck through because it is not going into
+  // the profile.
   siteHostOff: {
     color: colors.muted,
+    textDecorationLine: 'line-through',
   },
   siteHostOn: {
     color: colors.fg,
@@ -1177,26 +1283,6 @@ const styles = create({
     maxHeight: 320,
     overflowY: 'auto',
   },
-  textarea: {
-    backgroundColor: 'transparent',
-    // The border is the focus ring, the same as the search bar and the site
-    // box, so the browser's own outline is dropped.
-    borderColor: {
-      ':focus-visible': colors.fg,
-      default: colors.border,
-    },
-    borderRadius: radius.base,
-    borderStyle: 'solid',
-    borderWidth: '1px',
-    color: colors.fg,
-    fontFamily: MONOSPACE,
-    fontSize: font.sizeSm,
-    minHeight: 120,
-    outlineStyle: 'none',
-    padding: spacing.s2,
-    resize: 'vertical',
-    width: '100%',
-  },
   tick: {
     backgroundColor: colors.muted,
     height: 9,
@@ -1256,21 +1342,6 @@ const styles = create({
   },
 });
 
-function parseLines(text: string): Array<string> {
-  return text
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line !== '');
-}
-
-function urlTextOf(config: ProfileConfig): UrlText {
-  const filter = config.webFilter;
-  return {
-    allowed: filter.mode === 'allow' ? filter.allowedUrls.join('\n') : '',
-    permitted: filter.mode === 'deny' ? filter.permittedUrls.join('\n') : '',
-  };
-}
-
 /** A site as a chip names it: `https://youtu.be` is youtu.be. */
 function siteLabel(url: string): string {
   return url.replace(SITE_SCHEME, '');
@@ -1316,8 +1387,16 @@ function withDerivedSites(
   customSites: ReadonlyArray<CustomSite>,
   excludedSites: ReadonlyArray<string>,
   removedSites: ReadonlyArray<string>,
+  excludedEntries: ReadonlyArray<string>,
 ): ProfileConfig {
   const filter = config.webFilter;
+  const off = new Set(excludedEntries);
+  if (filter.mode === 'allow') {
+    return {
+      ...config,
+      webFilter: { ...filter, allowedUrls: filter.allowedUrls.filter((url) => !off.has(url)) },
+    };
+  }
   if (filter.mode !== 'deny') {
     return config;
   }
@@ -1326,6 +1405,7 @@ function withDerivedSites(
     webFilter: {
       ...filter,
       deniedUrls: deniedUrlsOf(config.blockedApps, customSites, excludedSites, removedSites),
+      permittedUrls: filter.permittedUrls.filter((url) => !off.has(url)),
     },
   };
 }
@@ -1356,7 +1436,6 @@ function signPayload(
   config: ProfileConfig,
 ): Omit<ProfileConfig, 'displayName' | 'identifier' | 'organization'> {
   return {
-    allowAppStore: config.allowAppStore,
     allowPrivateBrowsing: config.allowPrivateBrowsing,
     autoFilterAdult: config.autoFilterAdult,
     blockedApps: config.blockedApps,
@@ -1383,6 +1462,10 @@ function initialStorefront(): string {
   const code = defaultStorefront();
   return storefronts.some((storefront) => storefront.code === code) ? code : FALLBACK_COUNTRY;
 }
+
+/** The exceptions the recommended deny list is handed with it. */
+const PRESET_PERMITTED: ReadonlyArray<string> =
+  presets.mert.webFilter.mode === 'deny' ? presets.mert.webFilter.permittedUrls : [];
 
 /** The names the recommended list already knows, keyed by bundle id. */
 const PRESET_NAMES: Record<string, string> = Object.fromEntries(
@@ -1622,6 +1705,153 @@ function ScreenTimeHelp() {
 }
 
 /**
+ * The "+N" at the end of a preview row, and the only place the rest of that
+ * row is written out. A pointer or the keyboard opens the list under the pill;
+ * a phone, where a box hanging off a pill has nowhere to go, opens a sheet.
+ */
+function PreviewMore({
+  items,
+  label,
+  style,
+  title,
+}: {
+  items: ReadonlyArray<string>;
+  label: string;
+  style: StyleXStyles;
+  title: string;
+}) {
+  const isMobile = useIsMobile();
+  const [open, setOpen] = useState(false);
+  // Where the pill is, in the viewport. The popover is portalled out of the
+  // card, so this is the only thing that ties the two together.
+  const [at, setAt] = useState<{ left: number; top: number }>({ left: 0, top: 0 });
+  const listId = useId();
+  const wrap = useRef<HTMLSpanElement>(null);
+  const grace = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // A grace period that outlives the popover must not fire into nothing.
+  useEffect(
+    () => () => {
+      if (grace.current !== null) {
+        clearTimeout(grace.current);
+      }
+    },
+    [],
+  );
+
+  // Dismissed from outside itself: a pointer anywhere else, or Escape. The
+  // sheet answers both on its own, so this is the popover's alone.
+  useEffect(() => {
+    if (!open || isMobile) {
+      return;
+    }
+    function place() {
+      const box = wrap.current?.getBoundingClientRect();
+      if (box !== undefined) {
+        setAt({ left: box.left, top: box.bottom });
+      }
+    }
+    function onPointerDown(event: PointerEvent) {
+      if (wrap.current?.contains(event.target as Node | null) !== true) {
+        setOpen(false);
+      }
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setOpen(false);
+      }
+    }
+    place();
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    // `true`: the page scrolls in the window, but a list inside a box does not.
+    window.addEventListener('scroll', place, true);
+    window.addEventListener('resize', place);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('scroll', place, true);
+      window.removeEventListener('resize', place);
+    };
+  }, [isMobile, open]);
+
+  function show() {
+    if (grace.current !== null) {
+      clearTimeout(grace.current);
+      grace.current = null;
+    }
+    setOpen(true);
+  }
+
+  // The popover is not a child of the pill any more, so crossing into it
+  // leaves the pill. The grace period is what carries the pointer across.
+  function hideAfterGrace() {
+    if (grace.current !== null) {
+      clearTimeout(grace.current);
+    }
+    grace.current = setTimeout(() => setOpen(false), HELP_GRACE_MS);
+  }
+
+  const list = (
+    <span {...props(styles.previewList)}>
+      {items.map((item) => (
+        <span key={item}>{item}</span>
+      ))}
+    </span>
+  );
+
+  return (
+    <span
+      onPointerEnter={(event) => {
+        if (!isMobile && event.pointerType !== 'touch') {
+          show();
+        }
+      }}
+      onPointerLeave={(event) => {
+        if (!isMobile && event.pointerType !== 'touch') {
+          hideAfterGrace();
+        }
+      }}
+      ref={wrap}
+      {...props(styles.previewMoreWrap)}
+    >
+      <button
+        aria-describedby={open && !isMobile ? listId : undefined}
+        aria-expanded={open}
+        // The sheet takes the focus with it, and a blur that closes it would
+        // shut it on the way in.
+        onBlur={isMobile ? undefined : () => setOpen(false)}
+        onClick={show}
+        onFocus={isMobile ? undefined : show}
+        type="button"
+        {...props(styles.previewMoreButton, style)}
+      >
+        {label}
+      </button>
+      {isMobile ? (
+        <Sheet onOpenChange={setOpen} open={open} title={title}>
+          {list}
+        </Sheet>
+      ) : open ? (
+        createPortal(
+          <span
+            id={listId}
+            onPointerEnter={show}
+            onPointerLeave={hideAfterGrace}
+            role="tooltip"
+            {...props(styles.previewPopover, styles.previewPopoverAt(at.top, at.left))}
+          >
+            <span {...props(styles.previewPopoverTitle)}>{title}</span>
+            {list}
+          </span>,
+          document.body,
+        )
+      ) : null}
+    </span>
+  );
+}
+
+/**
  * The × that drops one row, two clicks from gone like every other remove here.
  * A derived row is a label for its own checkbox, so this click has to say it is
  * the button's own and not a tick.
@@ -1651,6 +1881,101 @@ function SiteRemoveButton({
     >
       {armed ? m.gen_remove_confirm() : '×'}
     </button>
+  );
+}
+
+/**
+ * The box every site list on the page is drawn in: the rows, divided, and the
+ * last row that takes one more. The draft is the box's own, so a half-typed
+ * host belongs to the list being typed into and to no other.
+ */
+function SiteList({
+  children,
+  hasRows,
+  inputId,
+  onAdd,
+}: {
+  children?: ReactNode | undefined;
+  hasRows: boolean;
+  // Set when a visible label names the list; without one the input names
+  // itself, which is the blocklist's case.
+  inputId?: string | undefined;
+  onAdd: (host: string) => void;
+}) {
+  const [draft, setDraft] = useState('');
+
+  function add() {
+    setDraft('');
+    onAdd(draft);
+  }
+
+  return (
+    <div {...props(styles.siteBox)}>
+      {children}
+      <div {...props(styles.siteRow, hasRows && styles.siteRowDivided)}>
+        <input
+          aria-label={inputId === undefined ? m.gen_web_add_label() : undefined}
+          id={inputId}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              add();
+            }
+          }}
+          placeholder={m.gen_web_add_placeholder()}
+          value={draft}
+          {...props(styles.siteHostInput, styles.siteAdd)}
+        />
+        <button
+          aria-label={m.gen_web_add_button()}
+          onClick={add}
+          type="button"
+          {...props(styles.siteAction)}
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * One plain row of a site list: the host, and the two-step × that drops it.
+ * There is nothing to tick, because a listed exception is one that applies.
+ */
+function SiteEntryRow({
+  armed,
+  checked,
+  divided,
+  onBlur,
+  onRemove,
+  onToggle,
+  url,
+}: {
+  armed: boolean;
+  checked: boolean;
+  divided: boolean;
+  onBlur: () => void;
+  onRemove: () => void;
+  onToggle: () => void;
+  url: string;
+}) {
+  // The whole row is the checkbox's label, so anywhere on it ticks.
+  return (
+    <Label style={[styles.siteRow, divided && styles.siteRowDivided]}>
+      <input
+        aria-label={siteLabel(url)}
+        checked={checked}
+        onChange={onToggle}
+        type="checkbox"
+        {...props(controls.base, controls.checkbox)}
+      />
+      <span {...props(styles.siteHost, checked ? styles.siteHostOn : styles.siteHostOff)}>
+        {siteLabel(url)}
+      </span>
+      <SiteRemoveButton armed={armed} onBlur={onBlur} onClick={onRemove} site={siteLabel(url)} />
+    </Label>
   );
 }
 
@@ -1718,9 +2043,11 @@ function Generator() {
   const [customSites, setCustomSites] = useState<Array<CustomSite>>([]);
   const [excludedSites, setExcludedSites] = useState<Array<string>>([]);
   const [removedSites, setRemovedSites] = useState<Array<string>>([]);
-  const [urlText, setUrlText] = useState<UrlText>(urlTextOf(presets.mert));
+  // Rows the reader unticked in the exceptions or the allow list. Only one of
+  // those lists is ever on screen, so one set holds both. They stay listed and
+  // stay out of the profile, and a reload starts them all ticked again.
+  const [excludedEntries, setExcludedEntries] = useState<Array<string>>([]);
   // What the last row of the website box is holding, before Enter takes it.
-  const [newSite, setNewSite] = useState('');
   const [country, setCountry] = useState(FALLBACK_COUNTRY);
   const [meta, setMeta] = useState<MetaCache>({});
   const [query, setQuery] = useState('');
@@ -1734,9 +2061,6 @@ function Generator() {
   const [armedRemove, setArmedRemove] = useState<string | null>(null);
   // There is nothing to brag about until a profile has left the page.
   const [generated, setGenerated] = useState(false);
-  // Step 1 is the gate: a profile is worth nothing on an unsupervised phone,
-  // so nothing leaves the page until the reader says theirs is supervised.
-  const [supervised, setSupervised] = useState(false);
   // The second gate, on the download alone: an installed profile comes off an
   // erased phone and no other way, so it is said out loud before it is signed.
   const [permanent, setPermanent] = useState(false);
@@ -1755,8 +2079,8 @@ function Generator() {
   const sharePrompted = useRef(false);
 
   const effectiveConfig = useMemo(
-    () => withDerivedSites(config, customSites, excludedSites, removedSites),
-    [config, customSites, excludedSites, removedSites],
+    () => withDerivedSites(config, customSites, excludedSites, removedSites, excludedEntries),
+    [config, customSites, excludedSites, removedSites, excludedEntries],
   );
   const xml = useMemo(() => safeBuild(effectiveConfig), [effectiveConfig]);
   // Every line of the website box: one row per site an app implies, deleted
@@ -2100,13 +2424,13 @@ function Generator() {
           // Derived, and written in by `withDerivedSites` on the way out.
           deniedUrls: [],
           mode,
-          permittedUrls: parseLines(urlText.permitted),
+          permittedUrls: [...PRESET_PERMITTED],
         },
       });
       return;
     }
     if (mode === 'allow') {
-      setConfig({ ...config, webFilter: { allowedUrls: parseLines(urlText.allowed), mode } });
+      setConfig({ ...config, webFilter: { allowedUrls: [], mode } });
       return;
     }
     setConfig({ ...config, webFilter: { mode } });
@@ -2160,9 +2484,8 @@ function Generator() {
 
   // One more site, typed into the last row of the box. A blank and a site the
   // box already lists are both nothing new, so the row just empties itself.
-  function addSite() {
-    const url = normalizeUrl(newSite);
-    setNewSite('');
+  function addSite(host: string) {
+    const url = normalizeUrl(host);
     if (url === '' || siteRows.some((row) => row.url === url)) {
       return;
     }
@@ -2170,20 +2493,67 @@ function Generator() {
     setCustomSites(next);
   }
 
-  function onPermittedChange(text: string) {
-    setUrlText({ ...urlText, permitted: text });
-    const filter = config.webFilter;
-    if (filter.mode === 'deny') {
-      setConfig({ ...config, webFilter: { ...filter, permittedUrls: parseLines(text) } });
+  // The exceptions and the allow list are plain arrays in the config, so one
+  // pair of handlers each: a blank and a site already listed are both nothing.
+  function addPermitted(host: string) {
+    const url = normalizeUrl(host);
+    const web = config.webFilter;
+    if (url === '' || web.mode !== 'deny' || web.permittedUrls.includes(url)) {
+      return;
     }
+    setConfig({ ...config, webFilter: { ...web, permittedUrls: [...web.permittedUrls, url] } });
   }
 
-  function onAllowedChange(text: string) {
-    setUrlText({ ...urlText, allowed: text });
-    const filter = config.webFilter;
-    if (filter.mode === 'allow') {
-      setConfig({ ...config, webFilter: { ...filter, allowedUrls: parseLines(text) } });
+  function addAllowed(host: string) {
+    const url = normalizeUrl(host);
+    const web = config.webFilter;
+    if (url === '' || web.mode !== 'allow' || web.allowedUrls.includes(url)) {
+      return;
     }
+    setConfig({ ...config, webFilter: { ...web, allowedUrls: [...web.allowedUrls, url] } });
+  }
+
+  // The same two-step as every other remove on the page: the first click only
+  // arms the ×.
+  function onListRemoveClick(key: string, remove: () => void) {
+    if (armedRemove !== key) {
+      setArmedRemove(key);
+      return;
+    }
+    setArmedRemove(null);
+    remove();
+  }
+
+  function removePermitted(url: string) {
+    const web = config.webFilter;
+    if (web.mode !== 'deny') {
+      return;
+    }
+    setConfig({
+      ...config,
+      webFilter: { ...web, permittedUrls: web.permittedUrls.filter((set) => set !== url) },
+    });
+  }
+
+  // An unticked entry stays on the page and leaves the profile, the same way
+  // an unticked derived site does.
+  function toggleEntry(url: string) {
+    setExcludedEntries(
+      excludedEntries.includes(url)
+        ? excludedEntries.filter((entry) => entry !== url)
+        : [...excludedEntries, url],
+    );
+  }
+
+  function removeAllowed(url: string) {
+    const web = config.webFilter;
+    if (web.mode !== 'allow') {
+      return;
+    }
+    setConfig({
+      ...config,
+      webFilter: { ...web, allowedUrls: web.allowedUrls.filter((set) => set !== url) },
+    });
   }
 
   /**
@@ -2242,6 +2612,10 @@ function Generator() {
 
   // The derived list is what the profile carries, so it is what the card counts.
   const filter = effectiveConfig.webFilter;
+  // What the boxes draw: every row the reader put there, ticked or not. The
+  // effective config above is what the profile gets, and it drops the unticked.
+  const listedPermitted = config.webFilter.mode === 'deny' ? config.webFilter.permittedUrls : [];
+  const listedAllowed = config.webFilter.mode === 'allow' ? config.webFilter.allowedUrls : [];
   // Only a deny list "blocks sites"; an allow list blocks everything else.
   const blockedSites = filter.mode === 'deny' ? filter.deniedUrls.length : 0;
   const siteSummary =
@@ -2305,6 +2679,7 @@ function Generator() {
 
   return (
     <main {...props(styles.page)}>
+      <GridTexture />
       {friendYears === null ? null : (
         <div {...props(styles.banner)}>
           <span>{m.share_banner({ years: friendYears })}</span>
@@ -2494,18 +2869,6 @@ function Generator() {
         </section>
 
         <section {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_faq_title()}</h2>
-          <dl {...props(styles.defList)}>
-            {objections.map((objection) => (
-              <div key={objection.term}>
-                <dt {...props(styles.defTerm)}>{objection.term}</dt>
-                <dd {...props(styles.defDesc)}>{objection.desc}</dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-
-        <section {...props(styles.section)}>
           <div {...props(styles.stepHeader)}>
             <p {...props(styles.label)}>{m.gen_step1_label()}</p>
             <h2 {...props(styles.sectionTitle)}>{m.gen_step1_title()}</h2>
@@ -2514,15 +2877,6 @@ function Generator() {
           <div {...props(styles.row)}>
             <Button render={<a href={SUPERVISE_URL} />}>{m.gen_step1_cta()}</Button>
           </div>
-          <Label>
-            <input
-              checked={supervised}
-              onChange={(event) => setSupervised(event.target.checked)}
-              type="checkbox"
-              {...props(controls.base, controls.checkbox)}
-            />
-            {m.gen_step1_check()}
-          </Label>
         </section>
 
         <div {...props(styles.stepHeader)}>
@@ -2661,9 +3015,6 @@ function Generator() {
                           <span title={app.developer} {...props(layout.muted, styles.truncate)}>
                             {app.developer}
                           </span>
-                          <span title={app.bundleId} {...props(styles.mono, styles.truncate)}>
-                            {app.bundleId}
-                          </span>
                         </span>
                         <Button
                           disabled={blockedIds.has(app.bundleId)}
@@ -2696,9 +3047,6 @@ function Generator() {
                       {meta[app.bundleId]?.developer}
                     </span>
                   ) : null}
-                  <span title={app.bundleId} {...props(styles.mono, styles.truncate)}>
-                    {app.bundleId}
-                  </span>
                 </span>
                 <Button
                   aria-label={
@@ -2757,7 +3105,7 @@ function Generator() {
           {filter.mode === 'deny' ? (
             <div {...props(styles.section)}>
               <p {...props(layout.muted)}>{m.gen_web_derived_count({ count: blockedSites })}</p>
-              <div {...props(styles.siteBox)}>
+              <SiteList hasRows={siteRows.length > 0} onAdd={addSite}>
                 {siteRows.map((row, position) =>
                   row.kind === 'derived' ? (
                     // The whole row is the checkbox's label, so anywhere on it ticks.
@@ -2824,83 +3172,63 @@ function Generator() {
                     </div>
                   ),
                 )}
-                <div {...props(styles.siteRow, siteRows.length > 0 && styles.siteRowDivided)}>
-                  <input
-                    aria-label={m.gen_web_add_label()}
-                    onChange={(event) => setNewSite(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') {
-                        event.preventDefault();
-                        addSite();
-                      }
-                    }}
-                    placeholder={m.gen_web_add_placeholder()}
-                    value={newSite}
-                    {...props(styles.siteHostInput, styles.siteAdd)}
-                  />
-                  <button
-                    aria-label={m.gen_web_add_button()}
-                    onClick={addSite}
-                    type="button"
-                    {...props(styles.siteAction)}
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
+              </SiteList>
             </div>
           ) : null}
           {filter.mode === 'deny' ? (
             <Field>
-              <FieldLabel htmlFor="permitted-urls">{m.gen_web_permitted_label()}</FieldLabel>
-              <textarea
-                id="permitted-urls"
-                onChange={(event) => onPermittedChange(event.target.value)}
-                value={urlText.permitted}
-                {...props(styles.textarea)}
-              />
-              <FieldDescription>{m.gen_web_lines_help()}</FieldDescription>
+              <FieldLabel htmlFor={PERMITTED_INPUT_ID}>{m.gen_web_permitted_label()}</FieldLabel>
+              <SiteList
+                hasRows={listedPermitted.length > 0}
+                inputId={PERMITTED_INPUT_ID}
+                onAdd={addPermitted}
+              >
+                {listedPermitted.map((url, position) => (
+                  <SiteEntryRow
+                    armed={armedRemove === `${PERMITTED_INPUT_ID}:${url}`}
+                    checked={!excludedEntries.includes(url)}
+                    divided={position > 0}
+                    key={url}
+                    onBlur={() => setArmedRemove(null)}
+                    onRemove={() =>
+                      onListRemoveClick(`${PERMITTED_INPUT_ID}:${url}`, () => removePermitted(url))
+                    }
+                    onToggle={() => toggleEntry(url)}
+                    url={url}
+                  />
+                ))}
+              </SiteList>
             </Field>
           ) : null}
           {filter.mode === 'allow' ? (
             <Field>
-              <FieldLabel htmlFor="allowed-urls">{m.gen_web_allowed_label()}</FieldLabel>
-              <textarea
-                id="allowed-urls"
-                onChange={(event) => onAllowedChange(event.target.value)}
-                value={urlText.allowed}
-                {...props(styles.textarea)}
-              />
-              <FieldDescription>{m.gen_web_lines_help()}</FieldDescription>
+              <FieldLabel htmlFor={ALLOWED_INPUT_ID}>{m.gen_web_allowed_label()}</FieldLabel>
+              <SiteList
+                hasRows={listedAllowed.length > 0}
+                inputId={ALLOWED_INPUT_ID}
+                onAdd={addAllowed}
+              >
+                {listedAllowed.map((url, position) => (
+                  <SiteEntryRow
+                    armed={armedRemove === `${ALLOWED_INPUT_ID}:${url}`}
+                    checked={!excludedEntries.includes(url)}
+                    divided={position > 0}
+                    key={url}
+                    onBlur={() => setArmedRemove(null)}
+                    onRemove={() =>
+                      onListRemoveClick(`${ALLOWED_INPUT_ID}:${url}`, () => removeAllowed(url))
+                    }
+                    onToggle={() => toggleEntry(url)}
+                    url={url}
+                  />
+                ))}
+              </SiteList>
             </Field>
           ) : null}
         </section>
 
         <section {...props(styles.section)}>
           <h2 {...props(styles.sectionTitle)}>{m.gen_restrictions_title()}</h2>
-          <div {...props(styles.choice)}>
-            <Label>
-              <input
-                checked={config.allowAppStore}
-                onChange={(event) => setConfig({ ...config, allowAppStore: event.target.checked })}
-                type="checkbox"
-                {...props(controls.base, controls.checkbox)}
-              />
-              {m.gen_allow_app_store()}
-            </Label>
-            <p {...props(layout.muted)}>{m.gen_allow_app_store_help()}</p>
-          </div>
-          <Label>
-            <input
-              checked={config.allowPrivateBrowsing}
-              onChange={(event) =>
-                setConfig({ ...config, allowPrivateBrowsing: event.target.checked })
-              }
-              type="checkbox"
-              {...props(controls.base, controls.checkbox)}
-            />
-            {m.gen_web_private_browsing()}
-          </Label>
           <Label>
             <input
               checked={config.autoFilterAdult}
@@ -2922,6 +3250,22 @@ function Generator() {
             </Label>
             <p {...props(layout.muted)}>{m.gen_trial_help()}</p>
           </div>
+          <details>
+            <summary {...props(styles.moreSummary)}>{m.gen_more_settings()}</summary>
+            <div {...props(styles.moreBody)}>
+              <Label>
+                <input
+                  checked={config.allowPrivateBrowsing}
+                  onChange={(event) =>
+                    setConfig({ ...config, allowPrivateBrowsing: event.target.checked })
+                  }
+                  type="checkbox"
+                  {...props(controls.base, controls.checkbox)}
+                />
+                {m.gen_web_private_browsing()}
+              </Label>
+            </div>
+          </details>
         </section>
 
         <section {...props(styles.section)}>
@@ -2943,9 +3287,12 @@ function Generator() {
                         />
                       ))}
                       {hiddenApps > 0 ? (
-                        <span {...props(styles.previewMore)}>
-                          {m.gen_summary_apps_more({ count: hiddenApps })}
-                        </span>
+                        <PreviewMore
+                          items={config.blockedApps.map((app) => app.name)}
+                          label={m.gen_summary_apps_more({ count: hiddenApps })}
+                          style={styles.previewMore}
+                          title={m.gen_preview_all_apps_title()}
+                        />
                       ) : null}
                     </span>
                   ) : null}
@@ -2961,19 +3308,17 @@ function Generator() {
                         </span>
                       ))}
                       {hiddenSites > 0 ? (
-                        <span {...props(styles.previewChip)}>
-                          {m.gen_summary_sites_more({ count: hiddenSites })}
-                        </span>
+                        <PreviewMore
+                          items={deniedSites.map((site) => siteLabel(site))}
+                          label={m.gen_summary_sites_more({ count: hiddenSites })}
+                          style={styles.previewChip}
+                          title={m.gen_preview_all_sites_title()}
+                        />
                       ) : null}
                     </span>
                   ) : null}
                 </div>
                 <div {...props(styles.previewPills)}>
-                  <Badge variant="outline">
-                    {config.allowAppStore
-                      ? m.gen_summary_app_store_on()
-                      : m.gen_summary_app_store_off()}
-                  </Badge>
                   <Badge variant="outline">
                     {config.lockRemoval ? m.gen_summary_locked_on() : m.gen_summary_locked_off()}
                   </Badge>
@@ -2995,22 +3340,17 @@ function Generator() {
               )}
               <div {...props(styles.row)}>
                 <Button
-                  disabled={xml === null || !supervised || (!trial && !permanent) || signing}
+                  disabled={xml === null || (!trial && !permanent) || signing}
                   onClick={() => void download()}
                 >
                   {signing ? m.gen_signing() : trial ? m.gen_download_trial() : m.gen_download()}
                 </Button>
                 {generated ? (
-                  <Button
-                    disabled={!supervised}
-                    onClick={() => setShareOpen(true)}
-                    variant="outline"
-                  >
+                  <Button onClick={() => setShareOpen(true)} variant="outline">
                     {m.share_reopen()}
                   </Button>
                 ) : null}
               </div>
-              {supervised ? null : <p {...props(layout.muted)}>{m.gen_step_gate()}</p>}
               {signFailure === null ? null : <p {...props(layout.muted)}>{signFailure}</p>}
             </CardContent>
           </Card>
@@ -3021,6 +3361,18 @@ function Generator() {
             ))}
           </ol>
           <p {...props(layout.muted)}>{m.gen_install_note()}</p>
+        </section>
+
+        <section {...props(styles.section)}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_faq_title()}</h2>
+          <dl {...props(styles.defList)}>
+            {objections.map((objection) => (
+              <div key={objection.term}>
+                <dt {...props(styles.defTerm)}>{objection.term}</dt>
+                <dd {...props(styles.defDesc)}>{objection.desc}</dd>
+              </div>
+            ))}
+          </dl>
         </section>
 
         {isMobile ? (

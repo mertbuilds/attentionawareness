@@ -4,7 +4,6 @@ import { presets } from './presets.ts';
 import type { ProfileConfig } from './types.ts';
 
 const baseConfig: ProfileConfig = {
-  allowAppStore: true,
   allowPrivateBrowsing: true,
   autoFilterAdult: false,
   blockedApps: [{ bundleId: 'com.atebits.Tweetie2', name: 'X' }],
@@ -117,13 +116,8 @@ describe('buildProfile', () => {
     expect(() => buildProfile(config({ identifier: 'com.example.dumb-phone' }))).not.toThrow();
   });
 
-  it('always emits the restrictions payload with allowAppInstallation', () => {
-    expect(buildProfile(config({ allowAppStore: true }))).toContain(
-      '<key>allowAppInstallation</key><true/>',
-    );
-    expect(buildProfile(config({ allowAppStore: false }))).toContain(
-      '<key>allowAppInstallation</key><false/>',
-    );
+  it('always leaves the App Store installable', () => {
+    expect(buildProfile(config({}))).toContain('<key>allowAppInstallation</key><true/>');
   });
 
   it('omits blockedAppBundleIDs when no apps are blocked', () => {
@@ -286,16 +280,15 @@ describe('buildProfile', () => {
 describe('presets', () => {
   it('builds the mert preset with every blocked bundle id', () => {
     const xml = buildProfile(presets.mert);
-    expect(presets.mert.blockedApps).toHaveLength(12);
+    expect(presets.mert.blockedApps).toHaveLength(13);
     for (const app of presets.mert.blockedApps) {
       expect(xml).toContain(`<string>${app.bundleId}</string>`);
     }
     expect(xml).toContain('<string>https://accounts.youtube.com</string>');
   });
 
-  it('builds the stopa preset as an allow list with no App Store', () => {
+  it('builds the stopa preset as an allow list', () => {
     const xml = buildProfile(presets.stopa);
-    expect(xml).toContain('<key>allowAppInstallation</key><false/>');
     expect(xml).toContain('<key>AllowListBookmarks</key>');
     expect(xml).toContain('<key>Title</key><string>wikipedia.org</string>');
   });

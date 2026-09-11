@@ -18,26 +18,48 @@ if (clientEnv.VITE_SENTRY_DSN && typeof window !== 'undefined') {
   Sentry.init({ dsn: clientEnv.VITE_SENTRY_DSN });
 }
 
+/** The brand, in prose. The lowercase "aa" mark is the only lowercase form. */
+const SITE_NAME = 'Attention Awareness';
+const SITE_URL = 'https://attentionawareness.com';
+const OG_IMAGE = `${SITE_URL}/og.png`;
+const DESCRIPTION =
+  "Your attention is more valuable than gold in 2026. Don't give it away for free. Turn your iPhone into a phone that cannot open the feeds, enforced by iOS, not willpower.";
+
 export const Route = createRootRoute({
   component: RootComponent,
   head: () => ({
-    // Dev-only: link the unplugin's compiled CSS so SSR HTML is styled on first
-    // paint (the virtual:stylex:runtime import only injects after hydration —
-    // without this link every refresh flashes unstyled). Production CSS is
-    // emitted into app.css at build, so the link is dev-only.
-    // `precedence` is required: React 19 hoists SSR stylesheets with
-    // data-precedence, and a client link without the prop hydration-mismatches
-    // (which silently breaks event wiring on the whole tree).
-    // `precedence` is required: React 19 hoists SSR stylesheets with
-    // data-precedence, and a client link without the prop hydration-mismatches.
-    links: import.meta.env.DEV
-      ? [{ href: '/virtual:stylex.css', precedence: 'default', rel: 'stylesheet' }]
-      : [],
+    links: [
+      // The SVG first: it inverts with the browser's own theme. The PNG is
+      // there for Safari, which takes the first icon it understands.
+      { href: '/favicon.svg', rel: 'icon', type: 'image/svg+xml' },
+      { href: '/favicon.png', rel: 'icon', sizes: '32x32', type: 'image/png' },
+      { href: '/apple-touch-icon.png', rel: 'apple-touch-icon' },
+      // Dev-only: link the unplugin's compiled CSS so SSR HTML is styled on
+      // first paint (the virtual:stylex:runtime import only injects after
+      // hydration — without this link every refresh flashes unstyled).
+      // Production CSS is emitted into app.css at build, so the link is
+      // dev-only. `precedence` is required: React 19 hoists SSR stylesheets
+      // with data-precedence, and a client link without the prop
+      // hydration-mismatches (which silently breaks event wiring on the whole
+      // tree).
+      ...(import.meta.env.DEV
+        ? [{ href: '/virtual:stylex.css', precedence: 'default', rel: 'stylesheet' }]
+        : []),
+    ],
     meta: [
       // oxlint-disable-next-line text-encoding-identifier-case -- HTML meta charset must be "utf-8"
       { charSet: 'utf-8' },
       { content: 'width=device-width, initial-scale=1', name: 'viewport' },
-      { title: 'attentionawareness' },
+      { title: SITE_NAME },
+      { content: DESCRIPTION, name: 'description' },
+      { content: SITE_NAME, property: 'og:site_name' },
+      { content: SITE_NAME, property: 'og:title' },
+      { content: DESCRIPTION, property: 'og:description' },
+      { content: 'website', property: 'og:type' },
+      { content: SITE_URL, property: 'og:url' },
+      { content: OG_IMAGE, property: 'og:image' },
+      { content: 'summary_large_image', name: 'twitter:card' },
+      { content: OG_IMAGE, name: 'twitter:image' },
     ],
   }),
 });

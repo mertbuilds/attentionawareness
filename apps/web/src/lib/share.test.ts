@@ -5,6 +5,8 @@ import { decodeShare, encodeShare, shareTargets, shareText, SITE_URL } from './s
 
 /** The twelve apps the generator opens with, as the share text names them. */
 const RECOMMENDED = presets.mert.blockedApps.map((app) => app.name);
+/** The apps a share names before it only counts them. */
+const NAMED_APPS = 3;
 
 const URL_WITH_STATE = `${SITE_URL}/?h=4&a=ig,tt`;
 
@@ -80,7 +82,12 @@ describe('shareText', () => {
 
     expect(text).toBe(
       m.share_text_more(
-        { apps: 'Instagram, Threads, TikTok', count: 9, url: URL_WITH_STATE, years: '5' },
+        {
+          apps: 'Instagram, Threads, TikTok',
+          count: RECOMMENDED.length - NAMED_APPS,
+          url: URL_WITH_STATE,
+          years: '5',
+        },
         { locale: 'en' },
       ),
     );

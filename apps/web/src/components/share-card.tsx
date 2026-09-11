@@ -9,9 +9,12 @@ import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
 import type { MetaCache } from './app-artwork.tsx';
 import { AppIconFan } from './app-icon-fan.tsx';
+import { BrandMark } from './brand-mark.tsx';
 
 /** How long the Copy button holds its "Copied" label before standing down. */
 const COPY_FEEDBACK_MS = 2000;
+/** The mark in the card's footer, beside the domain it stands for. */
+const MARK_SIZE = 20;
 
 const styles = create({
   actions: {
@@ -68,12 +71,11 @@ const styles = create({
     fontSize: 'clamp(10px, 1.2cqw, 14px)',
     lineHeight: 1.3,
   },
-  cardDot: {
-    backgroundColor: accent.base,
-    display: 'block',
-    flexShrink: 0,
-    height: 8,
-    width: 8,
+  // A black tile on a black card, so a hairline is what draws its edge.
+  cardMark: {
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderStyle: 'solid',
+    borderWidth: '1px',
   },
   // The fan draws 32px icons wherever it is used, and the card wants 36px:
   // `zoom` scales the row itself, so the line below it keeps its own gap.
@@ -215,7 +217,7 @@ export function ShareCard({
           </div>
           <div {...props(styles.cardFooter)}>
             <span {...props(styles.cardFooterLeft)}>
-              <span {...props(styles.cardDot)} />
+              <BrandMark size={MARK_SIZE} style={styles.cardMark} />
               <span {...props(styles.cardDomain)}>{m.share_domain()}</span>
             </span>
             <span {...props(styles.cardBadge)}>{m.share_card_badge()}</span>

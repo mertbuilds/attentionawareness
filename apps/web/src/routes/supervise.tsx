@@ -12,6 +12,7 @@ import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.sty
 import { create, props } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
+import { GridTexture } from '../components/grid-texture.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { controls } from '../lib/controls.ts';
 import { layout } from '../lib/layout.ts';
@@ -19,10 +20,12 @@ import { m } from '../paraglide/messages.js';
 
 export const Route = createFileRoute('/supervise')({
   component: SuperviseGuide,
-  head: () => ({ meta: [{ title: m.sup_head_title() }] }),
+  head: () => ({ meta: [{ title: `${m.sup_head_title()} · ${SITE_NAME}` }] }),
 });
 
 const HOME_URL = '/';
+/** The brand in prose, the way the root document spells it. */
+const SITE_NAME = 'Attention Awareness';
 const TECH_LOCKDOWN_URL = 'https://www.techlockdown.com';
 const STOPA_URL = 'https://stopa.io/post/297';
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
@@ -47,6 +50,12 @@ const styles = create({
   checkbox: {
     // Sits on the first line of a wrapping label instead of its top edge.
     marginBlockStart: 3,
+  },
+  // Ticked means done, so the line is struck out. The generator's lists read
+  // the other way round: there a tick is what keeps a row.
+  checkDone: {
+    color: colors.muted,
+    textDecorationLine: 'line-through',
   },
   checkItem: {
     marginBlockEnd: spacing.s2,
@@ -142,6 +151,9 @@ const styles = create({
       '@media (min-width: 640px)': spacing.s16,
       default: spacing.s12,
     },
+    // The stacking context that keeps the grid layer above the page's own
+    // background instead of behind it.
+    isolation: 'isolate',
     minHeight: '100vh',
     paddingBlockEnd: spacing.s16,
     paddingBlockStart: {
@@ -149,6 +161,8 @@ const styles = create({
       default: spacing.s12,
     },
     paddingInline: spacing.s4,
+    // The containing block the grid layer measures itself against.
+    position: 'relative',
   },
   pre: {
     backgroundColor: 'transparent',
@@ -224,6 +238,7 @@ function SuperviseGuide() {
 
   return (
     <main {...props(styles.page)}>
+      <GridTexture />
       <header {...props(styles.hero)}>
         <h1 {...props(styles.heroTitle)}>{m.sup_title()}</h1>
         <p {...props(styles.lead)}>{m.sup_lead()}</p>
@@ -265,7 +280,7 @@ function SuperviseGuide() {
                     type="checkbox"
                     {...props(controls.base, controls.checkbox, styles.checkbox)}
                   />
-                  {item.text}
+                  <span {...props(checked.includes(item.id) && styles.checkDone)}>{item.text}</span>
                 </Label>
               </li>
             ))}
