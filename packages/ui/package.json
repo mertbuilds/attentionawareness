@@ -4,6 +4,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./accent.stylex": "./src/accent.stylex.ts",
     "./brand": "./src/brand.ts",
     "./fonts.css": "./src/fonts.css",
     "./theme.css": "./src/theme.css",

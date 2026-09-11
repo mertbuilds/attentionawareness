@@ -1,4 +1,5 @@
 import { beforeEach, expect, test } from 'vitest';
+import { mockChrome } from '../test/chrome.ts';
 import {
   defaultSettings,
   getSettings,
@@ -7,49 +8,8 @@ import {
   setSettings,
 } from './storage.ts';
 
-/**
- * Enough of `chrome.storage.sync` to drive this module: one object, one
- * listener list, and the same read-everything, write-a-patch shape the real
- * one has.
- */
-function mockChromeStorage(initial: Record<string, unknown> = {}) {
-  const store: Record<string, unknown> = { ...initial };
-  const listeners = new Set<chrome.storage.ChangeListener>();
-  Object.assign(globalThis, {
-    chrome: {
-      storage: {
-        onChanged: {
-          addListener: (listener: chrome.storage.ChangeListener) => {
-            listeners.add(listener);
-          },
-          removeListener: (listener: chrome.storage.ChangeListener) => {
-            listeners.delete(listener);
-          },
-        },
-        sync: {
-          get: () => Promise.resolve({ ...store }),
-          set: (items: Record<string, unknown>) => {
-            const changes = Object.fromEntries(
-              Object.entries(items).map(([key, newValue]) => [
-                key,
-                { newValue, oldValue: store[key] },
-              ]),
-            );
-            Object.assign(store, items);
-            for (const listener of listeners) {
-              listener(changes, 'sync');
-            }
-            return Promise.resolve();
-          },
-        },
-      },
-    },
-  });
-  return { listeners, store };
-}
-
 beforeEach(() => {
-  mockChromeStorage();
+  mockChrome();
 });
 
 test('empty storage is the defaults', () => {

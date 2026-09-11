@@ -1,8 +1,8 @@
 import { Button } from '@attentionawareness/ui';
+import { accent } from '@attentionawareness/ui/accent.stylex';
 import { font, palette, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { useEffect, useMemo, useState } from 'react';
-import { accent } from '../lib/accent.stylex.ts';
 import type { BlockedApp } from '../lib/profile/index.ts';
 import { encodeShare, shareApps, shareTargets, shareText, SITE_URL } from '../lib/share.ts';
 import { m } from '../paraglide/messages.js';

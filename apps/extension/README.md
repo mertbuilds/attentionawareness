@@ -49,13 +49,34 @@ removes that element; nothing is undone, because nothing was done to the page.
   storage is shared with every other version of the extension the profile has
   ever run.
 
+## The popup
+
+React 19 and StyleX, the same versions and the same unplugin the web app runs,
+drawing the shared tokens, the shared theme and the licensed Suisse Intl. 320px
+wide: the brand, the master switch, one row per site saying what goes with it,
+and two quiet links out. It follows the system colour scheme and nothing else,
+because a popup this size has no room to argue about themes.
+
+- The switches are ours: `<button role="switch" aria-checked>`, named by the row
+  they sit in. A checkbox cannot be a switch to a screen reader, and the native
+  one paints its off state gray, which the dark theme reads as already off. On
+  is the accent orange, shared with the site through
+  `@attentionawareness/ui/accent.stylex`.
+- Writes are optimistic: the switch moves, then `setSettings` writes the one key
+  it changed. `onSettingsChange` keeps the popup level with any other window,
+  and corrects it if a write does not land.
+- Strings live in `src/lib/strings.ts`, English and sentence case. Paraglide is
+  not wired here; one file is all a second language would need.
+
 ## Build
 
 Two Vite builds, because a content script is not a module: it has to arrive as
 one self-contained IIFE, and Vite takes one output format per build.
 
-- `vite.config.ts` builds `popup.html` and `options.html`, plus the manifest and
-  icons copied byte for byte.
+- `vite.config.ts` builds `popup.html` and `options.html` through React and
+  StyleX, plus the manifest and icons copied byte for byte. StyleX appends its
+  CSS to the first stylesheet the build emits, which is the one `popup.tsx`
+  imports.
 - `vite.config.content.ts` builds `content.ts` into `dist/content.js`.
 
 The icons are generated: `node scripts/render-brand.ts` from the repo root
@@ -69,12 +90,15 @@ pnpm --filter @attentionawareness/extension test   # vitest
 pnpm --filter @attentionawareness/extension e2e    # playwright, needs a build
 ```
 
-The unit tests cover the settings merge, host matching, the CSS the builder
-composes, and that every rule file parses with zero errors. A rule file that
-does not parse is one the browser drops silently, leaving the feed where it
-was.
+Vitest runs two environments, split by file name: `*.test.ts` in node for the
+settings merge, host matching, the CSS the builder composes, and that every rule
+file parses with zero errors (a rule file that does not parse is one the browser
+drops silently, leaving the feed where it was); `*.test.tsx` in jsdom with
+Testing Library for the popup.
 
-The smoke test is the real thing: it launches Chromium with `dist` loaded
-unpacked, serves YouTube's Shorts markup from an intercepted route, asserts the
-shelf is hidden, flips the master switch from the extension's own page, and
-asserts it comes back.
+The smoke tests are the real thing: they launch Chromium with `dist` loaded
+unpacked. The first serves YouTube's Shorts markup from an intercepted route,
+asserts the shelf is hidden, flips the master switch in the popup, and asserts
+it comes back. The second opens the popup itself, counts the switches, checks
+that the licensed Suisse actually loaded, and screenshots it light and dark
+(`AA_SCREENSHOT_DIR` says where; otherwise Playwright's output dir).

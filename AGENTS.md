@@ -56,7 +56,7 @@ Web app (`apps/web`): `pnpm --filter @attentionawareness/web dev` (:3000 standal
 ## UI (`packages/ui`)
 
 - Components come from the [shadcn-cssinjs](https://www.shadcn-cssinjs.com) registry (StyleX on Base UI, copy-paste-own) into `src/ui/`, then adapted to this repo. The shadcn CLI currently fails on this registry's cross-registry deps — fetch item JSON from `https://www.shadcn-cssinjs.com/r/<name>.json` and write the files (see the `shadcn-cssinjs` skill for the exact adaptation checklist: relative imports, named stylex imports, `| undefined` on optional props for exactOptionalPropertyTypes).
-- Two token layers, both ours: `src/lib/tokens.stylex.ts` (component tokens — shadcn CSS variables from `src/theme.css`, grayscale, `--radius: 4px`, dark via `prefers-color-scheme`) and `src/tokens.stylex.ts` (app-level layout: `spacing`, `font`, raw `palette`). Components use the lib tokens; app layout uses the app tokens. Never raw color values.
+- Two token layers, both ours: `src/lib/tokens.stylex.ts` (component tokens — shadcn CSS variables from `src/theme.css`, grayscale, `--radius: 4px`, dark via `prefers-color-scheme`) and `src/tokens.stylex.ts` (app-level layout: `spacing`, `font`, raw `palette`). Components use the lib tokens; app layout uses the app tokens. Never raw color values. `src/accent.stylex.ts` is the one chromatic colour (TE orange), shared by the site and the extension popup.
 - One radius (4px — the lib radius scale is pinned to it). Black and white plus grays. Font stack `'Suisse Intl', 'Inter Variable', system-ui` — Suisse woff2 files are licensed, gitignored, fetched with `pnpm fonts` (`FONT_BUCKET_URL`); without them Inter Variable is the visual fallback. Components inherit the font from the app body; they set none themselves.
 - Current set: Button, Input, Field (label/error composition), Dialog, Select, Table, Label, Separator, Skeleton, Toaster (sonner, next-themes dropped). Grow on demand from the registry.
 - A story is the test: every component has colocated `*.stories.tsx` with `play` interaction tests. `pnpm --filter @attentionawareness/ui test` runs them in real Chromium via the Storybook Vitest addon (Vitest browser mode). `pnpm storybook` serves them on :6006.
@@ -84,7 +84,7 @@ Web app (`apps/web`): `pnpm --filter @attentionawareness/web dev` (:3000 standal
 
 Test pyramid, bottom-up — everything runs with `pnpm test` (turbo) except e2e:
 
-- **Unit** (`*.test.ts` / `*.test.tsx`): web unit tests run in jsdom (Vitest + Testing Library) with the router mocked; the generator page, profile builder, app search, share links and message-catalog parity are covered here.
+- **Unit** (`*.test.ts` / `*.test.tsx`): web unit tests run in jsdom (Vitest + Testing Library) with the router mocked; the generator page, profile builder, app search, share links and message-catalog parity are covered here. The extension splits the two by file name (`vitest` projects): `.ts` in node for its libraries, `.tsx` in jsdom for the popup.
 - **Component** (`packages/ui`): stories are the tests — `play` functions run in real Chromium via `@storybook/addon-vitest` (`pnpm --filter @attentionawareness/ui test`).
 - **E2E** (`e2e/`): `pnpm e2e` — Playwright boots the web app (:3020) via `webServer` and runs `smoke.spec.ts`: the landing page loads, hydrates and shows the hero line. Tests wait for `html[data-hydrated]` (set by a root effect) before asserting.
 - **CLI** (`cli/tests`): pytest, standard library only — `python3 -m pytest cli/tests`. Outside turbo.
