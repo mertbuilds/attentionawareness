@@ -2,26 +2,51 @@
  * YouTube: youtube.com and its subdomains.
  *
  * Hides: every Shorts surface, which is the shelves on home, subscriptions,
- * search and watch, the Shorts entry in both guides, the Shorts tab on a
- * channel, and the /shorts/ player itself; plus the Playables shelf. The home
- * feed, subscriptions, search and the watch page stay.
+ * search and watch, single Shorts sitting among ordinary results, the Shorts
+ * entry in both guides, the Shorts tab on a channel, and the /shorts/ player
+ * itself; plus the Playables shelf. The home feed, subscriptions, search and
+ * the watch page stay.
  *
  * The hooks are YouTube's own custom element names and the `is-shorts`
- * attribute it puts on its own shelves. Both outlive its class names. The
- * Playables shelf carries no attribute of its own, so it is reached by the
- * /playables link inside it. `:has()` reaches the section around a shelf so a
- * removed shelf leaves no empty row. The /shorts/ rules read
- * `html[data-aa-path]`, which the content script keeps in step with
+ * attribute it puts on its own shelves. Both outlive its class names. Search
+ * builds its shelf out of a different set of elements than the feed does
+ * (`grid-shelf-view-model` or `ytd-shelf-renderer` around
+ * `ytm-shorts-lockup-view-model`, with a `-v2` lockup in flight), so both
+ * shapes are named. A single Short is reached by its /shorts/ link, whatever
+ * tile carries it. The Playables shelf carries no attribute of its own, so it
+ * is reached by the /playables link inside it. `:has()` reaches the section
+ * around a shelf so a removed shelf leaves no empty row. The /shorts/ rules
+ * read `html[data-aa-path]`, which the content script keeps in step with
  * `location.pathname`, because YouTube never reloads.
  *
- * Verified 2026-09-11, except the Playables shelf, which YouTube shows by
- * region; its rule is inert where the shelf is absent.
+ * The "Shorts" filter chip on search stays. It carries no attribute and no
+ * link that names it, and CSS cannot match an element by its text.
+ *
+ * Verified 2026-09-12: home, subscriptions, search, watch, channel. The
+ * Playables shelf is the exception, which YouTube shows by region; its rule
+ * is inert where the shelf is absent.
  */
 
 ytd-reel-shelf-renderer,
 ytd-rich-shelf-renderer[is-shorts],
 ytd-rich-section-renderer:has(ytd-rich-shelf-renderer[is-shorts]),
 ytd-rich-section-renderer:has(ytm-shorts-lockup-view-model) {
+  display: none !important;
+}
+
+grid-shelf-view-model:has(ytm-shorts-lockup-view-model, ytm-shorts-lockup-view-model-v2),
+ytd-shelf-renderer:has(ytm-shorts-lockup-view-model, ytm-shorts-lockup-view-model-v2),
+ytd-item-section-renderer:has(> #contents > grid-shelf-view-model ytm-shorts-lockup-view-model),
+ytd-rich-section-renderer:has(ytm-shorts-lockup-view-model-v2),
+ytd-video-renderer:has(a[href^='/shorts/']),
+ytd-grid-video-renderer:has(a[href^='/shorts/']),
+ytd-compact-video-renderer:has(a[href^='/shorts/']),
+ytd-rich-item-renderer:has(a[href^='/shorts/']),
+yt-lockup-view-model:has(a[href^='/shorts/']),
+ytd-guide-entry-renderer:has(a[href^='/shorts']),
+ytd-mini-guide-entry-renderer:has(a[href^='/shorts']),
+ytd-reel-item-renderer,
+ytd-reel-video-renderer {
   display: none !important;
 }
 

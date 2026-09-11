@@ -13,12 +13,15 @@ const POPUP_WIDTH = 320;
 const dist = realpathSync(path.resolve(import.meta.dirname, '../dist'));
 
 /**
- * YouTube's own markup for one Shorts shelf on the home feed and the Shorts
+ * YouTube's own markup for one Shorts shelf on the home feed, the search
+ * page's own shelf, a single Short among ordinary results, and the Shorts
  * entry in the guide, which is what `rules/youtube.css` keys on. Undefined
  * custom elements are `display: inline`, so "not none" is a real answer.
  */
 const FIXTURE = `<!doctype html><html><head><title>YouTube</title></head><body>
 <ytd-rich-section-renderer id="shelf"><ytd-rich-shelf-renderer is-shorts><ytm-shorts-lockup-view-model>short</ytm-shorts-lockup-view-model></ytd-rich-shelf-renderer></ytd-rich-section-renderer>
+<grid-shelf-view-model id="search-shelf"><ytm-shorts-lockup-view-model>short</ytm-shorts-lockup-view-model></grid-shelf-view-model>
+<ytd-video-renderer id="result"><a href="/shorts/abc">short</a></ytd-video-renderer>
 <ytd-guide-entry-renderer id="guide"><a title="Shorts">Shorts</a></ytd-guide-entry-renderer>
 </body></html>`;
 
@@ -38,6 +41,8 @@ test('hides the Shorts shelf, and stops when the extension is turned off', async
     await page.goto('https://www.youtube.com/');
 
     await expect.poll(() => display(page, '#shelf')).toBe('none');
+    await expect.poll(() => display(page, '#search-shelf')).toBe('none');
+    await expect.poll(() => display(page, '#result')).toBe('none');
     await expect.poll(() => display(page, '#guide')).toBe('none');
 
     // The master switch, flipped in the popup that ships with the build.
@@ -45,6 +50,8 @@ test('hides the Shorts shelf, and stops when the extension is turned off', async
     await popup.getByRole('switch', { name: strings.master }).click();
 
     await expect.poll(() => display(page, '#shelf')).not.toBe('none');
+    await expect.poll(() => display(page, '#search-shelf')).not.toBe('none');
+    await expect.poll(() => display(page, '#result')).not.toBe('none');
     await expect.poll(() => display(page, '#guide')).not.toBe('none');
   });
 });
