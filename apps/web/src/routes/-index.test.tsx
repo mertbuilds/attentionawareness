@@ -91,6 +91,11 @@ function speaker(): HTMLElement {
   return screen.getByRole('button', { name: m.home_math_sound_label() });
 }
 
+/** The question mark at the end of the section question. */
+function helpButton(): HTMLElement {
+  return screen.getByRole('button', { name: m.home_math_help_label() });
+}
+
 /** The dial's display, read as one string: the number and its unit. */
 function readout(): string {
   const row = speaker().parentElement;
@@ -190,6 +195,37 @@ describe('Generator', () => {
 
     expect(speaker()).toHaveAttribute('aria-pressed', 'false');
     expect(globalThis.localStorage.getItem('kya:sound')).toBe('false');
+  });
+
+  it('folds the screen-time helper into a question mark', async () => {
+    await renderPage();
+
+    expect(helpButton()).toHaveTextContent('?');
+    expect(screen.queryByText(/screen time shows your real number/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+  });
+
+  it('says where the real number lives on hover, and takes it back on Escape', async () => {
+    await renderPage();
+
+    await userEvent.hover(helpButton());
+
+    const popover = screen.getByRole('tooltip');
+    expect(within(popover).getByText(m.home_math_help_title())).toBeInTheDocument();
+    expect(within(popover).getByText(m.home_math_help_body())).toBeInTheDocument();
+    expect(helpButton()).toHaveAttribute('aria-describedby', popover.id);
+
+    await userEvent.keyboard('{Escape}');
+
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+  });
+
+  it('holds the slot the clip will take until there is a clip', async () => {
+    await renderPage();
+
+    await userEvent.hover(helpButton());
+
+    expect(screen.getByText(m.home_math_help_clip())).toBeInTheDocument();
   });
 
   it('states the deal as three facts', async () => {
