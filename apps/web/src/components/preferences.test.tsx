@@ -26,7 +26,7 @@ Object.defineProperty(globalThis, 'localStorage', {
   },
 });
 
-const { LanguageSwitch, ThemeSwitch } = await import('./preferences.tsx');
+const { LanguageSwitch, PreferencesRow, ThemeSwitch } = await import('./preferences.tsx');
 
 describe('Preferences', () => {
   beforeEach(() => {
@@ -74,5 +74,11 @@ describe('Preferences', () => {
     globalThis.localStorage.setItem(THEME_KEY, 'light');
     render(<ThemeSwitch />);
     expect(screen.getByRole('button', { name: m.pref_theme_light(), pressed: true })).toBeVisible();
+  });
+
+  it('shows the theme and the language side by side in one row', () => {
+    render(<PreferencesRow />);
+    expect(screen.getByRole('group', { name: m.pref_theme_label() })).toBeVisible();
+    expect(screen.getByRole('button', { name: m.pref_language_label() })).toBeVisible();
   });
 });
