@@ -12,7 +12,8 @@ import { colors, font, radius, spacing } from '@keepyourattention/ui/tokens.styl
 import { create, props } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
-import { Preferences } from '../components/preferences.tsx';
+import { SiteFooter } from '../components/site-footer.tsx';
+import { accent } from '../lib/accent.stylex.ts';
 import { layout } from '../lib/layout.ts';
 import { m } from '../paraglide/messages.js';
 
@@ -23,7 +24,6 @@ export const Route = createFileRoute('/supervise')({
 
 const CHECKLIST_KEY = 'kya:supervise-checklist';
 const HOME_URL = '/';
-const REPO_URL = 'https://github.com/mertbuilds/keepyourattention';
 const TECH_LOCKDOWN_URL = 'https://www.techlockdown.com';
 const STOPA_URL = 'https://stopa.io/post/297';
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
@@ -46,7 +46,7 @@ const styles = create({
     paddingInlineStart: spacing.s4,
   },
   checkbox: {
-    accentColor: colors.fg,
+    accentColor: accent.base,
     flexShrink: 0,
     height: 16,
     // Sits on the first line of a wrapping label instead of its top edge.
@@ -97,11 +97,6 @@ const styles = create({
     fontWeight: font.weightMedium,
     lineHeight: 1.5,
     textWrap: 'pretty',
-  },
-  footer: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s1,
   },
   // Same column as `content`, so the hero and every section share a left edge.
   hero: {
@@ -431,19 +426,11 @@ function SuperviseGuide() {
 
         <Separator />
 
-        <footer {...props(styles.footer)}>
+        <SiteFooter>
           <p {...props(layout.muted)}>
             <a href={HOME_URL}>{m.sup_footer_back()}</a>
           </p>
-          <p {...props(layout.muted)}>
-            {m.gen_footer_open_source()}{' '}
-            <a href={REPO_URL} rel="noreferrer" target="_blank">
-              {m.gen_footer_repo()}
-            </a>
-          </p>
-          <p {...props(layout.muted)}>{m.gen_footer_not_apple()}</p>
-          <Preferences />
-        </footer>
+        </SiteFooter>
       </div>
     </main>
   );

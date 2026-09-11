@@ -36,7 +36,6 @@ const styles = create({
     alignItems: 'center',
     display: 'flex',
     gap: spacing.s2,
-    marginBlockStart: spacing.s2,
   },
   control: {
     alignItems: 'center',

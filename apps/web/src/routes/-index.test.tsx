@@ -90,9 +90,24 @@ function removeButtonFor(bundleId: string): HTMLElement {
   return within(row as HTMLElement).getByRole('button', { name: m.gen_app_remove() });
 }
 
-/** The textarea holding the sites the user added by hand. */
-function customSites(): HTMLTextAreaElement {
-  return screen.getByLabelText(m.gen_web_custom_label()) as HTMLTextAreaElement;
+/** The editable host of one row of the website box. */
+function siteRow(host: string): HTMLInputElement {
+  return screen.getByLabelText(m.gen_web_row_edit({ site: host })) as HTMLInputElement;
+}
+
+/** The × that drops one row of the website box. */
+function siteDelete(host: string): HTMLElement {
+  return screen.getByRole('button', { name: m.gen_web_row_delete({ site: host }) });
+}
+
+/** The icons the profile preview draws beside its "N apps blocked" line. */
+function previewFan(apps: number): HTMLElement {
+  const line = screen.getByText(m.gen_summary_apps({ count: apps }));
+  const fan = line.previousElementSibling;
+  if (fan === null) {
+    throw new Error('The apps line should follow its icons');
+  }
+  return fan as HTMLElement;
 }
 
 /** The speaker toggle beside the readout. */
@@ -261,6 +276,43 @@ describe('Generator', () => {
     expect(screen.getByText(m.home_deal_time_label())).toBeInTheDocument();
   });
 
+  it('draws an icon for every blocked app in the profile preview', async () => {
+    await renderPage();
+
+    // The App Store answers nothing here, so every icon is the initials tile.
+    expect(previewFan(BLOCKED_APPS).children).toHaveLength(BLOCKED_APPS);
+  });
+
+  it('counts the blocked apps the preview has no room for', async () => {
+    globalThis.localStorage.setItem(
+      'kya:config',
+      JSON.stringify({
+        ...presets.mert,
+        blockedApps: [
+          ...presets.mert.blockedApps,
+          { bundleId: 'com.example.one', name: 'One' },
+          { bundleId: 'com.example.two', name: 'Two' },
+          { bundleId: 'com.example.three', name: 'Three' },
+        ],
+      }),
+    );
+
+    await renderPage();
+
+    const fan = previewFan(BLOCKED_APPS + 3);
+    expect(fan.children).toHaveLength(13);
+    expect(fan.lastElementChild).toHaveTextContent('+3');
+  });
+
+  it('links the repository from the footer', async () => {
+    await renderPage();
+
+    expect(screen.getByRole('link', { name: m.gen_footer_open_source_link() })).toHaveAttribute(
+      'href',
+      'https://github.com/mertbuilds/keepyourattention',
+    );
+  });
+
   it('answers six objections', async () => {
     const { container } = await renderPage();
 
@@ -367,9 +419,8 @@ describe('Generator', () => {
     expect(screen.getAllByRole('button', { name: m.gen_app_remove() })).toHaveLength(
       BLOCKED_APPS + 1,
     );
-    // In the result row, in the grid and over its site chips: never the App
-    // Store tagline.
-    expect(screen.getAllByText(SEARCH_RESULT_NAME)).toHaveLength(3);
+    // In the result row and in the grid: never the App Store tagline.
+    expect(screen.getAllByText(SEARCH_RESULT_NAME)).toHaveLength(2);
     expect(screen.queryByText(SEARCH_RESULT.trackName)).not.toBeInTheDocument();
   });
 
@@ -448,13 +499,65 @@ describe('Generator', () => {
     expect(await downloadedXml()).not.toContain('<string>https://x.com</string>');
   });
 
-  it('blocks a site the user types under more sites', async () => {
+  it('blocks a site the reader adds in the last row of the box', async () => {
     await renderPage();
 
-    fireEvent.change(customSites(), { target: { value: 'https://news.ycombinator.com' } });
+    await userEvent.type(screen.getByLabelText(m.gen_web_add_label()), 'news.ycombinator.com');
+    await userEvent.keyboard('{Enter}');
 
+    expect(siteRow('news.ycombinator.com')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
     expect(await downloadedXml()).toContain('<string>https://news.ycombinator.com</string>');
+  });
+
+  it('asks for a second click before deleting a site', async () => {
+    await renderPage();
+    const remove = siteDelete('x.com');
+
+    await userEvent.click(remove);
+
+    // Arming alone deletes nothing, and it never ticks the row it sits in.
+    expect(remove).toHaveTextContent(m.gen_remove_confirm());
+    expect(screen.getByRole('checkbox', { name: 'x.com' })).toBeChecked();
+
+    await userEvent.click(remove);
+
+    expect(screen.queryByRole('checkbox', { name: 'x.com' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
+    expect(await downloadedXml()).not.toContain('<string>https://x.com</string>');
+  });
+
+  it('edits the host of a site the reader added', async () => {
+    await renderPage();
+
+    await userEvent.type(screen.getByLabelText(m.gen_web_add_label()), 'old.example');
+    await userEvent.keyboard('{Enter}');
+    const host = siteRow('old.example');
+    await userEvent.clear(host);
+    await userEvent.type(host, 'new.example{Enter}');
+
+    expect(siteRow('new.example')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
+    const xml = await downloadedXml();
+    expect(xml).toContain('<string>https://new.example</string>');
+    expect(xml).not.toContain('<string>https://old.example</string>');
+  });
+
+  it('adopts the bare urls an older custom list stored', async () => {
+    globalThis.localStorage.setItem(
+      'kya:config',
+      JSON.stringify({
+        config: presets.mert,
+        customSites: ['https://old.example'],
+        excludedSites: [],
+      }),
+    );
+
+    await renderPage();
+
+    expect(siteRow('old.example')).toHaveValue('old.example');
+    fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
+    expect(await downloadedXml()).toContain('<string>https://old.example</string>');
   });
 
   it('blocks the site behind a searched app', async () => {
@@ -482,7 +585,7 @@ describe('Generator', () => {
 
     await renderPage();
 
-    expect(customSites().value.split('\n')).toEqual(['https://custom.example']);
+    expect(siteRow('custom.example')).toBeInTheDocument();
   });
 
   it('downloads the built profile', async () => {

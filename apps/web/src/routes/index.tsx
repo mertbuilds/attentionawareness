@@ -18,13 +18,15 @@ import {
 } from '@keepyourattention/ui';
 import { colors, font, palette, radius, spacing } from '@keepyourattention/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
+import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { AppArtwork, artworkStyles } from '../components/app-artwork.tsx';
 import type { MetaCache } from '../components/app-artwork.tsx';
 import { AppIconFan, fanStyles } from '../components/app-icon-fan.tsx';
-import { Preferences } from '../components/preferences.tsx';
 import { ShareCard } from '../components/share-card.tsx';
+import { SiteFooter } from '../components/site-footer.tsx';
+import { accent } from '../lib/accent.stylex.ts';
 import type { AppResult } from '../lib/app-search.ts';
 import {
   defaultStorefront,
@@ -53,11 +55,6 @@ const STORAGE_KEY = 'kya:config';
 const SOUND_KEY = 'kya:sound';
 const GENERATED_KEY = 'kya:generated';
 /**
- * The one chromatic colour on the page. It is not a token: the palette's
- * error red is a warning, and this is a loss, so it stays pure in both themes.
- */
-const ACCENT = '#ff4f00';
-/**
  * The one display size on the page. Only the hero lines and the years the
  * habit costs are set in it; every other heading is one step down.
  */
@@ -68,11 +65,7 @@ const SEARCH_DEBOUNCE_MS = 300;
 const SEARCH_LIMIT = 10;
 const SKELETON_ROWS = [0, 1, 2];
 const FALLBACK_COUNTRY = 'us';
-const REPO_URL = 'https://github.com/mertbuilds/keepyourattention';
-const BUILDER_URL = 'https://mertbuilds.com';
-const STARTER_URL = 'https://cleanstarter.dev';
 const SUPERVISE_URL = '/supervise';
-const STOPA_URL = 'https://stopa.io/post/297';
 const READING_SPEED_URL = 'https://doi.org/10.1016/j.jml.2019.104047';
 /**
  * The clip that shows where the real number lives, one recording per locale.
@@ -104,6 +97,11 @@ const HELP_GRACE_MS = 120;
 const RESET_ARMED = 'reset:apps';
 /** A chip names a host; the scheme carries nothing the user needs to read. */
 const SITE_SCHEME = /^https?:\/\//u;
+/** How much of the profile the preview draws before it starts counting. */
+const PREVIEW_APPS = 12;
+const PREVIEW_SITES = 6;
+/** How many apps one site row names before the rest are left implied. */
+const ROW_APPS = 3;
 /** What the screen-time slider offers, in hours a day. */
 const HOURS_MIN = 1;
 const HOURS_MAX = 10;
@@ -129,17 +127,31 @@ const TICKS = Array.from({ length: (HOURS_MAX - HOURS_MIN) / HOURS_STEP + 1 }, (
 type WebMode = ProfileConfig['webFilter']['mode'];
 
 /** Raw textarea buffers. The parsed arrays live in the config. */
-type UrlText = { allowed: string; custom: string; permitted: string };
+type UrlText = { allowed: string; permitted: string };
+
+/** A site the user typed themselves, and whether it is switched on. */
+type CustomSite = { enabled: boolean; url: string };
+
+/**
+ * One line of the website box. A derived row names the apps that brought it,
+ * so the row can show their icons; a custom row knows where it sits in the
+ * user's own list, because that is the only way to edit or drop it.
+ */
+type SiteRow =
+  | { apps: Array<BlockedApp>; enabled: boolean; kind: 'derived'; url: string }
+  | { enabled: boolean; index: number; kind: 'custom'; url: string };
 
 /**
  * What `kya:config` holds. The blocked sites are derived from the blocked
- * apps, so only the two lists that cannot be derived are stored next to the
- * config: the user's own urls, and the derived ones they turned off.
+ * apps, so only the lists that cannot be derived are stored next to the
+ * config: the user's own urls, the derived ones they turned off, and the
+ * derived ones they deleted outright.
  */
 type StoredState = {
   config: ProfileConfig;
-  customSites: Array<string>;
+  customSites: Array<CustomSite>;
   excludedSites: Array<string>;
+  removedSites: Array<string>;
 };
 
 /** The popover rises the last few pixels into place under its button. */
@@ -222,10 +234,10 @@ const styles = create({
   },
   // The one colour on the page, and it is a loss, never a score.
   burn: {
-    color: ACCENT,
+    color: accent.base,
   },
   checkbox: {
-    accentColor: colors.fg,
+    accentColor: accent.base,
     flexShrink: 0,
     height: 16,
     margin: 0,
@@ -335,11 +347,6 @@ const styles = create({
     margin: 0,
     maxWidth: '60ch',
     textWrap: 'pretty',
-  },
-  footer: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s1,
   },
   // The helper sentence, folded into a ring the question can be asked from.
   helpButton: {
@@ -512,7 +519,7 @@ const styles = create({
   // The count leads its line, so it is the one thing in the bill that is not
   // muted: colour and a step of size carry it, nothing else.
   ledgerNumber: {
-    color: ACCENT,
+    color: accent.base,
     fontSize: 18,
     fontWeight: font.weightMedium,
   },
@@ -577,6 +584,72 @@ const styles = create({
     insetBlockStart: 8,
     insetInlineEnd: 8,
     position: 'absolute',
+  },
+  // The profile as a picture of itself: the icons it hides, the hosts it
+  // turns away, and the two switches that need a supervised phone.
+  preview: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s3,
+  },
+  previewApps: {
+    alignItems: 'center',
+    columnGap: spacing.s3,
+    display: 'flex',
+    flexWrap: 'wrap',
+    rowGap: spacing.s2,
+  },
+  previewArtwork: {
+    borderRadius: 7,
+    height: 28,
+    width: 28,
+  },
+  previewChip: {
+    borderColor: colors.border,
+    borderRadius: radius.base,
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    color: colors.muted,
+    fontFamily: MONOSPACE,
+    fontSize: 12,
+    lineHeight: 1.4,
+    paddingBlock: 2,
+    paddingInline: spacing.s2,
+  },
+  previewChips: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: spacing.s2,
+  },
+  previewFan: {
+    alignItems: 'center',
+    display: 'flex',
+  },
+  previewMore: {
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 1.4,
+    marginInlineStart: spacing.s2,
+    paddingBlock: 2,
+    paddingInline: spacing.s2,
+  },
+  // The icons read as one stack, so each one steps over the last.
+  previewOverlap: {
+    marginInlineStart: -8,
+  },
+  previewPills: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: spacing.s2,
+  },
+  previewSites: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s2,
   },
   preWrap: {
     position: 'relative',
@@ -780,50 +853,89 @@ const styles = create({
       default: 'calc(100% - 2rem)',
     },
   },
-  siteEmpty: {
-    alignItems: 'center',
-    color: colors.muted,
-    display: 'flex',
-    fontSize: font.sizeSm,
-    height: 28,
-  },
-  siteGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s1,
-    minWidth: 0,
-  },
-  siteGroupArtwork: {
-    borderRadius: 5,
-    height: 20,
-    width: 20,
-  },
-  siteGroupHead: {
-    alignItems: 'center',
-    display: 'flex',
-    gap: spacing.s2,
-    minWidth: 0,
-  },
-  siteGroupName: {
-    fontWeight: font.weightMedium,
-    overflowWrap: 'anywhere',
-  },
-  siteGroups: {
-    display: 'grid',
-    gap: spacing.s4,
-    gridTemplateColumns: {
-      '@media (min-width: 640px)': '1fr 1fr',
-      default: '1fr',
+  // The × that arms and drops a row, and the + that adds one.
+  siteAction: {
+    backgroundColor: 'transparent',
+    borderStyle: 'none',
+    borderWidth: 0,
+    color: {
+      ':hover': colors.fg,
+      default: colors.muted,
     },
-    listStyleType: 'none',
-    margin: 0,
+    cursor: 'pointer',
+    flexShrink: 0,
+    fontFamily: 'inherit',
+    fontSize: 16,
+    lineHeight: 1,
     padding: 0,
   },
+  siteActionArmed: {
+    color: {
+      ':hover': colors.error,
+      default: colors.error,
+    },
+    fontSize: 12,
+  },
+  // The last row carries no checkbox, so its field starts where the others do.
+  siteAdd: {
+    marginInlineStart: 24,
+  },
+  siteAppArtwork: {
+    borderRadius: radius.base,
+    height: 16,
+    width: 16,
+  },
+  siteAppOverlap: {
+    marginInlineStart: -6,
+  },
+  siteApps: {
+    alignItems: 'center',
+    display: 'flex',
+    flexShrink: 0,
+  },
+  // One field, drawn as one box: the rows inside it carry no borders of
+  // their own beyond the hairline that separates them.
+  siteBox: {
+    backgroundColor: colors.bg,
+    // The fields inside are borderless and show no outline of their own, so
+    // the box is what says which row the keyboard is in.
+    borderColor: {
+      ':focus-within': colors.fg,
+      default: colors.border,
+    },
+    borderRadius: 12,
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: '150ms',
+    },
+    transitionProperty: 'border-color',
+  },
+  // A derived host is read-only: it belongs to the app that brought it.
   siteHost: {
+    flexGrow: 1,
     fontFamily: MONOSPACE,
-    fontSize: font.sizeSm,
+    fontSize: 13,
     fontWeight: font.weightRegular,
-    overflowWrap: 'anywhere',
+    minWidth: 0,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  siteHostInput: {
+    backgroundColor: 'transparent',
+    borderStyle: 'none',
+    borderWidth: 0,
+    flexGrow: 1,
+    fontFamily: MONOSPACE,
+    fontSize: 13,
+    minWidth: 0,
+    outlineStyle: 'none',
+    padding: 0,
   },
   // Unticked means the site is out of the filter, so it steps back.
   siteHostOff: {
@@ -833,9 +945,16 @@ const styles = create({
     color: colors.fg,
   },
   siteRow: {
+    alignItems: 'center',
+    display: 'flex',
     gap: spacing.s2,
-    height: 28,
-    minWidth: 0,
+    height: 36,
+    paddingInline: spacing.s3,
+  },
+  siteRowDivided: {
+    borderBlockStartColor: colors.border,
+    borderBlockStartStyle: 'solid',
+    borderBlockStartWidth: '1px',
   },
   skeletonRow: {
     height: 40,
@@ -902,10 +1021,10 @@ const styles = create({
   // stop always falls under the knob, which is what hides the seam.
   sliderFill: (percent: number) => ({
     '::-moz-range-track': {
-      backgroundImage: `linear-gradient(to right, ${ACCENT} 0 ${percent}%, ${colors.border} ${percent}% 100%)`,
+      backgroundImage: `linear-gradient(to right, ${accent.base} 0 ${percent}%, ${colors.border} ${percent}% 100%)`,
     },
     '::-webkit-slider-runnable-track': {
-      backgroundImage: `linear-gradient(to right, ${ACCENT} 0 ${percent}%, ${colors.border} ${percent}% 100%)`,
+      backgroundImage: `linear-gradient(to right, ${accent.base} 0 ${percent}%, ${colors.border} ${percent}% 100%)`,
     },
   }),
   sliderLabel: {
@@ -1159,11 +1278,10 @@ function parseLines(text: string): Array<string> {
     .filter((line) => line !== '');
 }
 
-function urlTextOf(config: ProfileConfig, customSites: ReadonlyArray<string>): UrlText {
+function urlTextOf(config: ProfileConfig): UrlText {
   const filter = config.webFilter;
   return {
     allowed: filter.mode === 'allow' ? filter.allowedUrls.join('\n') : '',
-    custom: customSites.join('\n'),
     permitted: filter.mode === 'deny' ? filter.permittedUrls.join('\n') : '',
   };
 }
@@ -1174,19 +1292,28 @@ function siteLabel(url: string): string {
 }
 
 /**
- * What the deny list actually blocks: every site the blocked apps imply,
- * minus the ones the user turned off, then their own urls. Listed once each,
- * in that order.
+ * A derived row is its url; a custom row is its place in the user's list, plus
+ * the url, so committing an edit remounts the field on the new value.
+ */
+function rowKey(row: SiteRow): string {
+  return row.kind === 'derived' ? `derived:${row.url}` : `custom:${row.index}:${row.url}`;
+}
+
+/**
+ * What the deny list actually blocks: every site the blocked apps imply, minus
+ * the ones the user unticked or deleted, then the switched-on urls of their
+ * own. Listed once each, in that order.
  */
 function deniedUrlsOf(
   apps: ReadonlyArray<BlockedApp>,
-  customSites: ReadonlyArray<string>,
+  customSites: ReadonlyArray<CustomSite>,
   excludedSites: ReadonlyArray<string>,
+  removedSites: ReadonlyArray<string>,
 ): Array<string> {
-  const excluded = new Set(excludedSites);
-  const urls = new Set(sitesForApps(apps).filter((site) => !excluded.has(site)));
+  const off = new Set([...excludedSites, ...removedSites]);
+  const urls = new Set(sitesForApps(apps).filter((site) => !off.has(site)));
   for (const site of customSites) {
-    const url = normalizeUrl(site);
+    const url = site.enabled ? normalizeUrl(site.url) : '';
     if (url !== '') {
       urls.add(url);
     }
@@ -1201,8 +1328,9 @@ function deniedUrlsOf(
  */
 function withDerivedSites(
   config: ProfileConfig,
-  customSites: ReadonlyArray<string>,
+  customSites: ReadonlyArray<CustomSite>,
   excludedSites: ReadonlyArray<string>,
+  removedSites: ReadonlyArray<string>,
 ): ProfileConfig {
   const filter = config.webFilter;
   if (filter.mode !== 'deny') {
@@ -1212,7 +1340,7 @@ function withDerivedSites(
     ...config,
     webFilter: {
       ...filter,
-      deniedUrls: deniedUrlsOf(config.blockedApps, customSites, excludedSites),
+      deniedUrls: deniedUrlsOf(config.blockedApps, customSites, excludedSites, removedSites),
     },
   };
 }
@@ -1221,7 +1349,7 @@ function withDerivedSites(
  * The urls a config stored before sites were derived: everything its own apps
  * now imply comes back on its own, so only the rest stays the user's list.
  */
-function customSitesOf(config: ProfileConfig): Array<string> {
+function customSitesOf(config: ProfileConfig): Array<CustomSite> {
   const filter = config.webFilter;
   if (filter.mode !== 'deny') {
     return [];
@@ -1229,7 +1357,27 @@ function customSitesOf(config: ProfileConfig): Array<string> {
   const derived = new Set(sitesForApps(config.blockedApps));
   return filter.deniedUrls
     .map((url) => normalizeUrl(url))
-    .filter((url) => url !== '' && !derived.has(url));
+    .filter((url) => url !== '' && !derived.has(url))
+    .map((url) => ({ enabled: true, url }));
+}
+
+/** An older `customSites` held bare urls, and every one of those is switched on. */
+function customSitesFrom(value: unknown): Array<CustomSite> {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return (value as Array<unknown>).flatMap((site) => {
+    if (typeof site === 'string') {
+      return [{ enabled: true, url: site }];
+    }
+    if (typeof site !== 'object' || site === null) {
+      return [];
+    }
+    const stored = site as Partial<CustomSite>;
+    return typeof stored.url === 'string'
+      ? [{ enabled: stored.enabled !== false, url: stored.url }]
+      : [];
+  });
 }
 
 function readStored(): StoredState | null {
@@ -1250,13 +1398,14 @@ function readStored(): StoredState | null {
   if (stored.config !== undefined) {
     return {
       config: stored.config,
-      customSites: stored.customSites ?? [],
+      customSites: customSitesFrom(stored.customSites),
       excludedSites: stored.excludedSites ?? [],
+      removedSites: stored.removedSites ?? [],
     };
   }
   // A bare config predates the derived sites: migrate it in place.
   const config = value as ProfileConfig;
-  return { config, customSites: customSitesOf(config), excludedSites: [] };
+  return { config, customSites: customSitesOf(config), excludedSites: [], removedSites: [] };
 }
 
 function writeStored(state: StoredState): void {
@@ -1504,6 +1653,86 @@ function ScreenTimeHelp() {
   );
 }
 
+/**
+ * The × that drops one row, two clicks from gone like every other remove here.
+ * A derived row is a label for its own checkbox, so this click has to say it is
+ * the button's own and not a tick.
+ */
+function SiteRemoveButton({
+  armed,
+  onBlur,
+  onClick,
+  site,
+}: {
+  armed: boolean;
+  onBlur: () => void;
+  onClick: () => void;
+  site: string;
+}) {
+  return (
+    <button
+      aria-label={armed ? m.gen_web_row_delete_confirm({ site }) : m.gen_web_row_delete({ site })}
+      onBlur={onBlur}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onClick();
+      }}
+      type="button"
+      {...props(styles.siteAction, armed && styles.siteActionArmed)}
+    >
+      {armed ? m.gen_remove_confirm() : '×'}
+    </button>
+  );
+}
+
+/**
+ * One custom row's host, as a field with no chrome of its own. The draft is local, so
+ * a half-typed host never reaches the profile: Enter and a blur commit it,
+ * Escape puts the old one back, and a blank or unchanged value commits nothing.
+ */
+function SiteHostField({
+  label,
+  onCommit,
+  style,
+  value,
+}: {
+  label: string;
+  onCommit: (text: string) => void;
+  style: StyleXStyles;
+  value: string;
+}) {
+  const [draft, setDraft] = useState(value);
+
+  function commit() {
+    const next = draft.trim();
+    if (next === '' || next === value) {
+      setDraft(value);
+      return;
+    }
+    onCommit(next);
+  }
+
+  return (
+    <input
+      aria-label={label}
+      onBlur={commit}
+      onChange={(event) => setDraft(event.target.value)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          event.currentTarget.blur();
+        }
+        if (event.key === 'Escape') {
+          setDraft(value);
+        }
+      }}
+      value={draft}
+      {...props(styles.siteHostInput, style)}
+    />
+  );
+}
+
 function Generator() {
   // What the reader tells the math section their day looks like.
   const [hours, setHours] = useState(HOURS_DEFAULT);
@@ -1512,11 +1741,14 @@ function Generator() {
   const [sound, setSound] = useState(true);
   const [soundChosen, setSoundChosen] = useState(false);
   const [config, setConfig] = useState<ProfileConfig>(presets.mert);
-  // The user's own urls, and the derived ones they turned off. Everything else
-  // in the deny list comes from the blocked apps.
-  const [customSites, setCustomSites] = useState<Array<string>>([]);
+  // The user's own urls, the derived ones they turned off, and the derived ones
+  // they deleted. Everything else in the deny list comes from the blocked apps.
+  const [customSites, setCustomSites] = useState<Array<CustomSite>>([]);
   const [excludedSites, setExcludedSites] = useState<Array<string>>([]);
-  const [urlText, setUrlText] = useState<UrlText>(urlTextOf(presets.mert, []));
+  const [removedSites, setRemovedSites] = useState<Array<string>>([]);
+  const [urlText, setUrlText] = useState<UrlText>(urlTextOf(presets.mert));
+  // What the last row of the website box is holding, before Enter takes it.
+  const [newSite, setNewSite] = useState('');
   const [country, setCountry] = useState(FALLBACK_COUNTRY);
   const [meta, setMeta] = useState<MetaCache>({});
   const [query, setQuery] = useState('');
@@ -1545,23 +1777,40 @@ function Generator() {
   const sharePrompted = useRef(false);
 
   const effectiveConfig = useMemo(
-    () => withDerivedSites(config, customSites, excludedSites),
-    [config, customSites, excludedSites],
+    () => withDerivedSites(config, customSites, excludedSites, removedSites),
+    [config, customSites, excludedSites, removedSites],
   );
   const xml = useMemo(() => safeBuild(effectiveConfig), [effectiveConfig]);
-  // One row per blocked app, so the chips can say which app brought which site.
-  const appSites = useMemo(
-    () =>
-      config.blockedApps.map((app) => ({
-        app,
-        sites: sitesForApp(app.bundleId, app.sellerUrl).sites.map((site) => normalizeUrl(site)),
+  // Every line of the website box: one row per site an app implies, deleted
+  // ones left out, then the user's own. A site two apps imply is one row that
+  // names both, so the row can show whose it is.
+  const siteRows = useMemo<Array<SiteRow>>(() => {
+    const removed = new Set(removedSites);
+    const byUrl = new Map<string, Array<BlockedApp>>();
+    for (const app of config.blockedApps) {
+      for (const site of sitesForApp(app.bundleId, app.sellerUrl).sites) {
+        const url = normalizeUrl(site);
+        if (url === '' || removed.has(url)) {
+          continue;
+        }
+        byUrl.set(url, [...(byUrl.get(url) ?? []), app]);
+      }
+    }
+    return [
+      ...[...byUrl].map(([url, apps]): SiteRow => ({
+        apps,
+        enabled: !excludedSites.includes(url),
+        kind: 'derived',
+        url,
       })),
-    [config.blockedApps],
-  );
-  const derivedCount = useMemo(() => {
-    const excluded = new Set(excludedSites);
-    return sitesForApps(config.blockedApps).filter((site) => !excluded.has(site)).length;
-  }, [config.blockedApps, excludedSites]);
+      ...customSites.map((site, index): SiteRow => ({
+        enabled: site.enabled,
+        index,
+        kind: 'custom',
+        url: site.url,
+      })),
+    ];
+  }, [config.blockedApps, customSites, excludedSites, removedSites]);
   const blockedIds = useMemo(
     () => new Set(config.blockedApps.map((app) => app.bundleId)),
     [config.blockedApps],
@@ -1608,7 +1857,8 @@ function Generator() {
       setConfig(restored);
       setCustomSites(stored.customSites);
       setExcludedSites(stored.excludedSites);
-      setUrlText(urlTextOf(restored, stored.customSites));
+      setRemovedSites(stored.removedSites);
+      setUrlText(urlTextOf(restored));
     } else if (shared.bundleIds.length > 0) {
       // A shared list is a suggestion, not the reader's own work: it is not
       // written to storage until they change something themselves.
@@ -1755,22 +2005,24 @@ function Generator() {
     return () => clearTimeout(timer);
   }, [copyState]);
 
-  // The three pieces are stored together, so every change writes all of them.
+  // The four pieces are stored together, so every change writes all of them.
   function persist(
     nextConfig: ProfileConfig,
-    nextCustom: ReadonlyArray<string>,
+    nextCustom: ReadonlyArray<CustomSite>,
     nextExcluded: ReadonlyArray<string>,
+    nextRemoved: ReadonlyArray<string>,
   ) {
     writeStored({
-      config: withDerivedSites(nextConfig, nextCustom, nextExcluded),
+      config: withDerivedSites(nextConfig, nextCustom, nextExcluded, nextRemoved),
       customSites: [...nextCustom],
       excludedSites: [...nextExcluded],
+      removedSites: [...nextRemoved],
     });
   }
 
   function update(next: ProfileConfig) {
     setConfig(next);
-    persist(next, customSites, excludedSites);
+    persist(next, customSites, excludedSites, removedSites);
   }
 
   function onHoursChange(value: number) {
@@ -1880,12 +2132,17 @@ function Generator() {
     setArmedRemove(bundleId);
   }
 
-  // The same two-step, on the whole list: one click arms, the next resets. Only
-  // the blocked apps go back; the rest of the config is the user's own work.
+  // The same two-step, on the whole list: one click arms, the next resets. The
+  // recommended apps come back with every site they imply, so the rows that
+  // were unticked or deleted are forgotten too; the user's own urls stay.
   function onResetClick() {
     if (armedRemove === RESET_ARMED) {
       setArmedRemove(null);
-      update({ ...config, blockedApps: [...presets.mert.blockedApps] });
+      const next = { ...config, blockedApps: [...presets.mert.blockedApps] };
+      setConfig(next);
+      setExcludedSites([]);
+      setRemovedSites([]);
+      persist(next, customSites, [], []);
       return;
     }
     setArmedRemove(RESET_ARMED);
@@ -1911,21 +2168,68 @@ function Generator() {
     update({ ...config, webFilter: { mode } });
   }
 
-  function onCustomChange(text: string) {
-    const next = parseLines(text);
-    setUrlText({ ...urlText, custom: text });
-    setCustomSites(next);
-    persist(config, next, excludedSites);
-  }
-
   // A derived site the user turns off stays off while its app stays blocked,
   // so the exclusion is remembered by url, not by app.
-  function toggleSite(site: string) {
-    const next = excludedSites.includes(site)
-      ? excludedSites.filter((url) => url !== site)
-      : [...excludedSites, site];
-    setExcludedSites(next);
-    persist(config, customSites, next);
+  function toggleRow(row: SiteRow) {
+    if (row.kind === 'derived') {
+      const next = excludedSites.includes(row.url)
+        ? excludedSites.filter((url) => url !== row.url)
+        : [...excludedSites, row.url];
+      setExcludedSites(next);
+      persist(config, customSites, next, removedSites);
+      return;
+    }
+    const next = customSites.map((site, index) =>
+      index === row.index ? { ...site, enabled: !site.enabled } : site,
+    );
+    setCustomSites(next);
+    persist(config, next, excludedSites, removedSites);
+  }
+
+  // The same two-step as an app row: the first click only arms the ×. A derived
+  // site has to be remembered as removed, because its app would otherwise bring
+  // it straight back.
+  function onSiteRemoveClick(row: SiteRow) {
+    const armed = rowKey(row);
+    if (armedRemove !== armed) {
+      setArmedRemove(armed);
+      return;
+    }
+    setArmedRemove(null);
+    if (row.kind === 'derived') {
+      const next = [...removedSites, row.url];
+      setRemovedSites(next);
+      persist(config, customSites, excludedSites, next);
+      return;
+    }
+    const next = customSites.filter((_, index) => index !== row.index);
+    setCustomSites(next);
+    persist(config, next, excludedSites, removedSites);
+  }
+
+  // Only the user's own rows are editable, and the field hands over nothing
+  // blank or unchanged, so a committed host is always a new one.
+  function editCustomSite(position: number, text: string) {
+    const url = normalizeUrl(text);
+    if (url === '') {
+      return;
+    }
+    const next = customSites.map((site, index) => (index === position ? { ...site, url } : site));
+    setCustomSites(next);
+    persist(config, next, excludedSites, removedSites);
+  }
+
+  // One more site, typed into the last row of the box. A blank and a site the
+  // box already lists are both nothing new, so the row just empties itself.
+  function addSite() {
+    const url = normalizeUrl(newSite);
+    setNewSite('');
+    if (url === '' || siteRows.some((row) => row.url === url)) {
+      return;
+    }
+    const next = [...customSites, { enabled: true, url }];
+    setCustomSites(next);
+    persist(config, next, excludedSites, removedSites);
   }
 
   function onPermittedChange(text: string) {
@@ -2013,6 +2317,13 @@ function Generator() {
       : filter.mode === 'allow'
         ? m.gen_summary_sites_allowed({ count: filter.allowedUrls.length })
         : m.gen_summary_sites_none();
+  // The preview draws the profile instead of listing it: the icons of the apps
+  // it hides, and the hosts it turns away. Whatever does not fit is counted.
+  const previewApps = config.blockedApps.slice(0, PREVIEW_APPS);
+  const hiddenApps = config.blockedApps.length - previewApps.length;
+  const deniedSites = filter.mode === 'deny' ? filter.deniedUrls : [];
+  const previewSites = deniedSites.slice(0, PREVIEW_SITES);
+  const hiddenSites = deniedSites.length - previewSites.length;
 
   const copyLabel =
     copyState === 'copied'
@@ -2242,12 +2553,6 @@ function Generator() {
               </Card>
             ))}
           </div>
-          <p {...props(layout.muted)}>
-            {m.home_proof_lineage()}{' '}
-            <a href={STOPA_URL} rel="noreferrer" target="_blank">
-              {m.home_proof_lineage_link()}
-            </a>
-          </p>
         </section>
 
         <section {...props(styles.section)}>
@@ -2493,54 +2798,98 @@ function Generator() {
           </div>
           {filter.mode === 'deny' ? (
             <div {...props(styles.section)}>
-              <h3 {...props(styles.label)}>{m.gen_web_derived_title()}</h3>
-              <p {...props(layout.muted)}>{m.gen_web_derived_count({ count: derivedCount })}</p>
-              <ul {...props(styles.siteGroups)}>
-                {appSites.map(({ app, sites }) => (
-                  <li key={app.bundleId} {...props(styles.siteGroup)}>
-                    <span {...props(styles.siteGroupHead)}>
-                      <AppArtwork
-                        meta={meta[app.bundleId]}
-                        name={app.name}
-                        style={styles.siteGroupArtwork}
+              <p {...props(layout.muted)}>{m.gen_web_derived_count({ count: blockedSites })}</p>
+              <div {...props(styles.siteBox)}>
+                {siteRows.map((row, position) =>
+                  row.kind === 'derived' ? (
+                    // The whole row is the checkbox's label, so anywhere on it ticks.
+                    <Label
+                      key={rowKey(row)}
+                      style={[styles.siteRow, position > 0 && styles.siteRowDivided]}
+                    >
+                      <input
+                        aria-label={siteLabel(row.url)}
+                        checked={row.enabled}
+                        onChange={() => toggleRow(row)}
+                        type="checkbox"
+                        {...props(styles.checkbox)}
                       />
-                      <span {...props(styles.siteGroupName)}>{app.name}</span>
-                    </span>
-                    {sites.length === 0 ? (
-                      <span {...props(styles.siteEmpty)}>{m.gen_web_derived_none()}</span>
-                    ) : (
-                      sites.map((site) => (
-                        <Label key={site} style={styles.siteRow}>
-                          <input
-                            checked={!excludedSites.includes(site)}
-                            onChange={() => toggleSite(site)}
-                            type="checkbox"
-                            {...props(styles.checkbox)}
+                      <span
+                        {...props(
+                          styles.siteHost,
+                          row.enabled ? styles.siteHostOn : styles.siteHostOff,
+                        )}
+                      >
+                        {siteLabel(row.url)}
+                      </span>
+                      <span {...props(styles.siteApps)}>
+                        {row.apps.slice(0, ROW_APPS).map((app, index) => (
+                          <AppArtwork
+                            key={app.bundleId}
+                            meta={meta[app.bundleId]}
+                            name={app.name}
+                            style={[styles.siteAppArtwork, index > 0 && styles.siteAppOverlap]}
                           />
-                          <span
-                            {...props(
-                              styles.siteHost,
-                              excludedSites.includes(site) ? styles.siteHostOff : styles.siteHostOn,
-                            )}
-                          >
-                            {siteLabel(site)}
-                          </span>
-                        </Label>
-                      ))
-                    )}
-                  </li>
-                ))}
-              </ul>
-              <Field>
-                <FieldLabel htmlFor="custom-urls">{m.gen_web_custom_label()}</FieldLabel>
-                <textarea
-                  id="custom-urls"
-                  onChange={(event) => onCustomChange(event.target.value)}
-                  value={urlText.custom}
-                  {...props(styles.textarea)}
-                />
-                <FieldDescription>{m.gen_web_custom_help()}</FieldDescription>
-              </Field>
+                        ))}
+                      </span>
+                      <SiteRemoveButton
+                        armed={armedRemove === rowKey(row)}
+                        onBlur={() => setArmedRemove(null)}
+                        onClick={() => onSiteRemoveClick(row)}
+                        site={siteLabel(row.url)}
+                      />
+                    </Label>
+                  ) : (
+                    <div
+                      key={rowKey(row)}
+                      {...props(styles.siteRow, position > 0 && styles.siteRowDivided)}
+                    >
+                      <input
+                        aria-label={siteLabel(row.url)}
+                        checked={row.enabled}
+                        onChange={() => toggleRow(row)}
+                        type="checkbox"
+                        {...props(styles.checkbox)}
+                      />
+                      <SiteHostField
+                        label={m.gen_web_row_edit({ site: siteLabel(row.url) })}
+                        onCommit={(host) => editCustomSite(row.index, host)}
+                        style={row.enabled ? styles.siteHostOn : styles.siteHostOff}
+                        value={siteLabel(row.url)}
+                      />
+                      <SiteRemoveButton
+                        armed={armedRemove === rowKey(row)}
+                        onBlur={() => setArmedRemove(null)}
+                        onClick={() => onSiteRemoveClick(row)}
+                        site={siteLabel(row.url)}
+                      />
+                    </div>
+                  ),
+                )}
+                <div {...props(styles.siteRow, siteRows.length > 0 && styles.siteRowDivided)}>
+                  <input
+                    aria-label={m.gen_web_add_label()}
+                    onChange={(event) => setNewSite(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        addSite();
+                      }
+                    }}
+                    placeholder={m.gen_web_add_placeholder()}
+                    value={newSite}
+                    {...props(styles.siteHostInput, styles.siteAdd)}
+                  />
+                  <button
+                    aria-label={m.gen_web_add_button()}
+                    onClick={addSite}
+                    type="button"
+                    {...props(styles.siteAction)}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
             </div>
           ) : null}
           {filter.mode === 'deny' ? (
@@ -2633,18 +2982,55 @@ function Generator() {
               <CardTitle style={styles.sectionTitle}>{m.gen_output_title()}</CardTitle>
             </CardHeader>
             <CardContent {...props(styles.section)}>
-              <ul {...props(styles.list)}>
-                <li>{m.gen_summary_apps({ count: config.blockedApps.length })}</li>
-                <li>{siteSummary}</li>
-                <li>
-                  {config.allowAppStore
-                    ? m.gen_summary_app_store_on()
-                    : m.gen_summary_app_store_off()}
-                </li>
-                <li>
-                  {config.lockRemoval ? m.gen_summary_locked_on() : m.gen_summary_locked_off()}
-                </li>
-              </ul>
+              <div {...props(styles.preview)}>
+                <div {...props(styles.previewApps)}>
+                  {previewApps.length > 0 ? (
+                    <span {...props(styles.previewFan)}>
+                      {previewApps.map((app, index) => (
+                        <AppArtwork
+                          key={app.bundleId}
+                          meta={meta[app.bundleId]}
+                          name={app.name}
+                          style={[styles.previewArtwork, index > 0 && styles.previewOverlap]}
+                        />
+                      ))}
+                      {hiddenApps > 0 ? (
+                        <span {...props(styles.previewMore)}>
+                          {m.gen_summary_apps_more({ count: hiddenApps })}
+                        </span>
+                      ) : null}
+                    </span>
+                  ) : null}
+                  <span>{m.gen_summary_apps({ count: config.blockedApps.length })}</span>
+                </div>
+                <div {...props(styles.previewSites)}>
+                  <span>{siteSummary}</span>
+                  {previewSites.length > 0 ? (
+                    <span {...props(styles.previewChips)}>
+                      {previewSites.map((site) => (
+                        <span key={site} {...props(styles.previewChip)}>
+                          {siteLabel(site)}
+                        </span>
+                      ))}
+                      {hiddenSites > 0 ? (
+                        <span {...props(styles.previewChip)}>
+                          {m.gen_summary_sites_more({ count: hiddenSites })}
+                        </span>
+                      ) : null}
+                    </span>
+                  ) : null}
+                </div>
+                <div {...props(styles.previewPills)}>
+                  <Badge variant="outline">
+                    {config.allowAppStore
+                      ? m.gen_summary_app_store_on()
+                      : m.gen_summary_app_store_off()}
+                  </Badge>
+                  <Badge variant="outline">
+                    {config.lockRemoval ? m.gen_summary_locked_on() : m.gen_summary_locked_off()}
+                  </Badge>
+                </div>
+              </div>
               {blockedSites > 0 ? (
                 <p {...props(layout.muted)}>{m.gen_summary_tier({ sites: blockedSites })}</p>
               ) : null}
@@ -2692,26 +3078,7 @@ function Generator() {
           </DialogContent>
         </Dialog>
 
-        <footer {...props(styles.footer)}>
-          <p {...props(layout.muted)}>
-            {m.gen_footer_open_source()}{' '}
-            <a href={REPO_URL} rel="noreferrer" target="_blank">
-              {m.gen_footer_repo()}
-            </a>
-          </p>
-          <p {...props(layout.muted)}>
-            {m.gen_footer_built_by()}{' '}
-            <a href={BUILDER_URL} rel="noreferrer" target="_blank">
-              {m.gen_footer_builder()}
-            </a>{' '}
-            {m.gen_footer_built_with()}{' '}
-            <a href={STARTER_URL} rel="noreferrer" target="_blank">
-              {m.gen_footer_starter()}
-            </a>
-          </p>
-          <p {...props(layout.muted)}>{m.gen_footer_not_apple()}</p>
-          <Preferences />
-        </footer>
+        <SiteFooter />
       </div>
     </main>
   );
