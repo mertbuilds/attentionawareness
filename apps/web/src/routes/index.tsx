@@ -50,7 +50,6 @@ export const Route = createFileRoute('/')({
 });
 
 const STORAGE_KEY = 'kya:config';
-const HOURS_KEY = 'kya:hours';
 const SOUND_KEY = 'kya:sound';
 const GENERATED_KEY = 'kya:generated';
 /**
@@ -76,12 +75,16 @@ const SUPERVISE_URL = '/supervise';
 const STOPA_URL = 'https://stopa.io/post/297';
 const READING_SPEED_URL = 'https://doi.org/10.1016/j.jml.2019.104047';
 /**
- * The clip that shows where the real number lives. The video wins when it is
- * set, the gif is the fallback, and with neither the popover holds its
- * placeholder. Both widen to `string` so the other two branches keep
- * type-checking whichever one carries a url.
+ * The clip that shows where the real number lives, one recording per locale.
+ * The video wins when the reader's locale has one, English stands in when it
+ * does not, the gif is the fallback under that, and with none of them the
+ * popover holds its placeholder. The gif widens to `string` so the branches
+ * keep type-checking whichever one carries a url.
  */
-const SCREEN_TIME_VIDEO_URL: string = '/media/screentime-v2.mp4';
+const SCREEN_TIME_VIDEO_URLS: Record<string, string> = {
+  en: '/media/screentime-en.mp4',
+  tr: '/media/screentime-tr.mp4',
+};
 const SCREEN_TIME_GIF_URL: string = '';
 const PROFILE_MIME = 'application/x-apple-aspen-config';
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
@@ -105,7 +108,7 @@ const SITE_SCHEME = /^https?:\/\//u;
 const HOURS_MIN = 1;
 const HOURS_MAX = 10;
 const HOURS_STEP = 0.5;
-const HOURS_DEFAULT = 2;
+const HOURS_DEFAULT = 4;
 /** The machined knob, and the rail the ticks are measured against. */
 const KNOB_WIDTH = 28;
 const KNOB_HEIGHT = 44;
@@ -482,7 +485,6 @@ const styles = create({
     gap: spacing.s2,
     listStyleType: 'none',
     margin: 0,
-    maxWidth: '60ch',
     padding: 0,
   },
   // A line arrives when the day earns it; it leaves the moment it stops
@@ -1265,28 +1267,6 @@ function writeStored(state: StoredState): void {
   }
 }
 
-/** The remembered slider value, or `null` when nothing usable is stored. */
-function readHours(): number | null {
-  try {
-    const stored = globalThis.localStorage.getItem(HOURS_KEY);
-    if (stored === null) {
-      return null;
-    }
-    const hours = Number(stored);
-    return Number.isFinite(hours) && hours >= HOURS_MIN && hours <= HOURS_MAX ? hours : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeHours(hours: number): void {
-  try {
-    globalThis.localStorage.setItem(HOURS_KEY, String(hours));
-  } catch {
-    // Private mode or a full quota must not break the slider.
-  }
-}
-
 /** The remembered speaker choice, or `null` when the reader never made one. */
 function readSound(): boolean | null {
   try {
@@ -1390,6 +1370,11 @@ function safeBuild(config: ProfileConfig): string | null {
   }
 }
 
+/** The screen-time recording the reader's locale is shot in. */
+function screenTimeVideoUrl(): string {
+  return SCREEN_TIME_VIDEO_URLS[getLocale()] ?? SCREEN_TIME_VIDEO_URLS.en ?? '';
+}
+
 /**
  * The question mark at the end of the question. Hover, focus or a tap opens a
  * popover that says where the real number lives and, once the clip is shot,
@@ -1397,6 +1382,7 @@ function safeBuild(config: ProfileConfig): string | null {
  * popover before it closes, because the two do not touch.
  */
 function ScreenTimeHelp() {
+  const videoUrl = screenTimeVideoUrl();
   const [open, setOpen] = useState(false);
   const popoverId = useId();
   const wrap = useRef<HTMLSpanElement>(null);
@@ -1488,7 +1474,7 @@ function ScreenTimeHelp() {
           <span {...props(styles.helpTitle)}>{m.home_math_help_title()}</span>
           <span {...props(styles.helpText)}>{m.home_math_help_body()}</span>
           <span {...props(styles.helpSlot)}>
-            {SCREEN_TIME_VIDEO_URL === '' ? (
+            {videoUrl === '' ? (
               SCREEN_TIME_GIF_URL === '' ? (
                 <span {...props(styles.helpClip)}>{m.home_math_help_clip()}</span>
               ) : (
@@ -1501,11 +1487,13 @@ function ScreenTimeHelp() {
             ) : (
               <video
                 autoPlay
+                // A new locale is a new recording, so the element starts over.
+                key={videoUrl}
                 loop
                 muted
                 playsInline
                 preload="metadata"
-                src={SCREEN_TIME_VIDEO_URL}
+                src={videoUrl}
                 {...props(styles.helpMedia)}
               />
             )}
@@ -1626,12 +1614,9 @@ function Generator() {
       // written to storage until they change something themselves.
       setConfig({ ...presets.mert, blockedApps: shared.bundleIds.map(sharedApp) });
     }
-    const storedHours = readHours();
     if (shared.hours !== undefined) {
       setHours(shared.hours);
       setFriendYears(formatYears(shared.hours));
-    } else if (storedHours !== null) {
-      setHours(storedHours);
     }
     const storedSound = readSound();
     if (storedSound !== null) {
@@ -1795,7 +1780,6 @@ function Generator() {
       playTick({ end: value === HOURS_MIN || value === HOURS_MAX });
     }
     setHours(value);
-    writeHours(value);
   }
 
   // Browsers only hand out an audio device inside a gesture, so the pointer
