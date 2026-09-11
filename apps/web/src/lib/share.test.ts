@@ -47,8 +47,13 @@ describe('decodeShare', () => {
     expect(decodeShare('a=ig,ig,com.burbn.instagram').bundleIds).toEqual(['com.burbn.instagram']);
   });
 
+  it('keeps hours the slider can reach', () => {
+    expect(decodeShare('h=12').hours).toBe(12);
+  });
+
   it('clamps hours into the range the slider offers', () => {
-    expect(decodeShare('h=99').hours).toBe(10);
+    expect(decodeShare('h=13').hours).toBe(12);
+    expect(decodeShare('h=99').hours).toBe(12);
     expect(decodeShare('h=-4').hours).toBe(1);
   });
 
