@@ -134,7 +134,7 @@ export function ShareCard({
             ? m.share_card_from_more({ apps: named, count: rest })
             : m.share_card_from({ apps: named })}
         </p>
-        <AppIconFan apps={apps} meta={meta} />
+        <AppIconFan apps={apps} interactive={false} meta={meta} />
         <span {...props(styles.domain)}>{m.share_domain()}</span>
       </div>
       <div {...props(styles.actions)}>
