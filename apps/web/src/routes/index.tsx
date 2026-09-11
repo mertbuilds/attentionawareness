@@ -20,7 +20,7 @@ import { colors, font, palette, radius, spacing } from '@keepyourattention/ui/to
 import { create, keyframes, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { AppArtwork, artworkStyles } from '../components/app-artwork.tsx';
 import type { MetaCache } from '../components/app-artwork.tsx';
 import { AppIconFan, fanStyles } from '../components/app-icon-fan.tsx';
@@ -106,6 +106,12 @@ const HELP_GRACE_MS = 120;
 const RESET_ARMED = 'reset:apps';
 /** A chip names a host; the scheme carries nothing the user needs to read. */
 const SITE_SCHEME = /^https?:\/\//u;
+/**
+ * Every iOS browser carries "Safari" in its user agent, because they all run
+ * WebKit; only its own token says which one is in front. Safari is the one
+ * that hands the profile straight to Settings, so the rest are named here.
+ */
+const BORROWED_SAFARI = ['CriOS', 'FxiOS', 'EdgiOS'];
 /** How much of the profile the preview draws before it starts counting. */
 const PREVIEW_APPS = 12;
 const PREVIEW_SITES = 6;
@@ -1609,6 +1615,42 @@ function screenTimeVideoUrl(): string {
   return SCREEN_TIME_VIDEO_URLS[getLocale()] ?? SCREEN_TIME_VIDEO_URLS.en ?? '';
 }
 
+/** Safari, as the browser itself reports it. */
+function readIsSafari(): boolean {
+  const agent = navigator.userAgent;
+  return agent.includes('Safari') && !BORROWED_SAFARI.some((name) => agent.includes(name));
+}
+
+/** The user agent cannot change under the page, so nothing ever notifies. */
+const subscribeToNothing = () => () => {};
+
+/** What the server knows about the browser in front of the page: nothing. */
+const notSafariOnServer = () => false;
+
+/**
+ * Whether the page is open in Safari itself. The server has no user agent, so
+ * it answers `false` there and renders that same answer while hydrating —
+ * which is what keeps hydration quiet — and React takes the real one after.
+ */
+function useIsSafari(): boolean {
+  return useSyncExternalStore(subscribeToNothing, readIsSafari, notSafariOnServer);
+}
+
+/**
+ * The shortest way in from where the page is open. Safari on the phone hands
+ * the download straight to Settings; another iOS browser drops it in Files
+ * first; a desktop has to get the file to the phone at all.
+ */
+function installSteps(isMobile: boolean, isSafari: boolean): Array<string> {
+  if (!isMobile) {
+    return [m.gen_install_desktop_1(), m.gen_install_desktop_2(), m.gen_install_desktop_3()];
+  }
+  if (isSafari) {
+    return [m.gen_install_safari_1(), m.gen_install_safari_2()];
+  }
+  return [m.gen_install_other_1(), m.gen_install_other_2(), m.gen_install_other_3()];
+}
+
 /**
  * The recording of Screen Time being opened, in the slot it was shot for. The
  * video wins where the reader's locale has one, the gif stands in under it,
@@ -1842,6 +1884,8 @@ function SiteHostField({
 function Generator() {
   // A phone gets sheets where the wide page gets a popover and a dialog.
   const isMobile = useIsMobile();
+  // Safari is the only browser that can go from the download to Settings.
+  const isSafari = useIsSafari();
   // What the reader tells the math section their day looks like.
   const [hours, setHours] = useState(HOURS_DEFAULT);
   // The detents click by default, and remember it once the reader says either
@@ -3274,11 +3318,9 @@ function Generator() {
           </Card>
           <h3 {...props(styles.sectionTitle)}>{m.gen_install_title()}</h3>
           <ol {...props(styles.steps)}>
-            <li>{m.gen_install_step_transfer()}</li>
-            <li>{m.gen_install_step_settings()}</li>
-            <li>{m.gen_install_step_reboot()}</li>
-            <li>{m.gen_install_step_supervise_first()}</li>
-            <li>{m.gen_install_step_stacks()}</li>
+            {installSteps(isMobile, isSafari).map((step) => (
+              <li key={step}>{step}</li>
+            ))}
           </ol>
           <p {...props(layout.muted)}>{m.gen_install_note()}</p>
         </section>

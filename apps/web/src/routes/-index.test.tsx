@@ -186,6 +186,29 @@ function setViewport(kind: 'desktop' | 'phone'): void {
   });
 }
 
+/** What an iPhone says it is in Safari, and in Chrome, which borrows the name. */
+const SAFARI_AGENT =
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
+const CHROME_IOS_AGENT =
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/130.0.6723.90 Mobile/15E148 Safari/604.1';
+
+/** The name jsdom gives itself, which is neither Safari nor a phone. */
+const realUserAgent = navigator.userAgent;
+
+/** jsdom names itself; the install steps read the browser off this string. */
+function setUserAgent(agent: string): void {
+  Object.defineProperty(navigator, 'userAgent', { configurable: true, value: agent });
+}
+
+/** The install steps, in the order the page lists them. */
+function installSteps(): Array<string> {
+  const list = screen.getByRole('heading', { name: m.gen_install_title() }).nextElementSibling;
+  if (list === null) {
+    throw new Error('The install heading should be followed by its steps');
+  }
+  return Array.from(list.querySelectorAll('li'), (step) => step.textContent ?? '');
+}
+
 /** The shorthand every browser keeps for a secure origin, and only there. */
 const realRandomUuid = crypto.randomUUID;
 
@@ -236,6 +259,7 @@ describe('Generator', () => {
   beforeEach(() => {
     locale.current = 'en';
     setViewport('desktop');
+    setUserAgent(realUserAgent);
     Object.defineProperty(crypto, 'randomUUID', { configurable: true, value: realRandomUuid });
     createObjectURL.mockClear();
     fetchMock.mockClear();
@@ -1031,6 +1055,38 @@ describe('Generator', () => {
     await userEvent.click(screen.getByRole('button', { name: m.share_banner_dismiss() }));
 
     expect(screen.queryByText(m.share_banner({ years: '7.5' }))).not.toBeInTheDocument();
+  });
+
+  it('sends the file to the phone when the page is open on a desktop', async () => {
+    await renderPage();
+
+    expect(installSteps()).toEqual([
+      m.gen_install_desktop_1(),
+      m.gen_install_desktop_2(),
+      m.gen_install_desktop_3(),
+    ]);
+  });
+
+  it('installs in two steps in Safari on a phone', async () => {
+    setViewport('phone');
+    setUserAgent(SAFARI_AGENT);
+
+    await renderPage();
+
+    expect(installSteps()).toEqual([m.gen_install_safari_1(), m.gen_install_safari_2()]);
+  });
+
+  it('goes through Files on a phone in another browser', async () => {
+    setViewport('phone');
+    setUserAgent(CHROME_IOS_AGENT);
+
+    await renderPage();
+
+    expect(installSteps()).toEqual([
+      m.gen_install_other_1(),
+      m.gen_install_other_2(),
+      m.gen_install_other_3(),
+    ]);
   });
 
   it('drops the web filter payload when the filter is turned off', async () => {
