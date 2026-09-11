@@ -6,7 +6,7 @@ Founding decisions live in [docs/adr/0001-stack.md](docs/adr/0001-stack.md). Age
 
 ## The phone tool
 
-`cli/supervise.py` turns an iPhone into a supervised device without erasing it, by patching a local Finder backup. Supervision is what lets a configuration profile lock the phone down: a Safari allowlist, no App Store, no app installs. It is a standalone Python script with no dependencies, outside the pnpm workspace. See [cli/README.md](cli/README.md).
+The `supervise` command turns an iPhone into a supervised device without erasing it, by patching a local Finder backup. Supervision is what lets a configuration profile lock the phone down: a Safari allowlist, no App Store, no app installs. It is standard library Python with no dependencies, in `cli/`, outside the pnpm workspace. Install it with `curl -fsSL https://keepyourattention.com/install.sh | sh`. See [cli/README.md](cli/README.md).
 
 ## Stack
 
