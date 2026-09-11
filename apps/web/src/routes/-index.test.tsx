@@ -9,6 +9,15 @@ vi.mock('@tanstack/react-router', () => ({
   createFileRoute: () => (options: { component: React.ComponentType }) => options,
 }));
 
+// The screen-time clip is shot once per locale, so the tests say which locale
+// the page is in. Only the answer is stubbed; the rest of the runtime stays
+// real, because the message functions call into it.
+const locale = vi.hoisted<{ current: 'en' | 'tr' }>(() => ({ current: 'en' }));
+vi.mock(import('../paraglide/runtime.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  getLocale: () => locale.current,
+}));
+
 // jsdom has no object URLs, and the download path is what carries the XML out.
 const createObjectURL = vi.fn<(blob: Blob) => string>(() => 'blob:profile');
 URL.createObjectURL = createObjectURL;
@@ -134,6 +143,7 @@ async function downloadedXml(): Promise<string> {
 
 describe('Generator', () => {
   beforeEach(() => {
+    locale.current = 'en';
     createObjectURL.mockClear();
     globalThis.localStorage.clear();
     // A shared link is read off the address bar, so every test starts on a bare one.
@@ -152,12 +162,12 @@ describe('Generator', () => {
     expect(screen.queryAllByRole('separator')).toHaveLength(0);
   });
 
-  it('opens the math on two hours a day, two and a half of the next twenty years', async () => {
+  it('opens the math on four hours a day, five of the next twenty years', async () => {
     await renderPage();
 
-    expect(screen.getByRole('slider')).toHaveValue('2');
-    expect(readout()).toBe(hoursReading(2));
-    expect(mathResult()).toHaveTextContent('2.5');
+    expect(screen.getByRole('slider')).toHaveValue('4');
+    expect(readout()).toBe(hoursReading(4));
+    expect(mathResult()).toHaveTextContent('5');
   });
 
   it('marks every half hour of the travel with its own detent', async () => {
@@ -178,7 +188,7 @@ describe('Generator', () => {
 
   it('bills more of the ledger the longer the day is', async () => {
     await renderPage();
-    expect(ledgerLines()).toHaveLength(3);
+    expect(ledgerLines()).toHaveLength(5);
 
     fireEvent.change(screen.getByRole('slider'), { target: { value: '8' } });
     expect(ledgerLines()).toHaveLength(8);
@@ -227,7 +237,17 @@ describe('Generator', () => {
 
     const clip = screen.getByRole('tooltip').querySelector('video');
     expect(clip).not.toBeNull();
-    expect(clip?.src).toMatch(/\/media\/screentime-v2\.mp4$/);
+    expect(clip?.src).toMatch(/\/media\/screentime-en\.mp4$/);
+  });
+
+  it('plays the Turkish recording to a Turkish reader', async () => {
+    locale.current = 'tr';
+    await renderPage();
+
+    await userEvent.hover(helpButton());
+
+    const clip = screen.getByRole('tooltip').querySelector('video');
+    expect(clip?.src).toMatch(/\/media\/screentime-tr\.mp4$/);
   });
 
   it('states the deal as three value tiles', async () => {
@@ -504,7 +524,7 @@ describe('Generator', () => {
 
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText(m.share_heading_output())).toBeInTheDocument();
-    expect(within(dialog).getByText(m.share_card_years({ years: '2.5' }))).toBeInTheDocument();
+    expect(within(dialog).getByText(m.share_card_years({ years: '5' }))).toBeInTheDocument();
     expect(within(dialog).getByRole('link', { name: m.share_x() })).toHaveAttribute(
       'href',
       expect.stringContaining('intent/post'),
@@ -539,7 +559,7 @@ describe('Generator', () => {
 
     await userEvent.click(within(dialog).getByRole('button', { name: m.share_copy() }));
 
-    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('keepyourattention.com/?h=2'));
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('keepyourattention.com/?h=4'));
     expect(within(dialog).getByRole('button', { name: m.share_copied() })).toBeInTheDocument();
   });
 
