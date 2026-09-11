@@ -11,7 +11,7 @@ import {
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { controls } from '../lib/controls.ts';
 import { layout } from '../lib/layout.ts';
@@ -22,7 +22,6 @@ export const Route = createFileRoute('/supervise')({
   head: () => ({ meta: [{ title: m.sup_head_title() }] }),
 });
 
-const CHECKLIST_KEY = 'aa:supervise-checklist';
 const HOME_URL = '/';
 const TECH_LOCKDOWN_URL = 'https://www.techlockdown.com';
 const STOPA_URL = 'https://stopa.io/post/297';
@@ -195,50 +194,17 @@ const styles = create({
   },
 });
 
-/** Ticked boxes survive a reload; private mode and a full quota must not throw. */
-function readChecked(): Array<string> {
-  try {
-    const raw = globalThis.localStorage.getItem(CHECKLIST_KEY);
-    const parsed: unknown = raw === null ? null : JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter((id) => typeof id === 'string') : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeChecked(ids: ReadonlyArray<string>): void {
-  try {
-    globalThis.localStorage.setItem(CHECKLIST_KEY, JSON.stringify(ids));
-  } catch {
-    // The guide still works with nothing remembered.
-  }
-}
-
 function MediaPlaceholder() {
   return <div {...props(styles.media)}>{m.sup_media_placeholder()}</div>;
 }
 
 function SuperviseGuide() {
-  // Server and first client render agree on an empty list; the stored one
-  // arrives after mount, so hydration never sees a different checkbox.
+  // The ticks are for reading along, and nothing is stored: a reload starts the
+  // list over.
   const [checked, setChecked] = useState<ReadonlyArray<string>>([]);
 
-  // Reading localStorage during render would desync the SSR HTML from the first
-  // client render. Adopting what it holds IS synchronizing with an external
-  // system, the one case the rule leaves to an effect, and it runs once.
-  /* oxlint-disable react/set-state-in-effect -- one-shot restore from browser-only storage */
-  useEffect(() => {
-    const stored = readChecked();
-    if (stored.length > 0) {
-      setChecked(stored);
-    }
-  }, []);
-  /* oxlint-enable react/set-state-in-effect */
-
   const toggle = (id: string): void => {
-    const next = checked.includes(id) ? checked.filter((value) => value !== id) : [...checked, id];
-    setChecked(next);
-    writeChecked(next);
+    setChecked(checked.includes(id) ? checked.filter((value) => value !== id) : [...checked, id]);
   };
 
   const checklist = [

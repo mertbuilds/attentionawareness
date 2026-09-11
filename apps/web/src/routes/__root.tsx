@@ -2,7 +2,6 @@ import { PostHogProvider } from '@posthog/react';
 import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-router';
 import { useEffect, type ReactNode } from 'react';
 import { clientEnv } from '../lib/env.ts';
-import { themeScript } from '../lib/theme.ts';
 import { getLocale } from '../paraglide/runtime.js';
 import '@attentionawareness/ui/fonts.css';
 import '@attentionawareness/ui/theme.css';
@@ -40,10 +39,6 @@ export const Route = createRootRoute({
       { content: 'width=device-width, initial-scale=1', name: 'viewport' },
       { title: 'attentionawareness' },
     ],
-    // Head scripts run before the first paint, which is the whole point of this
-    // one: it stamps `data-theme` from localStorage so a forced light/dark
-    // never flashes the other one.
-    scripts: [{ children: themeScript }],
   }),
 });
 

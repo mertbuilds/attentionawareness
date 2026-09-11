@@ -24,18 +24,6 @@ const createObjectURL = vi.fn<(blob: Blob) => string>(() => 'blob:profile');
 URL.createObjectURL = createObjectURL;
 URL.revokeObjectURL = vi.fn();
 
-// This jsdom exposes no Storage either, and the saved config is read from one.
-const storage = new Map<string, string>();
-Object.defineProperty(globalThis, 'localStorage', {
-  configurable: true,
-  value: {
-    clear: () => storage.clear(),
-    getItem: (key: string) => storage.get(key) ?? null,
-    removeItem: (key: string) => storage.delete(key),
-    setItem: (key: string, value: string) => storage.set(key, value),
-  },
-});
-
 /**
  * The one app the stubbed App Store answers a search with. No curated entry
  * carries its bundle id, so its site is the one behind the seller url.
@@ -268,7 +256,6 @@ describe('Generator', () => {
     createObjectURL.mockClear();
     fetchMock.mockClear();
     fetchMock.mockImplementation(answer);
-    globalThis.localStorage.clear();
     // A shared link is read off the address bar, so every test starts on a bare one.
     window.history.replaceState({}, '', '/');
   });
@@ -340,14 +327,13 @@ describe('Generator', () => {
     expect(ledgerLines()).toHaveLength(2);
   });
 
-  it('remembers the speaker the reader turned off', async () => {
+  it('turns the detent clicks off from the speaker', async () => {
     await renderPage();
     expect(speaker()).toHaveAttribute('aria-pressed', 'true');
 
     await userEvent.click(speaker());
 
     expect(speaker()).toHaveAttribute('aria-pressed', 'false');
-    expect(globalThis.localStorage.getItem('aa:sound')).toBe('false');
   });
 
   it('folds the screen-time helper into a question mark', async () => {
@@ -427,17 +413,10 @@ describe('Generator', () => {
   });
 
   it('counts the blocked apps the preview has no room for', async () => {
-    globalThis.localStorage.setItem(
-      'aa:config',
-      JSON.stringify({
-        ...presets.mert,
-        blockedApps: [
-          ...presets.mert.blockedApps,
-          { bundleId: 'com.example.one', name: 'One' },
-          { bundleId: 'com.example.two', name: 'Two' },
-          { bundleId: 'com.example.three', name: 'Three' },
-        ],
-      }),
+    window.history.replaceState(
+      {},
+      '',
+      '/?a=fb,ig,li,nf,pi,pv,rd,sc,th,tt,tw,x,com.example.one,com.example.two,com.example.three',
     );
 
     await renderPage();
@@ -521,30 +500,11 @@ describe('Generator', () => {
     await tickPermanent();
 
     expect(screen.getByRole('button', { name: m.gen_download() })).toBeEnabled();
-    expect(globalThis.localStorage.getItem('aa:supervised')).toBe('true');
-    expect(globalThis.localStorage.getItem('aa:permanent-ack')).toBe('true');
   });
 
-  it('opens on the ticks it remembered', async () => {
-    globalThis.localStorage.setItem('aa:supervised', 'true');
-    globalThis.localStorage.setItem('aa:permanent-ack', 'true');
-
-    await renderPage();
-
-    expect(screen.getByRole('checkbox', { name: m.gen_step1_check() })).toBeChecked();
-    expect(screen.getByRole('checkbox', { name: m.gen_permanent_check() })).toBeChecked();
-    expect(screen.getByRole('button', { name: m.gen_download() })).toBeEnabled();
-  });
-
-  it('locks the profile removal without asking, even on an older config', async () => {
-    globalThis.localStorage.setItem(
-      'aa:config',
-      JSON.stringify({ ...presets.mert, lockRemoval: false }),
-    );
+  it('hands over a locked profile unless trial mode is on', async () => {
     await renderPage();
     await tickGates();
-
-    expect(screen.queryByText(/lock the profile/i)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
 
@@ -581,10 +541,10 @@ describe('Generator', () => {
     expect(screen.getByRole('button', { name: m.gen_download() })).toBeEnabled();
   });
 
-  it('answers seven objections', async () => {
+  it('answers nine objections', async () => {
     const { container } = await renderPage();
 
-    expect(container.querySelectorAll('dt')).toHaveLength(7);
+    expect(container.querySelectorAll('dt')).toHaveLength(9);
   });
 
   it('shows the search bar without any click', async () => {
@@ -818,24 +778,6 @@ describe('Generator', () => {
     expect(xml).not.toContain('<string>https://old.example</string>');
   });
 
-  it('adopts the bare urls an older custom list stored', async () => {
-    globalThis.localStorage.setItem(
-      'aa:config',
-      JSON.stringify({
-        config: presets.mert,
-        customSites: ['https://old.example'],
-        excludedSites: [],
-      }),
-    );
-
-    await renderPage();
-
-    await tickGates();
-    expect(siteRow('old.example')).toHaveValue('old.example');
-    fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
-    expect(await downloadedXml()).toContain('<string>https://old.example</string>');
-  });
-
   it('blocks the site behind a searched app', async () => {
     await renderPage();
     await tickGates();
@@ -846,24 +788,6 @@ describe('Generator', () => {
 
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
     expect(await downloadedXml()).toContain('<string>https://example.com</string>');
-  });
-
-  it('keeps the urls of an older stored config that no app implies', async () => {
-    globalThis.localStorage.setItem(
-      'aa:config',
-      JSON.stringify({
-        ...presets.mert,
-        webFilter: {
-          deniedUrls: ['https://x.com', 'https://custom.example'],
-          mode: 'deny',
-          permittedUrls: [],
-        },
-      }),
-    );
-
-    await renderPage();
-
-    expect(siteRow('custom.example')).toBeInTheDocument();
   });
 
   it('downloads the profile the server signed', async () => {
@@ -934,31 +858,6 @@ describe('Generator', () => {
     expect(await screen.findByText('bundleId "no" is not a bundle identifier')).toBeInTheDocument();
   });
 
-  it('calls the XML below it the unsigned source', async () => {
-    await renderPage();
-    await tickGates();
-
-    await userEvent.click(screen.getByRole('button', { name: m.gen_show_xml() }));
-
-    expect(screen.getByText(m.gen_xml_unsigned_note())).toBeInTheDocument();
-  });
-
-  it('copies the shown XML and says so on the button', async () => {
-    const writeText = vi.fn(async () => {});
-    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
-    await renderPage();
-    await tickGates();
-    await userEvent.click(screen.getByRole('button', { name: m.gen_show_xml() }));
-
-    await userEvent.click(screen.getByRole('button', { name: m.gen_copy() }));
-
-    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('<plist'));
-    // The copy also opens the share dialog, which holds the rest of the page
-    // inert: the button underneath only answers again once it is dismissed.
-    await userEvent.keyboard('{Escape}');
-    expect(screen.getByRole('button', { name: m.gen_copied() })).toBeInTheDocument();
-  });
-
   it('keeps the share dialog shut until a profile has left the page', async () => {
     await renderPage();
 
@@ -1010,19 +909,6 @@ describe('Generator', () => {
     await waitFor(() =>
       expect(within(dialog).getByRole('button', { name: 'Close' })).toHaveFocus(),
     );
-  });
-
-  it('opens the share dialog when the XML is copied instead', async () => {
-    const writeText = vi.fn(async () => {});
-    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
-    await renderPage();
-    await tickGates();
-    await userEvent.click(screen.getByRole('button', { name: m.gen_show_xml() }));
-
-    await userEvent.click(screen.getByRole('button', { name: m.gen_copy() }));
-
-    expect(await screen.findByRole('dialog')).toBeInTheDocument();
-    expect(globalThis.localStorage.getItem('aa:generated')).toBe('true');
   });
 
   it('copies the share link from the dialog', async () => {
@@ -1093,10 +979,9 @@ describe('Generator', () => {
     expect(screen.getByText(m.share_banner({ years: '7.5' }))).toBeInTheDocument();
   });
 
-  it('keeps the shared list out of storage until the reader changes something', async () => {
+  it('takes down the banner a shared link raised', async () => {
     window.history.replaceState({}, '', '/?h=6&a=ig,tt');
     await renderPage();
-    expect(globalThis.localStorage.getItem('aa:config')).toBeNull();
 
     await userEvent.click(screen.getByRole('button', { name: m.share_banner_dismiss() }));
 

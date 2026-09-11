@@ -1,7 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { THEME_KEY } from '../lib/theme.ts';
 import { m } from '../paraglide/messages.js';
 
 // Switching the language reloads the document through Paraglide's runtime;
@@ -14,24 +13,11 @@ vi.mock(import('../paraglide/runtime.js'), async (importOriginal) => ({
   setLocale: (locale: string) => setLocale(locale),
 }));
 
-// This jsdom exposes no Storage, and the chosen theme is remembered in one.
-const storage = new Map<string, string>();
-Object.defineProperty(globalThis, 'localStorage', {
-  configurable: true,
-  value: {
-    clear: () => storage.clear(),
-    getItem: (key: string) => storage.get(key) ?? null,
-    removeItem: (key: string) => storage.delete(key),
-    setItem: (key: string, value: string) => storage.set(key, value),
-  },
-});
-
 const { LanguageSwitch, PreferencesRow, ThemeSwitch } = await import('./preferences.tsx');
 
 describe('Preferences', () => {
   beforeEach(() => {
     setLocale.mockClear();
-    globalThis.localStorage.clear();
     delete document.documentElement.dataset['theme'];
   });
 
@@ -62,18 +48,22 @@ describe('Preferences', () => {
     await userEvent.click(screen.getByRole('button', { name: m.pref_theme_dark() }));
 
     expect(document.documentElement.dataset['theme']).toBe('dark');
-    expect(globalThis.localStorage.getItem(THEME_KEY)).toBe('dark');
+    expect(screen.getByRole('button', { name: m.pref_theme_dark(), pressed: true })).toBeVisible();
 
     await userEvent.click(screen.getByRole('button', { name: m.pref_theme_light() }));
 
     expect(document.documentElement.dataset['theme']).toBe('light');
-    expect(globalThis.localStorage.getItem(THEME_KEY)).toBe('light');
+    expect(screen.getByRole('button', { name: m.pref_theme_light(), pressed: true })).toBeVisible();
   });
 
-  it('reads the remembered choice after mount', () => {
-    globalThis.localStorage.setItem(THEME_KEY, 'light');
+  it('keeps the choice while another page mounts the control again', async () => {
+    const first = render(<ThemeSwitch />);
+    await userEvent.click(screen.getByRole('button', { name: m.pref_theme_dark() }));
+    first.unmount();
+
     render(<ThemeSwitch />);
-    expect(screen.getByRole('button', { name: m.pref_theme_light(), pressed: true })).toBeVisible();
+
+    expect(screen.getByRole('button', { name: m.pref_theme_dark(), pressed: true })).toBeVisible();
   });
 
   it('shows the theme and the language side by side in one row', () => {

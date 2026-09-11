@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isThemeChoice, themeAttribute, themeChoices } from './theme.ts';
+import { themeAttribute } from './theme.ts';
 
 describe('themeAttribute', () => {
   it('forces the attribute the user picked', () => {
@@ -18,15 +18,5 @@ describe('themeAttribute', () => {
     expect(themeAttribute(null, false)).toBe('dark');
     // A forced choice still wins over the fallback.
     expect(themeAttribute('light', false)).toBe('light');
-  });
-});
-
-describe('isThemeChoice', () => {
-  it('accepts the three states and nothing else', () => {
-    for (const choice of themeChoices) {
-      expect(isThemeChoice(choice)).toBe(true);
-    }
-    expect(isThemeChoice('purple')).toBe(false);
-    expect(isThemeChoice(null)).toBe(false);
   });
 });

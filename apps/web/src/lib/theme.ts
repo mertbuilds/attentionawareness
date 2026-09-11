@@ -1,6 +1,3 @@
-/** Where the chosen theme is remembered, per browser. */
-export const THEME_KEY = 'aa:theme';
-
 /** The three states of the theme control, in the order it renders them. */
 export const themeChoices = ['system', 'light', 'dark'] as const;
 
@@ -9,19 +6,14 @@ export type ThemeChoice = (typeof themeChoices)[number];
 /** What lands in `data-theme` on `<html>`. `null` means: no attribute at all. */
 export type ThemeAttribute = 'dark' | 'light' | null;
 
-export function isThemeChoice(value: string | null): value is ThemeChoice {
-  return value !== null && (themeChoices as ReadonlyArray<string>).includes(value);
-}
-
 /**
- * The `data-theme` value a stored choice resolves to. `null` leaves the
- * attribute off, so the `prefers-color-scheme` rules in `theme.css` decide.
- * A browser that reports no preference either way is unknown, and unknown
- * resolves to dark.
+ * The `data-theme` value a choice resolves to. `null` leaves the attribute off,
+ * so the `prefers-color-scheme` rules in `theme.css` decide. A browser that
+ * reports no preference either way is unknown, and unknown resolves to dark.
  */
-export function themeAttribute(stored: string | null, systemKnown = true): ThemeAttribute {
-  if (stored === 'dark' || stored === 'light') {
-    return stored;
+export function themeAttribute(choice: string | null, systemKnown = true): ThemeAttribute {
+  if (choice === 'dark' || choice === 'light') {
+    return choice;
   }
   return systemKnown ? null : 'dark';
 }
@@ -39,10 +31,13 @@ function systemKnown(): boolean {
 
 const listeners = new Set<() => void>();
 
+/** The choice this tab is on. Nothing is stored, so a reload starts over. */
+let current: ThemeChoice = 'system';
+
 /**
- * The stored theme is an external store: it lives in localStorage, which the
- * server cannot read. Components subscribe instead of holding their own copy,
- * so the first client render can still match the server's (see `serverTheme`).
+ * The chosen theme is an external store: it outlives the control, which the
+ * footer of every page mounts anew. Components subscribe instead of holding
+ * their own copy, so the first client render still matches the server's.
  */
 export function subscribeTheme(listener: () => void): () => void {
   listeners.add(listener);
@@ -56,44 +51,21 @@ export function serverTheme(): ThemeChoice {
   return 'system';
 }
 
-/** The stored choice, or `system` when nothing is stored or storage is blocked. */
+/** The choice this tab is on, which starts at `system` on every load. */
 export function readTheme(): ThemeChoice {
-  try {
-    const stored = localStorage.getItem(THEME_KEY);
-    return isThemeChoice(stored) ? stored : 'system';
-  } catch {
-    // Private mode and blocked-storage browsers: fall back to the default.
-    return 'system';
-  }
+  return current;
 }
 
-/** Puts the choice on `<html>` and remembers it for the next visit. */
+/** Puts the choice on `<html>` and keeps it for the rest of the session. */
 export function applyTheme(choice: ThemeChoice): void {
+  current = choice;
   const attribute = themeAttribute(choice, systemKnown());
   if (attribute === null) {
     delete document.documentElement.dataset['theme'];
   } else {
     document.documentElement.dataset['theme'] = attribute;
   }
-  try {
-    localStorage.setItem(THEME_KEY, choice);
-  } catch {
-    // The theme still applies for this page; it just will not be remembered.
-  }
   for (const listener of listeners) {
     listener();
   }
 }
-
-/**
- * Runs in the document head before first paint, so a forced theme never
- * flashes the other one. Same rules as `themeAttribute` + `readTheme`, hand
- * written because the head script cannot import a module — keep them in step.
- */
-export const themeScript = `try {
-  var root = document.documentElement;
-  var stored = localStorage.getItem('${THEME_KEY}');
-  var known = typeof window.matchMedia === 'function' && (window.matchMedia('(prefers-color-scheme: dark)').matches || window.matchMedia('(prefers-color-scheme: light)').matches);
-  var attribute = stored === 'dark' || stored === 'light' ? stored : known ? null : 'dark';
-  if (attribute === null) { delete root.dataset.theme; } else { root.dataset.theme = attribute; }
-} catch (error) {}`;

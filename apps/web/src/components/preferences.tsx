@@ -155,10 +155,10 @@ const styles = create({
  * page, left of the language switch.
  */
 export function ThemeSwitch() {
-  // The stored choice is never read during the first render: the server has no
-  // localStorage, and a render that disagreed with the SSR HTML would detach
-  // the hydrated tree. The head script already painted the right theme, so the
-  // control catching up one render later is invisible.
+  // The choice lives outside the control, because the footer of every page
+  // mounts it anew. It is not read during the first render: the server has no
+  // choice to read, and a render that disagreed with the SSR HTML would detach
+  // the hydrated tree.
   const theme = useSyncExternalStore(subscribeTheme, readTheme, serverTheme);
 
   return (
