@@ -122,6 +122,17 @@ The icons are generated: `node scripts/render-brand.ts` from the repo root
 renders them from the licensed Suisse Intl, along with the web app's favicons
 and the outlines in `packages/ui/src/brand.ts`.
 
+## Pack it
+
+```sh
+pnpm --filter @attentionawareness/extension zip
+```
+
+Builds, then writes `attentionawareness-extension-<manifest version>.zip` next
+to `dist` — the file a store upload takes. It is packed from inside `dist` with
+the system `zip`, so the manifest sits at the root of the archive, and it is
+gitignored: the zip is build output, cut fresh from whatever `dist` holds.
+
 ## Test
 
 ```sh
