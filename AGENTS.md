@@ -7,8 +7,9 @@ Opinionated monorepo boilerplate. Every product starts as a copy of this repo. K
 ```
 apps/
   web/    TanStack Start (React 19, React Compiler) → Cloudflare Workers.
-          Static and client-only: SSR, routes, PostHog, Sentry, Paraglide i18n.
-          There is no backend — no API, no auth, no database.
+          Mostly client-only: SSR, routes, PostHog, Sentry, Paraglide i18n.
+          No auth, no database. Server routes: the PostHog ingest proxy and
+          `/api/sign`, which signs the profile with the Developer ID key.
 packages/
   ui/     StyleX tokens + Base UI wrappers + Storybook. Black/white, 4px radius, Suisse Intl.
   env/    Zod-validated client env schema. All env access goes through here.
@@ -63,6 +64,12 @@ Web app (`apps/web`): `pnpm --filter @keepyourattention/web dev` (:3000 standalo
 - Sentry: client init in `__root.tsx` only when `VITE_SENTRY_DSN` is set.
 - StyleX in routes: import `../app.css` (build injection target) — there is no importable `virtual:stylex.css` module; in dev the plugin middleware serves the CSS itself.
 
+### Profile signing
+
+- `POST /api/sign` (`src/routes/api.sign.ts`) takes the reader's config, validates it by hand, forces the identifier (`com.keepyourattention.<uuid>`), the display name, the organization and `lockRemoval`, builds the XML with `buildProfile` and returns a CMS-signed DER `.mobileconfig`. Every download is a new profile that stacks: none can loosen or replace one already installed.
+- `src/lib/sign.ts` does the CMS `SignedData` with pkijs on the Worker's own WebCrypto. The browser never holds the key; "Copy XML" still copies the unsigned local build.
+- Bindings `SIGNING_CERT_PEM`, `SIGNING_CHAIN_PEM`, `SIGNING_KEY_PKCS8_PEM` reach the route through `setSigningSecrets(env)` in `src/server.ts`, because a handler cannot see the Worker `env` on its own. Missing secrets answer `503` and the page says signing is unavailable, so local dev works without them. Details in `docs/signing.md`.
+
 ### i18n lint
 
 - All user-facing strings go through Paraglide (`m.*()`). `react/jsx-no-literals` (oxlint, error) forbids hardcoded JSX text and text-bearing attributes (label/placeholder/title/alt/aria-\*); tests, stories, and scripts are exempt via overrides. `packages/ui` components take all text as props. Inline `oxlint-disable` only with a justification comment.
@@ -96,8 +103,8 @@ Conventions: assert localized messages, never raw keys; new web logic gets a col
 ## Rules
 
 - Never edit generated directories: `apps/web/src/paraglide/`, `apps/web/src/routeTree.gen.ts`.
-- There is no backend. The site is static and client-only: no API, no auth, no database, no billing. Anything the product needs at runtime happens in the browser or at build time.
+- The site stays client-first: no auth, no database, no billing. Server code is the exception, not the pattern: today the PostHog ingest proxy and the profile signer, which exists only because the signing key must never reach the browser.
 - No new dependencies, components, or abstractions without a concrete current need.
-- Secrets never enter git. Local uses `.env` (from `.env.example`); prod uses wrangler secrets.
+- Secrets never enter git. Local uses `.env` (from `.env.example`) and, for Worker bindings, `apps/web/.dev.vars` (from `.dev.vars.example`); prod uses `wrangler secret put`. The signing certificate and its private key (`SIGNING_CERT_PEM`, `SIGNING_CHAIN_PEM`, `SIGNING_KEY_PKCS8_PEM`) live there and nowhere else.
 - Conventional commits, enforced by commitlint. PRs only against `main`; CI must be green.
 - Stack decisions are recorded in `docs/adr/`. Change of direction = new ADR.

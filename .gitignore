@@ -18,6 +18,9 @@ coverage/
 # env — only the example is committed
 .env*
 !.env.example
+# worker secrets for `wrangler dev` — only the example is committed
+.dev.vars
+!.dev.vars.example
 
 # generated code (rebuilt by build)
 apps/web/src/paraglide/

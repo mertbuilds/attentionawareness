@@ -1,0 +1,6 @@
+# Copy to apps/web/.dev.vars for local signing. Never commit the real file.
+# See docs/signing.md for how to export these three from Keychain.
+# Without them /api/sign answers 503 and the page says signing is unavailable.
+SIGNING_CERT_PEM="-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----\n"
+SIGNING_CHAIN_PEM="-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----\n"
+SIGNING_KEY_PKCS8_PEM="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"

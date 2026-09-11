@@ -351,6 +351,7 @@ function SuperviseGuide() {
             <li {...props(styles.bulletItem)}>{m.sup_step4_faceid()}</li>
             <li {...props(styles.bulletItem)}>{m.sup_step4_apps()}</li>
             <li {...props(styles.bulletItem)}>{m.sup_step4_profile()}</li>
+            <li {...props(styles.bulletItem)}>{m.sup_step4_stacks()}</li>
           </ul>
           <MediaPlaceholder />
         </section>

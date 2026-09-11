@@ -1,7 +1,8 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { presets } from '../lib/profile/index.ts';
+import { buildProfile, presets } from '../lib/profile/index.ts';
+import type { ProfileConfig } from '../lib/profile/index.ts';
 import { m } from '../paraglide/messages.js';
 
 // The page only needs the route factory; unit tests render the component itself.
@@ -51,12 +52,32 @@ const SEARCH_RESULT = {
 /** The same app as the UI names it: the title without its tagline. */
 const SEARCH_RESULT_NAME = 'Example';
 
+/** The identifier the signer mints, which the page only ever sees signed. */
+const SIGNED_IDENTIFIER = 'com.keepyourattention.4d2f6e1a-0b7c-4c38-9a51-6f0d2b8e77c3';
+
 // Tests stay offline. The mount-time lookup answers with nothing, so every
 // blocked icon falls back to an initials tile; a search answers with one app.
-const fetchMock = vi.fn(async (input: string) => {
+// The signing route answers the way the Worker does: the posted config, built
+// and stamped with the identifier only the server knows.
+async function answer(input: string, init?: RequestInit): Promise<Response> {
+  if (input === '/api/sign') {
+    const { config } = JSON.parse(String(init?.body)) as { config: ProfileConfig };
+    return new Response(
+      buildProfile({
+        ...config,
+        displayName: 'keepyourattention',
+        identifier: SIGNED_IDENTIFIER,
+        lockRemoval: true,
+        organization: 'keepyourattention',
+      }),
+      { status: 200 },
+    );
+  }
   const results = input.includes('/search') ? [SEARCH_RESULT] : [];
   return new Response(JSON.stringify({ resultCount: results.length, results }), { status: 200 });
-});
+}
+
+const fetchMock = vi.fn(answer);
 globalThis.fetch = fetchMock as unknown as typeof fetch;
 
 const { Route } = await import('./index.tsx');
@@ -74,6 +95,17 @@ const BLOCKED_APPS = presets.mert.blockedApps.length;
 /** Step 1's gate: nothing leaves the page until this box is ticked. */
 async function tickSupervised(): Promise<void> {
   await userEvent.click(screen.getByRole('checkbox', { name: m.gen_step1_check() }));
+}
+
+/** The download's own gate: the profile cannot be taken off afterwards. */
+async function tickPermanent(): Promise<void> {
+  await userEvent.click(screen.getByRole('checkbox', { name: m.gen_permanent_check() }));
+}
+
+/** Both gates, which is what the download asks for. */
+async function tickGates(): Promise<void> {
+  await tickSupervised();
+  await tickPermanent();
 }
 
 /** The always-visible search field at the top of the recommended apps. */
@@ -178,7 +210,9 @@ function mathNumbers(): Array<string> {
   return Array.from(mathResult().querySelectorAll('span'), (span) => span.textContent ?? '');
 }
 
+/** The file the download saved. The signer answers first, so this waits. */
 async function downloadedXml(): Promise<string> {
+  await waitFor(() => expect(createObjectURL).toHaveBeenCalled());
   const blob = createObjectURL.mock.calls.at(-1)?.[0];
   if (blob === undefined) {
     throw new Error('Download did not create an object URL');
@@ -191,6 +225,8 @@ describe('Generator', () => {
     locale.current = 'en';
     setViewport('desktop');
     createObjectURL.mockClear();
+    fetchMock.mockClear();
+    fetchMock.mockImplementation(answer);
     globalThis.localStorage.clear();
     // A shared link is read off the address bar, so every test starts on a bare one.
     window.history.replaceState({}, '', '/');
@@ -416,7 +452,7 @@ describe('Generator', () => {
     expect(screen.queryByText(/needs supervision/i)).not.toBeInTheDocument();
   });
 
-  it('keeps the profile behind the supervision tick', async () => {
+  it('keeps the profile behind the supervision tick and the permanent one', async () => {
     await renderPage();
 
     expect(screen.getByRole('button', { name: m.gen_download() })).toBeDisabled();
@@ -424,17 +460,25 @@ describe('Generator', () => {
 
     await tickSupervised();
 
-    expect(screen.getByRole('button', { name: m.gen_download() })).toBeEnabled();
+    // Supervision opens the page; the download still waits for the second tick.
+    expect(screen.getByRole('button', { name: m.gen_download() })).toBeDisabled();
     expect(screen.queryByText(m.gen_step_gate())).not.toBeInTheDocument();
+
+    await tickPermanent();
+
+    expect(screen.getByRole('button', { name: m.gen_download() })).toBeEnabled();
     expect(globalThis.localStorage.getItem('kya:supervised')).toBe('true');
+    expect(globalThis.localStorage.getItem('kya:permanent-ack')).toBe('true');
   });
 
-  it('opens on the supervision tick it remembered', async () => {
+  it('opens on the ticks it remembered', async () => {
     globalThis.localStorage.setItem('kya:supervised', 'true');
+    globalThis.localStorage.setItem('kya:permanent-ack', 'true');
 
     await renderPage();
 
     expect(screen.getByRole('checkbox', { name: m.gen_step1_check() })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: m.gen_permanent_check() })).toBeChecked();
     expect(screen.getByRole('button', { name: m.gen_download() })).toBeEnabled();
   });
 
@@ -444,7 +488,7 @@ describe('Generator', () => {
       JSON.stringify({ ...presets.mert, lockRemoval: false }),
     );
     await renderPage();
-    await tickSupervised();
+    await tickGates();
 
     expect(screen.queryByText(/lock the profile/i)).not.toBeInTheDocument();
 
@@ -453,10 +497,10 @@ describe('Generator', () => {
     expect(await downloadedXml()).toContain('<key>PayloadRemovalDisallowed</key><true/>');
   });
 
-  it('answers six objections', async () => {
+  it('answers seven objections', async () => {
     const { container } = await renderPage();
 
-    expect(container.querySelectorAll('dt')).toHaveLength(6);
+    expect(container.querySelectorAll('dt')).toHaveLength(7);
   });
 
   it('shows the search bar without any click', async () => {
@@ -608,7 +652,7 @@ describe('Generator', () => {
 
   it('blocks the sites its blocked apps imply', async () => {
     await renderPage();
-    await tickSupervised();
+    await tickGates();
 
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
 
@@ -620,7 +664,7 @@ describe('Generator', () => {
 
   it('drops the sites of an app that is removed', async () => {
     await renderPage();
-    await tickSupervised();
+    await tickGates();
     const remove = removeButtonFor('com.google.ios.youtube');
     await userEvent.click(remove);
     await userEvent.click(remove);
@@ -632,7 +676,7 @@ describe('Generator', () => {
 
   it('drops a derived site the user unticks', async () => {
     await renderPage();
-    await tickSupervised();
+    await tickGates();
     const site = screen.getByRole('checkbox', { name: 'x.com' });
     expect(site).toBeChecked();
 
@@ -645,7 +689,7 @@ describe('Generator', () => {
 
   it('blocks a site the reader adds in the last row of the box', async () => {
     await renderPage();
-    await tickSupervised();
+    await tickGates();
 
     await userEvent.type(screen.getByLabelText(m.gen_web_add_label()), 'news.ycombinator.com');
     await userEvent.keyboard('{Enter}');
@@ -657,7 +701,7 @@ describe('Generator', () => {
 
   it('asks for a second click before deleting a site', async () => {
     await renderPage();
-    await tickSupervised();
+    await tickGates();
     const remove = siteDelete('x.com');
 
     await userEvent.click(remove);
@@ -675,7 +719,7 @@ describe('Generator', () => {
 
   it('edits the host of a site the reader added', async () => {
     await renderPage();
-    await tickSupervised();
+    await tickGates();
 
     await userEvent.type(screen.getByLabelText(m.gen_web_add_label()), 'old.example');
     await userEvent.keyboard('{Enter}');
@@ -702,7 +746,7 @@ describe('Generator', () => {
 
     await renderPage();
 
-    await tickSupervised();
+    await tickGates();
     expect(siteRow('old.example')).toHaveValue('old.example');
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
     expect(await downloadedXml()).toContain('<string>https://old.example</string>');
@@ -710,7 +754,7 @@ describe('Generator', () => {
 
   it('blocks the site behind a searched app', async () => {
     await renderPage();
-    await tickSupervised();
+    await tickGates();
 
     await userEvent.type(searchInput(), 'exam');
     await screen.findByText(SEARCH_RESULT_NAME);
@@ -738,22 +782,87 @@ describe('Generator', () => {
     expect(siteRow('custom.example')).toBeInTheDocument();
   });
 
-  it('downloads the built profile', async () => {
+  it('downloads the profile the server signed', async () => {
     await renderPage();
-    await tickSupervised();
+    await tickGates();
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
-    expect(createObjectURL).toHaveBeenCalledTimes(1);
+
     const xml = await downloadedXml();
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/sign',
+      expect.objectContaining({ method: 'POST' }),
+    );
     expect(xml).toContain('com.atebits.Tweetie2');
     expect(xml).toContain('<integer>1</integer>');
     expect(xml).not.toContain('<key>ContentFilterUUID</key>');
+    // The identifier is the signer's, and it is not in the page's own build.
+    expect(xml).toContain(SIGNED_IDENTIFIER);
+  });
+
+  it('sends what the reader chose, and no identifier of its own', async () => {
+    await renderPage();
+    await tickGates();
+    fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
+
+    await downloadedXml();
+    const posted = fetchMock.mock.calls.find(([input]) => input === '/api/sign')?.[1];
+    const { config } = JSON.parse(String(posted?.body)) as { config: Record<string, unknown> };
+    expect(Object.keys(config).sort()).toEqual([
+      'allowAppStore',
+      'allowPrivateBrowsing',
+      'autoFilterAdult',
+      'blockedApps',
+      'webFilter',
+    ]);
+  });
+
+  it('keeps the button and says so when the signer is out', async () => {
+    fetchMock.mockImplementation(async (input: string, init?: RequestInit) =>
+      input === '/api/sign'
+        ? new Response(JSON.stringify({ error: 'signing unavailable' }), { status: 503 })
+        : answer(input, init),
+    );
+    await renderPage();
+    await tickGates();
+
+    fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
+
+    expect(await screen.findByText(m.gen_sign_unavailable())).toBeInTheDocument();
+    expect(createObjectURL).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: m.gen_download() })).toBeEnabled();
+  });
+
+  it('shows what the signer turned down', async () => {
+    fetchMock.mockImplementation(async (input: string, init?: RequestInit) =>
+      input === '/api/sign'
+        ? new Response(JSON.stringify({ error: 'bundleId "no" is not a bundle identifier' }), {
+            status: 400,
+          })
+        : answer(input, init),
+    );
+    await renderPage();
+    await tickGates();
+
+    fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
+
+    expect(await screen.findByText('bundleId "no" is not a bundle identifier')).toBeInTheDocument();
+  });
+
+  it('calls the XML below it the unsigned source', async () => {
+    await renderPage();
+    await tickGates();
+
+    await userEvent.click(screen.getByRole('button', { name: m.gen_show_xml() }));
+
+    expect(screen.getByText(m.gen_xml_unsigned_note())).toBeInTheDocument();
   });
 
   it('copies the shown XML and says so on the button', async () => {
     const writeText = vi.fn(async () => {});
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
     await renderPage();
-    await tickSupervised();
+    await tickGates();
     await userEvent.click(screen.getByRole('button', { name: m.gen_show_xml() }));
 
     await userEvent.click(screen.getByRole('button', { name: m.gen_copy() }));
@@ -774,7 +883,7 @@ describe('Generator', () => {
 
   it('opens the share dialog on the download, and reopens it on request', async () => {
     await renderPage();
-    await tickSupervised();
+    await tickGates();
 
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
 
@@ -803,7 +912,7 @@ describe('Generator', () => {
 
   it('opens the share dialog on its close button, with the card fan out of reach', async () => {
     await renderPage();
-    await tickSupervised();
+    await tickGates();
     // The fan on the page itself is the interactive one, and stays that way.
     expect(screen.getByRole('button', { name: 'YouTube' })).toBeInTheDocument();
 
@@ -822,7 +931,7 @@ describe('Generator', () => {
     const writeText = vi.fn(async () => {});
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
     await renderPage();
-    await tickSupervised();
+    await tickGates();
     await userEvent.click(screen.getByRole('button', { name: m.gen_show_xml() }));
 
     await userEvent.click(screen.getByRole('button', { name: m.gen_copy() }));
@@ -835,7 +944,7 @@ describe('Generator', () => {
     const writeText = vi.fn(async () => {});
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
     await renderPage();
-    await tickSupervised();
+    await tickGates();
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
     const dialog = await screen.findByRole('dialog');
 
@@ -848,7 +957,7 @@ describe('Generator', () => {
   it('opens the share card in a sheet on a phone', async () => {
     setViewport('phone');
     await renderPage();
-    await tickSupervised();
+    await tickGates();
 
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
 
@@ -882,7 +991,7 @@ describe('Generator', () => {
 
   it('drops the web filter payload when the filter is turned off', async () => {
     await renderPage();
-    await tickSupervised();
+    await tickGates();
     fireEvent.click(screen.getByLabelText(m.gen_web_mode_off()));
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
     expect(await downloadedXml()).not.toContain('com.apple.webcontent-filter');

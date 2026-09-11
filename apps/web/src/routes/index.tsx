@@ -58,6 +58,7 @@ const STORAGE_KEY = 'kya:config';
 const SOUND_KEY = 'kya:sound';
 const GENERATED_KEY = 'kya:generated';
 const SUPERVISED_KEY = 'kya:supervised';
+const PERMANENT_KEY = 'kya:permanent-ack';
 /**
  * The one display size on the page. Only the hero lines and the years the
  * habit costs are set in it; every other heading is one step down.
@@ -84,6 +85,10 @@ const SCREEN_TIME_VIDEO_URLS: Record<string, string> = {
 };
 const SCREEN_TIME_GIF_URL: string = '';
 const PROFILE_MIME = 'application/x-apple-aspen-config';
+/** The signer. The key is the founder's and never leaves the server. */
+const SIGN_URL = '/api/sign';
+/** The server names the profile, so every download saves under one name. */
+const PROFILE_FILENAME = 'keepyourattention.mobileconfig';
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 /** How long an armed Remove waits for its second click before standing down. */
 const REMOVE_CONFIRM_MS = 3000;
@@ -1458,6 +1463,53 @@ function writeSupervised(supervised: boolean): void {
   }
 }
 
+/** Whether this reader has taken in that an installed profile cannot come off. */
+function readPermanent(): boolean {
+  try {
+    return globalThis.localStorage.getItem(PERMANENT_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function writePermanent(acknowledged: boolean): void {
+  try {
+    globalThis.localStorage.setItem(PERMANENT_KEY, String(acknowledged));
+  } catch {
+    // Private mode or a full quota must not break the generator.
+  }
+}
+
+/**
+ * What the signer is given: the reader's choices, and nothing else. The
+ * identifier, the name and the removal lock are the server's to write, so a
+ * download can never be made looser than the one before it.
+ */
+function signPayload(
+  config: ProfileConfig,
+): Omit<ProfileConfig, 'displayName' | 'identifier' | 'lockRemoval' | 'organization'> {
+  return {
+    allowAppStore: config.allowAppStore,
+    allowPrivateBrowsing: config.allowPrivateBrowsing,
+    autoFilterAdult: config.autoFilterAdult,
+    blockedApps: config.blockedApps,
+    webFilter: config.webFilter,
+  };
+}
+
+/** The reason the signer gave, or the muted stand-in when it gave none. */
+async function signFailureOf(response: Response): Promise<string> {
+  if (response.status !== 400) {
+    return m.gen_sign_unavailable();
+  }
+  try {
+    const body = (await response.json()) as { error?: unknown };
+    return typeof body.error === 'string' ? body.error : m.gen_sign_unavailable();
+  } catch {
+    return m.gen_sign_unavailable();
+  }
+}
+
 /** The browser's own storefront, but only if the picker offers it. */
 function initialStorefront(): string {
   const code = defaultStorefront();
@@ -1781,6 +1833,12 @@ function Generator() {
   // Step 1 is the gate: a profile is worth nothing on an unsupervised phone,
   // so nothing leaves the page until the reader says theirs is supervised.
   const [supervised, setSupervised] = useState(false);
+  // The second gate, on the download alone: an installed profile comes off an
+  // erased phone and no other way, so it is said out loud before it is signed.
+  const [permanent, setPermanent] = useState(false);
+  // The signer is a round trip, and it can turn the download down.
+  const [signing, setSigning] = useState(false);
+  const [signFailure, setSignFailure] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   // The years the link that brought the reader here was bragging about. It is
   // the friend's number, so the reader's own slider never rewrites it.
@@ -1897,6 +1955,9 @@ function Generator() {
     }
     if (readSupervised()) {
       setSupervised(true);
+    }
+    if (readPermanent()) {
+      setPermanent(true);
     }
     const preferred = initialStorefront();
     if (preferred !== FALLBACK_COUNTRY) {
@@ -2077,6 +2138,11 @@ function Generator() {
   function onSupervisedChange(next: boolean) {
     setSupervised(next);
     writeSupervised(next);
+  }
+
+  function onPermanentChange(next: boolean) {
+    setPermanent(next);
+    writePermanent(next);
   }
 
   function onQueryChange(value: string) {
@@ -2289,19 +2355,45 @@ function Generator() {
     }
   }
 
-  function download() {
-    if (xml === null) {
-      return;
-    }
-    const url = URL.createObjectURL(new Blob([xml], { type: PROFILE_MIME }));
+  function save(profile: BlobPart) {
+    const url = URL.createObjectURL(new Blob([profile], { type: PROFILE_MIME }));
     const anchor = document.createElement('a');
-    anchor.download = `${config.identifier}.mobileconfig`;
+    anchor.download = PROFILE_FILENAME;
     anchor.href = url;
     document.body.append(anchor);
     anchor.click();
     anchor.remove();
     URL.revokeObjectURL(url);
-    markGenerated();
+  }
+
+  /**
+   * The file the reader installs is signed, and only the server can sign it.
+   * The XML below is built here and stays here: it is the same profile, minus
+   * the signature and the identifier the server mints for this one download.
+   */
+  async function download() {
+    if (xml === null || signing) {
+      return;
+    }
+    setSignFailure(null);
+    setSigning(true);
+    try {
+      const response = await fetch(SIGN_URL, {
+        body: JSON.stringify({ config: signPayload(effectiveConfig) }),
+        headers: { 'content-type': 'application/json' },
+        method: 'POST',
+      });
+      if (!response.ok) {
+        setSignFailure(await signFailureOf(response));
+        return;
+      }
+      save(await response.arrayBuffer());
+      markGenerated();
+    } catch {
+      setSignFailure(m.gen_sign_unavailable());
+    } finally {
+      setSigning(false);
+    }
   }
 
   // Dragging a selection across a scrolling block is miserable, so one click
@@ -2392,6 +2484,7 @@ function Generator() {
   const objections = [
     { desc: m.home_faq_data_desc(), term: m.home_faq_data_term() },
     { desc: m.home_faq_undo_desc(), term: m.home_faq_undo_term() },
+    { desc: m.home_faq_change_desc(), term: m.home_faq_change_term() },
     { desc: m.home_faq_updates_desc(), term: m.home_faq_updates_term() },
     { desc: m.home_faq_keep_desc(), term: m.home_faq_keep_term() },
     { desc: m.home_faq_apple_desc(), term: m.home_faq_apple_term() },
@@ -3064,9 +3157,21 @@ function Generator() {
                   ) : null}
                 </div>
               </div>
+              <Label>
+                <input
+                  checked={permanent}
+                  onChange={(event) => onPermanentChange(event.target.checked)}
+                  type="checkbox"
+                  {...props(controls.base, controls.checkbox)}
+                />
+                {m.gen_permanent_check()}
+              </Label>
               <div {...props(styles.row)}>
-                <Button disabled={xml === null || !supervised} onClick={download}>
-                  {m.gen_download()}
+                <Button
+                  disabled={xml === null || !supervised || !permanent || signing}
+                  onClick={() => void download()}
+                >
+                  {signing ? m.gen_signing() : m.gen_download()}
                 </Button>
                 <Button onClick={() => setShowXml(!showXml)} variant="outline">
                   {showXml ? m.gen_hide_xml() : m.gen_show_xml()}
@@ -3082,20 +3187,24 @@ function Generator() {
                 ) : null}
               </div>
               {supervised ? null : <p {...props(layout.muted)}>{m.gen_step_gate()}</p>}
+              {signFailure === null ? null : <p {...props(layout.muted)}>{signFailure}</p>}
               {showXml && xml !== null ? (
-                <div {...props(styles.preWrap)}>
-                  <pre onClick={selectXml} ref={xmlBlock} {...props(styles.pre)}>
-                    {xml}
-                  </pre>
-                  <Button
-                    disabled={!supervised}
-                    onClick={() => void copyXml()}
-                    style={styles.preCopy}
-                    variant="outline"
-                  >
-                    {copyLabel}
-                  </Button>
-                </div>
+                <>
+                  <div {...props(styles.preWrap)}>
+                    <pre onClick={selectXml} ref={xmlBlock} {...props(styles.pre)}>
+                      {xml}
+                    </pre>
+                    <Button
+                      disabled={!supervised}
+                      onClick={() => void copyXml()}
+                      style={styles.preCopy}
+                      variant="outline"
+                    >
+                      {copyLabel}
+                    </Button>
+                  </div>
+                  <p {...props(layout.muted)}>{m.gen_xml_unsigned_note()}</p>
+                </>
               ) : null}
             </CardContent>
           </Card>
@@ -3105,6 +3214,7 @@ function Generator() {
             <li>{m.gen_install_step_settings()}</li>
             <li>{m.gen_install_step_reboot()}</li>
             <li>{m.gen_install_step_supervise_first()}</li>
+            <li>{m.gen_install_step_stacks()}</li>
           </ol>
           <p {...props(layout.muted)}>{m.gen_install_note()}</p>
         </section>
