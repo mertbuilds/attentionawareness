@@ -22,12 +22,12 @@ let caller = 0;
 
 /** The body the page sends: the reader's choices, and no identifier. */
 function payload(overrides: Partial<ProfileConfig> = {}): unknown {
-  const { allowPrivateBrowsing, autoFilterAdult, blockedApps, webFilter } = {
+  const { allowAppStore, allowPrivateBrowsing, autoFilterAdult, blockedApps, webFilter } = {
     ...presets.mert,
     ...overrides,
   };
   return {
-    config: { allowPrivateBrowsing, autoFilterAdult, blockedApps, webFilter },
+    config: { allowAppStore, allowPrivateBrowsing, autoFilterAdult, blockedApps, webFilter },
   };
 }
 

@@ -134,6 +134,8 @@
   "gen_web_private_browsing": "Allow private tabs and clearing history",
   "gen_restrictions_title": "Restrictions",
   "gen_more_settings": "More settings",
+  "gen_allow_app_store": "Keep the App Store",
+  "gen_allow_app_store_help": "Turning it off also stops app updates; banks and airlines break. Blocking apps by name is usually better.",
   "gen_trial_check": "Trial mode: I can remove this profile later",
   "gen_trial_help": "Off by default. A trial profile can be removed in Settings. Turn it off and download again when you are ready to commit.",
   "gen_output_title": "Your profile",
