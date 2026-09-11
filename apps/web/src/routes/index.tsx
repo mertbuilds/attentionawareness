@@ -15,6 +15,7 @@ import {
   Label,
   Skeleton,
 } from '@attentionawareness/ui';
+import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, palette, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
@@ -29,7 +30,6 @@ import { GridTexture } from '../components/grid-texture.tsx';
 import { ShareCard } from '../components/share-card.tsx';
 import { Sheet } from '../components/sheet.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
-import { accent } from '../lib/accent.stylex.ts';
 import type { AppResult } from '../lib/app-search.ts';
 import {
   defaultStorefront,

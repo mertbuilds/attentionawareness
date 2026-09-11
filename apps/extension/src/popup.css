@@ -1,0 +1,13 @@
+/* The popup shell. StyleX build output is appended to this asset. */
+html {
+  background: var(--background);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  background: var(--background);
+  color: var(--foreground);
+  /* The popup is sized by its document: the page is the whole window. */
+  margin: 0;
+}

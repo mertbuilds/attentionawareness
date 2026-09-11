@@ -1,6 +1,6 @@
+import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, palette, radius } from '@attentionawareness/ui/tokens.stylex';
 import { create } from '@stylexjs/stylex';
-import { accent } from './accent.stylex.ts';
 
 /**
  * The tick of a checkbox, drawn white so it reads on the accent fill. A data

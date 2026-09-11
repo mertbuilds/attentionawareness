@@ -1,5 +1,7 @@
 import { cp } from 'node:fs/promises';
 import path from 'node:path';
+import { unplugin as stylex } from '@stylexjs/unplugin';
+import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
 
 const src = path.resolve(import.meta.dirname, 'src');
@@ -25,6 +27,12 @@ function copyStatic(): Plugin {
 /**
  * The two extension pages. The content script is a second build
  * (`vite.config.content.ts`) because it needs a different output format.
+ *
+ * The pages are React and StyleX, the same versions and the same unplugin the
+ * web app runs: the popup draws the shared tokens, the shared theme and the
+ * licensed Suisse woff2, so it has to compile them the same way. StyleX
+ * appends its CSS to the first stylesheet the build emits, which is the one
+ * the popup entry imports.
  */
 export default defineConfig({
   build: {
@@ -37,7 +45,7 @@ export default defineConfig({
       },
     },
   },
-  plugins: [copyStatic()],
+  plugins: [react(), stylex.vite({ useCSSLayers: true }), copyStatic()],
   // Nothing is served as-is; `copyStatic` places the few files that are.
   publicDir: false,
   // So the pages land at `dist/popup.html`, which is what the manifest names.
