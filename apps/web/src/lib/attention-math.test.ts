@@ -40,12 +40,17 @@ describe('ledgerItems', () => {
   it('counts the books and the money the hours were worth', () => {
     const items = ledgerItems(4, 'en');
     expect(items.map((item) => item.key)).toEqual(['books', 'dinners', 'body', 'career', 'money']);
-    expect(items[0]?.number).toBe('4,867');
+    expect(items[0]?.number).toBe('3,650');
     expect(items.at(-1)?.number).toBe('$584,000');
   });
 
+  it('anchors the books in a year, with the count left to the leading number', () => {
+    expect(ledgerItems(4, 'en')[0]?.text).toBe('books you will never read. about 183 a year');
+    expect(ledgerItems(2, 'en')[0]?.text).toBe('books you will never read. about 91 a year');
+  });
+
   it('groups the numbers the way the locale does', () => {
-    expect(ledgerItems(4, 'tr')[0]?.number).toBe('4.867');
+    expect(ledgerItems(4, 'tr')[0]?.number).toBe('3.650');
   });
 
   it('leaves the lines that carry no number without one', () => {
