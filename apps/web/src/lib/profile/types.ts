@@ -7,8 +7,6 @@ export type BlockedApp = {
 };
 
 export type ProfileConfig = {
-  /** `allowAppInstallation`: whether the App Store stays available. */
-  allowAppStore: boolean;
   /** Inverse of `SafariHistoryRetentionEnabled` (iOS 26 key). */
   allowPrivateBrowsing: boolean;
   /** `AutoFilterEnabled`: Apple's adult-content heuristic. Deny mode only. */

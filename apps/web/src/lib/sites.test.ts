@@ -10,7 +10,6 @@ import {
 } from './sites.ts';
 
 const profileConfig: ProfileConfig = {
-  allowAppStore: true,
   allowPrivateBrowsing: true,
   autoFilterAdult: false,
   blockedApps: [],

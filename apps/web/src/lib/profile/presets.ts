@@ -3,13 +3,13 @@ import type { ProfileConfig } from './types.ts';
 /** Starting points the builder UI clones — never mutate one in place. */
 export const presets: Record<'mert' | 'stopa' | 'minimal', ProfileConfig> = {
   mert: {
-    allowAppStore: true,
     allowPrivateBrowsing: true,
-    autoFilterAdult: false,
+    autoFilterAdult: true,
     blockedApps: [
       { bundleId: 'com.burbn.instagram', name: 'Instagram' },
       { bundleId: 'com.burbn.barcelona', name: 'Threads' },
       { bundleId: 'com.zhiliaoapp.musically', name: 'TikTok' },
+      { bundleId: 'com.toyopagroup.picaboo', name: 'Snapchat' },
       { bundleId: 'com.google.ios.youtube', name: 'YouTube' },
       { bundleId: 'com.reddit.Reddit', name: 'Reddit' },
       { bundleId: 'com.facebook.Facebook', name: 'Facebook' },
@@ -35,6 +35,7 @@ export const presets: Record<'mert' | 'stopa' | 'minimal', ProfileConfig> = {
         'https://threads.net',
         'https://www.threads.com',
         'https://tiktok.com',
+        'https://snapchat.com',
         'https://facebook.com',
         'https://reddit.com',
         'https://twitch.tv',
@@ -49,7 +50,6 @@ export const presets: Record<'mert' | 'stopa' | 'minimal', ProfileConfig> = {
     },
   },
   minimal: {
-    allowAppStore: true,
     allowPrivateBrowsing: true,
     autoFilterAdult: false,
     blockedApps: [],
@@ -60,7 +60,6 @@ export const presets: Record<'mert' | 'stopa' | 'minimal', ProfileConfig> = {
     webFilter: { mode: 'off' },
   },
   stopa: {
-    allowAppStore: false,
     allowPrivateBrowsing: true,
     autoFilterAdult: false,
     blockedApps: [],
