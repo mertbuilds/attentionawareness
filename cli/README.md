@@ -34,9 +34,9 @@ Library/ConfigurationProfiles/CloudConfigurationDetails.plist
 ```
 
 That file has a boolean key named `IsSupervised`. The file is part of a normal Finder
-backup. The tool finds the file inside an unencrypted backup on your Mac, sets the flag
-to true, and keeps the file the exact byte size that the backup index records. A restore
-writes the patched file back to the phone, and the phone reads itself as supervised.
+backup. The tool finds the file inside a backup on your Mac, sets the flag to true, and
+keeps the file the exact byte size that the backup index records. A restore writes the
+patched file back to the phone, and the phone reads itself as supervised.
 
 Nothing on the phone is erased, because a backup restore is not an erase.
 
@@ -45,9 +45,8 @@ Nothing on the phone is erased, because a backup restore is not an erase.
 - A Mac.
 - A cable.
 - An iPhone with enough free space on the Mac for a full backup.
-- An unencrypted Finder backup. In Finder, select the iPhone, then clear the checkbox
-  `Encrypt local backup`, then click `Back Up Now`. Encrypted backups do not work in this
-  version, because the tool cannot read them.
+- A Finder backup. In Finder, select the iPhone, then click `Back Up Now`. An encrypted
+  backup works too. The tool asks for the backup password and reads the backup with it.
 - Full Disk Access for your terminal application. Backups live in a folder that macOS
   protects. Open System Settings, then Privacy & Security, then Full Disk Access. Add your
   terminal application, turn the switch on, quit the terminal fully, and start it again.
@@ -84,7 +83,8 @@ supervise run
 
 - `check` lists every backup on the Mac with the folder name, the device name, the iOS
   version, the backup date, whether it is encrypted, and the current `IsSupervised` value.
-  Add `--json` for machine readable output.
+  Add `--json` for machine readable output. An encrypted backup shows `IsSupervised` only
+  when you add `--password`.
 - `patch` sets the flag. It shows you what it will change and asks for confirmation.
   Add `--yes` to skip the question.
 - `unpatch` puts back the untouched copies that `patch` saved.
@@ -106,14 +106,40 @@ copy, pass the folder name: `--udid <folder name>`.
 
 Exit codes: `0` for success, `1` for a problem you must fix, `2` for an unexpected error.
 
+## Encrypted backups
+
+An encrypted backup works. Every file inside it is AES-256, and the keys sit in a keybag
+inside `Manifest.plist` that the backup password opens. Give the password in one of three
+ways:
+
+```
+supervise patch --password 'the password'
+SUPERVISE_BACKUP_PASSWORD='the password' supervise patch
+supervise patch            # it asks, and the typing stays hidden
+```
+
+- The password is the one you set in Finder for the backup. It is not the passcode of the
+  iPhone.
+- The password reaches no file. Neither do the keys it makes.
+- Turning the password into keys runs ten million rounds of PBKDF2. This takes up to about
+  ten seconds. The tool says so while it waits.
+- `Manifest.db` can be tens of megabytes, so the tool hands that one file to the `openssl`
+  binary that ships with macOS. The plain copy lands beside the untouched copies, readable
+  by you alone, and the tool deletes it after it reads the one row it needs.
+- The patched file goes back encrypted with the same key, at the same length, so
+  `Manifest.db` never changes. If the patched file cannot keep its length, the tool stops
+  and asks for an unencrypted backup instead. It never rewrites an encrypted `Manifest.db`.
+
 ## Step by step
 
 1. Connect the iPhone. Open Finder and select the device.
-2. Clear the checkbox `Encrypt local backup`. Click `Back Up Now`. Wait for the end.
+2. Click `Back Up Now`. Wait for the end. If the backup is encrypted, keep the backup
+   password at hand.
 3. Run `supervise check`. Read the backup date. It must be the backup you just made.
    `IsSupervised` must be `false`.
-4. Run `supervise patch`. Read the plan and confirm. The tool prints the folder that holds
-   the untouched copies. Keep that path.
+4. Run `supervise patch`. An encrypted backup asks for the backup password here. Read the
+   plan and confirm. The tool prints the folder that holds the untouched copies. Keep that
+   path.
 5. On the iPhone, turn off Stolen Device Protection.
 6. On the iPhone, turn off Find My iPhone.
 7. In Finder, click `Restore Backup` and pick the backup you patched. The phone restarts
@@ -151,7 +177,13 @@ version, and say whether it worked.
 
 - Apple does not support this procedure. It is a patch of a private file inside a backup.
 - iOS 27 may change how a restore handles this file. Test on a phone you can rebuild.
-- Encrypted backups do not work in this version.
+- The encrypted path has met no real encrypted backup yet. The tests build one and
+  patch it, but no phone has restored from one. Keep the untouched copies that `patch`
+  saves.
+- An encrypted backup only works while the patched file keeps its length. It always does
+  when the file is an XML plist, because the tool pads it. A binary plist that has to grow
+  or shrink needs an unencrypted backup, because the size lives in an encrypted
+  `Manifest.db` that this tool does not rewrite.
 - The organization name stays empty, so the supervision banner shows no company name.
   The tool does not write `OrganizationName` in this version.
 - The tool never touches the phone. It only writes inside the backup folder on the Mac.

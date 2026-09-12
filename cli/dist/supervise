@@ -4,8 +4,14 @@
 """Turn on iOS supervised mode without erasing the iPhone.
 
 Apple's supported path to supervision erases the device. This tool flips the
-IsSupervised flag inside an unencrypted Finder backup instead. You then restore
-that backup in Finder and the iPhone comes back supervised with its data.
+IsSupervised flag inside a Finder backup instead. You then restore that backup
+in Finder and the iPhone comes back supervised with its data.
+
+Encrypted backups work too. The backup password unlocks the keybag inside
+Manifest.plist, and the keybag holds the key of Manifest.db and the key of the
+one file this tool patches. The password reaches no file, and turning it into
+keys takes up to about ten seconds. Manifest.db goes through the openssl binary,
+because that file can be tens of megabytes.
 
 Python 3.9 or newer. Standard library only.
 """
@@ -13,20 +19,24 @@ Python 3.9 or newer. Standard library only.
 from __future__ import annotations
 
 import argparse
+import getpass
+import hashlib
 import json
+import os
 import plistlib
 import re
 import shutil
 import sqlite3
 import subprocess
 import sys
+import tempfile
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 EXIT_OK = 0
 EXIT_REFUSED = 1
@@ -40,6 +50,8 @@ PRISTINE_META_NAME = "pristine.json"
 MANIFEST_DB_NAME = "Manifest.db"
 MANIFEST_PLIST_NAME = "Manifest.plist"
 CFGUTIL = Path("/Applications/Apple Configurator.app/Contents/MacOS/cfgutil")
+PASSWORD_ENV = "SUPERVISE_BACKUP_PASSWORD"
+UNKNOWN_LABEL = "unknown without the backup password"
 ARCHIVE_SUFFIX = re.compile(r"\d+-\d+")
 UPDATE_URL = (
     "https://raw.githubusercontent.com/mertbuilds/attentionawareness/main/cli/dist/supervise"
@@ -53,6 +65,11 @@ FULL_DISK_ACCESS_HELP = (
     "  3. Turn the switch on.\n"
     "  4. Quit the terminal application fully, then start it again.\n"
     "  5. Run this command again."
+)
+
+PASSWORD_HELP = (
+    "The password of an encrypted backup. "
+    f"The tool also reads it from {PASSWORD_ENV}, and it asks when neither is set."
 )
 
 CFGUTIL_MISSING_HELP = (
@@ -69,6 +86,303 @@ class Refusal(Exception):
     """A problem the user must fix. Prints a message and exits with code 1."""
 
 
+# Encrypted backups
+#
+# Finder keeps the keys of an encrypted backup in Manifest.plist. The backup
+# password unlocks the keybag there, the keybag unwraps the key of Manifest.db
+# and the key of every file, and each file is AES-256-CBC with a zero IV. The
+# standard library holds no AES, so this is a small one. It runs the key
+# unwrapping and the one small file this tool patches. Manifest.db is too big
+# for it, so that file goes to the openssl binary.
+
+ZERO_IV = b"\x00" * 16
+KEY_WRAP_IV = b"\xa6" * 8
+WRAP_PASSCODE = 2
+CLASS_KEY_TAGS = (b"CLAS", b"WRAP", b"WPKY", b"KTYP", b"PBKY")
+
+WRONG_PASSWORD_HELP = (
+    "Wrong backup password.\n"
+    "This is the password you set in Finder for the encrypted backup. "
+    "It is not the passcode of the iPhone."
+)
+
+_SBOX = bytes.fromhex(
+    "637c777bf26b6fc53001672bfed7ab76"
+    "ca82c97dfa5947f0add4a2af9ca472c0"
+    "b7fd9326363ff7cc34a5e5f171d83115"
+    "04c723c31896059a071280e2eb27b275"
+    "09832c1a1b6e5aa0523bd6b329e32f84"
+    "53d100ed20fcb15b6acbbe394a4c58cf"
+    "d0efaafb434d338545f9027f503c9fa8"
+    "51a3408f929d38f5bcb6da2110fff3d2"
+    "cd0c13ec5f974417c4a77e3d645d1973"
+    "60814fdc222a908846eeb814de5e0bdb"
+    "e0323a0a4906245cc2d3ac629195e479"
+    "e7c8376d8dd54ea96c56f4ea657aae08"
+    "ba78252e1ca6b4c6e8dd741f4bbd8b8a"
+    "703eb5664803f60e613557b986c11d9e"
+    "e1f8981169d98e949b1e87e9ce5528df"
+    "8ca1890dbfe6426841992d0fb054bb16"
+)
+
+
+def _invert_table(table: bytes) -> bytes:
+    inverse = bytearray(256)
+    for index, value in enumerate(table):
+        inverse[value] = index
+    return bytes(inverse)
+
+
+_INVERSE_SBOX = _invert_table(_SBOX)
+
+
+def _double(value: int) -> int:
+    """Multiply by two in the AES field."""
+    doubled = value << 1
+    return (doubled ^ 0x1B) & 0xFF if doubled & 0x100 else doubled
+
+
+def _shift_rows(state: bytes) -> bytearray:
+    return bytearray(state[(index + 4 * (index % 4)) % 16] for index in range(16))
+
+
+def _unshift_rows(state: bytes) -> bytearray:
+    return bytearray(state[(index - 4 * (index % 4)) % 16] for index in range(16))
+
+
+def _mix_columns(state: bytes) -> bytearray:
+    mixed = bytearray(16)
+    for column in range(0, 16, 4):
+        total = state[column] ^ state[column + 1] ^ state[column + 2] ^ state[column + 3]
+        for row in range(4):
+            here = state[column + row]
+            mixed[column + row] = here ^ total ^ _double(here ^ state[column + (row + 1) % 4])
+    return mixed
+
+
+def _unmix_columns(state: bytes) -> bytearray:
+    # The inverse mix is the mix again, after this one step over each column.
+    prepared = bytearray(state)
+    for column in range(0, 16, 4):
+        even = _double(_double(prepared[column] ^ prepared[column + 2]))
+        odd = _double(_double(prepared[column + 1] ^ prepared[column + 3]))
+        prepared[column] ^= even
+        prepared[column + 1] ^= odd
+        prepared[column + 2] ^= even
+        prepared[column + 3] ^= odd
+    return _mix_columns(prepared)
+
+
+class AES:
+    """AES-256 on one block. Enough for key unwrapping and for one small file."""
+
+    rounds = 14
+
+    def __init__(self, key: bytes):
+        if len(key) != 32:
+            raise ValueError("AES-256 needs a key of 32 bytes.")
+        words = [list(key[index:index + 4]) for index in range(0, 32, 4)]
+        rcon = 1
+        for index in range(8, 4 * (self.rounds + 1)):
+            word = list(words[index - 1])
+            if index % 8 == 0:
+                word = [_SBOX[byte] for byte in word[1:] + word[:1]]
+                word[0] ^= rcon
+                rcon = _double(rcon)
+            elif index % 8 == 4:
+                word = [_SBOX[byte] for byte in word]
+            words.append([left ^ right for left, right in zip(words[index - 8], word)])
+        self.round_keys = [
+            bytes(words[number * 4 + word][byte] for word in range(4) for byte in range(4))
+            for number in range(self.rounds + 1)
+        ]
+
+    def encrypt_block(self, block: bytes) -> bytes:
+        state = bytearray(left ^ right for left, right in zip(block, self.round_keys[0]))
+        for number in range(1, self.rounds + 1):
+            state = _shift_rows(bytearray(_SBOX[byte] for byte in state))
+            if number != self.rounds:
+                state = _mix_columns(state)
+            state = bytearray(
+                left ^ right for left, right in zip(state, self.round_keys[number])
+            )
+        return bytes(state)
+
+    def decrypt_block(self, block: bytes) -> bytes:
+        state = bytearray(
+            left ^ right for left, right in zip(block, self.round_keys[self.rounds])
+        )
+        for number in range(self.rounds - 1, -1, -1):
+            state = bytearray(_INVERSE_SBOX[byte] for byte in _unshift_rows(state))
+            state = bytearray(
+                left ^ right for left, right in zip(state, self.round_keys[number])
+            )
+            if number:
+                state = _unmix_columns(state)
+        return bytes(state)
+
+
+def unwrap_key(wrapping_key: bytes, wrapped: bytes) -> bytes | None:
+    """Undo an AES key wrap, RFC 3394. Return None when the key is wrong."""
+    cipher = AES(wrapping_key)
+    blocks = [wrapped[offset:offset + 8] for offset in range(8, len(wrapped), 8)]
+    count = len(blocks)
+    header = int.from_bytes(wrapped[:8], "big")
+    for round_number in range(5, -1, -1):
+        for index in range(count - 1, -1, -1):
+            counter = count * round_number + index + 1
+            plain = cipher.decrypt_block((header ^ counter).to_bytes(8, "big") + blocks[index])
+            header = int.from_bytes(plain[:8], "big")
+            blocks[index] = plain[8:]
+    # The wrap writes a fixed header, so a wrong key shows up here.
+    if header != int.from_bytes(KEY_WRAP_IV, "big"):
+        return None
+    return b"".join(blocks)
+
+
+def aes_cbc_decrypt(key: bytes, data: bytes, iv: bytes = ZERO_IV) -> bytes:
+    if len(data) % 16:
+        raise Refusal("An encrypted file in this backup has a length that AES cannot hold.")
+    cipher = AES(key)
+    plain = bytearray()
+    previous = iv
+    for offset in range(0, len(data), 16):
+        block = data[offset:offset + 16]
+        decrypted = cipher.decrypt_block(block)
+        plain += bytes(left ^ right for left, right in zip(decrypted, previous))
+        previous = block
+    return bytes(plain)
+
+
+def aes_cbc_encrypt(key: bytes, data: bytes, iv: bytes = ZERO_IV) -> bytes:
+    cipher = AES(key)
+    encrypted = bytearray()
+    previous = iv
+    for offset in range(0, len(data), 16):
+        block = data[offset:offset + 16]
+        previous = cipher.encrypt_block(
+            bytes(left ^ right for left, right in zip(block, previous))
+        )
+        encrypted += previous
+    return bytes(encrypted)
+
+
+def add_padding(data: bytes) -> bytes:
+    """PKCS#7, the padding iOS writes at the end of an encrypted file."""
+    count = 16 - len(data) % 16
+    return data + bytes([count]) * count
+
+
+def strip_padding(data: bytes) -> bytes:
+    if not data:
+        return data
+    count = data[-1]
+    if 1 <= count <= 16 and data[-count:] == bytes([count]) * count:
+        return data[:-count]
+    return data
+
+
+class Keybag:
+    """The class keys of a backup, read from the BackupKeyBag in Manifest.plist."""
+
+    def __init__(self, blob: bytes):
+        self.attributes: dict[bytes, object] = {}
+        self.class_keys: dict[int, dict[bytes, object]] = {}
+        self.read(blob)
+
+    def read(self, blob: bytes) -> None:
+        """Read the tag, length and value records. Every UUID after the first
+        one starts a class key, so the first one closes the header."""
+        current: dict[bytes, object] | None = None
+        offset = 0
+        while offset + 8 <= len(blob):
+            tag = blob[offset:offset + 4]
+            length = int.from_bytes(blob[offset + 4:offset + 8], "big")
+            value: object = blob[offset + 8:offset + 8 + length]
+            offset += 8 + length
+            if length == 4:
+                value = int.from_bytes(value, "big")
+            if tag == b"UUID" and b"UUID" not in self.attributes:
+                self.attributes[tag] = value
+            elif tag == b"UUID":
+                current = {}
+            elif current is None:
+                self.attributes[tag] = value
+            elif tag in CLASS_KEY_TAGS:
+                current[tag] = value
+                if tag == b"CLAS":
+                    self.class_keys[int(value)] = current
+
+    def unlock(self, password: str) -> None:
+        """Turn the password into the class keys. This is the slow step."""
+        for tag in (b"DPSL", b"DPIC", b"SALT", b"ITER"):
+            if tag not in self.attributes:
+                raise Refusal(
+                    "This backup holds an older keybag that this tool cannot open.\n"
+                    "Make a new backup in Finder, then run this command again."
+                )
+        print("Deriving the backup keys. This takes up to about ten seconds.", file=sys.stderr)
+        first = hashlib.pbkdf2_hmac(
+            "sha256",
+            password.encode("utf-8"),
+            self.attributes[b"DPSL"],
+            self.attributes[b"DPIC"],
+            32,
+        )
+        password_key = hashlib.pbkdf2_hmac(
+            "sha1", first, self.attributes[b"SALT"], self.attributes[b"ITER"], 32
+        )
+        for entry in self.class_keys.values():
+            wrapped = entry.get(b"WPKY")
+            if wrapped is None or not int(entry.get(b"WRAP", 0)) & WRAP_PASSCODE:
+                continue
+            key = unwrap_key(password_key, wrapped)
+            if key is None:
+                raise Refusal(WRONG_PASSWORD_HELP)
+            entry[b"KEY"] = key
+
+    def unwrap_for_class(self, protection_class: int, wrapped: bytes) -> bytes:
+        entry = self.class_keys.get(protection_class) or {}
+        class_key = entry.get(b"KEY")
+        if class_key is None:
+            raise Refusal(
+                "The keybag of this backup holds no key for protection class "
+                f"{protection_class}."
+            )
+        key = unwrap_key(class_key, wrapped)
+        if key is None:
+            raise Refusal(WRONG_PASSWORD_HELP)
+        return key
+
+
+@dataclass
+class BackupKeys:
+    """The keys of one encrypted backup. They stay in memory and reach no file."""
+
+    keybag: Keybag
+    manifest: bytes
+    file: bytes | None = None
+
+
+def unlock_backup(manifest: dict, password: str) -> BackupKeys:
+    blob = manifest.get("BackupKeyBag")
+    manifest_key = manifest.get("ManifestKey")
+    if not blob or not manifest_key:
+        raise Refusal(
+            "This encrypted backup holds no keybag, so this tool cannot open it.\n"
+            "Make a new backup in Finder, then run this command again."
+        )
+    keybag = Keybag(bytes(blob))
+    keybag.unlock(password)
+    manifest_key = bytes(manifest_key)
+    # Four bytes of protection class, then the wrapped key.
+    protection_class = int.from_bytes(manifest_key[:4], "little")
+    return BackupKeys(
+        keybag=keybag,
+        manifest=keybag.unwrap_for_class(protection_class, manifest_key[4:]),
+    )
+
+
 @dataclass
 class Backup:
     path: Path
@@ -77,6 +391,7 @@ class Backup:
     ios_version: str
     date: str
     encrypted: bool
+    keys: BackupKeys | None = None
     file_id: str | None = None
     recorded_size: int | None = None
     is_supervised: bool | None = None
@@ -129,11 +444,12 @@ def read_manifest_plist(backup_dir: Path) -> dict:
         return plistlib.load(handle)
 
 
-def read_supervision_row(backup_dir: Path) -> tuple[str, bytes] | None:
-    """Return (fileID, archived file blob) for the supervision file, or None."""
-    database = backup_dir / MANIFEST_DB_NAME
-    if not database.exists():
-        return None
+def pristine_root(backup_root: Path) -> Path:
+    """The folder that holds the untouched copies, beside the backups themselves."""
+    return backup_root / PRISTINE_DIR_NAME
+
+
+def query_supervision_row(database: Path) -> tuple[str, bytes] | None:
     connection = sqlite3.connect(database.as_uri() + "?mode=ro", uri=True)
     try:
         row = connection.execute(
@@ -145,6 +461,59 @@ def read_supervision_row(backup_dir: Path) -> tuple[str, bytes] | None:
     if row is None:
         return None
     return row[0], bytes(row[1])
+
+
+def decrypt_manifest_db(database: Path, key: bytes) -> Path:
+    """Write the plain Manifest.db beside the pristine copies. The caller deletes it."""
+    folder = pristine_root(database.parent.parent)
+    folder.mkdir(parents=True, exist_ok=True)
+    handle, name = tempfile.mkstemp(prefix="manifest-", suffix=".db", dir=str(folder))
+    os.close(handle)  # mkstemp leaves the file readable by this user alone.
+    target = Path(name)
+    openssl = shutil.which("openssl")
+    if openssl is None:
+        print(
+            "openssl is missing, so Manifest.db is decrypted in Python. This is slow.",
+            file=sys.stderr,
+        )
+        target.write_bytes(aes_cbc_decrypt(key, database.read_bytes()))
+        return target
+    # openssl reads the key as an argument, so it shows in ps while the command
+    # runs. It reaches no file, and the plain copy is deleted after one read.
+    result = subprocess.run(
+        [openssl, "enc", "-d", "-aes-256-cbc", "-K", key.hex(),
+         "-iv", ZERO_IV.hex(), "-nopad", "-in", str(database), "-out", str(target)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        remove_plain_db(target)
+        message = (result.stderr or "").strip()
+        raise Refusal(f"openssl could not decrypt Manifest.db.\n{message}")
+    return target
+
+
+def remove_plain_db(database: Path) -> None:
+    """Delete the plain copy, and any journal that sqlite left beside it."""
+    for suffix in ("", "-wal", "-shm"):
+        database.with_name(database.name + suffix).unlink(missing_ok=True)
+
+
+def read_supervision_row(
+    backup_dir: Path, keys: BackupKeys | None = None
+) -> tuple[str, bytes] | None:
+    """Return (fileID, archived file blob) for the supervision file, or None."""
+    database = backup_dir / MANIFEST_DB_NAME
+    if not database.exists():
+        return None
+    if keys is None:
+        return query_supervision_row(database)
+    plain = decrypt_manifest_db(database, keys.manifest)
+    try:
+        return query_supervision_row(plain)
+    finally:
+        remove_plain_db(plain)
 
 
 def read_blob_size(blob: bytes) -> int:
@@ -166,7 +535,41 @@ def write_blob_size(blob: bytes, size: int) -> bytes:
     raise Refusal("Manifest.db holds no Size value for the supervision file.")
 
 
-def load_backup(backup_dir: Path) -> Backup:
+def read_blob_file_key(blob: bytes) -> tuple[int, bytes]:
+    """Read the protection class and the wrapped key of an encrypted file."""
+    archive = plistlib.loads(blob)
+    objects = archive.get("$objects", [])
+    for item in objects:
+        if not isinstance(item, dict):
+            continue
+        reference = item.get("EncryptionKey")
+        if reference is None:
+            continue
+        holder = objects[reference.data] if isinstance(reference, plistlib.UID) else reference
+        data = holder.get("NS.data") if isinstance(holder, dict) else holder
+        if isinstance(data, (bytes, bytearray)):
+            # The key repeats the protection class in its first four bytes.
+            return int(item.get("ProtectionClass", 0)), bytes(data)[4:]
+    raise Refusal("Manifest.db holds no encryption key for the supervision file.")
+
+
+def read_content(backup: Backup) -> bytes:
+    """The plain bytes of the supervision file, decrypted when the backup is."""
+    raw = backup.content_path.read_bytes()
+    if backup.keys is None or backup.keys.file is None:
+        return raw
+    return strip_padding(aes_cbc_decrypt(backup.keys.file, raw))
+
+
+def write_content(backup: Backup, data: bytes) -> None:
+    """Write the supervision file back, encrypted again when the backup is."""
+    if backup.keys is None or backup.keys.file is None:
+        backup.content_path.write_bytes(data)
+        return
+    backup.content_path.write_bytes(aes_cbc_encrypt(backup.keys.file, add_padding(data)))
+
+
+def load_backup(backup_dir: Path, password: str | None = None) -> Backup:
     manifest = read_manifest_plist(backup_dir)
     lockdown = manifest.get("Lockdown") or {}
     date = manifest.get("Date")
@@ -179,19 +582,27 @@ def load_backup(backup_dir: Path) -> Backup:
         encrypted=bool(manifest.get("IsEncrypted")),
     )
     if backup.encrypted:
-        backup.note = "The backup is encrypted, so the supervision file cannot be read."
-        return backup
-    row = read_supervision_row(backup_dir)
+        if password is None:
+            backup.note = (
+                "The backup is encrypted. Give the backup password with --password "
+                "to read the supervision flag."
+            )
+            return backup
+        backup.keys = unlock_backup(manifest, password)
+    row = read_supervision_row(backup_dir, backup.keys)
     if row is None:
         backup.note = "The backup holds no supervision file row."
         return backup
     backup.file_id = row[0]
     backup.recorded_size = read_blob_size(row[1])
+    if backup.keys is not None:
+        protection_class, wrapped = read_blob_file_key(row[1])
+        backup.keys.file = backup.keys.keybag.unwrap_for_class(protection_class, wrapped)
     if not backup.content_path.exists():
         backup.note = f"The supervision file is missing at {backup.content_path}."
         return backup
     try:
-        content = plistlib.loads(backup.content_path.read_bytes())
+        content = plistlib.loads(read_content(backup))
     except (plistlib.InvalidFileException, ValueError):
         backup.note = "The supervision file is not a readable plist."
         return backup
@@ -225,8 +636,10 @@ def find_backups(root: Path | None = None) -> list[Path]:
     ]
 
 
-def load_backups(udid: str | None = None, root: Path | None = None) -> list[Backup]:
-    backups = [load_backup(path) for path in find_backups(root)]
+def load_backups(
+    udid: str | None = None, root: Path | None = None, password: str | None = None
+) -> list[Backup]:
+    backups = [load_backup(path, password) for path in find_backups(root)]
     if udid is None:
         return backups
     matches = [item for item in backups if udid in (item.udid, item.path.name)]
@@ -316,6 +729,11 @@ def describe_plan(backup: Backup, plan: PatchPlan) -> str:
         )
     else:
         lines.append(f"Size: {plan.old_size} bytes now, {new_size} bytes after the patch.")
+    if backup.keys is not None:
+        lines.append(
+            "Encryption: the sizes above are the plain file. The patch is written "
+            "back encrypted with the key the backup already uses."
+        )
     if plan.new_recorded_size is None:
         lines.append("Manifest.db: no change.")
     else:
@@ -326,7 +744,7 @@ def describe_plan(backup: Backup, plan: PatchPlan) -> str:
 def save_pristine(backup: Backup) -> Path:
     """Copy the untouched supervision file and Manifest.db aside. Return the folder."""
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    pristine_dir = backup.path.parent / PRISTINE_DIR_NAME / f"{backup.udid}-{stamp}"
+    pristine_dir = pristine_root(backup.path.parent) / f"{backup.udid}-{stamp}"
     pristine_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy2(backup.content_path, pristine_dir / backup.file_id)
     shutil.copy2(backup.manifest_db, pristine_dir / MANIFEST_DB_NAME)
@@ -358,22 +776,36 @@ def update_recorded_size(backup: Backup, size: int) -> None:
         connection.close()
 
 
+def refuse_encrypted_resize(backup: Backup, plan: PatchPlan) -> None:
+    """An encrypted Manifest.db stays as it is, so the file size must not move."""
+    if backup.keys is None or plan.new_recorded_size is None:
+        return
+    raise Refusal(
+        "The patched file would hold a different number of bytes, and this tool "
+        "does not rewrite the Manifest.db of an encrypted backup.\n"
+        "In Finder, clear the checkbox Encrypt local backup, make a new backup, "
+        "then run this command again."
+    )
+
+
 def apply_patch(backup: Backup, plan: PatchPlan) -> None:
-    backup.content_path.write_bytes(plan.new_bytes)
+    refuse_encrypted_resize(backup, plan)
+    write_content(backup, plan.new_bytes)
     if plan.new_recorded_size is not None:
         update_recorded_size(backup, plan.new_recorded_size)
 
 
 def verify_patch(backup: Backup) -> int:
     """Re-read the patched backup. Return the byte size that both sides agree on."""
-    content = plistlib.loads(backup.content_path.read_bytes())
+    plain = read_content(backup)
+    content = plistlib.loads(plain)
     if content.get("IsSupervised") is not True:
         raise Refusal("Verification failed. IsSupervised is not true. Run the unpatch command.")
-    row = read_supervision_row(backup.path)
+    row = read_supervision_row(backup.path, backup.keys)
     if row is None:
         raise Refusal("Verification failed. Manifest.db lost the supervision row.")
     recorded = read_blob_size(row[1])
-    actual = backup.content_path.stat().st_size
+    actual = len(plain)
     if recorded != actual:
         raise Refusal(
             f"Verification failed. The file is {actual} bytes but Manifest.db records "
@@ -383,7 +815,7 @@ def verify_patch(backup: Backup) -> int:
 
 
 def latest_pristine(backup_root: Path, udid: str) -> Path:
-    root = backup_root / PRISTINE_DIR_NAME
+    root = pristine_root(backup_root)
     prefix = f"{udid}-"
     candidates = []
     if root.exists():
@@ -427,6 +859,23 @@ def cfgutil_devices() -> list[dict]:
 # Commands
 
 
+def locked(backup: Backup) -> bool:
+    """True while the backup is encrypted and no password came with the command."""
+    return backup.encrypted and backup.keys is None
+
+
+def supervision_file_label(backup: Backup) -> str:
+    if locked(backup):
+        return UNKNOWN_LABEL
+    return "found" if backup.has_supervision_row else "not found"
+
+
+def supervision_label(backup: Backup) -> str:
+    if locked(backup):
+        return UNKNOWN_LABEL
+    return plist_value(backup.is_supervised)
+
+
 def backup_as_dict(backup: Backup) -> dict:
     return {
         "path": str(backup.path),
@@ -454,14 +903,39 @@ def print_backup(backup: Backup) -> None:
     print(f"  iOS: {backup.ios_version}")
     print(f"  Backup date: {backup.date}")
     print(f"  Encrypted: {'yes' if backup.encrypted else 'no'}")
-    print(f"  Supervision file: {'found' if backup.has_supervision_row else 'not found'}")
-    print(f"  IsSupervised: {plist_value(backup.is_supervised)}")
+    print(f"  Supervision file: {supervision_file_label(backup)}")
+    print(f"  IsSupervised: {supervision_label(backup)}")
     if backup.note:
         print(f"  Note: {backup.note}")
 
 
+def password_option(args) -> str | None:
+    """The password from the flag or from the environment. This never asks."""
+    return getattr(args, "password", None) or os.environ.get(PASSWORD_ENV) or None
+
+
+def ask_password(args) -> str:
+    """The password from the flag, the environment, or the person at the keyboard."""
+    password = password_option(args)
+    if password:
+        return password
+    if not sys.stdin.isatty():
+        raise Refusal(
+            "This backup is encrypted and no password came with the command.\n"
+            f"Add --password, or set {PASSWORD_ENV} in the environment."
+        )
+    return getpass.getpass("Backup password: ")
+
+
+def unlock_if_encrypted(backup: Backup, args) -> Backup:
+    """Read the backup again with its password, so the patch can reach the file."""
+    if not backup.encrypted or backup.keys is not None:
+        return backup
+    return load_backup(backup.path, ask_password(args))
+
+
 def cmd_check(args) -> int:
-    backups = load_backups(args.udid)
+    backups = load_backups(args.udid, password=password_option(args))
     if args.json:
         print(
             json.dumps(
@@ -503,13 +977,7 @@ def print_checklist(backup: Backup) -> None:
 
 
 def cmd_patch(args) -> int:
-    backup = select_backup(args.udid)
-    if backup.encrypted:
-        raise Refusal(
-            "This backup is encrypted, so this tool cannot read it.\n"
-            "In Finder, select the iPhone and clear the checkbox Encrypt local backup.\n"
-            "Click Back Up Now, wait for the new backup, then run this command again."
-        )
+    backup = unlock_if_encrypted(select_backup(args.udid), args)
     if not backup.has_supervision_row:
         raise Refusal(
             "This backup holds no supervision file.\n"
@@ -524,7 +992,8 @@ def cmd_patch(args) -> int:
         print("This backup already says that the iPhone is supervised. Nothing to change.")
         return EXIT_OK
 
-    plan = plan_patch(backup.content_path.read_bytes(), backup.recorded_size)
+    plan = plan_patch(read_content(backup), backup.recorded_size)
+    refuse_encrypted_resize(backup, plan)
     print(describe_plan(backup, plan))
     if not args.yes:
         print("")
@@ -547,8 +1016,8 @@ def cmd_unpatch(args) -> int:
     backup = select_backup(args.udid)
     pristine_dir = restore_pristine(backup)
     print(f"Put back the files from {pristine_dir}")
-    restored = load_backup(backup.path)
-    print(f"IsSupervised is now {plist_value(restored.is_supervised)}.")
+    restored = load_backup(backup.path, password_option(args))
+    print(f"IsSupervised is now {supervision_label(restored)}.")
     return EXIT_OK
 
 
@@ -647,7 +1116,7 @@ def build_parser() -> argparse.ArgumentParser:
         prog="supervise",
         description=(
             "Turn on iOS supervised mode without erasing the iPhone. "
-            "The tool patches an unencrypted Finder backup. You restore that backup in Finder."
+            "The tool patches a Finder backup. You restore that backup in Finder."
         ),
     )
     parser.add_argument("--version", action="version", version=f"supervise {__version__}")
@@ -656,15 +1125,18 @@ def build_parser() -> argparse.ArgumentParser:
     check = subparsers.add_parser("check", help="List the local backups and their supervision state.")
     check.add_argument("--udid", help="Only look at the backup with this UDID.")
     check.add_argument("--json", action="store_true", help="Print machine readable output.")
+    check.add_argument("--password", help=PASSWORD_HELP)
     check.set_defaults(handler=cmd_check)
 
     patch = subparsers.add_parser("patch", help="Set IsSupervised to true in a backup.")
     patch.add_argument("--udid", help="Pick the backup with this UDID.")
     patch.add_argument("--yes", action="store_true", help="Do not ask for confirmation.")
+    patch.add_argument("--password", help=PASSWORD_HELP)
     patch.set_defaults(handler=cmd_patch, json=False)
 
     unpatch = subparsers.add_parser("unpatch", help="Put back the untouched copies of a backup.")
     unpatch.add_argument("--udid", help="Pick the backup with this UDID.")
+    unpatch.add_argument("--password", help=PASSWORD_HELP)
     unpatch.set_defaults(handler=cmd_unpatch, json=False)
 
     verify = subparsers.add_parser("verify", help="Ask the connected iPhone if it is supervised.")
@@ -675,6 +1147,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--udid", help="Pick the backup with this UDID.")
     run.add_argument("--yes", action="store_true", help="Do not ask for confirmation.")
     run.add_argument("--ecid", help="Pick the device with this ECID.")
+    run.add_argument("--password", help=PASSWORD_HELP)
     run.set_defaults(handler=cmd_run, json=False)
 
     update = subparsers.add_parser("update", help="Download the newest version of this tool.")
