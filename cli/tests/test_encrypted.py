@@ -14,6 +14,7 @@ import unittest
 from contextlib import redirect_stdout
 from datetime import datetime
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
@@ -35,6 +36,10 @@ CONTENT = {
     "IsSupervised": False,
     "PostSetupProfileWasInstalled": True,
 }
+# The real file on an iPhone SE at iOS 26.2.1 is a binary plist of 209 bytes that
+# shrinks when both flags flip, because the last false object drops out of the
+# object table. This one has the same shape and the same 209 bytes.
+RESIZED_CONTENT = dict(CONTENT, OrganizationMagic="0123456789")
 
 
 def wrap_key(wrapping_key: bytes, plain: bytes) -> bytes:
@@ -125,12 +130,13 @@ def make_file_blob(size: int, wrapped_key: bytes) -> bytes:
     return plistlib.dumps(archive, fmt=plistlib.FMT_BINARY)
 
 
-def build_manifest_db(root: Path, blob: bytes, key: bytes) -> bytes:
+def build_manifest_db(root: Path, blob: bytes, key: bytes, journal_mode: str = "delete") -> bytes:
     """Make a real sqlite file with the one row, then encrypt it whole."""
     scratch = root / "scratch"
     scratch.mkdir(parents=True, exist_ok=True)
     database = scratch / supervise.MANIFEST_DB_NAME
     connection = sqlite3.connect(str(database))
+    connection.execute(f"PRAGMA journal_mode={journal_mode}")
     connection.execute(
         "CREATE TABLE Files "
         "(fileID TEXT PRIMARY KEY, domain TEXT, relativePath TEXT, flags INTEGER, file BLOB)"
@@ -148,7 +154,9 @@ def build_manifest_db(root: Path, blob: bytes, key: bytes) -> bytes:
     return supervise.aes_cbc_encrypt(key, plain)
 
 
-def build_encrypted_backup(root: Path, content: dict, plist_format=plistlib.FMT_XML) -> Path:
+def build_encrypted_backup(
+    root: Path, content: dict, plist_format=plistlib.FMT_XML, journal_mode: str = "delete"
+) -> Path:
     """A backup folder that holds what Finder writes when the backup is encrypted."""
     backup_dir = root / UDID
     (backup_dir / FILE_ID[:2]).mkdir(parents=True)
@@ -163,7 +171,7 @@ def build_encrypted_backup(root: Path, content: dict, plist_format=plistlib.FMT_
     )
     blob = make_file_blob(len(plain), wrap_key(class_keys[FILE_CLASS], file_key))
     (backup_dir / supervise.MANIFEST_DB_NAME).write_bytes(
-        build_manifest_db(root, blob, manifest_key)
+        build_manifest_db(root, blob, manifest_key, journal_mode)
     )
 
     manifest = {
@@ -263,13 +271,17 @@ class KeybagTest(unittest.TestCase):
 class EncryptedBackupTest(unittest.TestCase):
     plist_format = plistlib.FMT_XML
     content = CONTENT
+    journal_mode = "delete"
 
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        self.backup_dir = build_encrypted_backup(self.root, dict(self.content), self.plist_format)
+        self.backup_dir = build_encrypted_backup(
+            self.root, dict(self.content), self.plist_format, self.journal_mode
+        )
         self.original = (self.backup_dir / FILE_ID[:2] / FILE_ID).read_bytes()
+        self.manifest_original = (self.backup_dir / supervise.MANIFEST_DB_NAME).read_bytes()
         real_root = supervise.BACKUP_ROOT
         supervise.BACKUP_ROOT = self.root
         self.addCleanup(setattr, supervise, "BACKUP_ROOT", real_root)
@@ -283,6 +295,38 @@ class EncryptedBackupTest(unittest.TestCase):
 
     def content_bytes(self) -> bytes:
         return (self.backup_dir / FILE_ID[:2] / FILE_ID).read_bytes()
+
+    def manifest_bytes(self) -> bytes:
+        return (self.backup_dir / supervise.MANIFEST_DB_NAME).read_bytes()
+
+    def keys(self) -> supervise.BackupKeys:
+        manifest = supervise.read_manifest_plist(self.backup_dir)
+        return supervise.unlock_backup(manifest, PASSWORD)
+
+    def plain_manifest(self) -> bytes:
+        return supervise.aes_cbc_decrypt(self.keys().manifest, self.manifest_bytes())
+
+    def manifest_row_size(self) -> int:
+        """Decrypt Manifest.db by hand and read the recorded size with plain sqlite3."""
+        with tempfile.TemporaryDirectory() as scratch:
+            database = Path(scratch) / supervise.MANIFEST_DB_NAME
+            database.write_bytes(self.plain_manifest())
+            connection = sqlite3.connect(str(database))
+            try:
+                row = connection.execute(
+                    "SELECT file FROM Files WHERE fileID = ?", (FILE_ID,)
+                ).fetchone()
+            finally:
+                connection.close()
+        return supervise.read_blob_size(bytes(row[0]))
+
+    def stray_files(self) -> list:
+        """Every plain copy and every sqlite journal left anywhere under the root."""
+        return sorted(
+            str(path.relative_to(self.root))
+            for path in self.root.rglob("*")
+            if path.name.startswith("manifest-") or path.name.endswith(("-wal", "-shm"))
+        )
 
 
 class LockedBackupTest(EncryptedBackupTest):
@@ -378,43 +422,109 @@ class BinaryEncryptedTest(EncryptedBackupTest):
 
 
 class ResizedEncryptedTest(EncryptedBackupTest):
-    """Flipping both flags drops the last false, so this binary plist shrinks by two
-    bytes. A new length needs a new Manifest.db, and an encrypted one stays shut."""
+    """Flipping both flags drops the last false, so this binary plist shrinks. The
+    new length goes into Manifest.db, which is written again with the same key."""
 
     plist_format = plistlib.FMT_BINARY
+    content = RESIZED_CONTENT
+    restored_flag = False
 
-    def refuse(self):
+    def test_the_plan_says_manifest_db_is_written_again(self):
         backup = supervise.load_backup(self.backup_dir, PASSWORD)
         plan = supervise.plan_patch(supervise.read_content(backup), backup.recorded_size)
+        self.assertEqual(plan.plist_format, "binary")
+        self.assertEqual(plan.padding, 0)
         self.assertIsNotNone(plan.new_recorded_size)
-        with self.assertRaises(supervise.Refusal) as caught:
-            supervise.apply_patch(backup, plan)
-        self.assertIn("different number of bytes", str(caught.exception))
-        self.assertEqual(self.content_bytes(), self.original)
+        self.assertNotEqual(plan.new_recorded_size, backup.recorded_size)
+        self.assertIn(
+            f"Manifest.db: re-encrypted with the new recorded size "
+            f"({plan.new_recorded_size} bytes).",
+            supervise.describe_plan(backup, plan),
+        )
 
-    def test_the_new_size_is_refused(self):
-        self.refuse()
+    def test_patch_records_the_new_size_in_the_encrypted_manifest(self):
+        size_before = self.manifest_row_size()
+        output = self.run_command("patch", "--yes", "--password", PASSWORD)
+        self.assertIn("Manifest.db: re-encrypted with the new recorded size", output)
+        self.assertNotEqual(self.manifest_bytes(), self.manifest_original)
 
-    def test_the_patch_command_refuses_before_it_writes(self):
-        output = io.StringIO()
-        with redirect_stdout(output):
-            code = supervise.main(["patch", "--yes", "--password", PASSWORD])
-        self.assertEqual(code, supervise.EXIT_REFUSED)
+        plain = supervise.read_content(supervise.load_backup(self.backup_dir, PASSWORD))
+        self.assertIs(plistlib.loads(plain)["IsSupervised"], True)
+        self.assertNotEqual(len(plain), size_before)
+        self.assertEqual(self.manifest_row_size(), len(plain))
+
+    def test_the_rewritten_manifest_is_one_sqlite_file(self):
+        self.run_command("patch", "--yes", "--password", PASSWORD)
+        plain = self.plain_manifest()
+        self.assertTrue(plain.startswith(b"SQLite format 3\x00"))
+        self.assertEqual(len(plain) % 16, 0)
+        # Bytes 18 and 19 hold the journal mode. One means a rollback journal,
+        # so the one file carries everything the restore needs.
+        self.assertEqual(plain[18:20], b"\x01\x01")
+        self.assertEqual(self.stray_files(), [])
+
+    def test_verify_agrees_with_the_rewritten_manifest(self):
+        self.run_command("patch", "--yes", "--password", PASSWORD)
+        patched = supervise.load_backup(self.backup_dir, PASSWORD)
+        self.assertIs(patched.is_supervised, True)
+        self.assertEqual(supervise.verify_patch(patched), patched.recorded_size)
+
+    def test_unpatch_puts_back_both_files(self):
+        self.run_command("patch", "--yes", "--password", PASSWORD)
+        self.assertNotEqual(self.content_bytes(), self.original)
+        self.assertNotEqual(self.manifest_bytes(), self.manifest_original)
+        self.run_command("unpatch", "--password", PASSWORD)
         self.assertEqual(self.content_bytes(), self.original)
-        self.assertEqual(sorted(supervise.pristine_root(self.root).glob("*")), [])
+        self.assertEqual(self.manifest_bytes(), self.manifest_original)
+        self.assertIs(
+            supervise.load_backup(self.backup_dir, PASSWORD).is_supervised, self.restored_flag
+        )
+        self.assertEqual(self.stray_files(), [])
+
+    def test_the_pristine_copy_holds_both_encrypted_files(self):
+        self.run_command("patch", "--yes", "--password", PASSWORD)
+        saved = supervise.latest_pristine(self.root, UDID)
+        self.assertEqual((saved / FILE_ID).read_bytes(), self.original)
+        self.assertEqual(
+            (saved / supervise.MANIFEST_DB_NAME).read_bytes(), self.manifest_original
+        )
+
+
+class ResizedContentTest(unittest.TestCase):
+    """The fixture has to hold the shape of the real file, or it tests nothing."""
+
+    def test_the_binary_fixture_is_209_bytes_and_shrinks_on_the_patch(self):
+        before = plistlib.dumps(dict(RESIZED_CONTENT), fmt=plistlib.FMT_BINARY)
+        after = plistlib.dumps(
+            dict(RESIZED_CONTENT, IsSupervised=True, CloudConfigurationUIComplete=True),
+            fmt=plistlib.FMT_BINARY,
+        )
+        self.assertEqual(len(before), 209)
+        self.assertLess(len(after), len(before))
 
 
 class GrowingEncryptedTest(ResizedEncryptedTest):
-    """The same refusal the other way: a missing key makes the file grow."""
+    """The same rewrite the other way: a missing key makes the file grow."""
 
-    content = {key: value for key, value in CONTENT.items() if key != "IsSupervised"}
+    content = {key: value for key, value in RESIZED_CONTENT.items() if key != "IsSupervised"}
+    restored_flag = None
+
+
+class WalEncryptedTest(ResizedEncryptedTest):
+    """Manifest.db can sit in WAL mode. The rewrite has to fold the journal back
+    into the one file, because the encrypted copy is one file and nothing else."""
+
+    journal_mode = "wal"
+
+    def test_the_fixture_starts_in_wal_mode(self):
+        self.assertEqual(self.plain_manifest()[18:20], b"\x02\x02")
+
+    def test_reading_the_backup_leaves_no_journal(self):
+        supervise.load_backup(self.backup_dir, PASSWORD)
+        self.assertEqual(self.stray_files(), [])
 
 
 class ManifestDbTest(EncryptedBackupTest):
-    def keys(self) -> supervise.BackupKeys:
-        manifest = supervise.read_manifest_plist(self.backup_dir)
-        return supervise.unlock_backup(manifest, PASSWORD)
-
     def test_python_decrypts_the_manifest(self):
         keys = self.keys()
         encrypted = (self.backup_dir / supervise.MANIFEST_DB_NAME).read_bytes()
@@ -434,6 +544,49 @@ class ManifestDbTest(EncryptedBackupTest):
         finally:
             supervise.remove_plain_db(plain)
         self.assertFalse(plain.exists())
+
+    def test_the_manifest_comes_back_byte_for_byte(self):
+        keys = self.keys()
+        database = self.backup_dir / supervise.MANIFEST_DB_NAME
+        plain = supervise.decrypt_manifest_db(database, keys.manifest)
+        try:
+            supervise.encrypt_manifest_db(plain, database, keys.manifest)
+        finally:
+            supervise.remove_plain_db(plain)
+        self.assertEqual(self.manifest_bytes(), self.manifest_original)
+        self.assertEqual(self.stray_files(), [])
+
+    def test_python_encrypts_what_openssl_encrypts(self):
+        keys = self.keys()
+        database = self.backup_dir / supervise.MANIFEST_DB_NAME
+        plain = supervise.decrypt_manifest_db(database, keys.manifest)
+        try:
+            with mock.patch.object(supervise.shutil, "which", return_value=None):
+                supervise.encrypt_manifest_db(plain, database, keys.manifest)
+        finally:
+            supervise.remove_plain_db(plain)
+        self.assertEqual(self.manifest_bytes(), self.manifest_original)
+
+    def test_a_large_manifest_without_openssl_is_refused(self):
+        backup = supervise.load_backup(self.backup_dir, PASSWORD)
+        plan = supervise.PatchPlan(
+            new_bytes=b"", plist_format="binary", old_size=209, new_recorded_size=201
+        )
+        with mock.patch.object(supervise.shutil, "which", return_value=None):
+            with mock.patch.object(supervise, "PYTHON_MANIFEST_LIMIT", 1):
+                with self.assertRaises(supervise.Refusal) as caught:
+                    supervise.refuse_slow_manifest_rewrite(backup, plan)
+        self.assertIn("openssl is missing", str(caught.exception))
+
+    def test_a_length_that_aes_cannot_hold_is_refused(self):
+        database = self.backup_dir / supervise.MANIFEST_DB_NAME
+        odd = self.backup_dir / "odd.db"
+        odd.write_bytes(b"SQLite format 3\x00" + b"x")
+        with self.assertRaises(supervise.Refusal) as caught:
+            supervise.encrypt_manifest_db(odd, database, self.keys().manifest)
+        self.assertIn("AES cannot hold", str(caught.exception))
+        self.assertEqual(self.manifest_bytes(), self.manifest_original)
+        self.assertEqual(self.stray_files(), [])
 
 
 if __name__ == "__main__":

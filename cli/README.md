@@ -35,7 +35,7 @@ Library/ConfigurationProfiles/CloudConfigurationDetails.plist
 
 That file has a boolean key named `IsSupervised`. The file is part of a normal Finder
 backup. The tool finds the file inside a backup on your Mac, sets the flag to true, and
-keeps the file the exact byte size that the backup index records. A restore writes the
+keeps the backup index in step with the byte size of the patched file. A restore writes the
 patched file back to the phone, and the phone reads itself as supervised.
 
 Nothing on the phone is erased, because a backup restore is not an erase.
@@ -126,9 +126,12 @@ supervise patch            # it asks, and the typing stays hidden
 - `Manifest.db` can be tens of megabytes, so the tool hands that one file to the `openssl`
   binary that ships with macOS. The plain copy lands beside the untouched copies, readable
   by you alone, and the tool deletes it after it reads the one row it needs.
-- The patched file goes back encrypted with the same key, at the same length, so
-  `Manifest.db` never changes. If the patched file cannot keep its length, the tool stops
-  and asks for an unencrypted backup instead. It never rewrites an encrypted `Manifest.db`.
+- The patched file goes back encrypted with the same key. When the patch changes the byte
+  size, `Manifest.db` is re-encrypted with the same key as well, so the index and the file
+  agree. A pristine copy of both files is kept in
+  `.../MobileSync/Backup/attentionawareness-pristine/<UDID>-<timestamp>/`.
+- A `Manifest.db` over 64 MB that has to be written again needs `openssl`, because the
+  Python fallback would take hours. macOS ships `openssl`, so this refusal is theoretical.
 
 ## Step by step
 
@@ -180,10 +183,10 @@ version, and say whether it worked.
 - The encrypted path has met no real encrypted backup yet. The tests build one and
   patch it, but no phone has restored from one. Keep the untouched copies that `patch`
   saves.
-- An encrypted backup only works while the patched file keeps its length. It always does
-  when the file is an XML plist, because the tool pads it. A binary plist that has to grow
-  or shrink needs an unencrypted backup, because the size lives in an encrypted
-  `Manifest.db` that this tool does not rewrite.
+- An XML plist keeps its length, because the tool pads it with newlines, and `Manifest.db`
+  stays untouched. A binary plist grows or shrinks instead, so the tool writes the new size
+  into `Manifest.db` and, in an encrypted backup, encrypts that file again with the same
+  key.
 - The organization name stays empty, so the supervision banner shows no company name.
   The tool does not write `OrganizationName` in this version.
 - The tool never touches the phone. It only writes inside the backup folder on the Mac.

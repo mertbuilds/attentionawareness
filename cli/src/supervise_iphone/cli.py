@@ -33,7 +33,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 EXIT_OK = 0
 EXIT_REFUSED = 1
@@ -46,6 +46,8 @@ PRISTINE_DIR_NAME = "attentionawareness-pristine"
 PRISTINE_META_NAME = "pristine.json"
 MANIFEST_DB_NAME = "Manifest.db"
 MANIFEST_PLIST_NAME = "Manifest.plist"
+# Over this size the pure Python AES takes hours, so openssl has to be there.
+PYTHON_MANIFEST_LIMIT = 64 * 1024 * 1024
 CFGUTIL = Path("/Applications/Apple Configurator.app/Contents/MacOS/cfgutil")
 PASSWORD_ENV = "SUPERVISE_BACKUP_PASSWORD"
 UNKNOWN_LABEL = "unknown without the backup password"
@@ -491,6 +493,48 @@ def decrypt_manifest_db(database: Path, key: bytes) -> Path:
     return target
 
 
+def encrypt_manifest_db(plain: Path, database: Path, key: bytes) -> None:
+    """Put the plain copy back over Manifest.db, encrypted with the same key."""
+    size = plain.stat().st_size
+    if size % 16:
+        raise Refusal(
+            f"The rewritten Manifest.db holds {size} bytes, a length that AES cannot hold.\n"
+            "Nothing was written. Make a new backup in Finder, then run this command again."
+        )
+    openssl = shutil.which("openssl")
+    if openssl is None and size > PYTHON_MANIFEST_LIMIT:
+        raise Refusal(
+            f"Manifest.db holds {size} bytes and has to be written again, and openssl "
+            "is missing.\nInstall openssl, then run this command again."
+        )
+    handle, name = tempfile.mkstemp(prefix="manifest-", suffix=".db", dir=str(database.parent))
+    os.close(handle)  # mkstemp leaves the file readable by this user alone.
+    target = Path(name)
+    try:
+        if openssl is None:
+            print(
+                "openssl is missing, so Manifest.db is encrypted in Python. This is slow.",
+                file=sys.stderr,
+            )
+            target.write_bytes(aes_cbc_encrypt(key, plain.read_bytes()))
+        else:
+            result = subprocess.run(
+                [openssl, "enc", "-e", "-aes-256-cbc", "-K", key.hex(),
+                 "-iv", ZERO_IV.hex(), "-nopad", "-in", str(plain), "-out", str(target)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if result.returncode != 0:
+                message = (result.stderr or "").strip()
+                raise Refusal(f"openssl could not encrypt Manifest.db.\n{message}")
+        shutil.copymode(database, target)
+        # One atomic step, so a failure leaves the old Manifest.db in place.
+        os.replace(target, database)
+    finally:
+        target.unlink(missing_ok=True)
+
+
 def remove_plain_db(database: Path) -> None:
     """Delete the plain copy, and any journal that sqlite left beside it."""
     for suffix in ("", "-wal", "-shm"):
@@ -733,8 +777,13 @@ def describe_plan(backup: Backup, plan: PatchPlan) -> str:
         )
     if plan.new_recorded_size is None:
         lines.append("Manifest.db: no change.")
-    else:
+    elif backup.keys is None:
         lines.append(f"Manifest.db: the recorded size becomes {plan.new_recorded_size} bytes.")
+    else:
+        lines.append(
+            "Manifest.db: re-encrypted with the new recorded size "
+            f"({plan.new_recorded_size} bytes)."
+        )
     return "\n".join(lines)
 
 
@@ -756,40 +805,61 @@ def save_pristine(backup: Backup) -> Path:
     return pristine_dir
 
 
-def update_recorded_size(backup: Backup, size: int) -> None:
-    connection = sqlite3.connect(str(backup.manifest_db))
+def update_recorded_size(database: Path, file_id: str, size: int) -> None:
+    """Write the new file size into the Files row of a plain Manifest.db."""
+    connection = sqlite3.connect(str(database))
     try:
+        # A WAL database keeps the newest rows beside the file. This one file
+        # has to hold everything, because the encrypted copy is one file.
+        connection.execute("PRAGMA journal_mode=DELETE")
         row = connection.execute(
-            "SELECT file FROM Files WHERE fileID = ?", (backup.file_id,)
+            "SELECT file FROM Files WHERE fileID = ?", (file_id,)
         ).fetchone()
         if row is None:
             raise Refusal("The supervision row vanished from Manifest.db.")
         connection.execute(
             "UPDATE Files SET file = ? WHERE fileID = ?",
-            (write_blob_size(bytes(row[0]), size), backup.file_id),
+            (write_blob_size(bytes(row[0]), size), file_id),
         )
         connection.commit()
     finally:
         connection.close()
 
 
-def refuse_encrypted_resize(backup: Backup, plan: PatchPlan) -> None:
-    """An encrypted Manifest.db stays as it is, so the file size must not move."""
+def rewrite_manifest_db(backup: Backup, size: int) -> None:
+    """Record the new file size. An encrypted Manifest.db is written again with its key."""
+    if backup.keys is None:
+        update_recorded_size(backup.manifest_db, backup.file_id, size)
+        return
+    plain = decrypt_manifest_db(backup.manifest_db, backup.keys.manifest)
+    try:
+        update_recorded_size(plain, backup.file_id, size)
+        encrypt_manifest_db(plain, backup.manifest_db, backup.keys.manifest)
+    finally:
+        remove_plain_db(plain)
+
+
+def refuse_slow_manifest_rewrite(backup: Backup, plan: PatchPlan) -> None:
+    """Without openssl, a large encrypted Manifest.db takes hours in Python."""
     if backup.keys is None or plan.new_recorded_size is None:
         return
+    if shutil.which("openssl") is not None:
+        return
+    size = backup.manifest_db.stat().st_size
+    if size <= PYTHON_MANIFEST_LIMIT:
+        return
     raise Refusal(
-        "The patched file would hold a different number of bytes, and this tool "
-        "does not rewrite the Manifest.db of an encrypted backup.\n"
-        "In Finder, clear the checkbox Encrypt local backup, make a new backup, "
-        "then run this command again."
+        "The patch changes the file size, so Manifest.db has to be written again. "
+        f"It holds {size} bytes, and openssl is missing.\n"
+        "Install openssl, then run this command again."
     )
 
 
 def apply_patch(backup: Backup, plan: PatchPlan) -> None:
-    refuse_encrypted_resize(backup, plan)
-    write_content(backup, plan.new_bytes)
+    refuse_slow_manifest_rewrite(backup, plan)
     if plan.new_recorded_size is not None:
-        update_recorded_size(backup, plan.new_recorded_size)
+        rewrite_manifest_db(backup, plan.new_recorded_size)
+    write_content(backup, plan.new_bytes)
 
 
 def verify_patch(backup: Backup) -> int:
@@ -830,7 +900,9 @@ def restore_pristine(backup: Backup) -> Path:
     pristine_dir = latest_pristine(backup.path.parent, backup.udid)
     meta = json.loads((pristine_dir / PRISTINE_META_NAME).read_text())
     shutil.copy2(pristine_dir / meta["file_id"], backup.path / meta["content_relative_path"])
-    shutil.copy2(pristine_dir / MANIFEST_DB_NAME, backup.manifest_db)
+    saved_db = pristine_dir / MANIFEST_DB_NAME
+    if saved_db.is_file():
+        shutil.copy2(saved_db, backup.manifest_db)
     return pristine_dir
 
 
@@ -990,7 +1062,7 @@ def cmd_patch(args) -> int:
         return EXIT_OK
 
     plan = plan_patch(read_content(backup), backup.recorded_size)
-    refuse_encrypted_resize(backup, plan)
+    refuse_slow_manifest_rewrite(backup, plan)
     print(describe_plan(backup, plan))
     if not args.yes:
         print("")
