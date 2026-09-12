@@ -315,6 +315,7 @@ function SuperviseGuide() {
         <section {...props(styles.section)}>
           <h2 {...props(styles.sectionTitle)}>{m.sup_step3_title()}</h2>
           <ul {...props(styles.bullets)}>
+            <li {...props(styles.bulletItem)}>{m.sup_step3_order()}</li>
             <li {...props(styles.bulletItem)}>{m.sup_step3_restore()}</li>
             <li {...props(styles.bulletItem)}>{m.sup_step3_reboot()}</li>
             <li {...props(styles.bulletItem)}>{m.sup_step3_settings()}</li>

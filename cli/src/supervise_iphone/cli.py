@@ -1031,6 +1031,8 @@ def print_checklist(backup: Backup) -> None:
     print("Now restore the backup in Finder:")
     print("  1. On the iPhone, turn off Stolen Device Protection.")
     print("     Settings, then Face ID & Passcode, then Stolen Device Protection.")
+    print("     If the iPhone shows a security delay, wait the hour it asks for.")
+    print("     Find My and the restore refuse until this switch is off.")
     print("  2. On the iPhone, turn off Find My iPhone.")
     print("     Settings, then your name, then Find My, then Find My iPhone.")
     print("  3. On the Mac, open Finder and select the iPhone in the sidebar.")
