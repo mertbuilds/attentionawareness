@@ -10,65 +10,94 @@ const DAYS_PER_YEAR = 365;
 const HOURS_ROUNDING = 100;
 /** How long one book takes to read: 90,000 words at 238 a minute, with the pauses. */
 const HOURS_PER_BOOK = 8;
-/** What the ledger pays the reader for the hours they gave away. */
+/** A day of work, which is also what the receipt counts the hours back into. */
+const HOURS_PER_WORKDAY = 8;
+/** What a language costs before it is spoken. */
+const HOURS_PER_LANGUAGE = 1500;
+/** What the receipt pays the reader for the hours they gave away. */
 const DOLLARS_PER_HOUR = 20;
 
 /** How far ahead the page projects a daily habit. */
 export const HORIZON_YEARS = 20;
 
-/** One line of the ledger. The number, where there is one, leads the sentence. */
-export type LedgerItem = { key: string; number?: string; text: string };
+/**
+ * One line for every stop on the dial, and the dial only stops on whole hours.
+ * Each hour is worse than the one under it, so each line is.
+ */
+const TRUTHS = [
+  m.home_truth_1,
+  m.home_truth_2,
+  m.home_truth_3,
+  m.home_truth_4,
+  m.home_truth_5,
+  m.home_truth_6,
+  m.home_truth_7,
+  m.home_truth_8,
+  m.home_truth_9,
+  m.home_truth_10,
+  m.home_truth_11,
+  m.home_truth_12,
+];
 
-/** The grouped number a ledger line leads with. */
+/** One row of the receipt: what was taken, and what it came to. */
+export type ReceiptLine = { key: string; label: string; value: string };
+
+/** The grouped number a row is billed in. */
 type Format = (value: number) => string;
 
-type LedgerEntry = {
+type ReceiptEntry = {
   key: string;
-  /** The hours a day from which this line is part of the reader's bill. */
+  label: (locale: Locale) => string;
+  /** The hours a day from which this row is part of the reader's bill. */
   minHours: number;
-  number?: (totalHours: number, format: Format) => string;
-  text: (locale: Locale, totalHours: number, format: Format) => string;
+  value: (hoursPerDay: number, format: Format, locale: Locale) => string;
 };
 
 /**
- * The bill, mild first and brutal last. A line appears once the day is long
- * enough to earn it and stays for every longer day; the money is the last word
- * at any length, so it carries no threshold of its own.
+ * The bill, printed the way a till prints one. A row appears once the day is
+ * long enough to earn it and stays for every longer day; the years, the books
+ * and the money are owed at any length, so they carry no threshold of their
+ * own.
  */
-const LEDGER: ReadonlyArray<LedgerEntry> = [
+const RECEIPT: ReadonlyArray<ReceiptEntry> = [
+  {
+    key: 'years',
+    label: (locale) => m.home_receipt_years_label({}, { locale }),
+    minHours: 0,
+    value: (hoursPerDay, _format, locale) =>
+      m.home_receipt_years_value({ years: formatYears(hoursPerDay) }, { locale }),
+  },
   {
     key: 'books',
-    minHours: 1,
-    number: (totalHours, format) => format(totalHours / HOURS_PER_BOOK),
-    text: (locale, totalHours, format) => {
-      const books = totalHours / HOURS_PER_BOOK;
-      const count = format(books);
-      const line = m.home_ledger_books(
-        { books: count, perYear: format(books / HORIZON_YEARS) },
-        { locale },
-      );
-      // The count leads the sentence in both catalogs and the page prints it as
-      // the line's accent, so the text picks up after it.
-      return line.startsWith(count) ? line.slice(count.length).trimStart() : line;
-    },
+    label: (locale) => m.home_receipt_books_label({}, { locale }),
+    minHours: 0,
+    value: (hoursPerDay, format) => format(screenHours(hoursPerDay) / HOURS_PER_BOOK),
   },
-  { key: 'dinners', minHours: 2, text: (locale) => m.home_ledger_dinners({}, { locale }) },
-  { key: 'body', minHours: 3, text: (locale) => m.home_ledger_body({}, { locale }) },
   {
-    key: 'career',
-    minHours: 4,
-    number: (totalHours, format) => format(totalHours),
-    text: (locale) => m.home_ledger_career({}, { locale }),
+    key: 'dinners',
+    label: (locale) => m.home_receipt_dinners_label({}, { locale }),
+    minHours: 2,
+    value: (_hoursPerDay, format) => format(HORIZON_YEARS * DAYS_PER_YEAR),
   },
-  { key: 'unstarted', minHours: 5, text: (locale) => m.home_ledger_unstarted({}, { locale }) },
-  { key: 'kids', minHours: 6, text: (locale) => m.home_ledger_kids({}, { locale }) },
-  { key: 'job', minHours: 8, text: (locale) => m.home_ledger_job({}, { locale }) },
+  {
+    key: 'languages',
+    label: (locale) => m.home_receipt_languages_label({}, { locale }),
+    minHours: 3,
+    value: (hoursPerDay, format) =>
+      format(Math.floor(screenHours(hoursPerDay) / HOURS_PER_LANGUAGE)),
+  },
   {
     key: 'money',
+    label: (locale) => m.home_receipt_money_label({}, { locale }),
     minHours: 0,
     // One dollar sign in both locales: the reader is not being invoiced.
-    number: (totalHours, format) => `$${format(totalHours * DOLLARS_PER_HOUR)}`,
-    text: (locale) => m.home_ledger_money({}, { locale }),
+    value: (hoursPerDay, format) => `$${format(screenHours(hoursPerDay) * DOLLARS_PER_HOUR)}`,
+  },
+  {
+    key: 'workdays',
+    label: (locale) => m.home_receipt_workdays_label({}, { locale }),
+    minHours: 4,
+    value: (hoursPerDay, format) => format(screenHours(hoursPerDay) / HOURS_PER_WORKDAY),
   },
 ];
 
@@ -98,23 +127,28 @@ export function formatHours(hoursPerDay: number, locale: string): string {
 }
 
 /**
- * What the habit takes, as sentences. Every line the day has earned, in the
- * order the page prints them, each with its own leading number where it has
- * one. The numbers are grouped for the reader's locale, and so is the text.
+ * What the dial says out loud at the stop it is on: one sentence, no numbers
+ * to read off it. A number of hours the dial cannot reach has nothing to say.
  */
-export function ledgerItems(hoursPerDay: number, locale: Locale): Array<LedgerItem> {
-  const totalHours = exactHours(hoursPerDay);
-  const format: Format = (value) => new Intl.NumberFormat(locale).format(Math.round(value));
-  return LEDGER.filter((entry) => hoursPerDay >= entry.minHours).map((entry) => {
-    const text = entry.text(locale, totalHours, format);
-    if (entry.number === undefined) {
-      return { key: entry.key, text };
-    }
-    return { key: entry.key, number: entry.number(totalHours, format), text };
-  });
+export function homeTruth(hoursPerDay: number, locale: Locale): string {
+  return TRUTHS[hoursPerDay - 1]?.({}, { locale }) ?? '';
 }
 
-/** The waking hours inside the screen years, unrounded: the ledger counts them. */
+/**
+ * What the habit takes, itemized. Every row the day has earned, in the order
+ * the receipt prints them, each with the number it cost. The numbers are
+ * grouped for the reader's locale, and so are the labels.
+ */
+export function receiptLines(hoursPerDay: number, locale: Locale): Array<ReceiptLine> {
+  const format: Format = (value) => new Intl.NumberFormat(locale).format(Math.round(value));
+  return RECEIPT.filter((entry) => hoursPerDay >= entry.minHours).map((entry) => ({
+    key: entry.key,
+    label: entry.label(locale),
+    value: entry.value(hoursPerDay, format, locale),
+  }));
+}
+
+/** The waking hours inside the screen years, unrounded: the receipt counts them. */
 function exactHours(hoursPerDay: number): number {
   return screenYears(hoursPerDay) * DAYS_PER_YEAR * WAKING_HOURS;
 }

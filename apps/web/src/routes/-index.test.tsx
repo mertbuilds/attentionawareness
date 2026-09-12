@@ -263,23 +263,64 @@ function hoursReading(hours: number): string {
   return `${m.home_math_hours({ hours })} ${m.home_math_hours_unit()}`;
 }
 
-/** The lines of the ledger under the bar. */
-function ledgerLines(): NodeListOf<HTMLLIElement> {
-  const list = screen.getByRole('heading', { name: m.home_ledger_title() }).nextElementSibling;
-  if (list === null) {
-    throw new Error('The ledger heading should be followed by its list');
+/** The one sentence under the bar, which is the hour the dial is on. */
+function truthLine(): HTMLElement {
+  const line = document.querySelector('p[aria-live="polite"]');
+  if (line === null) {
+    throw new Error('The dial should be followed by one live line');
   }
-  return list.querySelectorAll('li');
+  return line as HTMLElement;
 }
 
-/** The sentence under the dial: the hours, and the years they take. */
-function mathResult(): HTMLElement {
-  return screen.getByText(m.home_math_result_hours_after(), { exact: false });
+/** The receipt under that line. */
+function receipt(): HTMLElement {
+  const box = screen.getByText(m.home_receipt_title()).parentElement?.parentElement;
+  if (box === undefined || box === null) {
+    throw new Error('The receipt title should sit inside the receipt');
+  }
+  return box;
 }
 
-/** The two numbers that sentence prints in the accent colour. */
-function mathNumbers(): Array<string> {
-  return Array.from(mathResult().querySelectorAll('span'), (span) => span.textContent ?? '');
+/** What the receipt itemizes right now, in the order it prints the rows. */
+function receiptLabels(): Array<string> {
+  return within(receipt())
+    .getAllByRole('listitem')
+    .map((row) => row.firstElementChild?.textContent ?? '');
+}
+
+/** What one named row of the receipt says that line cost. */
+function receiptValue(label: string): string {
+  const row = within(receipt()).getByText(label).closest('li');
+  if (row === null) {
+    throw new Error(`No receipt row for ${label}`);
+  }
+  return row.lastElementChild?.textContent ?? '';
+}
+
+/** The number under the tear line: everything the receipt adds up to. */
+function receiptTotal(): string {
+  const total = within(receipt()).getByText(m.home_receipt_total_label()).nextElementSibling;
+  return total?.textContent ?? '';
+}
+
+/**
+ * jsdom has no IntersectionObserver, which is what holds the dial still in
+ * every other test: with none to ask, the page never drives it. This hands the
+ * page one that reports the section on screen the moment it is watched.
+ */
+function stubIntersectionObserver(): void {
+  vi.stubGlobal(
+    'IntersectionObserver',
+    function observer(watch: (entries: Array<{ intersectionRatio: number }>) => void) {
+      return {
+        disconnect() {},
+        observe() {
+          watch([{ intersectionRatio: 1 }]);
+        },
+        unobserve() {},
+      };
+    },
+  );
 }
 
 /** The file the download saved. The signer answers first, so this waits. */
@@ -301,6 +342,10 @@ describe('Generator', () => {
     createObjectURL.mockClear();
     fetchMock.mockClear();
     fetchMock.mockImplementation(answer);
+    // The auto-drive tests are the only ones that run a clock or hand the page
+    // an observer, and neither may outlive them.
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
     // A shared link is read off the address bar, so every test starts on a bare one.
     window.history.replaceState({}, '', '/');
   });
@@ -317,14 +362,12 @@ describe('Generator', () => {
     expect(screen.queryAllByRole('separator')).toHaveLength(0);
   });
 
-  it('opens the math on two hours a day, two and a half of the next twenty years', async () => {
+  it('rests the math on four hours a day, five of the next twenty years', async () => {
     await renderPage();
 
-    expect(screen.getByRole('slider')).toHaveValue('2');
-    expect(mathResult()).toHaveTextContent(
-      `2${m.home_math_result_hours_between()}2.5${m.home_math_result_hours_after()}`,
-    );
-    expect(mathNumbers()).toEqual(['2', '2.5']);
+    expect(screen.getByRole('slider')).toHaveValue('4');
+    expect(truthLine()).toHaveTextContent(m.home_truth_4());
+    expect(receiptTotal()).toBe(m.home_receipt_total_value({ years: '5' }));
   });
 
   it('marks every whole hour of the travel with its own numbered detent', async () => {
@@ -338,22 +381,47 @@ describe('Generator', () => {
     expect(screen.getByRole('slider')).toHaveAttribute('step', '1');
   });
 
-  it('recounts the years when the slider moves', async () => {
+  it('swaps the line for the hour the dial lands on', async () => {
     await renderPage();
 
     fireEvent.change(screen.getByRole('slider'), { target: { value: '6' } });
 
-    expect(mathNumbers()).toEqual(['6', '7.5']);
+    expect(truthLine()).toHaveTextContent(m.home_truth_6());
+    expect(screen.queryByText(m.home_truth_4())).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByRole('slider'), { target: { value: '12' } });
 
-    expect(mathNumbers()).toEqual(['12', '15']);
+    expect(truthLine()).toHaveTextContent(m.home_truth_12());
+    expect(screen.queryByText(m.home_truth_6())).not.toBeInTheDocument();
+  });
+
+  it('recounts the receipt when the slider moves', async () => {
+    await renderPage();
+
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '6' } });
+
+    expect(receiptTotal()).toBe(m.home_receipt_total_value({ years: '7.5' }));
+    expect(receiptValue(m.home_receipt_money_label())).toBe('$876,000');
+
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '12' } });
+
+    expect(receiptTotal()).toBe(m.home_receipt_total_value({ years: '15' }));
+  });
+
+  it('heads the receipt with the day it prices', async () => {
+    await renderPage();
+
+    expect(within(receipt()).getByText(m.home_receipt_meta({ hours: 4 }))).toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '9' } });
+
+    expect(within(receipt()).getByText(m.home_receipt_meta({ hours: 9 }))).toBeInTheDocument();
   });
 
   it('keeps the reading on the slider, with no display beside the rail', async () => {
     await renderPage();
 
-    expect(screen.getByRole('slider')).toHaveAttribute('aria-valuetext', hoursReading(2));
+    expect(screen.getByRole('slider')).toHaveAttribute('aria-valuetext', hoursReading(4));
 
     fireEvent.change(screen.getByRole('slider'), { target: { value: '5' } });
 
@@ -361,15 +429,81 @@ describe('Generator', () => {
     expect(screen.queryByText(m.home_math_hours_unit())).not.toBeInTheDocument();
   });
 
-  it('bills more of the ledger the longer the day is', async () => {
+  it('bills a receipt row the moment the day earns it, and drops it again', async () => {
     await renderPage();
-    expect(ledgerLines()).toHaveLength(3);
-
-    fireEvent.change(screen.getByRole('slider'), { target: { value: '8' } });
-    expect(ledgerLines()).toHaveLength(8);
+    expect(receiptLabels()).toEqual([
+      m.home_receipt_years_label(),
+      m.home_receipt_books_label(),
+      m.home_receipt_dinners_label(),
+      m.home_receipt_languages_label(),
+      m.home_receipt_money_label(),
+      m.home_receipt_workdays_label(),
+    ]);
 
     fireEvent.change(screen.getByRole('slider'), { target: { value: '1' } });
-    expect(ledgerLines()).toHaveLength(2);
+    expect(receiptLabels()).toEqual([
+      m.home_receipt_years_label(),
+      m.home_receipt_books_label(),
+      m.home_receipt_money_label(),
+    ]);
+
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '3' } });
+    expect(receiptLabels()).toHaveLength(5);
+    expect(receiptLabels()).not.toContain(m.home_receipt_workdays_label());
+
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '12' } });
+    expect(receiptLabels()).toHaveLength(6);
+  });
+
+  it('drives the dial from one hour to four when the section arrives on screen', async () => {
+    stubIntersectionObserver();
+    vi.useFakeTimers();
+    await renderPage();
+
+    expect(screen.getByRole('slider')).toHaveValue('1');
+
+    await act(async () => {
+      vi.advanceTimersByTime(700);
+    });
+    expect(screen.getByRole('slider')).toHaveValue('2');
+
+    await act(async () => {
+      vi.advanceTimersByTime(2100);
+    });
+    expect(screen.getByRole('slider')).toHaveValue('4');
+    expect(truthLine()).toHaveTextContent(m.home_truth_4());
+
+    // Four hours is where it rests: nothing turns the dial after that.
+    await act(async () => {
+      vi.advanceTimersByTime(2100);
+    });
+    expect(screen.getByRole('slider')).toHaveValue('4');
+  });
+
+  it('hands the dial over for good at the first touch of it', async () => {
+    stubIntersectionObserver();
+    vi.useFakeTimers();
+    await renderPage();
+
+    fireEvent.pointerDown(screen.getByRole('slider'));
+    await act(async () => {
+      vi.advanceTimersByTime(3500);
+    });
+
+    expect(screen.getByRole('slider')).toHaveValue('1');
+  });
+
+  it('leaves the dial where a shared link put it', async () => {
+    stubIntersectionObserver();
+    vi.useFakeTimers();
+    window.history.replaceState({}, '', '/?h=9');
+    await renderPage();
+
+    await act(async () => {
+      vi.advanceTimersByTime(3500);
+    });
+
+    expect(screen.getByRole('slider')).toHaveValue('9');
   });
 
   it('turns the detent clicks off from the speaker', async () => {
@@ -971,7 +1105,7 @@ describe('Generator', () => {
     expect(
       within(dialog).getByText(
         (_, element) =>
-          element?.tagName === 'P' && element.textContent === m.share_card_years({ years: '2.5' }),
+          element?.tagName === 'P' && element.textContent === m.share_card_years({ years: '5' }),
       ),
     ).toBeInTheDocument();
     expect(within(dialog).getByRole('link', { name: m.share_x() })).toHaveAttribute(
@@ -1014,7 +1148,7 @@ describe('Generator', () => {
 
     await userEvent.click(within(dialog).getByRole('button', { name: m.share_copy() }));
 
-    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('attentionawareness.com/?h=2'));
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('attentionawareness.com/?h=4'));
     expect(within(dialog).getByRole('button', { name: m.share_copied() })).toBeInTheDocument();
   });
 
@@ -1065,7 +1199,9 @@ describe('Generator', () => {
 
     await renderPage();
 
-    expect(mathResult()).toHaveTextContent('7.5');
+    expect(screen.getByRole('slider')).toHaveValue('6');
+    expect(truthLine()).toHaveTextContent(m.home_truth_6());
+    expect(receiptTotal()).toBe(m.home_receipt_total_value({ years: '7.5' }));
     expect(screen.getAllByRole('button', { name: m.gen_app_remove() })).toHaveLength(2);
     expect(screen.getByText('Instagram')).toBeInTheDocument();
     expect(screen.getByText('TikTok')).toBeInTheDocument();
