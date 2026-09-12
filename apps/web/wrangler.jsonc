@@ -14,6 +14,12 @@
     { "pattern": "keepyourattention.com", "custom_domain": true },
     { "pattern": "www.keepyourattention.com", "custom_domain": true },
   ],
+  // Static assets answer before the Worker, so a file under public/ would shadow
+  // a route of the same path. The CLI lives at /cli/supervise for that reason;
+  // these paths stay with the Worker whatever lands in public/.
+  "assets": {
+    "run_worker_first": ["/supervise", "/extension/*"],
+  },
   // evlog ships logs itself; Workers observability would duplicate them.
   "observability": {
     "enabled": false,

@@ -11,7 +11,7 @@ storybook-static/
 # the packed extension, rebuilt by `pnpm --filter @attentionawareness/extension zip`
 apps/extension/*.zip
 # the CLI the site serves, copied from cli/dist by the web prebuild script
-apps/web/public/supervise
+apps/web/public/cli/
 
 # caches
 .turbo/
