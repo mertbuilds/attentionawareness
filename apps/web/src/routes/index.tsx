@@ -40,7 +40,7 @@ import {
   storefrontLabel,
   storefronts,
 } from '../lib/app-search.ts';
-import { formatYears, ledgerItems } from '../lib/attention-math.ts';
+import { formatYears, homeTruth, receiptLines } from '../lib/attention-math.ts';
 import { controls } from '../lib/controls.ts';
 import { layout } from '../lib/layout.ts';
 import { buildProfile, presets } from '../lib/profile/index.ts';
@@ -48,6 +48,7 @@ import type { BlockedApp, ProfileConfig } from '../lib/profile/index.ts';
 import { decodeShare } from '../lib/share.ts';
 import { normalizeUrl, sitesForApp, sitesForApps } from '../lib/sites.ts';
 import { playTick, primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
+import { useAutoDrive } from '../lib/use-auto-drive.ts';
 import { useIsMobile } from '../lib/use-is-mobile.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
@@ -121,7 +122,13 @@ const ROW_APPS = 3;
 const HOURS_MIN = 1;
 const HOURS_MAX = 12;
 const HOURS_STEP = 1;
-const HOURS_DEFAULT = 2;
+/**
+ * Where the dial rests: the drive stops here, a reader who asked for less
+ * motion starts here, and so does anyone the drive never reached.
+ */
+const HOURS_DEFAULT = 4;
+/** Where that drive starts, before it runs the bill up to the resting hours. */
+const HOURS_AUTO_START = 1;
 /** The machined knob, and the rail the ticks are measured against. */
 const KNOB_WIDTH = 28;
 const KNOB_HEIGHT = 44;
@@ -179,10 +186,16 @@ const helpEnter = keyframes({
   to: { opacity: 1, transform: 'translateY(0)' },
 });
 
-/** A new line of the bill rises into place. Lines that are paid off just go. */
-const ledgerEnter = keyframes({
-  from: { opacity: 0, transform: 'translateY(6px)' },
+/** A new row of the receipt rises into place. Rows that are paid off just go. */
+const receiptEnter = keyframes({
+  from: { opacity: 0, transform: 'translateY(4px)' },
   to: { opacity: 1, transform: 'translateY(0)' },
+});
+
+/** Each hour has its own line, and the line fades up over the one before it. */
+const truthEnter = keyframes({
+  from: { opacity: 0 },
+  to: { opacity: 1 },
 });
 
 /** The results drop in from just under the bar; they never animate out. */
@@ -250,13 +263,6 @@ const styles = create({
     lineHeight: 1,
     marginInlineStart: 'auto',
     padding: 0,
-  },
-  // The one colour on the page, and it is a loss, never a score. The number is
-  // set in even figures so dragging the dial moves nothing in the sentence but
-  // the digits themselves.
-  burn: {
-    color: accent.base,
-    fontVariantNumeric: 'tabular-nums',
   },
   choice: {
     display: 'flex',
@@ -523,43 +529,6 @@ const styles = create({
     margin: 0,
     textTransform: 'uppercase',
   },
-  ledger: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s2,
-    listStyleType: 'none',
-    margin: 0,
-    padding: 0,
-  },
-  // A line arrives when the day earns it; it leaves the moment it stops
-  // applying, because an exit would soften what it says.
-  ledgerItem: {
-    animationDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: '220ms',
-    },
-    animationName: ledgerEnter,
-    animationTimingFunction: 'ease-out',
-    color: colors.muted,
-    fontSize: font.sizeMd,
-    lineHeight: 1.5,
-    textWrap: 'pretty',
-  },
-  // The arithmetic behind the bill, small enough to stay out of its way.
-  ledgerNote: {
-    color: colors.muted,
-    fontSize: 12,
-    lineHeight: 1.5,
-    margin: 0,
-    textWrap: 'pretty',
-  },
-  // The count leads its line, so it is the one thing in the bill that is not
-  // muted: colour and a step of size carry it, nothing else.
-  ledgerNumber: {
-    color: accent.base,
-    fontSize: 18,
-    fontWeight: font.weightMedium,
-  },
   list: {
     display: 'flex',
     flexDirection: 'column',
@@ -802,6 +771,109 @@ const styles = create({
   },
   quiet: {
     color: colors.muted,
+  },
+  // The bill as a till prints one: monospace, narrow, and every number under
+  // the one above it. It is a receipt for hours already spent, so it holds the
+  // page's ground colour and is drawn by its edge alone.
+  receipt: {
+    backgroundColor: colors.bg,
+    borderColor: colors.border,
+    borderRadius: radius.base,
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    boxSizing: 'border-box',
+    display: 'flex',
+    flexDirection: 'column',
+    fontFamily: MONOSPACE,
+    fontSize: 13,
+    gap: spacing.s3,
+    maxWidth: 420,
+    padding: spacing.s4,
+    width: '100%',
+  },
+  receiptHead: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s1,
+  },
+  receiptList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s2,
+    listStyleType: 'none',
+    margin: 0,
+    padding: 0,
+  },
+  // What the receipt was rung up for: the day it prices, and the horizon.
+  receiptMeta: {
+    color: colors.muted,
+    margin: 0,
+  },
+  // The arithmetic behind the bill, small enough to stay out of its way.
+  receiptNote: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 1.5,
+    margin: 0,
+    textWrap: 'pretty',
+  },
+  // A row arrives when the day earns it; it leaves the moment it stops
+  // applying, because an exit would soften what it says.
+  receiptRow: {
+    animationDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: '120ms',
+    },
+    animationName: receiptEnter,
+    animationTimingFunction: 'ease-out',
+    color: colors.muted,
+    display: 'flex',
+    gap: spacing.s3,
+    justifyContent: 'space-between',
+    lineHeight: 1.6,
+  },
+  // The tear line, in the only shape a paper receipt has for one.
+  receiptRule: {
+    borderBlockStartColor: colors.border,
+    borderBlockStartStyle: 'dashed',
+    borderBlockStartWidth: '1px',
+  },
+  receiptTitle: {
+    color: colors.muted,
+    fontSize: 11,
+    letterSpacing: '0.12em',
+    margin: 0,
+    textTransform: 'uppercase',
+  },
+  receiptTotal: {
+    alignItems: 'baseline',
+    display: 'flex',
+    gap: spacing.s3,
+    justifyContent: 'space-between',
+    margin: 0,
+  },
+  receiptTotalLabel: {
+    fontSize: 11,
+    fontWeight: font.weightBold,
+    letterSpacing: '0.12em',
+    textTransform: 'uppercase',
+  },
+  // The one number the whole receipt is adding up to, so it is the one set in
+  // the page's display size, and the only colour under the tear line.
+  receiptTotalValue: {
+    color: accent.base,
+    fontSize: DISPLAY_SIZE,
+    fontVariantNumeric: 'tabular-nums',
+    fontWeight: font.weightBold,
+    letterSpacing: '-0.02em',
+    lineHeight: 1.1,
+  },
+  // Every value is a loss, so every value is in the accent; the figures are
+  // even, so a row that recounts changes its digits and nothing else.
+  receiptValue: {
+    color: accent.base,
+    fontVariantNumeric: 'tabular-nums',
+    whiteSpace: 'nowrap',
   },
   // The one destructive colour on the page: it means "this click deletes".
   removeArmed: {
@@ -1356,6 +1428,16 @@ const styles = create({
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
+  },
+  // The line the dial lands on, fading up over the one it replaces. Nothing in
+  // it is coloured: the sentence is the blow, and it lands on its own.
+  truth: {
+    animationDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: '150ms',
+    },
+    animationName: truthEnter,
+    animationTimingFunction: 'ease-out',
   },
   // Reserved space for the walkthrough clip, which is not shot yet.
   video: {
@@ -2216,6 +2298,16 @@ function Generator() {
     );
   }, [storefrontQuery]);
 
+  // The dial turns itself the first time the section comes into view, so the
+  // reader watches the bill run up before they touch it. It is declared above
+  // the shared-link effect on purpose: a link that carries its own hours calls
+  // the drive off below, and the later effect is the one that wins.
+  const { cancel: cancelAutoDrive, ref: mathSection } = useAutoDrive({
+    from: HOURS_AUTO_START,
+    onStep: onHoursChange,
+    to: HOURS_DEFAULT,
+  });
+
   // The address bar and navigator exist only in the browser: reading either
   // during render would desync the SSR HTML from the first client render.
   // Adopting what they hold IS synchronizing with an external system, the one
@@ -2229,6 +2321,8 @@ function Generator() {
       setConfig({ ...presets.mert, blockedApps: shared.bundleIds.map(sharedApp) });
     }
     if (shared.hours !== undefined) {
+      // A friend already turned the dial; the page has nothing to demonstrate.
+      cancelAutoDrive();
       setHours(shared.hours);
       setFriendYears(formatYears(shared.hours));
     }
@@ -2236,7 +2330,7 @@ function Generator() {
     if (preferred !== FALLBACK_COUNTRY) {
       setCountry(preferred);
     }
-  }, []);
+  }, [cancelAutoDrive]);
   /* oxlint-enable react/set-state-in-effect */
 
   // iOS Safari does not count the pointerdown on the knob as the gesture that
@@ -2713,13 +2807,15 @@ function Generator() {
   const trial = !config.lockRemoval;
 
   // The number the whole narrative is written around, and the dial's own
-  // reading: the sentence prints it, and the slider says it out loud.
+  // reading: the receipt totals it, and the slider says it out loud.
   const years = formatYears(hours);
   const hoursText = m.home_math_hours({ hours });
   const hoursReading = `${hoursText} ${m.home_math_hours_unit()}`;
   // How far along the rail the dial has been turned, and what it has cost.
   const travelled = ((hours - HOURS_MIN) / (HOURS_MAX - HOURS_MIN)) * 100;
-  const ledger = ledgerItems(hours, getLocale());
+  const locale = getLocale();
+  const truth = homeTruth(hours, locale);
+  const receipt = receiptLines(hours, locale);
 
   // What the whole thing costs, as three numbers and the word each one means.
   const dealTiles = [
@@ -2778,7 +2874,8 @@ function Generator() {
       </header>
 
       <div {...props(styles.content)}>
-        <section {...props(styles.section)}>
+        {/* The section the dial drives itself in, once it is on screen. */}
+        <section ref={mathSection} {...props(styles.section)}>
           <h2 {...props(styles.sectionTitle)}>
             {m.home_math_title()}
             <ScreenTimeHelp />
@@ -2793,10 +2890,19 @@ function Generator() {
                   aria-valuetext={hoursReading}
                   max={HOURS_MAX}
                   min={HOURS_MIN}
-                  onChange={(event) => onHoursChange(Number(event.target.value))}
-                  onPointerDown={armSound}
+                  onChange={(event) => {
+                    // Whatever the drive was doing, the dial is the reader's now.
+                    cancelAutoDrive();
+                    onHoursChange(Number(event.target.value));
+                  }}
+                  onKeyDown={cancelAutoDrive}
+                  onPointerDown={() => {
+                    cancelAutoDrive();
+                    armSound();
+                  }}
                   onPointerUp={unlockTickSound}
                   onTouchEnd={unlockTickSound}
+                  onTouchStart={cancelAutoDrive}
                   step={HOURS_STEP}
                   type="range"
                   value={hours}
@@ -2842,36 +2948,44 @@ function Generator() {
               </svg>
             </button>
           </div>
-          {/* The hours are what the reader gives and the years are what it
-              costs, so those two numbers are the only colour in the line. */}
-          <p {...props(styles.mathResult)}>
-            {m.home_math_result_hours_before()}
-            <span {...props(styles.burn)}>{hoursText}</span>
-            {hours === 1
-              ? m.home_math_result_hours_between_one()
-              : m.home_math_result_hours_between()}
-            <span {...props(styles.burn)}>{years}</span>
-            {m.home_math_result_hours_after()}
+          {/* One sentence for the hour the dial is on, and the whole sentence
+              is the blow: nothing in it is coloured, and nothing is a figure
+              the reader has to read off the dial. The live region stays put so
+              the swap is announced; only the line inside it is remounted, and
+              that is what fades the new one up over the old. */}
+          <p aria-live="polite" {...props(styles.mathResult)}>
+            <span key={hours} {...props(styles.truth)}>
+              {truth}
+            </span>
           </p>
-          <h3 {...props(styles.label)}>{m.home_ledger_title()}</h3>
-          <ul {...props(styles.ledger)}>
-            {ledger.map((item) => (
-              <li key={item.key} {...props(styles.ledgerItem)}>
-                {item.number === undefined ? null : (
-                  <>
-                    <span {...props(styles.ledgerNumber)}>{item.number}</span>{' '}
-                  </>
-                )}
-                {item.text}
-              </li>
-            ))}
-          </ul>
-          <p {...props(styles.ledgerNote)}>
-            {m.home_ledger_note_before()}
+          <div {...props(styles.receipt)}>
+            <div {...props(styles.receiptHead)}>
+              <p {...props(styles.receiptTitle)}>{m.home_receipt_title()}</p>
+              <p {...props(styles.receiptMeta)}>{m.home_receipt_meta({ hours })}</p>
+            </div>
+            <div aria-hidden="true" {...props(styles.receiptRule)} />
+            <ul {...props(styles.receiptList)}>
+              {receipt.map((line) => (
+                <li key={line.key} {...props(styles.receiptRow)}>
+                  <span>{line.label}</span>
+                  <span {...props(styles.receiptValue)}>{line.value}</span>
+                </li>
+              ))}
+            </ul>
+            <div aria-hidden="true" {...props(styles.receiptRule)} />
+            <p {...props(styles.receiptTotal)}>
+              <span {...props(styles.receiptTotalLabel)}>{m.home_receipt_total_label()}</span>
+              <span {...props(styles.receiptTotalValue)}>
+                {m.home_receipt_total_value({ years })}
+              </span>
+            </p>
+          </div>
+          <p {...props(styles.receiptNote)}>
+            {m.home_receipt_note_before()}
             <a href={READING_SPEED_URL} rel="noreferrer" target="_blank">
-              {m.home_ledger_note_link()}
+              {m.home_receipt_note_link()}
             </a>
-            {m.home_ledger_note_after()}
+            {m.home_receipt_note_after()}
           </p>
         </section>
 
