@@ -8,6 +8,7 @@
     "cf-typegen": "wrangler types",
     "deploy": "pnpm build && wrangler deploy",
     "dev": "vite dev",
+    "prebuild": "cp ../../cli/dist/supervise public/supervise",
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"

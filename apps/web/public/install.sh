@@ -5,10 +5,13 @@
 # copy is served at https://attentionawareness.com/install.sh, and Workers static
 # assets need a real file, so it is a copy and not a symlink. Edit cli/install.sh,
 # then run: cp cli/install.sh apps/web/public/install.sh
+#
+# The site serves the tool as well: the web build copies cli/dist/supervise to
+# apps/web/public/supervise, so the download needs no public repository.
 set -eu
 
-# One edit here moves the download if the repository is renamed.
-URL="https://raw.githubusercontent.com/mertbuilds/attentionawareness/main/cli/dist/supervise"
+# One edit here moves the download if the domain changes.
+URL="https://attentionawareness.com/supervise"
 BIN_DIR="$HOME/.local/bin"
 TARGET="$BIN_DIR/supervise"
 

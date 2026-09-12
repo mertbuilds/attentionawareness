@@ -230,7 +230,7 @@ function SuperviseGuide() {
 
   const troubles = [
     { desc: m.sup_trouble_permission_desc(), term: m.sup_trouble_permission_term() },
-    { desc: m.sup_trouble_encrypted_desc(), term: m.sup_trouble_encrypted_term() },
+    { desc: m.sup_trouble_password_desc(), term: m.sup_trouble_password_term() },
     { desc: m.sup_trouble_unsupervised_desc(), term: m.sup_trouble_unsupervised_term() },
     { desc: m.sup_trouble_undo_desc(), term: m.sup_trouble_undo_term() },
   ];

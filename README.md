@@ -1,87 +1,112 @@
-# attentionawareness
+# Attention Awareness
 
-Opinionated boilerplate for starting new products. One architecture, every product — so knowledge (yours and your agents') compounds instead of resetting. The site is static and client-only: it runs entirely in the browser, so there is nothing to break in prod.
+Free, open-source tools to take your attention back. <https://attentionawareness.com>
 
-Founding decisions live in [docs/adr/0001-stack.md](docs/adr/0001-stack.md). Agent rules and workflow live in [AGENTS.md](AGENTS.md).
+## What is here
 
-## The phone tool
+### `apps/web`
 
-The `supervise` command turns an iPhone into a supervised device without erasing it, by patching a local Finder backup. Supervision is what lets a configuration profile lock the phone down: a Safari allowlist, no App Store, no app installs. It is standard library Python with no dependencies, in `cli/`, outside the pnpm workspace. Install it with `curl -fsSL https://attentionawareness.com/install.sh | sh`. See [cli/README.md](cli/README.md).
+The site. A math-first landing page that prices a scrolling habit in years, a
+generator that builds a signed iOS configuration profile blocking the apps and
+sites you choose, enforced by iOS supervision, and the supervision guide at
+[/supervise](https://attentionawareness.com/supervise). TanStack Start on
+Cloudflare Workers; the founding stack decisions are in
+[docs/adr/0001-stack.md](docs/adr/0001-stack.md).
+
+### `cli/`
+
+`supervise`, a standard-library Python tool that turns an iPhone into a
+supervised device without erasing it. It patches a Finder backup, encrypted or
+not, and the restore hands back the same phone with supervision on. Install it
+with `curl -fsSL https://attentionawareness.com/install.sh | sh` and read
+[cli/README.md](cli/README.md) before you run it.
+
+### `apps/extension`
+
+A Chromium extension that hides the feeds on X, YouTube, Instagram and TikTok
+with CSS, plus custom CSS of your own per domain. It is not in the Chrome Web
+Store yet, so build it and load unpacked from `apps/extension/dist` for now.
+See [apps/extension/README.md](apps/extension/README.md).
+
+## How the phone part works
+
+- Supervision is a device mode Apple gives to phones that a school or a company
+  owns.
+- A configuration profile on a supervised phone can hide apps by bundle id and
+  block sites. On a normal phone it cannot, and Screen Time is all that is left.
+- Apple's own path to supervision is Apple Configurator's Prepare action, which
+  erases the phone first.
+- `supervise` flips one flag inside a Finder backup instead, so a restore yields
+  a supervised phone with the data still on it. Restore verified on iOS 26.6.1.
+  An encrypted iOS 26.2.1 backup patches and reads back; its restore is being
+  tested.
+- Profiles are signed on the server with a Developer ID certificate and carry a
+  unique identifier per download, so a second profile stacks on the first
+  instead of replacing it and only an erase takes one off. Trial mode is the
+  exception and stays removable in Settings. See
+  [docs/signing.md](docs/signing.md).
 
 ## Stack
 
 | Layer       | Choice                                                                   |
 | ----------- | ------------------------------------------------------------------------ |
 | Monorepo    | pnpm workspaces + Turborepo, Node 24, TypeScript 7                       |
-| Web         | TanStack Start (React 19 + Compiler) → Cloudflare Workers                |
+| Web         | TanStack Start (React 19 + Compiler) on Cloudflare Workers               |
 | CLI         | `supervise`, standard-library Python 3.9+, outside the pnpm workspace    |
+| Extension   | Chromium MV3, React 19 popup, three Vite builds                          |
 | Styling     | StyleX tokens (black/white, 4px radius) + Base UI components + Storybook |
 | i18n        | Paraglide v2 (English + Turkish catalogs)                                |
 | Analytics   | PostHog EU (replay + heatmaps, `/ingest` reverse proxy)                  |
 | Errors      | Sentry                                                                   |
-| Logging     | evlog wide events → Axiom drain                                          |
-| Lint/format | oxlint (`@nkzw/oxlint-config`, type-aware) + oxfmt — no ESLint/Prettier  |
-| Tests       | Vitest (+ Storybook stories as tests) + one Playwright smoke             |
+| Logging     | evlog wide events to an Axiom drain                                      |
+| Lint/format | oxlint (`@nkzw/oxlint-config`, type-aware) + oxfmt, no ESLint/Prettier   |
+| Tests       | Vitest (+ Storybook stories as tests) + Playwright smoke tests           |
 
-## Quickstart
+## Develop
 
-Prereqs: Node 24 (`nvm use`), pnpm 11 (corepack).
+Prereqs: pnpm 11 (corepack), Node 24 (`nvm use`).
 
 ```sh
 pnpm install
-sudo pnpm exec portless proxy start --https   # one-time: local HTTPS proxy on 443 + trusted CA
-pnpm dev        # mprocs: web + storybook
+pnpm dev   # mprocs: web + storybook
 ```
 
-Open https://attentionawareness.localhost and build a profile.
+`pnpm dev` serves the app on https://attentionawareness.localhost through
+[portless](https://portless.sh). The proxy is a one-time setup:
+`sudo pnpm exec portless proxy start --https`.
 
-Local URLs come from [portless](https://portless.sh) — stable named HTTPS domains instead of ports:
+| Command             | What it does                              |
+| ------------------- | ----------------------------------------- |
+| `pnpm test`         | Unit and story tests across the workspace |
+| `pnpm e2e`          | Playwright smoke against a booted web app |
+| `pnpm lint`         | oxlint, type-aware                        |
+| `pnpm format:check` | oxfmt, the CI check                       |
+| `pnpm typecheck`    | `tsc --noEmit` per package                |
 
-| Service   | URL                                            |
-| --------- | ---------------------------------------------- |
-| web       | https://attentionawareness.localhost           |
-| storybook | https://storybook.attentionawareness.localhost |
+**Fonts.** Suisse Intl is licensed and not in the repo. Without
+`packages/ui/fonts/*.woff2` the site falls back to Inter and everything else
+works. `pnpm fonts` fetches them from a private bucket; see
+[scripts/fetch-fonts.sh](scripts/fetch-fonts.sh).
 
-`pnpm exec portless service install` starts the proxy on boot.
+**Signing secrets.** Signing is off until they exist, and `/api/sign` answers 503. To sign locally, copy `apps/web/.dev.vars.example` to
+`apps/web/.dev.vars` and fill in the three values.
 
-## Commands
+**Deploy.** `pnpm --filter @attentionawareness/web deploy` builds and ships to
+Cloudflare Workers; a push to main does the same from CI. Agent rules, the
+repo layout and the full workflow live in [AGENTS.md](AGENTS.md).
 
-| Command                                        | What it does                                                       |
-| ---------------------------------------------- | ------------------------------------------------------------------ |
-| `pnpm dev`                                     | Everything, in mprocs panes                                        |
-| `pnpm test`                                    | All unit + story tests (turbo)                                     |
-| `pnpm e2e`                                     | Playwright smoke against a self-booted web app                     |
-| `pnpm lint` / `pnpm format` / `pnpm typecheck` | Quality gates (same as CI)                                         |
-| `pnpm storybook`                               | Component workshop (standalone, :6006)                             |
-| `pnpm bad-day`                                 | Nuke node_modules + all caches, reinstall (`DRY_RUN=1` to preview) |
-| `pnpm rename`                                  | Rename the template to your product (`pnpm rename acme-app`)       |
-| `pnpm fonts`                                   | Fetch Suisse Intl from private bucket (Inter fallback otherwise)   |
-| `pnpm skills:check`                            | Warn when dep majors drift from verified agent skills              |
+## Honesty
 
-## Starting a new product
-
-```sh
-gh repo create yourname/new-product --template mertbuilds/web-starter --private --clone
-cd new-product && pnpm install
-pnpm rename new-product   # or: bash scripts/rename.sh new-product
-pnpm dev
-```
-
-Rename rewrites the package scope, worker name, local hosts, titles and lockfile in one diff; `docs/adr` stays as history. Review, commit, then work through the accounts checklist below as you go live.
-
-## Going to production — accounts checklist
-
-Local dev needs none of these. Production needs:
-
-- [ ] **Cloudflare** — Workers for web; secrets `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` in GitHub
-- [ ] **PostHog Cloud EU** — project key → `POSTHOG_KEY`
-- [ ] **Sentry** — web DSN; `SENTRY_AUTH_TOKEN` for sourcemaps
-- [ ] **Axiom** — dataset + token for evlog drain
-- [ ] **cubic** — install the GitHub app for AI review
-- [ ] **Branch protection** — PRs only, CI required on `main`
-- [ ] **Suisse Intl bucket** — `FONT_BUCKET_URL` secret (private R2); Inter ships as fallback
-- [ ] **Turbo remote cache** (optional) — `TURBO_TOKEN` secret + `TURBO_TEAM` var
+- Patching a backup is not an Apple-supported procedure. It works today on iOS 26. A future release can close it, so keep the untouched copies that `patch`
+  saves.
+- These sites change their markup, and a changed selector is a rule that
+  silently stops hiding anything. Every rule file carries the date it was last
+  checked against the live DOM.
+- There are no accounts. The profile is built in your browser and signed on the
+  way out; what you block is not stored and not tracked.
 
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+Made by Mert Duzgun. <https://mertbuilds.com>

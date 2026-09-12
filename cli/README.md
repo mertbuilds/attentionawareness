@@ -180,9 +180,9 @@ version, and say whether it worked.
 
 - Apple does not support this procedure. It is a patch of a private file inside a backup.
 - iOS 27 may change how a restore handles this file. Test on a phone you can rebuild.
-- The encrypted path has met no real encrypted backup yet. The tests build one and
-  patch it, but no phone has restored from one. Keep the untouched copies that `patch`
-  saves.
+- The encrypted path patched a real iOS 26.2.1 backup and read the flag back on
+  2026-09-12; the restore from it is still being tested. Keep the untouched copies that
+  `patch` saves.
 - An XML plist keeps its length, because the tool pads it with newlines, and `Manifest.db`
   stays untouched. A binary plist grows or shrinks instead, so the tool writes the new size
   into `Manifest.db` and, in an encrypted backup, encrypts that file again with the same
@@ -219,8 +219,9 @@ python3 cli/build_single.py
 ```
 
 That writes `cli/dist/supervise`, a copy of the package module with a shebang on top.
-`install.sh` downloads that file from `main`, so a change to the package reaches users only
-after the rebuilt file is committed.
+The web build copies it to `apps/web/public/supervise`, and `install.sh` and `supervise
+update` both download it from https://attentionawareness.com/supervise, so a change to the
+package reaches users only after the rebuilt file is committed and the site is deployed.
 
 ## Credits
 
