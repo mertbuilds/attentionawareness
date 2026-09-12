@@ -225,6 +225,7 @@ function SuperviseGuide() {
     { id: 'stolen-device-protection', text: m.sup_checklist_stolen() },
     { id: 'find-my', text: m.sup_checklist_findmy() },
     { id: 'icloud-backup', text: m.sup_checklist_backup() },
+    { id: 'free-space', text: m.sup_checklist_space() },
     { id: 'full-disk-access', text: m.sup_checklist_fulldisk() },
   ];
 
@@ -328,9 +329,9 @@ function SuperviseGuide() {
         <section {...props(styles.section)}>
           <h2 {...props(styles.sectionTitle)}>{m.sup_step4_title()}</h2>
           <ul {...props(styles.bullets)}>
-            <li {...props(styles.bulletItem)}>{m.sup_step4_findmy()}</li>
-            <li {...props(styles.bulletItem)}>{m.sup_step4_faceid()}</li>
+            <li {...props(styles.bulletItem)}>{m.sup_step4_setup()}</li>
             <li {...props(styles.bulletItem)}>{m.sup_step4_apps()}</li>
+            <li {...props(styles.bulletItem)}>{m.sup_step4_findmy()}</li>
             <li {...props(styles.bulletItem)}>{m.sup_step4_profile()}</li>
             <li {...props(styles.bulletItem)}>{m.sup_step4_stacks()}</li>
           </ul>
@@ -354,6 +355,12 @@ function SuperviseGuide() {
                 <TableCell>{m.sup_verified_row_ios()}</TableCell>
                 <TableCell>{m.sup_verified_row_date()}</TableCell>
                 <TableCell>{m.sup_verified_row_result()}</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell>{m.sup_verified_row_device_2()}</TableCell>
+                <TableCell>{m.sup_verified_row_ios_2()}</TableCell>
+                <TableCell>{m.sup_verified_row_date_2()}</TableCell>
+                <TableCell>{m.sup_verified_row_result_2()}</TableCell>
               </TableRow>
             </TableBody>
           </Table>

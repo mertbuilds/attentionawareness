@@ -42,10 +42,10 @@ describe('SuperviseGuide', () => {
     expect(screen.getByText(m.sup_lead())).toBeInTheDocument();
   });
 
-  it('offers the five before-you-start checkboxes, all unticked', () => {
+  it('offers the six before-you-start checkboxes, all unticked', () => {
     renderPage();
     const boxes = screen.getAllByRole('checkbox');
-    expect(boxes).toHaveLength(5);
+    expect(boxes).toHaveLength(6);
     for (const box of boxes) {
       expect(box).not.toBeChecked();
     }

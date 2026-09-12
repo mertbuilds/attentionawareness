@@ -44,7 +44,8 @@ Nothing on the phone is erased, because a backup restore is not an erase.
 
 - A Mac.
 - A cable.
-- An iPhone with enough free space on the Mac for a full backup.
+- Free space on the Mac equal to what the iPhone uses. A 64 gb phone with 40 gb in use
+  needs about 40 gb free, because the backup is a full copy.
 - A Finder backup. In Finder, select the iPhone, then click `Back Up Now`. An encrypted
   backup works too. The tool asks for the backup password and reads the backup with it.
 - Full Disk Access for your terminal application. Backups live in a folder that macOS
@@ -147,9 +148,12 @@ supervise patch            # it asks, and the typing stays hidden
 6. On the iPhone, turn off Find My iPhone.
 7. In Finder, click `Restore Backup` and pick the backup you patched. The phone restarts
    and then restores its apps and data. This takes a while.
-8. Open Settings on the iPhone. The banner at the top says that this iPhone is supervised.
-9. Turn Find My iPhone on again.
-10. Run `supervise verify`.
+8. The iPhone runs a short setup. It asks for Face ID or Touch ID again, for a passcode,
+   and it offers to turn Stolen Device Protection back on. Say yes. Then it downloads the
+   apps again, so keep the iPhone on wifi and on power.
+9. Open Settings on the iPhone. The banner at the top says that this iPhone is supervised.
+10. Turn Find My iPhone on again.
+11. Run `supervise verify`.
 
 ## What you keep and what you lose
 
@@ -172,6 +176,7 @@ Set aside an evening. Do not do this an hour before you need the phone.
 | Date       | Device     | iOS    | Backup              | Result                                                    |
 | ---------- | ---------- | ------ | ------------------- | --------------------------------------------------------- |
 | 2026-09-10 | iPhone17,3 | 26.6.1 | Finder, unencrypted | Settings showed the phone as supervised after the restore |
+| 2026-09-12 | iPhone SE  | 26.2.1 | Finder, encrypted   | Manifest.db re-encrypted, supervised after the restore    |
 
 If you run this on another version, please open an issue with the device and the iOS
 version, and say whether it worked.
@@ -180,9 +185,8 @@ version, and say whether it worked.
 
 - Apple does not support this procedure. It is a patch of a private file inside a backup.
 - iOS 27 may change how a restore handles this file. Test on a phone you can rebuild.
-- The encrypted path patched a real iOS 26.2.1 backup and read the flag back on
-  2026-09-12; the restore from it is still being tested. Keep the untouched copies that
-  `patch` saves.
+- The encrypted path is verified. A real iOS 26.2.1 backup patched on 2026-09-12 restored
+  to a supervised phone with its data. Keep the untouched copies that `patch` saves.
 - An XML plist keeps its length, because the tool pads it with newlines, and `Manifest.db`
   stays untouched. A binary plist grows or shrinks instead, so the tool writes the new size
   into `Manifest.db` and, in an encrypted backup, encrypts that file again with the same

@@ -37,9 +37,8 @@ See [apps/extension/README.md](apps/extension/README.md).
 - Apple's own path to supervision is Apple Configurator's Prepare action, which
   erases the phone first.
 - `supervise` flips one flag inside a Finder backup instead, so a restore yields
-  a supervised phone with the data still on it. Restore verified on iOS 26.6.1.
-  An encrypted iOS 26.2.1 backup patches and reads back; its restore is being
-  tested.
+  a supervised phone with the data still on it. Restore verified on iOS 26.6.1
+  (unencrypted backup) and iOS 26.2.1 (encrypted backup).
 - Profiles are signed on the server with a Developer ID certificate and carry a
   unique identifier per download, so a second profile stacks on the first
   instead of replacing it and only an erase takes one off. Trial mode is the
