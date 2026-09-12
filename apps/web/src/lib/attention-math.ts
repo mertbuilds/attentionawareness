@@ -10,8 +10,8 @@ const DAYS_PER_YEAR = 365;
 const HOURS_ROUNDING = 100;
 /** How long one book takes to read: 90,000 words at 238 a minute, with the pauses. */
 const HOURS_PER_BOOK = 8;
-/** A day of work, which is also what the receipt counts the hours back into. */
-const HOURS_PER_WORKDAY = 8;
+/** A year of full-time work: 40 hours a week, fifty weeks of them. */
+const HOURS_PER_JOB_YEAR = 2000;
 /** What a language costs before it is spoken. */
 const HOURS_PER_LANGUAGE = 1500;
 /** What the receipt pays the reader for the hours they gave away. */
@@ -55,18 +55,11 @@ type ReceiptEntry = {
 
 /**
  * The bill, printed the way a till prints one. A row appears once the day is
- * long enough to earn it and stays for every longer day; the years, the books
- * and the money are owed at any length, so they carry no threshold of their
- * own.
+ * long enough to earn it and stays for every longer day; the books and the
+ * money are owed at any length, so they carry no threshold of their own. The
+ * waking years are not a row: they are the total under the tear line.
  */
 const RECEIPT: ReadonlyArray<ReceiptEntry> = [
-  {
-    key: 'years',
-    label: (locale) => m.home_receipt_years_label({}, { locale }),
-    minHours: 0,
-    value: (hoursPerDay, _format, locale) =>
-      m.home_receipt_years_value({ years: formatYears(hoursPerDay) }, { locale }),
-  },
   {
     key: 'books',
     label: (locale) => m.home_receipt_books_label({}, { locale }),
@@ -94,10 +87,14 @@ const RECEIPT: ReadonlyArray<ReceiptEntry> = [
     value: (hoursPerDay, format) => `$${format(screenHours(hoursPerDay) * DOLLARS_PER_HOUR)}`,
   },
   {
-    key: 'workdays',
-    label: (locale) => m.home_receipt_workdays_label({}, { locale }),
+    key: 'job',
+    label: (locale) => m.home_receipt_job_label({}, { locale }),
     minHours: 4,
-    value: (hoursPerDay, format) => format(screenHours(hoursPerDay) / HOURS_PER_WORKDAY),
+    value: (hoursPerDay, format, locale) =>
+      m.home_receipt_job_value(
+        { years: format(screenHours(hoursPerDay) / HOURS_PER_JOB_YEAR) },
+        { locale },
+      ),
   },
 ];
 

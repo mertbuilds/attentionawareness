@@ -66,28 +66,30 @@ describe('homeTruth', () => {
 
 describe('receiptLines', () => {
   it('adds a row for every threshold the day passes', () => {
-    expect(receiptLines(1, 'en')).toHaveLength(3);
-    expect(receiptLines(2, 'en')).toHaveLength(4);
-    expect(receiptLines(3, 'en')).toHaveLength(5);
-    expect(receiptLines(4, 'en')).toHaveLength(6);
+    expect(receiptLines(1, 'en')).toHaveLength(2);
+    expect(receiptLines(2, 'en')).toHaveLength(3);
+    expect(receiptLines(3, 'en')).toHaveLength(4);
+    expect(receiptLines(4, 'en')).toHaveLength(5);
   });
 
   it('prints the rows in the order the receipt rings them up', () => {
     expect(receiptLines(4, 'en').map((line) => line.key)).toEqual([
-      'years',
       'books',
       'dinners',
       'languages',
       'money',
-      'workdays',
+      'job',
     ]);
+  });
+
+  it('leaves the waking years to the total, which is the only place they are', () => {
+    expect(receiptLines(12, 'en').map((line) => line.key)).not.toContain('years');
   });
 
   it('counts what an hour a day comes to, and leaves the rest off the bill', () => {
     expect(values(receiptLines(1, 'en'))).toEqual({
       books: '913',
       money: '$146,000',
-      years: '1.3 y',
     });
   });
 
@@ -95,11 +97,15 @@ describe('receiptLines', () => {
     expect(values(receiptLines(4, 'en'))).toEqual({
       books: '3,650',
       dinners: '7,300',
+      job: '15 y',
       languages: '19',
       money: '$584,000',
-      workdays: '3,650',
-      years: '5 y',
     });
+  });
+
+  it('bills the screen hours as the years of full-time work they would pay for', () => {
+    expect(values(receiptLines(5, 'en')).job).toBe('18 y');
+    expect(values(receiptLines(12, 'en')).job).toBe('44 y');
   });
 
   it('bills the same dinners at every length of day, because there are no more', () => {
@@ -115,8 +121,8 @@ describe('receiptLines', () => {
   });
 
   it('labels the rows in the reader language', () => {
-    expect(receiptLines(1, 'en')[0]?.label).toBe('Waking years');
-    expect(receiptLines(1, 'tr')[0]?.label).toBe('Uyanık yıl');
-    expect(receiptLines(1, 'tr')[0]?.value).toBe('1.3 yıl');
+    expect(receiptLines(1, 'en')[0]?.label).toBe('Books unread');
+    expect(receiptLines(1, 'tr')[0]?.label).toBe('Okunmayan kitap');
+    expect(values(receiptLines(4, 'tr')).job).toBe('15 yıl');
   });
 });

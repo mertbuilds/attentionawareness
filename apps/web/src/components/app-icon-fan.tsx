@@ -15,8 +15,9 @@ const styles = create({
     marginInline: '0.3em',
     verticalAlign: 'middle',
   },
-  // One size at every width: the fan sits inside a 28px headline, and an icon
-  // taller than that line would push the sentence around it apart.
+  // One size at every width: the fan sits inside a 20px headline whose line
+  // box is exactly this tall, and a taller icon would push the sentence around
+  // it apart.
   fanArtwork: {
     borderRadius: 9,
     height: 32,
