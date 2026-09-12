@@ -58,12 +58,25 @@ export const Route = createFileRoute('/')({
 });
 
 /**
- * The one display size on the page. Only the hero lines and the years the
- * habit costs are set in it; every other heading is one step down.
+ * The one display size on the page, and the receipt's total is the only thing
+ * set in it: it is the number the whole first screen adds up to. Every
+ * heading, the hero's own included, is steps below it.
  */
 const DISPLAY_SIZE = 'clamp(32px, 3.8vw, 44px)';
+/**
+ * Every heading on the page, the hero's own included. It is not a token
+ * because the scale holds three weights and this is the fourth: Suisse Intl
+ * ships 400, 500 and 700, so a 600 lands on its bold face and on a true
+ * semibold in the Inter Variable fallback.
+ */
+const HEADING_WEIGHT = 600;
 /** The air between two sections, wider than anything inside one. */
-const SECTION_GAP = 96;
+const SECTION_GAP = spacing.s16;
+/** The four places the page links to itself, and the ids those links use. */
+const WHY_ID = 'why';
+const CHANGES_ID = 'changes';
+const HOW_ID = 'how';
+const BUILD_ID = 'build';
 const SEARCH_DEBOUNCE_MS = 300;
 const SEARCH_LIMIT = 10;
 const SKELETON_ROWS = [0, 1, 2];
@@ -205,6 +218,11 @@ const resultsEnter = keyframes({
 });
 
 const styles = create({
+  // A section the hero links down to. The scroll stops short of its heading
+  // instead of pinning it to the top edge of the window.
+  anchor: {
+    scrollMarginBlockStart: spacing.s8,
+  },
   appGrid: {
     display: 'grid',
     gap: spacing.s3,
@@ -360,14 +378,15 @@ const styles = create({
     flexGrow: 1,
     minWidth: 0,
   },
-  // The sentence under the fan headline: the reason, not the claim.
-  fanBody: {
-    color: colors.muted,
-    fontSize: font.sizeMd,
-    lineHeight: 1.5,
+  // The line the icon fan is set into. It is the section's picture, not its
+  // heading, so it sits one step under the h2 above it; the line box is tall
+  // enough for a 32px icon, which is what keeps the sentence around it even.
+  fanHeadline: {
+    fontSize: font.sizeLg,
+    fontWeight: font.weightMedium,
+    lineHeight: 1.6,
     margin: 0,
-    maxWidth: '60ch',
-    textWrap: 'pretty',
+    textWrap: 'balance',
   },
   // The helper sentence, folded into a ring the question can be asked from.
   helpButton: {
@@ -504,20 +523,100 @@ const styles = create({
     position: 'relative',
     verticalAlign: 'middle',
   },
-  // Same column as `content`, so the hero and every section share a left edge.
+  // The first screen, whole: the question, the dial it is answered on, the
+  // line that answer earns, and the bill for it. Wide enough for two columns,
+  // the bill stands beside the other four and holds the eye; under that they
+  // fall into one column and it keeps its place between the line and the
+  // pitch. Same column as `content`, so both share a left edge.
   hero: {
+    alignItems: 'start',
+    columnGap: spacing.s8,
+    display: 'grid',
+    gridTemplateAreas: {
+      '@media (min-width: 900px)': '"title receipt" "dial receipt" "truth receipt" "pitch receipt"',
+      default: '"title" "dial" "truth" "receipt" "pitch"',
+    },
+    gridTemplateColumns: {
+      '@media (min-width: 900px)': '1.1fr 0.9fr',
+      default: '1fr',
+    },
     maxWidth: 760,
+    rowGap: {
+      '@media (min-width: 640px)': spacing.s6,
+      default: spacing.s4,
+    },
     width: '100%',
   },
-  heroTitle: {
+  // What the reader does next, and the one sentence that says what it is.
+  heroActions: {
+    alignItems: 'center',
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: spacing.s4,
+  },
+  // The bill and the arithmetic behind it, as one block of the hero grid.
+  heroAside: {
     display: 'flex',
     flexDirection: 'column',
-    fontSize: DISPLAY_SIZE,
-    fontWeight: font.weightBold,
+    gap: spacing.s3,
+    gridArea: 'receipt',
+    maxWidth: 460,
+    width: '100%',
+  },
+  heroDial: {
+    gridArea: 'dial',
+  },
+  heroPitch: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s4,
+    gridArea: 'pitch',
+  },
+  heroProduct: {
+    color: colors.muted,
+    fontSize: font.sizeMd,
+    lineHeight: 1.5,
+    margin: 0,
+    maxWidth: '46ch',
+    textWrap: 'pretty',
+  },
+  // The way past the button, for a reader who wants the price in time first.
+  heroSecondary: {
+    color: {
+      ':hover': colors.fg,
+      default: colors.muted,
+    },
+    fontSize: font.sizeSm,
+    textDecorationLine: {
+      ':hover': 'underline',
+      default: 'none',
+    },
+  },
+  heroTitle: {
+    fontSize: {
+      '@media (min-width: 640px)': 32,
+      default: 28,
+    },
+    fontWeight: HEADING_WEIGHT,
+    gridArea: 'title',
     letterSpacing: '-0.02em',
     lineHeight: 1.1,
     margin: 0,
     textWrap: 'balance',
+  },
+  // The line the dial lands on. Three lines of it are held open whatever the
+  // hour says, so the bill under it never moves while the dial drives itself.
+  heroTruth: {
+    fontSize: {
+      '@media (min-width: 640px)': font.sizeLg,
+      default: 18,
+    },
+    fontWeight: font.weightMedium,
+    gridArea: 'truth',
+    lineHeight: 1.3,
+    margin: 0,
+    minHeight: '3.9em',
+    textWrap: 'pretty',
   },
   // The page's one caption: the small line that names the group under it.
   label: {
@@ -536,15 +635,6 @@ const styles = create({
     listStyleType: 'none',
     margin: 0,
     padding: 0,
-  },
-  mathResult: {
-    fontSize: DISPLAY_SIZE,
-    fontVariantNumeric: 'tabular-nums',
-    fontWeight: font.weightBold,
-    letterSpacing: '-0.02em',
-    lineHeight: 1.1,
-    margin: 0,
-    textWrap: 'balance',
   },
   // A disclosure with no box of its own: the summary is one more muted line
   // in the section until it is opened.
@@ -599,16 +689,11 @@ const styles = create({
     paddingBlockEnd: spacing.s16,
     paddingBlockStart: {
       '@media (min-width: 640px)': 96,
-      default: spacing.s12,
+      default: spacing.s6,
     },
     paddingInline: spacing.s4,
     // The containing block the grid layer measures itself against.
     position: 'relative',
-  },
-  playGlyph: {
-    display: 'block',
-    height: 28,
-    width: 28,
   },
   // The profile as a picture of itself: the icons it hides, the hosts it
   // turns away, and the two switches that need a supervised phone.
@@ -769,9 +854,6 @@ const styles = create({
       default: '1fr',
     },
   },
-  quiet: {
-    color: colors.muted,
-  },
   // The bill as a till prints one: monospace, narrow, and every number under
   // the one above it. It is a receipt for hours already spent, so it holds the
   // page's ground colour and is drawn by its edge alone.
@@ -787,8 +869,10 @@ const styles = create({
     fontFamily: MONOSPACE,
     fontSize: 13,
     gap: spacing.s3,
-    maxWidth: 420,
-    padding: spacing.s4,
+    padding: {
+      '@media (min-width: 640px)': spacing.s4,
+      default: spacing.s3,
+    },
     width: '100%',
   },
   receiptHead: {
@@ -1013,9 +1097,18 @@ const styles = create({
     flexDirection: 'column',
     gap: spacing.s6,
   },
+  // The sentence under a section heading: the reason, not the claim.
+  sectionBody: {
+    color: colors.muted,
+    fontSize: font.sizeMd,
+    lineHeight: 1.5,
+    margin: 0,
+    maxWidth: '60ch',
+    textWrap: 'pretty',
+  },
   sectionTitle: {
-    fontSize: 28,
-    fontWeight: font.weightMedium,
+    fontSize: font.sizeLg,
+    fontWeight: HEADING_WEIGHT,
     letterSpacing: '-0.01em',
     lineHeight: 1.2,
     margin: 0,
@@ -1405,7 +1498,7 @@ const styles = create({
   tickNumber: {
     color: colors.muted,
     fontFamily: MONOSPACE,
-    fontSize: 10,
+    fontSize: 11,
     insetBlockStart: 12,
     insetInlineStart: '50%',
     lineHeight: 1,
@@ -1439,22 +1532,29 @@ const styles = create({
     animationName: truthEnter,
     animationTimingFunction: 'ease-out',
   },
-  // Reserved space for the walkthrough clip, which is not shot yet.
-  video: {
-    alignItems: 'center',
-    aspectRatio: '16 / 9',
-    borderColor: colors.border,
-    borderRadius: radius.base,
-    borderStyle: 'dashed',
-    borderWidth: '1px',
-    color: colors.muted,
+  // The line that closes the argument, one step over the three that make it.
+  whyClose: {
+    fontSize: font.sizeLg,
+    fontWeight: font.weightMedium,
+    lineHeight: 1.4,
+    margin: 0,
+    textWrap: 'pretty',
+  },
+  whyLine: {
+    fontSize: 18,
+    lineHeight: 1.5,
+    margin: 0,
+    textWrap: 'pretty',
+  },
+  // Three statements, not three items: the list holds them apart and marks
+  // none of them.
+  whyList: {
     display: 'flex',
     flexDirection: 'column',
-    fontSize: font.sizeSm,
-    gap: spacing.s2,
-    justifyContent: 'center',
-    maxWidth: '100%',
-    width: '100%',
+    gap: spacing.s4,
+    listStyleType: 'none',
+    margin: 0,
+    padding: 0,
   },
 });
 
@@ -2866,98 +2966,93 @@ function Generator() {
           </button>
         </div>
       )}
-      <header {...props(styles.hero)}>
+      {/* The first screen: the question, the dial that answers it, the line
+          that answer earns, and the bill for it. The dial drives itself here,
+          once the hero is on screen. */}
+      <header ref={mathSection} {...props(styles.hero)}>
         <h1 {...props(styles.heroTitle)}>
-          <span>{m.home_hero_line_1()}</span>
-          <span {...props(styles.quiet)}>{m.home_hero_line_2()}</span>
+          {m.home_hero_title()}
+          <ScreenTimeHelp />
         </h1>
-      </header>
-
-      <div {...props(styles.content)}>
-        {/* The section the dial drives itself in, once it is on screen. */}
-        <section ref={mathSection} {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>
-            {m.home_math_title()}
-            <ScreenTimeHelp />
-          </h2>
-          <div {...props(styles.dial)}>
-            <div {...props(styles.dialRail)}>
-              <Label style={styles.sliderLabel}>
-                <span {...props(styles.srOnly)}>{m.home_math_slider_label()}</span>
-                {/* The end of the gesture, not its start, is what iOS accepts as
-                    leave to open an audio device, so it gets its own handlers. */}
-                <input
-                  aria-valuetext={hoursReading}
-                  max={HOURS_MAX}
-                  min={HOURS_MIN}
-                  onChange={(event) => {
-                    // Whatever the drive was doing, the dial is the reader's now.
-                    cancelAutoDrive();
-                    onHoursChange(Number(event.target.value));
-                  }}
-                  onKeyDown={cancelAutoDrive}
-                  onPointerDown={() => {
-                    cancelAutoDrive();
-                    armSound();
-                  }}
-                  onPointerUp={unlockTickSound}
-                  onTouchEnd={unlockTickSound}
-                  onTouchStart={cancelAutoDrive}
-                  step={HOURS_STEP}
-                  type="range"
-                  value={hours}
-                  {...props(styles.slider, styles.sliderFill(travelled))}
-                />
-              </Label>
-              {/* The detents, drawn where the knob lands on each of them. The
-                  input already says all of this to a screen reader. */}
-              <div aria-hidden="true" {...props(styles.tickRail)}>
-                {TICKS.map((tick) => (
-                  <span key={tick.value} {...props(styles.tick, styles.tickAt(tick.at))}>
-                    <span {...props(styles.tickNumber)}>{tick.value}</span>
-                  </span>
-                ))}
-              </div>
+        <div {...props(styles.dial, styles.heroDial)}>
+          <div {...props(styles.dialRail)}>
+            <Label style={styles.sliderLabel}>
+              <span {...props(styles.srOnly)}>{m.home_math_slider_label()}</span>
+              {/* The end of the gesture, not its start, is what iOS accepts as
+                  leave to open an audio device, so it gets its own handlers. */}
+              <input
+                aria-valuetext={hoursReading}
+                max={HOURS_MAX}
+                min={HOURS_MIN}
+                onChange={(event) => {
+                  // Whatever the drive was doing, the dial is the reader's now.
+                  cancelAutoDrive();
+                  onHoursChange(Number(event.target.value));
+                }}
+                onKeyDown={cancelAutoDrive}
+                onPointerDown={() => {
+                  cancelAutoDrive();
+                  armSound();
+                }}
+                onPointerUp={unlockTickSound}
+                onTouchEnd={unlockTickSound}
+                onTouchStart={cancelAutoDrive}
+                step={HOURS_STEP}
+                type="range"
+                value={hours}
+                {...props(styles.slider, styles.sliderFill(travelled))}
+              />
+            </Label>
+            {/* The detents, drawn where the knob lands on each of them. The
+                input already says all of this to a screen reader. */}
+            <div aria-hidden="true" {...props(styles.tickRail)}>
+              {TICKS.map((tick) => (
+                <span key={tick.value} {...props(styles.tick, styles.tickAt(tick.at))}>
+                  <span {...props(styles.tickNumber)}>{tick.value}</span>
+                </span>
+              ))}
             </div>
-            <button
-              aria-label={m.home_math_sound_label()}
-              aria-pressed={sound}
-              onClick={toggleSound}
-              type="button"
-              {...props(styles.soundButton)}
-            >
-              <svg aria-hidden="true" viewBox="0 0 18 18" {...props(styles.soundGlyph)}>
-                <path d="M4 7H2v4h2l3.5 3V4L4 7Z" fill="currentColor" />
-                {sound ? (
-                  <path
-                    d="M10.5 6.5a3.4 3.4 0 0 1 0 5"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeLinecap="round"
-                    strokeWidth="1.4"
-                  />
-                ) : (
-                  <path
-                    d="m10.5 6.5 4 5m0-5-4 5"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeLinecap="round"
-                    strokeWidth="1.4"
-                  />
-                )}
-              </svg>
-            </button>
           </div>
-          {/* One sentence for the hour the dial is on, and the whole sentence
-              is the blow: nothing in it is coloured, and nothing is a figure
-              the reader has to read off the dial. The live region stays put so
-              the swap is announced; only the line inside it is remounted, and
-              that is what fades the new one up over the old. */}
-          <p aria-live="polite" {...props(styles.mathResult)}>
-            <span key={hours} {...props(styles.truth)}>
-              {truth}
-            </span>
-          </p>
+          <button
+            aria-label={m.home_math_sound_label()}
+            aria-pressed={sound}
+            onClick={toggleSound}
+            type="button"
+            {...props(styles.soundButton)}
+          >
+            <svg aria-hidden="true" viewBox="0 0 18 18" {...props(styles.soundGlyph)}>
+              <path d="M4 7H2v4h2l3.5 3V4L4 7Z" fill="currentColor" />
+              {sound ? (
+                <path
+                  d="M10.5 6.5a3.4 3.4 0 0 1 0 5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeWidth="1.4"
+                />
+              ) : (
+                <path
+                  d="m10.5 6.5 4 5m0-5-4 5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeWidth="1.4"
+                />
+              )}
+            </svg>
+          </button>
+        </div>
+        {/* One sentence for the hour the dial is on, and the whole sentence
+            is the blow: nothing in it is coloured, and nothing is a figure the
+            reader has to read off the dial. The live region stays put so the
+            swap is announced; only the line inside it is remounted, and that
+            is what fades the new one up over the old. */}
+        <p aria-live="polite" {...props(styles.heroTruth)}>
+          <span key={hours} {...props(styles.truth)}>
+            {truth}
+          </span>
+        </p>
+        <div {...props(styles.heroAside)}>
           <div {...props(styles.receipt)}>
             <div {...props(styles.receiptHead)}>
               <p {...props(styles.receiptTitle)}>{m.home_receipt_title()}</p>
@@ -2987,10 +3082,33 @@ function Generator() {
             </a>
             {m.home_receipt_note_after()}
           </p>
+        </div>
+        {/* What the bill is for, and the two ways on from it. */}
+        <div {...props(styles.heroPitch)}>
+          <p {...props(styles.heroProduct)}>{m.home_hero_product()}</p>
+          <div {...props(styles.heroActions)}>
+            <Button render={<a href={`#${BUILD_ID}`} />}>{m.home_hero_cta()}</Button>
+            <a href={`#${HOW_ID}`} {...props(styles.heroSecondary)}>
+              {m.home_hero_secondary()}
+            </a>
+          </div>
+        </div>
+      </header>
+
+      <div {...props(styles.content)}>
+        <section {...props(styles.section, styles.anchor)} id={WHY_ID}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_why_title()}</h2>
+          <ul {...props(styles.whyList)}>
+            <li {...props(styles.whyLine)}>{m.home_why_1()}</li>
+            <li {...props(styles.whyLine)}>{m.home_why_2()}</li>
+            <li {...props(styles.whyLine)}>{m.home_why_3()}</li>
+          </ul>
+          <p {...props(styles.whyClose)}>{m.home_why_close()}</p>
         </section>
 
-        <section {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>
+        <section {...props(styles.section, styles.anchor)} id={CHANGES_ID}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_changes_title()}</h2>
+          <p {...props(styles.fanHeadline)}>
             {m.home_fan_before()}
             {config.blockedApps.length === 0 ? (
               <span {...props(fanStyles.fan)}>{m.home_fan_empty()}</span>
@@ -2998,32 +3116,13 @@ function Generator() {
               <AppIconFan apps={config.blockedApps} meta={meta} />
             )}
             {m.home_fan_after()}
-          </h2>
-          <p {...props(styles.fanBody)}>{m.home_other_side()}</p>
+          </p>
+          <p {...props(styles.sectionBody)}>{m.home_changes_gone()}</p>
+          <p {...props(styles.sectionBody)}>{m.home_changes_stays()}</p>
         </section>
 
-        <section {...props(styles.section)}>
-          <p {...props(styles.label)}>{m.home_deal_label()}</p>
-          <div {...props(styles.dealGrid)}>
-            {dealTiles.map((tile) => (
-              <div key={tile.label} {...props(styles.dealTile)}>
-                <p {...props(styles.dealValue)}>{tile.value}</p>
-                <p {...props(styles.dealLabel)}>{tile.label}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section {...props(styles.section)}>
+        <section {...props(styles.section, styles.anchor)} id={HOW_ID}>
           <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
-          <div {...props(styles.video)}>
-            <svg aria-hidden="true" viewBox="0 0 24 24" {...props(styles.playGlyph)}>
-              {/* The triangle's weight sits at its base, so its box leans right
-                  of centre: that is what makes it look centred. */}
-              <path d="M9 6 19 12 9 18Z" fill="currentColor" />
-            </svg>
-            <span>{m.home_video_placeholder()}</span>
-          </div>
           <div {...props(styles.stepGrid)}>
             {howItWorks.map((step, index) => (
               <Card key={step.title}>
@@ -3044,6 +3143,18 @@ function Generator() {
         </section>
 
         <section {...props(styles.section)}>
+          <h2 {...props(styles.label)}>{m.home_deal_label()}</h2>
+          <div {...props(styles.dealGrid)}>
+            {dealTiles.map((tile) => (
+              <div key={tile.label} {...props(styles.dealTile)}>
+                <p {...props(styles.dealValue)}>{tile.value}</p>
+                <p {...props(styles.dealLabel)}>{tile.label}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section {...props(styles.section)}>
           <h2 {...props(styles.sectionTitle)}>{m.home_proof_title()}</h2>
           <div {...props(styles.proofGrid)}>
             {proofPoints.map((point) => (
@@ -3059,7 +3170,7 @@ function Generator() {
           </div>
         </section>
 
-        <section {...props(styles.section)}>
+        <section {...props(styles.section, styles.anchor)} id={BUILD_ID}>
           <div {...props(styles.stepHeader)}>
             <p {...props(styles.label)}>{m.gen_step1_label()}</p>
             <h2 {...props(styles.sectionTitle)}>{m.gen_step1_title()}</h2>

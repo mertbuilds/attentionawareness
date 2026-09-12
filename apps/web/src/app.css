@@ -3,6 +3,14 @@ html {
   background: var(--background);
 }
 
+/* The hero links down the page, so those jumps are eased - for everyone who
+   has not asked for less motion. */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
 body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;

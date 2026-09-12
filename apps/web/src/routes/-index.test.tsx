@@ -350,11 +350,68 @@ describe('Generator', () => {
     window.history.replaceState({}, '', '/');
   });
 
-  it('opens with the headline and the recommended apps', async () => {
+  it('opens with the question the dial answers, and the recommended apps', async () => {
     await renderPage();
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(m.home_hero_line_1());
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(m.home_hero_line_2());
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(m.home_hero_title());
     expect(screen.getAllByRole('button', { name: m.gen_app_remove() })).toHaveLength(BLOCKED_APPS);
+  });
+
+  it('leaves the old hero lines off the page', async () => {
+    await renderPage();
+    expect(screen.queryByText(/more valuable than gold in 2026/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/let others monetize it/i)).not.toBeInTheDocument();
+  });
+
+  it('offers the build and the walkthrough from the hero itself', async () => {
+    await renderPage();
+
+    expect(screen.getByRole('link', { name: m.home_hero_cta() })).toHaveAttribute('href', '#build');
+    expect(screen.getByRole('link', { name: m.home_hero_secondary() })).toHaveAttribute(
+      'href',
+      '#how',
+    );
+    expect(document.querySelector('#build')).not.toBeNull();
+    expect(document.querySelector('#how')).not.toBeNull();
+  });
+
+  it('says what the thing is, right under the bill', async () => {
+    await renderPage();
+    expect(screen.getByText(m.home_hero_product())).toBeInTheDocument();
+  });
+
+  it('tells the reader why they keep failing, and what changes', async () => {
+    await renderPage();
+
+    expect(screen.getByText(m.home_why_1())).toBeInTheDocument();
+    expect(screen.getByText(m.home_why_2())).toBeInTheDocument();
+    expect(screen.getByText(m.home_why_3())).toBeInTheDocument();
+    expect(screen.getByText(m.home_why_close())).toBeInTheDocument();
+    expect(screen.getByText(m.home_changes_gone())).toBeInTheDocument();
+    expect(screen.getByText(m.home_changes_stays())).toBeInTheDocument();
+  });
+
+  it('reserves no room for the walkthrough clip, which is not shot yet', async () => {
+    await renderPage();
+    expect(screen.queryByText(/video coming/i)).not.toBeInTheDocument();
+  });
+
+  it('tells the story in one order: why, what changes, how, the deal, proof, build', async () => {
+    await renderPage();
+    const headings = screen
+      .getAllByRole('heading', { level: 2 })
+      .map((heading) => heading.textContent ?? '');
+    const landmarks = [
+      m.home_why_title(),
+      m.home_changes_title(),
+      m.home_how_title(),
+      m.home_deal_label(),
+      m.home_proof_title(),
+      m.gen_step1_title(),
+      m.home_faq_title(),
+    ].map((title) => headings.indexOf(title));
+
+    expect(landmarks).not.toContain(-1);
+    expect(landmarks).toEqual([...landmarks].sort((one, two) => one - two));
   });
 
   it('draws no rules between the sections', async () => {
@@ -432,27 +489,33 @@ describe('Generator', () => {
   it('bills a receipt row the moment the day earns it, and drops it again', async () => {
     await renderPage();
     expect(receiptLabels()).toEqual([
-      m.home_receipt_years_label(),
       m.home_receipt_books_label(),
       m.home_receipt_dinners_label(),
       m.home_receipt_languages_label(),
       m.home_receipt_money_label(),
-      m.home_receipt_workdays_label(),
+      m.home_receipt_job_label(),
     ]);
 
     fireEvent.change(screen.getByRole('slider'), { target: { value: '1' } });
-    expect(receiptLabels()).toEqual([
-      m.home_receipt_years_label(),
-      m.home_receipt_books_label(),
-      m.home_receipt_money_label(),
-    ]);
+    expect(receiptLabels()).toEqual([m.home_receipt_books_label(), m.home_receipt_money_label()]);
 
     fireEvent.change(screen.getByRole('slider'), { target: { value: '3' } });
-    expect(receiptLabels()).toHaveLength(5);
-    expect(receiptLabels()).not.toContain(m.home_receipt_workdays_label());
+    expect(receiptLabels()).toHaveLength(4);
+    expect(receiptLabels()).not.toContain(m.home_receipt_job_label());
 
     fireEvent.change(screen.getByRole('slider'), { target: { value: '12' } });
-    expect(receiptLabels()).toHaveLength(6);
+    expect(receiptLabels()).toHaveLength(5);
+  });
+
+  it('leaves the waking years to the total and bills a full-time job instead', async () => {
+    await renderPage();
+
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '5' } });
+
+    expect(receiptLabels()).not.toContain('Waking years');
+    expect(receiptValue(m.home_receipt_job_label())).toBe(
+      m.home_receipt_job_value({ years: '18' }),
+    );
   });
 
   it('drives the dial from one hour to four when the section arrives on screen', async () => {
