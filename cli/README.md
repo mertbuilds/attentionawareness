@@ -223,8 +223,8 @@ python3 cli/build_single.py
 ```
 
 That writes `cli/dist/supervise`, a copy of the package module with a shebang on top.
-The web build copies it to `apps/web/public/supervise`, and `install.sh` and `supervise
-update` both download it from https://attentionawareness.com/supervise, so a change to the
+The web build copies it to `apps/web/public/cli/supervise`, and `install.sh` and `supervise
+update` both download it from https://attentionawareness.com/cli/supervise, so a change to the
 package reaches users only after the rebuilt file is committed and the site is deployed.
 
 ## Credits

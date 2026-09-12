@@ -7,11 +7,11 @@
 # then run: cp cli/install.sh apps/web/public/install.sh
 #
 # The site serves the tool as well: the web build copies cli/dist/supervise to
-# apps/web/public/supervise, so the download needs no public repository.
+# apps/web/public/cli/supervise, so the download needs no public repository.
 set -eu
 
 # One edit here moves the download if the domain changes.
-URL="https://attentionawareness.com/supervise"
+URL="https://attentionawareness.com/cli/supervise"
 BIN_DIR="$HOME/.local/bin"
 TARGET="$BIN_DIR/supervise"
 

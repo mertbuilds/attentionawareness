@@ -55,7 +55,7 @@ CFGUTIL = Path("/Applications/Apple Configurator.app/Contents/MacOS/cfgutil")
 PASSWORD_ENV = "SUPERVISE_BACKUP_PASSWORD"
 UNKNOWN_LABEL = "unknown without the backup password"
 ARCHIVE_SUFFIX = re.compile(r"\d+-\d+")
-UPDATE_URL = "https://attentionawareness.com/supervise"
+UPDATE_URL = "https://attentionawareness.com/cli/supervise"
 
 FULL_DISK_ACCESS_HELP = (
     "macOS blocked access to the backup folder.\n"
