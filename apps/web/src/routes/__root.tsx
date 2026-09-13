@@ -23,7 +23,7 @@ const SITE_NAME = 'Attention Awareness';
 const SITE_URL = 'https://attentionawareness.com';
 const OG_IMAGE = `${SITE_URL}/og.png`;
 const DESCRIPTION =
-  "Your attention is more valuable than gold in 2026. Don't give it away for free. Turn your iPhone into a phone that cannot open the feeds, enforced by iOS, not willpower.";
+  "One person's way of taking the feeds off an iPhone for good, free and open. Read the numbers, then decide.";
 
 export const Route = createRootRoute({
   component: RootComponent,

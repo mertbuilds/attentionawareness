@@ -97,6 +97,21 @@ const turned = create({ chevron: { transform: 'rotate(90deg)' } });
 
 const TURNED_CLASSES = String(props(turned.chevron).className).split(' ');
 
+/** Half-lit: what step 2 holds its list in until the picker is answered. */
+const half = create({ lit: { opacity: 0.5 } });
+
+const DIM_CLASSES = String(props(half.lit).className).split(' ');
+
+function expectDimmed(element: HTMLElement, yes = true): void {
+  for (const name of DIM_CLASSES) {
+    if (yes) {
+      expect(element).toHaveClass(name);
+    } else {
+      expect(element).not.toHaveClass(name);
+    }
+  }
+}
+
 function expectStruckThrough(element: HTMLElement, yes = true): void {
   for (const name of STRUCK_CLASSES) {
     if (yes) {
@@ -291,7 +306,7 @@ function receipt(): HTMLElement {
 /** What the receipt itemizes right now, in the order it prints the rows. */
 function receiptLabels(): Array<string> {
   return within(receipt())
-    .getAllByRole('listitem')
+    .queryAllByRole('listitem')
     .map((row) => row.firstElementChild?.textContent ?? '');
 }
 
@@ -383,8 +398,23 @@ function answerGate(hours: string, minutes = '0'): void {
 
 /** One hour of the show, and the beat it holds for. */
 const SHOW_STEP_MS = 1600;
-/** What the last hour holds for on its own before the till rings it up. */
+/** What the last hour holds for on its own before the line settles. */
 const SHOW_HOLD_MS = 600;
+/** What the settling line takes before the bill starts printing under it. */
+const SHOW_ARRIVE_MS = 300;
+/** One more line of the bill, every beat. */
+const SHOW_PRINT_MS = 240;
+/** What the total stands on its own for before the pitch follows it. */
+const SHOW_PITCH_MS = 400;
+
+/**
+ * The whole run for one answer, from the first hour to the pitch: the climb,
+ * the settle, every line of the bill, and the beat the total holds after the
+ * last of them. Longer than the script needs, so nothing is left mid-print.
+ */
+function wholeShow(hours: number): number {
+  return SHOW_STEP_MS * hours + SHOW_HOLD_MS + SHOW_ARRIVE_MS + SHOW_PRINT_MS * 12 + SHOW_PITCH_MS;
+}
 
 async function advance(ms: number): Promise<void> {
   await act(async () => {
@@ -498,7 +528,7 @@ describe('Generator', () => {
 
     expect(truthLine()).toHaveTextContent(m.home_truth_1());
 
-    await advance(SHOW_STEP_MS * 12);
+    await advance(wholeShow(12));
 
     expect(truthLine()).toHaveTextContent(m.home_truth_4());
     expect(receiptQty(m.home_receipt_screen_label())).toBe(
@@ -514,7 +544,7 @@ describe('Generator', () => {
     await renderPage();
 
     answerGate('3');
-    await advance(SHOW_STEP_MS * 12);
+    await advance(wholeShow(12));
 
     expect(truthLine()).toHaveTextContent(m.home_truth_3());
     expect(receiptQty(m.home_receipt_screen_label())).toBe(
@@ -563,10 +593,10 @@ describe('Generator', () => {
     expect(screen.getByRole('link', { name: m.home_hero_cta() })).toHaveAttribute('href', '#build');
     expect(screen.getByRole('link', { name: m.home_hero_secondary() })).toHaveAttribute(
       'href',
-      '#how',
+      '#story',
     );
     expect(document.querySelector('#build')).not.toBeNull();
-    expect(document.querySelector('#how')).not.toBeNull();
+    expect(document.querySelector('#story')).not.toBeNull();
   });
 
   it('says what the thing is, right under the bill', async () => {
@@ -574,15 +604,27 @@ describe('Generator', () => {
     expect(screen.getByText(m.home_hero_product())).toBeInTheDocument();
   });
 
-  it('tells the reader why they keep failing, and what changes', async () => {
+  it('tells the reader who built this and why, and what changes', async () => {
     await renderPage();
 
-    expect(screen.getByText(m.home_why_1())).toBeInTheDocument();
-    expect(screen.getByText(m.home_why_2())).toBeInTheDocument();
-    expect(screen.getByText(m.home_why_3())).toBeInTheDocument();
-    expect(screen.getByText(m.home_why_close())).toBeInTheDocument();
+    expect(screen.getByText(m.home_story_1())).toBeInTheDocument();
+    expect(screen.getByText(m.home_story_3())).toBeInTheDocument();
+    expect(screen.getByText(m.home_story_4())).toBeInTheDocument();
+    expect(screen.getByText(m.home_story_5())).toBeInTheDocument();
+    expect(screen.getByText(m.home_story_sign())).toBeInTheDocument();
     expect(screen.getByText(m.home_changes_gone())).toBeInTheDocument();
     expect(screen.getByText(m.home_changes_stays())).toBeInTheDocument();
+    // The argument the story replaced is off the page for good.
+    expect(screen.queryByText(/more than gold/i)).not.toBeInTheDocument();
+  });
+
+  it('links the story out to the post it started from', async () => {
+    await renderPage();
+
+    expect(screen.getByRole('link', { name: m.home_story_2_link() })).toHaveAttribute(
+      'href',
+      'https://stopa.io/post/297',
+    );
   });
 
   it('reserves no room for the walkthrough clip, which is not shot yet', async () => {
@@ -590,13 +632,13 @@ describe('Generator', () => {
     expect(screen.queryByText(/video coming/i)).not.toBeInTheDocument();
   });
 
-  it('tells the story in one order: why, what changes, how, the deal, proof, build', async () => {
+  it('tells the story in one order: why I built it, what changes, how, the deal, proof, build', async () => {
     await renderPage();
     const headings = screen
       .getAllByRole('heading', { level: 2 })
       .map((heading) => heading.textContent ?? '');
     const landmarks = [
-      m.home_why_title(),
+      m.home_story_title(),
       m.home_changes_title(),
       m.home_how_title(),
       m.home_deal_label(),
@@ -779,15 +821,19 @@ describe('Generator', () => {
     ).toBeInTheDocument();
   });
 
-  it('runs the bill up one hour at a time once the question is answered', async () => {
+  it('gives the line the whole screen while the day is counted out', async () => {
     vi.useFakeTimers();
     await renderPage();
 
     answerGate('5');
 
     expect(truthLine()).toHaveTextContent(m.home_truth_1());
-    expect(receipt()).toBeInTheDocument();
-    // Nothing is for sale until the bill has finished printing.
+    // One thing at a time: no bill under the line, no speaker beside it, and
+    // nothing for sale.
+    expect(screen.queryByText(m.home_receipt_store())).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: m.home_math_sound_label() }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: m.home_hero_cta() })).not.toBeInTheDocument();
 
     await advance(SHOW_STEP_MS);
@@ -795,12 +841,49 @@ describe('Generator', () => {
 
     await advance(SHOW_STEP_MS * 3);
     expect(truthLine()).toHaveTextContent(m.home_truth_5());
-    // The last hour stands on its own before the till rings it up.
+    expect(screen.queryByText(m.home_receipt_store())).not.toBeInTheDocument();
+  });
+
+  it('prints the bill a line at a time once the line has settled', async () => {
+    vi.useFakeTimers();
+    await renderPage();
+
+    answerGate('5');
+    await advance(SHOW_STEP_MS * 4 + SHOW_HOLD_MS);
+
+    // The bill mounts under the settled line with nothing on it yet.
+    expect(receipt()).toBeInTheDocument();
+    expect(receiptLabels()).toHaveLength(0);
+
+    await advance(SHOW_ARRIVE_MS);
+    expect(receiptLabels()).toEqual([m.home_receipt_screen_label()]);
+
+    await advance(SHOW_PRINT_MS * 5);
+    expect(receiptLabels()).toHaveLength(6);
+    expect(screen.queryByText(m.home_receipt_total_label())).not.toBeInTheDocument();
+
+    // The subtotal, the tax, and the total the till rings, in that order.
+    await advance(SHOW_PRINT_MS * 3);
+    expect(receiptTotal()).toBe(m.home_receipt_total_value({ years: '6.3' }));
+    // Nothing is for sale until the total has stood on its own for a beat.
     expect(screen.queryByRole('link', { name: m.home_hero_cta() })).not.toBeInTheDocument();
 
-    await advance(SHOW_HOLD_MS);
+    await advance(SHOW_PITCH_MS);
     expect(screen.getByRole('link', { name: m.home_hero_cta() })).toBeInTheDocument();
-    expect(receiptTotal()).toBe(m.home_receipt_total_value({ years: '6.3' }));
+    expect(screen.getByText(m.home_hero_product())).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: m.home_math_sound_label() })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: m.home_receipt_assumptions() })).toBeInTheDocument();
+  });
+
+  it('steps the question back to the answer once it has been given', async () => {
+    vi.useFakeTimers();
+    await renderPage();
+
+    answerGate('4', '5');
+
+    const heading = screen.getByRole('heading', { level: 1 });
+    expect(heading).toHaveTextContent(m.home_gate_entered({ hours: 4, minutes: 5 }));
+    expect(heading).not.toHaveTextContent(m.home_hero_title());
   });
 
   it('offers no way back into the gate while the show is running', async () => {
@@ -813,6 +896,10 @@ describe('Generator', () => {
 
     await advance(SHOW_STEP_MS * 5);
 
+    expect(screen.queryByRole('button', { name: m.home_gate_change() })).not.toBeInTheDocument();
+
+    await advance(wholeShow(5));
+
     expect(screen.getByRole('button', { name: m.home_gate_change() })).toBeInTheDocument();
   });
 
@@ -821,7 +908,7 @@ describe('Generator', () => {
     await renderPage();
 
     answerGate('5', '30');
-    await advance(SHOW_STEP_MS * 5);
+    await advance(wholeShow(5));
 
     expect(truthLine()).toHaveTextContent(m.home_truth_5());
     expect(receiptQty(m.home_receipt_screen_label())).toBe(
@@ -839,7 +926,7 @@ describe('Generator', () => {
     answerGate('1');
     expect(truthLine()).toHaveTextContent(m.home_truth_1());
 
-    await advance(SHOW_STEP_MS);
+    await advance(wholeShow(1));
     expect(screen.getByRole('link', { name: m.home_hero_cta() })).toBeInTheDocument();
   });
 
@@ -947,7 +1034,7 @@ describe('Generator', () => {
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
   });
 
-  it('states the deal as three value tiles', async () => {
+  it('states the deal as three stacked lines', async () => {
     await renderPage();
 
     expect(screen.getByText('0')).toBeInTheDocument();
@@ -1078,15 +1165,20 @@ describe('Generator', () => {
     );
   });
 
-  it('leads the how-it-works cards with supervision', async () => {
+  it('leads the how-it-works steps with supervision, one step to a row', async () => {
     await renderPage();
+    const steps = screen
+      .getByRole('heading', { name: m.home_how_title() })
+      .parentElement?.querySelectorAll('li');
 
-    expect(
-      screen.getByText(m.home_step_heading({ n: 1, title: m.home_how_supervision_title() })),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(m.home_step_heading({ n: 4, title: m.home_how_websites_title() })),
-    ).toBeInTheDocument();
+    expect(Array.from(steps ?? [], (step) => step.firstElementChild?.textContent)).toEqual([
+      '1',
+      '2',
+      '3',
+      '4',
+    ]);
+    expect(steps?.[0]).toHaveTextContent(m.home_how_supervision_title());
+    expect(steps?.[3]).toHaveTextContent(m.home_how_websites_title());
   });
 
   it('badges nothing as needing supervision, because everything does', async () => {
@@ -1142,10 +1234,39 @@ describe('Generator', () => {
     expect(screen.getByRole('button', { name: m.gen_download() })).toBeEnabled();
   });
 
-  it('answers nine objections', async () => {
-    const { container } = await renderPage();
+  it('states the proof in the first person, one line each', async () => {
+    await renderPage();
 
-    expect(container.querySelectorAll('dt')).toHaveLength(9);
+    expect(screen.getByRole('heading', { name: m.home_proof_title() })).toBeInTheDocument();
+    expect(screen.getByText(m.home_proof_months_body())).toBeInTheDocument();
+    expect(screen.getByText(m.home_proof_minutes_body())).toBeInTheDocument();
+    expect(screen.getByText(m.home_proof_blocked_body())).toBeInTheDocument();
+    // The page speaks for one person now, not for a company.
+    expect(screen.queryByText(/we did it many times/i)).not.toBeInTheDocument();
+  });
+
+  it('holds the app list half lit until the screenshot picker is answered', async () => {
+    await renderPage();
+    const list = screen.getByRole('heading', { name: m.home_apps_title() }).parentElement;
+    if (list === null) {
+      throw new Error('The app list heading should sit in its own section');
+    }
+
+    expectDimmed(list);
+    // Half lit, not switched off: the search under it still takes a keystroke.
+    expect(searchInput()).toBeEnabled();
+
+    await userEvent.click(screen.getByRole('button', { name: m.gen_worst_skip() }));
+
+    expectDimmed(list, false);
+  });
+
+  it('answers ten objections, and says who is behind this last', async () => {
+    const { container } = await renderPage();
+    const terms = container.querySelectorAll('dt');
+
+    expect(terms).toHaveLength(10);
+    expect(terms.item(terms.length - 1)).toHaveTextContent(m.home_faq_who_term());
   });
 
   it('shows the search bar without any click', async () => {

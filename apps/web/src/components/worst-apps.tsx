@@ -116,10 +116,12 @@ export function WorstApps({
   country,
   onApply,
   onSearch,
+  onSkip,
 }: {
   country: string;
   onApply: (apps: ReadonlyArray<ScannedApp>) => void;
   onSearch: (name: string) => void;
+  onSkip: () => void;
 }) {
   const [source, setSource] = useState<ReadonlyArray<ScreenTimeEntry> | null>(null);
   const [percent, setPercent] = useState<number | null>(null);
@@ -196,6 +198,13 @@ export function WorstApps({
     } finally {
       setPercent(null);
     }
+  }
+
+  // The picker is one of two answers, and the page below it waits for either:
+  // the reader takes what the screenshot found, or says they have no use for it.
+  function skip() {
+    setSkipped(true);
+    onSkip();
   }
 
   function rescan() {
@@ -310,7 +319,7 @@ export function WorstApps({
             <Button onClick={apply}>{m.gen_worst_apply()}</Button>
           </>
         )}
-        <button onClick={() => setSkipped(true)} type="button" {...props(styles.quiet)}>
+        <button onClick={skip} type="button" {...props(styles.quiet)}>
           {m.gen_worst_skip()}
         </button>
       </CardContent>
