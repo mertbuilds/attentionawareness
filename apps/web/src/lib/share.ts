@@ -1,13 +1,23 @@
 import { m } from '../paraglide/messages.js';
 import { locales } from '../paraglide/runtime.js';
+import { presets } from './profile/index.ts';
 
 type Locale = (typeof locales)[number];
 
 /** Where a shared link points. The generator lives at the root. */
 export const SITE_URL = 'https://attentionawareness.com';
+/** The page written for the people around the reader, not for the reader. */
+const FRIEND_PATH = '/friend';
 
 /** How many apps a share names before it only counts the rest. */
 const NAMED_APPS = 3;
+
+/** What the friend link carries a sender's name in: a first name, not a bio. */
+export const FRIEND_NAME_MAX = 24;
+/** Control and formatting characters, which a name in a heading has no use for. */
+const NAME_JUNK = /\p{C}/gu;
+/** Any run of blanks, so a pasted name arrives as one line of words. */
+const BLANKS = /\s+/gu;
 
 /** The slider's own range, so a tampered `h` lands somewhere it can render. */
 const HOURS_MIN = 1;
@@ -49,6 +59,11 @@ const CODES_BY_BUNDLE_ID: Record<string, string> = Object.fromEntries(
   Object.entries(BUNDLE_IDS_BY_CODE).map(([code, bundleId]) => [bundleId, code]),
 );
 
+/** The names the recommended list already knows, keyed by bundle id. */
+const NAMES_BY_BUNDLE_ID: Record<string, string> = Object.fromEntries(
+  presets.mert.blockedApps.map((app) => [app.bundleId, app.name]),
+);
+
 export type ShareState = {
   bundleIds: ReadonlyArray<string>;
   hours: number;
@@ -84,6 +99,38 @@ export function encodeShare({ bundleIds, hours, minutes }: ShareState): string {
     parts.push(`a=${codes.join(',')}`);
   }
   return parts.join('&');
+}
+
+/**
+ * The whole link to the page written for the people around the reader: the
+ * same day and the same list, plus the sender's own name where they gave one,
+ * so the page can open on it instead of on "someone".
+ */
+export function encodeFriendShare({
+  name,
+  ...state
+}: ShareState & { name?: string | undefined }): string {
+  const sender = friendName(name);
+  const query = encodeShare(state);
+  return `${SITE_URL}${FRIEND_PATH}?${sender === undefined ? query : `${query}&n=${encodeURIComponent(sender)}`}`;
+}
+
+/**
+ * A sender's name as a page may print it: one line of words, no control
+ * characters, and no longer than a first name. Everything a link can carry
+ * that is not one of those reads as no name at all.
+ */
+export function friendName(raw: unknown): string | undefined {
+  if (typeof raw !== 'string') {
+    return undefined;
+  }
+  const name = raw
+    .replace(NAME_JUNK, ' ')
+    .replace(BLANKS, ' ')
+    .trim()
+    .slice(0, FRIEND_NAME_MAX)
+    .trim();
+  return name === '' ? undefined : name;
 }
 
 /**
@@ -135,6 +182,15 @@ function readNumber(raw: string | null): number | undefined {
   const text = raw?.trim() ?? '';
   const value = Number(text);
   return text === '' || !Number.isFinite(value) ? undefined : value;
+}
+
+/**
+ * The name one shared bundle id travels under. A link carries ids and nothing
+ * else, so a name the recommended list does not know falls back to the last
+ * label of the id, which reads well enough until an App Store lookup lands.
+ */
+export function sharedAppName(bundleId: string): string {
+  return NAMES_BY_BUNDLE_ID[bundleId] ?? bundleId.split('.').at(-1) ?? bundleId;
 }
 
 /**

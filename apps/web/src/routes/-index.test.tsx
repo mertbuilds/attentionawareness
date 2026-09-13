@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { receiptDate, receiptNumber } from '../lib/attention-math.ts';
 import { buildProfile, presets } from '../lib/profile/index.ts';
 import type { ProfileConfig } from '../lib/profile/index.ts';
+import { SITE_URL } from '../lib/share.ts';
 import { sitesForApps } from '../lib/sites.ts';
 import { m } from '../paraglide/messages.js';
 
@@ -454,6 +455,15 @@ async function advance(ms: number): Promise<void> {
 async function renderAnswered(hours = 4) {
   window.history.replaceState({}, '', `/?h=${hours}`);
   return renderPage();
+}
+
+/**
+ * The card's own row of share buttons. The dialog holds a second row under it,
+ * for the page written for the reader's friends, and both name the same four
+ * places, so every assertion about one says which row it means.
+ */
+function cardLinks(dialog: HTMLElement): HTMLElement {
+  return within(dialog).getByRole('group', { name: m.share_heading_output() });
 }
 
 /** The file the download saved. The signer answers first, so this waits. */
@@ -1647,7 +1657,7 @@ describe('Generator', () => {
           element?.tagName === 'P' && element.textContent === m.share_card_years({ years: '5' }),
       ),
     ).toBeInTheDocument();
-    expect(within(dialog).getByRole('link', { name: m.share_x() })).toHaveAttribute(
+    expect(within(cardLinks(dialog)).getByRole('link', { name: m.share_x() })).toHaveAttribute(
       'href',
       expect.stringContaining('intent/post'),
     );
@@ -1685,10 +1695,37 @@ describe('Generator', () => {
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
     const dialog = await screen.findByRole('dialog');
 
-    await userEvent.click(within(dialog).getByRole('button', { name: m.share_copy() }));
+    await userEvent.click(within(cardLinks(dialog)).getByRole('button', { name: m.share_copy() }));
 
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining('attentionawareness.com/?h=4'));
-    expect(within(dialog).getByRole('button', { name: m.share_copied() })).toBeInTheDocument();
+    expect(
+      within(cardLinks(dialog)).getByRole('button', { name: m.share_copied() }),
+    ).toBeInTheDocument();
+  });
+
+  it('offers the friend page under the card, carrying the sender name', async () => {
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+    await renderPage();
+    await tickPermanent();
+    fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText(m.share_friend_body())).toBeInTheDocument();
+
+    await userEvent.type(
+      within(dialog).getByRole('textbox', { name: m.share_friend_name() }),
+      'Mert',
+    );
+    const friend = within(dialog).getByRole('group', { name: m.share_friend_title() });
+    await userEvent.click(within(friend).getByRole('button', { name: m.share_copy() }));
+
+    expect(writeText).toHaveBeenCalledWith(
+      `${SITE_URL}/friend?h=4&a=ig,th,tt,sc,yt,rd,fb,nf,tw,li,pi,pv,x&n=Mert`,
+    );
+    // The card's own share is the one above it, and it is untouched.
+    expect(
+      within(cardLinks(dialog)).getByRole('button', { name: m.share_copy() }),
+    ).toBeInTheDocument();
   });
 
   it('opens the share card in a sheet on a phone', async () => {
@@ -1701,7 +1738,8 @@ describe('Generator', () => {
     const sheet = await screen.findByRole('dialog');
     expect(sheet).toHaveAttribute('data-vaul-drawer');
     expect(within(sheet).getByText(m.share_heading_output())).toBeInTheDocument();
-    expect(within(sheet).getByRole('link', { name: m.share_x() })).toBeInTheDocument();
+    expect(within(cardLinks(sheet)).getByRole('link', { name: m.share_x() })).toBeInTheDocument();
+    expect(within(sheet).getByText(m.share_friend_title())).toBeInTheDocument();
   });
 
   it('opens the download on both ticks on a phone with no randomUUID', async () => {

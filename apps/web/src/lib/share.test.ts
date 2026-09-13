@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { m } from '../paraglide/messages.js';
 import { presets } from './profile/index.ts';
-import { decodeShare, encodeShare, shareTargets, shareText, SITE_URL } from './share.ts';
+import {
+  decodeShare,
+  encodeFriendShare,
+  encodeShare,
+  friendName,
+  FRIEND_NAME_MAX,
+  sharedAppName,
+  shareTargets,
+  shareText,
+  SITE_URL,
+} from './share.ts';
 
 /** The twelve apps the generator opens with, as the share text names them. */
 const RECOMMENDED = presets.mert.blockedApps.map((app) => app.name);
@@ -102,6 +112,82 @@ describe('decodeShare', () => {
   it('reads back a day it wrote in minutes', () => {
     const state = { bundleIds: ['com.burbn.instagram'], hours: 5, minutes: 30 };
     expect(decodeShare(encodeShare(state))).toEqual(state);
+  });
+});
+
+describe('encodeFriendShare', () => {
+  it('points at the friend page, carrying the day, the apps and the name', () => {
+    expect(
+      encodeFriendShare({
+        bundleIds: ['com.burbn.instagram', 'com.zhiliaoapp.musically'],
+        hours: 5,
+        name: 'Mert',
+      }),
+    ).toBe(`${SITE_URL}/friend?h=5&a=ig,tt&n=Mert`);
+  });
+
+  it('leaves out a name nobody gave', () => {
+    expect(encodeFriendShare({ bundleIds: [], hours: 4 })).toBe(`${SITE_URL}/friend?h=4`);
+    expect(encodeFriendShare({ bundleIds: [], hours: 4, name: '   ' })).toBe(
+      `${SITE_URL}/friend?h=4`,
+    );
+  });
+
+  it('carries a day the dial cannot stop on as the minutes it is', () => {
+    expect(encodeFriendShare({ bundleIds: [], hours: 5, minutes: 30, name: 'Ada' })).toBe(
+      `${SITE_URL}/friend?m=330&n=Ada`,
+    );
+  });
+
+  it('writes a name the query string would otherwise lose', () => {
+    expect(encodeFriendShare({ bundleIds: [], hours: 4, name: 'Ayşe & Co' })).toBe(
+      `${SITE_URL}/friend?h=4&n=Ay%C5%9Fe%20%26%20Co`,
+    );
+  });
+
+  it('is read back by the same parser the generator uses', () => {
+    const state = { bundleIds: ['com.burbn.instagram'], hours: 5, minutes: 30 };
+    const url = new URL(encodeFriendShare({ ...state, name: 'Mert' }));
+
+    expect(decodeShare(url.search)).toEqual(state);
+    expect(friendName(url.searchParams.get('n'))).toBe('Mert');
+  });
+});
+
+describe('friendName', () => {
+  it('keeps a first name as it was typed', () => {
+    expect(friendName('Mert')).toBe('Mert');
+  });
+
+  it('reads no name from a link that carries none', () => {
+    expect(friendName(undefined)).toBeUndefined();
+    expect(friendName(null)).toBeUndefined();
+    expect(friendName('')).toBeUndefined();
+    expect(friendName('   ')).toBeUndefined();
+  });
+
+  it('takes a name down to one line of words', () => {
+    expect(friendName('  Mert \n\t Duzgun  ')).toBe('Mert Duzgun');
+    expect(friendName('Me\u0000rt')).toBe('Me rt');
+  });
+
+  it('cuts a name that is a paragraph down to a name', () => {
+    expect(friendName('x'.repeat(100))).toBe('x'.repeat(FRIEND_NAME_MAX));
+    // The cut lands mid-space, and a name never ends on one.
+    expect(friendName(`${'x'.repeat(FRIEND_NAME_MAX)} and everyone else`)).toBe(
+      'x'.repeat(FRIEND_NAME_MAX),
+    );
+  });
+});
+
+describe('sharedAppName', () => {
+  it('names an app the recommended list knows', () => {
+    expect(sharedAppName('com.zhiliaoapp.musically')).toBe('TikTok');
+  });
+
+  it('falls back to the last label of an id it has never seen', () => {
+    expect(sharedAppName('com.example.chat')).toBe('chat');
+    expect(sharedAppName('pinterest')).toBe('Pinterest');
   });
 });
 
