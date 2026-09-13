@@ -43,7 +43,7 @@ import {
   storefrontLabel,
   storefronts,
 } from '../lib/app-search.ts';
-import { formatYears, heroMetrics, homeTruth } from '../lib/attention-math.ts';
+import { formatYears, heroMetrics, homeTruth, screenYears } from '../lib/attention-math.ts';
 import { controls } from '../lib/controls.ts';
 import { mergeBlockedApps } from '../lib/known-apps.ts';
 import type { ScannedApp } from '../lib/known-apps.ts';
@@ -52,11 +52,9 @@ import { buildProfile, presets } from '../lib/profile/index.ts';
 import type { BlockedApp, ProfileConfig } from '../lib/profile/index.ts';
 import { decodeShare, sharedAppName } from '../lib/share.ts';
 import { normalizeUrl, sitesForApp, sitesForApps } from '../lib/sites.ts';
-import { playCheckout, playStep, playTick } from '../lib/sounds.ts';
+import { playTick } from '../lib/sounds.ts';
 import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
 import { useIsMobile } from '../lib/use-is-mobile.ts';
-import { useShow } from '../lib/use-show.ts';
-import type { Entered } from '../lib/use-show.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
 
@@ -166,19 +164,12 @@ const ROW_APPS = 3;
 /** What the page can price, in hours a day, and the only stop it has. */
 const HOURS_MIN = 1;
 const HOURS_MAX = 12;
-const HOURS_STEP = 1;
 /**
  * Where the slider stands before the reader has moved it: the whole hours of
  * the average day the line above it cites, which is the figure the reader is
  * asked to recognize or correct rather than remember.
  */
 const HOURS_DEFAULT = 6;
-/**
- * The last hour the page calls normal: a phone doing its job. Up to it the
- * hour only ticks; past it the show starts escalating, because that is where
- * the argument starts.
- */
-const NORMAL_HOURS = 2;
 /** Where the label for that zone is centred: the middle of the hours it names. */
 /** The report the average day in the help box is taken from. */
 const SOURCE_URL = 'https://datareportal.com/global-digital-overview';
@@ -422,7 +413,7 @@ const styles = create({
   // it is given, so it sits directly under the question and nothing sits under
   // it: the rail with the figure it reads, and the way on.
   gate: {
-    alignItems: 'start',
+    alignItems: 'center',
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s4,
@@ -483,18 +474,21 @@ const styles = create({
   },
   // What the dial reads, in the till's own face at the page's display size.
   // It is the only figure on the first screen until the total lands.
+
+  // The helper sentence, folded into a ring the question can be asked from.
   gateReading: {
+    display: 'flex',
     fontFamily: MONOSPACE,
     fontSize: DISPLAY_SIZE,
     fontVariantNumeric: 'tabular-nums',
     fontWeight: 700,
+    justifyContent: 'center',
     letterSpacing: '-0.02em',
     lineHeight: 1,
-    textAlign: 'left',
-    whiteSpace: 'nowrap',
+    margin: 0,
+    // Room for two digits, so one digit sits in the same box as twelve.
+    width: '2.4ch',
   },
-
-  // The helper sentence, folded into a ring the question can be asked from.
   helpButton: {
     alignItems: 'center',
     backgroundColor: 'transparent',
@@ -640,21 +634,19 @@ const styles = create({
   // The same box as `content`, so the whole page keeps one left edge; what
   // stands in it is narrower, because a line this size is read, not scanned.
   hero: {
+    alignItems: 'center',
     boxSizing: 'border-box',
     display: 'flex',
     flexDirection: 'column',
     gap: {
-      '@media (min-width: 640px)': spacing.s6,
-      default: spacing.s4,
+      '@media (min-width: 640px)': spacing.s8,
+      default: spacing.s6,
     },
-    // Whichever state it is in, the hero holds the screen on its own: it
-    // stands in the middle of it, and the padding under it keeps the story
-    // off the fold, so the reader only ever has one thing in front of them.
-    // `svh` so a phone's collapsing toolbar does not resize it mid-show.
     justifyContent: 'center',
     maxWidth: 760,
     minHeight: firstThatWorks('100svh', '100vh'),
-    paddingBlockEnd: '20vh',
+    paddingBlockEnd: '12vh',
+    textAlign: 'center',
     width: '100%',
   },
   // What the reader does next, and the one sentence that says what it is.
@@ -1016,6 +1008,37 @@ const styles = create({
     padding: 0,
   },
   // One cited line inside the research box, and the whole line is the source.
+  receipt: {
+    alignItems: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s4,
+    maxWidth: HERO_MEASURE,
+    width: '100%',
+  },
+  receiptBody: {
+    alignItems: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s4,
+    width: '100%',
+  },
+  receiptRule: {
+    borderBlockStartColor: colors.border,
+    borderBlockStartStyle: 'dashed',
+    borderBlockStartWidth: 1,
+    display: 'block',
+    width: '100%',
+  },
+  receiptTitle: {
+    color: colors.muted,
+    fontFamily: MONOSPACE,
+    fontSize: font.sizeSm,
+    fontWeight: font.weightRegular,
+    letterSpacing: '0.12em',
+    margin: 0,
+    textTransform: 'uppercase',
+  },
   researchLink: {
     color: {
       ':hover': colors.fg,
@@ -1509,13 +1532,10 @@ const styles = create({
   stepButton: {
     alignItems: 'center',
     backgroundColor: 'transparent',
-    borderColor: colors.border,
-    borderRadius: 999,
-    borderStyle: 'solid',
-    borderWidth: 1,
+    borderStyle: 'none',
     color: {
       ':disabled': colors.muted,
-      ':hover': colors.fg,
+      ':hover': accent.base,
       default: colors.fg,
     },
     cursor: { ':disabled': 'default', default: 'pointer' },
@@ -1526,26 +1546,25 @@ const styles = create({
     padding: 0,
     width: 44,
   },
-  stepFace: {
-    alignItems: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s1,
-    minWidth: '2.2ch',
-  },
   stepGlyph: {
-    height: 20,
-    width: 20,
+    height: 24,
+    width: 24,
   },
   stepper: {
     alignItems: 'center',
-    display: 'flex',
-    gap: spacing.s6,
+    columnGap: spacing.s4,
+    display: 'grid',
+    gridTemplateColumns: 'auto auto auto',
+    justifyContent: 'center',
+    rowGap: spacing.s2,
   },
   stepUnit: {
-    color: colors.muted,
-    fontSize: font.sizeSm,
+    color: colors.fg,
+    fontSize: font.sizeLg,
+    fontWeight: 600,
+    gridColumn: 2,
     lineHeight: 1,
+    textAlign: 'center',
   },
   story: {
     display: 'flex',
@@ -2144,55 +2163,39 @@ function AssumptionsNote() {
  * cannot price, and nothing to correct.
  */
 function ScreenTimeGate({
-  entered,
-  onSubmit,
+  onChange,
   sound,
+  value,
 }: {
-  entered: Entered | null;
-  onSubmit: (entered: Entered) => void;
+  onChange: (value: number) => void;
   /** Whether a detent may click, which is the page's answer, not the gate's. */
   sound: boolean;
+  value: number;
 }) {
-  const [hours, setHours] = useState(entered === null ? HOURS_DEFAULT : entered.hours);
   // The dial starts at one, so the readout needs the singular of its own word.
-  const reading = hours === 1 ? m.home_gate_reading_one() : m.home_gate_reading({ hours });
-  // The unit after the count, so the count alone can take the accent.
-  const readingUnit = reading.replace(String(hours), '');
+  const reading = value === 1 ? m.home_gate_reading_one() : m.home_gate_reading({ hours: value });
+  const unit = reading.replace(String(value), '').trim();
 
   function step(delta: number) {
-    onHoursChange(Math.min(HOURS_MAX, Math.max(HOURS_MIN, hours + delta)));
-  }
-
-  function onHoursChange(value: number) {
-    // One metallic detent per whole hour of travel.
-    if (value !== hours && sound) {
+    const next = Math.min(HOURS_MAX, Math.max(HOURS_MIN, value + delta));
+    if (next === value) {
+      return;
+    }
+    // One metallic detent per whole hour.
+    if (sound) {
       primeTickSound();
       playTick();
     }
-    setHours(value);
-  }
-
-  // Browsers only hand out an audio device inside a gesture, so the pointer
-  // that is about to drag the knob is what opens it.
-  function armSound() {
-    if (sound) {
-      primeTickSound();
-    }
-  }
-
-  function submit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    onSubmit({ hours });
+    onChange(next);
   }
 
   return (
-    <form onSubmit={submit} {...props(styles.gate)}>
+    <div {...props(styles.gate)}>
       <div {...props(styles.stepper)}>
         <button
           aria-label={m.home_gate_minus()}
-          disabled={hours <= HOURS_MIN}
+          disabled={value <= HOURS_MIN}
           onClick={() => step(-1)}
-          onPointerDown={armSound}
           onPointerUp={unlockTickSound}
           type="button"
           {...props(styles.stepButton)}
@@ -2203,21 +2206,17 @@ function ScreenTimeGate({
               fill="none"
               stroke="currentColor"
               strokeLinecap="round"
-              strokeWidth="2"
+              strokeWidth="2.5"
             />
           </svg>
         </button>
-        <div {...props(styles.stepFace)}>
-          <p aria-hidden="true" {...props(styles.gateReading)}>
-            <NumberFlow value={hours} {...props(styles.gateCount)} />
-          </p>
-          <span {...props(styles.stepUnit)}>{readingUnit.trim()}</span>
-        </div>
+        <p aria-hidden="true" {...props(styles.gateReading)}>
+          <NumberFlow value={value} {...props(styles.gateCount)} />
+        </p>
         <button
           aria-label={m.home_gate_plus()}
-          disabled={hours >= HOURS_MAX}
+          disabled={value >= HOURS_MAX}
           onClick={() => step(1)}
-          onPointerDown={armSound}
           onPointerUp={unlockTickSound}
           type="button"
           {...props(styles.stepButton)}
@@ -2228,29 +2227,28 @@ function ScreenTimeGate({
               fill="none"
               stroke="currentColor"
               strokeLinecap="round"
-              strokeWidth="2"
+              strokeWidth="2.5"
             />
           </svg>
         </button>
+        <span aria-hidden="true" {...props(styles.stepUnit)}>
+          {unit}
+        </span>
       </div>
-      {/* The range stays for the keyboard and assistive tech; the stepper is
-      the face of it. */}
+      {/* The range is for the keyboard and assistive tech; the stepper is its face. */}
       <Label style={styles.srOnly}>
         <span>{m.home_gate_slider_label()}</span>
         <input
           aria-valuetext={reading}
           max={HOURS_MAX}
           min={HOURS_MIN}
-          onChange={(event) => onHoursChange(Number(event.target.value))}
-          step={HOURS_STEP}
+          onChange={(event) => onChange(Number(event.target.value))}
+          step={1}
           type="range"
-          value={hours}
+          value={value}
         />
       </Label>
-      <div {...props(styles.gateActions)}>
-        <Button type="submit">{m.home_gate_submit()}</Button>
-      </div>
-    </form>
+    </div>
   );
 }
 
@@ -2750,23 +2748,17 @@ function Generator() {
   // What the reader tells the hero their day holds, in whole hours. It is the
   // answer from the moment it is given: the screen is a reveal, not a climb.
   const [hours, setHours] = useState(HOURS_DEFAULT);
+  // Whether the reader has touched the dial: the receipt is empty until then.
+  const [touched, setTouched] = useState(false);
   // The answer as it was given, which is what the small line over the total
   // quotes back and what the gate holds when it is reopened.
-  const [entered, setEntered] = useState<Entered | null>(null);
   // The six states of the first screen, in the order the reader meets them:
   // the question alone, the answer given, the total it comes to, what the same
   // hours would have bought, what that hour has coming to it, and the way on
   // under all of it.
-  const [gateOpen, setGateOpen] = useState(true);
-  const [revealed, setRevealed] = useState(false);
-  const [arrived, setArrived] = useState(false);
-  const [itemized, setItemized] = useState(false);
-  const [facted, setFacted] = useState(false);
-  const [settled, setSettled] = useState(false);
   // Whether the till rang this total, which is the one thing on the page that
   // moves. A shared link, a reader who asked for less motion, and every answer
   // after the first are all handed the total rather than shown it.
-  const [rung, setRung] = useState(false);
   // The show counts itself out loud by default, and remembers the answer once
   // the reader gives one. `soundChosen` is what separates the default from it.
   const [sound, setSound] = useState(true);
@@ -2818,10 +2810,6 @@ function Generator() {
   const storefrontMenu = useRef<HTMLDivElement>(null);
   // The dialog opens itself once. After that the reader asks for it.
   const sharePrompted = useRef(false);
-  // Whether the run that is landing was watched. The fact line is the beat
-  // after the total, so it has to know what the total already knew: a reader
-  // who asked for less motion gets the whole screen at once, and in silence.
-  const watched = useRef(false);
 
   const effectiveConfig = useMemo(
     () => withDerivedSites(config, customSites, excludedSites, removedSites, excludedEntries),
@@ -2884,36 +2872,6 @@ function Generator() {
     );
   }, [storefrontQuery]);
 
-  // The answer the reader just gave, totalled, itemized and then named, one
-  // beat at a time. Nothing on the page can skip it: it is the one thing the
-  // reader came for.
-  const { start: startShow } = useShow({
-    onArrive: (_answer, shown) => {
-      setArrived(true);
-      // Less motion is the whole screen at once, and no till.
-      watched.current = shown;
-      setRung(shown);
-      if (shown && tickAllowed(sound, soundChosen)) {
-        playCheckout();
-      }
-    },
-    onFact: (value) => {
-      setFacted(true);
-      if (!watched.current || !tickAllowed(sound, soundChosen)) {
-        return;
-      }
-      // A normal hour only ticks, the way the dial itself does. Past it the
-      // hit is pitched by the hour, against the longest day the page prices.
-      if (value <= NORMAL_HOURS) {
-        playTick();
-        return;
-      }
-      playStep(value, HOURS_MAX);
-    },
-    onMetrics: () => setItemized(true),
-    onSettle: () => setSettled(true),
-  });
-
   // The address bar and navigator exist only in the browser: reading either
   // during render would desync the SSR HTML from the first client render.
   // Adopting what they hold IS synchronizing with an external system, the one
@@ -2930,13 +2888,7 @@ function Generator() {
       // A friend already answered the question, so the page has nothing left
       // to ask and nothing to demonstrate: it opens on their number, settled.
       setHours(shared.hours);
-      setEntered({ hours: shared.hours });
-      setGateOpen(false);
-      setRevealed(true);
-      setArrived(true);
-      setItemized(true);
-      setFacted(true);
-      setSettled(true);
+      setTouched(true);
       setFriendYears(formatYears(shared.hours));
     }
     const preferred = initialStorefront();
@@ -3079,23 +3031,13 @@ function Generator() {
     };
   }, [armedRemove]);
 
-  function onGateSubmit(answer: Entered) {
-    // iOS opens an audio device inside a gesture and nowhere else, and this
-    // click is the last one before the show needs it.
-    unlockTickSound();
-    setEntered(answer);
-    setGateOpen(false);
-    // The total says the answer the moment it lands, so there is no climb to
-    // carry the hours: they are the reader's as soon as they are given.
-    setHours(clampHours(answer.hours));
-    if (revealed) {
-      // The show is a first impression: a correction retotals the day whole,
-      // because the reader has watched one already.
-      setRung(false);
-      return;
+  function onHoursChange(value: number) {
+    setHours(clampHours(value));
+    if (!touched) {
+      // iOS opens an audio device inside a gesture and nowhere else.
+      unlockTickSound();
+      setTouched(true);
     }
-    setRevealed(true);
-    startShow(answer);
   }
 
   function toggleSound() {
@@ -3524,123 +3466,92 @@ function Generator() {
           average, and nothing else; the lines and the total are what taking or
           correcting that figure buys, and the show counts the day out first.
           Another number is another answer: the gate is the only way to one. */}
-      <header {...props(styles.hero, arrived && styles.heroPrinted)}>
-        {/* The question until it is answered, and the answer after that: one
-        heading, holding whichever of the two the reader is on. */}
-        <h1 {...props(styles.heroTitle, !gateOpen && entered !== null && styles.heroTitleSaid)}>
-          {gateOpen || entered === null ? (
-            <>
-              {m.home_hero_title()}
-              <ScreenTimeHelp />
-            </>
-          ) : (
-            <>
-              {entered.hours === 1
-                ? m.home_gate_entered_one()
-                : m.home_gate_entered({ hours: entered.hours })}
-              {/* No way back out of the show: it opens once it has finished. */}
-              {settled ? (
-                <>
-                  <span aria-hidden="true" {...props(styles.gateDot)}>
-                    ·
-                  </span>
-                  <button
-                    onClick={() => setGateOpen(true)}
-                    type="button"
-                    {...props(styles.gateChange)}
-                  >
-                    {m.home_gate_change()}
-                  </button>
-                </>
-              ) : null}
-            </>
-          )}
+      <header {...props(styles.hero)}>
+        <h1 {...props(styles.heroTitle)}>
+          {m.home_hero_title()}
+          <ScreenTimeHelp />
         </h1>
-        {gateOpen ? (
-          <ScreenTimeGate
-            entered={entered}
-            onSubmit={onGateSubmit}
-            sound={tickAllowed(sound, soundChosen)}
-          />
-        ) : null}
-        {arrived ? (
-          <>
-            {/* The line the whole screen was counting towards, and the one
-            thing on the page set in the display size. The till rings on it,
-            and the years inside it are the only coloured figure on it. */}
-            <p {...props(styles.totalLine, styles.reveal)}>
-              {totalBefore}
-              <span {...props(styles.totalYears, rung && styles.totalRing)}>{years}</span>
-              {totalAfter}
-            </p>
-            {/* What the same hours would have bought, a beat behind the
-            total: four things the reader could have had, one under the other,
-            with the arithmetic behind them at the end of the list. */}
-            {itemized ? (
-              <div {...props(styles.metrics, styles.reveal)}>
+        <ScreenTimeGate
+          onChange={onHoursChange}
+          sound={tickAllowed(sound, soundChosen)}
+          value={hours}
+        />
+        {/* The receipt: empty until the reader touches the dial, then priced
+        live against it. Every figure on it rolls as the hours change. */}
+        <section aria-live="polite" {...props(styles.receipt)}>
+          <h2 {...props(styles.receiptTitle)}>{m.home_receipt_title()}</h2>
+          <span aria-hidden="true" {...props(styles.receiptRule)} />
+          {touched ? (
+            <div {...props(styles.receiptBody, styles.reveal)}>
+              <p {...props(styles.totalLine)}>
+                {totalBefore}
+                <NumberFlow
+                  format={{ maximumFractionDigits: 2 }}
+                  locales={locale}
+                  value={screenYears(wholeHours)}
+                  {...props(styles.totalYears)}
+                />
+                {totalAfter}
+              </p>
+              <div {...props(styles.metrics)}>
                 {metrics.map((item) => (
                   <span key={item.key} {...props(styles.metric)}>
                     {item.before}
-                    <span {...props(styles.metricValue)}>{item.value}</span>
+                    <NumberFlow
+                      locales={locale}
+                      prefix={item.prefix}
+                      value={item.amount}
+                      {...props(styles.metricValue)}
+                    />
                     {item.after}
                   </span>
                 ))}
                 <AssumptionsNote />
               </div>
-            ) : null}
-            {/* The one thing that hour has coming to it, a beat behind the
-            list. Nothing in it is coloured and nothing in it is a figure: the
-            whole sentence is the blow, and it lands on its own. */}
-            {facted ? (
-              <p aria-live="polite" {...props(styles.truthLine, styles.reveal)}>
-                {homeTruth(wholeHours, locale)}
-              </p>
-            ) : null}
-            {/* What the total is for, and the two ways on from it. It arrives a
-            beat after the line: there is nothing to sell until the day has been
-            added up, priced and named. The speaker follows it, quieter still. */}
-            {settled ? (
-              <div {...props(styles.heroPitch, styles.reveal)}>
-                <p {...props(styles.heroProduct)}>{m.home_hero_product()}</p>
-                <div {...props(styles.heroActions)}>
-                  <Button render={<a href={`#${BUILD_ID}`} />}>{m.home_hero_cta()}</Button>
-                  <a href={`#${STORY_ID}`} {...props(styles.heroSecondary)}>
-                    {m.home_hero_secondary()}
-                  </a>
-                </div>
-                <div {...props(styles.heroQuiet)}>
-                  <button
-                    aria-label={m.home_math_sound_label()}
-                    aria-pressed={sound}
-                    onClick={toggleSound}
-                    type="button"
-                    {...props(styles.soundButton)}
-                  >
-                    <svg aria-hidden="true" viewBox="0 0 18 18" {...props(styles.soundGlyph)}>
-                      <path d="M4 7H2v4h2l3.5 3V4L4 7Z" fill="currentColor" />
-                      {sound ? (
-                        <path
-                          d="M10.5 6.5a3.4 3.4 0 0 1 0 5"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeLinecap="round"
-                          strokeWidth="1.4"
-                        />
-                      ) : (
-                        <path
-                          d="m10.5 6.5 4 5m0-5-4 5"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeLinecap="round"
-                          strokeWidth="1.4"
-                        />
-                      )}
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            ) : null}
-          </>
+              <p {...props(styles.truthLine)}>{homeTruth(wholeHours, locale)}</p>
+            </div>
+          ) : null}
+        </section>
+        {touched ? (
+          <div {...props(styles.heroPitch, styles.reveal)}>
+            <p {...props(styles.heroProduct)}>{m.home_hero_product()}</p>
+            <div {...props(styles.heroActions)}>
+              <Button render={<a href={`#${BUILD_ID}`} />}>{m.home_hero_cta()}</Button>
+              <a href={`#${STORY_ID}`} {...props(styles.heroSecondary)}>
+                {m.home_hero_secondary()}
+              </a>
+            </div>
+            <div {...props(styles.heroQuiet)}>
+              <button
+                aria-label={m.home_math_sound_label()}
+                aria-pressed={sound}
+                onClick={toggleSound}
+                type="button"
+                {...props(styles.soundButton)}
+              >
+                <svg aria-hidden="true" viewBox="0 0 18 18" {...props(styles.soundGlyph)}>
+                  <path d="M4 7H2v4h2l3.5 3V4L4 7Z" fill="currentColor" />
+                  {sound ? (
+                    <path
+                      d="M10.5 6.5a3.4 3.4 0 0 1 0 5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                      strokeWidth="1.4"
+                    />
+                  ) : (
+                    <path
+                      d="m10.5 6.5 4 5m0-5-4 5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                      strokeWidth="1.4"
+                    />
+                  )}
+                </svg>
+              </button>
+            </div>
+          </div>
         ) : null}
       </header>
 
