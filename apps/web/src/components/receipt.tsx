@@ -95,9 +95,6 @@ const styles = create({
     margin: 0,
     textTransform: 'none',
   },
-  receiptPlain: {
-    textAlign: 'end',
-  },
   receiptRow: {
     alignItems: 'baseline',
     display: 'flex',
@@ -234,7 +231,7 @@ export function Receipt({
         </p>
       </div>
       <div aria-hidden="true" {...props(styles.receiptRule)} />
-      {/* What went over the counter: the hours, and what they were filled with. */}
+      {/* What went over the counter. */}
       <div {...props(styles.receiptBlock)}>
         <p {...props(styles.receiptHeading)}>{m.home_receipt_gave_label()}</p>
         <p {...props(styles.receiptRow)}>
@@ -247,18 +244,6 @@ export function Receipt({
           <span {...props(styles.receiptValue)}>
             <NumberFlow locales={locale} value={screenHours(hours)} /> {m.home_receipt_hours_unit()}
           </span>
-        </p>
-        <p {...props(styles.receiptRow)}>
-          <span>{m.home_receipt_fed_label()}</span>
-          <span {...props(styles.receiptPlain)}>{m.home_receipt_fed_value()}</span>
-        </p>
-        <p {...props(styles.receiptRow)}>
-          <span>{m.home_receipt_dopamine_label()}</span>
-          <span {...props(styles.receiptPlain)}>{m.home_receipt_dopamine_value()}</span>
-        </p>
-        <p {...props(styles.receiptRow)}>
-          <span>{m.home_receipt_connections_label()}</span>
-          <span {...props(styles.receiptPlain)}>{m.home_receipt_connections_value()}</span>
         </p>
       </div>
       <div aria-hidden="true" {...props(styles.receiptRule)} />

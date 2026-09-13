@@ -88,9 +88,12 @@ const styles = create({
     margin: 0,
     textTransform: 'none',
   },
+  // Centred on the cap height of the line it follows, which sits a touch
+  // above the box's own middle in a shouted receipt.
   wrap: {
     display: 'inline-flex',
     position: 'relative',
+    transform: 'translateY(-1px)',
     verticalAlign: 'middle',
   },
 });
