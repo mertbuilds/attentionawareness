@@ -129,13 +129,6 @@ const styles = create({
     gap: spacing.s1,
     margin: 0,
   },
-  receiptTotalHeading: {
-    alignSelf: 'end',
-  },
-  receiptTotalNote: {
-    color: colors.muted,
-    textTransform: 'none',
-  },
   receiptTotalValue: {
     color: accent.base,
     fontSize: DISPLAY_SIZE,
@@ -173,6 +166,31 @@ const styles = create({
     position: 'relative',
   },
 });
+
+/** Marks the figures inside the order line, so they alone can take the accent. */
+const FIGURE = '\u0000';
+
+/**
+ * The order in words, cut around its two figures. The catalog keeps the word
+ * order; the figures are put back where the marks were, in the accent.
+ */
+function orderParts(hours: number): Array<{ figure: boolean; text: string }> {
+  const figures = hours === 1 ? [String(HORIZON_YEARS)] : [String(hours), String(HORIZON_YEARS)];
+  const line =
+    hours === 1
+      ? m.home_receipt_order_one({ years: FIGURE })
+      : m.home_receipt_order({ hours: FIGURE, years: FIGURE });
+  const parts: Array<{ figure: boolean; text: string }> = [];
+  line.split(FIGURE).forEach((text, index) => {
+    if (index > 0) {
+      parts.push({ figure: true, text: figures[index - 1] ?? '' });
+    }
+    if (text !== '') {
+      parts.push({ figure: false, text });
+    }
+  });
+  return parts;
+}
 
 /**
  * The bill for a day of scrolling, priced over the horizon. Every figure on it
@@ -227,9 +245,16 @@ export function Receipt({
       <div {...props(styles.receiptBlock)}>
         <p {...props(styles.receiptHeading)}>{m.home_receipt_order_label()}</p>
         <p {...props(styles.receiptOrder)}>
-          {hours === 1
-            ? m.home_receipt_order_one({ years: HORIZON_YEARS })
-            : m.home_receipt_order({ hours, years: HORIZON_YEARS })}
+          {orderParts(hours).map((part, index) =>
+            part.figure ? (
+              // eslint-disable-next-line react/no-array-index-key -- static split of one sentence
+              <span key={index} {...props(styles.receiptValue)}>
+                {part.text}
+              </span>
+            ) : (
+              part.text
+            ),
+          )}
         </p>
       </div>
       <div aria-hidden="true" {...props(styles.receiptRule)} />
@@ -282,7 +307,7 @@ export function Receipt({
       </div>
       <div aria-hidden="true" {...props(styles.receiptRule)} />
       <div {...props(styles.receiptBlock)}>
-        <p {...props(styles.receiptHeading, styles.receiptLabel, styles.receiptTotalHeading)}>
+        <p {...props(styles.receiptHeading, styles.receiptLabel)}>
           {m.home_receipt_total_label()}
           <InfoTip label={m.home_receipt_tip_label()}>{m.home_receipt_total_tip()}</InfoTip>
         </p>
@@ -295,7 +320,6 @@ export function Receipt({
             />{' '}
             {m.home_receipt_years_unit()}
           </span>
-          <span {...props(styles.receiptTotalNote)}>{m.home_receipt_total_note()}</span>
         </p>
       </div>
       <div aria-hidden="true" {...props(styles.receiptRule)} />
