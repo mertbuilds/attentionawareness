@@ -9,9 +9,10 @@ export const SITE_URL = 'https://attentionawareness.com';
 /** How many apps a share names before it only counts the rest. */
 const NAMED_APPS = 3;
 
-/** The slider's own range, so a tampered `h` lands somewhere it can render. */
-const HOURS_MIN = 1;
-const HOURS_MAX = 12;
+/** The register's own range, so a tampered link lands somewhere it can render. */
+const MINUTES_MIN = 0;
+const MINUTES_MAX = 12 * 60 + 59;
+const MINUTES_PER_HOUR = 60;
 
 /** Anything a bundle id may be made of. Everything else is junk. */
 const BUNDLE_ID_PATTERN = /^[a-z0-9.-]+$/iu;
@@ -48,7 +49,7 @@ const CODES_BY_BUNDLE_ID: Record<string, string> = Object.fromEntries(
 
 export type ShareState = {
   bundleIds: ReadonlyArray<string>;
-  hours: number;
+  minutes: number;
 };
 
 export type ShareTargets = {
@@ -58,15 +59,20 @@ export type ShareTargets = {
 };
 
 /**
- * The share state as query parameters: the slider value, and the blocked apps
- * as codes where one exists. Commas stay literal: they are legal in a query
- * string, and a link a reader can parse is half the point of sharing one.
+ * The share state as query parameters: what the register reads, and the
+ * blocked apps as codes where one exists. A whole hour still travels as `h`,
+ * so a link reads the way it always did and every link already posted still
+ * opens; only a day with minutes on it needs `m`. Commas stay literal: they
+ * are legal in a query string, and a link a reader can parse is half the point
+ * of sharing one.
  */
-export function encodeShare({ bundleIds, hours }: ShareState): string {
+export function encodeShare({ bundleIds, minutes }: ShareState): string {
   const codes = bundleIds.map((bundleId) =>
     encodeURIComponent(CODES_BY_BUNDLE_ID[bundleId] ?? bundleId),
   );
-  const parts = [`h=${encodeURIComponent(String(hours))}`];
+  const whole = minutes % MINUTES_PER_HOUR === 0;
+  const value = whole ? minutes / MINUTES_PER_HOUR : minutes;
+  const parts = [`${whole ? 'h' : 'm'}=${encodeURIComponent(String(value))}`];
   if (codes.length > 0) {
     parts.push(`a=${codes.join(',')}`);
   }
@@ -74,12 +80,13 @@ export function encodeShare({ bundleIds, hours }: ShareState): string {
 }
 
 /**
- * The inverse, reading a link nobody promised to keep intact: an unusable `h`
- * is no hours at all, one outside the slider's range is clamped into it, one
- * between two of its stops is rounded onto the nearer, and an entry that names
- * neither a code nor a plausible bundle id is dropped.
+ * The inverse, reading a link nobody promised to keep intact: `m` is minutes
+ * and `h` is hours, an unusable one of either is no day at all, one outside
+ * the register's range is clamped into it, a fraction of a minute is rounded
+ * onto the nearer one, and an entry that names neither a code nor a plausible
+ * bundle id is dropped.
  */
-export function decodeShare(search: string): { bundleIds: Array<string>; hours?: number } {
+export function decodeShare(search: string): { bundleIds: Array<string>; minutes?: number } {
   let params: URLSearchParams;
   try {
     params = new URLSearchParams(search);
@@ -96,12 +103,30 @@ export function decodeShare(search: string): { bundleIds: Array<string>; hours?:
     }
   }
 
-  const raw = params.get('h')?.trim() ?? '';
-  const hours = Number(raw);
-  if (raw === '' || !Number.isFinite(hours)) {
+  const minutes = readMinutes(params);
+  if (minutes === undefined) {
     return { bundleIds };
   }
-  return { bundleIds, hours: Math.min(Math.max(Math.round(hours), HOURS_MIN), HOURS_MAX) };
+  return { bundleIds, minutes };
+}
+
+/** The day a link carries, in minutes, whichever of the two ways it wrote it. */
+function readMinutes(params: URLSearchParams): number | undefined {
+  const raw = params.get('m')?.trim() ?? '';
+  const minutes = Number(raw);
+  if (raw !== '' && Number.isFinite(minutes)) {
+    return clampMinutes(minutes);
+  }
+  const rawHours = params.get('h')?.trim() ?? '';
+  const hours = Number(rawHours);
+  if (rawHours === '' || !Number.isFinite(hours)) {
+    return undefined;
+  }
+  return clampMinutes(hours * MINUTES_PER_HOUR);
+}
+
+function clampMinutes(minutes: number): number {
+  return Math.min(Math.max(Math.round(minutes), MINUTES_MIN), MINUTES_MAX);
 }
 
 /**

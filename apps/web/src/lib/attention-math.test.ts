@@ -23,6 +23,11 @@ describe('formatYears', () => {
     expect(formatYears(3)).toBe('3.8');
     expect(formatYears(8)).toBe('10');
   });
+
+  it('counts a part of an hour as the part of a year it is', () => {
+    expect(formatYears(4.25)).toBe('5.3');
+    expect(formatYears(0.25)).toBe('0.3');
+  });
 });
 
 describe('screenHours', () => {
@@ -90,6 +95,16 @@ describe('receiptLines', () => {
     expect(values(receiptLines(1, 'en'))).toEqual({
       books: '913',
       money: '$146,000',
+    });
+  });
+
+  it('bills a part of an hour, because a part of a day is spent the same way', () => {
+    expect(values(receiptLines(4.25, 'en'))).toEqual({
+      books: '3,875',
+      dinners: '7,300',
+      job: '16 y',
+      languages: '20',
+      money: '$620,000',
     });
   });
 
