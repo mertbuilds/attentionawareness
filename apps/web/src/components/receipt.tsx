@@ -114,6 +114,10 @@ const styles = create({
     gap: spacing.s1,
     margin: 0,
   },
+  receiptTotalNote: {
+    color: colors.muted,
+    textTransform: 'none',
+  },
   receiptTotalValue: {
     color: accent.base,
     fontSize: DISPLAY_SIZE,
@@ -254,6 +258,9 @@ export function Receipt({
               value={screenYears(hours)}
             />{' '}
             {m.home_receipt_years_unit()}
+          </span>
+          <span {...props(styles.receiptTotalNote)}>
+            {m.home_receipt_total_note({ years: HORIZON_YEARS })}
           </span>
         </p>
       </div>
