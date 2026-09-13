@@ -57,7 +57,14 @@ const TRUTHS = [
  * One line of the quiet list under the total: the sentence it is said in, and
  * the figure standing inside it, which the list sets apart from the words.
  */
-export type HeroMetric = { after: string; before: string; key: string; value: string };
+export type HeroMetric = {
+  after: string;
+  amount: number;
+  before: string;
+  key: string;
+  prefix: string;
+  value: string;
+};
 
 /** The grouped number an item is counted in. */
 type Format = (value: number) => string;
@@ -104,31 +111,42 @@ export function heroMetrics(hoursPerDay: number, locale: Locale): Array<HeroMetr
     metric(
       'books',
       m.home_metrics_books({ n: VALUE_SLOT }, { locale }),
-      format(hours / HOURS_PER_BOOK),
+      hours / HOURS_PER_BOOK,
+      format,
     ),
     metric(
       'workouts',
       m.home_metrics_workouts({ n: VALUE_SLOT }, { locale }),
-      format(hours / HOURS_PER_WORKOUT),
+      hours / HOURS_PER_WORKOUT,
+      format,
     ),
     metric(
       'dinners',
       m.home_metrics_dinners({ n: VALUE_SLOT }, { locale }),
-      format(hours / HOURS_PER_DINNER),
+      hours / HOURS_PER_DINNER,
+      format,
     ),
+    // One dollar sign in both locales: the reader is not being invoiced.
     metric(
       'money',
       m.home_metrics_money({ amount: VALUE_SLOT }, { locale }),
-      // One dollar sign in both locales: the reader is not being invoiced.
-      `$${format(hours * DOLLARS_PER_HOUR)}`,
+      hours * DOLLARS_PER_HOUR,
+      format,
+      '$',
     ),
   ];
 }
 
 /** One item, cut in two on the figure that stands in it. */
-function metric(key: string, sentence: string, value: string): HeroMetric {
+function metric(
+  key: string,
+  sentence: string,
+  amount: number,
+  format: Format,
+  prefix = '',
+): HeroMetric {
   const [before = '', after = ''] = sentence.split(VALUE_SLOT);
-  return { after, before, key, value };
+  return { after, amount: Math.round(amount), before, key, prefix, value: prefix + format(amount) };
 }
 
 /** The waking hours inside the screen years, unrounded: the row counts them. */
