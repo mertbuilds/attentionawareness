@@ -6,13 +6,10 @@
     "types": ["node", "vite/client"]
   },
   "include": [
-    "e2e",
-    "playwright.config.ts",
     "scripts",
     "src",
     "vite.config.background.ts",
     "vite.config.content.ts",
-    "vite.config.ts",
-    "vitest.config.ts"
+    "vite.config.ts"
   ]
 }

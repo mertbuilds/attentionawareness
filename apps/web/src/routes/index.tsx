@@ -17,6 +17,7 @@ import {
 } from '@attentionawareness/ui';
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, palette, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
+import NumberFlow from '@number-flow/react';
 import { create, firstThatWorks, keyframes, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
@@ -179,9 +180,8 @@ const HOURS_DEFAULT = 6;
  */
 const NORMAL_HOURS = 2;
 /** Where the label for that zone is centred: the middle of the hours it names. */
-const NORMAL_MIDDLE = (NORMAL_HOURS - HOURS_MIN) / (HOURS_MAX - HOURS_MIN) / 2;
-const REVIEWS_URL = 'https://www.reviews.org/internet-service/internet-screen-time-statistics';
-const DATAREPORTAL_URL = 'https://datareportal.com/global-digital-overview';
+/** The report the average day in the help box is taken from. */
+const SOURCE_URL = 'https://datareportal.com/global-digital-overview';
 /** The machined knob, and the rail the ticks are measured against. */
 const KNOB_WIDTH = 28;
 const KNOB_HEIGHT = 44;
@@ -207,14 +207,6 @@ const KNOB_SHADOW = `${KNOB_EDGES}, 0 2px 6px rgba(0, 0, 0, 0.35)`;
 const KNOB_SHADOW_PRESSED = `${KNOB_EDGES}, 0 1px 2px rgba(0, 0, 0, 0.35)`;
 /** The indicator cut into the middle of the face: 2px across, 18px tall. */
 const KNOB_NOTCH_SIZE = '2px 18px';
-/**
- * One detent per whole hour of travel, each with the fraction of the rail it
- * sits at. The knob only ever stops on these, so the marks are the truth.
- */
-const TICKS = Array.from({ length: (HOURS_MAX - HOURS_MIN) / HOURS_STEP + 1 }, (_, index) => {
-  const value = HOURS_MIN + index * HOURS_STEP;
-  return { at: (value - HOURS_MIN) / (HOURS_MAX - HOURS_MIN), value };
-});
 
 type WebMode = ProfileConfig['webFilter']['mode'];
 
@@ -229,17 +221,6 @@ type CustomSite = { enabled: boolean; url: string };
 type SiteRow =
   | { apps: Array<BlockedApp>; enabled: boolean; kind: 'derived'; url: string }
   | { enabled: boolean; index: number; kind: 'custom'; url: string };
-
-/**
- * The three numbers behind the figure the gate opens on: the phone in the US,
- * the phone everywhere, and every screen together. Each line is its own
- * source, so each line is the link to it.
- */
-const RESEARCH_LINES: ReadonlyArray<{ href: string; key: string; text: () => string }> = [
-  { href: REVIEWS_URL, key: 'phone-us', text: m.home_research_phone_us },
-  { href: DATAREPORTAL_URL, key: 'phone-world', text: m.home_research_phone_world },
-  { href: DATAREPORTAL_URL, key: 'screens', text: m.home_research_screens },
-];
 
 /** The popover rises the last few pixels into place under its button. */
 const helpEnter = keyframes({
@@ -471,11 +452,11 @@ const styles = create({
   },
   // The control and the figure it reads, side by side: the rail takes what is
   // left of the row, and the number stands at the end of it.
+  gateCount: {
+    color: accent.base,
+  },
   gateDial: {
-    alignItems: 'center',
     display: 'flex',
-    flexWrap: 'wrap',
-    gap: spacing.s4,
     maxWidth: HERO_MEASURE,
     width: '100%',
   },
@@ -506,9 +487,13 @@ const styles = create({
     fontFamily: MONOSPACE,
     fontSize: DISPLAY_SIZE,
     fontVariantNumeric: 'tabular-nums',
+    fontWeight: 700,
     letterSpacing: '-0.02em',
     lineHeight: 1,
+    textAlign: 'left',
+    whiteSpace: 'nowrap',
   },
+
   // The helper sentence, folded into a ring the question can be asked from.
   helpButton: {
     alignItems: 'center',
@@ -621,6 +606,11 @@ const styles = create({
     overflow: 'hidden',
     width: 200,
   },
+  helpSource: {
+    color: colors.fg,
+    textDecoration: 'underline',
+    textUnderlineOffset: 2,
+  },
   helpText: {
     color: colors.muted,
     fontSize: font.sizeSm,
@@ -664,7 +654,7 @@ const styles = create({
     justifyContent: 'center',
     maxWidth: 760,
     minHeight: firstThatWorks('100svh', '100vh'),
-    paddingBlockEnd: spacing.s16,
+    paddingBlockEnd: '20vh',
     width: '100%',
   },
   // What the reader does next, and the one sentence that says what it is.
@@ -1516,6 +1506,47 @@ const styles = create({
   },
   // The story is told, not pitched: one column of plain paragraphs, set wider
   // apart and looser than anything else on the page.
+  stepButton: {
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderStyle: 'solid',
+    borderWidth: 1,
+    color: {
+      ':disabled': colors.muted,
+      ':hover': colors.fg,
+      default: colors.fg,
+    },
+    cursor: { ':disabled': 'default', default: 'pointer' },
+    display: 'inline-flex',
+    height: 44,
+    justifyContent: 'center',
+    opacity: { ':disabled': 0.4, default: 1 },
+    padding: 0,
+    width: 44,
+  },
+  stepFace: {
+    alignItems: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s1,
+    minWidth: '2.2ch',
+  },
+  stepGlyph: {
+    height: 20,
+    width: 20,
+  },
+  stepper: {
+    alignItems: 'center',
+    display: 'flex',
+    gap: spacing.s6,
+  },
+  stepUnit: {
+    color: colors.muted,
+    fontSize: font.sizeSm,
+    lineHeight: 1,
+  },
   story: {
     display: 'flex',
     flexDirection: 'column',
@@ -1982,78 +2013,6 @@ function ScreenTimeClip({ style, videoUrl }: { style?: StyleXStyles; videoUrl: s
 }
 
 /**
- * Where the figure in the gate comes from. It is an aside, so it opens from a
- * quiet line rather than a control: a box under the line on a wide page, and
- * the same three sources in a sheet on a phone, which has no room for a box.
- */
-function ResearchNote() {
-  const isMobile = useIsMobile();
-  const [open, setOpen] = useState(false);
-  const boxId = useId();
-  const wrap = useRef<HTMLSpanElement>(null);
-
-  // Dismissed from outside itself: a pointer anywhere else, or Escape. The
-  // sheet answers both on its own, so this is the box's alone.
-  useEffect(() => {
-    if (!open || isMobile) {
-      return;
-    }
-    function onPointerDown(event: PointerEvent) {
-      if (wrap.current?.contains(event.target as Node | null) !== true) {
-        setOpen(false);
-      }
-    }
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setOpen(false);
-      }
-    }
-    document.addEventListener('pointerdown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [isMobile, open]);
-
-  const lines = RESEARCH_LINES.map((line) => (
-    <a
-      href={line.href}
-      key={line.key}
-      rel="noreferrer"
-      target="_blank"
-      {...props(styles.researchLink)}
-    >
-      {line.text()}
-    </a>
-  ));
-
-  return (
-    <span ref={wrap} {...props(styles.researchWrap)}>
-      <button
-        aria-controls={open && !isMobile ? boxId : undefined}
-        aria-expanded={open}
-        onClick={() => setOpen(!open)}
-        type="button"
-        {...props(styles.quietButton)}
-      >
-        {m.home_gate_research()}
-      </button>
-      {isMobile ? (
-        <Sheet onOpenChange={setOpen} open={open} title={m.home_research_title()}>
-          {lines}
-        </Sheet>
-      ) : open ? (
-        <span id={boxId} {...props(styles.helpPopover, styles.researchPopover)}>
-          <span {...props(styles.helpTitle)}>{m.home_research_title()}</span>
-          {lines}
-        </span>
-      ) : null}
-    </span>
-  );
-}
-
-/**
  * The arithmetic behind the total, folded away beside it. It is not an argument
  * the reader has to read, it is the one they can check, so it waits for a
  * pointer, the keyboard or a tap and is one line of text until then.
@@ -2197,9 +2156,12 @@ function ScreenTimeGate({
   const [hours, setHours] = useState(entered === null ? HOURS_DEFAULT : entered.hours);
   // The dial starts at one, so the readout needs the singular of its own word.
   const reading = hours === 1 ? m.home_gate_reading_one() : m.home_gate_reading({ hours });
-  // How far along the rail the dial has been turned, which is all of the rail
-  // the accent covers: the first hour of the day counts like the twelfth.
-  const travelled = ((hours - HOURS_MIN) / (HOURS_MAX - HOURS_MIN)) * 100;
+  // The unit after the count, so the count alone can take the accent.
+  const readingUnit = reading.replace(String(hours), '');
+
+  function step(delta: number) {
+    onHoursChange(Math.min(HOURS_MAX, Math.max(HOURS_MIN, hours + delta)));
+  }
 
   function onHoursChange(value: number) {
     // One metallic detent per whole hour of travel.
@@ -2225,42 +2187,66 @@ function ScreenTimeGate({
 
   return (
     <form onSubmit={submit} {...props(styles.gate)}>
-      <div {...props(styles.gateDial)}>
-        <div {...props(styles.gateRail)}>
-          <Label style={styles.sliderLabel}>
-            <span {...props(styles.srOnly)}>{m.home_gate_slider_label()}</span>
-            {/* The end of the gesture, not its start, is what iOS accepts as
-            leave to open an audio device, so it gets its own handlers. */}
-            <input
-              aria-valuetext={reading}
-              max={HOURS_MAX}
-              min={HOURS_MIN}
-              onChange={(event) => onHoursChange(Number(event.target.value))}
-              onPointerDown={armSound}
-              onPointerUp={unlockTickSound}
-              onTouchEnd={unlockTickSound}
-              step={HOURS_STEP}
-              type="range"
-              value={hours}
-              {...props(styles.slider, styles.sliderFill(travelled))}
+      <div {...props(styles.stepper)}>
+        <button
+          aria-label={m.home_gate_minus()}
+          disabled={hours <= HOURS_MIN}
+          onClick={() => step(-1)}
+          onPointerDown={armSound}
+          onPointerUp={unlockTickSound}
+          type="button"
+          {...props(styles.stepButton)}
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24" {...props(styles.stepGlyph)}>
+            <path
+              d="M5 12h14"
+              fill="none"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeWidth="2"
             />
-          </Label>
-          {/* The detents, drawn where the knob lands on each of them, and the
-          name of the zone the first two stand in. The input already says all
-          of this to a screen reader. */}
-          <div aria-hidden="true" {...props(styles.tickRail)}>
-            {TICKS.map((tick) => (
-              <span key={tick.value} {...props(styles.tick, styles.tickAt(tick.at))}>
-                <span {...props(styles.tickNumber)}>{tick.value}</span>
-              </span>
-            ))}
-            <span {...props(styles.normalZone, styles.tickAt(NORMAL_MIDDLE))}>
-              {m.home_gate_normal()}
-            </span>
-          </div>
+          </svg>
+        </button>
+        <div {...props(styles.stepFace)}>
+          <p aria-hidden="true" {...props(styles.gateReading)}>
+            <NumberFlow value={hours} {...props(styles.gateCount)} />
+          </p>
+          <span {...props(styles.stepUnit)}>{readingUnit.trim()}</span>
         </div>
-        <p {...props(styles.gateReading)}>{reading}</p>
+        <button
+          aria-label={m.home_gate_plus()}
+          disabled={hours >= HOURS_MAX}
+          onClick={() => step(1)}
+          onPointerDown={armSound}
+          onPointerUp={unlockTickSound}
+          type="button"
+          {...props(styles.stepButton)}
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24" {...props(styles.stepGlyph)}>
+            <path
+              d="M5 12h14M12 5v14"
+              fill="none"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeWidth="2"
+            />
+          </svg>
+        </button>
       </div>
+      {/* The range stays for the keyboard and assistive tech; the stepper is
+      the face of it. */}
+      <Label style={styles.srOnly}>
+        <span>{m.home_gate_slider_label()}</span>
+        <input
+          aria-valuetext={reading}
+          max={HOURS_MAX}
+          min={HOURS_MIN}
+          onChange={(event) => onHoursChange(Number(event.target.value))}
+          step={HOURS_STEP}
+          type="range"
+          value={hours}
+        />
+      </Label>
       <div {...props(styles.gateActions)}>
         <Button type="submit">{m.home_gate_submit()}</Button>
       </div>
@@ -2380,6 +2366,12 @@ function ScreenTimeHelp() {
         <Sheet onOpenChange={setOpen} open={open} title={m.home_math_help_title()}>
           <span {...props(styles.helpText)}>{m.home_math_help_body()}</span>
           <ScreenTimeClip style={styles.helpSheetSlot} videoUrl={videoUrl} />
+          <span {...props(styles.helpText)}>
+            {m.home_gate_average()}{' '}
+            <a href={SOURCE_URL} rel="noreferrer" target="_blank" {...props(styles.helpSource)}>
+              {m.home_gate_source()}
+            </a>
+          </span>
         </Sheet>
       ) : open ? (
         <span
@@ -2393,6 +2385,12 @@ function ScreenTimeHelp() {
           <span {...props(styles.helpTitle)}>{m.home_math_help_title()}</span>
           <span {...props(styles.helpText)}>{m.home_math_help_body()}</span>
           <ScreenTimeClip videoUrl={videoUrl} />
+          <span {...props(styles.helpText)}>
+            {m.home_gate_average()}{' '}
+            <a href={SOURCE_URL} rel="noreferrer" target="_blank" {...props(styles.helpSource)}>
+              {m.home_gate_source()}
+            </a>
+          </span>
         </span>
       ) : null}
     </span>
@@ -3527,14 +3525,6 @@ function Generator() {
           correcting that figure buys, and the show counts the day out first.
           Another number is another answer: the gate is the only way to one. */}
       <header {...props(styles.hero, arrived && styles.heroPrinted)}>
-        {/* The figure the question is asked against, and one word to the
-        sources behind it. It opens the gate, so it goes when the gate goes. */}
-        {gateOpen ? (
-          <p {...props(styles.gateIntro)}>
-            {m.home_gate_average()}
-            <ResearchNote />
-          </p>
-        ) : null}
         {/* The question until it is answered, and the answer after that: one
         heading, holding whichever of the two the reader is on. */}
         <h1 {...props(styles.heroTitle, !gateOpen && entered !== null && styles.heroTitleSaid)}>
