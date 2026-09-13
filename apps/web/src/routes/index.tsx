@@ -30,6 +30,7 @@ import { GridTexture } from '../components/grid-texture.tsx';
 import { ShareCard } from '../components/share-card.tsx';
 import { Sheet } from '../components/sheet.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
+import { WorstApps } from '../components/worst-apps.tsx';
 import type { AppResult } from '../lib/app-search.ts';
 import {
   defaultStorefront,
@@ -42,6 +43,8 @@ import {
 } from '../lib/app-search.ts';
 import { formatYears, homeTruth, receiptLines } from '../lib/attention-math.ts';
 import { controls } from '../lib/controls.ts';
+import { mergeBlockedApps } from '../lib/known-apps.ts';
+import type { ScannedApp } from '../lib/known-apps.ts';
 import { layout } from '../lib/layout.ts';
 import { buildProfile, presets } from '../lib/profile/index.ts';
 import type { BlockedApp, ProfileConfig } from '../lib/profile/index.ts';
@@ -139,9 +142,24 @@ const HOURS_MAX = 12;
 const HOURS_STEP = 1;
 /** Where the dial stands before the reader has answered the question. */
 const HOURS_DEFAULT = 4;
+/**
+ * The day the gate opens on: what a US adult spends on the phone itself, which
+ * is the figure the reader is asked to recognize or correct rather than
+ * remember. The research behind it sits one quiet line under the fields.
+ */
+const AVERAGE_HOURS = 4;
+const AVERAGE_MINUTES = 5;
+const REVIEWS_URL = 'https://www.reviews.org/internet-service/internet-screen-time-statistics';
+const DATAREPORTAL_URL = 'https://datareportal.com/global-digital-overview';
 /** What the gate takes past the hour, and how many of them make one. */
 const MINUTES_MAX = 59;
 const MINUTES_PER_HOUR = 60;
+/** Anything but a figure, which is all the gate's two fields accept. */
+const NOT_DIGITS = /\D+/gu;
+/** A whole hour figure, and a whole minute figure, are two digits each. */
+const FIGURE_DIGITS = 2;
+/** The keys that mean "the hour is typed": the gate moves on to the minutes. */
+const ADVANCE_KEYS = [':', '.', ' '];
 /** The machined knob, and the rail the ticks are measured against. */
 const KNOB_WIDTH = 28;
 const KNOB_HEIGHT = 44;
@@ -192,6 +210,17 @@ type CustomSite = { enabled: boolean; url: string };
 type SiteRow =
   | { apps: Array<BlockedApp>; enabled: boolean; kind: 'derived'; url: string }
   | { enabled: boolean; index: number; kind: 'custom'; url: string };
+
+/**
+ * The three numbers behind the figure the gate opens on: the phone in the US,
+ * the phone everywhere, and every screen together. Each line is its own
+ * source, so each line is the link to it.
+ */
+const RESEARCH_LINES: ReadonlyArray<{ href: string; key: string; text: () => string }> = [
+  { href: REVIEWS_URL, key: 'phone-us', text: m.home_research_phone_us },
+  { href: DATAREPORTAL_URL, key: 'phone-world', text: m.home_research_phone_world },
+  { href: DATAREPORTAL_URL, key: 'screens', text: m.home_research_screens },
+];
 
 /** The popover rises the last few pixels into place under its button. */
 const helpEnter = keyframes({
@@ -409,10 +438,20 @@ const styles = create({
   },
   // The question's answer, typed. It is the whole first screen until it is
   // given, so it sits directly under the question and nothing sits under it.
+  // Four things and the air between them: the figures, the way on, and the
+  // line that says where the figures came from.
   gate: {
+    alignItems: 'start',
     display: 'flex',
     flexDirection: 'column',
-    gap: spacing.s2,
+    gap: spacing.s4,
+  },
+  gateActions: {
+    alignItems: 'center',
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: spacing.s3,
+    paddingBlockStart: spacing.s1,
   },
   // The way back into the gate, once the answer has collapsed to one line.
   gateChange: {
@@ -429,6 +468,29 @@ const styles = create({
     padding: 0,
     textDecorationLine: 'underline',
   },
+  // The answer, typed: two figures in the receipt's own face, each standing on
+  // a rule that lights up under the caret. No box, because the card is the box.
+  gateDigits: {
+    backgroundColor: 'transparent',
+    borderStyle: 'none',
+    borderWidth: 0,
+    boxShadow: {
+      ':focus': `inset 0 -1px 0 ${accent.base}`,
+      default: `inset 0 -1px 0 ${colors.border}`,
+    },
+    caretColor: accent.base,
+    color: colors.fg,
+    fontFamily: MONOSPACE,
+    fontSize: 32,
+    fontVariantNumeric: 'tabular-nums',
+    lineHeight: 1.2,
+    minWidth: 0,
+    outlineStyle: 'none',
+    paddingBlock: spacing.s1,
+    paddingInline: spacing.s1,
+    textAlign: 'center',
+    width: 64,
+  },
   // What the reader said, kept in sight over the dial that is now theirs.
   gateEntered: {
     color: colors.muted,
@@ -442,14 +504,6 @@ const styles = create({
     fontSize: font.sizeSm,
     lineHeight: 1.5,
     margin: 0,
-  },
-  // Two figures, in the receipt's own face, each wide enough for two digits.
-  gateInput: {
-    fontFamily: MONOSPACE,
-    fontVariantNumeric: 'tabular-nums',
-    paddingInline: spacing.s3,
-    textAlign: 'center',
-    width: 72,
   },
   gateRow: {
     alignItems: 'center',
@@ -681,6 +735,15 @@ const styles = create({
     textDecorationLine: {
       ':hover': 'underline',
       default: 'none',
+    },
+  },
+  // The dial is no longer handed over with the bill, so the row it lived in
+  // holds the way back to it instead, and it sits under the line it changes.
+  heroSlim: {
+    gridTemplateAreas: {
+      '@media (min-width: 900px)':
+        '"title receipt" "gate receipt" "truth receipt" "dial receipt" "pitch receipt"',
+      default: '"title" "gate" "truth" "dial" "receipt" "pitch"',
     },
   },
   heroTitle: {
@@ -944,6 +1007,42 @@ const styles = create({
       '@media (min-width: 640px)': 'repeat(3, 1fr)',
       default: '1fr',
     },
+  },
+  // One cited line inside the research box, and the whole line is the source.
+  researchLink: {
+    color: {
+      ':hover': colors.fg,
+      default: colors.muted,
+    },
+    fontSize: font.sizeSm,
+    lineHeight: 1.5,
+    textWrap: 'pretty',
+  },
+  // Wider than the clip's box: this one holds sentences, not a phone screen.
+  researchPopover: {
+    width: 300,
+  },
+  // Anchors the research box under the quiet line that opens it.
+  researchWrap: {
+    display: 'inline-flex',
+    position: 'relative',
+  },
+  // The way back to the dial, which the bill no longer hands over: a line of
+  // text, because it is an aside and not the way on.
+  quietButton: {
+    alignSelf: 'start',
+    backgroundColor: 'transparent',
+    borderStyle: 'none',
+    borderWidth: 0,
+    color: {
+      ':hover': colors.fg,
+      default: colors.muted,
+    },
+    cursor: 'pointer',
+    font: 'inherit',
+    fontSize: font.sizeSm,
+    padding: 0,
+    textDecorationLine: 'underline',
   },
   // The bill as a till prints one: monospace, narrow, and every number under
   // the one above it. It is a receipt for hours already spent, so it holds the
@@ -1926,9 +2025,81 @@ function ScreenTimeClip({ style, videoUrl }: { style?: StyleXStyles; videoUrl: s
 }
 
 /**
- * The question, answered in figures. It is the first screen on its own: the
- * dial, the line and the bill are what the answer buys, so until it is given
- * there is nothing under it to look at. Reopened later it stands in the same
+ * Where the figure in the gate comes from. It is an aside, so it opens from a
+ * quiet line rather than a control: a box under the line on a wide page, and
+ * the same three sources in a sheet on a phone, which has no room for a box.
+ */
+function ResearchNote() {
+  const isMobile = useIsMobile();
+  const [open, setOpen] = useState(false);
+  const boxId = useId();
+  const wrap = useRef<HTMLSpanElement>(null);
+
+  // Dismissed from outside itself: a pointer anywhere else, or Escape. The
+  // sheet answers both on its own, so this is the box's alone.
+  useEffect(() => {
+    if (!open || isMobile) {
+      return;
+    }
+    function onPointerDown(event: PointerEvent) {
+      if (wrap.current?.contains(event.target as Node | null) !== true) {
+        setOpen(false);
+      }
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isMobile, open]);
+
+  const lines = RESEARCH_LINES.map((line) => (
+    <a
+      href={line.href}
+      key={line.key}
+      rel="noreferrer"
+      target="_blank"
+      {...props(styles.researchLink)}
+    >
+      {line.text()}
+    </a>
+  ));
+
+  return (
+    <span ref={wrap} {...props(styles.researchWrap)}>
+      <button
+        aria-controls={open && !isMobile ? boxId : undefined}
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        type="button"
+        {...props(styles.quietButton)}
+      >
+        {m.home_gate_research()}
+      </button>
+      {isMobile ? (
+        <Sheet onOpenChange={setOpen} open={open} title={m.home_research_title()}>
+          {lines}
+        </Sheet>
+      ) : open ? (
+        <span id={boxId} {...props(styles.helpPopover, styles.researchPopover)}>
+          <span {...props(styles.helpTitle)}>{m.home_research_title()}</span>
+          {lines}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+/**
+ * The question, already answered with the average. The reader does not start
+ * on an empty field: they start on what an adult spends, with the source under
+ * it, and either take it or type over it. Reopened later it stands in the same
  * place, holding whatever was said last, and the second answer only moves the
  * dial: the show is a first impression and is not run twice.
  */
@@ -1939,15 +2110,16 @@ function ScreenTimeGate({
   entered: Entered | null;
   onSubmit: (entered: Entered) => void;
 }) {
-  const hoursId = useId();
-  const minutesId = useId();
   const errorId = useId();
-  const [hours, setHours] = useState(entered === null ? '' : String(entered.hours));
+  const [hours, setHours] = useState(String(entered === null ? AVERAGE_HOURS : entered.hours));
   const [minutes, setMinutes] = useState(
-    entered === null || entered.minutes === 0 ? '' : String(entered.minutes),
+    entered === null
+      ? String(AVERAGE_MINUTES).padStart(FIGURE_DIGITS, '0')
+      : String(entered.minutes),
   );
   const [invalid, setInvalid] = useState(false);
   const field = useRef<HTMLInputElement>(null);
+  const past = useRef<HTMLInputElement>(null);
 
   // A finger brings the keyboard up with the focus and shoves the page around
   // under it, so only a pointer that is not one gets the field handed to it.
@@ -1958,6 +2130,23 @@ function ScreenTimeGate({
     }
   }, []);
 
+  function onHoursChange(value: string) {
+    const figure = value.replace(NOT_DIGITS, '').slice(0, FIGURE_DIGITS);
+    setHours(figure);
+    // Two digits is a whole hour, so the caret goes where the rest of the
+    // answer is typed.
+    if (figure.length === FIGURE_DIGITS) {
+      past.current?.focus();
+    }
+  }
+
+  function onHoursKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (ADVANCE_KEYS.includes(event.key)) {
+      event.preventDefault();
+      past.current?.focus();
+    }
+  }
+
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const day = Number(hours.trim());
@@ -1965,46 +2154,55 @@ function ScreenTimeGate({
       setInvalid(true);
       return;
     }
-    // The minutes are the optional half of the answer, so a reader who typed
-    // something unusable there is answering in whole hours, not failing.
-    const past = Number(minutes.trim());
-    const usable = minutes.trim() !== '' && Number.isFinite(past);
+    // The minutes are the optional half of the answer, so a reader who emptied
+    // them is answering in whole hours, not failing.
+    const rest = Number(minutes.trim());
+    const usable = minutes.trim() !== '' && Number.isFinite(rest);
     setInvalid(false);
     onSubmit({
       hours: Math.floor(day),
-      minutes: usable ? Math.min(Math.max(Math.floor(past), 0), MINUTES_MAX) : 0,
+      minutes: usable ? Math.min(Math.max(Math.floor(rest), 0), MINUTES_MAX) : 0,
     });
   }
 
   return (
     <form onSubmit={submit} {...props(styles.gate)}>
       <div {...props(styles.gateRow)}>
-        <Input
+        <input
           aria-describedby={invalid ? errorId : undefined}
           aria-invalid={invalid}
-          id={hoursId}
+          aria-label={m.home_gate_hours()}
           inputMode="numeric"
-          onChange={(event) => setHours(event.target.value)}
+          onChange={(event) => onHoursChange(event.target.value)}
+          onKeyDown={onHoursKeyDown}
           ref={field}
-          style={styles.gateInput}
           value={hours}
+          {...props(styles.gateDigits)}
         />
-        <label htmlFor={hoursId} {...props(styles.gateUnit)}>
-          {m.home_gate_hours()}
-        </label>
-        <Input
-          id={minutesId}
+        <span aria-hidden="true" {...props(styles.gateUnit)}>
+          {m.home_gate_hours_short()}
+        </span>
+        <input
+          aria-label={m.home_gate_minutes()}
           inputMode="numeric"
-          onChange={(event) => setMinutes(event.target.value)}
+          onChange={(event) =>
+            setMinutes(event.target.value.replace(NOT_DIGITS, '').slice(0, FIGURE_DIGITS))
+          }
           placeholder={m.home_gate_minutes_placeholder()}
-          style={styles.gateInput}
+          ref={past}
           value={minutes}
+          {...props(styles.gateDigits)}
         />
-        <label htmlFor={minutesId} {...props(styles.gateUnit)}>
-          {m.home_gate_minutes()}
-        </label>
+        <span aria-hidden="true" {...props(styles.gateUnit)}>
+          {m.home_gate_minutes_short()}
+        </span>
+      </div>
+      <div {...props(styles.gateActions)}>
         <Button type="submit">{m.home_gate_submit()}</Button>
       </div>
+      {/* The one line under the answer, and the only thing on the first screen
+          that is not the question, the figures or the way on. */}
+      <ResearchNote />
       {invalid ? (
         <p id={errorId} role="alert" {...props(styles.gateError)}>
           {m.home_gate_error()}
@@ -2515,6 +2713,8 @@ function Generator() {
   // way. `soundChosen` is what separates the default from an answer.
   const [sound, setSound] = useState(true);
   const [soundChosen, setSoundChosen] = useState(false);
+  // The dial is no longer part of the reveal: the reader asks for it.
+  const [exploring, setExploring] = useState(false);
   const [config, setConfig] = useState<ProfileConfig>(presets.mert);
   // The user's own urls, the derived ones they turned off, and the derived ones
   // they deleted. Everything else in the deny list comes from the blocked apps.
@@ -2916,6 +3116,36 @@ function Generator() {
     });
   }
 
+  /**
+   * The apps the reader picked off their own screenshot. Ids the list already
+   * carries stay as they are, and the sites each app implies are derived from
+   * the blocked list itself, so there is nothing else to merge.
+   */
+  function applyScanned(apps: ReadonlyArray<ScannedApp>) {
+    setMeta((current) => {
+      const next = { ...current };
+      for (const app of apps) {
+        if (app.iconUrl !== '') {
+          next[app.bundleId] = { developer: '', iconUrl: app.iconUrl };
+        }
+      }
+      return next;
+    });
+    setConfig({
+      ...config,
+      blockedApps: mergeBlockedApps(
+        config.blockedApps,
+        apps.map((app) => ({ bundleId: app.bundleId, name: app.name, sellerUrl: app.sellerUrl })),
+      ),
+    });
+  }
+
+  /** A name the scan found nothing for, handed to the search bar below it. */
+  function searchFor(name: string) {
+    onQueryChange(name);
+    searchInput.current?.focus();
+  }
+
   // Removing is one click away from undoable and one click away from gone, so
   // the first click only arms the button. Only one row can be armed at a time.
   function onRemoveClick(bundleId: string) {
@@ -3229,11 +3459,17 @@ function Generator() {
           </button>
         </div>
       )}
-      {/* The first screen. It opens as the question and the two fields that
-          answer it, and nothing else; the dial, the line and the bill are what
-          the answer buys, and the show runs the bill up before the dial is
-          handed over. */}
-      <header {...props(styles.hero, !revealed && styles.heroClosed)}>
+      {/* The first screen. It opens as the question, already answered with the
+          average, and nothing else; the line and the bill are what taking or
+          correcting that figure buys, and the show runs the bill up first. The
+          dial stays out of it until the reader asks for other hours. */}
+      <header
+        {...props(
+          styles.hero,
+          !revealed && styles.heroClosed,
+          revealed && !exploring && styles.heroSlim,
+        )}
+      >
         <h1 {...props(styles.heroTitle)}>
           {m.home_hero_title()}
           <ScreenTimeHelp />
@@ -3260,50 +3496,60 @@ function Generator() {
         {revealed ? (
           <>
             <div {...props(styles.dial, styles.heroDial, styles.reveal)}>
-              <div {...props(styles.dialRail)}>
-                <Label style={styles.sliderLabel}>
-                  <span {...props(styles.srOnly)}>{m.home_math_slider_label()}</span>
-                  {/* The end of the gesture, not its start, is what iOS accepts as
+              {exploring ? (
+                <div {...props(styles.dialRail)}>
+                  <Label style={styles.sliderLabel}>
+                    <span {...props(styles.srOnly)}>{m.home_math_slider_label()}</span>
+                    {/* The end of the gesture, not its start, is what iOS accepts as
                   leave to open an audio device, so it gets its own handlers. */}
-                  <input
-                    aria-disabled={showRunning ? true : undefined}
-                    aria-valuetext={hoursReading}
-                    max={HOURS_MAX}
-                    min={HOURS_MIN}
-                    onChange={(event) => {
-                      if (showRunning) {
-                        return;
-                      }
-                      onHoursChange(Number(event.target.value));
-                    }}
-                    onKeyDown={(event) => {
-                      if (showRunning) {
-                        event.preventDefault();
-                      }
-                    }}
-                    onPointerDown={armSound}
-                    onPointerUp={unlockTickSound}
-                    onTouchEnd={unlockTickSound}
-                    step={HOURS_STEP}
-                    type="range"
-                    value={dialHours}
-                    {...props(
-                      styles.slider,
-                      styles.sliderFill(travelled),
-                      showRunning && styles.sliderLocked,
-                    )}
-                  />
-                </Label>
-                {/* The detents, drawn where the knob lands on each of them. The
+                    <input
+                      aria-disabled={showRunning ? true : undefined}
+                      aria-valuetext={hoursReading}
+                      max={HOURS_MAX}
+                      min={HOURS_MIN}
+                      onChange={(event) => {
+                        if (showRunning) {
+                          return;
+                        }
+                        onHoursChange(Number(event.target.value));
+                      }}
+                      onKeyDown={(event) => {
+                        if (showRunning) {
+                          event.preventDefault();
+                        }
+                      }}
+                      onPointerDown={armSound}
+                      onPointerUp={unlockTickSound}
+                      onTouchEnd={unlockTickSound}
+                      step={HOURS_STEP}
+                      type="range"
+                      value={dialHours}
+                      {...props(
+                        styles.slider,
+                        styles.sliderFill(travelled),
+                        showRunning && styles.sliderLocked,
+                      )}
+                    />
+                  </Label>
+                  {/* The detents, drawn where the knob lands on each of them. The
                 input already says all of this to a screen reader. */}
-                <div aria-hidden="true" {...props(styles.tickRail)}>
-                  {TICKS.map((tick) => (
-                    <span key={tick.value} {...props(styles.tick, styles.tickAt(tick.at))}>
-                      <span {...props(styles.tickNumber)}>{tick.value}</span>
-                    </span>
-                  ))}
+                  <div aria-hidden="true" {...props(styles.tickRail)}>
+                    {TICKS.map((tick) => (
+                      <span key={tick.value} {...props(styles.tick, styles.tickAt(tick.at))}>
+                        <span {...props(styles.tickNumber)}>{tick.value}</span>
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              ) : settled ? (
+                <button
+                  onClick={() => setExploring(true)}
+                  type="button"
+                  {...props(styles.quietButton)}
+                >
+                  {m.home_gate_explore()}
+                </button>
+              ) : null}
               <button
                 aria-label={m.home_math_sound_label()}
                 aria-pressed={sound}
@@ -3485,6 +3731,8 @@ function Generator() {
           <p {...props(styles.label)}>{m.gen_step2_label()}</p>
           <h2 {...props(styles.sectionTitle)}>{m.gen_step2_title()}</h2>
         </div>
+
+        <WorstApps country={country} onApply={applyScanned} onSearch={searchFor} />
 
         <section {...props(styles.section)}>
           <h2 {...props(styles.sectionTitle)}>{m.home_apps_title()}</h2>

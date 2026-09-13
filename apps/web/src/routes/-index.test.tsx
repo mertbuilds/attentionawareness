@@ -22,6 +22,17 @@ vi.mock(import('../paraglide/runtime.js'), async (importOriginal) => ({
   getLocale: () => locale.current,
 }));
 
+// The recognizer is pulled in on the first drop and is a megabyte of wasm, so
+// the tests hand it the text a screenshot would have been read as instead.
+const ocr = vi.hoisted(() => ({ text: '' }));
+vi.mock('tesseract.js', () => ({
+  createWorker: () =>
+    Promise.resolve({
+      recognize: () => Promise.resolve({ data: { text: ocr.text } }),
+      terminate: () => Promise.resolve(),
+    }),
+}));
+
 // jsdom has no object URLs, and the download path is what carries the XML out.
 const createObjectURL = vi.fn<(blob: Blob) => string>(() => 'blob:profile');
 URL.createObjectURL = createObjectURL;
@@ -312,12 +323,57 @@ function gateMinutes(): HTMLElement {
   return screen.getByLabelText(m.home_gate_minutes());
 }
 
-/** Answers the gate, which mounts the dial and starts the show. */
-function answerGate(hours: string, minutes?: string): void {
-  fireEvent.change(gateHours(), { target: { value: hours } });
-  if (minutes !== undefined) {
-    fireEvent.change(gateMinutes(), { target: { value: minutes } });
+/** The dial is not handed over with the bill any more: this asks for it. */
+function showSlider(): void {
+  const button = screen.queryByRole('button', { name: m.home_gate_explore() });
+  if (button !== null) {
+    fireEvent.click(button);
   }
+}
+
+/** Where the builder takes a Screen Time screenshot. */
+function builderDrop(): HTMLElement {
+  return screen.getByRole('button', { name: m.gen_worst_drop() });
+}
+
+/** One row of the screenshot picker, found through the app it names. */
+function pickerBox(name: string): HTMLElement {
+  return screen.getByRole('checkbox', { name: new RegExp(name, 'u') });
+}
+
+/** Drops a screenshot on a zone, and lets the read and the lookups settle. */
+async function dropScreenshot(zone: HTMLElement, text: string): Promise<void> {
+  ocr.text = text;
+  const file = new File(['screenshot'], 'screen-time.png', { type: 'image/png' });
+  await act(async () => {
+    fireEvent.drop(zone, { dataTransfer: { files: [file] } });
+  });
+}
+
+/** What Screen Time says on the screen the whole feature is built around. */
+const SCREENSHOT = `Screen Time
+Daily Average
+5h 12m
+MOST USED
+Instagram
+2h 14m
+YouTube
+1h 3m
+Safari
+48m
+WhatsApp
+31m
+X
+22m
+Duolingo
+14m
+`;
+
+/** Answers the gate, which mounts the dial and starts the show. */
+function answerGate(hours: string, minutes = '0'): void {
+  // The fields open on the average, so an answer always writes over both.
+  fireEvent.change(gateHours(), { target: { value: hours } });
+  fireEvent.change(gateMinutes(), { target: { value: minutes } });
   fireEvent.click(screen.getByRole('button', { name: m.home_gate_submit() }));
 }
 
@@ -337,7 +393,9 @@ async function advance(ms: number): Promise<void> {
  */
 async function renderAnswered(hours = 4) {
   window.history.replaceState({}, '', `/?h=${hours}`);
-  return renderPage();
+  const view = await renderPage();
+  showSlider();
+  return view;
 }
 
 /** The file the download saved. The signer answers first, so this waits. */
@@ -383,6 +441,93 @@ describe('Generator', () => {
     expect(screen.queryByText(m.home_truth_4())).not.toBeInTheDocument();
     expect(screen.queryByText(m.home_hero_product())).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: m.home_hero_cta() })).not.toBeInTheDocument();
+  });
+
+  it('opens on the average phone day, and nothing else', async () => {
+    await renderPage();
+
+    expect(gateHours()).toHaveValue('4');
+    expect(gateMinutes()).toHaveValue('05');
+    expect(screen.getByRole('button', { name: m.home_gate_submit() })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: m.home_gate_research() })).toBeInTheDocument();
+    // The sources are one line away, not on the first screen.
+    expect(screen.queryByText(m.home_research_phone_us())).not.toBeInTheDocument();
+  });
+
+  it('says where the number comes from when the research line is opened', async () => {
+    await renderPage();
+
+    await userEvent.click(screen.getByRole('button', { name: m.home_gate_research() }));
+
+    expect(screen.getByText(m.home_research_title())).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: m.home_research_phone_us() })).toHaveAttribute(
+      'href',
+      'https://www.reviews.org/internet-service/internet-screen-time-statistics',
+    );
+    expect(screen.getByRole('link', { name: m.home_research_phone_world() })).toHaveAttribute(
+      'href',
+      'https://datareportal.com/global-digital-overview',
+    );
+    expect(screen.getByRole('link', { name: m.home_research_screens() })).toBeInTheDocument();
+
+    await userEvent.keyboard('{Escape}');
+
+    expect(screen.queryByText(m.home_research_title())).not.toBeInTheDocument();
+  });
+
+  it('opens the research in a sheet on a phone', async () => {
+    setViewport('phone');
+    await renderPage();
+
+    await userEvent.click(screen.getByRole('button', { name: m.home_gate_research() }));
+
+    const sheet = await screen.findByRole('dialog');
+    expect(within(sheet).getByText(m.home_research_title())).toBeInTheDocument();
+    expect(within(sheet).getAllByRole('link')).toHaveLength(3);
+  });
+
+  it('runs the show to the average when it is taken as it stands', async () => {
+    vi.useFakeTimers();
+    await renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: m.home_gate_submit() }));
+
+    expect(truthLine()).toHaveTextContent(m.home_truth_1());
+
+    await advance(SHOW_STEP_MS * 12);
+
+    expect(truthLine()).toHaveTextContent(m.home_truth_4());
+    expect(
+      within(receipt()).getByText(m.home_receipt_meta_minutes({ hours: 4, minutes: 5 })),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(m.home_gate_entered({ hours: 4, minutes: 5 }), { exact: false }),
+    ).toBeInTheDocument();
+  });
+
+  it('runs the show to the day the reader typed over the average', async () => {
+    vi.useFakeTimers();
+    await renderPage();
+
+    answerGate('3');
+    await advance(SHOW_STEP_MS * 12);
+
+    expect(truthLine()).toHaveTextContent(m.home_truth_3());
+    expect(within(receipt()).getByText(m.home_receipt_meta({ hours: 3 }))).toBeInTheDocument();
+  });
+
+  it('keeps the dial out of the way until the reader asks for other hours', async () => {
+    window.history.replaceState({}, '', '/?h=9');
+    await renderPage();
+
+    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
+    expect(truthLine()).toHaveTextContent(m.home_truth_9());
+    expect(receipt()).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: m.home_gate_explore() }));
+
+    expect(screen.getByRole('slider')).toHaveValue('9');
+    expect(screen.queryByRole('button', { name: m.home_gate_explore() })).not.toBeInTheDocument();
   });
 
   it('says the range back to an answer it cannot use', async () => {
@@ -571,40 +716,36 @@ describe('Generator', () => {
 
     answerGate('5');
 
-    expect(screen.getByRole('slider')).toHaveValue('1');
     expect(truthLine()).toHaveTextContent(m.home_truth_1());
     expect(receipt()).toBeInTheDocument();
     // Nothing is for sale until the bill has finished printing.
     expect(screen.queryByRole('link', { name: m.home_hero_cta() })).not.toBeInTheDocument();
 
     await advance(SHOW_STEP_MS);
-    expect(screen.getByRole('slider')).toHaveValue('2');
     expect(truthLine()).toHaveTextContent(m.home_truth_2());
 
     await advance(SHOW_STEP_MS * 3);
-    expect(screen.getByRole('slider')).toHaveValue('5');
-    expect(screen.getByRole('slider')).toHaveAttribute('aria-disabled', 'true');
+    expect(truthLine()).toHaveTextContent(m.home_truth_5());
 
     await advance(SHOW_STEP_MS);
-    expect(screen.getByRole('slider')).not.toHaveAttribute('aria-disabled');
     expect(screen.getByRole('link', { name: m.home_hero_cta() })).toBeInTheDocument();
     expect(receiptTotal()).toBe(m.home_receipt_total_value({ years: '6.3' }));
   });
 
-  it('takes the dial away for as long as the show is running it', async () => {
+  it('offers neither the dial nor the gate while the show is running', async () => {
     vi.useFakeTimers();
     await renderPage();
     answerGate('5');
 
-    fireEvent.change(screen.getByRole('slider'), { target: { value: '11' } });
-
-    expect(screen.getByRole('slider')).toHaveValue('1');
+    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: m.home_gate_explore() })).not.toBeInTheDocument();
     // And there is no way back into the gate to answer over the top of it.
     expect(screen.queryByRole('button', { name: m.home_gate_change() })).not.toBeInTheDocument();
 
     await advance(SHOW_STEP_MS * 5);
 
     expect(screen.getByRole('button', { name: m.home_gate_change() })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: m.home_gate_explore() })).toBeInTheDocument();
   });
 
   it('settles on the minutes the show could not stop at', async () => {
@@ -614,7 +755,7 @@ describe('Generator', () => {
     answerGate('5', '30');
     await advance(SHOW_STEP_MS * 5);
 
-    expect(screen.getByRole('slider')).toHaveValue('5');
+    expect(truthLine()).toHaveTextContent(m.home_truth_5());
     expect(
       within(receipt()).getByText(m.home_receipt_meta_minutes({ hours: 5, minutes: 30 })),
     ).toBeInTheDocument();
@@ -628,10 +769,9 @@ describe('Generator', () => {
     await renderPage();
 
     answerGate('1');
-    expect(screen.getByRole('slider')).toHaveValue('1');
+    expect(truthLine()).toHaveTextContent(m.home_truth_1());
 
     await advance(SHOW_STEP_MS);
-    expect(screen.getByRole('slider')).not.toHaveAttribute('aria-disabled');
     expect(screen.getByRole('link', { name: m.home_hero_cta() })).toBeInTheDocument();
   });
 
@@ -639,6 +779,7 @@ describe('Generator', () => {
     vi.useFakeTimers();
     window.history.replaceState({}, '', '/?h=9');
     await renderPage();
+    showSlider();
 
     expect(screen.getByRole('slider')).toHaveValue('9');
     expect(screen.getByRole('link', { name: m.home_hero_cta() })).toBeInTheDocument();
@@ -651,6 +792,7 @@ describe('Generator', () => {
   it('opens on the exact day a link carries in minutes', async () => {
     window.history.replaceState({}, '', '/?m=330');
     await renderPage();
+    showSlider();
 
     expect(screen.getByRole('slider')).toHaveValue('5');
     expect(
@@ -1366,6 +1508,7 @@ describe('Generator', () => {
     window.history.replaceState({}, '', '/?h=6&a=ig,tt');
 
     await renderPage();
+    showSlider();
 
     expect(screen.getByRole('slider')).toHaveValue('6');
     expect(truthLine()).toHaveTextContent(m.home_truth_6());
@@ -1545,5 +1688,124 @@ describe('Generator', () => {
     fireEvent.click(screen.getByLabelText(m.gen_web_mode_off()));
     fireEvent.click(screen.getByRole('button', { name: m.gen_download() }));
     expect(await downloadedXml()).not.toContain('com.apple.webcontent-filter');
+  });
+  describe('the screenshot picker', () => {
+    it('offers the reader their own Screen Time list at the top of the builder', async () => {
+      await renderPage();
+
+      expect(screen.getByText(m.gen_worst_title())).toBeInTheDocument();
+      expect(screen.getByText(m.gen_worst_step_1())).toBeInTheDocument();
+      expect(screen.getByText(m.gen_worst_privacy())).toBeInTheDocument();
+      expect(builderDrop()).toBeInTheDocument();
+    });
+
+    it('reads a dropped screenshot into a picker of the apps it named', async () => {
+      await renderPage();
+
+      await dropScreenshot(builderDrop(), SCREENSHOT);
+
+      expect(await screen.findByText(m.gen_worst_found())).toBeInTheDocument();
+      expect(pickerBox('Instagram')).toBeChecked();
+      expect(pickerBox('YouTube')).toBeChecked();
+      expect(pickerBox('^X')).toBeChecked();
+      // Apple's own app cannot be hidden, and the one a day needs is listed
+      // but not ticked.
+      expect(pickerBox('Safari')).toBeDisabled();
+      expect(pickerBox('Safari')).not.toBeChecked();
+      expect(pickerBox('WhatsApp')).not.toBeChecked();
+      expect(screen.getByText(m.gen_worst_system())).toBeInTheDocument();
+      expect(screen.getByText(m.gen_worst_keep())).toBeInTheDocument();
+      // The duration the screenshot showed stays beside the app it belongs to.
+      expect(screen.getByText('2h 14m')).toBeInTheDocument();
+    });
+
+    it('offers the recommended apps the screenshot did not name, ticked', async () => {
+      await renderPage();
+
+      await dropScreenshot(builderDrop(), SCREENSHOT);
+      await screen.findByText(m.gen_worst_found());
+
+      expect(screen.getByText(m.gen_worst_recommended())).toBeInTheDocument();
+      expect(pickerBox('Threads')).toBeChecked();
+    });
+
+    it('blocks what was ticked, and lists nothing the profile already carries twice', async () => {
+      await renderPage();
+
+      await dropScreenshot(builderDrop(), SCREENSHOT);
+      await screen.findByText(m.gen_worst_found());
+      fireEvent.click(screen.getByRole('button', { name: m.gen_worst_apply() }));
+
+      // Everything but the one app the recommended list had never heard of is
+      // already in it, so the list grows by exactly that app.
+      expect(screen.getAllByRole('button', { name: m.gen_app_remove() })).toHaveLength(
+        BLOCKED_APPS + 1,
+      );
+      expect(screen.getByText(SEARCH_RESULT_NAME)).toBeInTheDocument();
+      expect(
+        screen.getByText(m.gen_worst_summary({ count: BLOCKED_APPS + 1 }), { exact: false }),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: m.gen_worst_apply() })).not.toBeInTheDocument();
+    });
+
+    it('takes the block back for a second screenshot', async () => {
+      await renderPage();
+
+      await dropScreenshot(builderDrop(), SCREENSHOT);
+      await screen.findByText(m.gen_worst_found());
+      fireEvent.click(screen.getByRole('button', { name: m.gen_worst_apply() }));
+      fireEvent.click(screen.getByRole('button', { name: m.gen_worst_rescan() }));
+
+      expect(builderDrop()).toBeInTheDocument();
+    });
+
+    it('takes a screenshot pasted while the zone has the focus', async () => {
+      await renderPage();
+      ocr.text = SCREENSHOT;
+      const file = new File(['screenshot'], 'screen-time.png', { type: 'image/png' });
+
+      await act(async () => {
+        builderDrop().focus();
+      });
+      await act(async () => {
+        fireEvent.paste(document, { clipboardData: { files: [file] } });
+      });
+
+      expect(await screen.findByText(m.gen_worst_found())).toBeInTheDocument();
+    });
+
+    it('hands a name it found nothing for to the search bar', async () => {
+      fetchMock.mockImplementation(async (input: string, init?: RequestInit) =>
+        input.includes('/search') ? new Response('', { status: 500 }) : answer(input, init),
+      );
+      await renderPage();
+
+      await dropScreenshot(builderDrop(), 'MOST USED\nDuolingo\n14m');
+
+      const unknown = await screen.findByRole('button', { name: m.gen_worst_unknown() });
+      fireEvent.click(unknown);
+
+      expect(searchInput()).toHaveValue('Duolingo');
+    });
+
+    it('says so when there is no list on the screenshot', async () => {
+      await renderPage();
+
+      await dropScreenshot(builderDrop(), 'Screen Time\nSHOW CATEGORIES');
+
+      expect(screen.getByText(m.gen_worst_failed())).toBeInTheDocument();
+      expect(builderDrop()).toBeInTheDocument();
+    });
+
+    it('leaves the recommended list alone when the screenshot is skipped', async () => {
+      await renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: m.gen_worst_skip() }));
+
+      expect(screen.queryByRole('button', { name: m.gen_worst_drop() })).not.toBeInTheDocument();
+      expect(screen.getAllByRole('button', { name: m.gen_app_remove() })).toHaveLength(
+        BLOCKED_APPS,
+      );
+    });
   });
 });
