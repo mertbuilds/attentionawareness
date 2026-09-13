@@ -61,7 +61,7 @@ import { playCheckout, playStep } from '../lib/sounds.ts';
 import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
 import { useIsMobile } from '../lib/use-is-mobile.ts';
 import { useShow } from '../lib/use-show.ts';
-import type { Entered } from '../lib/use-show.ts';
+import type { Bill, Entered } from '../lib/use-show.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
 
@@ -82,10 +82,20 @@ const DISPLAY_SIZE = 'clamp(32px, 3.8vw, 44px)';
  * semibold in the Inter Variable fallback.
  */
 const HEADING_WEIGHT = 600;
-/** The air between two sections, wider than anything inside one. */
-const SECTION_GAP = spacing.s16;
-/** The four places the page links to itself, and the ids those links use. */
-const WHY_ID = 'why';
+/**
+ * The air between two sections, wider than anything inside one. The 4px scale
+ * stops at 64px, and one idea per screen needs more than that between two of
+ * them, so the page's widest gap is the one measure written out here.
+ */
+const SECTION_GAP = '96px';
+/**
+ * How wide a line on the first screen is allowed to get. The column itself is
+ * the page's, so every left edge lines up; this is how much of it a sentence
+ * takes, which is less, because these are read rather than scanned.
+ */
+const HERO_MEASURE = 640;
+/** The four places on the page that can be linked to, and the ids they use. */
+const STORY_ID = 'story';
 const CHANGES_ID = 'changes';
 const HOW_ID = 'how';
 const BUILD_ID = 'build';
@@ -98,6 +108,14 @@ const SUPERVISE_URL = '/supervise';
 const PERMITTED_INPUT_ID = 'permitted-urls';
 const ALLOWED_INPUT_ID = 'allowed-urls';
 const READING_SPEED_URL = 'https://doi.org/10.1016/j.jml.2019.104047';
+/** The post this started from, linked out of the paragraph that tells it. */
+const STORY_URL = 'https://stopa.io/post/297';
+/**
+ * Where a link stands inside a sentence. The message is written with the link
+ * as a placeholder and split on it, so the words around it keep their own
+ * order and spacing in every language instead of being stitched from pieces.
+ */
+const LINK_SLOT = '\u0000';
 /**
  * The clip that shows where the real number lives, one recording per locale.
  * The video wins when the reader's locale has one, English stands in when it
@@ -122,6 +140,16 @@ const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
  * screen reader and is the one string here that is not a message.
  */
 const RECEIPT_BARCODE = '▌▐▌▌▐▌▐▐▌▌▐▌▐▌▌▐▌▐▐▌▌▐▌▐▌';
+/**
+ * What the bill prints once its items are down, and in what order: the
+ * subtotal, the tax that explains the total, the total itself, and the lines a
+ * receipt ends on. Each is an offset from the last item row, because how many
+ * item rows there are is the day's to decide.
+ */
+const RECEIPT_SUBTOTAL = 1;
+const RECEIPT_TAX = 2;
+const RECEIPT_TOTAL = 3;
+const RECEIPT_FOOT = 4;
 /** How long an armed Remove waits for its second click before standing down. */
 const REMOVE_CONFIRM_MS = 3000;
 /**
@@ -342,36 +370,34 @@ const styles = create({
     maxWidth: 760,
     width: '100%',
   },
-  // Three equal columns of one number and the word under it; on a phone they
-  // stack, so a tile is never narrower than the value it holds.
-  dealGrid: {
-    display: 'grid',
-    gap: spacing.s6,
-    gridTemplateColumns: {
-      '@media (min-width: 640px)': 'repeat(3, 1fr)',
-      default: '1fr',
-    },
-  },
   dealLabel: {
     color: colors.muted,
     fontSize: font.sizeSm,
     lineHeight: 1.4,
-    margin: 0,
     textWrap: 'pretty',
   },
-  dealTile: {
+  // One number and the word it means, on one line. Three of them stacked are
+  // the whole deal, and nothing is drawn around any of them.
+  dealLine: {
+    alignItems: 'baseline',
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: spacing.s3,
+  },
+  dealList: {
     display: 'flex',
     flexDirection: 'column',
-    gap: spacing.s1,
+    gap: spacing.s3,
+    listStyleType: 'none',
+    margin: 0,
+    padding: 0,
   },
   dealValue: {
     color: colors.fg,
-    fontSize: 40,
+    fontSize: font.sizeLg,
     fontVariantNumeric: 'tabular-nums',
-    fontWeight: font.weightMedium,
-    letterSpacing: '-0.02em',
-    lineHeight: 1.1,
-    margin: 0,
+    fontWeight: HEADING_WEIGHT,
+    lineHeight: 1.2,
   },
   defDesc: {
     color: colors.muted,
@@ -387,6 +413,16 @@ const styles = create({
     fontWeight: font.weightMedium,
     lineHeight: 1.5,
     textWrap: 'pretty',
+  },
+  // Step 2 asks for a screenshot first. Until the reader has taken that up or
+  // waved it off, what follows is on the page but is not yet the thing to read.
+  dimmed: {
+    opacity: 0.5,
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: '150ms',
+    },
+    transitionProperty: 'opacity',
   },
   // The line the icon fan is set into. It is the section's picture, not its
   // heading, so it sits one step under the h2 above it; the line box is tall
@@ -452,13 +488,6 @@ const styles = create({
     paddingInline: spacing.s1,
     textAlign: 'center',
     width: 64,
-  },
-  // What the reader said, kept in sight over the bill it was priced into.
-  gateEntered: {
-    color: colors.muted,
-    fontFamily: MONOSPACE,
-    fontSize: 13,
-    margin: 0,
   },
   // A correction, not a telling-off: it says the range and stays quiet.
   gateError: {
@@ -614,28 +643,19 @@ const styles = create({
     position: 'relative',
     verticalAlign: 'middle',
   },
-  // The first screen, whole: the question, the line the answer earns, and the
-  // bill for it. Wide enough for two columns,
-  // the bill stands beside the other four and holds the eye; under that they
-  // fall into one column and it keeps its place between the line and the
-  // pitch. Same column as `content`, so both share a left edge.
+  // The first screen, whole, and one thing at a time down it: the question,
+  // then the line the answer earns, then the bill for it, then what to do
+  // about it. One column at every width, because the order is the argument.
+  // The same box as `content`, so the whole page keeps one left edge; what
+  // stands in it is narrower, because a line this size is read, not scanned.
   hero: {
-    alignItems: 'start',
-    columnGap: spacing.s8,
-    display: 'grid',
-    gridTemplateAreas: {
-      '@media (min-width: 900px)': '"title receipt" "gate receipt" "truth receipt" "pitch receipt"',
-      default: '"title" "gate" "truth" "receipt" "pitch"',
-    },
-    gridTemplateColumns: {
-      '@media (min-width: 900px)': '1.1fr 0.9fr',
-      default: '1fr',
-    },
-    maxWidth: 760,
-    rowGap: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: {
       '@media (min-width: 640px)': spacing.s6,
       default: spacing.s4,
     },
+    maxWidth: 760,
     width: '100%',
   },
   // What the reader does next, and the one sentence that says what it is.
@@ -645,35 +665,16 @@ const styles = create({
     flexWrap: 'wrap',
     gap: spacing.s4,
   },
-  // The bill and the arithmetic behind it, as one block of the hero grid.
+  // The bill, narrower than the column it prints in, on its left edge.
   heroAside: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s3,
-    gridArea: 'receipt',
     maxWidth: 460,
     width: '100%',
-  },
-  // The same grid before the question is answered: the gate is all there is
-  // under the title, so the rows nothing is standing in are not held open.
-  heroClosed: {
-    gridTemplateAreas: {
-      '@media (min-width: 900px)': '"title" "gate"',
-      default: '"title" "gate"',
-    },
-    gridTemplateColumns: {
-      '@media (min-width: 900px)': '1fr',
-      default: '1fr',
-    },
-  },
-  heroGate: {
-    gridArea: 'gate',
   },
   heroPitch: {
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s4,
-    gridArea: 'pitch',
+    maxWidth: HERO_MEASURE,
   },
   heroProduct: {
     color: colors.muted,
@@ -682,6 +683,13 @@ const styles = create({
     margin: 0,
     maxWidth: '46ch',
     textWrap: 'pretty',
+  },
+  // The two asides the bill leaves behind: how it was worked out, and whether
+  // it counts itself out loud. Both are quiet, and both are under the way on.
+  heroQuiet: {
+    alignItems: 'center',
+    display: 'flex',
+    gap: spacing.s3,
   },
   // The way past the button, for a reader who wants the price in time first.
   heroSecondary: {
@@ -701,19 +709,60 @@ const styles = create({
       default: 28,
     },
     fontWeight: HEADING_WEIGHT,
-    gridArea: 'title',
     letterSpacing: '-0.02em',
     lineHeight: 1.1,
     margin: 0,
+    maxWidth: HERO_MEASURE,
     textWrap: 'balance',
   },
-  // The line the show lands on, with the speaker at the end of it: the sound
-  // belongs to the line it is counted out over, not to a control of its own.
-  heroTruth: {
-    alignItems: 'start',
+  // The question, once it has been answered: the heading steps back to the one
+  // muted line that quotes the answer, so the line under it is the only thing
+  // on the screen at a size worth reading.
+  heroTitleSaid: {
+    color: colors.muted,
+    fontFamily: MONOSPACE,
+    fontSize: 13,
+    fontWeight: font.weightRegular,
+    letterSpacing: 'normal',
+    lineHeight: 1.4,
+  },
+  howBody: {
+    color: colors.muted,
+    fontSize: font.sizeMd,
+    lineHeight: 1.5,
+    margin: 0,
+    maxWidth: '60ch',
+    textWrap: 'pretty',
+  },
+  // Four steps, one under the other, with nothing drawn around any of them:
+  // the order is what makes them steps.
+  howList: {
     display: 'flex',
-    gap: spacing.s4,
-    gridArea: 'truth',
+    flexDirection: 'column',
+    gap: spacing.s6,
+    listStyleType: 'none',
+    margin: 0,
+    padding: 0,
+  },
+  // The count, in the till's own face: it numbers the step and says nothing.
+  howNumber: {
+    color: colors.muted,
+    fontFamily: MONOSPACE,
+    fontSize: 12,
+    fontVariantNumeric: 'tabular-nums',
+    lineHeight: 1.4,
+  },
+  howStep: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s1,
+  },
+  howTitle: {
+    fontSize: 18,
+    fontWeight: HEADING_WEIGHT,
+    lineHeight: 1.3,
+    margin: 0,
+    textWrap: 'pretty',
   },
   // The page's one caption: the small line that names the group under it.
   label: {
@@ -943,13 +992,27 @@ const styles = create({
     flexDirection: 'column',
     gap: spacing.s2,
   },
-  proofGrid: {
-    display: 'grid',
-    gap: spacing.s3,
-    gridTemplateColumns: {
-      '@media (min-width: 640px)': 'repeat(3, 1fr)',
-      default: '1fr',
-    },
+  // What each of the three says first, which is the claim; the rest of the
+  // line is what backs it.
+  proofLead: {
+    color: colors.fg,
+    fontWeight: font.weightBold,
+  },
+  proofLine: {
+    color: colors.muted,
+    fontSize: font.sizeMd,
+    lineHeight: 1.6,
+    margin: 0,
+    maxWidth: '60ch',
+    textWrap: 'pretty',
+  },
+  proofList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s4,
+    listStyleType: 'none',
+    margin: 0,
+    padding: 0,
   },
   // One cited line inside the research box, and the whole line is the source.
   researchLink: {
@@ -1085,6 +1148,16 @@ const styles = create({
     lineHeight: 1.5,
     margin: 0,
     textWrap: 'pretty',
+  },
+  // Everything under the items arriving the way an item row does, because the
+  // till prints the whole bill one line at a time and these are lines too.
+  receiptPrint: {
+    animationDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: '240ms',
+    },
+    animationName: receiptEnter,
+    animationTimingFunction: 'ease-out',
   },
   // The rate a row was billed at: the smallest thing on the bill, and smaller
   // still on a phone, where the item and the amount need the width more.
@@ -1474,7 +1547,8 @@ const styles = create({
     height: 40,
     width: '100%',
   },
-  // The speaker is a hint, not a headline: it only colours up on hover.
+  // The speaker is a hint, not a headline: it only colours up on hover, and it
+  // sits in the quiet row under the way on, at the size of the text beside it.
   soundButton: {
     alignItems: 'center',
     backgroundColor: 'transparent',
@@ -1487,29 +1561,37 @@ const styles = create({
     cursor: 'pointer',
     display: 'flex',
     flexShrink: 0,
-    height: 40,
+    height: 20,
     justifyContent: 'center',
     padding: 0,
-    width: 40,
+    width: 20,
   },
   soundGlyph: {
     display: 'block',
-    height: 18,
-    width: 18,
+    height: 16,
+    width: 16,
   },
-  stepBody: {
-    color: colors.muted,
-    lineHeight: 1.5,
+  // The story is told, not pitched: one column of plain paragraphs, set wider
+  // apart and looser than anything else on the page.
+  story: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s4,
+    maxWidth: 640,
+  },
+  storyLine: {
+    fontSize: 18,
+    lineHeight: 1.7,
     margin: 0,
     textWrap: 'pretty',
   },
-  stepGrid: {
-    display: 'grid',
-    gap: spacing.s3,
-    gridTemplateColumns: {
-      '@media (min-width: 640px)': '1fr 1fr',
-      default: '1fr',
-    },
+  // Who wrote it, and from where. It is a signature, so it is the quietest
+  // line in the section.
+  storySign: {
+    color: colors.muted,
+    fontSize: font.sizeSm,
+    lineHeight: 1.5,
+    margin: 0,
   },
   // The small caption and the title it names, as one block over a step.
   stepHeader: {
@@ -1646,44 +1728,29 @@ const styles = create({
     animationName: truthEnter,
     animationTimingFunction: 'ease-out',
   },
-  // Three lines of it are held open whatever the hour says, so the bill beside
-  // it never moves while the show counts itself out.
+  // Where the line settles once the climb is over: a caption over the bill,
+  // which is the thing to read from then on.
   truthLine: {
-    flexGrow: 1,
-    fontSize: {
-      '@media (min-width: 640px)': font.sizeLg,
-      default: 18,
-    },
-    fontWeight: font.weightMedium,
-    lineHeight: 1.3,
-    margin: 0,
-    minHeight: '3.9em',
-    minWidth: 0,
-    textWrap: 'pretty',
-  },
-  // The line that closes the argument, one step over the three that make it.
-  whyClose: {
     fontSize: font.sizeLg,
     fontWeight: font.weightMedium,
     lineHeight: 1.4,
     margin: 0,
+    maxWidth: HERO_MEASURE,
     textWrap: 'pretty',
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: '300ms',
+    },
+    transitionProperty: 'font-size, line-height',
+    transitionTimingFunction: 'ease-out',
   },
-  whyLine: {
-    fontSize: 18,
-    lineHeight: 1.5,
-    margin: 0,
-    textWrap: 'pretty',
-  },
-  // Three statements, not three items: the list holds them apart and marks
-  // none of them.
-  whyList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s4,
-    listStyleType: 'none',
-    margin: 0,
-    padding: 0,
+  // While the day is being counted out the line is the whole screen, so it is
+  // set in the one display size the page has.
+  truthShowing: {
+    fontSize: DISPLAY_SIZE,
+    fontWeight: HEADING_WEIGHT,
+    letterSpacing: '-0.02em',
+    lineHeight: 1.15,
   },
 });
 
@@ -1753,6 +1820,19 @@ function withDerivedSites(
       permittedUrls: filter.permittedUrls.filter((url) => !off.has(url)),
     },
   };
+}
+
+/**
+ * The bill one answer prints: a line per item the day earns, then the subtotal,
+ * the tax, the total the till rings and the lines a receipt ends on. The show
+ * needs the shape of it before a single line of it is on the page.
+ */
+function billFor(entered: Entered): Bill {
+  const items = receiptLines(
+    entered.hours + entered.minutes / MINUTES_PER_HOUR,
+    getLocale(),
+  ).length;
+  return { lines: items + RECEIPT_FOOT, total: items + RECEIPT_TOTAL };
 }
 
 /**
@@ -2737,14 +2817,17 @@ function Generator() {
   // The answer as it was given, which is what the small line over the bill
   // quotes back and what the gate holds when it is reopened.
   const [entered, setEntered] = useState<Entered | null>(null);
-  // The three states of the first screen: the question alone, the show, and
-  // the bill standing. `revealed` is everything the answer buys; `settled` is
-  // the pitch, which waits until the bill has finished printing.
+  // The four states of the first screen, in the order the reader meets them:
+  // the question alone, the line being counted out, the bill printing itself
+  // under the line it settled on, and the way on under the bill.
   const [gateOpen, setGateOpen] = useState(true);
   const [revealed, setRevealed] = useState(false);
+  const [arrived, setArrived] = useState(false);
   const [settled, setSettled] = useState(false);
-  // The total takes its hit once, when the show rings it up.
-  const [pulse, setPulse] = useState(false);
+  // How many lines of the bill have printed, or `null` when the whole of it is
+  // standing: a shared link, a reader who asked for less motion, and every
+  // answer after the first are all handed the bill rather than shown it.
+  const [printed, setPrinted] = useState<number | null>(null);
   // The show counts itself out loud by default, and remembers the answer once
   // the reader gives one. `soundChosen` is what separates the default from it.
   const [sound, setSound] = useState(true);
@@ -2777,6 +2860,10 @@ function Generator() {
   // StyleX cannot reach `details[open] > summary`, so the chevron is turned
   // from React and the element itself stays the source of truth.
   const [moreOpen, setMoreOpen] = useState(false);
+  // Step 2 opens on the screenshot picker, and what follows it is the list the
+  // picker fills in. Until the reader has used it or waved it off, the rest of
+  // the step steps back: it is there, and it is not the thing to read yet.
+  const [pickerUsed, setPickerUsed] = useState(false);
   // There is nothing to brag about until a profile has left the page.
   const [generated, setGenerated] = useState(false);
   // The second gate, on the download alone: an installed profile comes off an
@@ -2857,20 +2944,23 @@ function Generator() {
     );
   }, [storefrontQuery]);
 
-  // The bill being rung up, an hour at a time, against the answer the reader
-  // just gave. Nothing on the page can skip it: it is the one thing the reader
-  // came for, and they watch their own day being counted out.
+  // The day being counted out an hour at a time, and then billed for, one
+  // line at a time, against the answer the reader just gave. Nothing on the
+  // page can skip it: it is the one thing the reader came for.
   const { start: startShow } = useShow({
-    onSettle: (answer, shown) => {
+    onArrive: (answer, shown) => {
       setMinutes(answer.minutes);
-      if (shown) {
-        setPulse(true);
-        if (tickAllowed(sound, soundChosen)) {
-          playCheckout();
-        }
-      }
-      setSettled(true);
+      setArrived(true);
+      // Less motion is the whole bill at once, and no till.
+      setPrinted(shown ? 0 : null);
     },
+    onPrint: (line, bill) => {
+      setPrinted(line);
+      if (line === bill.total && tickAllowed(sound, soundChosen)) {
+        playCheckout();
+      }
+    },
+    onSettle: () => setSettled(true),
     onStep: (value, total) => {
       setHours(value);
       if (tickAllowed(sound, soundChosen)) {
@@ -2900,6 +2990,7 @@ function Generator() {
       setEntered({ hours: shared.hours, minutes: past });
       setGateOpen(false);
       setRevealed(true);
+      setArrived(true);
       setSettled(true);
       setFriendYears(formatYears(shared.hours + past / MINUTES_PER_HOUR));
     }
@@ -3050,13 +3141,15 @@ function Generator() {
     setEntered(answer);
     setGateOpen(false);
     if (revealed) {
-      // The show is a first impression: a correction only reprints the bill.
+      // The show is a first impression: a correction reprints the bill whole,
+      // because the reader has already watched one print itself.
       setHours(Math.min(Math.max(answer.hours, HOURS_MIN), HOURS_MAX));
       setMinutes(answer.minutes);
+      setPrinted(null);
       return;
     }
     setRevealed(true);
-    startShow(answer);
+    startShow(answer, billFor(answer));
   }
 
   function toggleSound() {
@@ -3140,6 +3233,7 @@ function Generator() {
    * the blocked list itself, so there is nothing else to merge.
    */
   function applyScanned(apps: ReadonlyArray<ScannedApp>) {
+    setPickerUsed(true);
     setMeta((current) => {
       const next = { ...current };
       for (const app of apps) {
@@ -3426,6 +3520,16 @@ function Generator() {
   const years = totals.years;
   const receiptNo = receiptNumber(exactHours, printedAt);
   const printedOn = receiptDate(printedAt, locale);
+  // Where the printer has got to. `null` is the whole bill, so a reader who was
+  // handed it rather than shown it is past every one of these.
+  const subtotalPrinted = printed === null || printed >= receipt.length + RECEIPT_SUBTOTAL;
+  const taxPrinted = printed === null || printed >= receipt.length + RECEIPT_TAX;
+  const totalPrinted = printed === null || printed >= receipt.length + RECEIPT_TOTAL;
+  const footPrinted = printed === null || printed >= receipt.length + RECEIPT_FOOT;
+  const items = printed === null ? receipt : receipt.slice(0, printed);
+  // The post the story links out to, in the middle of the sentence that tells
+  // it, so the words around it keep their own order in every language.
+  const [storyBefore, storyAfter] = m.home_story_2({ post: LINK_SLOT }).split(LINK_SLOT);
 
   // What the whole thing costs, as three numbers and the word each one means.
   const dealTiles = [
@@ -3458,6 +3562,7 @@ function Generator() {
     { desc: m.home_faq_mac_desc(), term: m.home_faq_mac_term() },
     { desc: m.home_faq_android_desc(), term: m.home_faq_android_term() },
     { desc: m.home_faq_windows_desc(), term: m.home_faq_windows_term() },
+    { desc: m.home_faq_who_desc(), term: m.home_faq_who_term() },
   ];
 
   return (
@@ -3480,16 +3585,17 @@ function Generator() {
           average, and nothing else; the line and the bill are what taking or
           correcting that figure buys, and the show runs the bill up first.
           Another number is another answer: the gate is the only way to one. */}
-      <header {...props(styles.hero, !revealed && styles.heroClosed)}>
-        <h1 {...props(styles.heroTitle)}>
-          {m.home_hero_title()}
-          <ScreenTimeHelp />
-        </h1>
-        <div {...props(styles.heroGate)}>
-          {gateOpen ? (
-            <ScreenTimeGate entered={entered} onSubmit={onGateSubmit} />
-          ) : entered === null ? null : (
-            <p {...props(styles.gateEntered)}>
+      <header {...props(styles.hero)}>
+        {/* The question until it is answered, and the answer after that: one
+        heading, holding whichever of the two the reader is on. */}
+        <h1 {...props(styles.heroTitle, !gateOpen && entered !== null && styles.heroTitleSaid)}>
+          {gateOpen || entered === null ? (
+            <>
+              {m.home_hero_title()}
+              <ScreenTimeHelp />
+            </>
+          ) : (
+            <>
               {m.home_gate_entered({ hours: entered.hours, minutes: entered.minutes })}
               {/* No way back out of the show: it opens once it has finished. */}
               {settled ? (
@@ -3501,52 +3607,31 @@ function Generator() {
                   {m.home_gate_change()}
                 </button>
               ) : null}
-            </p>
+            </>
           )}
-        </div>
+        </h1>
+        {gateOpen ? <ScreenTimeGate entered={entered} onSubmit={onGateSubmit} /> : null}
         {revealed ? (
           <>
             {/* One sentence for the hour the show is on, and the whole sentence
             is the blow: nothing in it is coloured, and nothing is a figure the
-            reader has to read off a control. The live region stays put so the
-            swap is announced; only the line inside it is remounted, and that
-            is what fades the new one up over the old. The speaker rides at the
-            end of it, because the sound is this line being counted out. */}
-            <div {...props(styles.heroTruth, styles.reveal)}>
-              <p aria-live="polite" {...props(styles.truthLine)}>
-                <span key={wholeHours} {...props(styles.truth)}>
-                  {truth}
-                </span>
-              </p>
-              <button
-                aria-label={m.home_math_sound_label()}
-                aria-pressed={sound}
-                onClick={toggleSound}
-                type="button"
-                {...props(styles.soundButton)}
-              >
-                <svg aria-hidden="true" viewBox="0 0 18 18" {...props(styles.soundGlyph)}>
-                  <path d="M4 7H2v4h2l3.5 3V4L4 7Z" fill="currentColor" />
-                  {sound ? (
-                    <path
-                      d="M10.5 6.5a3.4 3.4 0 0 1 0 5"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeLinecap="round"
-                      strokeWidth="1.4"
-                    />
-                  ) : (
-                    <path
-                      d="m10.5 6.5 4 5m0-5-4 5"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeLinecap="round"
-                      strokeWidth="1.4"
-                    />
-                  )}
-                </svg>
-              </button>
-            </div>
+            reader has to read off a control. While the day is being counted out
+            it is the only thing on the screen, at the page's display size; when
+            the climb lands it settles to a caption over the bill. The live
+            region stays put so the swap is announced; only the line inside it
+            is remounted, and that is what fades the new one up over the old. */}
+            <p
+              aria-live="polite"
+              {...props(styles.truthLine, !arrived && styles.truthShowing, styles.reveal)}
+            >
+              <span key={wholeHours} {...props(styles.truth)}>
+                {truth}
+              </span>
+            </p>
+          </>
+        ) : null}
+        {arrived ? (
+          <>
             <div {...props(styles.heroAside, styles.reveal)}>
               <div {...props(styles.receipt)}>
                 <div {...props(styles.receiptHead)}>
@@ -3571,8 +3656,10 @@ function Generator() {
                   <span {...props(styles.receiptColumn, styles.receiptColumnAmount)}>
                     {m.home_receipt_col_amount()}
                   </span>
+                  {/* The items, as far as the printer has got: one row a beat,
+                  in the order the day earned them. */}
                   <ul {...props(styles.receiptList)}>
-                    {receipt.map((line) => (
+                    {items.map((line) => (
                       <li key={line.key} {...props(styles.receiptRow)}>
                         <span>{line.label}</span>
                         <span {...props(styles.receiptQty)}>{line.qty}</span>
@@ -3581,49 +3668,101 @@ function Generator() {
                     ))}
                   </ul>
                 </div>
-                <div aria-hidden="true" {...props(styles.receiptRule)} />
-                <div {...props(styles.receiptSums)}>
-                  <p {...props(styles.receiptSum)}>
-                    <span>{m.home_receipt_subtotal()}</span>
-                    <span {...props(styles.receiptValue)}>
-                      {m.home_receipt_hours_value({ hours: totals.hours })}
-                    </span>
-                  </p>
-                  {/* Why the hours come out as so few years: only the waking
-                  ones were ever the reader's to spend. */}
-                  <p {...props(styles.receiptSum, styles.receiptTax)}>
-                    <span>{m.home_receipt_tax()}</span>
-                    <span>{m.home_receipt_tax_value()}</span>
-                  </p>
-                  <p {...props(styles.receiptTotal)}>
-                    <span {...props(styles.receiptTotalLabel)}>{m.home_receipt_total_label()}</span>
-                    <span {...props(styles.receiptTotalValue, pulse && styles.receiptTotalPulse)}>
-                      {m.home_receipt_total_value({ years })}
-                    </span>
-                  </p>
-                </div>
-                <div aria-hidden="true" {...props(styles.receiptRule)} />
-                <div {...props(styles.receiptFoot)}>
-                  <p {...props(styles.receiptFootLine)}>{m.home_receipt_paid()}</p>
-                  <p {...props(styles.receiptFootLine)}>{m.home_receipt_no_refunds()}</p>
-                  <p aria-hidden="true" {...props(styles.receiptBarcode)}>
-                    {RECEIPT_BARCODE}
-                  </p>
-                  <p {...props(styles.receiptThanks)}>{m.home_receipt_thanks()}</p>
-                </div>
+                {subtotalPrinted ? (
+                  <>
+                    <div aria-hidden="true" {...props(styles.receiptRule)} />
+                    <div {...props(styles.receiptSums)}>
+                      <p {...props(styles.receiptSum, styles.receiptPrint)}>
+                        <span>{m.home_receipt_subtotal()}</span>
+                        <span {...props(styles.receiptValue)}>
+                          {m.home_receipt_hours_value({ hours: totals.hours })}
+                        </span>
+                      </p>
+                      {/* Why the hours come out as so few years: only the waking
+                      ones were ever the reader's to spend. */}
+                      {taxPrinted ? (
+                        <p {...props(styles.receiptSum, styles.receiptTax, styles.receiptPrint)}>
+                          <span>{m.home_receipt_tax()}</span>
+                          <span>{m.home_receipt_tax_value()}</span>
+                        </p>
+                      ) : null}
+                      {/* The line the whole bill adds up to. It prints last of
+                      the three, which is when the till rings. */}
+                      {totalPrinted ? (
+                        <p {...props(styles.receiptTotal, styles.receiptPrint)}>
+                          <span {...props(styles.receiptTotalLabel)}>
+                            {m.home_receipt_total_label()}
+                          </span>
+                          <span
+                            {...props(
+                              styles.receiptTotalValue,
+                              printed !== null && styles.receiptTotalPulse,
+                            )}
+                          >
+                            {m.home_receipt_total_value({ years })}
+                          </span>
+                        </p>
+                      ) : null}
+                    </div>
+                  </>
+                ) : null}
+                {footPrinted ? (
+                  <>
+                    <div aria-hidden="true" {...props(styles.receiptRule)} />
+                    <div {...props(styles.receiptFoot, styles.receiptPrint)}>
+                      <p {...props(styles.receiptFootLine)}>{m.home_receipt_paid()}</p>
+                      <p {...props(styles.receiptFootLine)}>{m.home_receipt_no_refunds()}</p>
+                      <p aria-hidden="true" {...props(styles.receiptBarcode)}>
+                        {RECEIPT_BARCODE}
+                      </p>
+                      <p {...props(styles.receiptThanks)}>{m.home_receipt_thanks()}</p>
+                    </div>
+                  </>
+                ) : null}
               </div>
-              <AssumptionsNote />
             </div>
-            {/* What the bill is for, and the two ways on from it. It arrives when
-            the show is over: there is nothing to sell until the bill is read. */}
+            {/* What the bill is for, and the two ways on from it. It arrives a
+            beat after the total: there is nothing to sell until the bill has
+            landed. The arithmetic and the speaker follow it, quieter still. */}
             {settled ? (
               <div {...props(styles.heroPitch, styles.reveal)}>
                 <p {...props(styles.heroProduct)}>{m.home_hero_product()}</p>
                 <div {...props(styles.heroActions)}>
                   <Button render={<a href={`#${BUILD_ID}`} />}>{m.home_hero_cta()}</Button>
-                  <a href={`#${HOW_ID}`} {...props(styles.heroSecondary)}>
+                  <a href={`#${STORY_ID}`} {...props(styles.heroSecondary)}>
                     {m.home_hero_secondary()}
                   </a>
+                </div>
+                <div {...props(styles.heroQuiet)}>
+                  <AssumptionsNote />
+                  <button
+                    aria-label={m.home_math_sound_label()}
+                    aria-pressed={sound}
+                    onClick={toggleSound}
+                    type="button"
+                    {...props(styles.soundButton)}
+                  >
+                    <svg aria-hidden="true" viewBox="0 0 18 18" {...props(styles.soundGlyph)}>
+                      <path d="M4 7H2v4h2l3.5 3V4L4 7Z" fill="currentColor" />
+                      {sound ? (
+                        <path
+                          d="M10.5 6.5a3.4 3.4 0 0 1 0 5"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeLinecap="round"
+                          strokeWidth="1.4"
+                        />
+                      ) : (
+                        <path
+                          d="m10.5 6.5 4 5m0-5-4 5"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeLinecap="round"
+                          strokeWidth="1.4"
+                        />
+                      )}
+                    </svg>
+                  </button>
                 </div>
               </div>
             ) : null}
@@ -3632,14 +3771,24 @@ function Generator() {
       </header>
 
       <div {...props(styles.content)}>
-        <section {...props(styles.section, styles.anchor)} id={WHY_ID}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_why_title()}</h2>
-          <ul {...props(styles.whyList)}>
-            <li {...props(styles.whyLine)}>{m.home_why_1()}</li>
-            <li {...props(styles.whyLine)}>{m.home_why_2()}</li>
-            <li {...props(styles.whyLine)}>{m.home_why_3()}</li>
-          </ul>
-          <p {...props(styles.whyClose)}>{m.home_why_close()}</p>
+        {/* Who made this and why, told rather than argued. It is the only
+        place on the page that speaks in the first person. */}
+        <section {...props(styles.section, styles.anchor)} id={STORY_ID}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_story_title()}</h2>
+          <div {...props(styles.story)}>
+            <p {...props(styles.storyLine)}>{m.home_story_1()}</p>
+            <p {...props(styles.storyLine)}>
+              {storyBefore}
+              <a href={STORY_URL} rel="noreferrer" target="_blank">
+                {m.home_story_2_link()}
+              </a>
+              {storyAfter}
+            </p>
+            <p {...props(styles.storyLine)}>{m.home_story_3()}</p>
+            <p {...props(styles.storyLine)}>{m.home_story_4()}</p>
+            <p {...props(styles.storyLine)}>{m.home_story_5()}</p>
+            <p {...props(styles.storySign)}>{m.home_story_sign()}</p>
+          </div>
         </section>
 
         <section {...props(styles.section, styles.anchor)} id={CHANGES_ID}>
@@ -3659,51 +3808,45 @@ function Generator() {
 
         <section {...props(styles.section, styles.anchor)} id={HOW_ID}>
           <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
-          <div {...props(styles.stepGrid)}>
+          <ol {...props(styles.howList)}>
             {howItWorks.map((step, index) => (
-              <Card key={step.title}>
-                <CardHeader>
-                  <CardTitle>{m.home_step_heading({ n: index + 1, title: step.title })}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p {...props(styles.stepBody)}>{step.body}</p>
-                  {step.guide ? (
-                    <a href={SUPERVISE_URL} {...props(styles.stepLink)}>
-                      {m.gen_supervise_link()}
-                    </a>
-                  ) : null}
-                </CardContent>
-              </Card>
+              <li key={step.title} {...props(styles.howStep)}>
+                <span {...props(styles.howNumber)}>{index + 1}</span>
+                <h3 {...props(styles.howTitle)}>{step.title}</h3>
+                <p {...props(styles.howBody)}>{step.body}</p>
+                {step.guide ? (
+                  <a href={SUPERVISE_URL} {...props(styles.stepLink)}>
+                    {m.gen_supervise_link()}
+                  </a>
+                ) : null}
+              </li>
             ))}
-          </div>
+          </ol>
         </section>
 
         <section {...props(styles.section)}>
           <h2 {...props(styles.label)}>{m.home_deal_label()}</h2>
-          <div {...props(styles.dealGrid)}>
+          <ul {...props(styles.dealList)}>
             {dealTiles.map((tile) => (
-              <div key={tile.label} {...props(styles.dealTile)}>
-                <p {...props(styles.dealValue)}>{tile.value}</p>
-                <p {...props(styles.dealLabel)}>{tile.label}</p>
-              </div>
+              <li key={tile.label} {...props(styles.dealLine)}>
+                <span {...props(styles.dealValue)}>{tile.value}</span>
+                <span {...props(styles.dealLabel)}>{tile.label}</span>
+              </li>
             ))}
-          </div>
+          </ul>
         </section>
 
         <section {...props(styles.section)}>
           <h2 {...props(styles.sectionTitle)}>{m.home_proof_title()}</h2>
-          <div {...props(styles.proofGrid)}>
+          <ul {...props(styles.proofList)}>
             {proofPoints.map((point) => (
-              <Card key={point.title}>
-                <CardHeader>
-                  <CardTitle>{point.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p {...props(styles.stepBody)}>{point.body}</p>
-                </CardContent>
-              </Card>
+              <li key={point.title}>
+                <p {...props(styles.proofLine)}>
+                  <span {...props(styles.proofLead)}>{point.title}</span> {point.body}
+                </p>
+              </li>
             ))}
-          </div>
+          </ul>
         </section>
 
         <section {...props(styles.section, styles.anchor)} id={BUILD_ID}>
@@ -3722,9 +3865,14 @@ function Generator() {
           <h2 {...props(styles.sectionTitle)}>{m.gen_step2_title()}</h2>
         </div>
 
-        <WorstApps country={country} onApply={applyScanned} onSearch={searchFor} />
+        <WorstApps
+          country={country}
+          onApply={applyScanned}
+          onSearch={searchFor}
+          onSkip={() => setPickerUsed(true)}
+        />
 
-        <section {...props(styles.section)}>
+        <section {...props(styles.section, !pickerUsed && styles.dimmed)}>
           <h2 {...props(styles.sectionTitle)}>{m.home_apps_title()}</h2>
           <p {...props(layout.muted)}>
             {m.home_apps_subtitle()}{' '}
