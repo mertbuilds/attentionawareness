@@ -700,7 +700,6 @@ describe('Generator', () => {
   it('tells the reader who built this and why, and what changes', async () => {
     await renderPage();
 
-    expect(screen.getByText(m.home_story_1())).toBeInTheDocument();
     expect(screen.getByText(m.home_story_3())).toBeInTheDocument();
     expect(screen.getByText(m.home_story_4())).toBeInTheDocument();
     expect(screen.getByText(m.home_story_5())).toBeInTheDocument();

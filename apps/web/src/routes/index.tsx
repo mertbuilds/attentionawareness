@@ -3660,7 +3660,6 @@ function Generator() {
         <section {...props(styles.section, styles.anchor)} id={STORY_ID}>
           <h2 {...props(styles.sectionTitle)}>{m.home_story_title()}</h2>
           <div {...props(styles.story)}>
-            <p {...props(styles.storyLine)}>{m.home_story_1()}</p>
             <p {...props(styles.storyLine)}>
               {storyBefore}
               <a href={STORY_URL} rel="noreferrer" target="_blank">

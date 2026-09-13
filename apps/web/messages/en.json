@@ -47,7 +47,6 @@
   "home_assumptions_note_link": "Brysbaert, 2019",
   "home_assumptions_note_after": "), 90,000-word books, 8 hours a book, 1 hour a workout, 2 hours a dinner, 16 waking hours a day, 20 dollars an hour. Average phone use: 4 hours 5 minutes a day (Reviews.org, 2026).",
   "home_story_title": "Why I built this",
-  "home_story_1": "I am not selling anything and I do not think this is the final answer. I am sharing what I know.",
   "home_story_2": "Two months ago I read the blog post “{post}” by stopa.io about turning an iPhone into a dumbphone with Apple's own supervision mode. I tried it. The setup was fine; the effort is part of why it holds. The problems came after. The App Store was off, so nothing updated. The web was an allow list, so I could not even scan a menu at a restaurant. And it did not block apps, it only removed the store. So I built a version that keeps the App Store on, blocks the apps and their sites by name, and leaves the rest of the phone alone.",
   "home_story_2_link": "iPhone dumbphone",
   "home_story_3": "That is the whole reason this site exists. If more people try it, we learn more, and maybe we get better at protecting ourselves and our kids from a system built to farm attention.",
