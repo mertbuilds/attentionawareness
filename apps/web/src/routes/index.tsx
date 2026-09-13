@@ -21,14 +21,12 @@ import { create, keyframes, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { AppArtwork, artworkStyles } from '../components/app-artwork.tsx';
 import type { MetaCache } from '../components/app-artwork.tsx';
 import { AppIconFan, fanStyles } from '../components/app-icon-fan.tsx';
-import { FlapDisplay } from '../components/flap-display.tsx';
 import { GridTexture } from '../components/grid-texture.tsx';
-import { DELETE_KEY, Keypad, TOTAL_KEY } from '../components/keypad.tsx';
 import { ShareCard } from '../components/share-card.tsx';
 import { Sheet } from '../components/sheet.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
@@ -50,7 +48,7 @@ import type { BlockedApp, ProfileConfig } from '../lib/profile/index.ts';
 import { decodeShare } from '../lib/share.ts';
 import { normalizeUrl, sitesForApp, sitesForApps } from '../lib/sites.ts';
 import { playTick, primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
-import { useAutoDemo } from '../lib/use-auto-demo.ts';
+import { useAutoDrive } from '../lib/use-auto-drive.ts';
 import { useIsMobile } from '../lib/use-is-mobile.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
@@ -133,27 +131,53 @@ const PREVIEW_APPS = 12;
 const PREVIEW_SITES = 6;
 /** How many apps one site row names before the rest are left implied. */
 const ROW_APPS = 3;
-/** The hours the page has a line for. Any day is read onto one of them. */
+/** What the screen-time slider offers, in hours a day. */
 const HOURS_MIN = 1;
 const HOURS_MAX = 12;
-const MINUTES_PER_HOUR = 60;
-/** What the register will take: twelve hours, and fifty-nine minutes on top. */
-const MINUTES_MAX = 59;
-/** How many figures the register holds, which is one pair for each flap. */
-const DIGITS_MAX = 4;
+const HOURS_STEP = 1;
 /**
- * Where the register rests: four and a quarter hours, as the keys that enter
- * it. The demonstration stops here, a reader who asked for less motion starts
- * here, and so does anyone the demonstration never reached.
+ * Where the dial rests: the drive stops here, a reader who asked for less
+ * motion starts here, and so does anyone the drive never reached.
  */
-const REST_DIGITS = '415';
+const HOURS_DEFAULT = 4;
+/** Where that drive starts, before it runs the bill up to the resting hours. */
+const HOURS_AUTO_START = 1;
+/** The machined knob, and the rail the ticks are measured against. */
+const KNOB_WIDTH = 28;
+const KNOB_HEIGHT = 44;
+const TRACK_HEIGHT = 4;
 /**
- * The keys the page presses for itself, once, the first time the hero is seen.
- * One array for the life of the module: the hook reads it at mount.
+ * The knob's face: a fine horizontal grain over the falloff of a turned edge,
+ * and a darker falloff for the moment it is held down. Fixed greys, because a
+ * machined part is the same part in either theme.
  */
-const DEMO_KEYS = ['4', '1', '5'];
-/** How long the readout shakes off a key it cannot take. */
-const SHAKE_MS = 200;
+const KNOB_BRUSH =
+  'repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 3px)';
+const KNOB_FALLOFF = 'linear-gradient(180deg, #e8e8ea 0%, #c9c9cd 45%, #a9a9ae 55%, #d6d6da 100%)';
+const KNOB_FALLOFF_PRESSED =
+  'linear-gradient(180deg, #d8d8dc 0%, #b9b9bf 45%, #999aa0 55%, #c6c6cc 100%)';
+/**
+ * The edges of that face: a lit top, a shaded bottom, and the rim around both.
+ * The rim is listed last so the two 1px lines stay on top of it.
+ */
+const KNOB_EDGES =
+  'inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 -1px 0 rgba(0, 0, 0, 0.25), inset 0 0 0 1px #6b6b70';
+/** The knob standing off the rail, and the same knob pressed into it. */
+const KNOB_SHADOW = `${KNOB_EDGES}, 0 2px 6px rgba(0, 0, 0, 0.35)`;
+const KNOB_SHADOW_PRESSED = `${KNOB_EDGES}, 0 1px 2px rgba(0, 0, 0, 0.35)`;
+/** The indicator cut into the middle of the face: 2px across, 18px tall. */
+const KNOB_NOTCH_SIZE = '2px 18px';
+/**
+ * One detent per whole hour of travel, each with the fraction of the rail it
+ * sits at. The knob only ever stops on these, so the marks are the truth.
+ */
+const TICKS = Array.from({ length: (HOURS_MAX - HOURS_MIN) / HOURS_STEP + 1 }, (_, index) => {
+  const value = HOURS_MIN + index * HOURS_STEP;
+  return {
+    at: (value - HOURS_MIN) / (HOURS_MAX - HOURS_MIN),
+    value,
+  };
+});
 
 type WebMode = ProfileConfig['webFilter']['mode'];
 
@@ -179,13 +203,6 @@ const helpEnter = keyframes({
 const receiptEnter = keyframes({
   from: { opacity: 0, transform: 'translateY(4px)' },
   to: { opacity: 1, transform: 'translateY(0)' },
-});
-
-/** The total, acknowledging the key that asked for it: one beat, and back. */
-const totalPulse = keyframes({
-  '0%': { transform: 'scale(1)' },
-  '100%': { transform: 'scale(1)' },
-  '40%': { transform: 'scale(1.04)' },
 });
 
 /** Each hour has its own line, and the line fades up over the one before it. */
@@ -347,6 +364,20 @@ const styles = create({
     lineHeight: 1.5,
     textWrap: 'pretty',
   },
+  // The control: rail and detents across the row, the speaker at the end of
+  // it. The number the dial reads is in the sentence under it.
+  dial: {
+    alignItems: 'center',
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: spacing.s4,
+    width: '100%',
+  },
+  dialRail: {
+    flexBasis: 240,
+    flexGrow: 1,
+    minWidth: 0,
+  },
   // The line the icon fan is set into. It is the section's picture, not its
   // heading, so it sits one step under the h2 above it; the line box is tall
   // enough for a 32px icon, which is what keeps the sentence around it even.
@@ -492,20 +523,18 @@ const styles = create({
     position: 'relative',
     verticalAlign: 'middle',
   },
-  // The first screen, whole: the question, the register it is answered on, the
+  // The first screen, whole: the question, the dial it is answered on, the
   // line that answer earns, and the bill for it. Wide enough for two columns,
-  // the bill stands beside the rest and holds the eye; under that they fall
-  // into one column, the bill keeps its place between the line and the pitch,
-  // and the arithmetic behind it goes last so the run from the bill to the
-  // button is never broken. Same column as `content`, so both share a left edge.
+  // the bill stands beside the other four and holds the eye; under that they
+  // fall into one column and it keeps its place between the line and the
+  // pitch. Same column as `content`, so both share a left edge.
   hero: {
     alignItems: 'start',
     columnGap: spacing.s8,
     display: 'grid',
     gridTemplateAreas: {
-      '@media (min-width: 900px)':
-        '"title receipt" "flaps receipt" "keypad receipt" "truth receipt" "pitch receipt"',
-      default: '"title" "flaps" "keypad" "truth" "receipt" "pitch" "note"',
+      '@media (min-width: 900px)': '"title receipt" "dial receipt" "truth receipt" "pitch receipt"',
+      default: '"title" "dial" "truth" "receipt" "pitch"',
     },
     gridTemplateColumns: {
       '@media (min-width: 900px)': '1.1fr 0.9fr',
@@ -525,29 +554,17 @@ const styles = create({
     flexWrap: 'wrap',
     gap: spacing.s4,
   },
-  // The bill and the arithmetic behind it. Beside the hero they are one block,
-  // in that order; in one column the box itself dissolves so the grid places
-  // each of the two where the reader needs it, which is not next to each other.
+  // The bill and the arithmetic behind it, as one block of the hero grid.
   heroAside: {
-    display: {
-      '@media (min-width: 900px)': 'flex',
-      default: 'contents',
-    },
+    display: 'flex',
     flexDirection: 'column',
     gap: spacing.s3,
     gridArea: 'receipt',
     maxWidth: 460,
     width: '100%',
   },
-  // The readout, with the speaker at the end of it.
-  heroFlaps: {
-    alignItems: 'center',
-    display: 'flex',
-    gap: spacing.s2,
-    gridArea: 'flaps',
-  },
-  heroKeypad: {
-    gridArea: 'keypad',
+  heroDial: {
+    gridArea: 'dial',
   },
   heroPitch: {
     display: 'flex',
@@ -852,7 +869,6 @@ const styles = create({
     fontFamily: MONOSPACE,
     fontSize: 13,
     gap: spacing.s3,
-    gridArea: 'receipt',
     padding: {
       '@media (min-width: 640px)': spacing.s4,
       default: spacing.s3,
@@ -881,7 +897,6 @@ const styles = create({
   receiptNote: {
     color: colors.muted,
     fontSize: 12,
-    gridArea: 'note',
     lineHeight: 1.5,
     margin: 0,
     textWrap: 'pretty',
@@ -936,15 +951,6 @@ const styles = create({
     fontWeight: font.weightBold,
     letterSpacing: '-0.02em',
     lineHeight: 1.1,
-  },
-  // The beat the total gives when the reader presses the key that asks for it.
-  receiptTotalPulse: {
-    animationDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: '200ms',
-    },
-    animationName: totalPulse,
-    animationTimingFunction: 'ease-out',
   },
   // Every value is a loss, so every value is in the accent; the figures are
   // even, so a row that recounts changes its digits and nothing else.
@@ -1224,6 +1230,95 @@ const styles = create({
     height: 40,
     width: '100%',
   },
+  // The native input, dressed as a machined dial. The browser keeps the
+  // keyboard, the detents and the screen reader; it gives up only its looks.
+  slider: {
+    // Brushed aluminium: the grain and the falloff under it, with the orange
+    // indicator cut into the middle as a layer of its own. Firefox's knob and
+    // Chrome's are the same part, so they read from the same constants.
+    '::-moz-range-thumb': {
+      backgroundImage: {
+        ':active': `linear-gradient(${accent.base}, ${accent.base}), ${KNOB_BRUSH}, ${KNOB_FALLOFF_PRESSED}`,
+        default: `linear-gradient(${accent.base}, ${accent.base}), ${KNOB_BRUSH}, ${KNOB_FALLOFF}`,
+      },
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+      backgroundSize: `${KNOB_NOTCH_SIZE}, auto, auto`,
+      borderRadius: 6,
+      borderStyle: 'none',
+      borderWidth: 0,
+      boxShadow: {
+        ':active': KNOB_SHADOW_PRESSED,
+        default: KNOB_SHADOW,
+      },
+      height: KNOB_HEIGHT,
+      width: KNOB_WIDTH,
+    },
+    '::-moz-range-track': {
+      backgroundColor: colors.border,
+      borderRadius: 999,
+      height: TRACK_HEIGHT,
+    },
+    '::-webkit-slider-runnable-track': {
+      backgroundColor: colors.border,
+      borderRadius: 999,
+      height: TRACK_HEIGHT,
+    },
+    // The same face, plus the offset that sits it on the track.
+    '::-webkit-slider-thumb': {
+      appearance: 'none',
+      backgroundImage: {
+        ':active': `linear-gradient(${accent.base}, ${accent.base}), ${KNOB_BRUSH}, ${KNOB_FALLOFF_PRESSED}`,
+        default: `linear-gradient(${accent.base}, ${accent.base}), ${KNOB_BRUSH}, ${KNOB_FALLOFF}`,
+      },
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+      backgroundSize: `${KNOB_NOTCH_SIZE}, auto, auto`,
+      borderRadius: 6,
+      boxShadow: {
+        ':active': KNOB_SHADOW_PRESSED,
+        default: KNOB_SHADOW,
+      },
+      height: KNOB_HEIGHT,
+      // Centres the knob on the track: (4 - 44) / 2.
+      marginTop: -20,
+      scale: {
+        ':active': 1.03,
+        ':hover': 1.03,
+        default: 1,
+      },
+      transitionDuration: {
+        '@media (prefers-reduced-motion: reduce)': '0ms',
+        default: '150ms',
+      },
+      transitionProperty: 'scale',
+      transitionTimingFunction: 'ease-out',
+      width: KNOB_WIDTH,
+    },
+    appearance: 'none',
+    backgroundColor: 'transparent',
+    cursor: 'pointer',
+    display: 'block',
+    height: KNOB_HEIGHT,
+    margin: 0,
+    minWidth: 0,
+    padding: 0,
+    width: '100%',
+  },
+  // The travelled part of the rail, so the dial reads its own setting. The
+  // stop always falls under the knob, which is what hides the seam.
+  sliderFill: (percent: number) => ({
+    '::-moz-range-track': {
+      backgroundImage: `linear-gradient(to right, ${accent.base} 0 ${percent}%, ${colors.border} ${percent}% 100%)`,
+    },
+    '::-webkit-slider-runnable-track': {
+      backgroundImage: `linear-gradient(to right, ${accent.base} 0 ${percent}%, ${colors.border} ${percent}% 100%)`,
+    },
+  }),
+  sliderLabel: {
+    display: 'block',
+    width: '100%',
+  },
   // The speaker is a hint, not a headline: it only colours up on hover.
   soundButton: {
     alignItems: 'center',
@@ -1387,6 +1482,36 @@ const styles = create({
     maxHeight: 320,
     overflowY: 'auto',
   },
+  tick: {
+    backgroundColor: colors.muted,
+    height: 9,
+    insetBlockStart: 0,
+    position: 'absolute',
+    transform: 'translateX(-50%)',
+    width: 1,
+  },
+  // The knob's centre travels between the two ends of the rail, not between
+  // the two ends of the box, so the marks are measured the same way.
+  tickAt: (at: number) => ({
+    insetInlineStart: `calc(${KNOB_WIDTH / 2}px + (100% - ${KNOB_WIDTH}px) * ${at})`,
+  }),
+  tickNumber: {
+    color: colors.muted,
+    fontFamily: MONOSPACE,
+    fontSize: 11,
+    insetBlockStart: 12,
+    insetInlineStart: '50%',
+    lineHeight: 1,
+    position: 'absolute',
+    transform: 'translateX(-50%)',
+  },
+  // Under the track, one mark per detent: the reader can see where the knob
+  // will stop before they let go of it.
+  tickRail: {
+    height: 26,
+    position: 'relative',
+    width: '100%',
+  },
   tileArtwork: {
     borderRadius: 11,
     height: 48,
@@ -1499,54 +1624,6 @@ function withDerivedSites(
       permittedUrls: filter.permittedUrls.filter((url) => !off.has(url)),
     },
   };
-}
-
-/**
- * What a register holding these figures reads, in minutes: the last two are
- * the minutes, whatever stands in front of them is the hours. Fewer than four
- * figures is a register that has not been filled yet, so it reads from the
- * right, the way a till does.
- */
-function minutesOf(digits: string): number {
-  const filled = digits.padStart(DIGITS_MAX, '0');
-  return Number(filled.slice(0, 2)) * MINUTES_PER_HOUR + Number(filled.slice(2));
-}
-
-/**
- * Whether those figures name a time at all: there is no thirteenth hour, and
- * no sixtieth minute once an hour stands in front of the minutes. Until one
- * does, the register is still filling its minutes, and sixty of them is a
- * legal way to say an hour on the way to keying one in: it is what the reader
- * passes through on their way from `6` to `6:00`.
- */
-function readable(digits: string): boolean {
-  const filled = digits.padStart(DIGITS_MAX, '0');
-  if (Number(filled.slice(0, 2)) > HOURS_MAX) {
-    return false;
-  }
-  return digits.length < 3 || Number(filled.slice(2)) <= MINUTES_MAX;
-}
-
-/**
- * What a keyboard key means to the register, or nothing where it means nothing
- * to it. Backspace and Enter are the two commands the pad draws as glyphs.
- */
-function heroKey(key: string): string | null {
-  if (key === 'Backspace') {
-    return DELETE_KEY;
-  }
-  if (key === 'Enter') {
-    return TOTAL_KEY;
-  }
-  return /^\d$/u.test(key) ? key : null;
-}
-
-/** The keys that would enter a given number of minutes, with no leading zeros. */
-function digitsOf(minutes: number): string {
-  const hours = Math.floor(minutes / MINUTES_PER_HOUR);
-  const rest = minutes % MINUTES_PER_HOUR;
-  const filled = `${String(hours).padStart(2, '0')}${String(rest).padStart(2, '0')}`;
-  return filled.replace(/^0+/u, '');
 }
 
 /**
@@ -2210,17 +2287,8 @@ function Generator() {
   const isMobile = useIsMobile();
   // Safari is the only browser that can go from the download to Settings.
   const isSafari = useIsSafari();
-  // What the reader keys into the register, as the figures they keyed. The
-  // day itself is read off them, because backspace pops a figure and not an
-  // hour.
-  const [digits, setDigits] = useState(REST_DIGITS);
-  // The same figures, where a handler can read them: two keys pressed inside
-  // one batch would both see the state the first of them started from.
-  const digitsRef = useRef(REST_DIGITS);
-  // A key the register turned down, and the number of times the reader has
-  // asked for the total: one shakes the readout, the other beats it.
-  const [shaking, setShaking] = useState(false);
-  const [totals, setTotals] = useState(0);
+  // What the reader tells the math section their day looks like.
+  const [hours, setHours] = useState(HOURS_DEFAULT);
   // The detents click by default, and remember it once the reader says either
   // way. `soundChosen` is what separates the default from an answer.
   const [sound, setSound] = useState(true);
@@ -2262,7 +2330,6 @@ function Generator() {
   // The years the link that brought the reader here was bragging about. It is
   // the friend's number, so the reader's own slider never rewrites it.
   const [friendYears, setFriendYears] = useState<string | null>(null);
-  const receiptBox = useRef<HTMLDivElement>(null);
   const searchInput = useRef<HTMLInputElement>(null);
   const searchWrap = useRef<HTMLDivElement>(null);
   const storefrontFilter = useRef<HTMLInputElement>(null);
@@ -2331,14 +2398,14 @@ function Generator() {
     );
   }, [storefrontQuery]);
 
-  // The register keys itself in the first time the hero comes into view, so
-  // the reader watches the bill run up before they touch it. It is declared
-  // above the shared-link effect on purpose: a link that carries its own day
-  // calls the demonstration off below, and the later effect is the one that wins.
-  const { cancel: cancelAutoDemo, ref: heroSection } = useAutoDemo({
-    keys: DEMO_KEYS,
-    onClear: clearRegister,
-    onKey: pressKey,
+  // The dial turns itself the first time the section comes into view, so the
+  // reader watches the bill run up before they touch it. It is declared above
+  // the shared-link effect on purpose: a link that carries its own hours calls
+  // the drive off below, and the later effect is the one that wins.
+  const { cancel: cancelAutoDrive, ref: mathSection } = useAutoDrive({
+    from: HOURS_AUTO_START,
+    onStep: onHoursChange,
+    to: HOURS_DEFAULT,
   });
 
   // The address bar and navigator exist only in the browser: reading either
@@ -2353,29 +2420,20 @@ function Generator() {
       // stands in for the recommended one until they change something.
       setConfig({ ...presets.mert, blockedApps: shared.bundleIds.map(sharedApp) });
     }
-    if (shared.minutes !== undefined) {
-      // A friend already keyed their day in; the page has nothing to demonstrate.
-      cancelAutoDemo();
-      write(digitsOf(shared.minutes));
-      setFriendYears(formatYears(shared.minutes / MINUTES_PER_HOUR));
+    if (shared.hours !== undefined) {
+      // A friend already turned the dial; the page has nothing to demonstrate.
+      cancelAutoDrive();
+      setHours(shared.hours);
+      setFriendYears(formatYears(shared.hours));
     }
     const preferred = initialStorefront();
     if (preferred !== FALLBACK_COUNTRY) {
       setCountry(preferred);
     }
-  }, [cancelAutoDemo]);
+  }, [cancelAutoDrive]);
   /* oxlint-enable react/set-state-in-effect */
 
-  // The readout shudders once at a key it cannot take, then stands still again.
-  useEffect(() => {
-    if (!shaking) {
-      return;
-    }
-    const timer = setTimeout(() => setShaking(false), SHAKE_MS);
-    return () => clearTimeout(timer);
-  }, [shaking]);
-
-  // iOS Safari does not count the pointerdown on a key as the gesture that
+  // iOS Safari does not count the pointerdown on the knob as the gesture that
   // opens an audio device, so the first gesture it does accept anywhere on the
   // page opens one. Once that works there is nothing left to listen for.
   useEffect(() => {
@@ -2508,91 +2566,17 @@ function Generator() {
     };
   }, [armedRemove]);
 
-  /** Writes the register, in both the place it is read from and the one it is drawn from. */
-  function write(next: string) {
-    digitsRef.current = next;
-    setDigits(next);
-  }
-
-  /** What the demonstration empties before it keys its own day in. */
-  function clearRegister() {
-    write('');
-  }
-
-  /**
-   * One key, wherever it came from: a figure shifts in from the right, the
-   * backspace pops the last one off, and the total only says out loud what the
-   * receipt has been saying all along. A figure that would make a thirteenth
-   * hour or a sixtieth minute is refused, and the readout says so.
-   */
-  function pressKey(key: string) {
-    const held = digitsRef.current;
-    if (key === DELETE_KEY) {
-      write(held.slice(0, -1));
-      return;
-    }
-    if (key === TOTAL_KEY) {
-      total();
-      return;
-    }
-    const next = `${held}${key}`;
-    if (next.length > DIGITS_MAX || !readable(next)) {
-      setShaking(true);
-      return;
-    }
-    write(next);
-  }
-
-  /** The register, asked for the number it has been holding all along. */
-  function total() {
-    if (tickAllowed(sound, soundChosen)) {
+  function onHoursChange(value: number) {
+    // One click per detent, and a lower one where the travel runs out.
+    if (value !== hours && tickAllowed(sound, soundChosen)) {
       primeTickSound();
-      playTick({ end: true });
+      playTick({ end: value === HOURS_MIN || value === HOURS_MAX });
     }
-    setTotals(totals + 1);
-    if (isMobile) {
-      // On a phone the bill is under the pad, so the key that asks for it
-      // brings it up.
-      receiptBox.current?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
-    }
-  }
-
-  /** A key the reader pressed themselves, which is the end of the demonstration. */
-  function onKeyPress(key: string) {
-    cancelAutoDemo();
-    pressKey(key);
-  }
-
-  /**
-   * A hand arriving on the pad. It ends the demonstration before the press it
-   * belongs to lands, so a tap the reader half meant still hands them the
-   * register, and it opens the audio device inside the gesture that allows it.
-   */
-  function armKeys() {
-    cancelAutoDemo();
-    armSound();
-  }
-
-  /**
-   * The same keys off a real keyboard, for a reader who is already inside the
-   * hero. A button or a link answers Enter on its own, so the register leaves
-   * that one alone rather than taking it twice.
-   */
-  function onHeroKeyDown(event: ReactKeyboardEvent<HTMLElement>) {
-    const key = heroKey(event.key);
-    if (key === null) {
-      return;
-    }
-    if (key === TOTAL_KEY && (event.target as HTMLElement).closest('a, button') !== null) {
-      return;
-    }
-    event.preventDefault();
-    armSound();
-    onKeyPress(key);
+    setHours(value);
   }
 
   // Browsers only hand out an audio device inside a gesture, so the pointer
-  // that is about to press a key is what opens it.
+  // that is about to drag the knob is what opens it.
   function armSound() {
     if (tickAllowed(sound, soundChosen)) {
       primeTickSound();
@@ -2922,26 +2906,16 @@ function Generator() {
   // Settings, so the download asks for no acknowledgement.
   const trial = !config.lockRemoval;
 
-  // What the register reads, and the day the rest of the page is written
-  // around: a quarter of an hour is a quarter of the bill, so the arithmetic
-  // takes the fraction whole.
-  const minutes = minutesOf(digits);
-  const hoursPerDay = minutes / MINUTES_PER_HOUR;
-  const years = formatYears(hoursPerDay);
-  // The lines are written one per hour, so a day lands on the nearest of them,
-  // and a register at nothing is still handed the first line to say.
-  const truthHours = Math.min(HOURS_MAX, Math.max(HOURS_MIN, Math.round(hoursPerDay)));
+  // The number the whole narrative is written around, and the dial's own
+  // reading: the receipt totals it, and the slider says it out loud.
+  const years = formatYears(hours);
+  const hoursText = m.home_math_hours({ hours });
+  const hoursReading = `${hoursText} ${m.home_math_hours_unit()}`;
+  // How far along the rail the dial has been turned, and what it has cost.
+  const travelled = ((hours - HOURS_MIN) / (HOURS_MAX - HOURS_MIN)) * 100;
   const locale = getLocale();
-  const truth = homeTruth(truthHours, locale);
-  const receipt = receiptLines(hoursPerDay, locale);
-  // The day the bill prices, as the receipt heads it: a whole hour says so and
-  // leaves the minutes off.
-  const wholeHours = Math.floor(hoursPerDay);
-  const restMinutes = minutes % MINUTES_PER_HOUR;
-  const receiptMeta =
-    restMinutes === 0
-      ? m.home_receipt_meta({ hours: wholeHours })
-      : m.home_receipt_meta_minutes({ hours: wholeHours, minutes: restMinutes });
+  const truth = homeTruth(hours, locale);
+  const receipt = receiptLines(hours, locale);
 
   // What the whole thing costs, as three numbers and the word each one means.
   const dealTiles = [
@@ -2992,20 +2966,53 @@ function Generator() {
           </button>
         </div>
       )}
-      {/* The first screen: the question, the register that answers it, the
-          line that answer earns, and the bill for it. The register keys itself
-          in here, once the hero is on screen. */}
-      <header onKeyDown={onHeroKeyDown} ref={heroSection} {...props(styles.hero)}>
+      {/* The first screen: the question, the dial that answers it, the line
+          that answer earns, and the bill for it. The dial drives itself here,
+          once the hero is on screen. */}
+      <header ref={mathSection} {...props(styles.hero)}>
         <h1 {...props(styles.heroTitle)}>
           {m.home_hero_title()}
           <ScreenTimeHelp />
         </h1>
-        <div {...props(styles.heroFlaps)}>
-          <FlapDisplay
-            minutes={minutes}
-            shaking={shaking}
-            sound={tickAllowed(sound, soundChosen)}
-          />
+        <div {...props(styles.dial, styles.heroDial)}>
+          <div {...props(styles.dialRail)}>
+            <Label style={styles.sliderLabel}>
+              <span {...props(styles.srOnly)}>{m.home_math_slider_label()}</span>
+              {/* The end of the gesture, not its start, is what iOS accepts as
+                  leave to open an audio device, so it gets its own handlers. */}
+              <input
+                aria-valuetext={hoursReading}
+                max={HOURS_MAX}
+                min={HOURS_MIN}
+                onChange={(event) => {
+                  // Whatever the drive was doing, the dial is the reader's now.
+                  cancelAutoDrive();
+                  onHoursChange(Number(event.target.value));
+                }}
+                onKeyDown={cancelAutoDrive}
+                onPointerDown={() => {
+                  cancelAutoDrive();
+                  armSound();
+                }}
+                onPointerUp={unlockTickSound}
+                onTouchEnd={unlockTickSound}
+                onTouchStart={cancelAutoDrive}
+                step={HOURS_STEP}
+                type="range"
+                value={hours}
+                {...props(styles.slider, styles.sliderFill(travelled))}
+              />
+            </Label>
+            {/* The detents, drawn where the knob lands on each of them. The
+                input already says all of this to a screen reader. */}
+            <div aria-hidden="true" {...props(styles.tickRail)}>
+              {TICKS.map((tick) => (
+                <span key={tick.value} {...props(styles.tick, styles.tickAt(tick.at))}>
+                  <span {...props(styles.tickNumber)}>{tick.value}</span>
+                </span>
+              ))}
+            </div>
+          </div>
           <button
             aria-label={m.home_math_sound_label()}
             aria-pressed={sound}
@@ -3035,24 +3042,21 @@ function Generator() {
             </svg>
           </button>
         </div>
-        <div {...props(styles.heroKeypad)}>
-          <Keypad onArm={armKeys} onKey={onKeyPress} />
-        </div>
-        {/* One sentence for the hour the register lands nearest, and the whole
-            sentence is the blow: nothing in it is coloured, and nothing is a
-            figure the reader has to read off the flaps. The live region stays
-            put so the swap is announced; only the line inside it is remounted,
-            and that is what fades the new one up over the old. */}
+        {/* One sentence for the hour the dial is on, and the whole sentence
+            is the blow: nothing in it is coloured, and nothing is a figure the
+            reader has to read off the dial. The live region stays put so the
+            swap is announced; only the line inside it is remounted, and that
+            is what fades the new one up over the old. */}
         <p aria-live="polite" {...props(styles.heroTruth)}>
-          <span key={truthHours} {...props(styles.truth)}>
+          <span key={hours} {...props(styles.truth)}>
             {truth}
           </span>
         </p>
         <div {...props(styles.heroAside)}>
-          <div ref={receiptBox} {...props(styles.receipt)}>
+          <div {...props(styles.receipt)}>
             <div {...props(styles.receiptHead)}>
               <p {...props(styles.receiptTitle)}>{m.home_receipt_title()}</p>
-              <p {...props(styles.receiptMeta)}>{receiptMeta}</p>
+              <p {...props(styles.receiptMeta)}>{m.home_receipt_meta({ hours })}</p>
             </div>
             <div aria-hidden="true" {...props(styles.receiptRule)} />
             <ul {...props(styles.receiptList)}>
@@ -3066,11 +3070,7 @@ function Generator() {
             <div aria-hidden="true" {...props(styles.receiptRule)} />
             <p {...props(styles.receiptTotal)}>
               <span {...props(styles.receiptTotalLabel)}>{m.home_receipt_total_label()}</span>
-              {/* Remounted by the total key, which is what runs the beat again. */}
-              <span
-                key={totals}
-                {...props(styles.receiptTotalValue, totals > 0 && styles.receiptTotalPulse)}
-              >
+              <span {...props(styles.receiptTotalValue)}>
                 {m.home_receipt_total_value({ years })}
               </span>
             </p>
@@ -3709,7 +3709,7 @@ function Generator() {
 
         {isMobile ? (
           <Sheet onOpenChange={setShareOpen} open={shareOpen} title={m.share_heading_output()}>
-            <ShareCard apps={config.blockedApps} meta={meta} minutes={minutes} years={years} />
+            <ShareCard apps={config.blockedApps} hours={hours} meta={meta} years={years} />
           </Sheet>
         ) : (
           <Dialog onOpenChange={setShareOpen} open={shareOpen}>
@@ -3726,7 +3726,7 @@ function Generator() {
               <DialogHeader>
                 <DialogTitle style={styles.sectionTitle}>{m.share_heading_output()}</DialogTitle>
               </DialogHeader>
-              <ShareCard apps={config.blockedApps} meta={meta} minutes={minutes} years={years} />
+              <ShareCard apps={config.blockedApps} hours={hours} meta={meta} years={years} />
             </DialogContent>
           </Dialog>
         )}

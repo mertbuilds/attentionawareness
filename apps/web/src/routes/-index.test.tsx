@@ -258,36 +258,12 @@ function dropRandomUuid(): void {
   Object.defineProperty(crypto, 'randomUUID', { configurable: true, value: undefined });
 }
 
-/** What the register reads right now, the way the flaps spell it out. */
-function reading(): string {
-  const flaps = document.querySelector('[data-time]');
-  if (flaps === null) {
-    throw new Error('The hero should hold one register readout');
-  }
-  return flaps.getAttribute('data-time') ?? '';
+/** What the slider tells a screen reader at a given number of hours. */
+function hoursReading(hours: number): string {
+  return `${m.home_math_hours({ hours })} ${m.home_math_hours_unit()}`;
 }
 
-/** One key of the pad, by the figure or the name cut into it. */
-function key(name: string): HTMLElement {
-  return screen.getByRole('button', { name });
-}
-
-/** Presses a run of keys, the way a reader keys their day in. */
-async function press(keys: string): Promise<void> {
-  for (const glyph of keys) {
-    await userEvent.click(key(glyph));
-  }
-}
-
-/** Empties the register, then keys a whole day into it. */
-async function enter(keys: string): Promise<void> {
-  for (const _ of Array.from({ length: 4 })) {
-    await userEvent.click(key(m.home_keypad_delete()));
-  }
-  await press(keys);
-}
-
-/** The one sentence under the pad, which is the hour the register lands on. */
+/** The one sentence under the bar, which is the hour the dial is on. */
 function truthLine(): HTMLElement {
   const line = document.querySelector('p[aria-live="polite"]');
   if (line === null) {
@@ -319,11 +295,6 @@ function receiptValue(label: string): string {
     throw new Error(`No receipt row for ${label}`);
   }
   return row.lastElementChild?.textContent ?? '';
-}
-
-/** How the receipt heads a day that has minutes on it as well as hours. */
-function receiptMeta(hours: number, minutes: number): string {
-  return m.home_receipt_meta_minutes({ hours, minutes });
 }
 
 /** The number under the tear line: everything the receipt adds up to. */
@@ -448,110 +419,71 @@ describe('Generator', () => {
     expect(screen.queryAllByRole('separator')).toHaveLength(0);
   });
 
-  it('rests the register on four hours fifteen, and bills the whole fraction', async () => {
+  it('rests the math on four hours a day, five of the next twenty years', async () => {
     await renderPage();
 
-    expect(reading()).toBe(' 4:15');
+    expect(screen.getByRole('slider')).toHaveValue('4');
     expect(truthLine()).toHaveTextContent(m.home_truth_4());
-    expect(receiptTotal()).toBe(m.home_receipt_total_value({ years: '5.3' }));
+    expect(receiptTotal()).toBe(m.home_receipt_total_value({ years: '5' }));
   });
 
-  it('lays out the twelve keys of the pad, figures and both commands', async () => {
+  it('marks every whole hour of the travel with its own numbered detent', async () => {
     await renderPage();
+    const rail = screen.getByRole('slider').closest('div')?.parentElement;
+    const marks = Array.from(rail?.querySelectorAll('div[aria-hidden="true"] > span') ?? []);
 
-    for (const figure of '0123456789') {
-      expect(key(figure)).toBeInTheDocument();
-    }
-    expect(key(m.home_keypad_delete())).toBeInTheDocument();
-    expect(key(m.home_keypad_total())).toBeInTheDocument();
+    expect(marks).toHaveLength(12);
+    expect(marks.at(0)).toHaveTextContent('1');
+    expect(marks.at(-1)).toHaveTextContent('12');
+    expect(screen.getByRole('slider')).toHaveAttribute('step', '1');
   });
 
-  it('fills the register from the right, the way a till does', async () => {
-    await renderPage();
-    await enter('');
-    expect(reading()).toBe(' 0:00');
-
-    await press('4');
-    expect(reading()).toBe(' 0:04');
-
-    await press('1');
-    expect(reading()).toBe(' 0:41');
-
-    await press('5');
-    expect(reading()).toBe(' 4:15');
-    expect(within(receipt()).getByText(receiptMeta(4, 15))).toBeInTheDocument();
-  });
-
-  it('pops the last figure off on the delete key', async () => {
-    await renderPage();
-    expect(reading()).toBe(' 4:15');
-
-    await userEvent.click(key(m.home_keypad_delete()));
-    expect(reading()).toBe(' 0:41');
-
-    await userEvent.click(key(m.home_keypad_delete()));
-    expect(reading()).toBe(' 0:04');
-  });
-
-  it('refuses a figure that would name no time at all', async () => {
+  it('swaps the line for the hour the dial lands on', async () => {
     await renderPage();
 
-    // There is no thirteenth hour, so the figure that would make one is dropped.
-    await enter('1300');
-    expect(reading()).toBe(' 1:30');
-
-    // And no sixtieth minute, once there is an hour in front of the minutes.
-    await enter('1260');
-    expect(reading()).toBe(' 1:26');
-
-    // Nor a fifth figure: the register holds four.
-    await enter('12345');
-    expect(reading()).toBe('12:34');
-  });
-
-  it('swaps the line for the hour the register lands nearest', async () => {
-    await renderPage();
-
-    await enter('600');
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '6' } });
 
     expect(truthLine()).toHaveTextContent(m.home_truth_6());
     expect(screen.queryByText(m.home_truth_4())).not.toBeInTheDocument();
 
-    // Three quarters of an hour rounds onto the next line, not down onto this one.
-    await enter('445');
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '12' } });
 
-    expect(truthLine()).toHaveTextContent(m.home_truth_5());
+    expect(truthLine()).toHaveTextContent(m.home_truth_12());
     expect(screen.queryByText(m.home_truth_6())).not.toBeInTheDocument();
   });
 
-  it('recounts the receipt on every key', async () => {
+  it('recounts the receipt when the slider moves', async () => {
     await renderPage();
 
-    await enter('600');
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '6' } });
 
     expect(receiptTotal()).toBe(m.home_receipt_total_value({ years: '7.5' }));
     expect(receiptValue(m.home_receipt_money_label())).toBe('$876,000');
 
-    await enter('1200');
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '12' } });
 
     expect(receiptTotal()).toBe(m.home_receipt_total_value({ years: '15' }));
   });
 
-  it('heads the receipt with the day it prices, minutes and all', async () => {
+  it('heads the receipt with the day it prices', async () => {
     await renderPage();
 
-    expect(within(receipt()).getByText(receiptMeta(4, 15))).toBeInTheDocument();
+    expect(within(receipt()).getByText(m.home_receipt_meta({ hours: 4 }))).toBeInTheDocument();
 
-    await enter('900');
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '9' } });
 
     expect(within(receipt()).getByText(m.home_receipt_meta({ hours: 9 }))).toBeInTheDocument();
   });
 
-  it('says the number out loud for a reader who cannot see the flaps', async () => {
+  it('keeps the reading on the slider, with no display beside the rail', async () => {
     await renderPage();
 
-    expect(screen.getByLabelText(m.home_flap_label({ hours: 4, minutes: 15 }))).toBeInTheDocument();
-    expect(screen.getByText(m.home_flap_caption())).toBeInTheDocument();
+    expect(screen.getByRole('slider')).toHaveAttribute('aria-valuetext', hoursReading(4));
+
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '5' } });
+
+    expect(screen.getByRole('slider')).toHaveAttribute('aria-valuetext', hoursReading(5));
+    expect(screen.queryByText(m.home_math_hours_unit())).not.toBeInTheDocument();
   });
 
   it('bills a receipt row the moment the day earns it, and drops it again', async () => {
@@ -564,21 +496,21 @@ describe('Generator', () => {
       m.home_receipt_job_label(),
     ]);
 
-    await enter('100');
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '1' } });
     expect(receiptLabels()).toEqual([m.home_receipt_books_label(), m.home_receipt_money_label()]);
 
-    await enter('300');
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '3' } });
     expect(receiptLabels()).toHaveLength(4);
     expect(receiptLabels()).not.toContain(m.home_receipt_job_label());
 
-    await enter('1200');
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '12' } });
     expect(receiptLabels()).toHaveLength(5);
   });
 
   it('leaves the waking years to the total and bills a full-time job instead', async () => {
     await renderPage();
 
-    await enter('500');
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '5' } });
 
     expect(receiptLabels()).not.toContain('Waking years');
     expect(receiptValue(m.home_receipt_job_label())).toBe(
@@ -586,82 +518,55 @@ describe('Generator', () => {
     );
   });
 
-  it('beats the total on the key that asks for it', async () => {
-    await renderPage();
-
-    await userEvent.click(key(m.home_keypad_total()));
-
-    // The receipt is already live, so the key changes the number by nothing.
-    expect(receiptTotal()).toBe(m.home_receipt_total_value({ years: '5.3' }));
-  });
-
-  it('takes the same keys off a real keyboard', async () => {
-    await renderPage();
-    const hero = screen.getByRole('heading', { level: 1 }).parentElement;
-    if (hero === null) {
-      throw new Error('The question should sit inside the hero');
-    }
-
-    fireEvent.keyDown(hero, { key: 'Backspace' });
-    expect(reading()).toBe(' 0:41');
-
-    fireEvent.keyDown(hero, { key: '5' });
-    expect(reading()).toBe(' 4:15');
-
-    // Enter only says out loud what the receipt has been saying all along.
-    fireEvent.keyDown(hero, { key: 'Enter' });
-    expect(reading()).toBe(' 4:15');
-  });
-
-  it('keys itself in from nothing when the hero arrives on screen', async () => {
+  it('drives the dial from one hour to four when the section arrives on screen', async () => {
     stubIntersectionObserver();
     vi.useFakeTimers();
     await renderPage();
 
-    expect(reading()).toBe(' 0:00');
+    expect(screen.getByRole('slider')).toHaveValue('1');
 
     await act(async () => {
-      vi.advanceTimersByTime(450);
+      vi.advanceTimersByTime(700);
     });
-    expect(reading()).toBe(' 0:04');
+    expect(screen.getByRole('slider')).toHaveValue('2');
 
     await act(async () => {
-      vi.advanceTimersByTime(900);
+      vi.advanceTimersByTime(2100);
     });
-    expect(reading()).toBe(' 4:15');
+    expect(screen.getByRole('slider')).toHaveValue('4');
     expect(truthLine()).toHaveTextContent(m.home_truth_4());
 
-    // Four fifteen is where it rests: nothing presses a key after that.
+    // Four hours is where it rests: nothing turns the dial after that.
     await act(async () => {
-      vi.advanceTimersByTime(1350);
+      vi.advanceTimersByTime(2100);
     });
-    expect(reading()).toBe(' 4:15');
+    expect(screen.getByRole('slider')).toHaveValue('4');
   });
 
-  it('hands the register over for good at the first touch of it', async () => {
+  it('hands the dial over for good at the first touch of it', async () => {
     stubIntersectionObserver();
     vi.useFakeTimers();
     await renderPage();
 
-    fireEvent.pointerDown(key('4'));
+    fireEvent.pointerDown(screen.getByRole('slider'));
     await act(async () => {
-      vi.advanceTimersByTime(2250);
+      vi.advanceTimersByTime(3500);
     });
 
-    expect(reading()).toBe(' 0:00');
+    expect(screen.getByRole('slider')).toHaveValue('1');
   });
 
-  it('leaves the register where a shared link put it', async () => {
+  it('leaves the dial where a shared link put it', async () => {
     stubIntersectionObserver();
     vi.useFakeTimers();
-    window.history.replaceState({}, '', '/?m=255');
+    window.history.replaceState({}, '', '/?h=9');
     await renderPage();
 
     await act(async () => {
-      vi.advanceTimersByTime(2250);
+      vi.advanceTimersByTime(3500);
     });
 
-    expect(reading()).toBe(' 4:15');
+    expect(screen.getByRole('slider')).toHaveValue('9');
   });
 
   it('turns the detent clicks off from the speaker', async () => {
@@ -734,8 +639,7 @@ describe('Generator', () => {
   it('states the deal as three value tiles', async () => {
     await renderPage();
 
-    // The keypad has a zero key of its own, so the tile is the one that is not it.
-    expect(screen.getByText('0', { selector: 'p' })).toBeInTheDocument();
+    expect(screen.getByText('0')).toBeInTheDocument();
     expect(screen.getByText('$0')).toBeInTheDocument();
     expect(screen.getByText('45 min')).toBeInTheDocument();
     expect(screen.getByText(m.home_deal_apps_label())).toBeInTheDocument();
@@ -1264,7 +1168,7 @@ describe('Generator', () => {
     expect(
       within(dialog).getByText(
         (_, element) =>
-          element?.tagName === 'P' && element.textContent === m.share_card_years({ years: '5.3' }),
+          element?.tagName === 'P' && element.textContent === m.share_card_years({ years: '5' }),
       ),
     ).toBeInTheDocument();
     expect(within(dialog).getByRole('link', { name: m.share_x() })).toHaveAttribute(
@@ -1307,9 +1211,7 @@ describe('Generator', () => {
 
     await userEvent.click(within(dialog).getByRole('button', { name: m.share_copy() }));
 
-    expect(writeText).toHaveBeenCalledWith(
-      expect.stringContaining('attentionawareness.com/?m=255'),
-    );
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('attentionawareness.com/?h=4'));
     expect(within(dialog).getByRole('button', { name: m.share_copied() })).toBeInTheDocument();
   });
 
@@ -1355,12 +1257,12 @@ describe('Generator', () => {
     expect(await screen.findByRole('dialog')).toHaveAttribute('data-vaul-drawer');
   });
 
-  it('opens on the day and the apps a shared link carries', async () => {
+  it('opens on the hours and the apps a shared link carries', async () => {
     window.history.replaceState({}, '', '/?h=6&a=ig,tt');
 
     await renderPage();
 
-    expect(reading()).toBe(' 6:00');
+    expect(screen.getByRole('slider')).toHaveValue('6');
     expect(truthLine()).toHaveTextContent(m.home_truth_6());
     expect(receiptTotal()).toBe(m.home_receipt_total_value({ years: '7.5' }));
     expect(screen.getAllByRole('button', { name: m.gen_app_remove() })).toHaveLength(2);
