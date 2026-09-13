@@ -642,13 +642,13 @@ describe('Generator', () => {
     expect(screen.queryByText(/more than gold/i)).not.toBeInTheDocument();
   });
 
-  it('links the story out to the post it started from', async () => {
+  it('names the post the story started from and links out to it', async () => {
     await renderPage();
 
-    expect(screen.getByRole('link', { name: m.home_story_2_link() })).toHaveAttribute(
-      'href',
-      'https://stopa.io/post/297',
-    );
+    const post = screen.getByRole('link', { name: m.home_story_2_link() });
+    expect(post).toHaveAttribute('href', 'https://stopa.io/post/297');
+    // The title is the link, quoted, with the author right beside it.
+    expect(post.parentElement).toHaveTextContent(/“iPhone dumbphone” by stopa\.io/);
   });
 
   it('reserves no room for the walkthrough clip, which is not shot yet', async () => {
