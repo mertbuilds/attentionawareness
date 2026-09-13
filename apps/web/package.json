@@ -15,6 +15,7 @@
   "dependencies": {
     "@attentionawareness/env": "workspace:*",
     "@attentionawareness/ui": "workspace:*",
+    "@base-ui/react": "^1.7.0",
     "@number-flow/react": "^0.6.2",
     "@posthog/react": "^1.10.5",
     "@sentry/tanstackstart-react": "^10.73.0",

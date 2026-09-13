@@ -44,7 +44,7 @@ import {
   storefrontLabel,
   storefronts,
 } from '../lib/app-search.ts';
-import { formatYears, homeTruth } from '../lib/attention-math.ts';
+import { formatYears } from '../lib/attention-math.ts';
 import { controls } from '../lib/controls.ts';
 import { mergeBlockedApps } from '../lib/known-apps.ts';
 import type { ScannedApp } from '../lib/known-apps.ts';
@@ -101,7 +101,6 @@ const SUPERVISE_URL = '/supervise';
 /** The ids the two labelled site lists name their add field with. */
 const PERMITTED_INPUT_ID = 'permitted-urls';
 const ALLOWED_INPUT_ID = 'allowed-urls';
-const READING_SPEED_URL = 'https://doi.org/10.1016/j.jml.2019.104047';
 /** The post this started from, linked out of the paragraph that tells it. */
 const STORY_URL = 'https://stopa.io/post/297';
 /**
@@ -1790,17 +1789,6 @@ const styles = create({
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
   },
-  // The one thing the hour has coming to it, said last and then left standing.
-  // Nothing in it is coloured: the sentence is the blow, and it lands on its
-  // own.
-  truthLine: {
-    fontSize: font.sizeLg,
-    fontWeight: font.weightMedium,
-    lineHeight: 1.4,
-    margin: 0,
-    maxWidth: HERO_MEASURE,
-    textWrap: 'pretty',
-  },
 });
 
 /** A site as a chip names it: `https://youtu.be` is youtu.be. */
@@ -2043,131 +2031,6 @@ function ScreenTimeClip({ style, videoUrl }: { style?: StyleXStyles; videoUrl: s
           {...props(styles.helpMedia)}
         />
       )}
-    </span>
-  );
-}
-
-/**
- * The arithmetic behind the total, folded away beside it. It is not an argument
- * the reader has to read, it is the one they can check, so it waits for a
- * pointer, the keyboard or a tap and is one line of text until then.
- */
-function AssumptionsNote() {
-  const isMobile = useIsMobile();
-  const [open, setOpen] = useState(false);
-  const popoverId = useId();
-  const wrap = useRef<HTMLSpanElement>(null);
-  const grace = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // A grace period that outlives the popover must not fire into nothing.
-  useEffect(
-    () => () => {
-      if (grace.current !== null) {
-        clearTimeout(grace.current);
-      }
-    },
-    [],
-  );
-
-  // Dismissed from outside itself: a pointer anywhere else, or Escape. The
-  // sheet answers both on its own, so this is the popover's alone.
-  useEffect(() => {
-    if (!open || isMobile) {
-      return;
-    }
-    function onPointerDown(event: PointerEvent) {
-      if (wrap.current?.contains(event.target as Node | null) !== true) {
-        setOpen(false);
-      }
-    }
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setOpen(false);
-      }
-    }
-    document.addEventListener('pointerdown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [isMobile, open]);
-
-  function clearGrace() {
-    if (grace.current !== null) {
-      clearTimeout(grace.current);
-      grace.current = null;
-    }
-  }
-
-  function show() {
-    clearGrace();
-    setOpen(true);
-  }
-
-  function hide() {
-    clearGrace();
-    setOpen(false);
-  }
-
-  const note = (
-    <span {...props(styles.assumptionsNote)}>
-      {m.home_assumptions_note_before()}
-      <a href={READING_SPEED_URL} rel="noreferrer" target="_blank">
-        {m.home_assumptions_note_link()}
-      </a>
-      {m.home_assumptions_note_after()}
-    </span>
-  );
-
-  return (
-    <span
-      onPointerEnter={(event) => {
-        if (!isMobile && event.pointerType !== 'touch') {
-          show();
-        }
-      }}
-      onPointerLeave={(event) => {
-        if (!isMobile && event.pointerType !== 'touch') {
-          clearGrace();
-          grace.current = setTimeout(() => setOpen(false), HELP_GRACE_MS);
-        }
-      }}
-      ref={wrap}
-      {...props(styles.researchWrap)}
-    >
-      <button
-        aria-controls={open && !isMobile ? popoverId : undefined}
-        aria-expanded={open}
-        // The sheet takes the focus with it, and a blur that closes it would
-        // shut it on the way in. The popover hangs inside this wrapper, so
-        // only focus that lands outside the pair is a reason to close.
-        onBlur={
-          isMobile
-            ? undefined
-            : (event) => {
-                if (wrap.current?.contains(event.relatedTarget) !== true) {
-                  hide();
-                }
-              }
-        }
-        onClick={() => (open ? hide() : show())}
-        onFocus={isMobile ? undefined : show}
-        type="button"
-        {...props(styles.quietButton)}
-      >
-        {m.home_assumptions_label()}
-      </button>
-      {isMobile ? (
-        <Sheet onOpenChange={setOpen} open={open} title={m.home_assumptions_label()}>
-          {note}
-        </Sheet>
-      ) : open ? (
-        <span id={popoverId} {...props(styles.helpPopover, styles.researchPopover)}>
-          <span {...props(styles.helpTitle)}>{m.home_assumptions_label()}</span>
-          {note}
-        </span>
-      ) : null}
     </span>
   );
 }
@@ -3512,10 +3375,7 @@ function Generator() {
               {...props(styles.expandInner, touched && styles.expandInnerOpen, styles.receiptSlot)}
             >
               <Receipt hours={wholeHours} number={receiptNo} printedOn={printedOn} />
-              <div {...props(styles.receiptAfter)}>
-                <AssumptionsNote />
-                <p {...props(styles.truthLine)}>{homeTruth(wholeHours, locale)}</p>
-              </div>
+              <div {...props(styles.receiptAfter)}></div>
             </div>
           </div>
         </section>
