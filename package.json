@@ -6,7 +6,6 @@
     "bad-day": "bash scripts/bad-day.sh",
     "build": "turbo run build",
     "dev": "mprocs",
-    "e2e": "pnpm --filter @attentionawareness/e2e e2e",
     "fonts": "bash scripts/fetch-fonts.sh",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
@@ -15,7 +14,6 @@
     "rename": "bash scripts/rename.sh",
     "skills:check": "node scripts/skills-check.ts",
     "storybook": "pnpm --filter @attentionawareness/ui storybook",
-    "test": "turbo run test",
     "typecheck": "turbo run typecheck"
   },
   "devDependencies": {

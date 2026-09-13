@@ -158,30 +158,6 @@ populated signed out and is one of the surfaces the Shorts shelf comes off.
 
 ## Test
 
-```sh
-pnpm --filter @attentionawareness/extension test   # vitest
-pnpm --filter @attentionawareness/extension e2e    # playwright, needs a build
-```
-
-Vitest runs two environments, split by file name: `*.test.ts` in node for the
-settings merge, host matching, domain normalisation, which hosts want a dynamic
-registration, the CSS the builder composes, and that every rule file parses with
-zero errors (a rule file that does not parse is one the browser drops silently,
-leaving the feed where it was); `*.test.tsx` in jsdom with Testing Library for
-the popup and the options page. `content.test.ts` is the one file that asks for
-jsdom by docblock, because the content script is not React and what it has to
-prove is that a custom-only host gets the CSS and nothing else.
-
-The smoke tests are the real thing: they launch Chromium with `dist` loaded
-unpacked. The first serves YouTube's Shorts markup from an intercepted route,
-asserts the shelf is hidden, flips the master switch in the popup, and asserts
-it comes back. The second opens the popup itself, counts the switches, checks
-that the licensed Suisse actually loaded, and screenshots it light and dark.
-The third writes two rules through the options page, screenshots that, and
-asserts the first one hides its element on an intercepted youtube.com.
-`AA_SCREENSHOT_DIR` says where the shots go; otherwise Playwright's output dir.
-
-That third test stays on a built-in host on purpose: Chromium's host permission
-prompt is a native dialog, outside the page, and Playwright cannot answer it.
-A rule for a new domain is the one path the smoke tests cannot walk, so walk it
-by hand after a build.
+No automated tests yet. After a build, load `dist` unpacked and walk YouTube,
+X, Instagram and TikTok by hand, then add a custom rule for a new domain and
+accept the host prompt.
