@@ -20,7 +20,7 @@ import { colors, font, palette, radius, spacing } from '@attentionawareness/ui/t
 import { create, firstThatWorks, keyframes, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
-import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { Fragment, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { AppArtwork, artworkStyles } from '../components/app-artwork.tsx';
@@ -42,14 +42,7 @@ import {
   storefrontLabel,
   storefronts,
 } from '../lib/app-search.ts';
-import {
-  formatYears,
-  homeTruth,
-  receiptDate,
-  receiptLines,
-  receiptNumber,
-  receiptTotals,
-} from '../lib/attention-math.ts';
+import { formatYears, heroMetrics, homeTruth } from '../lib/attention-math.ts';
 import { controls } from '../lib/controls.ts';
 import { mergeBlockedApps } from '../lib/known-apps.ts';
 import type { ScannedApp } from '../lib/known-apps.ts';
@@ -62,7 +55,7 @@ import { playCheckout, playStep, playTick } from '../lib/sounds.ts';
 import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
 import { useIsMobile } from '../lib/use-is-mobile.ts';
 import { useShow } from '../lib/use-show.ts';
-import type { Bill, Entered } from '../lib/use-show.ts';
+import type { Entered } from '../lib/use-show.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
 
@@ -71,9 +64,9 @@ export const Route = createFileRoute('/')({
 });
 
 /**
- * The one display size on the page, and the receipt's total is the only thing
- * set in it: it is the number the whole first screen adds up to. Every
- * heading, the hero's own included, is steps below it.
+ * The one display size on the page, and the total line is the only thing set
+ * in it: it is the sentence the whole first screen adds up to. Every heading,
+ * the hero's own included, is steps below it.
  */
 const DISPLAY_SIZE = 'clamp(32px, 3.8vw, 44px)';
 /**
@@ -112,9 +105,10 @@ const READING_SPEED_URL = 'https://doi.org/10.1016/j.jml.2019.104047';
 /** The post this started from, linked out of the paragraph that tells it. */
 const STORY_URL = 'https://stopa.io/post/297';
 /**
- * Where a link stands inside a sentence. The message is written with the link
- * as a placeholder and split on it, so the words around it keep their own
- * order and spacing in every language instead of being stitched from pieces.
+ * Where a link or a figure stands inside a sentence. The message is written
+ * with it as a placeholder and split on it, so the words around it keep their
+ * own order and spacing in every language instead of being stitched from
+ * pieces.
  */
 const LINK_SLOT = '\u0000';
 /**
@@ -136,21 +130,11 @@ const SIGN_URL = '/api/sign';
 const PROFILE_FILENAME = 'attentionawareness.mobileconfig';
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 /**
- * The barcode at the foot of the bill. Nothing scans it: it is the shape a
- * printed receipt ends on, drawn out of block glyphs, so it is hidden from a
- * screen reader and is the one string here that is not a message.
+ * What one hour a day comes to, exactly. `formatYears` prints one decimal, and
+ * this is the one answer whose figure needs two: the stack's own first line
+ * quotes 1.25 years, so the total under it says the same number.
  */
-const RECEIPT_BARCODE = '▌▐▌▌▐▌▐▐▌▌▐▌▐▌▌▐▌▐▐▌▌▐▌▐▌';
-/**
- * What the bill prints once its items are down, and in what order: the
- * subtotal, the tax that explains the total, the total itself, and the lines a
- * receipt ends on. Each is an offset from the last item row, because how many
- * item rows there are is the day's to decide.
- */
-const RECEIPT_SUBTOTAL = 1;
-const RECEIPT_TAX = 2;
-const RECEIPT_TOTAL = 3;
-const RECEIPT_FOOT = 4;
+const ONE_HOUR_YEARS = '1.25';
 /** How long an armed Remove waits for its second click before standing down. */
 const REMOVE_CONFIRM_MS = 3000;
 /**
@@ -188,6 +172,15 @@ const HOURS_STEP = 1;
  * asked to recognize or correct rather than remember.
  */
 const HOURS_DEFAULT = 6;
+/**
+ * The last hour the page calls normal: a phone doing its job. Up to it the
+ * rail stays grey and the climb only ticks; past it the rail takes the accent
+ * and the show starts escalating, because that is where the argument starts.
+ */
+const NORMAL_HOURS = 2;
+/** How far along the rail that zone reaches, and where its label is centred. */
+const NORMAL_AT = (NORMAL_HOURS - HOURS_MIN) / (HOURS_MAX - HOURS_MIN);
+const NORMAL_MIDDLE = NORMAL_AT / 2;
 const REVIEWS_URL = 'https://www.reviews.org/internet-service/internet-screen-time-statistics';
 const DATAREPORTAL_URL = 'https://datareportal.com/global-digital-overview';
 /** The machined knob, and the rail the ticks are measured against. */
@@ -255,14 +248,8 @@ const helpEnter = keyframes({
   to: { opacity: 1, transform: 'translateY(0)' },
 });
 
-/** A new row of the receipt rises into place. Rows that are paid off just go. */
-const receiptEnter = keyframes({
-  from: { opacity: 0, transform: 'translateY(4px)' },
-  to: { opacity: 1, transform: 'translateY(0)' },
-});
-
 /**
- * The line and the bill arriving: they are not on the page until the question
+ * The line and the total arriving: they are not on the page until the question
  * is answered, and they come in together when it is.
  */
 const revealEnter = keyframes({
@@ -271,9 +258,9 @@ const revealEnter = keyframes({
 });
 
 /**
- * The total, taking the last hit once the show has finished printing it. Half
- * the pulse is written and run twice, out and back, so the whole beat is one
- * ramp and its reverse.
+ * The total, taking the last hit as the till rings it up. Half the pulse is
+ * written and run twice, out and back, so the whole beat is one ramp and its
+ * reverse.
  */
 const totalPulse = keyframes({
   from: { scale: 1 },
@@ -520,8 +507,8 @@ const styles = create({
     flexGrow: 1,
     minWidth: 0,
   },
-  // What the dial reads, in the receipt's own face at the page's display size.
-  // It is the only figure on the first screen until the bill prints.
+  // What the dial reads, in the till's own face at the page's display size.
+  // It is the only figure on the first screen until the total lands.
   gateReading: {
     fontFamily: MONOSPACE,
     fontSize: DISPLAY_SIZE,
@@ -665,8 +652,8 @@ const styles = create({
     verticalAlign: 'middle',
   },
   // The first screen, whole, and one thing at a time down it: the question,
-  // then the line the answer earns, then the bill for it, then what to do
-  // about it. One column at every width, because the order is the argument.
+  // then the lines the answer earns, then the total they come to, then what to
+  // do about it. One column at every width, because the order is the argument.
   // The same box as `content`, so the whole page keeps one left edge; what
   // stands in it is narrower, because a line this size is read, not scanned.
   hero: {
@@ -694,20 +681,15 @@ const styles = create({
     flexWrap: 'wrap',
     gap: spacing.s4,
   },
-  // The bill, narrower than the column it prints in, on its left edge.
-  heroAside: {
-    maxWidth: 460,
-    width: '100%',
-  },
   heroPitch: {
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s4,
     maxWidth: HERO_MEASURE,
   },
-  // Once the bill starts printing, the screen stops holding its middle: the
-  // receipt grows down the page, so it and the way on under it are read from
-  // the top and scrolled, rather than centred against a fold they outgrow.
+  // Once the day is totalled, the screen stops holding its middle: the stack
+  // grows down the page, so it and the way on under it are read from the top
+  // and scrolled, rather than centred against a fold they outgrow.
   heroPrinted: {
     justifyContent: 'flex-start',
     paddingBlockStart: spacing.s8,
@@ -720,8 +702,8 @@ const styles = create({
     maxWidth: '46ch',
     textWrap: 'pretty',
   },
-  // The two asides the bill leaves behind: how it was worked out, and whether
-  // it counts itself out loud. Both are quiet, and both are under the way on.
+  // The one aside the total leaves behind: whether the page counts itself out
+  // loud. It is quiet, and it is under the way on.
   heroQuiet: {
     alignItems: 'center',
     display: 'flex',
@@ -1070,7 +1052,7 @@ const styles = create({
     position: 'relative',
   },
   // A line of text that opens a box: the sources behind the average, and the
-  // arithmetic behind the bill. An aside, so it is never a button to look at.
+  // arithmetic behind the total. An aside, so it is never a button to look at.
   quietButton: {
     alignSelf: 'start',
     backgroundColor: 'transparent',
@@ -1086,221 +1068,51 @@ const styles = create({
     padding: 0,
     textDecorationLine: 'underline',
   },
-  // The bill as a till prints one: monospace, narrow, shouted, and every number
-  // under the one above it. It is a receipt for hours already spent, so it
-  // holds the page's ground colour and is drawn by its edge alone.
-  receipt: {
-    backgroundColor: colors.bg,
-    borderColor: colors.border,
-    borderRadius: radius.base,
-    borderStyle: 'solid',
-    borderWidth: '1px',
-    boxSizing: 'border-box',
-    display: 'flex',
-    flexDirection: 'column',
-    fontFamily: MONOSPACE,
-    fontSize: 13,
-    gap: spacing.s3,
-    padding: {
-      '@media (min-width: 640px)': spacing.s4,
-      default: spacing.s3,
-    },
-    // A till has one case. The messages themselves stay sentence case, so the
-    // same string reads normally anywhere it is quoted off the receipt.
-    textTransform: 'uppercase',
-    width: '100%',
-  },
-  // The stripe every printed receipt ends on. Nothing scans it, so it is drawn
-  // tight enough that the bars touch.
-  receiptBarcode: {
-    color: colors.muted,
-    letterSpacing: '-0.05em',
-    margin: 0,
-    overflow: 'hidden',
-    textAlign: 'center',
-  },
-  // The three headings over the items, each in the column it names.
-  receiptColumn: {
-    color: colors.muted,
-    fontSize: 11,
-    letterSpacing: '0.08em',
-  },
-  receiptColumnAmount: {
-    textAlign: 'end',
-  },
-  // What the bill says after it has been totalled: how it was paid, that it
-  // cannot be unpaid, and the thanks a till prints whatever it took.
-  receiptFoot: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s2,
-  },
-  receiptFootLine: {
-    margin: 0,
-  },
-  // The shop, centred over its own bill.
-  receiptHead: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s1,
-    textAlign: 'center',
-  },
-  // The items as one grid, so a rate sits under a rate and an amount under an
-  // amount however long the row above it was. The rows subgrid into these
-  // columns, which is what keeps the three of them true down the whole bill.
-  receiptItems: {
-    columnGap: spacing.s3,
-    display: 'grid',
-    gridTemplateColumns: '1fr auto auto',
-    rowGap: spacing.s2,
-  },
-  receiptList: {
-    display: 'grid',
-    gridColumn: '1 / -1',
-    gridTemplateColumns: 'subgrid',
-    listStyleType: 'none',
-    margin: 0,
-    padding: 0,
-    rowGap: spacing.s2,
-  },
-  // What the till rang this up as, and when: the number and the date on one
-  // line, the cashier who took it under them.
-  receiptMeta: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s1,
-  },
-  receiptMetaLine: {
-    display: 'flex',
-    gap: spacing.s3,
-    justifyContent: 'space-between',
-    margin: 0,
-  },
-  // The arithmetic behind the bill. It is one line away from the receipt now,
-  // so it is set in the page's own face and not the till's.
-  receiptNote: {
+  // The arithmetic behind the total, folded away at the end of the row that
+  // uses it. It is one line away from the row, so it is set in the page's own
+  // face and at the page's own size.
+  assumptionsNote: {
     color: colors.muted,
     fontSize: font.sizeSm,
     lineHeight: 1.5,
     margin: 0,
     textWrap: 'pretty',
   },
-  // Everything under the items arriving the way an item row does, because the
-  // till prints the whole bill one line at a time and these are lines too.
-  receiptPrint: {
-    animationDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: '240ms',
-    },
-    animationName: receiptEnter,
-    animationTimingFunction: 'ease-out',
-  },
-  // The rate a row was billed at: the smallest thing on the bill, and smaller
-  // still on a phone, where the item and the amount need the width more.
-  receiptQty: {
-    color: colors.muted,
-    fontSize: {
-      '@media (min-width: 640px)': 13,
-      default: 12,
-    },
-    fontVariantNumeric: 'tabular-nums',
+  // One thing the total cost. It holds its own line rather than breaking in
+  // the middle of a figure.
+  metric: {
     whiteSpace: 'nowrap',
   },
-  // A row arrives when the day earns it; it leaves the moment it stops
-  // applying, because an exit would soften what it says.
-  receiptRow: {
+  // What the total cost, as three figures on one quiet line. No box and no
+  // rules: it is a footnote to the line above it, and it arrives as one thing.
+  metrics: {
     alignItems: 'baseline',
-    animationDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: '240ms',
-    },
-    animationName: receiptEnter,
-    animationTimingFunction: 'ease-out',
-    display: 'grid',
-    gridColumn: '1 / -1',
-    gridTemplateColumns: 'subgrid',
+    color: colors.muted,
+    columnGap: spacing.s2,
+    display: 'flex',
+    flexWrap: 'wrap',
+    fontSize: font.sizeSm,
     lineHeight: 1.6,
+    maxWidth: HERO_MEASURE,
+    rowGap: spacing.s1,
   },
-  // The tear line, in the only shape a paper receipt has for one.
-  receiptRule: {
-    borderBlockStartColor: colors.border,
-    borderBlockStartStyle: 'dashed',
-    borderBlockStartWidth: '1px',
+  // The figure inside one of those sentences, in the till's face and the
+  // page's own colour: the accent belongs to the total alone.
+  metricValue: {
+    color: colors.fg,
+    fontFamily: MONOSPACE,
+    fontVariantNumeric: 'tabular-nums',
   },
-  // The name over the counter, spaced out the way a till head prints one.
-  receiptStore: {
-    fontWeight: font.weightBold,
-    letterSpacing: '0.2em',
-    margin: 0,
-  },
-  // The one line on the bill that is not shouted: it is an address, and an
-  // address is typed the way it is typed.
-  receiptStoreUrl: {
+  // What the first two stops of the dial are: a phone doing its job. The rail
+  // under them is named rather than coloured, and the name sits under the
+  // numbers, centred on the middle of the zone it covers.
+  normalZone: {
     color: colors.muted,
-    margin: 0,
-    textTransform: 'none',
-  },
-  receiptSum: {
-    display: 'flex',
-    gap: spacing.s3,
-    justifyContent: 'space-between',
-    margin: 0,
-  },
-  receiptSums: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s2,
-  },
-  // The line that explains the total: only the waking hours are billed, so the
-  // eight nobody is awake for come off before the years are counted.
-  receiptTax: {
-    color: colors.muted,
-  },
-  receiptThanks: {
-    margin: 0,
-    textAlign: 'center',
-  },
-  receiptTotal: {
-    alignItems: 'baseline',
-    display: 'flex',
-    gap: spacing.s3,
-    justifyContent: 'space-between',
-    margin: 0,
-  },
-  receiptTotalLabel: {
     fontSize: 11,
-    fontWeight: font.weightBold,
-    letterSpacing: '0.12em',
-  },
-  // The moment the bill is rung up, and the one thing on the page that moves
-  // to say so. It runs once, when the show hands the total over.
-  receiptTotalPulse: {
-    animationDirection: 'alternate',
-    animationDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: '125ms',
-    },
-    animationIterationCount: 2,
-    animationName: totalPulse,
-    animationTimingFunction: 'ease-out',
-  },
-  // The one number the whole receipt is adding up to, so it is the one set in
-  // the page's display size, and the only colour under the tear line.
-  receiptTotalValue: {
-    color: accent.base,
-    fontSize: DISPLAY_SIZE,
-    fontVariantNumeric: 'tabular-nums',
-    fontWeight: font.weightBold,
-    letterSpacing: '-0.02em',
-    lineHeight: 1.1,
-  },
-  // Every value is a loss, so every value is in the accent; the figures are
-  // even, so a row that recounts changes its digits and nothing else.
-  receiptValue: {
-    color: accent.base,
-    fontVariantNumeric: 'tabular-nums',
-    textAlign: 'end',
-    whiteSpace: 'nowrap',
+    insetBlockStart: 26,
+    lineHeight: 1,
+    position: 'absolute',
+    transform: 'translateX(-50%)',
   },
   // The one destructive colour on the page: it means "this click deletes".
   removeArmed: {
@@ -1377,7 +1189,7 @@ const styles = create({
     width: '100%',
     zIndex: 10,
   },
-  // What the answer buys, arriving: the line, the bill, and later the pitch.
+  // What the answer buys, arriving: the lines, the total, and later the pitch.
   // One fade for all of them, so they read as one arrival.
   reveal: {
     animationDuration: {
@@ -1658,14 +1470,17 @@ const styles = create({
     padding: 0,
     width: '100%',
   },
-  // The travelled part of the rail, so the dial reads its own setting. The
-  // stop always falls under the knob, which is what hides the seam.
-  sliderFill: (percent: number) => ({
+  // The travelled part of the rail, so the dial reads its own setting, in two
+  // segments: the hours the page calls normal stay grey, and only the hours
+  // past them take the accent. The last stop always falls under the knob,
+  // which is what hides the seam; the first falls on the end of the zone, and
+  // is nothing at all until the dial is turned past it.
+  sliderFill: (percent: number, normal: number) => ({
     '::-moz-range-track': {
-      backgroundImage: `linear-gradient(to right, ${accent.base} 0 ${percent}%, ${colors.border} ${percent}% 100%)`,
+      backgroundImage: `linear-gradient(to right, ${colors.muted} 0 ${normal}%, ${accent.base} ${normal}% ${percent}%, ${colors.border} ${percent}% 100%)`,
     },
     '::-webkit-slider-runnable-track': {
-      backgroundImage: `linear-gradient(to right, ${accent.base} 0 ${percent}%, ${colors.border} ${percent}% 100%)`,
+      backgroundImage: `linear-gradient(to right, ${colors.muted} 0 ${normal}%, ${accent.base} ${normal}% ${percent}%, ${colors.border} ${percent}% 100%)`,
     },
   }),
   sliderLabel: {
@@ -1870,9 +1685,10 @@ const styles = create({
     transform: 'translateX(-50%)',
   },
   // Under the track, one mark per detent: the reader can see where the knob
-  // will stop before they let go of it.
+  // will stop before they let go of it. The room under the numbers is the
+  // zone's label, which is the only other thing drawn down here.
   tickRail: {
-    height: 26,
+    height: 40,
     position: 'relative',
     width: '100%',
   },
@@ -1880,6 +1696,38 @@ const styles = create({
     borderRadius: 11,
     height: 48,
     width: 48,
+  },
+  // The one line the whole first screen adds up to, and the one thing on the
+  // page set in the display size. The sentence is the page's own; only the
+  // figure standing in it is coloured.
+  totalLine: {
+    fontSize: DISPLAY_SIZE,
+    fontWeight: HEADING_WEIGHT,
+    letterSpacing: '-0.02em',
+    lineHeight: 1.1,
+    margin: 0,
+    maxWidth: HERO_MEASURE,
+    textWrap: 'balance',
+  },
+  // The moment the day is rung up, and the one thing on the page that moves to
+  // say so. It runs once, when the show hands the total over.
+  totalRing: {
+    animationDirection: 'alternate',
+    animationDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: '125ms',
+    },
+    animationIterationCount: 2,
+    animationName: totalPulse,
+    animationTimingFunction: 'ease-out',
+  },
+  // The years the whole screen was counting towards: the one figure on the
+  // first screen in the accent, and the only coloured thing on it. A scale
+  // reaches a box, not a run of text, so the number is one of its own.
+  totalYears: {
+    color: accent.base,
+    display: 'inline-block',
+    fontVariantNumeric: 'tabular-nums',
   },
   truncate: {
     overflow: 'hidden',
@@ -1987,16 +1835,6 @@ function withDerivedSites(
 /** A whole hour the page can price, whatever the answer or a link asked for. */
 function clampHours(value: number): number {
   return Math.min(Math.max(value, HOURS_MIN), HOURS_MAX);
-}
-
-/**
- * The bill one answer prints: a line per item the day earns, then the subtotal,
- * the tax, the total the till rings and the lines a receipt ends on. The show
- * needs the shape of it before a single line of it is on the page.
- */
-function billFor(entered: Entered): Bill {
-  const items = receiptLines(entered.hours, getLocale()).length;
-  return { lines: items + RECEIPT_FOOT, total: items + RECEIPT_TOTAL };
 }
 
 /**
@@ -2243,7 +2081,7 @@ function ResearchNote() {
 }
 
 /**
- * The arithmetic behind the bill, folded away under it. It is not an argument
+ * The arithmetic behind the total, folded away beside it. It is not an argument
  * the reader has to read, it is the one they can check, so it waits for a
  * pointer, the keyboard or a tap and is one line of text until then.
  */
@@ -2306,12 +2144,12 @@ function AssumptionsNote() {
   }
 
   const note = (
-    <span {...props(styles.receiptNote)}>
-      {m.home_receipt_note_before()}
+    <span {...props(styles.assumptionsNote)}>
+      {m.home_assumptions_note_before()}
       <a href={READING_SPEED_URL} rel="noreferrer" target="_blank">
-        {m.home_receipt_note_link()}
+        {m.home_assumptions_note_link()}
       </a>
-      {m.home_receipt_note_after()}
+      {m.home_assumptions_note_after()}
     </span>
   );
 
@@ -2351,15 +2189,15 @@ function AssumptionsNote() {
         type="button"
         {...props(styles.quietButton)}
       >
-        {m.home_receipt_assumptions()}
+        {m.home_assumptions_label()}
       </button>
       {isMobile ? (
-        <Sheet onOpenChange={setOpen} open={open} title={m.home_receipt_assumptions()}>
+        <Sheet onOpenChange={setOpen} open={open} title={m.home_assumptions_label()}>
           {note}
         </Sheet>
       ) : open ? (
         <span id={popoverId} {...props(styles.helpPopover, styles.researchPopover)}>
-          <span {...props(styles.helpTitle)}>{m.home_receipt_assumptions()}</span>
+          <span {...props(styles.helpTitle)}>{m.home_assumptions_label()}</span>
           {note}
         </span>
       ) : null}
@@ -2386,8 +2224,11 @@ function ScreenTimeGate({
   const [hours, setHours] = useState(entered === null ? HOURS_DEFAULT : entered.hours);
   // The dial starts at one, so the readout needs the singular of its own word.
   const reading = hours === 1 ? m.home_gate_reading_one() : m.home_gate_reading({ hours });
-  // How far along the rail the dial has been turned.
+  // How far along the rail the dial has been turned, and how much of that is
+  // still the normal zone: inside it the two are the same, so the rail takes
+  // no accent at all until the dial is turned past the zone.
   const travelled = ((hours - HOURS_MIN) / (HOURS_MAX - HOURS_MIN)) * 100;
+  const normal = Math.min(travelled, NORMAL_AT * 100);
 
   function onHoursChange(value: number) {
     // One metallic detent per whole hour of travel.
@@ -2430,17 +2271,21 @@ function ScreenTimeGate({
               step={HOURS_STEP}
               type="range"
               value={hours}
-              {...props(styles.slider, styles.sliderFill(travelled))}
+              {...props(styles.slider, styles.sliderFill(travelled, normal))}
             />
           </Label>
-          {/* The detents, drawn where the knob lands on each of them. The
-          input already says all of this to a screen reader. */}
+          {/* The detents, drawn where the knob lands on each of them, and the
+          name of the zone the first two stand in. The input already says all
+          of this to a screen reader. */}
           <div aria-hidden="true" {...props(styles.tickRail)}>
             {TICKS.map((tick) => (
               <span key={tick.value} {...props(styles.tick, styles.tickAt(tick.at))}>
                 <span {...props(styles.tickNumber)}>{tick.value}</span>
               </span>
             ))}
+            <span {...props(styles.normalZone, styles.tickAt(NORMAL_MIDDLE))}>
+              {m.home_gate_normal()}
+            </span>
           </div>
         </div>
         <p {...props(styles.gateReading)}>{reading}</p>
@@ -2937,27 +2782,25 @@ function Generator() {
   // show is running it is also how many of them have landed, because the stack
   // is one line per hour up to this one.
   const [hours, setHours] = useState(HOURS_DEFAULT);
-  // The answer as it was given, which is what the small line over the bill
+  // The answer as it was given, which is what the small line over the total
   // quotes back and what the gate holds when it is reopened.
   const [entered, setEntered] = useState<Entered | null>(null);
-  // The four states of the first screen, in the order the reader meets them:
-  // the question alone, the line being counted out, the bill printing itself
-  // under the line it settled on, and the way on under the bill.
+  // The five states of the first screen, in the order the reader meets them:
+  // the question alone, the day being counted out, the total it comes to, what
+  // that total cost, and the way on under all of it.
   const [gateOpen, setGateOpen] = useState(true);
   const [revealed, setRevealed] = useState(false);
   const [arrived, setArrived] = useState(false);
+  const [itemized, setItemized] = useState(false);
   const [settled, setSettled] = useState(false);
-  // How many lines of the bill have printed, or `null` when the whole of it is
-  // standing: a shared link, a reader who asked for less motion, and every
-  // answer after the first are all handed the bill rather than shown it.
-  const [printed, setPrinted] = useState<number | null>(null);
+  // Whether the till rang this total, which is the one thing on the page that
+  // moves. A shared link, a reader who asked for less motion, and every answer
+  // after the first are all handed the total rather than shown it.
+  const [rung, setRung] = useState(false);
   // The show counts itself out loud by default, and remembers the answer once
   // the reader gives one. `soundChosen` is what separates the default from it.
   const [sound, setSound] = useState(true);
   const [soundChosen, setSoundChosen] = useState(false);
-  // When the bill was printed. The receipt is never on the server-rendered
-  // page, so reading the clock once at mount is the whole of it.
-  const [printedAt] = useState(() => new Date());
   const [config, setConfig] = useState<ProfileConfig>(presets.mert);
   // The user's own urls, the derived ones they turned off, and the derived ones
   // they deleted. Everything else in the deny list comes from the blocked apps.
@@ -3067,30 +2910,35 @@ function Generator() {
     );
   }, [storefrontQuery]);
 
-  // The day being counted out an hour at a time, and then billed for, one
-  // line at a time, against the answer the reader just gave. Nothing on the
-  // page can skip it: it is the one thing the reader came for.
+  // The day being counted out an hour at a time, and then totalled, against
+  // the answer the reader just gave. Nothing on the page can skip it: it is
+  // the one thing the reader came for.
   const { running: showRunning, start: startShow } = useShow({
     onArrive: (answer, shown) => {
       // A reader who asked for less motion never climbed to the answer, so the
       // stack is only whole here; the climb has already landed on it.
       setHours(clampHours(answer.hours));
       setArrived(true);
-      // Less motion is the whole bill at once, and no till.
-      setPrinted(shown ? 0 : null);
-    },
-    onPrint: (line, bill) => {
-      setPrinted(line);
-      if (line === bill.total && tickAllowed(sound, soundChosen)) {
+      // Less motion is the whole screen at once, and no till.
+      setRung(shown);
+      if (shown && tickAllowed(sound, soundChosen)) {
         playCheckout();
       }
     },
+    onMetrics: () => setItemized(true),
     onSettle: () => setSettled(true),
     onStep: (value, total) => {
       setHours(value);
-      if (tickAllowed(sound, soundChosen)) {
-        playStep(value, total);
+      if (!tickAllowed(sound, soundChosen)) {
+        return;
       }
+      // The normal hours only tick, the way the dial itself does. The climb
+      // starts escalating at the hour the page starts arguing.
+      if (value <= NORMAL_HOURS) {
+        playTick();
+        return;
+      }
+      playStep(value, total);
     },
   });
 
@@ -3114,6 +2962,7 @@ function Generator() {
       setGateOpen(false);
       setRevealed(true);
       setArrived(true);
+      setItemized(true);
       setSettled(true);
       setFriendYears(formatYears(shared.hours));
     }
@@ -3265,13 +3114,13 @@ function Generator() {
     setGateOpen(false);
     if (revealed) {
       // The show is a first impression: a correction restacks the day and
-      // reprints the bill whole, because the reader has watched one already.
+      // retotals it whole, because the reader has watched one already.
       setHours(clampHours(answer.hours));
-      setPrinted(null);
+      setRung(false);
       return;
     }
     setRevealed(true);
-    startShow(answer, billFor(answer));
+    startShow(answer);
   }
 
   function toggleSound() {
@@ -3629,24 +3478,20 @@ function Generator() {
   const trial = !config.lockRemoval;
 
   // The hours the stack has said so far: one sentence per whole hour, up to
-  // the one the answer landed on, which is also the day the bill prices.
+  // the one the answer landed on, which is also the day the total prices.
   const wholeHours = clampHours(hours);
   const locale = getLocale();
   const stacked = Array.from({ length: wholeHours }, (_, index) => index + 1);
-  // The bill itself: the rows the day earned, what they add up to, and the
-  // number and date that say this one was rung up for this reader.
-  const receipt = receiptLines(wholeHours, locale);
-  const totals = receiptTotals(wholeHours, locale);
-  const years = totals.years;
-  const receiptNo = receiptNumber(wholeHours, printedAt);
-  const printedOn = receiptDate(printedAt, locale);
-  // Where the printer has got to. `null` is the whole bill, so a reader who was
-  // handed it rather than shown it is past every one of these.
-  const subtotalPrinted = printed === null || printed >= receipt.length + RECEIPT_SUBTOTAL;
-  const taxPrinted = printed === null || printed >= receipt.length + RECEIPT_TAX;
-  const totalPrinted = printed === null || printed >= receipt.length + RECEIPT_TOTAL;
-  const footPrinted = printed === null || printed >= receipt.length + RECEIPT_FOOT;
-  const items = printed === null ? receipt : receipt.slice(0, printed);
+  // The line the whole screen adds up to, cut in two on the years inside it,
+  // because the years are the one figure on the first screen in the accent.
+  const years = wholeHours === 1 ? ONE_HOUR_YEARS : formatYears(wholeHours);
+  const [totalBefore, totalAfter] = (
+    wholeHours === 1
+      ? m.home_total_line_one({ years: LINK_SLOT })
+      : m.home_total_line({ hours: wholeHours, years: LINK_SLOT })
+  ).split(LINK_SLOT);
+  // What that total cost, in three things the reader can picture.
+  const metrics = heroMetrics(wholeHours, locale);
   // The post the story links out to, in the middle of the sentence that tells
   // it, so the words around it keep their own order in every language.
   const [storyBefore, storyAfter] = m.home_story_2({ post: LINK_SLOT }).split(LINK_SLOT);
@@ -3702,8 +3547,8 @@ function Generator() {
         </div>
       )}
       {/* The first screen. It opens as the question, already answered with the
-          average, and nothing else; the line and the bill are what taking or
-          correcting that figure buys, and the show runs the bill up first.
+          average, and nothing else; the lines and the total are what taking or
+          correcting that figure buys, and the show counts the day out first.
           Another number is another answer: the gate is the only way to one. */}
       <header {...props(styles.hero, arrived && styles.heroPrinted)}>
         {/* The figure the question is asked against, and one word to the
@@ -3769,98 +3614,35 @@ function Generator() {
         ) : null}
         {arrived ? (
           <>
-            <div {...props(styles.heroAside, styles.reveal)}>
-              <div {...props(styles.receipt)}>
-                <div {...props(styles.receiptHead)}>
-                  <p {...props(styles.receiptStore)}>{m.home_receipt_store()}</p>
-                  <p {...props(styles.receiptStoreUrl)}>{m.home_receipt_store_url()}</p>
-                </div>
-                <div aria-hidden="true" {...props(styles.receiptRule)} />
-                {/* What the till says it rang up, and who took it. The number is
-                the reader's own day, so the same day always prints the same
-                bill; the feed is the one that served them. */}
-                <div {...props(styles.receiptMeta)}>
-                  <p {...props(styles.receiptMetaLine)}>
-                    <span>{m.home_receipt_no({ number: receiptNo })}</span>
-                    <span>{printedOn}</span>
-                  </p>
-                  <p {...props(styles.receiptMetaLine)}>{m.home_receipt_cashier()}</p>
-                </div>
-                <div aria-hidden="true" {...props(styles.receiptRule)} />
-                <div {...props(styles.receiptItems)}>
-                  <span {...props(styles.receiptColumn)}>{m.home_receipt_col_item()}</span>
-                  <span {...props(styles.receiptColumn)}>{m.home_receipt_col_qty()}</span>
-                  <span {...props(styles.receiptColumn, styles.receiptColumnAmount)}>
-                    {m.home_receipt_col_amount()}
-                  </span>
-                  {/* The items, as far as the printer has got: one row a beat,
-                  in the order the day earned them. */}
-                  <ul {...props(styles.receiptList)}>
-                    {items.map((line) => (
-                      <li key={line.key} {...props(styles.receiptRow)}>
-                        <span>{line.label}</span>
-                        <span {...props(styles.receiptQty)}>{line.qty}</span>
-                        <span {...props(styles.receiptValue)}>{line.value}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                {subtotalPrinted ? (
-                  <>
-                    <div aria-hidden="true" {...props(styles.receiptRule)} />
-                    <div {...props(styles.receiptSums)}>
-                      <p {...props(styles.receiptSum, styles.receiptPrint)}>
-                        <span>{m.home_receipt_subtotal()}</span>
-                        <span {...props(styles.receiptValue)}>
-                          {m.home_receipt_hours_value({ hours: totals.hours })}
-                        </span>
-                      </p>
-                      {/* Why the hours come out as so few years: only the waking
-                      ones were ever the reader's to spend. */}
-                      {taxPrinted ? (
-                        <p {...props(styles.receiptSum, styles.receiptTax, styles.receiptPrint)}>
-                          <span>{m.home_receipt_tax()}</span>
-                          <span>{m.home_receipt_tax_value()}</span>
-                        </p>
-                      ) : null}
-                      {/* The line the whole bill adds up to. It prints last of
-                      the three, which is when the till rings. */}
-                      {totalPrinted ? (
-                        <p {...props(styles.receiptTotal, styles.receiptPrint)}>
-                          <span {...props(styles.receiptTotalLabel)}>
-                            {m.home_receipt_total_label()}
-                          </span>
-                          <span
-                            {...props(
-                              styles.receiptTotalValue,
-                              printed !== null && styles.receiptTotalPulse,
-                            )}
-                          >
-                            {m.home_receipt_total_value({ years })}
-                          </span>
-                        </p>
-                      ) : null}
-                    </div>
-                  </>
-                ) : null}
-                {footPrinted ? (
-                  <>
-                    <div aria-hidden="true" {...props(styles.receiptRule)} />
-                    <div {...props(styles.receiptFoot, styles.receiptPrint)}>
-                      <p {...props(styles.receiptFootLine)}>{m.home_receipt_paid()}</p>
-                      <p {...props(styles.receiptFootLine)}>{m.home_receipt_no_refunds()}</p>
-                      <p aria-hidden="true" {...props(styles.receiptBarcode)}>
-                        {RECEIPT_BARCODE}
-                      </p>
-                      <p {...props(styles.receiptThanks)}>{m.home_receipt_thanks()}</p>
-                    </div>
-                  </>
-                ) : null}
+            {/* The line the whole screen was counting towards, and the one
+            thing on the page set in the display size. The till rings on it,
+            and the years inside it are the only coloured figure on it. */}
+            <p {...props(styles.totalLine, styles.reveal)}>
+              {totalBefore}
+              <span {...props(styles.totalYears, rung && styles.totalRing)}>{years}</span>
+              {totalAfter}
+            </p>
+            {/* What that total cost, a beat behind it: three figures on one
+            quiet line, with the arithmetic behind them at the end of it. The
+            dots are punctuation, so nothing reads them out. */}
+            {itemized ? (
+              <div {...props(styles.metrics, styles.reveal)}>
+                {metrics.map((item, index) => (
+                  <Fragment key={item.key}>
+                    {index === 0 ? null : <span aria-hidden="true">·</span>}
+                    <span {...props(styles.metric)}>
+                      {item.before}
+                      <span {...props(styles.metricValue)}>{item.value}</span>
+                      {item.after}
+                    </span>
+                  </Fragment>
+                ))}
+                <AssumptionsNote />
               </div>
-            </div>
-            {/* What the bill is for, and the two ways on from it. It arrives a
-            beat after the total: there is nothing to sell until the bill has
-            landed. The arithmetic and the speaker follow it, quieter still. */}
+            ) : null}
+            {/* What the total is for, and the two ways on from it. It arrives a
+            beat after the row: there is nothing to sell until the day has been
+            added up and priced. The speaker follows it, quieter still. */}
             {settled ? (
               <div {...props(styles.heroPitch, styles.reveal)}>
                 <p {...props(styles.heroProduct)}>{m.home_hero_product()}</p>
@@ -3871,7 +3653,6 @@ function Generator() {
                   </a>
                 </div>
                 <div {...props(styles.heroQuiet)}>
-                  <AssumptionsNote />
                   <button
                     aria-label={m.home_math_sound_label()}
                     aria-pressed={sound}
@@ -3937,6 +3718,16 @@ function Generator() {
             <p {...props(styles.storyLine)}>{m.home_useful_1()}</p>
             <p {...props(styles.storyLine)}>{m.home_useful_2()}</p>
             <p {...props(styles.storyLine)}>{m.home_useful_3()}</p>
+          </div>
+        </section>
+
+        {/* What the hours do, rather than what they cost. It follows the half
+        of the story that keeps the phone, because it is the reason the feeds
+        are the part that goes. */}
+        <section {...props(styles.section)}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_consume_title()}</h2>
+          <div {...props(styles.story)}>
+            <p {...props(styles.storyLine)}>{m.home_consume_1()}</p>
           </div>
         </section>
 

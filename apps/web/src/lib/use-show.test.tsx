@@ -13,32 +13,29 @@ function stubMotion(reduce: boolean): void {
   }));
 }
 
-/** The bill the answers in these tests print: six items and the four after. */
-const BILL = { lines: 10, total: 9 };
-
 /** A page with one answer in it, and the show that counts it out. */
 function Hero({
   answer,
   onArrive,
-  onPrint,
+  onMetrics,
   onSettle,
   onStep,
 }: {
   answer: Entered;
   onArrive: (entered: Entered, shown: boolean) => void;
-  onPrint?: (line: number, bill: typeof BILL) => void;
+  onMetrics?: () => void;
   onSettle?: () => void;
   onStep: (hours: number, total: number) => void;
 }) {
   const { running, start } = useShow({
     onArrive,
-    onPrint: onPrint ?? (() => {}),
+    onMetrics: onMetrics ?? (() => {}),
     onSettle: onSettle ?? (() => {}),
     onStep,
   });
   return (
     <section>
-      <button onClick={() => start(answer, BILL)} type="button">
+      <button onClick={() => start(answer)} type="button">
         show me
       </button>
       <p>{running ? 'running' : 'idle'}</p>
@@ -90,41 +87,51 @@ describe('useShow', () => {
     expect(state()).toBe('idle');
   });
 
-  it('prints the bill a line at a time once the line has settled', () => {
+  it('leaves the last hour standing for a beat before it is totalled', () => {
     stubMotion(false);
     vi.useFakeTimers();
-    const lines = vi.fn<(line: number, bill: typeof BILL) => void>();
-    render(<Hero answer={{ hours: 1 }} onArrive={() => {}} onPrint={lines} onStep={() => {}} />);
+    const arrived = vi.fn<(entered: Entered, shown: boolean) => void>();
+    render(<Hero answer={{ hours: 2 }} onArrive={arrived} onStep={() => {}} />);
 
     submit();
-    advance(600);
+    advance(2200 + 599);
 
-    // The line takes the beat after the climb to settle into place.
-    expect(lines).not.toHaveBeenCalled();
+    expect(arrived).not.toHaveBeenCalled();
 
-    advance(300);
-    expect(lines.mock.calls.at(-1)?.[0]).toBe(1);
-
-    advance(240 * 9);
-    expect(lines.mock.calls.map(([line]) => line)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-
-    // The bill ends where it ends: nothing prints past its last line.
-    advance(240 * 4);
-    expect(lines).toHaveBeenCalledTimes(10);
+    advance(1);
+    expect(arrived).toHaveBeenCalledTimes(1);
   });
 
-  it('leaves the total standing for a beat before the pitch', () => {
+  it('itemizes the total a beat after it, and sells a beat after that', () => {
     stubMotion(false);
     vi.useFakeTimers();
+    const itemized = vi.fn<() => void>();
     const settled = vi.fn<() => void>();
-    render(<Hero answer={{ hours: 1 }} onArrive={() => {}} onSettle={settled} onStep={() => {}} />);
+    render(
+      <Hero
+        answer={{ hours: 1 }}
+        onArrive={() => {}}
+        onMetrics={itemized}
+        onSettle={settled}
+        onStep={() => {}}
+      />,
+    );
 
     submit();
-    // The climb, the settle, and every line up to the total.
-    advance(600 + 300 + 240 * 8);
+    // The climb, and the beat the last hour holds before the total.
+    advance(600);
+    expect(itemized).not.toHaveBeenCalled();
+
+    advance(400);
+    expect(itemized).toHaveBeenCalledTimes(1);
     expect(settled).not.toHaveBeenCalled();
 
     advance(400);
+    expect(settled).toHaveBeenCalledTimes(1);
+
+    // The script ends on the pitch: nothing fires after it.
+    advance(2200 * 4);
+    expect(itemized).toHaveBeenCalledTimes(1);
     expect(settled).toHaveBeenCalledTimes(1);
   });
 
@@ -147,13 +154,13 @@ describe('useShow', () => {
     vi.useFakeTimers();
     const steps = vi.fn<(hours: number, total: number) => void>();
     const arrived = vi.fn<(entered: Entered, shown: boolean) => void>();
-    const lines = vi.fn<(line: number, bill: typeof BILL) => void>();
+    const itemized = vi.fn<() => void>();
     const settled = vi.fn<() => void>();
     render(
       <Hero
         answer={{ hours: 7 }}
         onArrive={arrived}
-        onPrint={lines}
+        onMetrics={itemized}
         onSettle={settled}
         onStep={steps}
       />,
@@ -163,8 +170,8 @@ describe('useShow', () => {
     advance(2200 * 12);
 
     expect(steps).not.toHaveBeenCalled();
-    expect(lines).not.toHaveBeenCalled();
     expect(arrived).toHaveBeenCalledWith({ hours: 7 }, false);
+    expect(itemized).toHaveBeenCalledTimes(1);
     expect(settled).toHaveBeenCalledTimes(1);
     expect(state()).toBe('idle');
   });
@@ -185,19 +192,27 @@ describe('useShow', () => {
     expect(arrived).not.toHaveBeenCalled();
   });
 
-  it('drops the pitch with the page, even once the bill is printing', () => {
+  it('drops the pitch with the page, even once the total is standing', () => {
     stubMotion(false);
     vi.useFakeTimers();
+    const itemized = vi.fn<() => void>();
     const settled = vi.fn<() => void>();
     const view = render(
-      <Hero answer={{ hours: 1 }} onArrive={() => {}} onSettle={settled} onStep={() => {}} />,
+      <Hero
+        answer={{ hours: 1 }}
+        onArrive={() => {}}
+        onMetrics={itemized}
+        onSettle={settled}
+        onStep={() => {}}
+      />,
     );
 
     submit();
-    advance(600 + 300 + 240 * 8);
+    advance(600 + 400);
     view.unmount();
     advance(400);
 
+    expect(itemized).toHaveBeenCalledTimes(1);
     expect(settled).not.toHaveBeenCalled();
   });
 });

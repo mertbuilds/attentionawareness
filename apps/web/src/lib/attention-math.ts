@@ -12,18 +12,20 @@ const HOURS_ROUNDING = 100;
 const HOURS_PER_BOOK = 8;
 /** A year of full-time work: 40 hours a week, fifty weeks of them. */
 const HOURS_PER_JOB_YEAR = 2000;
-/** What a language costs before it is spoken. */
-const HOURS_PER_LANGUAGE = 1500;
-/** What the receipt pays the reader for the hours they gave away. */
+/** What the hours the reader gave away would have been paid at. */
 const DOLLARS_PER_HOUR = 20;
-const MINUTES_PER_HOUR = 60;
-/** A till prints the minutes of a quantity in two figures: 4h05, never 4h5. */
-const MINUTE_DIGITS = 2;
-/** A till's receipt number is four figures, so a small one is padded out. */
-const NUMBER_DIGITS = 4;
-/** What one minute of the day is worth in the receipt number beside the date. */
-const MINUTE_WEIGHT = 7;
-const MS_PER_DAY = 86_400_000;
+/**
+ * The day from which the hours come to whole years of work. A shorter day is
+ * counted in the dinners it went through instead, because a fraction of a job
+ * is not a thing anybody can picture.
+ */
+const JOB_MIN_HOURS = 4;
+/**
+ * Where the figure stands inside its own sentence. The message is written with
+ * the number as a placeholder and split on it, so the row can set the number
+ * apart from the words around it without stitching the sentence from pieces.
+ */
+const VALUE_SLOT = '\u0000';
 
 /** How far ahead the page projects a daily habit. */
 export const HORIZON_YEARS = 20;
@@ -55,95 +57,13 @@ const TRUTHS = [
 ];
 
 /**
- * One row of the receipt: what was taken, the rate it was taken at, and what
- * it came to. The rate is the till's own column, so it reads as a price list
- * and not as a list of claims.
+ * One item of the quiet row under the total: the sentence it is said in, and
+ * the figure standing inside it, which the row sets apart from the words.
  */
-export type ReceiptLine = { key: string; label: string; qty: string; value: string };
+export type HeroMetric = { after: string; before: string; key: string; value: string };
 
-/** What the receipt adds up to, under the tear line. */
-export type ReceiptTotals = { hours: string; years: string };
-
-/** The grouped number a row is billed in. */
+/** The grouped number an item is counted in. */
 type Format = (value: number) => string;
-
-type ReceiptEntry = {
-  key: string;
-  label: (locale: Locale) => string;
-  /** The hours a day from which this row is part of the reader's bill. */
-  minHours: number;
-  qty: (hoursPerDay: number, locale: Locale) => string;
-  value: (hoursPerDay: number, format: Format, locale: Locale) => string;
-};
-
-/**
- * The bill, printed the way a till prints one. The screen time itself is the
- * first line, because it is the thing being bought; the rest is what that line
- * was paid with. A row appears once the day is long enough to earn it and
- * stays for every longer day; the books and the money are owed at any length,
- * so they carry no threshold of their own. The waking years are not a row:
- * they are the total under the tear line.
- */
-const RECEIPT: ReadonlyArray<ReceiptEntry> = [
-  {
-    key: 'screen',
-    label: (locale) => m.home_receipt_screen_label({}, { locale }),
-    minHours: 0,
-    qty: (hoursPerDay, locale) => {
-      const total = Math.round(hoursPerDay * MINUTES_PER_HOUR);
-      return m.home_receipt_screen_qty(
-        {
-          hours: Math.floor(total / MINUTES_PER_HOUR),
-          minutes: String(total % MINUTES_PER_HOUR).padStart(MINUTE_DIGITS, '0'),
-        },
-        { locale },
-      );
-    },
-    value: (hoursPerDay, format, locale) =>
-      m.home_receipt_hours_value({ hours: format(screenHours(hoursPerDay)) }, { locale }),
-  },
-  {
-    key: 'books',
-    label: (locale) => m.home_receipt_books_label({}, { locale }),
-    minHours: 0,
-    qty: (_hoursPerDay, locale) => m.home_receipt_books_qty({}, { locale }),
-    value: (hoursPerDay, format) => format(screenHours(hoursPerDay) / HOURS_PER_BOOK),
-  },
-  {
-    key: 'dinners',
-    label: (locale) => m.home_receipt_dinners_label({}, { locale }),
-    minHours: 2,
-    qty: (_hoursPerDay, locale) => m.home_receipt_dinners_qty({}, { locale }),
-    value: (_hoursPerDay, format) => format(HORIZON_YEARS * DAYS_PER_YEAR),
-  },
-  {
-    key: 'languages',
-    label: (locale) => m.home_receipt_languages_label({}, { locale }),
-    minHours: 3,
-    qty: (_hoursPerDay, locale) => m.home_receipt_languages_qty({}, { locale }),
-    value: (hoursPerDay, format) =>
-      format(Math.floor(screenHours(hoursPerDay) / HOURS_PER_LANGUAGE)),
-  },
-  {
-    key: 'money',
-    label: (locale) => m.home_receipt_money_label({}, { locale }),
-    minHours: 0,
-    qty: (_hoursPerDay, locale) => m.home_receipt_money_qty({}, { locale }),
-    // One dollar sign in both locales: the reader is not being invoiced.
-    value: (hoursPerDay, format) => `$${format(screenHours(hoursPerDay) * DOLLARS_PER_HOUR)}`,
-  },
-  {
-    key: 'job',
-    label: (locale) => m.home_receipt_job_label({}, { locale }),
-    minHours: 4,
-    qty: (_hoursPerDay, locale) => m.home_receipt_job_qty({}, { locale }),
-    value: (hoursPerDay, format, locale) =>
-      m.home_receipt_job_value(
-        { years: format(screenHours(hoursPerDay) / HOURS_PER_JOB_YEAR) },
-        { locale },
-      ),
-  },
-];
 
 /**
  * The waking years a daily screen habit costs over the horizon. The calendar
@@ -165,74 +85,57 @@ export function screenHours(hoursPerDay: number): number {
   return Math.round(exactHours(hoursPerDay) / HOURS_ROUNDING) * HOURS_ROUNDING;
 }
 
-/** The hours grouped the way the reader's locale groups thousands. */
-export function formatHours(hoursPerDay: number, locale: string): string {
-  return new Intl.NumberFormat(locale).format(screenHours(hoursPerDay));
-}
-
 /**
- * What the page says out loud at the hour it is on: one sentence, no numbers
- * to read off it. An hour the page cannot reach has nothing to say.
+ * What the page says out loud at the hour it is on: the arithmetic first, then
+ * what it means. An hour the page cannot reach has nothing to say.
  */
 export function homeTruth(hoursPerDay: number, locale: Locale): string {
   return TRUTHS[hoursPerDay - 1]?.({}, { locale }) ?? '';
 }
 
 /**
- * What the habit takes, itemized. Every row the day has earned, in the order
- * the receipt prints them, each with the rate it was billed at and the number
- * it cost. The numbers are grouped for the reader's locale, and so are the
- * labels.
+ * What the total cost, in three things a reader can picture: the books they
+ * did not read, what the hours would have been paid, and the years of
+ * full-time work they add up to. A day too short to be a job is counted in the
+ * dinners it went through instead. The numbers are grouped for the reader's
+ * locale, and so are the words around them.
  */
-export function receiptLines(hoursPerDay: number, locale: Locale): Array<ReceiptLine> {
+export function heroMetrics(hoursPerDay: number, locale: Locale): Array<HeroMetric> {
   const format: Format = (value) => new Intl.NumberFormat(locale).format(Math.round(value));
-  return RECEIPT.filter((entry) => hoursPerDay >= entry.minHours).map((entry) => ({
-    key: entry.key,
-    label: entry.label(locale),
-    qty: entry.qty(hoursPerDay, locale),
-    value: entry.value(hoursPerDay, format, locale),
-  }));
+  const hours = screenHours(hoursPerDay);
+  return [
+    metric(
+      'books',
+      m.home_metrics_books({ n: VALUE_SLOT }, { locale }),
+      format(hours / HOURS_PER_BOOK),
+    ),
+    metric(
+      'money',
+      m.home_metrics_money({ amount: VALUE_SLOT }, { locale }),
+      // One dollar sign in both locales: the reader is not being invoiced.
+      `$${format(hours * DOLLARS_PER_HOUR)}`,
+    ),
+    hoursPerDay >= JOB_MIN_HOURS
+      ? metric(
+          'job',
+          m.home_metrics_job({ years: VALUE_SLOT }, { locale }),
+          format(hours / HOURS_PER_JOB_YEAR),
+        )
+      : metric(
+          'dinners',
+          m.home_metrics_dinners({ n: VALUE_SLOT }, { locale }),
+          format(HORIZON_YEARS * DAYS_PER_YEAR),
+        ),
+  ];
 }
 
-/**
- * The two numbers under the tear line: the hours the rows were all counted
- * from, which is the subtotal, and the waking years they come to once the
- * eight hours nobody is awake for are taken off.
- */
-export function receiptTotals(hoursPerDay: number, locale: Locale): ReceiptTotals {
-  return { hours: formatHours(hoursPerDay, locale), years: formatYears(hoursPerDay) };
+/** One item, cut in two on the figure that stands in it. */
+function metric(key: string, sentence: string, value: string): HeroMetric {
+  const [before = '', after = ''] = sentence.split(VALUE_SLOT);
+  return { after, before, key, value };
 }
 
-/**
- * The number at the top of the bill. A till assigns one; this one is derived
- * from the day being priced and the day it is printed, so it looks assigned
- * and never moves under a reader who has not changed their answer.
- */
-export function receiptNumber(hoursPerDay: number, printed: Date): string {
-  const minutes = Math.round(hoursPerDay * MINUTES_PER_HOUR);
-  return String(minutes * MINUTE_WEIGHT + dayOfYear(printed)).padStart(NUMBER_DIGITS, '0');
-}
-
-/** The day the bill was printed, the way a till dates one: 13 Sep 2026. */
-export function receiptDate(printed: Date, locale: Locale): string {
-  const parts = new Intl.DateTimeFormat(locale, {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).formatToParts(printed);
-  return (['day', 'month', 'year'] as const)
-    .map((type) => parts.find((part) => part.type === type)?.value ?? '')
-    .join(' ');
-}
-
-/** Which day of its own year a date is, counting the first of January as one. */
-function dayOfYear(printed: Date): number {
-  const opened = Date.UTC(printed.getFullYear(), 0, 0);
-  const today = Date.UTC(printed.getFullYear(), printed.getMonth(), printed.getDate());
-  return (today - opened) / MS_PER_DAY;
-}
-
-/** The waking hours inside the screen years, unrounded: the receipt counts them. */
+/** The waking hours inside the screen years, unrounded: the row counts them. */
 function exactHours(hoursPerDay: number): number {
   return screenYears(hoursPerDay) * DAYS_PER_YEAR * WAKING_HOURS;
 }
