@@ -13,40 +13,29 @@ const URL_WITH_STATE = `${SITE_URL}/?h=4&a=ig,tt`;
 describe('encodeShare', () => {
   it('writes the recommended apps as their short codes', () => {
     expect(
-      encodeShare({ bundleIds: ['com.burbn.instagram', 'com.zhiliaoapp.musically'], minutes: 360 }),
+      encodeShare({ bundleIds: ['com.burbn.instagram', 'com.zhiliaoapp.musically'], hours: 6 }),
     ).toBe('h=6&a=ig,tt');
   });
 
   it('writes an app it has no code for as its own bundle id', () => {
-    expect(encodeShare({ bundleIds: ['com.example.chat'], minutes: 270 })).toBe(
-      'm=270&a=com.example.chat',
+    expect(encodeShare({ bundleIds: ['com.example.chat'], hours: 4.5 })).toBe(
+      'h=4.5&a=com.example.chat',
     );
   });
 
-  it('writes a whole hour as hours, and anything else as minutes', () => {
-    expect(encodeShare({ bundleIds: [], minutes: 240 })).toBe('h=4');
-    expect(encodeShare({ bundleIds: [], minutes: 255 })).toBe('m=255');
-    expect(encodeShare({ bundleIds: [], minutes: 0 })).toBe('h=0');
-  });
-
   it('leaves out the app list when nothing is blocked', () => {
-    expect(encodeShare({ bundleIds: [], minutes: 240 })).toBe('h=4');
+    expect(encodeShare({ bundleIds: [], hours: 4 })).toBe('h=4');
   });
 });
 
 describe('decodeShare', () => {
   it('reads back everything encodeShare wrote', () => {
-    const state = { bundleIds: presets.mert.blockedApps.map((app) => app.bundleId), minutes: 420 };
-    expect(decodeShare(encodeShare(state))).toEqual(state);
-  });
-
-  it('reads back a day with minutes on it', () => {
-    const state = { bundleIds: ['com.burbn.instagram'], minutes: 255 };
+    const state = { bundleIds: presets.mert.blockedApps.map((app) => app.bundleId), hours: 7 };
     expect(decodeShare(encodeShare(state))).toEqual(state);
   });
 
   it('survives a link that lost its app list', () => {
-    expect(decodeShare('h=3')).toEqual({ bundleIds: [], minutes: 180 });
+    expect(decodeShare('h=3')).toEqual({ bundleIds: [], hours: 3 });
   });
 
   it('drops entries that name no app', () => {
@@ -60,36 +49,25 @@ describe('decodeShare', () => {
     expect(decodeShare('a=ig,ig,com.burbn.instagram').bundleIds).toEqual(['com.burbn.instagram']);
   });
 
-  it('keeps a day the register can hold', () => {
-    expect(decodeShare('h=12').minutes).toBe(720);
-    expect(decodeShare('m=255').minutes).toBe(255);
+  it('keeps hours the slider can reach', () => {
+    expect(decodeShare('h=12').hours).toBe(12);
   });
 
-  it('reads an hour with a fraction on it as the minutes it comes to', () => {
-    expect(decodeShare('h=7.5').minutes).toBe(450);
-    expect(decodeShare('h=4.25').minutes).toBe(255);
+  it('rounds hours onto the stop the slider has', () => {
+    expect(decodeShare('h=7.5').hours).toBe(8);
+    expect(decodeShare('h=4.2').hours).toBe(4);
   });
 
-  it('rounds a fraction of a minute onto the nearer one', () => {
-    expect(decodeShare('m=255.4').minutes).toBe(255);
-    expect(decodeShare('m=255.6').minutes).toBe(256);
+  it('clamps hours into the range the slider offers', () => {
+    expect(decodeShare('h=13').hours).toBe(12);
+    expect(decodeShare('h=99').hours).toBe(12);
+    expect(decodeShare('h=-4').hours).toBe(1);
   });
 
-  it('clamps a day into the range the register offers', () => {
-    expect(decodeShare('m=9999').minutes).toBe(779);
-    expect(decodeShare('h=13').minutes).toBe(779);
-    expect(decodeShare('h=-4').minutes).toBe(0);
-  });
-
-  it('falls back on the hours when the minutes are unreadable', () => {
-    expect(decodeShare('m=soon&h=3').minutes).toBe(180);
-  });
-
-  it('reads no day from a value that is not a number', () => {
-    expect(decodeShare('h=soon').minutes).toBeUndefined();
-    expect(decodeShare('m=soon').minutes).toBeUndefined();
-    expect(decodeShare('h=').minutes).toBeUndefined();
-    expect(decodeShare('').minutes).toBeUndefined();
+  it('reads no hours from a value that is not a number', () => {
+    expect(decodeShare('h=soon').hours).toBeUndefined();
+    expect(decodeShare('h=').hours).toBeUndefined();
+    expect(decodeShare('').hours).toBeUndefined();
   });
 });
 
