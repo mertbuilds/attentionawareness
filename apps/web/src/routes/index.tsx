@@ -43,7 +43,6 @@ import {
   storefronts,
 } from '../lib/app-search.ts';
 import {
-  AVERAGE_DAY,
   formatYears,
   homeTruth,
   receiptDate,
@@ -59,7 +58,7 @@ import { buildProfile, presets } from '../lib/profile/index.ts';
 import type { BlockedApp, ProfileConfig } from '../lib/profile/index.ts';
 import { decodeShare, sharedAppName } from '../lib/share.ts';
 import { normalizeUrl, sitesForApp, sitesForApps } from '../lib/sites.ts';
-import { playCheckout, playStep } from '../lib/sounds.ts';
+import { playCheckout, playStep, playTick } from '../lib/sounds.ts';
 import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
 import { useIsMobile } from '../lib/use-is-mobile.ts';
 import { useShow } from '../lib/use-show.ts';
@@ -179,28 +178,51 @@ const PREVIEW_APPS = 12;
 const PREVIEW_SITES = 6;
 /** How many apps one site row names before the rest are left implied. */
 const ROW_APPS = 3;
-/** What the page can price, in hours a day. */
+/** What the page can price, in hours a day, and the only stop it has. */
 const HOURS_MIN = 1;
 const HOURS_MAX = 12;
-/** Where the page stands before the reader has answered the question. */
-const HOURS_DEFAULT = 4;
+const HOURS_STEP = 1;
 /**
- * The day the gate opens on, which is the figure the reader is asked to
- * recognize or correct rather than remember. The research behind it sits one
- * quiet line under the fields.
+ * Where the slider stands before the reader has moved it: the whole hours of
+ * the average day the line above it cites, which is the figure the reader is
+ * asked to recognize or correct rather than remember.
  */
-const { hours: AVERAGE_HOURS, minutes: AVERAGE_MINUTES } = AVERAGE_DAY;
+const HOURS_DEFAULT = 6;
 const REVIEWS_URL = 'https://www.reviews.org/internet-service/internet-screen-time-statistics';
 const DATAREPORTAL_URL = 'https://datareportal.com/global-digital-overview';
-/** What the gate takes past the hour, and how many of them make one. */
-const MINUTES_MAX = 59;
-const MINUTES_PER_HOUR = 60;
-/** Anything but a figure, which is all the gate's two fields accept. */
-const NOT_DIGITS = /\D+/gu;
-/** A whole hour figure, and a whole minute figure, are two digits each. */
-const FIGURE_DIGITS = 2;
-/** The keys that mean "the hour is typed": the gate moves on to the minutes. */
-const ADVANCE_KEYS = [':', '.', ' '];
+/** The machined knob, and the rail the ticks are measured against. */
+const KNOB_WIDTH = 28;
+const KNOB_HEIGHT = 44;
+const TRACK_HEIGHT = 4;
+/**
+ * The knob's face: a fine horizontal grain over the falloff of a turned edge,
+ * and a darker falloff for the moment it is held down. Fixed greys, because a
+ * machined part is the same part in either theme.
+ */
+const KNOB_BRUSH =
+  'repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 3px)';
+const KNOB_FALLOFF = 'linear-gradient(180deg, #e8e8ea 0%, #c9c9cd 45%, #a9a9ae 55%, #d6d6da 100%)';
+const KNOB_FALLOFF_PRESSED =
+  'linear-gradient(180deg, #d8d8dc 0%, #b9b9bf 45%, #999aa0 55%, #c6c6cc 100%)';
+/**
+ * The edges of that face: a lit top, a shaded bottom, and the rim around both.
+ * The rim is listed last so the two 1px lines stay on top of it.
+ */
+const KNOB_EDGES =
+  'inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 -1px 0 rgba(0, 0, 0, 0.25), inset 0 0 0 1px #6b6b70';
+/** The knob standing off the rail, and the same knob pressed into it. */
+const KNOB_SHADOW = `${KNOB_EDGES}, 0 2px 6px rgba(0, 0, 0, 0.35)`;
+const KNOB_SHADOW_PRESSED = `${KNOB_EDGES}, 0 1px 2px rgba(0, 0, 0, 0.35)`;
+/** The indicator cut into the middle of the face: 2px across, 18px tall. */
+const KNOB_NOTCH_SIZE = '2px 18px';
+/**
+ * One detent per whole hour of travel, each with the fraction of the rail it
+ * sits at. The knob only ever stops on these, so the marks are the truth.
+ */
+const TICKS = Array.from({ length: (HOURS_MAX - HOURS_MIN) / HOURS_STEP + 1 }, (_, index) => {
+  const value = HOURS_MIN + index * HOURS_STEP;
+  return { at: (value - HOURS_MIN) / (HOURS_MAX - HOURS_MIN), value };
+});
 
 type WebMode = ProfileConfig['webFilter']['mode'];
 
@@ -258,10 +280,10 @@ const totalPulse = keyframes({
   to: { scale: 1.04 },
 });
 
-/** Each hour has its own line, and the line fades up over the one before it. */
+/** Each hour has its own line, and the line rises into place under the last. */
 const truthEnter = keyframes({
-  from: { opacity: 0 },
-  to: { opacity: 1 },
+  from: { opacity: 0, transform: 'translateY(8px)' },
+  to: { opacity: 1, transform: 'translateY(0)' },
 });
 
 /** The results drop in from just under the bar; they never animate out. */
@@ -435,15 +457,15 @@ const styles = create({
     margin: 0,
     textWrap: 'balance',
   },
-  // The question's answer, typed. It is the whole first screen until it is
-  // given, so it sits directly under the question and nothing sits under it.
-  // Four things and the air between them: the figures, the way on, and the
-  // line that says where the figures came from.
+  // The question's answer, set on a dial. It is the whole first screen until
+  // it is given, so it sits directly under the question and nothing sits under
+  // it: the rail with the figure it reads, and the way on.
   gate: {
     alignItems: 'start',
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s4,
+    width: '100%',
   },
   gateActions: {
     alignItems: 'center',
@@ -467,47 +489,45 @@ const styles = create({
     padding: 0,
     textDecorationLine: 'underline',
   },
-  // The answer, typed: two figures in the receipt's own face, each standing on
-  // a rule that lights up under the caret. No box, because the card is the box.
-  gateDigits: {
-    backgroundColor: 'transparent',
-    borderStyle: 'none',
-    borderWidth: 0,
-    boxShadow: {
-      ':focus': `inset 0 -1px 0 ${accent.base}`,
-      default: `inset 0 -1px 0 ${colors.border}`,
-    },
-    caretColor: accent.base,
-    color: colors.fg,
-    fontFamily: MONOSPACE,
-    fontSize: 32,
-    fontVariantNumeric: 'tabular-nums',
-    lineHeight: 1.2,
-    minWidth: 0,
-    outlineStyle: 'none',
-    paddingBlock: spacing.s1,
-    paddingInline: spacing.s1,
-    textAlign: 'center',
-    width: 64,
-  },
-  // A correction, not a telling-off: it says the range and stays quiet.
-  gateError: {
-    color: colors.muted,
-    fontSize: font.sizeSm,
-    lineHeight: 1.5,
-    margin: 0,
-  },
-  gateRow: {
+  // The control and the figure it reads, side by side: the rail takes what is
+  // left of the row, and the number stands at the end of it.
+  gateDial: {
     alignItems: 'center',
     display: 'flex',
     flexWrap: 'wrap',
-    gap: spacing.s2,
+    gap: spacing.s4,
+    maxWidth: HERO_MEASURE,
+    width: '100%',
   },
-  // The unit each figure is in, small and beside it rather than over it.
-  gateUnit: {
+  // The one mark between the answer and the way back into the gate.
+  gateDot: {
+    marginInlineStart: spacing.s2,
+  },
+  // The cited average, one quiet line over the question, with the sources
+  // behind it a word further away.
+  gateIntro: {
     color: colors.muted,
+    display: 'flex',
+    flexWrap: 'wrap',
     fontSize: font.sizeSm,
-    marginInlineEnd: spacing.s2,
+    gap: spacing.s2,
+    lineHeight: 1.5,
+    margin: 0,
+    maxWidth: HERO_MEASURE,
+  },
+  gateRail: {
+    flexBasis: 240,
+    flexGrow: 1,
+    minWidth: 0,
+  },
+  // What the dial reads, in the receipt's own face at the page's display size.
+  // It is the only figure on the first screen until the bill prints.
+  gateReading: {
+    fontFamily: MONOSPACE,
+    fontSize: DISPLAY_SIZE,
+    fontVariantNumeric: 'tabular-nums',
+    letterSpacing: '-0.02em',
+    lineHeight: 1,
   },
   // The helper sentence, folded into a ring the question can be asked from.
   helpButton: {
@@ -1563,6 +1583,95 @@ const styles = create({
     height: 40,
     width: '100%',
   },
+  // The native input, dressed as a machined dial. The browser keeps the
+  // keyboard, the detents and the screen reader; it gives up only its looks.
+  slider: {
+    // Brushed aluminium: the grain and the falloff under it, with the orange
+    // indicator cut into the middle as a layer of its own. Firefox's knob and
+    // Chrome's are the same part, so they read from the same constants.
+    '::-moz-range-thumb': {
+      backgroundImage: {
+        ':active': `linear-gradient(${accent.base}, ${accent.base}), ${KNOB_BRUSH}, ${KNOB_FALLOFF_PRESSED}`,
+        default: `linear-gradient(${accent.base}, ${accent.base}), ${KNOB_BRUSH}, ${KNOB_FALLOFF}`,
+      },
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+      backgroundSize: `${KNOB_NOTCH_SIZE}, auto, auto`,
+      borderRadius: 6,
+      borderStyle: 'none',
+      borderWidth: 0,
+      boxShadow: {
+        ':active': KNOB_SHADOW_PRESSED,
+        default: KNOB_SHADOW,
+      },
+      height: KNOB_HEIGHT,
+      width: KNOB_WIDTH,
+    },
+    '::-moz-range-track': {
+      backgroundColor: colors.border,
+      borderRadius: 999,
+      height: TRACK_HEIGHT,
+    },
+    '::-webkit-slider-runnable-track': {
+      backgroundColor: colors.border,
+      borderRadius: 999,
+      height: TRACK_HEIGHT,
+    },
+    // The same face, plus the offset that sits it on the track.
+    '::-webkit-slider-thumb': {
+      appearance: 'none',
+      backgroundImage: {
+        ':active': `linear-gradient(${accent.base}, ${accent.base}), ${KNOB_BRUSH}, ${KNOB_FALLOFF_PRESSED}`,
+        default: `linear-gradient(${accent.base}, ${accent.base}), ${KNOB_BRUSH}, ${KNOB_FALLOFF}`,
+      },
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+      backgroundSize: `${KNOB_NOTCH_SIZE}, auto, auto`,
+      borderRadius: 6,
+      boxShadow: {
+        ':active': KNOB_SHADOW_PRESSED,
+        default: KNOB_SHADOW,
+      },
+      height: KNOB_HEIGHT,
+      // Centres the knob on the track: (4 - 44) / 2.
+      marginTop: -20,
+      scale: {
+        ':active': 1.03,
+        ':hover': 1.03,
+        default: 1,
+      },
+      transitionDuration: {
+        '@media (prefers-reduced-motion: reduce)': '0ms',
+        default: '150ms',
+      },
+      transitionProperty: 'scale',
+      transitionTimingFunction: 'ease-out',
+      width: KNOB_WIDTH,
+    },
+    appearance: 'none',
+    backgroundColor: 'transparent',
+    cursor: 'pointer',
+    display: 'block',
+    height: KNOB_HEIGHT,
+    margin: 0,
+    minWidth: 0,
+    padding: 0,
+    width: '100%',
+  },
+  // The travelled part of the rail, so the dial reads its own setting. The
+  // stop always falls under the knob, which is what hides the seam.
+  sliderFill: (percent: number) => ({
+    '::-moz-range-track': {
+      backgroundImage: `linear-gradient(to right, ${accent.base} 0 ${percent}%, ${colors.border} ${percent}% 100%)`,
+    },
+    '::-webkit-slider-runnable-track': {
+      backgroundImage: `linear-gradient(to right, ${accent.base} 0 ${percent}%, ${colors.border} ${percent}% 100%)`,
+    },
+  }),
+  sliderLabel: {
+    display: 'block',
+    width: '100%',
+  },
   // The speaker is a hint, not a headline: it only colours up on hover, and it
   // sits in the quiet row under the way on, at the size of the text beside it.
   soundButton: {
@@ -1586,6 +1695,19 @@ const styles = create({
     display: 'block',
     height: 16,
     width: 16,
+  },
+  // Said to a screen reader and drawn for nobody: the control already carries
+  // its own numbers, so the label over it is only a name.
+  srOnly: {
+    borderWidth: 0,
+    clip: 'rect(0, 0, 0, 0)',
+    height: '1px',
+    margin: '-1px',
+    overflow: 'hidden',
+    padding: 0,
+    position: 'absolute',
+    whiteSpace: 'nowrap',
+    width: '1px',
   },
   // The story is told, not pitched: one column of plain paragraphs, set wider
   // apart and looser than anything else on the page.
@@ -1724,6 +1846,36 @@ const styles = create({
     maxHeight: 320,
     overflowY: 'auto',
   },
+  tick: {
+    backgroundColor: colors.muted,
+    height: 9,
+    insetBlockStart: 0,
+    position: 'absolute',
+    transform: 'translateX(-50%)',
+    width: 1,
+  },
+  // The knob's centre travels between the two ends of the rail, not between
+  // the two ends of the box, so the marks are measured the same way.
+  tickAt: (at: number) => ({
+    insetInlineStart: `calc(${KNOB_WIDTH / 2}px + (100% - ${KNOB_WIDTH}px) * ${at})`,
+  }),
+  tickNumber: {
+    color: colors.muted,
+    fontFamily: MONOSPACE,
+    fontSize: 11,
+    insetBlockStart: 12,
+    insetInlineStart: '50%',
+    lineHeight: 1,
+    position: 'absolute',
+    transform: 'translateX(-50%)',
+  },
+  // Under the track, one mark per detent: the reader can see where the knob
+  // will stop before they let go of it.
+  tickRail: {
+    height: 26,
+    position: 'relative',
+    width: '100%',
+  },
   tileArtwork: {
     borderRadius: 11,
     height: 48,
@@ -1734,8 +1886,8 @@ const styles = create({
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
   },
-  // The line the show lands on, fading up over the one it replaces. Nothing in
-  // it is coloured: the sentence is the blow, and it lands on its own.
+  // One hour arriving, rising the last few pixels into place under the hour
+  // before it. Only the hours the show itself lands are animated.
   truth: {
     animationDuration: {
       '@media (prefers-reduced-motion: reduce)': '0ms',
@@ -1744,29 +1896,23 @@ const styles = create({
     animationName: truthEnter,
     animationTimingFunction: 'ease-out',
   },
-  // Where the line settles once the climb is over: a caption over the bill,
-  // which is the thing to read from then on.
+  // One hour of the day, said once and then left standing. Nothing in it is
+  // coloured: the sentence is the blow, and it lands on its own.
   truthLine: {
     fontSize: font.sizeLg,
     fontWeight: font.weightMedium,
     lineHeight: 1.4,
     margin: 0,
-    maxWidth: HERO_MEASURE,
     textWrap: 'pretty',
-    transitionDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: '300ms',
-    },
-    transitionProperty: 'font-size, line-height',
-    transitionTimingFunction: 'ease-out',
   },
-  // While the day is being counted out the line is the whole screen, so it is
-  // set in the one display size the page has.
-  truthShowing: {
-    fontSize: DISPLAY_SIZE,
-    fontWeight: HEADING_WEIGHT,
-    letterSpacing: '-0.02em',
-    lineHeight: 1.15,
+  // Every hour the show has counted out, in the order it counted them. Nothing
+  // is ever taken off it: the stack is the day, growing.
+  truthStack: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s3,
+    margin: 0,
+    maxWidth: HERO_MEASURE,
   },
 });
 
@@ -1838,16 +1984,18 @@ function withDerivedSites(
   };
 }
 
+/** A whole hour the page can price, whatever the answer or a link asked for. */
+function clampHours(value: number): number {
+  return Math.min(Math.max(value, HOURS_MIN), HOURS_MAX);
+}
+
 /**
  * The bill one answer prints: a line per item the day earns, then the subtotal,
  * the tax, the total the till rings and the lines a receipt ends on. The show
  * needs the shape of it before a single line of it is on the page.
  */
 function billFor(entered: Entered): Bill {
-  const items = receiptLines(
-    entered.hours + entered.minutes / MINUTES_PER_HOUR,
-    getLocale(),
-  ).length;
+  const items = receiptLines(entered.hours, getLocale()).length;
   return { lines: items + RECEIPT_FOOT, total: items + RECEIPT_TOTAL };
 }
 
@@ -2220,117 +2368,85 @@ function AssumptionsNote() {
 }
 
 /**
- * The question, already answered with the average. The reader does not start
- * on an empty field: they start on what an adult spends, with the source under
- * it, and either take it or type over it. Reopened later it stands in the same
- * place, holding whatever was said last, and the second answer only reprints
- * the bill: the show is a first impression and is not run twice.
+ * The question's answer, set rather than typed: whole hours on a machined
+ * dial, the figure it reads beside it, and the way on under both. A detent is
+ * the only stop the dial has, so there is no answer it can take that the page
+ * cannot price, and nothing to correct.
  */
 function ScreenTimeGate({
   entered,
   onSubmit,
+  sound,
 }: {
   entered: Entered | null;
   onSubmit: (entered: Entered) => void;
+  /** Whether a detent may click, which is the page's answer, not the gate's. */
+  sound: boolean;
 }) {
-  const errorId = useId();
-  const [hours, setHours] = useState(String(entered === null ? AVERAGE_HOURS : entered.hours));
-  const [minutes, setMinutes] = useState(
-    entered === null
-      ? String(AVERAGE_MINUTES).padStart(FIGURE_DIGITS, '0')
-      : String(entered.minutes),
-  );
-  const [invalid, setInvalid] = useState(false);
-  const field = useRef<HTMLInputElement>(null);
-  const past = useRef<HTMLInputElement>(null);
+  const [hours, setHours] = useState(entered === null ? HOURS_DEFAULT : entered.hours);
+  const reading = m.home_gate_reading({ hours });
+  // How far along the rail the dial has been turned.
+  const travelled = ((hours - HOURS_MIN) / (HOURS_MAX - HOURS_MIN)) * 100;
 
-  // A finger brings the keyboard up with the focus and shoves the page around
-  // under it, so only a pointer that is not one gets the field handed to it.
-  useEffect(() => {
-    const query = (globalThis as { matchMedia?: (media: string) => MediaQueryList }).matchMedia;
-    if (query?.('(pointer: coarse)').matches !== true) {
-      field.current?.focus();
+  function onHoursChange(value: number) {
+    // One metallic detent per whole hour of travel.
+    if (value !== hours && sound) {
+      primeTickSound();
+      playTick();
     }
-  }, []);
-
-  function onHoursChange(value: string) {
-    const figure = value.replace(NOT_DIGITS, '').slice(0, FIGURE_DIGITS);
-    setHours(figure);
-    // Two digits is a whole hour, so the caret goes where the rest of the
-    // answer is typed.
-    if (figure.length === FIGURE_DIGITS) {
-      past.current?.focus();
-    }
+    setHours(value);
   }
 
-  function onHoursKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
-    if (ADVANCE_KEYS.includes(event.key)) {
-      event.preventDefault();
-      past.current?.focus();
+  // Browsers only hand out an audio device inside a gesture, so the pointer
+  // that is about to drag the knob is what opens it.
+  function armSound() {
+    if (sound) {
+      primeTickSound();
     }
   }
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const day = Number(hours.trim());
-    if (hours.trim() === '' || !Number.isFinite(day) || day < 0 || day > HOURS_MAX) {
-      setInvalid(true);
-      return;
-    }
-    // The minutes are the optional half of the answer, so a reader who emptied
-    // them is answering in whole hours, not failing.
-    const rest = Number(minutes.trim());
-    const usable = minutes.trim() !== '' && Number.isFinite(rest);
-    setInvalid(false);
-    onSubmit({
-      hours: Math.floor(day),
-      minutes: usable ? Math.min(Math.max(Math.floor(rest), 0), MINUTES_MAX) : 0,
-    });
+    onSubmit({ hours });
   }
 
   return (
     <form onSubmit={submit} {...props(styles.gate)}>
-      <div {...props(styles.gateRow)}>
-        <input
-          aria-describedby={invalid ? errorId : undefined}
-          aria-invalid={invalid}
-          aria-label={m.home_gate_hours()}
-          inputMode="numeric"
-          onChange={(event) => onHoursChange(event.target.value)}
-          onKeyDown={onHoursKeyDown}
-          ref={field}
-          value={hours}
-          {...props(styles.gateDigits)}
-        />
-        <span aria-hidden="true" {...props(styles.gateUnit)}>
-          {m.home_gate_hours_short()}
-        </span>
-        <input
-          aria-label={m.home_gate_minutes()}
-          inputMode="numeric"
-          onChange={(event) =>
-            setMinutes(event.target.value.replace(NOT_DIGITS, '').slice(0, FIGURE_DIGITS))
-          }
-          placeholder={m.home_gate_minutes_placeholder()}
-          ref={past}
-          value={minutes}
-          {...props(styles.gateDigits)}
-        />
-        <span aria-hidden="true" {...props(styles.gateUnit)}>
-          {m.home_gate_minutes_short()}
-        </span>
+      <div {...props(styles.gateDial)}>
+        <div {...props(styles.gateRail)}>
+          <Label style={styles.sliderLabel}>
+            <span {...props(styles.srOnly)}>{m.home_gate_slider_label()}</span>
+            {/* The end of the gesture, not its start, is what iOS accepts as
+            leave to open an audio device, so it gets its own handlers. */}
+            <input
+              aria-valuetext={reading}
+              max={HOURS_MAX}
+              min={HOURS_MIN}
+              onChange={(event) => onHoursChange(Number(event.target.value))}
+              onPointerDown={armSound}
+              onPointerUp={unlockTickSound}
+              onTouchEnd={unlockTickSound}
+              step={HOURS_STEP}
+              type="range"
+              value={hours}
+              {...props(styles.slider, styles.sliderFill(travelled))}
+            />
+          </Label>
+          {/* The detents, drawn where the knob lands on each of them. The
+          input already says all of this to a screen reader. */}
+          <div aria-hidden="true" {...props(styles.tickRail)}>
+            {TICKS.map((tick) => (
+              <span key={tick.value} {...props(styles.tick, styles.tickAt(tick.at))}>
+                <span {...props(styles.tickNumber)}>{tick.value}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+        <p {...props(styles.gateReading)}>{reading}</p>
       </div>
       <div {...props(styles.gateActions)}>
         <Button type="submit">{m.home_gate_submit()}</Button>
       </div>
-      {/* The one line under the answer, and the only thing on the first screen
-          that is not the question, the figures or the way on. */}
-      <ResearchNote />
-      {invalid ? (
-        <p id={errorId} role="alert" {...props(styles.gateError)}>
-          {m.home_gate_error()}
-        </p>
-      ) : null}
     </form>
   );
 }
@@ -2816,11 +2932,10 @@ function Generator() {
   const isMobile = useIsMobile();
   // Safari is the only browser that can go from the download to Settings.
   const isSafari = useIsSafari();
-  // What the reader tells the hero their day looks like: the whole hours it
-  // holds, and the minutes past them. The show counts in whole hours, so it
-  // climbs the first of these and leaves the second where the answer put it.
+  // What the reader tells the hero their day holds, in whole hours. While the
+  // show is running it is also how many of them have landed, because the stack
+  // is one line per hour up to this one.
   const [hours, setHours] = useState(HOURS_DEFAULT);
-  const [minutes, setMinutes] = useState(0);
   // The answer as it was given, which is what the small line over the bill
   // quotes back and what the gate holds when it is reopened.
   const [entered, setEntered] = useState<Entered | null>(null);
@@ -2954,9 +3069,11 @@ function Generator() {
   // The day being counted out an hour at a time, and then billed for, one
   // line at a time, against the answer the reader just gave. Nothing on the
   // page can skip it: it is the one thing the reader came for.
-  const { start: startShow } = useShow({
+  const { running: showRunning, start: startShow } = useShow({
     onArrive: (answer, shown) => {
-      setMinutes(answer.minutes);
+      // A reader who asked for less motion never climbed to the answer, so the
+      // stack is only whole here; the climb has already landed on it.
+      setHours(clampHours(answer.hours));
       setArrived(true);
       // Less motion is the whole bill at once, and no till.
       setPrinted(shown ? 0 : null);
@@ -2991,15 +3108,13 @@ function Generator() {
     if (shared.hours !== undefined) {
       // A friend already answered the question, so the page has nothing left
       // to ask and nothing to demonstrate: it opens on their number, settled.
-      const past = shared.minutes ?? 0;
       setHours(shared.hours);
-      setMinutes(past);
-      setEntered({ hours: shared.hours, minutes: past });
+      setEntered({ hours: shared.hours });
       setGateOpen(false);
       setRevealed(true);
       setArrived(true);
       setSettled(true);
-      setFriendYears(formatYears(shared.hours + past / MINUTES_PER_HOUR));
+      setFriendYears(formatYears(shared.hours));
     }
     const preferred = initialStorefront();
     if (preferred !== FALLBACK_COUNTRY) {
@@ -3148,10 +3263,9 @@ function Generator() {
     setEntered(answer);
     setGateOpen(false);
     if (revealed) {
-      // The show is a first impression: a correction reprints the bill whole,
-      // because the reader has already watched one print itself.
-      setHours(Math.min(Math.max(answer.hours, HOURS_MIN), HOURS_MAX));
-      setMinutes(answer.minutes);
+      // The show is a first impression: a correction restacks the day and
+      // reprints the bill whole, because the reader has watched one already.
+      setHours(clampHours(answer.hours));
       setPrinted(null);
       return;
     }
@@ -3513,19 +3627,17 @@ function Generator() {
   // Settings, so the download asks for no acknowledgement.
   const trial = !config.lockRemoval;
 
-  // The hour the line is written for, and the day as it was actually given:
-  // there is one sentence per whole hour, and the bill is billed for what was
-  // said, down to the minute.
-  const wholeHours = Math.min(Math.max(hours, HOURS_MIN), HOURS_MAX);
-  const exactHours = hours + minutes / MINUTES_PER_HOUR;
+  // The hours the stack has said so far: one sentence per whole hour, up to
+  // the one the answer landed on, which is also the day the bill prices.
+  const wholeHours = clampHours(hours);
   const locale = getLocale();
-  const truth = homeTruth(wholeHours, locale);
+  const stacked = Array.from({ length: wholeHours }, (_, index) => index + 1);
   // The bill itself: the rows the day earned, what they add up to, and the
   // number and date that say this one was rung up for this reader.
-  const receipt = receiptLines(exactHours, locale);
-  const totals = receiptTotals(exactHours, locale);
+  const receipt = receiptLines(wholeHours, locale);
+  const totals = receiptTotals(wholeHours, locale);
   const years = totals.years;
-  const receiptNo = receiptNumber(exactHours, printedAt);
+  const receiptNo = receiptNumber(wholeHours, printedAt);
   const printedOn = receiptDate(printedAt, locale);
   // Where the printer has got to. `null` is the whole bill, so a reader who was
   // handed it rather than shown it is past every one of these.
@@ -3593,6 +3705,14 @@ function Generator() {
           correcting that figure buys, and the show runs the bill up first.
           Another number is another answer: the gate is the only way to one. */}
       <header {...props(styles.hero, arrived && styles.heroPrinted)}>
+        {/* The figure the question is asked against, and one word to the
+        sources behind it. It opens the gate, so it goes when the gate goes. */}
+        {gateOpen ? (
+          <p {...props(styles.gateIntro)}>
+            {m.home_gate_average()}
+            <ResearchNote />
+          </p>
+        ) : null}
         {/* The question until it is answered, and the answer after that: one
         heading, holding whichever of the two the reader is on. */}
         <h1 {...props(styles.heroTitle, !gateOpen && entered !== null && styles.heroTitleSaid)}>
@@ -3603,39 +3723,46 @@ function Generator() {
             </>
           ) : (
             <>
-              {m.home_gate_entered({ hours: entered.hours, minutes: entered.minutes })}
+              {m.home_gate_entered({ hours: entered.hours })}
               {/* No way back out of the show: it opens once it has finished. */}
               {settled ? (
-                <button
-                  onClick={() => setGateOpen(true)}
-                  type="button"
-                  {...props(styles.gateChange)}
-                >
-                  {m.home_gate_change()}
-                </button>
+                <>
+                  <span aria-hidden="true" {...props(styles.gateDot)}>
+                    ·
+                  </span>
+                  <button
+                    onClick={() => setGateOpen(true)}
+                    type="button"
+                    {...props(styles.gateChange)}
+                  >
+                    {m.home_gate_change()}
+                  </button>
+                </>
               ) : null}
             </>
           )}
         </h1>
-        {gateOpen ? <ScreenTimeGate entered={entered} onSubmit={onGateSubmit} /> : null}
+        {gateOpen ? (
+          <ScreenTimeGate
+            entered={entered}
+            onSubmit={onGateSubmit}
+            sound={tickAllowed(sound, soundChosen)}
+          />
+        ) : null}
         {revealed ? (
-          <>
-            {/* One sentence for the hour the show is on, and the whole sentence
-            is the blow: nothing in it is coloured, and nothing is a figure the
-            reader has to read off a control. While the day is being counted out
-            it is the only thing on the screen, at the page's display size; when
-            the climb lands it settles to a caption over the bill. The live
-            region stays put so the swap is announced; only the line inside it
-            is remounted, and that is what fades the new one up over the old. */}
-            <p
-              aria-live="polite"
-              {...props(styles.truthLine, !arrived && styles.truthShowing, styles.reveal)}
-            >
-              <span key={wholeHours} {...props(styles.truth)}>
-                {truth}
-              </span>
-            </p>
-          </>
+          /* One sentence per hour of the day, each landing under the last and
+          none of them taken away again: the stack is the day, growing, and the
+          whole sentence is the blow. Nothing in it is coloured, and nothing is
+          a figure the reader has to read off a control. The live region stays
+          put so every hour that lands in it is announced; only the hours the
+          show itself counted out are the ones that rise into place. */
+          <div aria-live="polite" {...props(styles.truthStack, styles.reveal)}>
+            {stacked.map((step) => (
+              <p key={step} {...props(styles.truthLine, showRunning && styles.truth)}>
+                {homeTruth(step, locale)}
+              </p>
+            ))}
+          </div>
         ) : null}
         {arrived ? (
           <>
@@ -3795,6 +3922,18 @@ function Generator() {
             <p {...props(styles.storyLine)}>{m.home_story_4()}</p>
             <p {...props(styles.storyLine)}>{m.home_story_5()}</p>
             <p {...props(styles.storySign)}>{m.home_story_sign()}</p>
+          </div>
+        </section>
+
+        {/* The other half of the story: the phone is not the enemy, the feed
+        is. It follows the story because it is the same voice answering the
+        first objection the story raises. */}
+        <section {...props(styles.section)}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_useful_title()}</h2>
+          <div {...props(styles.story)}>
+            <p {...props(styles.storyLine)}>{m.home_useful_1()}</p>
+            <p {...props(styles.storyLine)}>{m.home_useful_2()}</p>
+            <p {...props(styles.storyLine)}>{m.home_useful_3()}</p>
           </div>
         </section>
 
@@ -4402,14 +4541,8 @@ function Generator() {
 
         {isMobile ? (
           <Sheet onOpenChange={setShareOpen} open={shareOpen} title={m.share_heading_output()}>
-            <ShareCard
-              apps={config.blockedApps}
-              hours={hours}
-              meta={meta}
-              minutes={minutes}
-              years={years}
-            />
-            <FriendShare apps={config.blockedApps} hours={hours} minutes={minutes} />
+            <ShareCard apps={config.blockedApps} hours={hours} meta={meta} years={years} />
+            <FriendShare apps={config.blockedApps} hours={hours} />
           </Sheet>
         ) : (
           <Dialog onOpenChange={setShareOpen} open={shareOpen}>
@@ -4426,14 +4559,8 @@ function Generator() {
               <DialogHeader>
                 <DialogTitle style={styles.sectionTitle}>{m.share_heading_output()}</DialogTitle>
               </DialogHeader>
-              <ShareCard
-                apps={config.blockedApps}
-                hours={hours}
-                meta={meta}
-                minutes={minutes}
-                years={years}
-              />
-              <FriendShare apps={config.blockedApps} hours={hours} minutes={minutes} />
+              <ShareCard apps={config.blockedApps} hours={hours} meta={meta} years={years} />
+              <FriendShare apps={config.blockedApps} hours={hours} />
             </DialogContent>
           </Dialog>
         )}

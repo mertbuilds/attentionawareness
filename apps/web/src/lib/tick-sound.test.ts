@@ -11,13 +11,11 @@ afterEach(() => {
 });
 
 describe('tick sound', () => {
-  it('stays silent where the browser has no Web Audio', async () => {
-    const { playTick, primeTickSound } = await loadTickSound();
+  it('opens no device where the browser has no Web Audio', async () => {
+    const { primeTickSound, tickDevice } = await loadTickSound();
 
-    expect(() => {
-      primeTickSound();
-      playTick();
-    }).not.toThrow();
+    expect(() => primeTickSound()).not.toThrow();
+    expect(tickDevice()).toBeNull();
   });
 
   it('reports no device to unlock where the browser has no Web Audio', async () => {
@@ -26,43 +24,21 @@ describe('tick sound', () => {
     expect(unlockTickSound()).toBe(false);
   });
 
-  it('plays one shaped tone per detent once a device is open', async () => {
-    const start = vi.fn();
-    const stop = vi.fn();
-    const ramp = vi.fn();
-    const oscillator = {
-      connect: vi.fn(),
-      frequency: { setValueAtTime: vi.fn() },
-      start,
-      stop,
-      type: '',
-    };
-    const gain = {
-      connect: vi.fn(),
-      gain: { exponentialRampToValueAtTime: ramp, setValueAtTime: vi.fn() },
-    };
-    const context = {
-      createGain: () => gain,
-      createOscillator: () => oscillator,
-      currentTime: 0,
-      destination: {},
-      state: 'running',
-    };
+  it('opens one device, and hands the same one to every later sound', async () => {
+    const context = { destination: {}, resume: vi.fn(() => Promise.resolve()), state: 'running' };
+    const open = vi.fn(() => context);
     Object.defineProperty(globalThis, 'AudioContext', {
       configurable: true,
       value: function AudioContextStub() {
-        return context;
+        return open();
       },
     });
-    const { playTick, primeTickSound } = await loadTickSound();
+    const { primeTickSound, tickDevice } = await loadTickSound();
 
     primeTickSound();
-    playTick();
 
-    expect(oscillator.type).toBe('sine');
-    expect(oscillator.frequency.setValueAtTime).toHaveBeenCalledWith(1200, 0);
-    expect(start).toHaveBeenCalledWith(0);
-    expect(stop).toHaveBeenCalledWith(0.012);
+    expect(tickDevice()).toBe(context);
+    expect(open).toHaveBeenCalledTimes(1);
   });
 
   it('wakes a sleeping device and runs one silent sample through it', async () => {
@@ -90,38 +66,5 @@ describe('tick sound', () => {
     expect(context.createBuffer).toHaveBeenCalledWith(1, 1, 22_050);
     expect(source.buffer).toBe(buffer);
     expect(source.start).toHaveBeenCalledWith(0);
-  });
-
-  it('drops the pitch and holds it longer at the ends of the travel', async () => {
-    const oscillator = {
-      connect: vi.fn(),
-      frequency: { setValueAtTime: vi.fn() },
-      start: vi.fn(),
-      stop: vi.fn(),
-      type: '',
-    };
-    const gain = {
-      connect: vi.fn(),
-      gain: { exponentialRampToValueAtTime: vi.fn(), setValueAtTime: vi.fn() },
-    };
-    Object.defineProperty(globalThis, 'AudioContext', {
-      configurable: true,
-      value: function AudioContextStub() {
-        return {
-          createGain: () => gain,
-          createOscillator: () => oscillator,
-          currentTime: 0,
-          destination: {},
-          state: 'running',
-        };
-      },
-    });
-    const { playTick, primeTickSound } = await loadTickSound();
-
-    primeTickSound();
-    playTick({ end: true });
-
-    expect(oscillator.frequency.setValueAtTime).toHaveBeenCalledWith(700, 0);
-    expect(oscillator.stop).toHaveBeenCalledWith(0.04);
   });
 });

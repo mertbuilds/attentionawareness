@@ -71,22 +71,22 @@ describe('useShow', () => {
     vi.useFakeTimers();
     const steps = vi.fn<(hours: number, total: number) => void>();
     const arrived = vi.fn<(entered: Entered, shown: boolean) => void>();
-    render(<Hero answer={{ hours: 5, minutes: 30 }} onArrive={arrived} onStep={steps} />);
+    render(<Hero answer={{ hours: 5 }} onArrive={arrived} onStep={steps} />);
 
     submit();
 
     expect(steps.mock.calls).toEqual([[1, 5]]);
     expect(state()).toBe('running');
 
-    advance(1600);
+    advance(2200);
     expect(steps.mock.calls.at(-1)).toEqual([2, 5]);
 
-    advance(1600 * 3);
+    advance(2200 * 3);
     expect(steps.mock.calls.map(([hours]) => hours)).toEqual([1, 2, 3, 4, 5]);
     expect(arrived).not.toHaveBeenCalled();
 
     advance(600);
-    expect(arrived).toHaveBeenCalledWith({ hours: 5, minutes: 30 }, true);
+    expect(arrived).toHaveBeenCalledWith({ hours: 5 }, true);
     expect(state()).toBe('idle');
   });
 
@@ -94,14 +94,7 @@ describe('useShow', () => {
     stubMotion(false);
     vi.useFakeTimers();
     const lines = vi.fn<(line: number, bill: typeof BILL) => void>();
-    render(
-      <Hero
-        answer={{ hours: 1, minutes: 0 }}
-        onArrive={() => {}}
-        onPrint={lines}
-        onStep={() => {}}
-      />,
-    );
+    render(<Hero answer={{ hours: 1 }} onArrive={() => {}} onPrint={lines} onStep={() => {}} />);
 
     submit();
     advance(600);
@@ -124,14 +117,7 @@ describe('useShow', () => {
     stubMotion(false);
     vi.useFakeTimers();
     const settled = vi.fn<() => void>();
-    render(
-      <Hero
-        answer={{ hours: 1, minutes: 0 }}
-        onArrive={() => {}}
-        onSettle={settled}
-        onStep={() => {}}
-      />,
-    );
+    render(<Hero answer={{ hours: 1 }} onArrive={() => {}} onSettle={settled} onStep={() => {}} />);
 
     submit();
     // The climb, the settle, and every line up to the total.
@@ -147,13 +133,13 @@ describe('useShow', () => {
     vi.useFakeTimers();
     const steps = vi.fn<(hours: number, total: number) => void>();
     const arrived = vi.fn<(entered: Entered, shown: boolean) => void>();
-    render(<Hero answer={{ hours: 0, minutes: 45 }} onArrive={arrived} onStep={steps} />);
+    render(<Hero answer={{ hours: 0 }} onArrive={arrived} onStep={steps} />);
 
     submit();
     advance(600);
 
     expect(steps.mock.calls).toEqual([[1, 1]]);
-    expect(arrived).toHaveBeenCalledWith({ hours: 0, minutes: 45 }, true);
+    expect(arrived).toHaveBeenCalledWith({ hours: 0 }, true);
   });
 
   it('runs nothing at all for a reader who asked for less motion', () => {
@@ -165,7 +151,7 @@ describe('useShow', () => {
     const settled = vi.fn<() => void>();
     render(
       <Hero
-        answer={{ hours: 7, minutes: 0 }}
+        answer={{ hours: 7 }}
         onArrive={arrived}
         onPrint={lines}
         onSettle={settled}
@@ -174,11 +160,11 @@ describe('useShow', () => {
     );
 
     submit();
-    advance(1600 * 12);
+    advance(2200 * 12);
 
     expect(steps).not.toHaveBeenCalled();
     expect(lines).not.toHaveBeenCalled();
-    expect(arrived).toHaveBeenCalledWith({ hours: 7, minutes: 0 }, false);
+    expect(arrived).toHaveBeenCalledWith({ hours: 7 }, false);
     expect(settled).toHaveBeenCalledTimes(1);
     expect(state()).toBe('idle');
   });
@@ -188,14 +174,12 @@ describe('useShow', () => {
     vi.useFakeTimers();
     const steps = vi.fn<(hours: number, total: number) => void>();
     const arrived = vi.fn<(entered: Entered, shown: boolean) => void>();
-    const view = render(
-      <Hero answer={{ hours: 9, minutes: 0 }} onArrive={arrived} onStep={steps} />,
-    );
+    const view = render(<Hero answer={{ hours: 9 }} onArrive={arrived} onStep={steps} />);
 
     submit();
-    advance(1600);
+    advance(2200);
     view.unmount();
-    advance(1600 * 12);
+    advance(2200 * 12);
 
     expect(steps.mock.calls.map(([hours]) => hours)).toEqual([1, 2]);
     expect(arrived).not.toHaveBeenCalled();
@@ -206,12 +190,7 @@ describe('useShow', () => {
     vi.useFakeTimers();
     const settled = vi.fn<() => void>();
     const view = render(
-      <Hero
-        answer={{ hours: 1, minutes: 0 }}
-        onArrive={() => {}}
-        onSettle={settled}
-        onStep={() => {}}
-      />,
+      <Hero answer={{ hours: 1 }} onArrive={() => {}} onSettle={settled} onStep={() => {}} />,
     );
 
     submit();

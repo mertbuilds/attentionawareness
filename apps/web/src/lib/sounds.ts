@@ -1,14 +1,28 @@
-import { PEAK_GAIN, SILENCE, TICK_HZ, TICK_SECONDS, tickDevice } from './tick-sound.ts';
+import { PEAK_GAIN, SILENCE, tickDevice } from './tick-sound.ts';
 
-/** Where the climb ends: the pitch the last hour of a full show lands on. */
-const FLOOR_HZ = 180;
-/** And how long it holds. The first hour is the detent's own 12 ms. */
-const LONGEST_SECONDS = 0.22;
+/**
+ * The hit itself: two sine partials struck together, which is what makes a
+ * small piece of metal sound like one rather than like a beep.
+ */
+const PARTIAL_ONE_HZ = 2400;
+const PARTIAL_TWO_HZ = 3700;
+/** What the upper partial is worth against the lower one. */
+const PARTIAL_TWO_SHARE = 0.7;
+/** The scrape of the strike, ahead of the tone, and what it is worth. */
+const TRANSIENT_SECONDS = 0.004;
+const TRANSIENT_SHARE = 0.5;
+/** How long the hit rings: the gate's own, and the last hour of a full show. */
+const HIT_SECONDS = 0.04;
+const LONGEST_SECONDS = 0.26;
+/**
+ * How far one hour of the show pitches the hit under the one before it. The
+ * gate's own detent is the hit at its written pitch; every hour is below it.
+ */
+const STEP_FALL = 0.85;
 /** How far the second oscillator sits off the first, so the two beat. */
 const DETUNE_HZ = 7;
-/** The sub under the tone, and the burst of noise over it. */
+/** The sub under the tone. */
 const SUB_HZ = 55;
-const NOISE_SECONDS = 0.06;
 /**
  * Where each layer joins, as a fraction of the climb. They are written as the
  * steps of a twelve-hour show because that is the show they were tuned on: a
@@ -17,13 +31,11 @@ const NOISE_SECONDS = 0.06;
  */
 const DETUNE_FROM = 2 / 11;
 const SUB_FROM = 5 / 11;
-const NOISE_FROM = 8 / 11;
 /** A layer is audible the step it joins on, not a step and a half later. */
 const LAYER_FLOOR = 0.25;
-/** What each layer is worth against the tone once it is all the way in. */
+/** What each layer is worth against the hit once it is all the way in. */
 const DETUNE_SHARE = 0.6;
 const SUB_SHARE = 0.5;
-const NOISE_SHARE = 0.35;
 
 /** The register's two bells: E6, then A6 a breath later. */
 const BELL_ONE_HZ = 1318.51;
@@ -51,14 +63,15 @@ export type Voice = {
 export type NoiseVoice = { gain: number; seconds: number };
 
 /**
- * One hour of the show, as the oscillators that say it. The tone is always
- * there; the rest join as the day gets worse, and are absent before that.
+ * One metallic hit, as the oscillators that say it. The two partials and the
+ * transient are always there; the rest join as the day gets worse, and are
+ * absent before that.
  */
 export type StepVoices = {
   beat: Voice | undefined;
-  noise: NoiseVoice | undefined;
+  partials: readonly [Voice, Voice];
   sub: Voice | undefined;
-  tone: Voice;
+  transient: NoiseVoice;
 };
 
 /** One of the two bells, and the harmonic that makes it one. */
@@ -95,34 +108,51 @@ function layer(at: number, from: number): number {
 }
 
 /**
- * What one hour of the show sounds like. The pitch falls and the note lengthens
- * across the climb, and three more voices join it on the way down. However many
- * are playing, they add up to one detent: the dread is in what is sounding, not
- * in how hard it is played.
+ * One hit, struck at whatever pitch and length it was handed, with whatever
+ * layers the climb has earned it. However many are playing, they add up to one
+ * detent: the dread is in what is sounding, not in how hard it is played.
  */
-export function stepVoices(step: number, total: number): StepVoices {
-  const at = climb(step, total);
-  const frequency = TICK_HZ * (FLOOR_HZ / TICK_HZ) ** at;
-  const seconds = TICK_SECONDS * (LONGEST_SECONDS / TICK_SECONDS) ** at;
-  const beatAt = layer(at, DETUNE_FROM) * DETUNE_SHARE;
-  const subAt = layer(at, SUB_FROM) * SUB_SHARE;
-  const noiseAt = layer(at, NOISE_FROM) * NOISE_SHARE;
-  const share = PEAK_GAIN / (1 + beatAt + subAt + noiseAt);
+function strike(fall: number, seconds: number, beatAt: number, subAt: number): StepVoices {
+  const share = PEAK_GAIN / (1 + PARTIAL_TWO_SHARE + TRANSIENT_SHARE + beatAt + subAt);
+  const lower = PARTIAL_ONE_HZ * fall;
   return {
     beat:
       beatAt === 0
         ? undefined
-        : {
-            frequency: frequency + DETUNE_HZ,
-            gain: beatAt * share,
-            seconds,
-            type: 'sawtooth',
-          },
-    noise: noiseAt === 0 ? undefined : { gain: noiseAt * share, seconds: NOISE_SECONDS },
+        : { frequency: lower + DETUNE_HZ, gain: beatAt * share, seconds, type: 'sawtooth' },
+    partials: [
+      { frequency: lower, gain: share, seconds, type: 'sine' },
+      {
+        frequency: PARTIAL_TWO_HZ * fall,
+        gain: PARTIAL_TWO_SHARE * share,
+        seconds,
+        type: 'sine',
+      },
+    ],
     sub:
       subAt === 0 ? undefined : { frequency: SUB_HZ, gain: subAt * share, seconds, type: 'sine' },
-    tone: { frequency, gain: share, seconds, type: 'sine' },
+    transient: { gain: TRANSIENT_SHARE * share, seconds: TRANSIENT_SECONDS },
   };
+}
+
+/** The detent under the slider: the hit at its written pitch, and nothing else. */
+export function tickVoices(): StepVoices {
+  return strike(1, HIT_SECONDS, 0, 0);
+}
+
+/**
+ * What one hour of the show sounds like. It is the gate's own detent, pitched
+ * a step lower for every hour it stands above, with the note lengthening
+ * across the climb and two more voices joining it on the way down.
+ */
+export function stepVoices(step: number, total: number): StepVoices {
+  const at = climb(step, total);
+  return strike(
+    STEP_FALL ** step,
+    HIT_SECONDS * (LONGEST_SECONDS / HIT_SECONDS) ** at,
+    layer(at, DETUNE_FROM) * DETUNE_SHARE,
+    layer(at, SUB_FROM) * SUB_SHARE,
+  );
 }
 
 /** The register ringing the total up, and the drawer closing on it. */
@@ -179,28 +209,37 @@ function burst(device: AudioContext, at: number, voice: NoiseVoice, cutoffHz?: n
   source.stop(at + voice.seconds);
 }
 
-/** One hour of the show. Silent where no gesture has opened a device yet. */
-export function playStep(step: number, total: number): void {
+/** One hit, played. Silent where no gesture has opened a device yet. */
+function play(voices: StepVoices): void {
   const device = tickDevice();
   if (device === null) {
     return;
   }
   try {
     const now = device.currentTime;
-    const { beat, noise, sub, tone: pitch } = stepVoices(step, total);
-    tone(device, now, pitch);
-    if (beat !== undefined) {
-      tone(device, now, beat);
+    for (const partial of voices.partials) {
+      tone(device, now, partial);
     }
-    if (sub !== undefined) {
-      tone(device, now, sub);
+    burst(device, now, voices.transient);
+    if (voices.beat !== undefined) {
+      tone(device, now, voices.beat);
     }
-    if (noise !== undefined) {
-      burst(device, now, noise);
+    if (voices.sub !== undefined) {
+      tone(device, now, voices.sub);
     }
   } catch {
-    // A device the browser will not run must never hold the show up.
+    // A device the browser will not run must never hold the control up.
   }
+}
+
+/** One detent of the slider the question is answered on. */
+export function playTick(): void {
+  play(tickVoices());
+}
+
+/** One hour of the show. */
+export function playStep(step: number, total: number): void {
+  play(stepVoices(step, total));
 }
 
 /** The till, once the bill is printed. */

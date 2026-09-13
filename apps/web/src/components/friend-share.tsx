@@ -41,23 +41,9 @@ const styles = create({
  * whole of the personalization and it is optional, so nothing is stored: a
  * reader who leaves it empty shares a link that opens on "someone".
  */
-export function FriendShare({
-  apps,
-  hours,
-  minutes,
-}: {
-  apps: ReadonlyArray<BlockedApp>;
-  hours: number;
-  /** The minutes past the hour, so a link can carry a day the dial cannot. */
-  minutes?: number | undefined;
-}) {
+export function FriendShare({ apps, hours }: { apps: ReadonlyArray<BlockedApp>; hours: number }) {
   const [name, setName] = useState('');
-  const url = encodeFriendShare({
-    bundleIds: apps.map((app) => app.bundleId),
-    hours,
-    minutes,
-    name,
-  });
+  const url = encodeFriendShare({ bundleIds: apps.map((app) => app.bundleId), hours, name });
 
   return (
     <div {...props(styles.block)}>

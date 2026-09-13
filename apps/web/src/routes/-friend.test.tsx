@@ -76,11 +76,11 @@ describe('FriendPage', () => {
     ).toBeInTheDocument();
   });
 
-  it('prices the day the link carries, down to the minute', () => {
+  it('prices the day the link carries, rounded onto a whole hour', () => {
     renderPage('?m=330&a=ig');
 
     expect(
-      screen.getByText(m.friend_why_1({ hours: 5, minutes: '30', years: '6.9' })),
+      screen.getByText(m.friend_why_1({ hours: 6, minutes: '00', years: '7.5' })),
     ).toBeInTheDocument();
   });
 

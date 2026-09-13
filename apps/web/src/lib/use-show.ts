@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-/** How long one hour of the show holds before the next one prints. */
-const STEP_MS = 1600;
+/** How long one hour of the show stands before the next one lands under it. */
+const STEP_MS = 2200;
 /**
  * How long the last hour stands on its own before the till rings it up. The
  * climb stops, the number sits there, and only then is it totalled.
@@ -16,8 +16,8 @@ const PITCH_MS = 400;
 /** A reader who asked for less motion is handed the bill, not the show. */
 const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
 
-/** What the reader answered the question with: whole hours, and the rest. */
-export type Entered = { hours: number; minutes: number };
+/** What the reader answered the question with: whole hours, and nothing finer. */
+export type Entered = { hours: number };
 
 /** The bill the run prints: how many lines it has, and which one is the total. */
 export type Bill = { lines: number; total: number };
@@ -31,9 +31,10 @@ export type Show = {
 
 /**
  * The whole first screen, as one script: the day is counted out an hour at a
- * time, the line it lands on settles, and the bill prints itself under it, a
- * line at a time, up to the total the till rings. Nothing skips it, because
- * the point of it is that the reader watches their own day being counted out.
+ * time, each hour landing under the one before it, and the bill prints itself
+ * under the stack, a line at a time, up to the total the till rings. Nothing
+ * skips it, because the point of it is that the reader watches their own day
+ * being counted out.
  *
  * `onStep` is given the hour and how many hours the run holds, so the caller
  * can pitch the sound against the whole climb. `onArrive` closes the climb: it
@@ -108,7 +109,7 @@ export function useShow({
     let printed = 1;
     let line = 0;
     // The hour that is up holds for a step; the hour the run ends on holds for
-    // the shorter beat that the line settles on.
+    // the shorter beat that the stack settles on.
     function queue() {
       const last = printed === total;
       timer.current = setTimeout(last ? land : advance, last ? HOLD_MS : STEP_MS);
@@ -118,7 +119,7 @@ export function useShow({
       step.current(printed, total);
       queue();
     }
-    // The climb is over. The line settles, and the bill mounts empty under it.
+    // The climb is over. The stack settles, and the bill mounts empty under it.
     function land() {
       setRunning(false);
       arrive.current(entered, true);

@@ -37,16 +37,9 @@ describe('encodeShare', () => {
     expect(encodeShare({ bundleIds: [], hours: 4 })).toBe('h=4');
   });
 
-  it('writes a day the dial cannot stop on as the minutes it is', () => {
-    expect(encodeShare({ bundleIds: [], hours: 5, minutes: 30 })).toBe('m=330');
-    expect(encodeShare({ bundleIds: ['com.burbn.instagram'], hours: 0, minutes: 45 })).toBe(
-      'm=45&a=ig',
-    );
-  });
-
-  it('writes a whole day as its hours, minutes or no minutes', () => {
-    expect(encodeShare({ bundleIds: [], hours: 5, minutes: 0 })).toBe('h=5');
+  it('writes the day as its hours, and never as minutes', () => {
     expect(encodeShare({ bundleIds: [], hours: 5 })).toBe('h=5');
+    expect(encodeShare({ bundleIds: ['com.burbn.instagram'], hours: 12 })).toBe('h=12&a=ig');
   });
 });
 
@@ -92,26 +85,21 @@ describe('decodeShare', () => {
     expect(decodeShare('').hours).toBeUndefined();
   });
 
-  it('splits a day in minutes back into the hours and the rest', () => {
-    expect(decodeShare('m=330')).toEqual({ bundleIds: [], hours: 5, minutes: 30 });
-    expect(decodeShare('m=45')).toEqual({ bundleIds: [], hours: 0, minutes: 45 });
-    expect(decodeShare('m=0')).toEqual({ bundleIds: [], hours: 0, minutes: 0 });
+  it('rounds an older link, written in minutes, onto a whole hour', () => {
+    expect(decodeShare('m=330')).toEqual({ bundleIds: [], hours: 6 });
+    expect(decodeShare('m=300')).toEqual({ bundleIds: [], hours: 5 });
+    expect(decodeShare('m=45')).toEqual({ bundleIds: [], hours: 1 });
   });
 
   it('clamps a day in minutes into the twelve hours the page prices', () => {
-    expect(decodeShare('m=720')).toEqual({ bundleIds: [], hours: 12, minutes: 0 });
-    expect(decodeShare('m=9999')).toEqual({ bundleIds: [], hours: 12, minutes: 0 });
-    expect(decodeShare('m=-30')).toEqual({ bundleIds: [], hours: 0, minutes: 0 });
+    expect(decodeShare('m=720').hours).toBe(12);
+    expect(decodeShare('m=9999').hours).toBe(12);
+    expect(decodeShare('m=-30').hours).toBe(1);
   });
 
   it('takes the minutes over the hours wherever a link carries both', () => {
-    expect(decodeShare('h=9&m=330')).toEqual({ bundleIds: [], hours: 5, minutes: 30 });
+    expect(decodeShare('h=9&m=300').hours).toBe(5);
     expect(decodeShare('h=9&m=soon').hours).toBe(9);
-  });
-
-  it('reads back a day it wrote in minutes', () => {
-    const state = { bundleIds: ['com.burbn.instagram'], hours: 5, minutes: 30 };
-    expect(decodeShare(encodeShare(state))).toEqual(state);
   });
 });
 
@@ -133,12 +121,6 @@ describe('encodeFriendShare', () => {
     );
   });
 
-  it('carries a day the dial cannot stop on as the minutes it is', () => {
-    expect(encodeFriendShare({ bundleIds: [], hours: 5, minutes: 30, name: 'Ada' })).toBe(
-      `${SITE_URL}/friend?m=330&n=Ada`,
-    );
-  });
-
   it('writes a name the query string would otherwise lose', () => {
     expect(encodeFriendShare({ bundleIds: [], hours: 4, name: 'Ayşe & Co' })).toBe(
       `${SITE_URL}/friend?h=4&n=Ay%C5%9Fe%20%26%20Co`,
@@ -146,7 +128,7 @@ describe('encodeFriendShare', () => {
   });
 
   it('is read back by the same parser the generator uses', () => {
-    const state = { bundleIds: ['com.burbn.instagram'], hours: 5, minutes: 30 };
+    const state = { bundleIds: ['com.burbn.instagram'], hours: 5 };
     const url = new URL(encodeFriendShare({ ...state, name: 'Mert' }));
 
     expect(decodeShare(url.search)).toEqual(state);

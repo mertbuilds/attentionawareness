@@ -22,8 +22,7 @@ const BLANKS = /\s+/gu;
 /** The slider's own range, so a tampered `h` lands somewhere it can render. */
 const HOURS_MIN = 1;
 const HOURS_MAX = 12;
-/** The longest day the minutes form can name: the same twelve hours of them. */
-const MINUTES_MAX = 720;
+/** What an older link's `m` is read against, now that the page has no minutes. */
 const MINUTES_PER_HOUR = 60;
 
 /** Anything a bundle id may be made of. Everything else is junk. */
@@ -67,8 +66,6 @@ const NAMES_BY_BUNDLE_ID: Record<string, string> = Object.fromEntries(
 export type ShareState = {
   bundleIds: ReadonlyArray<string>;
   hours: number;
-  /** The minutes past the hour, where the reader answered with some. */
-  minutes?: number | undefined;
 };
 
 export type ShareTargets = {
@@ -78,23 +75,15 @@ export type ShareTargets = {
 };
 
 /**
- * The share state as query parameters: the day, and the blocked apps as codes
- * where one exists. Commas stay literal: they are legal in a query string, and
- * a link a reader can parse is half the point of sharing one.
- *
- * A whole day travels as its hours. Anything finer travels as the minutes it
- * is, because the dial has no stop between two hours to round it onto.
+ * The share state as query parameters: the day in whole hours, and the blocked
+ * apps as codes where one exists. Commas stay literal: they are legal in a
+ * query string, and a link a reader can parse is half the point of sharing one.
  */
-export function encodeShare({ bundleIds, hours, minutes }: ShareState): string {
+export function encodeShare({ bundleIds, hours }: ShareState): string {
   const codes = bundleIds.map((bundleId) =>
     encodeURIComponent(CODES_BY_BUNDLE_ID[bundleId] ?? bundleId),
   );
-  const past = minutes ?? 0;
-  const day =
-    past > 0
-      ? `m=${encodeURIComponent(String(hours * MINUTES_PER_HOUR + past))}`
-      : `h=${encodeURIComponent(String(hours))}`;
-  const parts = [day];
+  const parts = [`h=${encodeURIComponent(String(hours))}`];
   if (codes.length > 0) {
     parts.push(`a=${codes.join(',')}`);
   }
@@ -135,15 +124,12 @@ export function friendName(raw: unknown): string | undefined {
 
 /**
  * The inverse, reading a link nobody promised to keep intact: an unusable day
- * is no day at all, one longer than the dial is clamped onto its end, and an
+ * is no day at all, one longer than the slider is clamped onto its end, and an
  * entry that names neither a code nor a plausible bundle id is dropped. `m`
- * wins wherever a link carries both, because it is the precise one.
+ * wins wherever a link carries both, because a link that carries it was
+ * written when it was the precise one.
  */
-export function decodeShare(search: string): {
-  bundleIds: Array<string>;
-  hours?: number;
-  minutes?: number;
-} {
+export function decodeShare(search: string): { bundleIds: Array<string>; hours?: number } {
   let params: URLSearchParams;
   try {
     params = new URLSearchParams(search);
@@ -160,21 +146,24 @@ export function decodeShare(search: string): {
     }
   }
 
+  // A link written before the page dropped its minutes carries the whole day
+  // in them. The slider has no stop between two hours, so it is rounded onto
+  // the nearest one it does have.
   const exact = readNumber(params.get('m'));
   if (exact !== undefined) {
-    const total = Math.min(Math.max(Math.round(exact), 0), MINUTES_MAX);
-    return {
-      bundleIds,
-      hours: Math.floor(total / MINUTES_PER_HOUR),
-      minutes: total % MINUTES_PER_HOUR,
-    };
+    return { bundleIds, hours: clampHours(exact / MINUTES_PER_HOUR) };
   }
 
   const hours = readNumber(params.get('h'));
   if (hours === undefined) {
     return { bundleIds };
   }
-  return { bundleIds, hours: Math.min(Math.max(Math.round(hours), HOURS_MIN), HOURS_MAX) };
+  return { bundleIds, hours: clampHours(hours) };
+}
+
+/** A whole hour the page can price, whatever the link asked for. */
+function clampHours(value: number): number {
+  return Math.min(Math.max(Math.round(value), HOURS_MIN), HOURS_MAX);
 }
 
 /** A parameter nobody promised to keep a number in. */
