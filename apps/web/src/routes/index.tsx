@@ -43,7 +43,13 @@ import {
   storefrontLabel,
   storefronts,
 } from '../lib/app-search.ts';
-import { formatYears, heroMetrics, homeTruth, screenYears } from '../lib/attention-math.ts';
+import {
+  formatYears,
+  heroMetrics,
+  homeTruth,
+  screenHours,
+  screenYears,
+} from '../lib/attention-math.ts';
 import { controls } from '../lib/controls.ts';
 import { mergeBlockedApps } from '../lib/known-apps.ts';
 import type { ScannedApp } from '../lib/known-apps.ts';
@@ -128,12 +134,14 @@ const SIGN_URL = '/api/sign';
 /** The server names the profile, so every download saves under one name. */
 const PROFILE_FILENAME = 'attentionawareness.mobileconfig';
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
-/**
- * What one hour a day comes to, exactly. `formatYears` prints one decimal, and
- * this is the one answer whose figure needs two: the stack's own first line
- * quotes 1.25 years, so the total under it says the same number.
- */
-const ONE_HOUR_YEARS = '1.25';
+/** The stripe a printed receipt ends on. Nothing scans it. */
+const RECEIPT_BARCODE = '▌▐▌▌▐▌▐▐▌▌▐▌▐▌▌▐▌▐▐▌▌▐▌▐▌';
+/** A till pads its receipt numbers. */
+const RECEIPT_DIGITS = 6;
+/** Item, rate, amount: the same three columns for the headings and every row. */
+const RECEIPT_COLUMNS = '1fr 7ch 13ch';
+/** How long the receipt takes to unroll, and the hero to drift up over it. */
+const EXPAND_MS = '700ms';
 /** How long an armed Remove waits for its second click before standing down. */
 const REMOVE_CONFIRM_MS = 3000;
 /**
@@ -402,6 +410,34 @@ const styles = create({
   // The line the icon fan is set into. It is the section's picture, not its
   // heading, so it sits one step under the h2 above it; the line box is tall
   // enough for a 32px icon, which is what keeps the sentence around it even.
+  expand: {
+    display: 'grid',
+    gridTemplateRows: '0fr',
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: EXPAND_MS,
+    },
+    transitionProperty: 'grid-template-rows',
+    transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
+    width: '100%',
+  },
+  expandInner: {
+    minHeight: 0,
+    opacity: 0,
+    overflow: 'hidden',
+    transitionDelay: '150ms',
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: EXPAND_MS,
+    },
+    transitionProperty: 'opacity',
+  },
+  expandInnerOpen: {
+    opacity: 1,
+  },
+  expandOpen: {
+    gridTemplateRows: '1fr',
+  },
   fanHeadline: {
     fontSize: font.sizeLg,
     fontWeight: font.weightMedium,
@@ -645,7 +681,7 @@ const styles = create({
     justifyContent: 'center',
     maxWidth: 760,
     minHeight: firstThatWorks('100svh', '100vh'),
-    paddingBlockEnd: '12vh',
+    paddingBlockEnd: '18vh',
     textAlign: 'center',
     width: '100%',
   },
@@ -1009,35 +1045,179 @@ const styles = create({
   },
   // One cited line inside the research box, and the whole line is the source.
   receipt: {
-    alignItems: 'center',
+    backgroundColor: colors.bg,
+    borderColor: colors.border,
+    borderRadius: radius.base,
+    borderStyle: 'solid',
+    borderWidth: 1,
+    boxSizing: 'border-box',
     display: 'flex',
     flexDirection: 'column',
-    gap: spacing.s4,
-    maxWidth: HERO_MEASURE,
+    fontFamily: MONOSPACE,
+    fontSize: 13,
+    gap: spacing.s3,
+    maxWidth: 420,
+    padding: {
+      '@media (min-width: 640px)': spacing.s4,
+      default: spacing.s3,
+    },
+    textAlign: 'start',
+    textTransform: 'uppercase',
     width: '100%',
   },
-  receiptBody: {
+  receiptAfter: {
     alignItems: 'center',
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s4,
-    width: '100%',
+  },
+  receiptBarcode: {
+    color: colors.muted,
+    letterSpacing: '-0.05em',
+    margin: 0,
+    overflow: 'hidden',
+    textAlign: 'center',
+  },
+  receiptColumn: {
+    color: colors.muted,
+    fontSize: 11,
+    letterSpacing: '0.08em',
+  },
+  receiptColumnAmount: {
+    textAlign: 'end',
+  },
+  receiptFoot: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s2,
+  },
+  receiptFootLine: {
+    margin: 0,
+  },
+  receiptHead: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s1,
+    textAlign: 'center',
+  },
+  receiptItems: {
+    columnGap: spacing.s3,
+    display: 'grid',
+    gridTemplateColumns: RECEIPT_COLUMNS,
+  },
+  receiptList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s2,
+    listStyleType: 'none',
+    margin: 0,
+    padding: 0,
+  },
+  receiptLower: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s3,
+    paddingBlockStart: spacing.s2,
+  },
+  receiptMeta: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s1,
+  },
+  receiptMetaLine: {
+    display: 'flex',
+    gap: spacing.s3,
+    justifyContent: 'space-between',
+    margin: 0,
+  },
+  receiptQty: {
+    color: colors.muted,
+    fontSize: {
+      '@media (min-width: 640px)': 13,
+      default: 12,
+    },
+    fontVariantNumeric: 'tabular-nums',
+    whiteSpace: 'nowrap',
+  },
+  receiptRow: {
+    alignItems: 'baseline',
+    animationDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: '240ms',
+    },
+    animationName: revealEnter,
+    animationTimingFunction: 'ease-out',
+    columnGap: spacing.s3,
+    display: 'grid',
+    gridTemplateColumns: RECEIPT_COLUMNS,
+    lineHeight: 1.6,
   },
   receiptRule: {
     borderBlockStartColor: colors.border,
     borderBlockStartStyle: 'dashed',
     borderBlockStartWidth: 1,
-    display: 'block',
-    width: '100%',
   },
-  receiptTitle: {
-    color: colors.muted,
-    fontFamily: MONOSPACE,
-    fontSize: font.sizeSm,
-    fontWeight: font.weightRegular,
-    letterSpacing: '0.12em',
+  receiptStore: {
+    fontWeight: font.weightBold,
+    letterSpacing: '0.2em',
     margin: 0,
-    textTransform: 'uppercase',
+  },
+  receiptStoreUrl: {
+    color: colors.muted,
+    margin: 0,
+    textTransform: 'none',
+  },
+  receiptSum: {
+    display: 'flex',
+    gap: spacing.s3,
+    justifyContent: 'space-between',
+    margin: 0,
+  },
+  receiptSums: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s2,
+  },
+  receiptTax: {
+    color: colors.muted,
+  },
+  receiptThanks: {
+    margin: 0,
+    textAlign: 'center',
+  },
+  receiptTotal: {
+    alignItems: 'baseline',
+    display: 'flex',
+    gap: spacing.s3,
+    justifyContent: 'space-between',
+    margin: 0,
+  },
+  receiptTotalLabel: {
+    fontSize: 11,
+    fontWeight: font.weightBold,
+    letterSpacing: '0.12em',
+  },
+  receiptTotalValue: {
+    color: accent.base,
+    fontSize: DISPLAY_SIZE,
+    fontVariantNumeric: 'tabular-nums',
+    fontWeight: font.weightBold,
+    letterSpacing: '-0.02em',
+    lineHeight: 1.1,
+  },
+  receiptValue: {
+    color: accent.base,
+    fontVariantNumeric: 'tabular-nums',
+    textAlign: 'end',
+    whiteSpace: 'nowrap',
+  },
+  receiptWrap: {
+    alignItems: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s6,
+    maxWidth: HERO_MEASURE,
+    width: '100%',
   },
   researchLink: {
     color: {
@@ -2750,6 +2930,8 @@ function Generator() {
   const [hours, setHours] = useState(HOURS_DEFAULT);
   // Whether the reader has touched the dial: the receipt is empty until then.
   const [touched, setTouched] = useState(false);
+  // The date on the bill: when the page was opened, not when it was rung up.
+  const [printedAt] = useState(() => new Date());
   // The answer as it was given, which is what the small line over the total
   // quotes back and what the gate holds when it is reopened.
   // The six states of the first screen, in the order the reader meets them:
@@ -3397,17 +3579,19 @@ function Generator() {
   // The day the screen prices, and the hour it has one sentence for.
   const wholeHours = clampHours(hours);
   const locale = getLocale();
-  // The line the whole screen adds up to, cut in two on the years inside it,
-  // because the years are the one figure on the first screen in the accent.
-  const years = wholeHours === 1 ? ONE_HOUR_YEARS : formatYears(wholeHours);
-  const [totalBefore, totalAfter] = (
-    wholeHours === 1
-      ? m.home_total_line_one({ years: LINK_SLOT })
-      : m.home_total_line({ hours: wholeHours, years: LINK_SLOT })
-  ).split(LINK_SLOT);
   // What the same hours would have bought, in four things the reader can
   // picture.
   const metrics = heroMetrics(wholeHours, locale);
+  const [books, workouts, dinners, money] = metrics;
+  // The years as the share card prints them.
+  const years = formatYears(wholeHours);
+  // The bill's own number and date: the day printed as a till would.
+  const receiptNo = String(screenHours(wholeHours)).padStart(RECEIPT_DIGITS, '0');
+  const printedOn = new Intl.DateTimeFormat(locale, {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(printedAt);
   // The post the story links out to, in the middle of the sentence that tells
   // it, so the words around it keep their own order in every language.
   const [storyBefore, storyAfter] = m.home_story_2({ post: LINK_SLOT }).split(LINK_SLOT);
@@ -3478,42 +3662,132 @@ function Generator() {
         />
         {/* The receipt: empty until the reader touches the dial, then priced
         live against it. Every figure on it rolls as the hours change. */}
-        <section aria-live="polite" {...props(styles.receipt)}>
-          <h2 {...props(styles.receiptTitle)}>{m.home_receipt_title()}</h2>
-          <span aria-hidden="true" {...props(styles.receiptRule)} />
-          {touched ? (
-            <div {...props(styles.receiptBody, styles.reveal)}>
-              <p {...props(styles.totalLine)}>
-                {totalBefore}
-                <NumberFlow
-                  format={{ maximumFractionDigits: 2 }}
-                  locales={locale}
-                  value={screenYears(wholeHours)}
-                  {...props(styles.totalYears)}
-                />
-                {totalAfter}
+        <section aria-live="polite" {...props(styles.receiptWrap)}>
+          <div {...props(styles.receipt)}>
+            <div {...props(styles.receiptHead)}>
+              <p {...props(styles.receiptStore)}>{m.home_receipt_store()}</p>
+              <p {...props(styles.receiptStoreUrl)}>{m.home_receipt_store_url()}</p>
+            </div>
+            <div aria-hidden="true" {...props(styles.receiptRule)} />
+            <div {...props(styles.receiptMeta)}>
+              <p {...props(styles.receiptMetaLine)}>
+                <span>{m.home_receipt_no({ number: receiptNo })}</span>
+                <span>{printedOn}</span>
               </p>
-              <div {...props(styles.metrics)}>
-                {metrics.map((item) => (
-                  <span key={item.key} {...props(styles.metric)}>
-                    {item.before}
-                    <NumberFlow
-                      locales={locale}
-                      prefix={item.prefix}
-                      value={item.amount}
-                      {...props(styles.metricValue)}
-                    />
-                    {item.after}
-                  </span>
-                ))}
-                <AssumptionsNote />
+              <p {...props(styles.receiptMetaLine)}>{m.home_receipt_cashier()}</p>
+            </div>
+            <div aria-hidden="true" {...props(styles.receiptRule)} />
+            <div {...props(styles.receiptItems)}>
+              <span {...props(styles.receiptColumn)}>{m.home_receipt_col_item()}</span>
+              <span {...props(styles.receiptColumn)}>{m.home_receipt_col_qty()}</span>
+              <span {...props(styles.receiptColumn, styles.receiptColumnAmount)}>
+                {m.home_receipt_col_amount()}
+              </span>
+            </div>
+            <div {...props(styles.expand, touched && styles.expandOpen)}>
+              <div
+                {...props(
+                  styles.expandInner,
+                  touched && styles.expandInnerOpen,
+                  styles.receiptLower,
+                )}
+              >
+                <ul {...props(styles.receiptList)}>
+                  <li {...props(styles.receiptRow)}>
+                    <span>{m.home_receipt_screen_label()}</span>
+                    <span {...props(styles.receiptQty)}>
+                      {m.home_receipt_screen_qty({ hours: wholeHours })}
+                    </span>
+                    <span {...props(styles.receiptValue)}>
+                      <NumberFlow locales={locale} value={screenHours(wholeHours)} />{' '}
+                      {m.home_receipt_hours_unit()}
+                    </span>
+                  </li>
+                  {[
+                    {
+                      item: books,
+                      label: m.home_receipt_books_label(),
+                      qty: m.home_receipt_books_qty(),
+                    },
+                    {
+                      item: workouts,
+                      label: m.home_receipt_workouts_label(),
+                      qty: m.home_receipt_workouts_qty(),
+                    },
+                    {
+                      item: dinners,
+                      label: m.home_receipt_dinners_label(),
+                      qty: m.home_receipt_dinners_qty(),
+                    },
+                    {
+                      item: money,
+                      label: m.home_receipt_money_label(),
+                      qty: m.home_receipt_money_qty(),
+                    },
+                  ].map((row) =>
+                    row.item === undefined ? null : (
+                      <li key={row.item.key} {...props(styles.receiptRow)}>
+                        <span>{row.label}</span>
+                        <span {...props(styles.receiptQty)}>{row.qty}</span>
+                        <span {...props(styles.receiptValue)}>
+                          <NumberFlow
+                            locales={locale}
+                            prefix={row.item.prefix}
+                            value={row.item.amount}
+                          />
+                        </span>
+                      </li>
+                    ),
+                  )}
+                </ul>
+                <div aria-hidden="true" {...props(styles.receiptRule)} />
+                <div {...props(styles.receiptSums)}>
+                  <p {...props(styles.receiptSum)}>
+                    <span>{m.home_receipt_subtotal()}</span>
+                    <span {...props(styles.receiptValue)}>
+                      <NumberFlow locales={locale} value={screenHours(wholeHours)} />{' '}
+                      {m.home_receipt_hours_unit()}
+                    </span>
+                  </p>
+                  <p {...props(styles.receiptSum, styles.receiptTax)}>
+                    <span>{m.home_receipt_tax()}</span>
+                    <span>{m.home_receipt_tax_value()}</span>
+                  </p>
+                  <p {...props(styles.receiptTotal)}>
+                    <span {...props(styles.receiptTotalLabel)}>{m.home_receipt_total_label()}</span>
+                    <span {...props(styles.receiptTotalValue)}>
+                      <NumberFlow
+                        format={{ maximumFractionDigits: 2 }}
+                        locales={locale}
+                        value={screenYears(wholeHours)}
+                      />{' '}
+                      {m.home_receipt_years_unit()}
+                    </span>
+                  </p>
+                </div>
+                <div aria-hidden="true" {...props(styles.receiptRule)} />
+                <div {...props(styles.receiptFoot)}>
+                  <p {...props(styles.receiptFootLine)}>{m.home_receipt_paid()}</p>
+                  <p {...props(styles.receiptFootLine)}>{m.home_receipt_no_refunds()}</p>
+                  <p aria-hidden="true" {...props(styles.receiptBarcode)}>
+                    {RECEIPT_BARCODE}
+                  </p>
+                  <p {...props(styles.receiptThanks)}>{m.home_receipt_thanks()}</p>
+                </div>
               </div>
+            </div>
+          </div>
+          <div {...props(styles.expand, touched && styles.expandOpen)}>
+            <div
+              {...props(styles.expandInner, touched && styles.expandInnerOpen, styles.receiptAfter)}
+            >
+              <AssumptionsNote />
               <p {...props(styles.truthLine)}>{homeTruth(wholeHours, locale)}</p>
             </div>
-          ) : null}
+          </div>
         </section>
-        {touched ? (
-          <div {...props(styles.heroPitch, styles.reveal)}>
+        <div {...props(styles.expand, touched && styles.expandOpen)}>
+          <div {...props(styles.expandInner, touched && styles.expandInnerOpen, styles.heroPitch)}>
             <p {...props(styles.heroProduct)}>{m.home_hero_product()}</p>
             <div {...props(styles.heroActions)}>
               <Button render={<a href={`#${BUILD_ID}`} />}>{m.home_hero_cta()}</Button>
@@ -3552,7 +3826,7 @@ function Generator() {
               </button>
             </div>
           </div>
-        ) : null}
+        </div>
       </header>
 
       <div {...props(styles.content)}>
