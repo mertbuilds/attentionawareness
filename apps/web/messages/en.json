@@ -21,6 +21,7 @@
   "home_receipt_money_label": "Pay at $20 an hour",
   "home_receipt_total_label": "Total, of your next {years} years",
   "home_receipt_total_note": "of waking life",
+  "home_receipt_refunded": "Refunded",
   "home_receipt_store": "ATTENTION AWARENESS",
   "home_receipt_store_url": "attentionawareness.com",
   "home_receipt_no": "Receipt no. {number}",

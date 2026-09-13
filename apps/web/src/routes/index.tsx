@@ -29,6 +29,7 @@ import type { MetaCache } from '../components/app-artwork.tsx';
 import { AppIconFan, fanStyles } from '../components/app-icon-fan.tsx';
 import { FriendShare } from '../components/friend-share.tsx';
 import { GridTexture } from '../components/grid-texture.tsx';
+import { Receipt } from '../components/receipt.tsx';
 import { ShareCard } from '../components/share-card.tsx';
 import { Sheet } from '../components/sheet.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
@@ -43,14 +44,7 @@ import {
   storefrontLabel,
   storefronts,
 } from '../lib/app-search.ts';
-import {
-  formatYears,
-  heroMetrics,
-  homeTruth,
-  HORIZON_YEARS,
-  screenHours,
-  screenYears,
-} from '../lib/attention-math.ts';
+import { formatYears, homeTruth } from '../lib/attention-math.ts';
 import { controls } from '../lib/controls.ts';
 import { mergeBlockedApps } from '../lib/known-apps.ts';
 import type { ScannedApp } from '../lib/known-apps.ts';
@@ -135,8 +129,6 @@ const SIGN_URL = '/api/sign';
 /** The server names the profile, so every download saves under one name. */
 const PROFILE_FILENAME = 'attentionawareness.mobileconfig';
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
-/** The stripe a printed receipt ends on. Nothing scans it. */
-const RECEIPT_BARCODE = '▌▐▌▌▐▌▐▐▌▌▐▌▐▌▌▐▌▐▐▌▌▐▌▐▌';
 /** A till pads its receipt numbers. */
 const RECEIPT_DIGITS = 6;
 /** How long the receipt takes to unroll, and the hero to drift up over it. */
@@ -1043,140 +1035,17 @@ const styles = create({
     padding: 0,
   },
   // One cited line inside the research box, and the whole line is the source.
-  receipt: {
-    backgroundColor: colors.bg,
-    borderColor: colors.border,
-    borderRadius: radius.base,
-    borderStyle: 'solid',
-    borderWidth: 1,
-    boxSizing: 'border-box',
-    display: 'flex',
-    flexDirection: 'column',
-    fontFamily: MONOSPACE,
-    fontSize: 13,
-    gap: spacing.s3,
-    maxWidth: 420,
-    padding: {
-      '@media (min-width: 640px)': spacing.s4,
-      default: spacing.s3,
-    },
-    textAlign: 'start',
-    textTransform: 'uppercase',
-    width: '100%',
-  },
   receiptAfter: {
     alignItems: 'center',
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s4,
   },
-  receiptBarcode: {
-    color: colors.muted,
-    letterSpacing: '-0.05em',
-    margin: 0,
-    overflow: 'hidden',
-    textAlign: 'center',
-  },
-  receiptBlock: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s1,
-  },
-  receiptFoot: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s2,
-  },
-  receiptFootLine: {
-    margin: 0,
-  },
-  receiptHead: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s1,
-    textAlign: 'center',
-  },
-  receiptHeading: {
-    color: colors.muted,
-    fontSize: 11,
-    letterSpacing: '0.12em',
-    margin: 0,
-    marginBlockEnd: spacing.s1,
-  },
-  receiptMeta: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s1,
-  },
-  receiptMetaLine: {
-    display: 'flex',
-    gap: spacing.s3,
-    justifyContent: 'space-between',
-    margin: 0,
-  },
-  receiptOrder: {
-    fontWeight: font.weightBold,
-    lineHeight: 1.5,
-    margin: 0,
-    textTransform: 'none',
-  },
-  receiptRow: {
-    alignItems: 'baseline',
-    display: 'flex',
-    gap: spacing.s3,
-    justifyContent: 'space-between',
-    lineHeight: 1.6,
-    margin: 0,
-  },
-  receiptRule: {
-    borderBlockStartColor: colors.border,
-    borderBlockStartStyle: 'dashed',
-    borderBlockStartWidth: 1,
-  },
   receiptSlot: {
     alignItems: 'center',
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s6,
-  },
-  receiptStore: {
-    fontWeight: font.weightBold,
-    letterSpacing: '0.2em',
-    margin: 0,
-  },
-  receiptStoreUrl: {
-    color: colors.muted,
-    margin: 0,
-    textTransform: 'none',
-  },
-  receiptThanks: {
-    margin: 0,
-    textAlign: 'center',
-  },
-  receiptTotal: {
-    alignItems: 'end',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s1,
-    margin: 0,
-  },
-  receiptTotalNote: {
-    color: colors.muted,
-    textTransform: 'none',
-  },
-  receiptTotalValue: {
-    color: accent.base,
-    fontSize: DISPLAY_SIZE,
-    fontVariantNumeric: 'tabular-nums',
-    fontWeight: font.weightBold,
-    letterSpacing: '-0.02em',
-    lineHeight: 1.1,
-  },
-  receiptValue: {
-    color: accent.base,
-    fontVariantNumeric: 'tabular-nums',
-    textAlign: 'end',
-    whiteSpace: 'nowrap',
   },
   receiptWrap: {
     alignItems: 'center',
@@ -3047,6 +2916,15 @@ function Generator() {
   }, []);
   /* oxlint-enable react/set-state-in-effect */
 
+  // The first screen is the whole page until the dial is touched: nothing
+  // under it can be scrolled to before the receipt exists.
+  useEffect(() => {
+    document.documentElement.style.overflow = touched ? '' : 'hidden';
+    return () => {
+      document.documentElement.style.overflow = '';
+    };
+  }, [touched]);
+
   // iOS Safari opens an audio device inside a gesture and nowhere else, so the
   // first gesture it accepts anywhere on the page opens one. Once that works
   // there is nothing left to listen for.
@@ -3546,10 +3424,6 @@ function Generator() {
   // The day the screen prices, and the hour it has one sentence for.
   const wholeHours = clampHours(hours);
   const locale = getLocale();
-  // What the same hours would have bought, in four things the reader can
-  // picture.
-  const metrics = heroMetrics(wholeHours, locale);
-  const [books, workouts, dinners, money] = metrics;
   // The years as the share card prints them.
   const years = formatYears(wholeHours);
   // The bill's own number and date: the day printed as a till would.
@@ -3637,94 +3511,7 @@ function Generator() {
             <div
               {...props(styles.expandInner, touched && styles.expandInnerOpen, styles.receiptSlot)}
             >
-              <div {...props(styles.receipt)}>
-                <div {...props(styles.receiptHead)}>
-                  <p {...props(styles.receiptStore)}>{m.home_receipt_store()}</p>
-                  <p {...props(styles.receiptStoreUrl)}>{m.home_receipt_store_url()}</p>
-                </div>
-                <div aria-hidden="true" {...props(styles.receiptRule)} />
-                <div {...props(styles.receiptMeta)}>
-                  <p {...props(styles.receiptMetaLine)}>
-                    <span>{m.home_receipt_no({ number: receiptNo })}</span>
-                    <span>{printedOn}</span>
-                  </p>
-                  <p {...props(styles.receiptMetaLine)}>{m.home_receipt_cashier()}</p>
-                </div>
-                <div aria-hidden="true" {...props(styles.receiptRule)} />
-                {/* The deal, in words, before any number: this many hours a
-                day, for this many years. */}
-                <div {...props(styles.receiptBlock)}>
-                  <p {...props(styles.receiptHeading)}>{m.home_receipt_order_label()}</p>
-                  <p {...props(styles.receiptOrder)}>
-                    {wholeHours === 1
-                      ? m.home_receipt_order_one({ years: HORIZON_YEARS })
-                      : m.home_receipt_order({ hours: wholeHours, years: HORIZON_YEARS })}
-                  </p>
-                </div>
-                <div aria-hidden="true" {...props(styles.receiptRule)} />
-                <div {...props(styles.receiptBlock)}>
-                  <p {...props(styles.receiptRow)}>
-                    <span>
-                      {m.home_receipt_scrolling_label({ hours: wholeHours, years: HORIZON_YEARS })}
-                    </span>
-                    <span {...props(styles.receiptValue)}>
-                      <NumberFlow locales={locale} value={screenHours(wholeHours)} />{' '}
-                      {m.home_receipt_hours_unit()}
-                    </span>
-                  </p>
-                </div>
-                <div aria-hidden="true" {...props(styles.receiptRule)} />
-                {/* What the same hours were worth: the four things they would
-                have bought, under one heading that says they were not bought. */}
-                <div {...props(styles.receiptBlock)}>
-                  <p {...props(styles.receiptHeading)}>{m.home_receipt_worth_label()}</p>
-                  {[
-                    { item: books, label: m.home_receipt_books_label() },
-                    { item: workouts, label: m.home_receipt_workouts_label() },
-                    { item: dinners, label: m.home_receipt_dinners_label() },
-                    { item: money, label: m.home_receipt_money_label() },
-                  ].map((row) =>
-                    row.item === undefined ? null : (
-                      <p key={row.item.key} {...props(styles.receiptRow)}>
-                        <span>{row.label}</span>
-                        <span {...props(styles.receiptValue)}>
-                          <NumberFlow
-                            locales={locale}
-                            prefix={row.item.prefix}
-                            value={row.item.amount}
-                          />
-                        </span>
-                      </p>
-                    ),
-                  )}
-                </div>
-                <div aria-hidden="true" {...props(styles.receiptRule)} />
-                <div {...props(styles.receiptBlock)}>
-                  <p {...props(styles.receiptHeading)}>
-                    {m.home_receipt_total_label({ years: HORIZON_YEARS })}
-                  </p>
-                  <p {...props(styles.receiptTotal)}>
-                    <span {...props(styles.receiptTotalValue)}>
-                      <NumberFlow
-                        format={{ maximumFractionDigits: 2 }}
-                        locales={locale}
-                        value={screenYears(wholeHours)}
-                      />{' '}
-                      {m.home_receipt_years_unit()}
-                    </span>
-                    <span {...props(styles.receiptTotalNote)}>{m.home_receipt_total_note()}</span>
-                  </p>
-                </div>
-                <div aria-hidden="true" {...props(styles.receiptRule)} />
-                <div {...props(styles.receiptFoot)}>
-                  <p {...props(styles.receiptFootLine)}>{m.home_receipt_paid()}</p>
-                  <p {...props(styles.receiptFootLine)}>{m.home_receipt_no_refunds()}</p>
-                  <p aria-hidden="true" {...props(styles.receiptBarcode)}>
-                    {RECEIPT_BARCODE}
-                  </p>
-                  <p {...props(styles.receiptThanks)}>{m.home_receipt_thanks()}</p>
-                </div>
-              </div>
+              <Receipt hours={wholeHours} number={receiptNo} printedOn={printedOn} />
               <div {...props(styles.receiptAfter)}>
                 <AssumptionsNote />
                 <p {...props(styles.truthLine)}>{homeTruth(wholeHours, locale)}</p>
@@ -4399,7 +4186,13 @@ function Generator() {
 
         {isMobile ? (
           <Sheet onOpenChange={setShareOpen} open={shareOpen} title={m.share_heading_output()}>
-            <ShareCard apps={config.blockedApps} hours={hours} meta={meta} years={years} />
+            <ShareCard
+              apps={config.blockedApps}
+              hours={wholeHours}
+              number={receiptNo}
+              printedOn={printedOn}
+              years={years}
+            />
             <FriendShare apps={config.blockedApps} hours={hours} />
           </Sheet>
         ) : (
@@ -4417,7 +4210,13 @@ function Generator() {
               <DialogHeader>
                 <DialogTitle style={styles.sectionTitle}>{m.share_heading_output()}</DialogTitle>
               </DialogHeader>
-              <ShareCard apps={config.blockedApps} hours={hours} meta={meta} years={years} />
+              <ShareCard
+                apps={config.blockedApps}
+                hours={wholeHours}
+                number={receiptNo}
+                printedOn={printedOn}
+                years={years}
+              />
               <FriendShare apps={config.blockedApps} hours={hours} />
             </DialogContent>
           </Dialog>

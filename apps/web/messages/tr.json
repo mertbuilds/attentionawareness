@@ -21,6 +21,7 @@
   "home_receipt_money_label": "Saati $20'dan kazanç",
   "home_receipt_total_label": "Toplam, önümüzdeki {years} yılından",
   "home_receipt_total_note": "uyanık ömür",
+  "home_receipt_refunded": "İade edildi",
   "home_receipt_store": "ATTENTION AWARENESS",
   "home_receipt_store_url": "attentionawareness.com",
   "home_receipt_no": "Fiş no. {number}",
