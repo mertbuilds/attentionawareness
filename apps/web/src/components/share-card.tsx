@@ -3,16 +3,11 @@ import { font, palette, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { useMemo } from 'react';
 import type { BlockedApp } from '../lib/profile/index.ts';
-import { encodeShare, shareApps, shareText, SITE_URL } from '../lib/share.ts';
+import { encodeShare, shareText, SITE_URL } from '../lib/share.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
-import type { MetaCache } from './app-artwork.tsx';
-import { AppIconFan } from './app-icon-fan.tsx';
-import { BrandMark } from './brand-mark.tsx';
+import { Receipt } from './receipt.tsx';
 import { ShareLinks } from './share-links.tsx';
-
-/** The mark in the card's footer, beside the domain it stands for. */
-const MARK_SIZE = 20;
 
 const styles = create({
   // The one surface on the site that ignores the theme: it is a picture of a
@@ -138,12 +133,14 @@ const styles = create({
 export function ShareCard({
   apps,
   hours,
-  meta,
+  number,
+  printedOn,
   years,
 }: {
   apps: ReadonlyArray<BlockedApp>;
   hours: number;
-  meta: MetaCache;
+  number: string;
+  printedOn: string;
   years: string;
 }) {
   const locale = getLocale();
@@ -154,47 +151,10 @@ export function ShareCard({
   );
   // The names keep the casing the catalog gives them: "TikTok", not "tiktok".
   const appNames = useMemo(() => apps.map((app) => app.name), [apps]);
-  const { apps: named, rest } = shareApps(appNames);
-
-  // The number wears the accent and the unit stays white, but the catalog keeps
-  // the word order ("{years} years", "{years} yıl"): the line is split around
-  // the number it interpolated. A catalog that drops the number keeps its line.
-  const line = m.share_card_years({ years });
-  const at = line.indexOf(years);
-  const lead = at === -1 ? '' : line.slice(0, at);
-  const unit = at === -1 ? '' : line.slice(at + years.length);
-  const number = at === -1 ? line : years;
 
   return (
     <div {...props(styles.share)}>
-      <div {...props(styles.card)}>
-        <div {...props(styles.cardGrid)} />
-        <div {...props(styles.cardContent)}>
-          <p {...props(styles.cardAbove)}>{m.share_card_above()}</p>
-          <p {...props(styles.cardYears)}>
-            {lead}
-            <span {...props(styles.cardYearsNumber)}>{number}</span>
-            {unit}
-          </p>
-          <div {...props(styles.cardFromBlock)}>
-            <p {...props(styles.cardFrom)}>
-              {rest > 0
-                ? m.share_card_from_more({ apps: named, count: rest })
-                : m.share_card_from({ apps: named })}
-            </p>
-            <span {...props(styles.cardFan)}>
-              <AppIconFan apps={apps} interactive={false} meta={meta} />
-            </span>
-          </div>
-          <div {...props(styles.cardFooter)}>
-            <span {...props(styles.cardFooterLeft)}>
-              <BrandMark size={MARK_SIZE} style={styles.cardMark} />
-              <span {...props(styles.cardDomain)}>{m.share_domain()}</span>
-            </span>
-            <span {...props(styles.cardBadge)}>{m.share_card_badge()}</span>
-          </div>
-        </div>
-      </div>
+      <Receipt hours={hours} number={number} printedOn={printedOn} refunded />
       <ShareLinks
         label={m.share_heading_output()}
         text={shareText({ appNames, locale, url, years })}
