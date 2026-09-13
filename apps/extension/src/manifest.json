@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Attention Awareness",
   "description": "Removes the feeds that farm your attention. X, YouTube, Instagram, TikTok, plus your own CSS.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "action": {
     "default_popup": "popup.html"
   },
