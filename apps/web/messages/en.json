@@ -32,7 +32,7 @@
   "home_receipt_order_label": "Your order, next {years} years",
   "home_receipt_dopamine_label": "Cheap dopamine",
   "home_receipt_per_day": "H/DAY",
-  "home_receipt_total_note": "of the next {years} years",
+  "home_receipt_total_note": "of your next {years} years",
   "home_receipt_store": "ATTENTION AWARENESS",
   "home_receipt_store_url": "attentionawareness.com",
   "home_receipt_no": "Receipt no. {number}",
