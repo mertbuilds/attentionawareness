@@ -11,7 +11,7 @@
   "home_gate_reading": "{hours} saat",
   "home_gate_reading_one": "1 saat",
   "home_receipt_order_label": "Siparişin",
-  "home_receipt_total_label": "Toplam, önümüzdeki {years} yılından",
+  "home_receipt_total_label": "Toplam",
   "home_receipt_total_note": "uyanık ömür",
   "home_receipt_refunded": "İade edildi",
   "home_receipt_gave_label": "Sen verdin",

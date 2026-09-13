@@ -129,6 +129,9 @@ const styles = create({
     gap: spacing.s1,
     margin: 0,
   },
+  receiptTotalHeading: {
+    alignSelf: 'end',
+  },
   receiptTotalNote: {
     color: colors.muted,
     textTransform: 'none',
@@ -279,8 +282,8 @@ export function Receipt({
       </div>
       <div aria-hidden="true" {...props(styles.receiptRule)} />
       <div {...props(styles.receiptBlock)}>
-        <p {...props(styles.receiptHeading, styles.receiptLabel)}>
-          {m.home_receipt_total_label({ years: HORIZON_YEARS })}
+        <p {...props(styles.receiptHeading, styles.receiptLabel, styles.receiptTotalHeading)}>
+          {m.home_receipt_total_label()}
           <InfoTip label={m.home_receipt_tip_label()}>{m.home_receipt_total_tip()}</InfoTip>
         </p>
         <p {...props(styles.receiptTotal)}>
