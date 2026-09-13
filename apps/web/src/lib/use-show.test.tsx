@@ -66,14 +66,14 @@ describe('useShow', () => {
     expect(steps.mock.calls).toEqual([[1, 5]]);
     expect(state()).toBe('running');
 
-    advance(900);
+    advance(1600);
     expect(steps.mock.calls.at(-1)).toEqual([2, 5]);
 
-    advance(900 * 3);
+    advance(1600 * 3);
     expect(steps.mock.calls.map(([hours]) => hours)).toEqual([1, 2, 3, 4, 5]);
     expect(settled).not.toHaveBeenCalled();
 
-    advance(900);
+    advance(600);
     expect(settled).toHaveBeenCalledWith({ hours: 5, minutes: 30 }, true);
     expect(state()).toBe('idle');
   });
@@ -86,7 +86,7 @@ describe('useShow', () => {
     render(<Hero answer={{ hours: 0, minutes: 45 }} onSettle={settled} onStep={steps} />);
 
     submit();
-    advance(900);
+    advance(600);
 
     expect(steps.mock.calls).toEqual([[1, 1]]);
     expect(settled).toHaveBeenCalledWith({ hours: 0, minutes: 45 }, true);
@@ -100,7 +100,7 @@ describe('useShow', () => {
     render(<Hero answer={{ hours: 7, minutes: 0 }} onSettle={settled} onStep={steps} />);
 
     submit();
-    advance(900 * 12);
+    advance(1600 * 12);
 
     expect(steps).not.toHaveBeenCalled();
     expect(settled).toHaveBeenCalledWith({ hours: 7, minutes: 0 }, false);
@@ -117,9 +117,9 @@ describe('useShow', () => {
     );
 
     submit();
-    advance(900);
+    advance(1600);
     view.unmount();
-    advance(900 * 12);
+    advance(1600 * 12);
 
     expect(steps.mock.calls.map(([hours]) => hours)).toEqual([1, 2]);
     expect(settled).not.toHaveBeenCalled();
