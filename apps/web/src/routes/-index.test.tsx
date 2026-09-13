@@ -559,6 +559,15 @@ describe('Generator', () => {
     expect(screen.queryByText(m.home_gate_reading({ hours: 6 }))).not.toBeInTheDocument();
   });
 
+  it('says one hour in the singular, at the end of the dial that has one', async () => {
+    await renderPage();
+
+    fireEvent.change(dial(), { target: { value: '1' } });
+
+    expect(screen.getByText(m.home_gate_reading_one())).toBeInTheDocument();
+    expect(screen.queryByText(m.home_gate_reading({ hours: 1 }))).not.toBeInTheDocument();
+  });
+
   it('marks every hour the dial can stop on', async () => {
     await renderPage();
 
@@ -1150,7 +1159,7 @@ describe('Generator', () => {
 
     expect(screen.getByText('0')).toBeInTheDocument();
     expect(screen.getByText('$0')).toBeInTheDocument();
-    expect(screen.getByText('45 min')).toBeInTheDocument();
+    expect(screen.getByText('45 minutes')).toBeInTheDocument();
     expect(screen.getByText(m.home_deal_apps_label())).toBeInTheDocument();
     expect(screen.getByText(m.home_deal_price_label())).toBeInTheDocument();
     expect(screen.getByText(m.home_deal_time_label())).toBeInTheDocument();
@@ -1253,6 +1262,12 @@ describe('Generator', () => {
 
     expect(screen.getByText(m.gen_summary_locked_off())).toBeInTheDocument();
     expect(screen.queryByText(m.gen_summary_locked_on())).not.toBeInTheDocument();
+  });
+
+  it('leads the footer with the promise the site is named for', async () => {
+    await renderPage();
+
+    expect(screen.getByText(m.footer_tagline())).toBeInTheDocument();
   });
 
   it('links the repository from the footer', async () => {

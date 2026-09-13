@@ -79,20 +79,16 @@ describe('FriendPage', () => {
   it('prices the day the link carries, rounded onto a whole hour', () => {
     renderPage('?m=330&a=ig');
 
-    expect(
-      screen.getByText(m.friend_why_1({ hours: 6, minutes: '00', years: '7.5' })),
-    ).toBeInTheDocument();
+    expect(screen.getByText(m.friend_why_1({ hours: 6, years: '7.5' }))).toBeInTheDocument();
   });
 
   it('prices the average day where the link carries none, and says whose it is', () => {
     renderPage('?a=ig');
 
     expect(
-      screen.getByText(m.friend_why_1_average({ hours: 4, minutes: '05', years: '5.1' })),
+      screen.getByText(m.friend_why_1_average({ hours: 4, minutes: 5, years: '5.1' })),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByText(m.friend_why_1({ hours: 4, minutes: '05', years: '5.1' })),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(m.friend_why_1({ hours: 4, years: '5.1' }))).not.toBeInTheDocument();
   });
 
   it('answers the four questions the reader actually has', () => {

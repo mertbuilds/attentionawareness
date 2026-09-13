@@ -37,7 +37,7 @@ const styles = create({
 /**
  * The same footer on every page: what this is, who made it, and the theme and
  * language controls. A page with one more line of its own passes it in, and it
- * joins the column above the shared two.
+ * joins the column above the shared three.
  */
 export function SiteFooter({ children }: { children?: ReactNode | undefined }) {
   const [openBefore, openAfter] = m.gen_footer_open_source({ source: LINK_SLOT }).split(LINK_SLOT);
@@ -47,6 +47,7 @@ export function SiteFooter({ children }: { children?: ReactNode | undefined }) {
     <footer {...props(styles.footer)}>
       <div {...props(styles.lines)}>
         {children}
+        <p {...props(layout.muted)}>{m.footer_tagline()}</p>
         <p {...props(layout.muted)}>
           {openBefore}
           <a href={REPO_URL} rel="noreferrer" target="_blank">

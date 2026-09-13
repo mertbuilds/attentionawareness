@@ -27,8 +27,6 @@ const FALLBACK_BUNDLE_IDS: ReadonlyArray<string> = [
   'com.atebits.Tweetie2',
 ];
 const MINUTES_PER_HOUR = 60;
-/** A day is quoted the way a till quotes one: 4 h 05, never 4 h 5. */
-const MINUTE_DIGITS = 2;
 
 const styles = create({
   body: {
@@ -135,11 +133,6 @@ function FriendPage() {
   // The fallback four are the whole list, so they are all named; a link's own
   // list is read the way every other share reads one, three and a count.
   const { apps, rest } = shared ? shareApps(appNames) : { apps: appNames.join(', '), rest: 0 };
-  const said = {
-    hours: day.hours,
-    minutes: String(day.minutes).padStart(MINUTE_DIGITS, '0'),
-    years,
-  };
 
   return (
     <main {...props(styles.page)}>
@@ -169,7 +162,9 @@ function FriendPage() {
         <section {...props(styles.section)}>
           <h2 {...props(styles.sectionTitle)}>{m.friend_why_title()}</h2>
           <p {...props(styles.body)}>
-            {hours === undefined ? m.friend_why_1_average(said) : m.friend_why_1(said)}
+            {hours === undefined
+              ? m.friend_why_1_average({ hours: day.hours, minutes: day.minutes, years })
+              : m.friend_why_1({ hours: day.hours, years })}
           </p>
           <p {...props(styles.body)}>{m.friend_why_2()}</p>
         </section>

@@ -2384,7 +2384,8 @@ function ScreenTimeGate({
   sound: boolean;
 }) {
   const [hours, setHours] = useState(entered === null ? HOURS_DEFAULT : entered.hours);
-  const reading = m.home_gate_reading({ hours });
+  // The dial starts at one, so the readout needs the singular of its own word.
+  const reading = hours === 1 ? m.home_gate_reading_one() : m.home_gate_reading({ hours });
   // How far along the rail the dial has been turned.
   const travelled = ((hours - HOURS_MIN) / (HOURS_MAX - HOURS_MIN)) * 100;
 
@@ -3723,7 +3724,9 @@ function Generator() {
             </>
           ) : (
             <>
-              {m.home_gate_entered({ hours: entered.hours })}
+              {entered.hours === 1
+                ? m.home_gate_entered_one()
+                : m.home_gate_entered({ hours: entered.hours })}
               {/* No way back out of the show: it opens once it has finished. */}
               {settled ? (
                 <>
