@@ -2,9 +2,16 @@ import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import NumberFlow from '@number-flow/react';
 import { create, props } from '@stylexjs/stylex';
-import { heroMetrics, HORIZON_YEARS, screenHours, screenYears } from '../lib/attention-math.ts';
+import {
+  adRevenue,
+  heroMetrics,
+  HORIZON_YEARS,
+  screenHours,
+  screenYears,
+} from '../lib/attention-math.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
+import { InfoTip } from './info-tip.tsx';
 
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 const DISPLAY_SIZE = 40;
@@ -66,6 +73,11 @@ const styles = create({
     margin: 0,
     marginBlockEnd: spacing.s1,
   },
+  receiptLabel: {
+    alignItems: 'center',
+    display: 'inline-flex',
+    gap: spacing.s1,
+  },
   receiptMeta: {
     display: 'flex',
     flexDirection: 'column',
@@ -82,6 +94,9 @@ const styles = create({
     lineHeight: 1.5,
     margin: 0,
     textTransform: 'none',
+  },
+  receiptPlain: {
+    textAlign: 'end',
   },
   receiptRow: {
     alignItems: 'baseline',
@@ -176,7 +191,23 @@ export function Receipt({
   refunded?: boolean;
 }) {
   const locale = getLocale();
-  const [books, workouts, dinners, money] = heroMetrics(hours, locale);
+  const worth = heroMetrics(hours);
+  const tips: Record<string, () => string> = {
+    books: m.home_receipt_books_tip,
+    degrees: m.home_receipt_degrees_tip,
+    earth: m.home_receipt_earth_tip,
+    instruments: m.home_receipt_instruments_tip,
+    languages: m.home_receipt_languages_tip,
+    skills: m.home_receipt_skills_tip,
+  };
+  const labels: Record<string, () => string> = {
+    books: m.home_receipt_books_label,
+    degrees: m.home_receipt_degrees_label,
+    earth: m.home_receipt_earth_label,
+    instruments: m.home_receipt_instruments_label,
+    languages: m.home_receipt_languages_label,
+    skills: m.home_receipt_skills_label,
+  };
   return (
     <div {...props(styles.receipt, refunded && styles.stamped)}>
       <div {...props(styles.receiptHead)}>
@@ -189,7 +220,7 @@ export function Receipt({
           <span>{m.home_receipt_no({ number })}</span>
           <span>{printedOn}</span>
         </p>
-        <p {...props(styles.receiptMetaLine)}>{m.home_receipt_cashier()}</p>
+        <p {...props(styles.receiptMetaLine)}>{m.home_receipt_sold_to()}</p>
       </div>
       <div aria-hidden="true" {...props(styles.receiptRule)} />
       {/* The deal, in words, before any number: this many hours a
@@ -203,39 +234,70 @@ export function Receipt({
         </p>
       </div>
       <div aria-hidden="true" {...props(styles.receiptRule)} />
+      {/* What went over the counter: the hours, and what they were filled with. */}
       <div {...props(styles.receiptBlock)}>
+        <p {...props(styles.receiptHeading)}>{m.home_receipt_gave_label()}</p>
         <p {...props(styles.receiptRow)}>
-          <span>{m.home_receipt_scrolling_label({ hours, years: HORIZON_YEARS })}</span>
+          <span {...props(styles.receiptLabel)}>
+            {m.home_receipt_attention_label()}
+            <InfoTip label={m.home_receipt_tip_label()}>
+              {m.home_receipt_attention_tip({ years: HORIZON_YEARS })}
+            </InfoTip>
+          </span>
           <span {...props(styles.receiptValue)}>
             <NumberFlow locales={locale} value={screenHours(hours)} /> {m.home_receipt_hours_unit()}
           </span>
         </p>
+        <p {...props(styles.receiptRow)}>
+          <span>{m.home_receipt_fed_label()}</span>
+          <span {...props(styles.receiptPlain)}>{m.home_receipt_fed_value()}</span>
+        </p>
+        <p {...props(styles.receiptRow)}>
+          <span>{m.home_receipt_dopamine_label()}</span>
+          <span {...props(styles.receiptPlain)}>{m.home_receipt_dopamine_value()}</span>
+        </p>
+        <p {...props(styles.receiptRow)}>
+          <span>{m.home_receipt_connections_label()}</span>
+          <span {...props(styles.receiptPlain)}>{m.home_receipt_connections_value()}</span>
+        </p>
       </div>
       <div aria-hidden="true" {...props(styles.receiptRule)} />
-      {/* What the same hours were worth: the four things they would
-      have bought, under one heading that says they were not bought. */}
+      {/* What the other side of the counter made on it. */}
+      <div {...props(styles.receiptBlock)}>
+        <p {...props(styles.receiptHeading)}>{m.home_receipt_got_label()}</p>
+        <p {...props(styles.receiptRow)}>
+          <span {...props(styles.receiptLabel)}>
+            {m.home_receipt_ad_revenue_label()}
+            <InfoTip label={m.home_receipt_tip_label()}>
+              {m.home_receipt_ad_revenue_note({ years: HORIZON_YEARS })}
+            </InfoTip>
+          </span>
+          <span {...props(styles.receiptValue)}>
+            <NumberFlow locales={locale} prefix="~$" value={adRevenue()} />
+          </span>
+        </p>
+      </div>
+      <div aria-hidden="true" {...props(styles.receiptRule)} />
+      {/* What the same hours would have bought, smallest to largest. */}
       <div {...props(styles.receiptBlock)}>
         <p {...props(styles.receiptHeading)}>{m.home_receipt_worth_label()}</p>
-        {[
-          { item: books, label: m.home_receipt_books_label() },
-          { item: workouts, label: m.home_receipt_workouts_label() },
-          { item: dinners, label: m.home_receipt_dinners_label() },
-          { item: money, label: m.home_receipt_money_label() },
-        ].map((row) =>
-          row.item === undefined ? null : (
-            <p key={row.item.key} {...props(styles.receiptRow)}>
-              <span>{row.label}</span>
-              <span {...props(styles.receiptValue)}>
-                <NumberFlow locales={locale} prefix={row.item.prefix} value={row.item.amount} />
-              </span>
-            </p>
-          ),
-        )}
+        {worth.map((row) => (
+          <p key={row.key} {...props(styles.receiptRow)}>
+            <span {...props(styles.receiptLabel)}>
+              {labels[row.key]?.() ?? row.key}
+              <InfoTip label={m.home_receipt_tip_label()}>{tips[row.key]?.()}</InfoTip>
+            </span>
+            <span {...props(styles.receiptValue)}>
+              <NumberFlow locales={locale} value={row.amount} />
+            </span>
+          </p>
+        ))}
       </div>
       <div aria-hidden="true" {...props(styles.receiptRule)} />
       <div {...props(styles.receiptBlock)}>
-        <p {...props(styles.receiptHeading)}>
+        <p {...props(styles.receiptHeading, styles.receiptLabel)}>
           {m.home_receipt_total_label({ years: HORIZON_YEARS })}
+          <InfoTip label={m.home_receipt_tip_label()}>{m.home_receipt_total_tip()}</InfoTip>
         </p>
         <p {...props(styles.receiptTotal)}>
           <span {...props(styles.receiptTotalValue)}>
@@ -251,8 +313,8 @@ export function Receipt({
       </div>
       <div aria-hidden="true" {...props(styles.receiptRule)} />
       <div {...props(styles.receiptFoot)}>
-        <p {...props(styles.receiptFootLine)}>{m.home_receipt_paid()}</p>
-        <p {...props(styles.receiptFootLine)}>{m.home_receipt_no_refunds()}</p>
+        <p {...props(styles.receiptFootLine)}>{m.home_receipt_renews()}</p>
+        <p {...props(styles.receiptFootLine)}>{m.home_receipt_refund_window()}</p>
         <p aria-hidden="true" {...props(styles.receiptBarcode)}>
           {RECEIPT_BARCODE}
         </p>
