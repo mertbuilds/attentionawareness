@@ -303,24 +303,41 @@ function receiptTotal(): string {
   return total?.textContent ?? '';
 }
 
+/** The two fields the question is answered in. */
+function gateHours(): HTMLElement {
+  return screen.getByLabelText(m.home_gate_hours());
+}
+
+function gateMinutes(): HTMLElement {
+  return screen.getByLabelText(m.home_gate_minutes());
+}
+
+/** Answers the gate, which mounts the dial and starts the show. */
+function answerGate(hours: string, minutes?: string): void {
+  fireEvent.change(gateHours(), { target: { value: hours } });
+  if (minutes !== undefined) {
+    fireEvent.change(gateMinutes(), { target: { value: minutes } });
+  }
+  fireEvent.click(screen.getByRole('button', { name: m.home_gate_submit() }));
+}
+
+/** One hour of the show, and the beat it holds for. */
+const SHOW_STEP_MS = 900;
+
+async function advance(ms: number): Promise<void> {
+  await act(async () => {
+    vi.advanceTimersByTime(ms);
+  });
+}
+
 /**
- * jsdom has no IntersectionObserver, which is what holds the dial still in
- * every other test: with none to ask, the page never drives it. This hands the
- * page one that reports the section on screen the moment it is watched.
+ * The page as a shared link opens it: past the gate and past the show, with
+ * the dial already the reader's. Every test about the dial itself starts here,
+ * because the show is a first impression and none of them are testing it.
  */
-function stubIntersectionObserver(): void {
-  vi.stubGlobal(
-    'IntersectionObserver',
-    function observer(watch: (entries: Array<{ intersectionRatio: number }>) => void) {
-      return {
-        disconnect() {},
-        observe() {
-          watch([{ intersectionRatio: 1 }]);
-        },
-        unobserve() {},
-      };
-    },
-  );
+async function renderAnswered(hours = 4) {
+  window.history.replaceState({}, '', `/?h=${hours}`);
+  return renderPage();
 }
 
 /** The file the download saved. The signer answers first, so this waits. */
@@ -356,6 +373,36 @@ describe('Generator', () => {
     expect(screen.getAllByRole('button', { name: m.gen_app_remove() })).toHaveLength(BLOCKED_APPS);
   });
 
+  it('opens on the question alone, with nothing under it to look at', async () => {
+    await renderPage();
+
+    expect(gateHours()).toBeInTheDocument();
+    expect(gateMinutes()).toBeInTheDocument();
+    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
+    expect(screen.queryByText(m.home_receipt_title())).not.toBeInTheDocument();
+    expect(screen.queryByText(m.home_truth_4())).not.toBeInTheDocument();
+    expect(screen.queryByText(m.home_hero_product())).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: m.home_hero_cta() })).not.toBeInTheDocument();
+  });
+
+  it('says the range back to an answer it cannot use', async () => {
+    await renderPage();
+
+    answerGate('13');
+
+    expect(screen.getByText(m.home_gate_error())).toBeInTheDocument();
+    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
+  });
+
+  it('asks again when the question is sent back unanswered', async () => {
+    await renderPage();
+
+    answerGate('');
+
+    expect(screen.getByText(m.home_gate_error())).toBeInTheDocument();
+    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
+  });
+
   it('leaves the old hero lines off the page', async () => {
     await renderPage();
     expect(screen.queryByText(/more valuable than gold in 2026/i)).not.toBeInTheDocument();
@@ -363,7 +410,7 @@ describe('Generator', () => {
   });
 
   it('offers the build and the walkthrough from the hero itself', async () => {
-    await renderPage();
+    await renderAnswered();
 
     expect(screen.getByRole('link', { name: m.home_hero_cta() })).toHaveAttribute('href', '#build');
     expect(screen.getByRole('link', { name: m.home_hero_secondary() })).toHaveAttribute(
@@ -375,7 +422,7 @@ describe('Generator', () => {
   });
 
   it('says what the thing is, right under the bill', async () => {
-    await renderPage();
+    await renderAnswered();
     expect(screen.getByText(m.home_hero_product())).toBeInTheDocument();
   });
 
@@ -419,8 +466,8 @@ describe('Generator', () => {
     expect(screen.queryAllByRole('separator')).toHaveLength(0);
   });
 
-  it('rests the math on four hours a day, five of the next twenty years', async () => {
-    await renderPage();
+  it('prints the bill for the day it was answered with', async () => {
+    await renderAnswered();
 
     expect(screen.getByRole('slider')).toHaveValue('4');
     expect(truthLine()).toHaveTextContent(m.home_truth_4());
@@ -428,7 +475,7 @@ describe('Generator', () => {
   });
 
   it('marks every whole hour of the travel with its own numbered detent', async () => {
-    await renderPage();
+    await renderAnswered();
     const rail = screen.getByRole('slider').closest('div')?.parentElement;
     const marks = Array.from(rail?.querySelectorAll('div[aria-hidden="true"] > span') ?? []);
 
@@ -439,7 +486,7 @@ describe('Generator', () => {
   });
 
   it('swaps the line for the hour the dial lands on', async () => {
-    await renderPage();
+    await renderAnswered();
 
     fireEvent.change(screen.getByRole('slider'), { target: { value: '6' } });
 
@@ -453,7 +500,7 @@ describe('Generator', () => {
   });
 
   it('recounts the receipt when the slider moves', async () => {
-    await renderPage();
+    await renderAnswered();
 
     fireEvent.change(screen.getByRole('slider'), { target: { value: '6' } });
 
@@ -466,7 +513,7 @@ describe('Generator', () => {
   });
 
   it('heads the receipt with the day it prices', async () => {
-    await renderPage();
+    await renderAnswered();
 
     expect(within(receipt()).getByText(m.home_receipt_meta({ hours: 4 }))).toBeInTheDocument();
 
@@ -476,7 +523,7 @@ describe('Generator', () => {
   });
 
   it('keeps the reading on the slider, with no display beside the rail', async () => {
-    await renderPage();
+    await renderAnswered();
 
     expect(screen.getByRole('slider')).toHaveAttribute('aria-valuetext', hoursReading(4));
 
@@ -487,7 +534,7 @@ describe('Generator', () => {
   });
 
   it('bills a receipt row the moment the day earns it, and drops it again', async () => {
-    await renderPage();
+    await renderAnswered();
     expect(receiptLabels()).toEqual([
       m.home_receipt_books_label(),
       m.home_receipt_dinners_label(),
@@ -508,7 +555,7 @@ describe('Generator', () => {
   });
 
   it('leaves the waking years to the total and bills a full-time job instead', async () => {
-    await renderPage();
+    await renderAnswered();
 
     fireEvent.change(screen.getByRole('slider'), { target: { value: '5' } });
 
@@ -518,59 +565,117 @@ describe('Generator', () => {
     );
   });
 
-  it('drives the dial from one hour to four when the section arrives on screen', async () => {
-    stubIntersectionObserver();
+  it('runs the bill up one hour at a time once the question is answered', async () => {
     vi.useFakeTimers();
     await renderPage();
 
-    expect(screen.getByRole('slider')).toHaveValue('1');
+    answerGate('5');
 
-    await act(async () => {
-      vi.advanceTimersByTime(700);
-    });
+    expect(screen.getByRole('slider')).toHaveValue('1');
+    expect(truthLine()).toHaveTextContent(m.home_truth_1());
+    expect(receipt()).toBeInTheDocument();
+    // Nothing is for sale until the bill has finished printing.
+    expect(screen.queryByRole('link', { name: m.home_hero_cta() })).not.toBeInTheDocument();
+
+    await advance(SHOW_STEP_MS);
     expect(screen.getByRole('slider')).toHaveValue('2');
+    expect(truthLine()).toHaveTextContent(m.home_truth_2());
 
-    await act(async () => {
-      vi.advanceTimersByTime(2100);
-    });
-    expect(screen.getByRole('slider')).toHaveValue('4');
-    expect(truthLine()).toHaveTextContent(m.home_truth_4());
+    await advance(SHOW_STEP_MS * 3);
+    expect(screen.getByRole('slider')).toHaveValue('5');
+    expect(screen.getByRole('slider')).toHaveAttribute('aria-disabled', 'true');
 
-    // Four hours is where it rests: nothing turns the dial after that.
-    await act(async () => {
-      vi.advanceTimersByTime(2100);
-    });
-    expect(screen.getByRole('slider')).toHaveValue('4');
+    await advance(SHOW_STEP_MS);
+    expect(screen.getByRole('slider')).not.toHaveAttribute('aria-disabled');
+    expect(screen.getByRole('link', { name: m.home_hero_cta() })).toBeInTheDocument();
+    expect(receiptTotal()).toBe(m.home_receipt_total_value({ years: '6.3' }));
   });
 
-  it('hands the dial over for good at the first touch of it', async () => {
-    stubIntersectionObserver();
+  it('takes the dial away for as long as the show is running it', async () => {
+    vi.useFakeTimers();
+    await renderPage();
+    answerGate('5');
+
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '11' } });
+
+    expect(screen.getByRole('slider')).toHaveValue('1');
+    // And there is no way back into the gate to answer over the top of it.
+    expect(screen.queryByRole('button', { name: m.home_gate_change() })).not.toBeInTheDocument();
+
+    await advance(SHOW_STEP_MS * 5);
+
+    expect(screen.getByRole('button', { name: m.home_gate_change() })).toBeInTheDocument();
+  });
+
+  it('settles on the minutes the show could not stop at', async () => {
     vi.useFakeTimers();
     await renderPage();
 
-    fireEvent.pointerDown(screen.getByRole('slider'));
-    await act(async () => {
-      vi.advanceTimersByTime(3500);
-    });
+    answerGate('5', '30');
+    await advance(SHOW_STEP_MS * 5);
 
-    expect(screen.getByRole('slider')).toHaveValue('1');
+    expect(screen.getByRole('slider')).toHaveValue('5');
+    expect(
+      within(receipt()).getByText(m.home_receipt_meta_minutes({ hours: 5, minutes: 30 })),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(m.home_gate_entered({ hours: 5, minutes: 30 }), { exact: false }),
+    ).toBeInTheDocument();
   });
 
-  it('leaves the dial where a shared link put it', async () => {
-    stubIntersectionObserver();
+  it('gives a day under an hour one beat and nothing to climb', async () => {
+    vi.useFakeTimers();
+    await renderPage();
+
+    answerGate('1');
+    expect(screen.getByRole('slider')).toHaveValue('1');
+
+    await advance(SHOW_STEP_MS);
+    expect(screen.getByRole('slider')).not.toHaveAttribute('aria-disabled');
+    expect(screen.getByRole('link', { name: m.home_hero_cta() })).toBeInTheDocument();
+  });
+
+  it('leaves the dial where a shared link put it, with no show to sit through', async () => {
     vi.useFakeTimers();
     window.history.replaceState({}, '', '/?h=9');
     await renderPage();
 
-    await act(async () => {
-      vi.advanceTimersByTime(3500);
-    });
+    expect(screen.getByRole('slider')).toHaveValue('9');
+    expect(screen.getByRole('link', { name: m.home_hero_cta() })).toBeInTheDocument();
+
+    await advance(SHOW_STEP_MS * 12);
+
+    expect(screen.getByRole('slider')).toHaveValue('9');
+  });
+
+  it('opens on the exact day a link carries in minutes', async () => {
+    window.history.replaceState({}, '', '/?m=330');
+    await renderPage();
+
+    expect(screen.getByRole('slider')).toHaveValue('5');
+    expect(
+      within(receipt()).getByText(m.home_receipt_meta_minutes({ hours: 5, minutes: 30 })),
+    ).toBeInTheDocument();
+    expect(receiptTotal()).toBe(m.home_receipt_total_value({ years: '6.9' }));
+  });
+
+  it('reopens the gate on request, and runs no second show', async () => {
+    vi.useFakeTimers();
+    await renderAnswered(5);
+
+    fireEvent.click(screen.getByRole('button', { name: m.home_gate_change() }));
+    answerGate('9');
+
+    expect(screen.getByRole('slider')).toHaveValue('9');
+    expect(screen.getByRole('slider')).not.toHaveAttribute('aria-disabled');
+
+    await advance(SHOW_STEP_MS * 12);
 
     expect(screen.getByRole('slider')).toHaveValue('9');
   });
 
   it('turns the detent clicks off from the speaker', async () => {
-    await renderPage();
+    await renderAnswered();
     expect(speaker()).toHaveAttribute('aria-pressed', 'true');
 
     await userEvent.click(speaker());

@@ -47,9 +47,11 @@ import { buildProfile, presets } from '../lib/profile/index.ts';
 import type { BlockedApp, ProfileConfig } from '../lib/profile/index.ts';
 import { decodeShare } from '../lib/share.ts';
 import { normalizeUrl, sitesForApp, sitesForApps } from '../lib/sites.ts';
+import { playCheckout, playStep } from '../lib/sounds.ts';
 import { playTick, primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
-import { useAutoDrive } from '../lib/use-auto-drive.ts';
 import { useIsMobile } from '../lib/use-is-mobile.ts';
+import { useShow } from '../lib/use-show.ts';
+import type { Entered } from '../lib/use-show.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
 
@@ -135,13 +137,11 @@ const ROW_APPS = 3;
 const HOURS_MIN = 1;
 const HOURS_MAX = 12;
 const HOURS_STEP = 1;
-/**
- * Where the dial rests: the drive stops here, a reader who asked for less
- * motion starts here, and so does anyone the drive never reached.
- */
+/** Where the dial stands before the reader has answered the question. */
 const HOURS_DEFAULT = 4;
-/** Where that drive starts, before it runs the bill up to the resting hours. */
-const HOURS_AUTO_START = 1;
+/** What the gate takes past the hour, and how many of them make one. */
+const MINUTES_MAX = 59;
+const MINUTES_PER_HOUR = 60;
 /** The machined knob, and the rail the ticks are measured against. */
 const KNOB_WIDTH = 28;
 const KNOB_HEIGHT = 44;
@@ -203,6 +203,25 @@ const helpEnter = keyframes({
 const receiptEnter = keyframes({
   from: { opacity: 0, transform: 'translateY(4px)' },
   to: { opacity: 1, transform: 'translateY(0)' },
+});
+
+/**
+ * The dial, the line and the bill arriving: they are not on the page until the
+ * question is answered, and they come in together when it is.
+ */
+const revealEnter = keyframes({
+  from: { opacity: 0, transform: 'translateY(6px)' },
+  to: { opacity: 1, transform: 'translateY(0)' },
+});
+
+/**
+ * The total, taking the last hit once the show has finished printing it. Half
+ * the pulse is written and run twice, out and back, so the whole beat is one
+ * ramp and its reverse.
+ */
+const totalPulse = keyframes({
+  from: { scale: 1 },
+  to: { scale: 1.04 },
 });
 
 /** Each hour has its own line, and the line fades up over the one before it. */
@@ -388,6 +407,62 @@ const styles = create({
     margin: 0,
     textWrap: 'balance',
   },
+  // The question's answer, typed. It is the whole first screen until it is
+  // given, so it sits directly under the question and nothing sits under it.
+  gate: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s2,
+  },
+  // The way back into the gate, once the answer has collapsed to one line.
+  gateChange: {
+    backgroundColor: 'transparent',
+    borderStyle: 'none',
+    borderWidth: 0,
+    color: {
+      ':hover': colors.fg,
+      default: colors.muted,
+    },
+    cursor: 'pointer',
+    font: 'inherit',
+    marginInlineStart: spacing.s2,
+    padding: 0,
+    textDecorationLine: 'underline',
+  },
+  // What the reader said, kept in sight over the dial that is now theirs.
+  gateEntered: {
+    color: colors.muted,
+    fontFamily: MONOSPACE,
+    fontSize: 13,
+    margin: 0,
+  },
+  // A correction, not a telling-off: it says the range and stays quiet.
+  gateError: {
+    color: colors.muted,
+    fontSize: font.sizeSm,
+    lineHeight: 1.5,
+    margin: 0,
+  },
+  // Two figures, in the receipt's own face, each wide enough for two digits.
+  gateInput: {
+    fontFamily: MONOSPACE,
+    fontVariantNumeric: 'tabular-nums',
+    paddingInline: spacing.s3,
+    textAlign: 'center',
+    width: 72,
+  },
+  gateRow: {
+    alignItems: 'center',
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: spacing.s2,
+  },
+  // The unit each figure is in, small and beside it rather than over it.
+  gateUnit: {
+    color: colors.muted,
+    fontSize: font.sizeSm,
+    marginInlineEnd: spacing.s2,
+  },
   // The helper sentence, folded into a ring the question can be asked from.
   helpButton: {
     alignItems: 'center',
@@ -533,8 +608,9 @@ const styles = create({
     columnGap: spacing.s8,
     display: 'grid',
     gridTemplateAreas: {
-      '@media (min-width: 900px)': '"title receipt" "dial receipt" "truth receipt" "pitch receipt"',
-      default: '"title" "dial" "truth" "receipt" "pitch"',
+      '@media (min-width: 900px)':
+        '"title receipt" "gate receipt" "dial receipt" "truth receipt" "pitch receipt"',
+      default: '"title" "gate" "dial" "truth" "receipt" "pitch"',
     },
     gridTemplateColumns: {
       '@media (min-width: 900px)': '1.1fr 0.9fr',
@@ -563,8 +639,23 @@ const styles = create({
     maxWidth: 460,
     width: '100%',
   },
+  // The same grid before the question is answered: the gate is all there is
+  // under the title, so the rows nothing is standing in are not held open.
+  heroClosed: {
+    gridTemplateAreas: {
+      '@media (min-width: 900px)': '"title" "gate"',
+      default: '"title" "gate"',
+    },
+    gridTemplateColumns: {
+      '@media (min-width: 900px)': '1fr',
+      default: '1fr',
+    },
+  },
   heroDial: {
     gridArea: 'dial',
+  },
+  heroGate: {
+    gridArea: 'gate',
   },
   heroPitch: {
     display: 'flex',
@@ -942,6 +1033,18 @@ const styles = create({
     letterSpacing: '0.12em',
     textTransform: 'uppercase',
   },
+  // The moment the bill is rung up, and the one thing on the page that moves
+  // to say so. It runs once, when the show hands the dial over.
+  receiptTotalPulse: {
+    animationDirection: 'alternate',
+    animationDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: '125ms',
+    },
+    animationIterationCount: 2,
+    animationName: totalPulse,
+    animationTimingFunction: 'ease-out',
+  },
   // The one number the whole receipt is adding up to, so it is the one set in
   // the page's display size, and the only colour under the tear line.
   receiptTotalValue: {
@@ -1033,6 +1136,16 @@ const styles = create({
     position: 'absolute',
     width: '100%',
     zIndex: 10,
+  },
+  // What the answer buys, arriving: the dial, the line, the bill, and later
+  // the pitch. One fade for all of them, so they read as one arrival.
+  reveal: {
+    animationDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: '200ms',
+    },
+    animationName: revealEnter,
+    animationTimingFunction: 'ease-out',
   },
   row: {
     display: 'flex',
@@ -1318,6 +1431,12 @@ const styles = create({
   sliderLabel: {
     display: 'block',
     width: '100%',
+  },
+  // The dial while the show is running it: it is being read to the reader,
+  // and a cutscene is not a control.
+  sliderLocked: {
+    cursor: 'default',
+    pointerEvents: 'none',
   },
   // The speaker is a hint, not a headline: it only colours up on hover.
   soundButton: {
@@ -1807,6 +1926,95 @@ function ScreenTimeClip({ style, videoUrl }: { style?: StyleXStyles; videoUrl: s
 }
 
 /**
+ * The question, answered in figures. It is the first screen on its own: the
+ * dial, the line and the bill are what the answer buys, so until it is given
+ * there is nothing under it to look at. Reopened later it stands in the same
+ * place, holding whatever was said last, and the second answer only moves the
+ * dial: the show is a first impression and is not run twice.
+ */
+function ScreenTimeGate({
+  entered,
+  onSubmit,
+}: {
+  entered: Entered | null;
+  onSubmit: (entered: Entered) => void;
+}) {
+  const hoursId = useId();
+  const minutesId = useId();
+  const errorId = useId();
+  const [hours, setHours] = useState(entered === null ? '' : String(entered.hours));
+  const [minutes, setMinutes] = useState(
+    entered === null || entered.minutes === 0 ? '' : String(entered.minutes),
+  );
+  const [invalid, setInvalid] = useState(false);
+  const field = useRef<HTMLInputElement>(null);
+
+  // A finger brings the keyboard up with the focus and shoves the page around
+  // under it, so only a pointer that is not one gets the field handed to it.
+  useEffect(() => {
+    const query = (globalThis as { matchMedia?: (media: string) => MediaQueryList }).matchMedia;
+    if (query?.('(pointer: coarse)').matches !== true) {
+      field.current?.focus();
+    }
+  }, []);
+
+  function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const day = Number(hours.trim());
+    if (hours.trim() === '' || !Number.isFinite(day) || day < 0 || day > HOURS_MAX) {
+      setInvalid(true);
+      return;
+    }
+    // The minutes are the optional half of the answer, so a reader who typed
+    // something unusable there is answering in whole hours, not failing.
+    const past = Number(minutes.trim());
+    const usable = minutes.trim() !== '' && Number.isFinite(past);
+    setInvalid(false);
+    onSubmit({
+      hours: Math.floor(day),
+      minutes: usable ? Math.min(Math.max(Math.floor(past), 0), MINUTES_MAX) : 0,
+    });
+  }
+
+  return (
+    <form onSubmit={submit} {...props(styles.gate)}>
+      <div {...props(styles.gateRow)}>
+        <Input
+          aria-describedby={invalid ? errorId : undefined}
+          aria-invalid={invalid}
+          id={hoursId}
+          inputMode="numeric"
+          onChange={(event) => setHours(event.target.value)}
+          ref={field}
+          style={styles.gateInput}
+          value={hours}
+        />
+        <label htmlFor={hoursId} {...props(styles.gateUnit)}>
+          {m.home_gate_hours()}
+        </label>
+        <Input
+          id={minutesId}
+          inputMode="numeric"
+          onChange={(event) => setMinutes(event.target.value)}
+          placeholder={m.home_gate_minutes_placeholder()}
+          style={styles.gateInput}
+          value={minutes}
+        />
+        <label htmlFor={minutesId} {...props(styles.gateUnit)}>
+          {m.home_gate_minutes()}
+        </label>
+        <Button type="submit">{m.home_gate_submit()}</Button>
+      </div>
+      {invalid ? (
+        <p id={errorId} role="alert" {...props(styles.gateError)}>
+          {m.home_gate_error()}
+        </p>
+      ) : null}
+    </form>
+  );
+}
+
+/**
  * The question mark at the end of the question. On a wide page hover, focus or
  * a tap opens a popover that says where the real number lives and shows it
  * being found; a pointer that leaves gets a moment to reach the popover before
@@ -2287,8 +2495,22 @@ function Generator() {
   const isMobile = useIsMobile();
   // Safari is the only browser that can go from the download to Settings.
   const isSafari = useIsSafari();
-  // What the reader tells the math section their day looks like.
+  // What the reader tells the hero their day looks like: the whole hours it
+  // holds, and the minutes past them. The dial only stops on whole hours, so
+  // the minutes are the gate's alone and turning the dial spends them.
   const [hours, setHours] = useState(HOURS_DEFAULT);
+  const [minutes, setMinutes] = useState(0);
+  // The answer as it was given, which is what the small line over the dial
+  // quotes back and what the gate holds when it is reopened.
+  const [entered, setEntered] = useState<Entered | null>(null);
+  // The three states of the first screen: the question alone, the show, and
+  // the dial handed over. `revealed` is everything the answer buys; `settled`
+  // is the pitch, which waits until the bill has finished printing.
+  const [gateOpen, setGateOpen] = useState(true);
+  const [revealed, setRevealed] = useState(false);
+  const [settled, setSettled] = useState(false);
+  // The total takes its hit once, when the show rings it up.
+  const [pulse, setPulse] = useState(false);
   // The detents click by default, and remember it once the reader says either
   // way. `soundChosen` is what separates the default from an answer.
   const [sound, setSound] = useState(true);
@@ -2398,14 +2620,26 @@ function Generator() {
     );
   }, [storefrontQuery]);
 
-  // The dial turns itself the first time the section comes into view, so the
-  // reader watches the bill run up before they touch it. It is declared above
-  // the shared-link effect on purpose: a link that carries its own hours calls
-  // the drive off below, and the later effect is the one that wins.
-  const { cancel: cancelAutoDrive, ref: mathSection } = useAutoDrive({
-    from: HOURS_AUTO_START,
-    onStep: onHoursChange,
-    to: HOURS_DEFAULT,
+  // The bill being rung up, an hour at a time, against the answer the reader
+  // just gave. Nothing on the page can skip it: it is the one thing the reader
+  // came for, and they watch their own day being counted out.
+  const { running: showRunning, start: startShow } = useShow({
+    onSettle: (answer, shown) => {
+      setMinutes(answer.minutes);
+      if (shown) {
+        setPulse(true);
+        if (tickAllowed(sound, soundChosen)) {
+          playCheckout();
+        }
+      }
+      setSettled(true);
+    },
+    onStep: (value, total) => {
+      setHours(value);
+      if (tickAllowed(sound, soundChosen)) {
+        playStep(value, total);
+      }
+    },
   });
 
   // The address bar and navigator exist only in the browser: reading either
@@ -2421,16 +2655,22 @@ function Generator() {
       setConfig({ ...presets.mert, blockedApps: shared.bundleIds.map(sharedApp) });
     }
     if (shared.hours !== undefined) {
-      // A friend already turned the dial; the page has nothing to demonstrate.
-      cancelAutoDrive();
+      // A friend already answered the question, so the page has nothing left
+      // to ask and nothing to demonstrate: it opens on their number, settled.
+      const past = shared.minutes ?? 0;
       setHours(shared.hours);
-      setFriendYears(formatYears(shared.hours));
+      setMinutes(past);
+      setEntered({ hours: shared.hours, minutes: past });
+      setGateOpen(false);
+      setRevealed(true);
+      setSettled(true);
+      setFriendYears(formatYears(shared.hours + past / MINUTES_PER_HOUR));
     }
     const preferred = initialStorefront();
     if (preferred !== FALLBACK_COUNTRY) {
       setCountry(preferred);
     }
-  }, [cancelAutoDrive]);
+  }, []);
   /* oxlint-enable react/set-state-in-effect */
 
   // iOS Safari does not count the pointerdown on the knob as the gesture that
@@ -2573,6 +2813,24 @@ function Generator() {
       playTick({ end: value === HOURS_MIN || value === HOURS_MAX });
     }
     setHours(value);
+    // The dial has no stop between two hours, so turning it spends the minutes.
+    setMinutes(0);
+  }
+
+  function onGateSubmit(answer: Entered) {
+    // iOS opens an audio device inside a gesture and nowhere else, and this
+    // click is the last one before the show needs it.
+    unlockTickSound();
+    setEntered(answer);
+    setGateOpen(false);
+    if (revealed) {
+      // The show is a first impression: a correction only moves the dial.
+      setHours(Math.min(Math.max(answer.hours, HOURS_MIN), HOURS_MAX));
+      setMinutes(answer.minutes);
+      return;
+    }
+    setRevealed(true);
+    startShow(answer);
   }
 
   // Browsers only hand out an audio device inside a gesture, so the pointer
@@ -2906,16 +3164,21 @@ function Generator() {
   // Settings, so the download asks for no acknowledgement.
   const trial = !config.lockRemoval;
 
+  // The day as the dial can show it, and the day as it was actually given:
+  // the dial rounds an answer under an hour up onto its first stop, and the
+  // bill is billed for what was said, down to the minute.
+  const dialHours = Math.min(Math.max(hours, HOURS_MIN), HOURS_MAX);
+  const exactHours = hours + minutes / MINUTES_PER_HOUR;
   // The number the whole narrative is written around, and the dial's own
   // reading: the receipt totals it, and the slider says it out loud.
-  const years = formatYears(hours);
-  const hoursText = m.home_math_hours({ hours });
+  const years = formatYears(exactHours);
+  const hoursText = m.home_math_hours({ hours: dialHours });
   const hoursReading = `${hoursText} ${m.home_math_hours_unit()}`;
   // How far along the rail the dial has been turned, and what it has cost.
-  const travelled = ((hours - HOURS_MIN) / (HOURS_MAX - HOURS_MIN)) * 100;
+  const travelled = ((dialHours - HOURS_MIN) / (HOURS_MAX - HOURS_MIN)) * 100;
   const locale = getLocale();
-  const truth = homeTruth(hours, locale);
-  const receipt = receiptLines(hours, locale);
+  const truth = homeTruth(dialHours, locale);
+  const receipt = receiptLines(exactHours, locale);
 
   // What the whole thing costs, as three numbers and the word each one means.
   const dealTiles = [
@@ -2966,133 +3229,170 @@ function Generator() {
           </button>
         </div>
       )}
-      {/* The first screen: the question, the dial that answers it, the line
-          that answer earns, and the bill for it. The dial drives itself here,
-          once the hero is on screen. */}
-      <header ref={mathSection} {...props(styles.hero)}>
+      {/* The first screen. It opens as the question and the two fields that
+          answer it, and nothing else; the dial, the line and the bill are what
+          the answer buys, and the show runs the bill up before the dial is
+          handed over. */}
+      <header {...props(styles.hero, !revealed && styles.heroClosed)}>
         <h1 {...props(styles.heroTitle)}>
           {m.home_hero_title()}
           <ScreenTimeHelp />
         </h1>
-        <div {...props(styles.dial, styles.heroDial)}>
-          <div {...props(styles.dialRail)}>
-            <Label style={styles.sliderLabel}>
-              <span {...props(styles.srOnly)}>{m.home_math_slider_label()}</span>
-              {/* The end of the gesture, not its start, is what iOS accepts as
-                  leave to open an audio device, so it gets its own handlers. */}
-              <input
-                aria-valuetext={hoursReading}
-                max={HOURS_MAX}
-                min={HOURS_MIN}
-                onChange={(event) => {
-                  // Whatever the drive was doing, the dial is the reader's now.
-                  cancelAutoDrive();
-                  onHoursChange(Number(event.target.value));
-                }}
-                onKeyDown={cancelAutoDrive}
-                onPointerDown={() => {
-                  cancelAutoDrive();
-                  armSound();
-                }}
-                onPointerUp={unlockTickSound}
-                onTouchEnd={unlockTickSound}
-                onTouchStart={cancelAutoDrive}
-                step={HOURS_STEP}
-                type="range"
-                value={hours}
-                {...props(styles.slider, styles.sliderFill(travelled))}
-              />
-            </Label>
-            {/* The detents, drawn where the knob lands on each of them. The
-                input already says all of this to a screen reader. */}
-            <div aria-hidden="true" {...props(styles.tickRail)}>
-              {TICKS.map((tick) => (
-                <span key={tick.value} {...props(styles.tick, styles.tickAt(tick.at))}>
-                  <span {...props(styles.tickNumber)}>{tick.value}</span>
-                </span>
-              ))}
-            </div>
-          </div>
-          <button
-            aria-label={m.home_math_sound_label()}
-            aria-pressed={sound}
-            onClick={toggleSound}
-            type="button"
-            {...props(styles.soundButton)}
-          >
-            <svg aria-hidden="true" viewBox="0 0 18 18" {...props(styles.soundGlyph)}>
-              <path d="M4 7H2v4h2l3.5 3V4L4 7Z" fill="currentColor" />
-              {sound ? (
-                <path
-                  d="M10.5 6.5a3.4 3.4 0 0 1 0 5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeLinecap="round"
-                  strokeWidth="1.4"
-                />
-              ) : (
-                <path
-                  d="m10.5 6.5 4 5m0-5-4 5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeLinecap="round"
-                  strokeWidth="1.4"
-                />
-              )}
-            </svg>
-          </button>
+        <div {...props(styles.heroGate)}>
+          {gateOpen ? (
+            <ScreenTimeGate entered={entered} onSubmit={onGateSubmit} />
+          ) : entered === null ? null : (
+            <p {...props(styles.gateEntered)}>
+              {m.home_gate_entered({ hours: entered.hours, minutes: entered.minutes })}
+              {/* No way back out of the show: the way back opens with the dial. */}
+              {settled ? (
+                <button
+                  onClick={() => setGateOpen(true)}
+                  type="button"
+                  {...props(styles.gateChange)}
+                >
+                  {m.home_gate_change()}
+                </button>
+              ) : null}
+            </p>
+          )}
         </div>
-        {/* One sentence for the hour the dial is on, and the whole sentence
+        {revealed ? (
+          <>
+            <div {...props(styles.dial, styles.heroDial, styles.reveal)}>
+              <div {...props(styles.dialRail)}>
+                <Label style={styles.sliderLabel}>
+                  <span {...props(styles.srOnly)}>{m.home_math_slider_label()}</span>
+                  {/* The end of the gesture, not its start, is what iOS accepts as
+                  leave to open an audio device, so it gets its own handlers. */}
+                  <input
+                    aria-disabled={showRunning ? true : undefined}
+                    aria-valuetext={hoursReading}
+                    max={HOURS_MAX}
+                    min={HOURS_MIN}
+                    onChange={(event) => {
+                      if (showRunning) {
+                        return;
+                      }
+                      onHoursChange(Number(event.target.value));
+                    }}
+                    onKeyDown={(event) => {
+                      if (showRunning) {
+                        event.preventDefault();
+                      }
+                    }}
+                    onPointerDown={armSound}
+                    onPointerUp={unlockTickSound}
+                    onTouchEnd={unlockTickSound}
+                    step={HOURS_STEP}
+                    type="range"
+                    value={dialHours}
+                    {...props(
+                      styles.slider,
+                      styles.sliderFill(travelled),
+                      showRunning && styles.sliderLocked,
+                    )}
+                  />
+                </Label>
+                {/* The detents, drawn where the knob lands on each of them. The
+                input already says all of this to a screen reader. */}
+                <div aria-hidden="true" {...props(styles.tickRail)}>
+                  {TICKS.map((tick) => (
+                    <span key={tick.value} {...props(styles.tick, styles.tickAt(tick.at))}>
+                      <span {...props(styles.tickNumber)}>{tick.value}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <button
+                aria-label={m.home_math_sound_label()}
+                aria-pressed={sound}
+                onClick={toggleSound}
+                type="button"
+                {...props(styles.soundButton)}
+              >
+                <svg aria-hidden="true" viewBox="0 0 18 18" {...props(styles.soundGlyph)}>
+                  <path d="M4 7H2v4h2l3.5 3V4L4 7Z" fill="currentColor" />
+                  {sound ? (
+                    <path
+                      d="M10.5 6.5a3.4 3.4 0 0 1 0 5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                      strokeWidth="1.4"
+                    />
+                  ) : (
+                    <path
+                      d="m10.5 6.5 4 5m0-5-4 5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                      strokeWidth="1.4"
+                    />
+                  )}
+                </svg>
+              </button>
+            </div>
+            {/* One sentence for the hour the dial is on, and the whole sentence
             is the blow: nothing in it is coloured, and nothing is a figure the
             reader has to read off the dial. The live region stays put so the
             swap is announced; only the line inside it is remounted, and that
             is what fades the new one up over the old. */}
-        <p aria-live="polite" {...props(styles.heroTruth)}>
-          <span key={hours} {...props(styles.truth)}>
-            {truth}
-          </span>
-        </p>
-        <div {...props(styles.heroAside)}>
-          <div {...props(styles.receipt)}>
-            <div {...props(styles.receiptHead)}>
-              <p {...props(styles.receiptTitle)}>{m.home_receipt_title()}</p>
-              <p {...props(styles.receiptMeta)}>{m.home_receipt_meta({ hours })}</p>
-            </div>
-            <div aria-hidden="true" {...props(styles.receiptRule)} />
-            <ul {...props(styles.receiptList)}>
-              {receipt.map((line) => (
-                <li key={line.key} {...props(styles.receiptRow)}>
-                  <span>{line.label}</span>
-                  <span {...props(styles.receiptValue)}>{line.value}</span>
-                </li>
-              ))}
-            </ul>
-            <div aria-hidden="true" {...props(styles.receiptRule)} />
-            <p {...props(styles.receiptTotal)}>
-              <span {...props(styles.receiptTotalLabel)}>{m.home_receipt_total_label()}</span>
-              <span {...props(styles.receiptTotalValue)}>
-                {m.home_receipt_total_value({ years })}
+            <p aria-live="polite" {...props(styles.heroTruth, styles.reveal)}>
+              <span key={dialHours} {...props(styles.truth)}>
+                {truth}
               </span>
             </p>
-          </div>
-          <p {...props(styles.receiptNote)}>
-            {m.home_receipt_note_before()}
-            <a href={READING_SPEED_URL} rel="noreferrer" target="_blank">
-              {m.home_receipt_note_link()}
-            </a>
-            {m.home_receipt_note_after()}
-          </p>
-        </div>
-        {/* What the bill is for, and the two ways on from it. */}
-        <div {...props(styles.heroPitch)}>
-          <p {...props(styles.heroProduct)}>{m.home_hero_product()}</p>
-          <div {...props(styles.heroActions)}>
-            <Button render={<a href={`#${BUILD_ID}`} />}>{m.home_hero_cta()}</Button>
-            <a href={`#${HOW_ID}`} {...props(styles.heroSecondary)}>
-              {m.home_hero_secondary()}
-            </a>
-          </div>
-        </div>
+            <div {...props(styles.heroAside, styles.reveal)}>
+              <div {...props(styles.receipt)}>
+                <div {...props(styles.receiptHead)}>
+                  <p {...props(styles.receiptTitle)}>{m.home_receipt_title()}</p>
+                  <p {...props(styles.receiptMeta)}>
+                    {minutes > 0
+                      ? m.home_receipt_meta_minutes({ hours, minutes })
+                      : m.home_receipt_meta({ hours })}
+                  </p>
+                </div>
+                <div aria-hidden="true" {...props(styles.receiptRule)} />
+                <ul {...props(styles.receiptList)}>
+                  {receipt.map((line) => (
+                    <li key={line.key} {...props(styles.receiptRow)}>
+                      <span>{line.label}</span>
+                      <span {...props(styles.receiptValue)}>{line.value}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div aria-hidden="true" {...props(styles.receiptRule)} />
+                <p {...props(styles.receiptTotal)}>
+                  <span {...props(styles.receiptTotalLabel)}>{m.home_receipt_total_label()}</span>
+                  <span {...props(styles.receiptTotalValue, pulse && styles.receiptTotalPulse)}>
+                    {m.home_receipt_total_value({ years })}
+                  </span>
+                </p>
+              </div>
+              <p {...props(styles.receiptNote)}>
+                {m.home_receipt_note_before()}
+                <a href={READING_SPEED_URL} rel="noreferrer" target="_blank">
+                  {m.home_receipt_note_link()}
+                </a>
+                {m.home_receipt_note_after()}
+              </p>
+            </div>
+            {/* What the bill is for, and the two ways on from it. It arrives when
+            the show is over: there is nothing to sell until the bill is read. */}
+            {settled ? (
+              <div {...props(styles.heroPitch, styles.reveal)}>
+                <p {...props(styles.heroProduct)}>{m.home_hero_product()}</p>
+                <div {...props(styles.heroActions)}>
+                  <Button render={<a href={`#${BUILD_ID}`} />}>{m.home_hero_cta()}</Button>
+                  <a href={`#${HOW_ID}`} {...props(styles.heroSecondary)}>
+                    {m.home_hero_secondary()}
+                  </a>
+                </div>
+              </div>
+            ) : null}
+          </>
+        ) : null}
       </header>
 
       <div {...props(styles.content)}>
@@ -3709,7 +4009,13 @@ function Generator() {
 
         {isMobile ? (
           <Sheet onOpenChange={setShareOpen} open={shareOpen} title={m.share_heading_output()}>
-            <ShareCard apps={config.blockedApps} hours={hours} meta={meta} years={years} />
+            <ShareCard
+              apps={config.blockedApps}
+              hours={hours}
+              meta={meta}
+              minutes={minutes}
+              years={years}
+            />
           </Sheet>
         ) : (
           <Dialog onOpenChange={setShareOpen} open={shareOpen}>
@@ -3726,7 +4032,13 @@ function Generator() {
               <DialogHeader>
                 <DialogTitle style={styles.sectionTitle}>{m.share_heading_output()}</DialogTitle>
               </DialogHeader>
-              <ShareCard apps={config.blockedApps} hours={hours} meta={meta} years={years} />
+              <ShareCard
+                apps={config.blockedApps}
+                hours={hours}
+                meta={meta}
+                minutes={minutes}
+                years={years}
+              />
             </DialogContent>
           </Dialog>
         )}
