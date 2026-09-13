@@ -1,5 +1,5 @@
 import { colors } from '@attentionawareness/ui/tokens.stylex';
-import { create, props } from '@stylexjs/stylex';
+import { create, firstThatWorks, props } from '@stylexjs/stylex';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -101,6 +101,21 @@ const TURNED_CLASSES = String(props(turned.chevron).className).split(' ');
 const half = create({ lit: { opacity: 0.5 } });
 
 const DIM_CLASSES = String(props(half.lit).className).split(' ');
+
+/**
+ * The first screen is the hero's alone: one viewport tall, holding its middle
+ * until the bill starts printing, and read from the top from then on. jsdom
+ * measures nothing, so the classes those declarations compile to say it.
+ */
+const screenful = create({
+  centred: { justifyContent: 'center' },
+  tall: { minHeight: firstThatWorks('100svh', '100vh') },
+  top: { justifyContent: 'flex-start' },
+});
+
+const TALL_CLASSES = String(props(screenful.tall).className).split(' ');
+const CENTRED_CLASSES = String(props(screenful.centred).className).split(' ');
+const TOP_CLASSES = String(props(screenful.top).className).split(' ');
 
 function expectDimmed(element: HTMLElement, yes = true): void {
   for (const name of DIM_CLASSES) {
@@ -283,6 +298,15 @@ const realRandomUuid = crypto.randomUUID;
  */
 function dropRandomUuid(): void {
   Object.defineProperty(crypto, 'randomUUID', { configurable: true, value: undefined });
+}
+
+/** The first screen itself, found through the one heading standing in it. */
+function heroHeader(): HTMLElement {
+  const header = screen.getByRole('heading', { level: 1 }).closest('header');
+  if (header === null) {
+    throw new Error('The hero heading should stand inside the hero');
+  }
+  return header;
 }
 
 /** The one sentence under the bar, which is the hour the dial is on. */
@@ -842,6 +866,26 @@ describe('Generator', () => {
     await advance(SHOW_STEP_MS * 3);
     expect(truthLine()).toHaveTextContent(m.home_truth_5());
     expect(screen.queryByText(m.home_receipt_store())).not.toBeInTheDocument();
+  });
+
+  it('gives the hero the whole screen, and reads the bill from the top of it', async () => {
+    vi.useFakeTimers();
+    await renderPage();
+
+    for (const name of [...TALL_CLASSES, ...CENTRED_CLASSES]) {
+      expect(heroHeader()).toHaveClass(name);
+    }
+
+    answerGate('5');
+    await advance(SHOW_STEP_MS * 4 + SHOW_HOLD_MS + SHOW_ARRIVE_MS);
+
+    // The bill is printing, so the screen stops holding its middle.
+    for (const name of [...TALL_CLASSES, ...TOP_CLASSES]) {
+      expect(heroHeader()).toHaveClass(name);
+    }
+    for (const name of CENTRED_CLASSES) {
+      expect(heroHeader()).not.toHaveClass(name);
+    }
   });
 
   it('prints the bill a line at a time once the line has settled', async () => {

@@ -17,7 +17,7 @@ import {
 } from '@attentionawareness/ui';
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, palette, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
-import { create, keyframes, props } from '@stylexjs/stylex';
+import { create, firstThatWorks, keyframes, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
@@ -649,13 +649,21 @@ const styles = create({
   // The same box as `content`, so the whole page keeps one left edge; what
   // stands in it is narrower, because a line this size is read, not scanned.
   hero: {
+    boxSizing: 'border-box',
     display: 'flex',
     flexDirection: 'column',
     gap: {
       '@media (min-width: 640px)': spacing.s6,
       default: spacing.s4,
     },
+    // Whichever state it is in, the hero holds the screen on its own: it
+    // stands in the middle of it, and the padding under it keeps the story
+    // off the fold, so the reader only ever has one thing in front of them.
+    // `svh` so a phone's collapsing toolbar does not resize it mid-show.
+    justifyContent: 'center',
     maxWidth: 760,
+    minHeight: firstThatWorks('100svh', '100vh'),
+    paddingBlockEnd: spacing.s16,
     width: '100%',
   },
   // What the reader does next, and the one sentence that says what it is.
@@ -675,6 +683,13 @@ const styles = create({
     flexDirection: 'column',
     gap: spacing.s4,
     maxWidth: HERO_MEASURE,
+  },
+  // Once the bill starts printing, the screen stops holding its middle: the
+  // receipt grows down the page, so it and the way on under it are read from
+  // the top and scrolled, rather than centred against a fold they outgrow.
+  heroPrinted: {
+    justifyContent: 'flex-start',
+    paddingBlockStart: spacing.s8,
   },
   heroProduct: {
     color: colors.muted,
@@ -3585,7 +3600,7 @@ function Generator() {
           average, and nothing else; the line and the bill are what taking or
           correcting that figure buys, and the show runs the bill up first.
           Another number is another answer: the gate is the only way to one. */}
-      <header {...props(styles.hero)}>
+      <header {...props(styles.hero, arrived && styles.heroPrinted)}>
         {/* The question until it is answered, and the answer after that: one
         heading, holding whichever of the two the reader is on. */}
         <h1 {...props(styles.heroTitle, !gateOpen && entered !== null && styles.heroTitleSaid)}>
