@@ -146,19 +146,23 @@ export function ShareCard({
   apps,
   hours,
   meta,
+  minutes,
   years,
 }: {
   apps: ReadonlyArray<BlockedApp>;
   hours: number;
   meta: MetaCache;
+  /** The minutes past the hour, so a link can carry a day the dial cannot. */
+  minutes?: number | undefined;
   years: string;
 }) {
   const [copied, setCopied] = useState(false);
   const locale = getLocale();
 
   const url = useMemo(
-    () => `${SITE_URL}/?${encodeShare({ bundleIds: apps.map((app) => app.bundleId), hours })}`,
-    [apps, hours],
+    () =>
+      `${SITE_URL}/?${encodeShare({ bundleIds: apps.map((app) => app.bundleId), hours, minutes })}`,
+    [apps, hours, minutes],
   );
   // The names keep the casing the catalog gives them: "TikTok", not "tiktok".
   const appNames = useMemo(() => apps.map((app) => app.name), [apps]);

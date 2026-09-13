@@ -12,6 +12,9 @@ const NAMED_APPS = 3;
 /** The slider's own range, so a tampered `h` lands somewhere it can render. */
 const HOURS_MIN = 1;
 const HOURS_MAX = 12;
+/** The longest day the minutes form can name: the same twelve hours of them. */
+const MINUTES_MAX = 720;
+const MINUTES_PER_HOUR = 60;
 
 /** Anything a bundle id may be made of. Everything else is junk. */
 const BUNDLE_ID_PATTERN = /^[a-z0-9.-]+$/iu;
@@ -49,6 +52,8 @@ const CODES_BY_BUNDLE_ID: Record<string, string> = Object.fromEntries(
 export type ShareState = {
   bundleIds: ReadonlyArray<string>;
   hours: number;
+  /** The minutes past the hour, where the reader answered with some. */
+  minutes?: number | undefined;
 };
 
 export type ShareTargets = {
@@ -58,15 +63,23 @@ export type ShareTargets = {
 };
 
 /**
- * The share state as query parameters: the slider value, and the blocked apps
- * as codes where one exists. Commas stay literal: they are legal in a query
- * string, and a link a reader can parse is half the point of sharing one.
+ * The share state as query parameters: the day, and the blocked apps as codes
+ * where one exists. Commas stay literal: they are legal in a query string, and
+ * a link a reader can parse is half the point of sharing one.
+ *
+ * A whole day travels as its hours. Anything finer travels as the minutes it
+ * is, because the dial has no stop between two hours to round it onto.
  */
-export function encodeShare({ bundleIds, hours }: ShareState): string {
+export function encodeShare({ bundleIds, hours, minutes }: ShareState): string {
   const codes = bundleIds.map((bundleId) =>
     encodeURIComponent(CODES_BY_BUNDLE_ID[bundleId] ?? bundleId),
   );
-  const parts = [`h=${encodeURIComponent(String(hours))}`];
+  const past = minutes ?? 0;
+  const day =
+    past > 0
+      ? `m=${encodeURIComponent(String(hours * MINUTES_PER_HOUR + past))}`
+      : `h=${encodeURIComponent(String(hours))}`;
+  const parts = [day];
   if (codes.length > 0) {
     parts.push(`a=${codes.join(',')}`);
   }
@@ -74,12 +87,16 @@ export function encodeShare({ bundleIds, hours }: ShareState): string {
 }
 
 /**
- * The inverse, reading a link nobody promised to keep intact: an unusable `h`
- * is no hours at all, one outside the slider's range is clamped into it, one
- * between two of its stops is rounded onto the nearer, and an entry that names
- * neither a code nor a plausible bundle id is dropped.
+ * The inverse, reading a link nobody promised to keep intact: an unusable day
+ * is no day at all, one longer than the dial is clamped onto its end, and an
+ * entry that names neither a code nor a plausible bundle id is dropped. `m`
+ * wins wherever a link carries both, because it is the precise one.
  */
-export function decodeShare(search: string): { bundleIds: Array<string>; hours?: number } {
+export function decodeShare(search: string): {
+  bundleIds: Array<string>;
+  hours?: number;
+  minutes?: number;
+} {
   let params: URLSearchParams;
   try {
     params = new URLSearchParams(search);
@@ -96,12 +113,28 @@ export function decodeShare(search: string): { bundleIds: Array<string>; hours?:
     }
   }
 
-  const raw = params.get('h')?.trim() ?? '';
-  const hours = Number(raw);
-  if (raw === '' || !Number.isFinite(hours)) {
+  const exact = readNumber(params.get('m'));
+  if (exact !== undefined) {
+    const total = Math.min(Math.max(Math.round(exact), 0), MINUTES_MAX);
+    return {
+      bundleIds,
+      hours: Math.floor(total / MINUTES_PER_HOUR),
+      minutes: total % MINUTES_PER_HOUR,
+    };
+  }
+
+  const hours = readNumber(params.get('h'));
+  if (hours === undefined) {
     return { bundleIds };
   }
   return { bundleIds, hours: Math.min(Math.max(Math.round(hours), HOURS_MIN), HOURS_MAX) };
+}
+
+/** A parameter nobody promised to keep a number in. */
+function readNumber(raw: string | null): number | undefined {
+  const text = raw?.trim() ?? '';
+  const value = Number(text);
+  return text === '' || !Number.isFinite(value) ? undefined : value;
 }
 
 /**

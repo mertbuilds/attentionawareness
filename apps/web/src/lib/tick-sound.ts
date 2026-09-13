@@ -1,12 +1,12 @@
 /** The detent click, and the lower thunk at the two ends of the travel. */
-const TICK_HZ = 1200;
+export const TICK_HZ = 1200;
 const END_HZ = 700;
-const TICK_SECONDS = 0.012;
+export const TICK_SECONDS = 0.012;
 const END_SECONDS = 0.04;
 /** Loud enough to feel mechanical, quiet enough to drag the slider with. */
-const PEAK_GAIN = 0.25;
+export const PEAK_GAIN = 0.25;
 /** An exponential ramp cannot reach zero, so it lands just under hearing. */
-const SILENCE = 0.0001;
+export const SILENCE = 0.0001;
 /** One sample at the lowest rate every browser accepts: the unlock buffer. */
 const UNLOCK_RATE = 22_050;
 
@@ -70,6 +70,18 @@ export function unlockTickSound(): boolean {
     return false;
   }
   return true;
+}
+
+/**
+ * The open device, for the other sounds the page plays through it. They share
+ * this one and its unlock: whatever gesture opened it for the detents opened
+ * it for them, and a device nobody has opened yet stays unopened here.
+ */
+export function tickDevice(): AudioContext | null {
+  if (context !== null && context.state === 'suspended') {
+    wake(context);
+  }
+  return context;
 }
 
 /** One detent. The ends of the travel get a lower, longer thunk. */
