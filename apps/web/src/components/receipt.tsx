@@ -57,9 +57,6 @@ const styles = create({
     flexDirection: 'column',
     gap: spacing.s2,
   },
-  receiptFootLine: {
-    margin: 0,
-  },
   receiptHead: {
     display: 'flex',
     flexDirection: 'column',
@@ -324,8 +321,6 @@ export function Receipt({
       </div>
       <div aria-hidden="true" {...props(styles.receiptRule)} />
       <div {...props(styles.receiptFoot)}>
-        <p {...props(styles.receiptFootLine)}>{m.home_receipt_renews()}</p>
-        <p {...props(styles.receiptFootLine)}>{m.home_receipt_refund_window()}</p>
         <p aria-hidden="true" {...props(styles.receiptBarcode)}>
           {RECEIPT_BARCODE}
         </p>
