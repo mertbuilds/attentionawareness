@@ -171,19 +171,19 @@ const FIGURE = '\u0000';
  * The order in words, cut around its two figures. The catalog keeps the word
  * order; the figures are put back where the marks were, in the accent.
  */
-function orderParts(hours: number): Array<{ figure: boolean; text: string }> {
-  const figures = hours === 1 ? [String(HORIZON_YEARS)] : [String(hours), String(HORIZON_YEARS)];
+function orderParts(hours: number): Array<{ figure: number | null; text: string }> {
+  const figures = hours === 1 ? [HORIZON_YEARS] : [hours, HORIZON_YEARS];
   const line =
     hours === 1
       ? m.home_receipt_order_one({ years: FIGURE })
       : m.home_receipt_order({ hours: FIGURE, years: FIGURE });
-  const parts: Array<{ figure: boolean; text: string }> = [];
+  const parts: Array<{ figure: number | null; text: string }> = [];
   line.split(FIGURE).forEach((text, index) => {
     if (index > 0) {
-      parts.push({ figure: true, text: figures[index - 1] ?? '' });
+      parts.push({ figure: figures[index - 1] ?? 0, text: '' });
     }
     if (text !== '') {
-      parts.push({ figure: false, text });
+      parts.push({ figure: null, text });
     }
   });
   return parts;
@@ -243,13 +243,16 @@ export function Receipt({
         <p {...props(styles.receiptHeading)}>{m.home_receipt_order_label()}</p>
         <p {...props(styles.receiptOrder)}>
           {orderParts(hours).map((part, index) =>
-            part.figure ? (
-              // eslint-disable-next-line react/no-array-index-key -- static split of one sentence
-              <span key={index} {...props(styles.receiptValue)}>
-                {part.text}
-              </span>
-            ) : (
+            part.figure === null ? (
               part.text
+            ) : (
+              // eslint-disable-next-line react/no-array-index-key -- static split of one sentence
+              <NumberFlow
+                key={index}
+                locales={locale}
+                value={part.figure}
+                {...props(styles.receiptValue)}
+              />
             ),
           )}
         </p>
