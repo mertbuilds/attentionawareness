@@ -1,9 +1,9 @@
+import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, firstThatWorks, props } from '@stylexjs/stylex';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { receiptDate, receiptNumber } from '../lib/attention-math.ts';
 import { buildProfile, presets } from '../lib/profile/index.ts';
 import type { ProfileConfig } from '../lib/profile/index.ts';
 import { SITE_URL } from '../lib/share.ts';
@@ -102,6 +102,11 @@ const TURNED_CLASSES = String(props(turned.chevron).className).split(' ');
 const half = create({ lit: { opacity: 0.5 } });
 
 const DIM_CLASSES = String(props(half.lit).className).split(' ');
+
+/** The one chromatic colour on the page, as the class it compiles to. */
+const coloured = create({ figure: { color: accent.base } });
+
+const ACCENT_CLASSES = String(props(coloured.figure).className).split(' ');
 
 /**
  * The first screen is the hero's alone: one viewport tall, holding its middle
@@ -324,45 +329,46 @@ function truthLines(): Array<string> {
   return Array.from(truthStack().querySelectorAll('p'), (line) => line.textContent ?? '');
 }
 
-/** The receipt under that line, found through the shop printed over it. */
-function receipt(): HTMLElement {
-  const box = screen.getByText(m.home_receipt_store()).parentElement?.parentElement;
-  if (box === undefined || box === null) {
-    throw new Error('The shop should sit inside the receipt');
+/** The line the stack adds up to, which stands on its own under it. */
+function totalLine(): HTMLElement {
+  const line = truthStack().nextElementSibling;
+  if (line === null) {
+    throw new Error('The stack should be followed by the line it adds up to');
   }
-  return box;
+  return line as HTMLElement;
 }
 
-/** What the receipt itemizes right now, in the order it prints the rows. */
-function receiptLabels(): Array<string> {
-  return within(receipt())
-    .queryAllByRole('listitem')
-    .map((row) => row.firstElementChild?.textContent ?? '');
+/** What that line says, as one sentence. */
+function totalText(): string {
+  return totalLine().textContent ?? '';
 }
 
-/** One named row of the receipt: the item, the rate, and what it came to. */
-function receiptRow(label: string): HTMLElement {
-  const row = within(receipt()).getByText(label).closest('li');
+/** The years inside it, which are the one coloured figure on the screen. */
+function totalYears(): HTMLElement {
+  const years = totalLine().querySelector('span');
+  if (years === null) {
+    throw new Error('The total should set its years apart from the sentence');
+  }
+  return years;
+}
+
+/** The quiet row under the total: what it cost, and how it was worked out. */
+function metricsRow(): HTMLElement {
+  const row = totalLine().nextElementSibling;
   if (row === null) {
-    throw new Error(`No receipt row for ${label}`);
+    throw new Error('The total should be followed by the row that itemizes it');
   }
-  return row;
+  return row as HTMLElement;
 }
 
-/** What one named row of the receipt says that line cost. */
-function receiptValue(label: string): string {
-  return receiptRow(label).lastElementChild?.textContent ?? '';
-}
-
-/** The rate the same row was billed at, in the column between the two. */
-function receiptQty(label: string): string {
-  return receiptRow(label).children[1]?.textContent ?? '';
-}
-
-/** The number under the tear line: everything the receipt adds up to. */
-function receiptTotal(): string {
-  const total = within(receipt()).getByText(m.home_receipt_total_label()).nextElementSibling;
-  return total?.textContent ?? '';
+/** The figures on that row, each as the sentence it is said in. The dots
+ * between them are punctuation, and the arithmetic at the end is a button. */
+function metricItems(): Array<string> {
+  return Array.from(metricsRow().children)
+    .filter(
+      (item) => item.getAttribute('aria-hidden') === null && item.querySelector('button') === null,
+    )
+    .map((item) => item.textContent ?? '');
 }
 
 /** The dial the question is answered on. */
@@ -380,6 +386,16 @@ function dialTicks(): Array<string> {
     gate.querySelectorAll('div[aria-hidden="true"] > span > span'),
     (tick) => tick.textContent ?? '',
   );
+}
+
+/** The rail the dial runs on, as it is painted right now. */
+function railFill(): string {
+  return dial().getAttribute('style') ?? '';
+}
+
+/** Where one whole hour falls along that rail, as the dial measures it. */
+function railAt(hours: number): string {
+  return `${((hours - 1) / 11) * 100}%`;
 }
 
 /** The only way to another number: the gate, reopened and answered again. */
@@ -451,22 +467,20 @@ function setReducedMotion(): void {
 
 /** One hour of the show, and the beat it stands for before the next lands. */
 const SHOW_STEP_MS = 2200;
-/** What the last hour holds for on its own before the line settles. */
-const SHOW_HOLD_MS = 600;
-/** What the settling line takes before the bill starts printing under it. */
-const SHOW_ARRIVE_MS = 300;
-/** One more line of the bill, every beat. */
-const SHOW_PRINT_MS = 240;
-/** What the total stands on its own for before the pitch follows it. */
-const SHOW_PITCH_MS = 400;
+/** What the last hour holds for on its own before the day is totalled. */
+const SHOW_TOTAL_MS = 600;
+/** What the total holds for before the row that says what it cost. */
+const SHOW_METRICS_MS = 400;
+/** What that row holds for before the pitch follows it. */
+const SHOW_SETTLE_MS = 400;
 
 /**
  * The whole run for one answer, from the first hour to the pitch: the climb,
- * the settle, every line of the bill, and the beat the total holds after the
- * last of them. Longer than the script needs, so nothing is left mid-print.
+ * the total, the row under it and the beat before the pitch. Longer than the
+ * script needs, so nothing is left mid-beat.
  */
 function wholeShow(hours: number): number {
-  return SHOW_STEP_MS * hours + SHOW_HOLD_MS + SHOW_ARRIVE_MS + SHOW_PRINT_MS * 12 + SHOW_PITCH_MS;
+  return SHOW_STEP_MS * hours + SHOW_TOTAL_MS + SHOW_METRICS_MS + SHOW_SETTLE_MS;
 }
 
 async function advance(ms: number): Promise<void> {
@@ -531,7 +545,9 @@ describe('Generator', () => {
     await renderPage();
 
     expect(dial()).toBeInTheDocument();
-    expect(screen.queryByText(m.home_receipt_store())).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(m.home_total_line({ hours: 6, years: '7.5' })),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText(m.home_truth_4())).not.toBeInTheDocument();
     expect(screen.queryByText(m.home_hero_product())).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: m.home_hero_cta() })).not.toBeInTheDocument();
@@ -572,6 +588,23 @@ describe('Generator', () => {
     await renderPage();
 
     expect(dialTicks()).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']);
+  });
+
+  it('names the first two hours normal, and leaves the rail under them grey', async () => {
+    await renderPage();
+
+    expect(screen.getByText(m.home_gate_normal())).toBeInTheDocument();
+
+    fireEvent.change(dial(), { target: { value: '2' } });
+
+    // Both stops of the coloured segment fall on the end of the zone, so there
+    // is no coloured segment at all: the whole travelled rail is grey.
+    expect(railFill()).toContain(`${railAt(2)} ${railAt(2)}`);
+
+    fireEvent.change(dial(), { target: { value: '3' } });
+
+    // The third hour is the first one the rail takes the accent for.
+    expect(railFill()).toContain(`${railAt(2)} ${railAt(3)}`);
   });
 
   it('says where the number comes from when the research line is opened', async () => {
@@ -618,9 +651,7 @@ describe('Generator', () => {
 
     expect(truthLines()).toHaveLength(6);
     expect(truthLines().at(-1)).toBe(m.home_truth_6());
-    expect(receiptQty(m.home_receipt_screen_label())).toBe(
-      m.home_receipt_screen_qty({ hours: 6, minutes: '00' }),
-    );
+    expect(totalText()).toBe(m.home_total_line({ hours: 6, years: '7.5' }));
     expect(
       screen.getByText(m.home_gate_entered({ hours: 6 }), { exact: false }),
     ).toBeInTheDocument();
@@ -634,18 +665,18 @@ describe('Generator', () => {
     await advance(wholeShow(12));
 
     expect(truthLines()).toEqual([m.home_truth_1(), m.home_truth_2(), m.home_truth_3()]);
-    expect(receiptQty(m.home_receipt_screen_label())).toBe(
-      m.home_receipt_screen_qty({ hours: 3, minutes: '00' }),
-    );
+    expect(totalText()).toBe(m.home_total_line({ hours: 3, years: '3.8' }));
   });
 
-  it('hands a shared link the bill, and no dial to turn it with', async () => {
+  it('hands a shared link the total, and no dial to turn it with', async () => {
     window.history.replaceState({}, '', '/?h=9');
     await renderPage();
 
     expect(truthLines()).toHaveLength(9);
     expect(truthLines().at(-1)).toBe(m.home_truth_9());
-    expect(receipt()).toBeInTheDocument();
+    expect(totalText()).toBe(m.home_total_line({ hours: 9, years: '11.3' }));
+    expect(metricItems()).toHaveLength(3);
+    expect(screen.getByRole('link', { name: m.home_hero_cta() })).toBeInTheDocument();
     // The number is the answer's, and the answer is the gate's alone.
     expect(screen.queryByRole('slider')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: m.home_gate_change() })).toBeInTheDocument();
@@ -669,7 +700,7 @@ describe('Generator', () => {
     expect(document.querySelector('#story')).not.toBeNull();
   });
 
-  it('says what the thing is, right under the bill', async () => {
+  it('says what the thing is, right under the total', async () => {
     await renderAnswered();
     expect(screen.getByText(m.home_hero_product())).toBeInTheDocument();
   });
@@ -708,9 +739,10 @@ describe('Generator', () => {
     expect(screen.getByText(m.home_useful_1())).toBeInTheDocument();
     expect(screen.getByText(m.home_useful_2())).toBeInTheDocument();
     expect(screen.getByText(m.home_useful_3())).toBeInTheDocument();
+    expect(screen.getByText(m.home_consume_1())).toBeInTheDocument();
   });
 
-  it('tells the story in one order: why I built it, what is useful, what changes, how, the deal, proof, build', async () => {
+  it('tells the story in one order: why I built it, what is useful, what you become, what changes, how, the deal, proof, build', async () => {
     await renderPage();
     const headings = screen
       .getAllByRole('heading', { level: 2 })
@@ -718,6 +750,7 @@ describe('Generator', () => {
     const landmarks = [
       m.home_story_title(),
       m.home_useful_title(),
+      m.home_consume_title(),
       m.home_changes_title(),
       m.home_how_title(),
       m.home_deal_label(),
@@ -735,61 +768,60 @@ describe('Generator', () => {
     expect(screen.queryAllByRole('separator')).toHaveLength(0);
   });
 
-  it('prints the bill for the day it was answered with', async () => {
+  it('totals the day it was answered with, in one line under the stack', async () => {
     await renderAnswered();
 
     expect(truthLines().at(-1)).toBe(m.home_truth_4());
-    expect(receiptTotal()).toBe(m.home_receipt_total_value({ years: '5' }));
+    expect(totalText()).toBe(m.home_total_line({ hours: 4, years: '5' }));
   });
 
-  it('heads the bill the way a till heads one: the shop, the number, the day', async () => {
+  it('colours the years inside that line, and nothing else on the screen', async () => {
     await renderAnswered();
-    const bill = within(receipt());
 
-    expect(bill.getByText(m.home_receipt_store())).toBeInTheDocument();
-    expect(bill.getByText(m.home_receipt_store_url())).toBeInTheDocument();
+    expect(totalYears()).toHaveTextContent('5');
+    for (const name of ACCENT_CLASSES) {
+      expect(totalYears()).toHaveClass(name);
+      expect(totalLine()).not.toHaveClass(name);
+      expect(metricsRow()).not.toHaveClass(name);
+    }
+  });
+
+  it('says one hour in the singular, and counts it to the quarter year', async () => {
+    await renderAnswered(1);
+
+    expect(totalText()).toBe(m.home_total_line_one({ years: '1.25' }));
+  });
+
+  it('says what that total cost, in three figures under it', async () => {
+    await renderAnswered(6);
+
+    expect(metricItems()).toEqual([
+      '5,475 books unread',
+      '$876,000 of unpaid work',
+      '22 years of a full-time job',
+    ]);
+  });
+
+  it('counts a day too short to be a job in the dinners it went through', async () => {
+    await renderAnswered(3);
+
+    expect(metricItems()).toEqual([
+      '2,738 books unread',
+      '$438,000 of unpaid work',
+      '7,300 dinners missed',
+    ]);
+  });
+
+  it('keeps the arithmetic at the end of that row, and the till off the page', async () => {
+    await renderAnswered();
+
     expect(
-      bill.getByText(m.home_receipt_no({ number: receiptNumber(4, new Date()) })),
+      within(metricsRow()).getByRole('button', { name: m.home_assumptions_label() }),
     ).toBeInTheDocument();
-    expect(bill.getByText(receiptDate(new Date(), 'en'))).toBeInTheDocument();
-    expect(bill.getByText(m.home_receipt_cashier())).toBeInTheDocument();
-  });
-
-  it('itemizes the bill in three columns: what, at what rate, for how much', async () => {
-    await renderAnswered();
-    const bill = within(receipt());
-
-    expect(bill.getByText(m.home_receipt_col_item())).toBeInTheDocument();
-    expect(bill.getByText(m.home_receipt_col_qty())).toBeInTheDocument();
-    expect(bill.getByText(m.home_receipt_col_amount())).toBeInTheDocument();
-    expect(receiptQty(m.home_receipt_screen_label())).toBe(
-      m.home_receipt_screen_qty({ hours: 4, minutes: '00' }),
-    );
-    expect(receiptQty(m.home_receipt_books_label())).toBe(m.home_receipt_books_qty());
-    expect(receiptQty(m.home_receipt_job_label())).toBe(m.home_receipt_job_qty());
-  });
-
-  it('subtotals the screen hours, taxes the sleeping ones, then totals the years', async () => {
-    await renderAnswered();
-    const bill = within(receipt());
-    const hours = m.home_receipt_hours_value({ hours: '29,200' });
-
-    expect(receiptValue(m.home_receipt_screen_label())).toBe(hours);
-    expect(bill.getByText(m.home_receipt_subtotal()).nextElementSibling).toHaveTextContent(hours);
-    expect(bill.getByText(m.home_receipt_tax())).toBeInTheDocument();
-    expect(bill.getByText(m.home_receipt_tax_value())).toBeInTheDocument();
-    expect(receiptTotal()).toBe(m.home_receipt_total_value({ years: '5' }));
-  });
-
-  it('closes the bill the way a till closes one, barcode and all', async () => {
-    await renderAnswered();
-    const bill = within(receipt());
-
-    expect(bill.getByText(m.home_receipt_paid())).toBeInTheDocument();
-    expect(bill.getByText(m.home_receipt_no_refunds())).toBeInTheDocument();
-    expect(bill.getByText(m.home_receipt_thanks())).toBeInTheDocument();
-    // The barcode is a shape, not a word, so it is kept from a screen reader.
-    expect(receipt().querySelector('p[aria-hidden="true"]')?.textContent).toMatch(/▌/u);
+    // The bill the row replaced: no shop over it, no barcode under it.
+    expect(screen.queryByText(/attention awareness/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/thank you for scrolling/i)).not.toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/▌/u);
   });
 
   it('stacks one line per hour, up to the hour the answer lands on', async () => {
@@ -813,97 +845,58 @@ describe('Generator', () => {
     expect(screen.queryByText(m.home_truth_6())).not.toBeInTheDocument();
   });
 
-  it('recounts the receipt when the question is answered again', async () => {
+  it('retotals the day when the question is answered again', async () => {
     await renderAnswered();
 
     changeAnswer(6);
 
-    expect(receiptTotal()).toBe(m.home_receipt_total_value({ years: '7.5' }));
-    expect(receiptValue(m.home_receipt_money_label())).toBe('$876,000');
+    expect(totalText()).toBe(m.home_total_line({ hours: 6, years: '7.5' }));
+    expect(metricItems()[1]).toBe('$876,000 of unpaid work');
 
     changeAnswer(12);
 
-    expect(receiptTotal()).toBe(m.home_receipt_total_value({ years: '15' }));
+    expect(totalText()).toBe(m.home_total_line({ hours: 12, years: '15' }));
   });
 
-  it('reprints the day being priced at the top of the items', async () => {
+  it('trades the last figure for dinners the moment the day stops being a job', async () => {
     await renderAnswered();
 
-    expect(receiptQty(m.home_receipt_screen_label())).toBe(
-      m.home_receipt_screen_qty({ hours: 4, minutes: '00' }),
-    );
-
-    changeAnswer(9);
-
-    expect(receiptQty(m.home_receipt_screen_label())).toBe(
-      m.home_receipt_screen_qty({ hours: 9, minutes: '00' }),
-    );
-  });
-
-  it('bills a receipt row the moment the day earns it, and drops it again', async () => {
-    await renderAnswered();
-    expect(receiptLabels()).toEqual([
-      m.home_receipt_screen_label(),
-      m.home_receipt_books_label(),
-      m.home_receipt_dinners_label(),
-      m.home_receipt_languages_label(),
-      m.home_receipt_money_label(),
-      m.home_receipt_job_label(),
-    ]);
-
-    changeAnswer(1);
-    expect(receiptLabels()).toEqual([
-      m.home_receipt_screen_label(),
-      m.home_receipt_books_label(),
-      m.home_receipt_money_label(),
-    ]);
+    expect(metricItems().at(-1)).toBe('15 years of a full-time job');
 
     changeAnswer(3);
-    expect(receiptLabels()).toHaveLength(5);
-    expect(receiptLabels()).not.toContain(m.home_receipt_job_label());
-
-    changeAnswer(12);
-    expect(receiptLabels()).toHaveLength(6);
-  });
-
-  it('leaves the waking years to the total and bills a full-time job instead', async () => {
-    await renderAnswered();
+    expect(metricItems().at(-1)).toBe('7,300 dinners missed');
 
     changeAnswer(5);
-
-    expect(receiptLabels()).not.toContain('Waking years');
-    expect(receiptValue(m.home_receipt_job_label())).toBe(
-      m.home_receipt_job_value({ years: '18' }),
-    );
+    expect(metricItems().at(-1)).toBe('18 years of a full-time job');
   });
 
-  it('folds the arithmetic behind the bill into one quiet line', async () => {
+  it('folds the arithmetic behind the total into one quiet line', async () => {
     await renderAnswered();
 
-    expect(screen.queryByText(m.home_receipt_note_link())).not.toBeInTheDocument();
+    expect(screen.queryByText(m.home_assumptions_note_link())).not.toBeInTheDocument();
 
-    await userEvent.hover(screen.getByRole('button', { name: m.home_receipt_assumptions() }));
+    await userEvent.hover(screen.getByRole('button', { name: m.home_assumptions_label() }));
 
-    expect(screen.getByRole('link', { name: m.home_receipt_note_link() })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: m.home_assumptions_note_link() })).toHaveAttribute(
       'href',
       'https://doi.org/10.1016/j.jml.2019.104047',
     );
-    expect(screen.getByText(m.home_receipt_note_after(), { exact: false })).toBeInTheDocument();
+    expect(screen.getByText(m.home_assumptions_note_after(), { exact: false })).toBeInTheDocument();
 
     await userEvent.keyboard('{Escape}');
 
-    expect(screen.queryByText(m.home_receipt_note_link())).not.toBeInTheDocument();
+    expect(screen.queryByText(m.home_assumptions_note_link())).not.toBeInTheDocument();
   });
 
   it('opens the arithmetic in a sheet on a phone', async () => {
     setViewport('phone');
     await renderAnswered();
 
-    await userEvent.click(screen.getByRole('button', { name: m.home_receipt_assumptions() }));
+    await userEvent.click(screen.getByRole('button', { name: m.home_assumptions_label() }));
 
     const sheet = await screen.findByRole('dialog');
     expect(
-      within(sheet).getByRole('link', { name: m.home_receipt_note_link() }),
+      within(sheet).getByRole('link', { name: m.home_assumptions_note_link() }),
     ).toBeInTheDocument();
   });
 
@@ -914,9 +907,9 @@ describe('Generator', () => {
     answerGate(5);
 
     expect(truthLines()).toEqual([m.home_truth_1()]);
-    // One thing at a time: no bill under the stack, no speaker beside it, and
+    // One thing at a time: no total under the stack, no speaker beside it, and
     // nothing for sale.
-    expect(screen.queryByText(m.home_receipt_store())).not.toBeInTheDocument();
+    expect(truthStack().nextElementSibling).toBeNull();
     expect(
       screen.queryByRole('button', { name: m.home_math_sound_label() }),
     ).not.toBeInTheDocument();
@@ -928,10 +921,10 @@ describe('Generator', () => {
     await advance(SHOW_STEP_MS * 3);
     expect(truthLines()).toHaveLength(5);
     expect(truthLines().at(-1)).toBe(m.home_truth_5());
-    expect(screen.queryByText(m.home_receipt_store())).not.toBeInTheDocument();
+    expect(truthStack().nextElementSibling).toBeNull();
   });
 
-  it('gives the hero the whole screen, and reads the bill from the top of it', async () => {
+  it('gives the hero the whole screen, and reads the total from the top of it', async () => {
     vi.useFakeTimers();
     await renderPage();
 
@@ -940,9 +933,9 @@ describe('Generator', () => {
     }
 
     answerGate(5);
-    await advance(SHOW_STEP_MS * 4 + SHOW_HOLD_MS + SHOW_ARRIVE_MS);
+    await advance(SHOW_STEP_MS * 4 + SHOW_TOTAL_MS);
 
-    // The bill is printing, so the screen stops holding its middle.
+    // The day is totalled, so the screen stops holding its middle.
     for (const name of [...TALL_CLASSES, ...TOP_CLASSES]) {
       expect(heroHeader()).toHaveClass(name);
     }
@@ -951,35 +944,32 @@ describe('Generator', () => {
     }
   });
 
-  it('prints the bill a line at a time once the stack has settled', async () => {
+  it('totals the stack a beat after the last hour, then itemizes it, then sells', async () => {
     vi.useFakeTimers();
     await renderPage();
 
     answerGate(5);
-    await advance(SHOW_STEP_MS * 4 + SHOW_HOLD_MS);
+    await advance(SHOW_STEP_MS * 4);
 
-    // The bill mounts under the settled stack with nothing on it yet.
-    expect(receipt()).toBeInTheDocument();
-    expect(receiptLabels()).toHaveLength(0);
+    // The last hour of the climb stands on its own before it is totalled.
+    expect(truthLines()).toHaveLength(5);
+    expect(truthStack().nextElementSibling).toBeNull();
 
-    await advance(SHOW_ARRIVE_MS);
-    expect(receiptLabels()).toEqual([m.home_receipt_screen_label()]);
+    await advance(SHOW_TOTAL_MS);
+    expect(totalText()).toBe(m.home_total_line({ hours: 5, years: '6.3' }));
+    // The total is left alone with the reader for a beat.
+    expect(totalLine().nextElementSibling).toBeNull();
 
-    await advance(SHOW_PRINT_MS * 5);
-    expect(receiptLabels()).toHaveLength(6);
-    expect(screen.queryByText(m.home_receipt_total_label())).not.toBeInTheDocument();
-
-    // The subtotal, the tax, and the total the till rings, in that order.
-    await advance(SHOW_PRINT_MS * 3);
-    expect(receiptTotal()).toBe(m.home_receipt_total_value({ years: '6.3' }));
-    // Nothing is for sale until the total has stood on its own for a beat.
+    await advance(SHOW_METRICS_MS);
+    expect(metricItems()).toHaveLength(3);
+    // Nothing is for sale until the row under the total has landed.
     expect(screen.queryByRole('link', { name: m.home_hero_cta() })).not.toBeInTheDocument();
 
-    await advance(SHOW_PITCH_MS);
+    await advance(SHOW_SETTLE_MS);
     expect(screen.getByRole('link', { name: m.home_hero_cta() })).toBeInTheDocument();
     expect(screen.getByText(m.home_hero_product())).toBeInTheDocument();
     expect(screen.getByRole('button', { name: m.home_math_sound_label() })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: m.home_receipt_assumptions() })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: m.home_assumptions_label() })).toBeInTheDocument();
   });
 
   it('steps the question back to the answer once it has been given', async () => {
@@ -1001,7 +991,9 @@ describe('Generator', () => {
     // There is no way back into the gate to answer over the top of it.
     expect(screen.queryByRole('button', { name: m.home_gate_change() })).not.toBeInTheDocument();
 
-    await advance(SHOW_STEP_MS * 5);
+    // Not even once the day is totalled and priced: the way back opens with
+    // the pitch, and not a beat before it.
+    await advance(SHOW_STEP_MS * 4 + SHOW_TOTAL_MS + SHOW_METRICS_MS);
 
     expect(screen.queryByRole('button', { name: m.home_gate_change() })).not.toBeInTheDocument();
 
@@ -1010,7 +1002,7 @@ describe('Generator', () => {
     expect(screen.getByRole('button', { name: m.home_gate_change() })).toBeInTheDocument();
   });
 
-  it('quotes the whole hours back over the bill, and nothing finer', async () => {
+  it('quotes the whole hours back over the total, and nothing finer', async () => {
     vi.useFakeTimers();
     await renderPage();
 
@@ -1018,9 +1010,7 @@ describe('Generator', () => {
     await advance(wholeShow(5));
 
     expect(truthLines().at(-1)).toBe(m.home_truth_5());
-    expect(receiptQty(m.home_receipt_screen_label())).toBe(
-      m.home_receipt_screen_qty({ hours: 5, minutes: '00' }),
-    );
+    expect(totalText()).toBe(m.home_total_line({ hours: 5, years: '6.3' }));
     expect(
       screen.getByText(m.home_gate_entered({ hours: 5 }), { exact: false }),
     ).toBeInTheDocument();
@@ -1045,7 +1035,8 @@ describe('Generator', () => {
 
     expect(truthLines()).toHaveLength(5);
     expect(truthLines().at(-1)).toBe(m.home_truth_5());
-    expect(receiptTotal()).toBe(m.home_receipt_total_value({ years: '6.3' }));
+    expect(totalText()).toBe(m.home_total_line({ hours: 5, years: '6.3' }));
+    expect(metricItems()).toHaveLength(3);
     expect(screen.getByRole('link', { name: m.home_hero_cta() })).toBeInTheDocument();
   });
 
@@ -1066,10 +1057,7 @@ describe('Generator', () => {
     window.history.replaceState({}, '', '/?m=330');
     await renderPage();
 
-    expect(receiptQty(m.home_receipt_screen_label())).toBe(
-      m.home_receipt_screen_qty({ hours: 6, minutes: '00' }),
-    );
-    expect(receiptTotal()).toBe(m.home_receipt_total_value({ years: '7.5' }));
+    expect(totalText()).toBe(m.home_total_line({ hours: 6, years: '7.5' }));
   });
 
   it('restacks the day instantly when the gate is answered again', async () => {
@@ -1080,7 +1068,7 @@ describe('Generator', () => {
 
     expect(truthLines()).toHaveLength(9);
     expect(truthLines().at(-1)).toBe(m.home_truth_9());
-    expect(receiptTotal()).toBe(m.home_receipt_total_value({ years: '11.3' }));
+    expect(totalText()).toBe(m.home_total_line({ hours: 9, years: '11.3' }));
 
     await advance(SHOW_STEP_MS * 12);
 
@@ -1849,7 +1837,7 @@ describe('Generator', () => {
     await renderPage();
 
     expect(truthLines().at(-1)).toBe(m.home_truth_6());
-    expect(receiptTotal()).toBe(m.home_receipt_total_value({ years: '7.5' }));
+    expect(totalText()).toBe(m.home_total_line({ hours: 6, years: '7.5' }));
     expect(screen.getAllByRole('button', { name: m.gen_app_remove() })).toHaveLength(2);
     expect(screen.getByText('Instagram')).toBeInTheDocument();
     expect(screen.getByText('TikTok')).toBeInTheDocument();
