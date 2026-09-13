@@ -217,7 +217,6 @@ export function Receipt({
           <span>{m.home_receipt_no({ number })}</span>
           <span>{printedOn}</span>
         </p>
-        <p {...props(styles.receiptMetaLine)}>{m.home_receipt_sold_to()}</p>
       </div>
       <div aria-hidden="true" {...props(styles.receiptRule)} />
       {/* The deal, in words, before any number: this many hours a
