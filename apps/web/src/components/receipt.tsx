@@ -256,6 +256,17 @@ export function Receipt({
             ),
           )}
         </p>
+        <p {...props(styles.receiptRow)}>
+          <span {...props(styles.receiptLabel)}>
+            {m.home_receipt_ad_revenue_label()}
+            <InfoTip label={m.home_receipt_tip_label()}>
+              {m.home_receipt_ad_revenue_note({ years: HORIZON_YEARS })}
+            </InfoTip>
+          </span>
+          <span {...props(styles.receiptValue)}>
+            <NumberFlow locales={locale} prefix="~$" value={adRevenue()} />
+          </span>
+        </p>
       </div>
       <div aria-hidden="true" {...props(styles.receiptRule)} />
       {/* What went over the counter. */}
@@ -270,22 +281,6 @@ export function Receipt({
           </span>
           <span {...props(styles.receiptValue)}>
             <NumberFlow locales={locale} value={screenHours(hours)} /> {m.home_receipt_hours_unit()}
-          </span>
-        </p>
-      </div>
-      <div aria-hidden="true" {...props(styles.receiptRule)} />
-      {/* What the other side of the counter made on it. */}
-      <div {...props(styles.receiptBlock)}>
-        <p {...props(styles.receiptHeading)}>{m.home_receipt_got_label()}</p>
-        <p {...props(styles.receiptRow)}>
-          <span {...props(styles.receiptLabel)}>
-            {m.home_receipt_ad_revenue_label()}
-            <InfoTip label={m.home_receipt_tip_label()}>
-              {m.home_receipt_ad_revenue_note({ years: HORIZON_YEARS })}
-            </InfoTip>
-          </span>
-          <span {...props(styles.receiptValue)}>
-            <NumberFlow locales={locale} prefix="~$" value={adRevenue()} />
           </span>
         </p>
       </div>
