@@ -1,8 +1,3 @@
-/** The detent click, and the lower thunk at the two ends of the travel. */
-export const TICK_HZ = 1200;
-const END_HZ = 700;
-export const TICK_SECONDS = 0.012;
-const END_SECONDS = 0.04;
 /** Loud enough to feel mechanical, quiet enough to drag the slider with. */
 export const PEAK_GAIN = 0.25;
 /** An exponential ramp cannot reach zero, so it lands just under hearing. */
@@ -82,31 +77,4 @@ export function tickDevice(): AudioContext | null {
     wake(context);
   }
   return context;
-}
-
-/** One detent. The ends of the travel get a lower, longer thunk. */
-export function playTick({ end = false }: { end?: boolean } = {}): void {
-  if (context === null) {
-    return;
-  }
-  try {
-    // A device left asleep by a backgrounded tab schedules nothing audible.
-    if (context.state === 'suspended') {
-      wake(context);
-    }
-    const now = context.currentTime;
-    const seconds = end ? END_SECONDS : TICK_SECONDS;
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(end ? END_HZ : TICK_HZ, now);
-    gain.gain.setValueAtTime(PEAK_GAIN, now);
-    gain.gain.exponentialRampToValueAtTime(SILENCE, now + seconds);
-    oscillator.connect(gain);
-    gain.connect(context.destination);
-    oscillator.start(now);
-    oscillator.stop(now + seconds);
-  } catch {
-    // A closed or busy device must never break the control it belongs to.
-  }
 }

@@ -27,7 +27,7 @@ const FALLBACK_BUNDLE_IDS: ReadonlyArray<string> = [
   'com.atebits.Tweetie2',
 ];
 const MINUTES_PER_HOUR = 60;
-/** A day is quoted the way the gate takes it: 4 h 05, never 4 h 5. */
+/** A day is quoted the way a till quotes one: 4 h 05, never 4 h 5. */
 const MINUTE_DIGITS = 2;
 
 const styles = create({
@@ -124,10 +124,11 @@ function FriendPage() {
   // the server too, so the page it renders is already the page the reader was
   // sent, and reading it whole keeps one parser for both pages.
   const search = useRouterState({ select: (state) => state.location.searchStr });
-  const { bundleIds, hours, minutes } = decodeShare(search);
+  const { bundleIds, hours } = decodeShare(search);
   const name = friendName(new URLSearchParams(search).get('n'));
   // A link with no day of its own is read against the average, and says so.
-  const day = hours === undefined ? AVERAGE_DAY : { hours, minutes: minutes ?? 0 };
+  // The generator answers in whole hours, so a link's own day has no minutes.
+  const day = hours === undefined ? AVERAGE_DAY : { hours, minutes: 0 };
   const years = formatYears(day.hours + day.minutes / MINUTES_PER_HOUR);
   const shared = bundleIds.length > 0;
   const appNames = (shared ? bundleIds : FALLBACK_BUNDLE_IDS).map(sharedAppName);

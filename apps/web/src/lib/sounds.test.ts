@@ -1,14 +1,28 @@
 import { describe, expect, it } from 'vitest';
-import { checkoutVoices, climb, playCheckout, playStep, stepVoices } from './sounds.ts';
-import { PEAK_GAIN, TICK_HZ, TICK_SECONDS } from './tick-sound.ts';
+import {
+  checkoutVoices,
+  climb,
+  playCheckout,
+  playStep,
+  playTick,
+  stepVoices,
+  tickVoices,
+} from './sounds.ts';
+import { PEAK_GAIN } from './tick-sound.ts';
 
-/** The show the curves were tuned on: one step per stop of the dial. */
+/** The show the curves were tuned on: one step per stop of the slider. */
 const FULL = 12;
 
-/** Everything one step plays, added up. */
-function loudness(step: number, total: number): number {
-  const { beat, noise, sub, tone } = stepVoices(step, total);
-  return tone.gain + (beat?.gain ?? 0) + (sub?.gain ?? 0) + (noise?.gain ?? 0);
+/** Everything one hit plays, added up. */
+function loudness(voices: ReturnType<typeof stepVoices>): number {
+  const [lower, upper] = voices.partials;
+  return (
+    lower.gain +
+    upper.gain +
+    voices.transient.gain +
+    (voices.beat?.gain ?? 0) +
+    (voices.sub?.gain ?? 0)
+  );
 }
 
 describe('climb', () => {
@@ -24,53 +38,72 @@ describe('climb', () => {
   });
 });
 
+describe('tickVoices', () => {
+  it('strikes two partials over a four-millisecond transient, and nothing else', () => {
+    const hit = tickVoices();
+
+    expect(hit.partials.map((partial) => partial.frequency)).toEqual([2400, 3700]);
+    expect(hit.partials.every((partial) => partial.type === 'sine')).toBe(true);
+    expect(hit.partials.every((partial) => partial.seconds === 0.04)).toBe(true);
+    expect(hit.transient.seconds).toBe(0.004);
+    expect(hit.beat).toBeUndefined();
+    expect(hit.sub).toBeUndefined();
+  });
+
+  it('is one detent loud, however many voices it is made of', () => {
+    expect(loudness(tickVoices())).toBeCloseTo(PEAK_GAIN, 6);
+  });
+});
+
 describe('stepVoices', () => {
-  it('opens on the detent itself, and on nothing else', () => {
+  it('opens one step under the gate detent, and on nothing else', () => {
     const first = stepVoices(1, FULL);
 
-    expect(first.tone).toEqual({
-      frequency: TICK_HZ,
-      gain: PEAK_GAIN,
-      seconds: TICK_SECONDS,
-      type: 'sine',
-    });
+    expect(first.partials[0].frequency).toBeCloseTo(2400 * 0.85, 6);
+    expect(first.partials[1].frequency).toBeCloseTo(3700 * 0.85, 6);
+    expect(first.partials[0].seconds).toBeCloseTo(0.04, 6);
+    expect(first.transient.seconds).toBe(0.004);
     expect(first.beat).toBeUndefined();
     expect(first.sub).toBeUndefined();
-    expect(first.noise).toBeUndefined();
   });
 
   it('drops the pitch and stretches the note the further it goes', () => {
-    const pitches = Array.from({ length: FULL }, (_, index) => stepVoices(index + 1, FULL));
+    const hits = Array.from({ length: FULL }, (_, index) => stepVoices(index + 1, FULL));
 
-    for (let index = 1; index < pitches.length; index += 1) {
-      expect(pitches[index]?.tone.frequency).toBeLessThan(pitches[index - 1]?.tone.frequency ?? 0);
-      expect(pitches[index]?.tone.seconds).toBeGreaterThan(pitches[index - 1]?.tone.seconds ?? 0);
+    for (let index = 1; index < hits.length; index += 1) {
+      expect(hits[index]?.partials[0].frequency).toBeLessThan(
+        hits[index - 1]?.partials[0].frequency ?? 0,
+      );
+      expect(hits[index]?.partials[1].frequency).toBeLessThan(
+        hits[index - 1]?.partials[1].frequency ?? 0,
+      );
+      expect(hits[index]?.partials[0].seconds).toBeGreaterThan(
+        hits[index - 1]?.partials[0].seconds ?? 0,
+      );
     }
-    expect(pitches.at(-1)?.tone.frequency).toBeCloseTo(180, 6);
-    expect(pitches.at(-1)?.tone.seconds).toBeCloseTo(0.22, 6);
+    expect(hits.at(-1)?.partials[0].frequency).toBeCloseTo(2400 * 0.85 ** FULL, 6);
+    expect(hits.at(-1)?.partials[1].frequency).toBeCloseTo(3700 * 0.85 ** FULL, 6);
+    expect(hits.at(-1)?.partials[0].seconds).toBeCloseTo(0.26, 6);
   });
 
   it('brings the beating sawtooth in at the third hour', () => {
     expect(stepVoices(2, FULL).beat).toBeUndefined();
 
-    const beat = stepVoices(3, FULL).beat;
+    const third = stepVoices(3, FULL);
 
-    expect(beat?.type).toBe('sawtooth');
-    expect(beat?.frequency).toBeCloseTo(stepVoices(3, FULL).tone.frequency + 7, 6);
+    expect(third.beat?.type).toBe('sawtooth');
+    expect(third.beat?.frequency).toBeCloseTo(third.partials[0].frequency + 7, 6);
   });
 
-  it('brings the sub in at the sixth hour, and the noise at the ninth', () => {
+  it('brings the sub in at the sixth hour', () => {
     expect(stepVoices(5, FULL).sub).toBeUndefined();
     expect(stepVoices(6, FULL).sub?.frequency).toBe(55);
-    expect(stepVoices(8, FULL).noise).toBeUndefined();
-    expect(stepVoices(9, FULL).noise?.gain).toBeGreaterThan(0);
   });
 
   it('never plays a step louder than one detent, however many voices it has', () => {
     for (let step = 1; step <= FULL; step += 1) {
-      expect(loudness(step, FULL)).toBeLessThanOrEqual(PEAK_GAIN + Number.EPSILON);
+      expect(loudness(stepVoices(step, FULL))).toBeCloseTo(PEAK_GAIN, 6);
     }
-    expect(loudness(FULL, FULL)).toBeCloseTo(PEAK_GAIN, 6);
   });
 
   it('escalates a three-hour show the same way it escalates a twelve', () => {
@@ -78,8 +111,11 @@ describe('stepVoices', () => {
 
     expect(short.at(0)?.beat).toBeUndefined();
     expect(short.at(1)?.beat).toBeDefined();
-    expect(short.at(2)?.noise).toBeDefined();
-    expect(short.at(-1)?.tone.frequency).toBeCloseTo(stepVoices(FULL, FULL).tone.frequency, 6);
+    expect(short.at(1)?.sub).toBeDefined();
+    expect(short.at(-1)?.partials[0].seconds).toBeCloseTo(
+      stepVoices(FULL, FULL).partials[0].seconds,
+      6,
+    );
   });
 });
 
@@ -110,6 +146,7 @@ describe('checkoutVoices', () => {
 describe('the sounds without a device', () => {
   it('stays silent where no gesture has opened one', () => {
     expect(() => {
+      playTick();
       playStep(1, FULL);
       playCheckout();
     }).not.toThrow();
