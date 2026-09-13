@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { formatYears, heroMetrics, homeTruth, screenHours } from './attention-math.ts';
 import type { HeroMetric } from './attention-math.ts';
 
-/** Each item of the row as the reader reads it: the words with the figure in. */
+/** Each line of the list as the reader reads it: the words with the figure in. */
 function sentences(items: ReadonlyArray<HeroMetric>): Array<string> {
   return items.map((item) => `${item.before}${item.value}${item.after}`);
 }
@@ -30,19 +30,19 @@ describe('screenHours', () => {
 });
 
 describe('homeTruth', () => {
-  it('has one line for every stop on the dial, and it gets worse', () => {
+  it('has one sentence for every stop on the dial, and it gets worse', () => {
     expect(homeTruth(1, 'en')).toBe(
-      'One hour. 1.25 years of the next twenty. Maps, messages, a bank, a book. A phone doing its job.',
+      'Maps, messages, a bank, a book. A phone doing its job. Nothing to fix.',
     );
-    expect(homeTruth(12, 'en')).toBe(
-      'Twelve hours. 15 years. Three quarters of your waking day. This is serious.',
-    );
+    expect(homeTruth(12, 'en')).toBe('Three quarters of your waking day. This is serious.');
+  });
+
+  it('leaves the hours and the years to the total line above it', () => {
+    expect(homeTruth(4, 'en')).toBe('More of your life scrolling than eating. This is bad.');
   });
 
   it('speaks Turkish to a Turkish reader', () => {
-    expect(homeTruth(11, 'tr')).toBe(
-      'On bir saat. 13,75 yıl. Sen telefonu kullanmıyorsun. O seni kullanıyor.',
-    );
+    expect(homeTruth(11, 'tr')).toBe('Sen telefonu kullanmıyorsun. O seni kullanıyor.');
   });
 
   it('says nothing at an hour the dial cannot stop on', () => {
@@ -52,46 +52,50 @@ describe('homeTruth', () => {
 });
 
 describe('heroMetrics', () => {
-  it('counts a long day in books, money and the job it would have been', () => {
+  it('counts the same hours in books, workouts, dinners and pay', () => {
     expect(sentences(heroMetrics(6, 'en'))).toEqual([
-      '5,475 books unread',
-      '$876,000 of unpaid work',
-      '22 years of a full-time job',
+      'You could read 5,475 books.',
+      'You could do 43,800 workouts.',
+      'You could have 21,900 dinners.',
+      'You could earn $876,000 at 20 dollars an hour.',
     ]);
   });
 
-  it('counts a day too short to be a job in the dinners it went through', () => {
-    expect(sentences(heroMetrics(3, 'en'))).toEqual([
-      '2,738 books unread',
-      '$438,000 of unpaid work',
-      '7,300 dinners missed',
+  it('counts a short day the same four ways as a long one', () => {
+    expect(heroMetrics(1, 'en').map((item) => item.key)).toEqual([
+      'books',
+      'workouts',
+      'dinners',
+      'money',
     ]);
-  });
-
-  it('bills a full-time job from four hours a day, and not under it', () => {
-    expect(heroMetrics(3, 'en').map((item) => item.key)).toEqual(['books', 'money', 'dinners']);
-    expect(heroMetrics(4, 'en').map((item) => item.key)).toEqual(['books', 'money', 'job']);
-    expect(sentences(heroMetrics(4, 'en')).at(-1)).toBe('15 years of a full-time job');
-  });
-
-  it('keeps the same dinners at every length of day, because there are no more', () => {
-    expect(sentences(heroMetrics(1, 'en')).at(-1)).toBe('7,300 dinners missed');
-    expect(sentences(heroMetrics(3, 'en')).at(-1)).toBe('7,300 dinners missed');
+    expect(heroMetrics(12, 'en').map((item) => item.key)).toEqual([
+      'books',
+      'workouts',
+      'dinners',
+      'money',
+    ]);
   });
 
   it('sets the figure apart from the words it is said in', () => {
     expect(heroMetrics(6, 'en')).toEqual([
-      { after: ' books unread', before: '', key: 'books', value: '5,475' },
-      { after: ' of unpaid work', before: '', key: 'money', value: '$876,000' },
-      { after: ' years of a full-time job', before: '', key: 'job', value: '22' },
+      { after: ' books.', before: 'You could read ', key: 'books', value: '5,475' },
+      { after: ' workouts.', before: 'You could do ', key: 'workouts', value: '43,800' },
+      { after: ' dinners.', before: 'You could have ', key: 'dinners', value: '21,900' },
+      {
+        after: ' at 20 dollars an hour.',
+        before: 'You could earn ',
+        key: 'money',
+        value: '$876,000',
+      },
     ]);
   });
 
   it('groups the numbers and says the words the way the locale does', () => {
     expect(sentences(heroMetrics(6, 'tr'))).toEqual([
-      '5.475 okunmamış kitap',
-      '$876.000 değerinde ücretsiz mesai',
-      '22 yıllık tam zamanlı iş',
+      '5.475 kitap okuyabilirdin.',
+      '43.800 kez antrenman yapabilirdin.',
+      '21.900 akşam yemeği yiyebilirdin.',
+      'Saati 20 dolardan $876.000 kazanabilirdin.',
     ]);
   });
 });

@@ -13,7 +13,7 @@ import {
   SITE_URL,
 } from './share.ts';
 
-/** The twelve apps the generator opens with, as the share text names them. */
+/** The apps the generator opens with, as the share text names them. */
 const RECOMMENDED = presets.mert.blockedApps.map((app) => app.name);
 /** The apps a share names before it only counts them. */
 const NAMED_APPS = 3;
@@ -185,7 +185,7 @@ describe('shareText', () => {
     expect(text).toBe(
       m.share_text_more(
         {
-          apps: 'Instagram, Threads, TikTok',
+          apps: 'TikTok, YouTube, Instagram',
           count: RECOMMENDED.length - NAMED_APPS,
           url: URL_WITH_STATE,
           years: '5',
@@ -195,7 +195,7 @@ describe('shareText', () => {
     );
     expect(text).toContain(URL_WITH_STATE);
     // The fourth app onwards is counted, never named.
-    expect(text).not.toContain('YouTube');
+    expect(text).not.toContain('Facebook');
   });
 
   it('names them all when there are three or fewer', () => {

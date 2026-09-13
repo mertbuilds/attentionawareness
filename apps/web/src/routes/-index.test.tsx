@@ -155,7 +155,7 @@ const BLOCKED_APPS = presets.mert.blockedApps.length;
 
 /** The whole recommended list plus three apps it has never heard of. */
 const CROWDED_SHARE =
-  '/?a=fb,ig,li,nf,pi,pv,rd,sc,th,tt,tw,x,yt,com.example.one,com.example.two,com.example.three';
+  '/?a=fb,ig,li,pi,rd,sc,th,tt,x,yt,com.example.one,com.example.two,com.example.three';
 
 /** A chip names a host, the way the preview writes it. */
 const SITE_SCHEME = /^https?:\/\//u;
@@ -315,25 +315,25 @@ function heroHeader(): HTMLElement {
   return header;
 }
 
-/** The hours the show has counted out, stacked under the question. */
-function truthStack(): HTMLElement {
-  const stack = document.querySelector('div[aria-live="polite"]');
-  if (stack === null) {
-    throw new Error('The gate should be followed by one live stack');
-  }
-  return stack as HTMLElement;
-}
-
-/** Every line standing in that stack, in the order they landed. */
-function truthLines(): Array<string> {
-  return Array.from(truthStack().querySelectorAll('p'), (line) => line.textContent ?? '');
-}
-
-/** The line the stack adds up to, which stands on its own under it. */
-function totalLine(): HTMLElement {
-  const line = truthStack().nextElementSibling;
+/** The one sentence the answered hour has coming to it, said under the list. */
+function factLine(): HTMLElement {
+  const line = document.querySelector('p[aria-live="polite"]');
   if (line === null) {
-    throw new Error('The stack should be followed by the line it adds up to');
+    throw new Error('The hour should be named in one live line');
+  }
+  return line as HTMLElement;
+}
+
+/** What that line says, or nothing at all while it is not on the page yet. */
+function factText(): string | null {
+  return document.querySelector('p[aria-live="polite"]')?.textContent ?? null;
+}
+
+/** The line the whole first screen adds up to, the first thing under the question. */
+function totalLine(): HTMLElement {
+  const line = heroHeader().querySelector('h1 ~ p');
+  if (line === null) {
+    throw new Error('The question should be followed by the line it adds up to');
   }
   return line as HTMLElement;
 }
@@ -352,22 +352,20 @@ function totalYears(): HTMLElement {
   return years;
 }
 
-/** The quiet row under the total: what it cost, and how it was worked out. */
+/** The quiet list under the total: what it cost, and how it was worked out. */
 function metricsRow(): HTMLElement {
   const row = totalLine().nextElementSibling;
   if (row === null) {
-    throw new Error('The total should be followed by the row that itemizes it');
+    throw new Error('The total should be followed by the list that itemizes it');
   }
   return row as HTMLElement;
 }
 
-/** The figures on that row, each as the sentence it is said in. The dots
- * between them are punctuation, and the arithmetic at the end is a button. */
+/** The figures on that list, each as the sentence it is said in. The
+ * arithmetic at the end of it is a button, not one of them. */
 function metricItems(): Array<string> {
   return Array.from(metricsRow().children)
-    .filter(
-      (item) => item.getAttribute('aria-hidden') === null && item.querySelector('button') === null,
-    )
+    .filter((item) => item.querySelector('button') === null)
     .map((item) => item.textContent ?? '');
 }
 
@@ -465,23 +463,20 @@ function setReducedMotion(): void {
   });
 }
 
-/** One hour of the show, and the beat it stands for before the next lands. */
-const SHOW_STEP_MS = 2200;
-/** What the last hour holds for on its own before the day is totalled. */
+/** What the question holds for on its own before the day is totalled. */
 const SHOW_TOTAL_MS = 600;
-/** What the total holds for before the row that says what it cost. */
+/** What the total holds for before the list that says what it cost. */
 const SHOW_METRICS_MS = 400;
-/** What that row holds for before the pitch follows it. */
+/** What that list holds for before the hour is named out loud. */
+const SHOW_FACT_MS = 400;
+/** What that line holds for before the pitch follows it. */
 const SHOW_SETTLE_MS = 400;
 
 /**
- * The whole run for one answer, from the first hour to the pitch: the climb,
- * the total, the row under it and the beat before the pitch. Longer than the
- * script needs, so nothing is left mid-beat.
+ * The whole run for one answer, from the question to the pitch. It is the same
+ * length for every day, because there is nothing to climb.
  */
-function wholeShow(hours: number): number {
-  return SHOW_STEP_MS * hours + SHOW_TOTAL_MS + SHOW_METRICS_MS + SHOW_SETTLE_MS;
-}
+const WHOLE_SHOW_MS = SHOW_TOTAL_MS + SHOW_METRICS_MS + SHOW_FACT_MS + SHOW_SETTLE_MS;
 
 async function advance(ms: number): Promise<void> {
   await act(async () => {
@@ -590,21 +585,19 @@ describe('Generator', () => {
     expect(dialTicks()).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']);
   });
 
-  it('names the first two hours normal, and leaves the rail under them grey', async () => {
+  it('names the first two hours normal, and paints the rail from the first', async () => {
     await renderPage();
 
     expect(screen.getByText(m.home_gate_normal())).toBeInTheDocument();
 
     fireEvent.change(dial(), { target: { value: '2' } });
 
-    // Both stops of the coloured segment fall on the end of the zone, so there
-    // is no coloured segment at all: the whole travelled rail is grey.
-    expect(railFill()).toContain(`${railAt(2)} ${railAt(2)}`);
+    // The travelled rail is one segment, and it starts where the rail does.
+    expect(railFill()).toContain(`0 ${railAt(2)}`);
 
     fireEvent.change(dial(), { target: { value: '3' } });
 
-    // The third hour is the first one the rail takes the accent for.
-    expect(railFill()).toContain(`${railAt(2)} ${railAt(3)}`);
+    expect(railFill()).toContain(`0 ${railAt(3)}`);
   });
 
   it('says where the number comes from when the research line is opened', async () => {
@@ -645,12 +638,12 @@ describe('Generator', () => {
 
     fireEvent.click(screen.getByRole('button', { name: m.home_gate_submit() }));
 
-    expect(truthLines()).toEqual([m.home_truth_1()]);
+    // Nothing is on the page until the question has stood for its beat.
+    expect(factText()).toBeNull();
 
-    await advance(wholeShow(12));
+    await advance(WHOLE_SHOW_MS);
 
-    expect(truthLines()).toHaveLength(6);
-    expect(truthLines().at(-1)).toBe(m.home_truth_6());
+    expect(factLine()).toHaveTextContent(m.home_truth_6());
     expect(totalText()).toBe(m.home_total_line({ hours: 6, years: '7.5' }));
     expect(
       screen.getByText(m.home_gate_entered({ hours: 6 }), { exact: false }),
@@ -662,9 +655,9 @@ describe('Generator', () => {
     await renderPage();
 
     answerGate(3);
-    await advance(wholeShow(12));
+    await advance(WHOLE_SHOW_MS);
 
-    expect(truthLines()).toEqual([m.home_truth_1(), m.home_truth_2(), m.home_truth_3()]);
+    expect(factLine()).toHaveTextContent(m.home_truth_3());
     expect(totalText()).toBe(m.home_total_line({ hours: 3, years: '3.8' }));
   });
 
@@ -672,10 +665,9 @@ describe('Generator', () => {
     window.history.replaceState({}, '', '/?h=9');
     await renderPage();
 
-    expect(truthLines()).toHaveLength(9);
-    expect(truthLines().at(-1)).toBe(m.home_truth_9());
+    expect(factLine()).toHaveTextContent(m.home_truth_9());
     expect(totalText()).toBe(m.home_total_line({ hours: 9, years: '11.3' }));
-    expect(metricItems()).toHaveLength(3);
+    expect(metricItems()).toHaveLength(4);
     expect(screen.getByRole('link', { name: m.home_hero_cta() })).toBeInTheDocument();
     // The number is the answer's, and the answer is the gate's alone.
     expect(screen.queryByRole('slider')).not.toBeInTheDocument();
@@ -733,24 +725,20 @@ describe('Generator', () => {
     expect(screen.queryByText(/video coming/i)).not.toBeInTheDocument();
   });
 
-  it('says what is worth keeping about the phone, right after the story', async () => {
+  it('leaves the two essays that followed the story off the page', async () => {
     await renderPage();
 
-    expect(screen.getByText(m.home_useful_1())).toBeInTheDocument();
-    expect(screen.getByText(m.home_useful_2())).toBeInTheDocument();
-    expect(screen.getByText(m.home_useful_3())).toBeInTheDocument();
-    expect(screen.getByText(m.home_consume_1())).toBeInTheDocument();
+    expect(screen.queryByText(/not all of it is useless/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/you become what you consume/i)).not.toBeInTheDocument();
   });
 
-  it('tells the story in one order: why I built it, what is useful, what you become, what changes, how, the deal, proof, build', async () => {
+  it('tells the story in one order: why I built it, what changes, how, the deal, proof, build', async () => {
     await renderPage();
     const headings = screen
       .getAllByRole('heading', { level: 2 })
       .map((heading) => heading.textContent ?? '');
     const landmarks = [
       m.home_story_title(),
-      m.home_useful_title(),
-      m.home_consume_title(),
       m.home_changes_title(),
       m.home_how_title(),
       m.home_deal_label(),
@@ -768,14 +756,14 @@ describe('Generator', () => {
     expect(screen.queryAllByRole('separator')).toHaveLength(0);
   });
 
-  it('totals the day it was answered with, in one line under the stack', async () => {
+  it('totals the day it was answered with, and names the hour under it', async () => {
     await renderAnswered();
 
-    expect(truthLines().at(-1)).toBe(m.home_truth_4());
     expect(totalText()).toBe(m.home_total_line({ hours: 4, years: '5' }));
+    expect(factLine()).toHaveTextContent(m.home_truth_4());
   });
 
-  it('colours the years inside that line, and nothing else on the screen', async () => {
+  it('colours the figures, and none of the words around them', async () => {
     await renderAnswered();
 
     expect(totalYears()).toHaveTextContent('5');
@@ -783,6 +771,10 @@ describe('Generator', () => {
       expect(totalYears()).toHaveClass(name);
       expect(totalLine()).not.toHaveClass(name);
       expect(metricsRow()).not.toHaveClass(name);
+      expect(factLine()).not.toHaveClass(name);
+      for (const figure of metricsRow().querySelectorAll('span > span')) {
+        expect(figure).toHaveClass(name);
+      }
     }
   });
 
@@ -792,27 +784,29 @@ describe('Generator', () => {
     expect(totalText()).toBe(m.home_total_line_one({ years: '1.25' }));
   });
 
-  it('says what that total cost, in three figures under it', async () => {
+  it('says what the same hours would have bought, in four lines under the total', async () => {
     await renderAnswered(6);
 
     expect(metricItems()).toEqual([
-      '5,475 books unread',
-      '$876,000 of unpaid work',
-      '22 years of a full-time job',
+      'You could read 5,475 books.',
+      'You could do 43,800 workouts.',
+      'You could have 21,900 dinners.',
+      'You could earn $876,000 at 20 dollars an hour.',
     ]);
   });
 
-  it('counts a day too short to be a job in the dinners it went through', async () => {
+  it('counts a short day the same four ways as a long one', async () => {
     await renderAnswered(3);
 
     expect(metricItems()).toEqual([
-      '2,738 books unread',
-      '$438,000 of unpaid work',
-      '7,300 dinners missed',
+      'You could read 2,738 books.',
+      'You could do 21,900 workouts.',
+      'You could have 10,950 dinners.',
+      'You could earn $438,000 at 20 dollars an hour.',
     ]);
   });
 
-  it('keeps the arithmetic at the end of that row, and the till off the page', async () => {
+  it('keeps the arithmetic at the end of that list, and the till off the page', async () => {
     await renderAnswered();
 
     expect(
@@ -824,24 +818,19 @@ describe('Generator', () => {
     expect(document.body.textContent).not.toMatch(/▌/u);
   });
 
-  it('stacks one line per hour, up to the hour the answer lands on', async () => {
+  it('says one line, for the hour the answer lands on and no other', async () => {
     await renderAnswered();
 
-    expect(truthLines()).toEqual([
-      m.home_truth_1(),
-      m.home_truth_2(),
-      m.home_truth_3(),
-      m.home_truth_4(),
-    ]);
+    expect(factLine()).toHaveTextContent(m.home_truth_4());
+    expect(screen.queryByText(m.home_truth_3())).not.toBeInTheDocument();
 
     changeAnswer(6);
 
-    expect(truthLines()).toHaveLength(6);
-    expect(truthLines().at(-1)).toBe(m.home_truth_6());
+    expect(factLine()).toHaveTextContent(m.home_truth_6());
 
     changeAnswer(2);
 
-    expect(truthLines()).toEqual([m.home_truth_1(), m.home_truth_2()]);
+    expect(factLine()).toHaveTextContent(m.home_truth_2());
     expect(screen.queryByText(m.home_truth_6())).not.toBeInTheDocument();
   });
 
@@ -851,23 +840,11 @@ describe('Generator', () => {
     changeAnswer(6);
 
     expect(totalText()).toBe(m.home_total_line({ hours: 6, years: '7.5' }));
-    expect(metricItems()[1]).toBe('$876,000 of unpaid work');
+    expect(metricItems()[1]).toBe('You could do 43,800 workouts.');
 
     changeAnswer(12);
 
     expect(totalText()).toBe(m.home_total_line({ hours: 12, years: '15' }));
-  });
-
-  it('trades the last figure for dinners the moment the day stops being a job', async () => {
-    await renderAnswered();
-
-    expect(metricItems().at(-1)).toBe('15 years of a full-time job');
-
-    changeAnswer(3);
-    expect(metricItems().at(-1)).toBe('7,300 dinners missed');
-
-    changeAnswer(5);
-    expect(metricItems().at(-1)).toBe('18 years of a full-time job');
   });
 
   it('folds the arithmetic behind the total into one quiet line', async () => {
@@ -900,28 +877,24 @@ describe('Generator', () => {
     ).toBeInTheDocument();
   });
 
-  it('stacks the hours one under the other, and takes none of them away', async () => {
+  it('holds the answered question on its own until the total lands', async () => {
     vi.useFakeTimers();
     await renderPage();
 
     answerGate(5);
 
-    expect(truthLines()).toEqual([m.home_truth_1()]);
-    // One thing at a time: no total under the stack, no speaker beside it, and
-    // nothing for sale.
-    expect(truthStack().nextElementSibling).toBeNull();
+    // One thing at a time: no total yet, no line under it, no speaker beside
+    // it, and nothing for sale.
+    expect(factText()).toBeNull();
+    expect(heroHeader().querySelector('h1 ~ p')).toBeNull();
     expect(
       screen.queryByRole('button', { name: m.home_math_sound_label() }),
     ).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: m.home_hero_cta() })).not.toBeInTheDocument();
 
-    await advance(SHOW_STEP_MS);
-    expect(truthLines()).toEqual([m.home_truth_1(), m.home_truth_2()]);
+    await advance(SHOW_TOTAL_MS);
 
-    await advance(SHOW_STEP_MS * 3);
-    expect(truthLines()).toHaveLength(5);
-    expect(truthLines().at(-1)).toBe(m.home_truth_5());
-    expect(truthStack().nextElementSibling).toBeNull();
+    expect(totalText()).toBe(m.home_total_line({ hours: 5, years: '6.3' }));
   });
 
   it('gives the hero the whole screen, and reads the total from the top of it', async () => {
@@ -933,7 +906,7 @@ describe('Generator', () => {
     }
 
     answerGate(5);
-    await advance(SHOW_STEP_MS * 4 + SHOW_TOTAL_MS);
+    await advance(SHOW_TOTAL_MS);
 
     // The day is totalled, so the screen stops holding its middle.
     for (const name of [...TALL_CLASSES, ...TOP_CLASSES]) {
@@ -944,25 +917,25 @@ describe('Generator', () => {
     }
   });
 
-  it('totals the stack a beat after the last hour, then itemizes it, then sells', async () => {
+  it('totals the day, then itemizes it, then names the hour, then sells', async () => {
     vi.useFakeTimers();
     await renderPage();
 
     answerGate(5);
-    await advance(SHOW_STEP_MS * 4);
-
-    // The last hour of the climb stands on its own before it is totalled.
-    expect(truthLines()).toHaveLength(5);
-    expect(truthStack().nextElementSibling).toBeNull();
-
     await advance(SHOW_TOTAL_MS);
+
     expect(totalText()).toBe(m.home_total_line({ hours: 5, years: '6.3' }));
     // The total is left alone with the reader for a beat.
     expect(totalLine().nextElementSibling).toBeNull();
 
     await advance(SHOW_METRICS_MS);
-    expect(metricItems()).toHaveLength(3);
-    // Nothing is for sale until the row under the total has landed.
+    expect(metricItems()).toHaveLength(4);
+    // The list is left to read before the hour is named.
+    expect(factText()).toBeNull();
+
+    await advance(SHOW_FACT_MS);
+    expect(factLine()).toHaveTextContent(m.home_truth_5());
+    // Nothing is for sale until the whole bill has landed.
     expect(screen.queryByRole('link', { name: m.home_hero_cta() })).not.toBeInTheDocument();
 
     await advance(SHOW_SETTLE_MS);
@@ -993,11 +966,11 @@ describe('Generator', () => {
 
     // Not even once the day is totalled and priced: the way back opens with
     // the pitch, and not a beat before it.
-    await advance(SHOW_STEP_MS * 4 + SHOW_TOTAL_MS + SHOW_METRICS_MS);
+    await advance(SHOW_TOTAL_MS + SHOW_METRICS_MS + SHOW_FACT_MS);
 
     expect(screen.queryByRole('button', { name: m.home_gate_change() })).not.toBeInTheDocument();
 
-    await advance(wholeShow(5));
+    await advance(SHOW_SETTLE_MS);
 
     expect(screen.getByRole('button', { name: m.home_gate_change() })).toBeInTheDocument();
   });
@@ -1007,23 +980,24 @@ describe('Generator', () => {
     await renderPage();
 
     answerGate(5);
-    await advance(wholeShow(5));
+    await advance(WHOLE_SHOW_MS);
 
-    expect(truthLines().at(-1)).toBe(m.home_truth_5());
+    expect(factLine()).toHaveTextContent(m.home_truth_5());
     expect(totalText()).toBe(m.home_total_line({ hours: 5, years: '6.3' }));
     expect(
       screen.getByText(m.home_gate_entered({ hours: 5 }), { exact: false }),
     ).toBeInTheDocument();
   });
 
-  it('gives the shortest day one line and nothing to climb', async () => {
+  it('prices the shortest day the same way as the longest', async () => {
     vi.useFakeTimers();
     await renderPage();
 
     answerGate(1);
-    expect(truthLines()).toEqual([m.home_truth_1()]);
+    await advance(WHOLE_SHOW_MS);
 
-    await advance(wholeShow(1));
+    expect(totalText()).toBe(m.home_total_line_one({ years: '1.25' }));
+    expect(factLine()).toHaveTextContent(m.home_truth_1());
     expect(screen.getByRole('link', { name: m.home_hero_cta() })).toBeInTheDocument();
   });
 
@@ -1033,10 +1007,9 @@ describe('Generator', () => {
 
     answerGate(5);
 
-    expect(truthLines()).toHaveLength(5);
-    expect(truthLines().at(-1)).toBe(m.home_truth_5());
+    expect(factLine()).toHaveTextContent(m.home_truth_5());
     expect(totalText()).toBe(m.home_total_line({ hours: 5, years: '6.3' }));
-    expect(metricItems()).toHaveLength(3);
+    expect(metricItems()).toHaveLength(4);
     expect(screen.getByRole('link', { name: m.home_hero_cta() })).toBeInTheDocument();
   });
 
@@ -1045,12 +1018,12 @@ describe('Generator', () => {
     window.history.replaceState({}, '', '/?h=9');
     await renderPage();
 
-    expect(truthLines()).toHaveLength(9);
+    expect(factLine()).toHaveTextContent(m.home_truth_9());
     expect(screen.getByRole('link', { name: m.home_hero_cta() })).toBeInTheDocument();
 
-    await advance(SHOW_STEP_MS * 12);
+    await advance(WHOLE_SHOW_MS);
 
-    expect(truthLines()).toHaveLength(9);
+    expect(factLine()).toHaveTextContent(m.home_truth_9());
   });
 
   it('rounds a link written in minutes onto the hour it prices', async () => {
@@ -1060,19 +1033,18 @@ describe('Generator', () => {
     expect(totalText()).toBe(m.home_total_line({ hours: 6, years: '7.5' }));
   });
 
-  it('restacks the day instantly when the gate is answered again', async () => {
+  it('reprices the day instantly when the gate is answered again', async () => {
     vi.useFakeTimers();
     await renderAnswered(5);
 
     changeAnswer(9);
 
-    expect(truthLines()).toHaveLength(9);
-    expect(truthLines().at(-1)).toBe(m.home_truth_9());
+    expect(factLine()).toHaveTextContent(m.home_truth_9());
     expect(totalText()).toBe(m.home_total_line({ hours: 9, years: '11.3' }));
 
-    await advance(SHOW_STEP_MS * 12);
+    await advance(WHOLE_SHOW_MS);
 
-    expect(truthLines()).toHaveLength(9);
+    expect(factLine()).toHaveTextContent(m.home_truth_9());
   });
 
   it('turns the clicks the show counts out off from the speaker', async () => {
@@ -1780,7 +1752,7 @@ describe('Generator', () => {
     await userEvent.click(within(friend).getByRole('button', { name: m.share_copy() }));
 
     expect(writeText).toHaveBeenCalledWith(
-      `${SITE_URL}/friend?h=6&a=ig,th,tt,sc,yt,rd,fb,nf,tw,li,pi,pv,x&n=Mert`,
+      `${SITE_URL}/friend?h=6&a=tt,yt,ig,x,fb,sc,rd,pi,th,li&n=Mert`,
     );
     // The card's own share is the one above it, and it is untouched.
     expect(
@@ -1836,7 +1808,7 @@ describe('Generator', () => {
 
     await renderPage();
 
-    expect(truthLines().at(-1)).toBe(m.home_truth_6());
+    expect(factLine()).toHaveTextContent(m.home_truth_6());
     expect(totalText()).toBe(m.home_total_line({ hours: 6, years: '7.5' }));
     expect(screen.getAllByRole('button', { name: m.gen_app_remove() })).toHaveLength(2);
     expect(screen.getByText('Instagram')).toBeInTheDocument();

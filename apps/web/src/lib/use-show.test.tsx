@@ -13,32 +13,31 @@ function stubMotion(reduce: boolean): void {
   }));
 }
 
-/** A page with one answer in it, and the show that counts it out. */
+/** A page with one answer in it, and the show that reveals it. */
 function Hero({
   answer,
   onArrive,
+  onFact,
   onMetrics,
   onSettle,
-  onStep,
 }: {
   answer: Entered;
   onArrive: (entered: Entered, shown: boolean) => void;
+  onFact?: (hours: number) => void;
   onMetrics?: () => void;
   onSettle?: () => void;
-  onStep: (hours: number, total: number) => void;
 }) {
-  const { running, start } = useShow({
+  const { start } = useShow({
     onArrive,
+    onFact: onFact ?? (() => {}),
     onMetrics: onMetrics ?? (() => {}),
     onSettle: onSettle ?? (() => {}),
-    onStep,
   });
   return (
     <section>
       <button onClick={() => start(answer)} type="button">
         show me
       </button>
-      <p>{running ? 'running' : 'idle'}</p>
     </section>
   );
 }
@@ -53,142 +52,116 @@ function advance(ms: number): void {
   });
 }
 
-function state(): string {
-  return screen.getByText(/running|idle/).textContent ?? '';
-}
-
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
 describe('useShow', () => {
-  it('prints one hour at a time up to the answer, then lands on it', () => {
-    stubMotion(false);
-    vi.useFakeTimers();
-    const steps = vi.fn<(hours: number, total: number) => void>();
-    const arrived = vi.fn<(entered: Entered, shown: boolean) => void>();
-    render(<Hero answer={{ hours: 5 }} onArrive={arrived} onStep={steps} />);
-
-    submit();
-
-    expect(steps.mock.calls).toEqual([[1, 5]]);
-    expect(state()).toBe('running');
-
-    advance(2200);
-    expect(steps.mock.calls.at(-1)).toEqual([2, 5]);
-
-    advance(2200 * 3);
-    expect(steps.mock.calls.map(([hours]) => hours)).toEqual([1, 2, 3, 4, 5]);
-    expect(arrived).not.toHaveBeenCalled();
-
-    advance(600);
-    expect(arrived).toHaveBeenCalledWith({ hours: 5 }, true);
-    expect(state()).toBe('idle');
-  });
-
-  it('leaves the last hour standing for a beat before it is totalled', () => {
+  it('leaves the question standing for a beat before the day is totalled', () => {
     stubMotion(false);
     vi.useFakeTimers();
     const arrived = vi.fn<(entered: Entered, shown: boolean) => void>();
-    render(<Hero answer={{ hours: 2 }} onArrive={arrived} onStep={() => {}} />);
+    render(<Hero answer={{ hours: 5 }} onArrive={arrived} />);
 
     submit();
-    advance(2200 + 599);
+    advance(599);
 
     expect(arrived).not.toHaveBeenCalled();
 
     advance(1);
-    expect(arrived).toHaveBeenCalledTimes(1);
+    expect(arrived).toHaveBeenCalledWith({ hours: 5 }, true);
   });
 
-  it('itemizes the total a beat after it, and sells a beat after that', () => {
+  it('itemizes the total, then names the hour, then sells, a beat apart', () => {
     stubMotion(false);
     vi.useFakeTimers();
     const itemized = vi.fn<() => void>();
+    const said = vi.fn<(hours: number) => void>();
     const settled = vi.fn<() => void>();
     render(
       <Hero
-        answer={{ hours: 1 }}
+        answer={{ hours: 5 }}
         onArrive={() => {}}
+        onFact={said}
         onMetrics={itemized}
         onSettle={settled}
-        onStep={() => {}}
       />,
     );
 
     submit();
-    // The climb, and the beat the last hour holds before the total.
+    // The beat the question holds before it is answered.
     advance(600);
     expect(itemized).not.toHaveBeenCalled();
 
     advance(400);
     expect(itemized).toHaveBeenCalledTimes(1);
+    expect(said).not.toHaveBeenCalled();
+
+    advance(400);
+    expect(said).toHaveBeenCalledWith(5);
     expect(settled).not.toHaveBeenCalled();
 
     advance(400);
     expect(settled).toHaveBeenCalledTimes(1);
 
     // The script ends on the pitch: nothing fires after it.
-    advance(2200 * 4);
+    advance(4000);
     expect(itemized).toHaveBeenCalledTimes(1);
+    expect(said).toHaveBeenCalledTimes(1);
     expect(settled).toHaveBeenCalledTimes(1);
   });
 
-  it('gives a day under an hour a single beat', () => {
+  it('gives a day under an hour the one line it has', () => {
     stubMotion(false);
     vi.useFakeTimers();
-    const steps = vi.fn<(hours: number, total: number) => void>();
+    const said = vi.fn<(hours: number) => void>();
     const arrived = vi.fn<(entered: Entered, shown: boolean) => void>();
-    render(<Hero answer={{ hours: 0 }} onArrive={arrived} onStep={steps} />);
+    render(<Hero answer={{ hours: 0 }} onArrive={arrived} onFact={said} />);
 
     submit();
-    advance(600);
+    advance(600 + 400 + 400);
 
-    expect(steps.mock.calls).toEqual([[1, 1]]);
+    expect(said).toHaveBeenCalledWith(1);
     expect(arrived).toHaveBeenCalledWith({ hours: 0 }, true);
   });
 
   it('runs nothing at all for a reader who asked for less motion', () => {
     stubMotion(true);
     vi.useFakeTimers();
-    const steps = vi.fn<(hours: number, total: number) => void>();
     const arrived = vi.fn<(entered: Entered, shown: boolean) => void>();
     const itemized = vi.fn<() => void>();
+    const said = vi.fn<(hours: number) => void>();
     const settled = vi.fn<() => void>();
     render(
       <Hero
         answer={{ hours: 7 }}
         onArrive={arrived}
+        onFact={said}
         onMetrics={itemized}
         onSettle={settled}
-        onStep={steps}
       />,
     );
 
     submit();
-    advance(2200 * 12);
 
-    expect(steps).not.toHaveBeenCalled();
     expect(arrived).toHaveBeenCalledWith({ hours: 7 }, false);
     expect(itemized).toHaveBeenCalledTimes(1);
+    expect(said).toHaveBeenCalledWith(7);
     expect(settled).toHaveBeenCalledTimes(1);
-    expect(state()).toBe('idle');
   });
 
   it('stops where it is when the page goes', () => {
     stubMotion(false);
     vi.useFakeTimers();
-    const steps = vi.fn<(hours: number, total: number) => void>();
     const arrived = vi.fn<(entered: Entered, shown: boolean) => void>();
-    const view = render(<Hero answer={{ hours: 9 }} onArrive={arrived} onStep={steps} />);
+    const view = render(<Hero answer={{ hours: 9 }} onArrive={arrived} />);
 
     submit();
-    advance(2200);
+    advance(400);
     view.unmount();
-    advance(2200 * 12);
+    advance(4000);
 
-    expect(steps.mock.calls.map(([hours]) => hours)).toEqual([1, 2]);
     expect(arrived).not.toHaveBeenCalled();
   });
 
@@ -198,19 +171,13 @@ describe('useShow', () => {
     const itemized = vi.fn<() => void>();
     const settled = vi.fn<() => void>();
     const view = render(
-      <Hero
-        answer={{ hours: 1 }}
-        onArrive={() => {}}
-        onMetrics={itemized}
-        onSettle={settled}
-        onStep={() => {}}
-      />,
+      <Hero answer={{ hours: 1 }} onArrive={() => {}} onMetrics={itemized} onSettle={settled} />,
     );
 
     submit();
     advance(600 + 400);
     view.unmount();
-    advance(400);
+    advance(400 + 400);
 
     expect(itemized).toHaveBeenCalledTimes(1);
     expect(settled).not.toHaveBeenCalled();

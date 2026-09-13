@@ -20,7 +20,7 @@ import { colors, font, palette, radius, spacing } from '@attentionawareness/ui/t
 import { create, firstThatWorks, keyframes, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
-import { Fragment, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { AppArtwork, artworkStyles } from '../components/app-artwork.tsx';
@@ -174,13 +174,12 @@ const HOURS_STEP = 1;
 const HOURS_DEFAULT = 6;
 /**
  * The last hour the page calls normal: a phone doing its job. Up to it the
- * rail stays grey and the climb only ticks; past it the rail takes the accent
- * and the show starts escalating, because that is where the argument starts.
+ * hour only ticks; past it the show starts escalating, because that is where
+ * the argument starts.
  */
 const NORMAL_HOURS = 2;
-/** How far along the rail that zone reaches, and where its label is centred. */
-const NORMAL_AT = (NORMAL_HOURS - HOURS_MIN) / (HOURS_MAX - HOURS_MIN);
-const NORMAL_MIDDLE = NORMAL_AT / 2;
+/** Where the label for that zone is centred: the middle of the hours it names. */
+const NORMAL_MIDDLE = (NORMAL_HOURS - HOURS_MIN) / (HOURS_MAX - HOURS_MIN) / 2;
 const REVIEWS_URL = 'https://www.reviews.org/internet-service/internet-screen-time-statistics';
 const DATAREPORTAL_URL = 'https://datareportal.com/global-digital-overview';
 /** The machined knob, and the rail the ticks are measured against. */
@@ -249,8 +248,8 @@ const helpEnter = keyframes({
 });
 
 /**
- * The line and the total arriving: they are not on the page until the question
- * is answered, and they come in together when it is.
+ * Each beat of the answer arriving: nothing is on the page until the question
+ * is answered, and every beat comes in the same way after it.
  */
 const revealEnter = keyframes({
   from: { opacity: 0, transform: 'translateY(6px)' },
@@ -265,12 +264,6 @@ const revealEnter = keyframes({
 const totalPulse = keyframes({
   from: { scale: 1 },
   to: { scale: 1.04 },
-});
-
-/** Each hour has its own line, and the line rises into place under the last. */
-const truthEnter = keyframes({
-  from: { opacity: 0, transform: 'translateY(8px)' },
-  to: { opacity: 1, transform: 'translateY(0)' },
 });
 
 /** The results drop in from just under the bar; they never animate out. */
@@ -1078,28 +1071,26 @@ const styles = create({
     margin: 0,
     textWrap: 'pretty',
   },
-  // One thing the total cost. It holds its own line rather than breaking in
-  // the middle of a figure.
+  // One thing the same hours would have bought, on a line of its own.
   metric: {
-    whiteSpace: 'nowrap',
+    textWrap: 'pretty',
   },
-  // What the total cost, as three figures on one quiet line. No box and no
-  // rules: it is a footnote to the line above it, and it arrives as one thing.
+  // What the total cost, as four things the reader could have had instead,
+  // one under the other. No box and no rules: it is a footnote to the line
+  // above it, and it arrives as one thing.
   metrics: {
-    alignItems: 'baseline',
     color: colors.muted,
-    columnGap: spacing.s2,
     display: 'flex',
-    flexWrap: 'wrap',
+    flexDirection: 'column',
     fontSize: font.sizeSm,
+    gap: spacing.s1,
     lineHeight: 1.6,
     maxWidth: HERO_MEASURE,
-    rowGap: spacing.s1,
   },
-  // The figure inside one of those sentences, in the till's face and the
-  // page's own colour: the accent belongs to the total alone.
+  // The figure inside one of those sentences, in the same accent the years
+  // are in: the figures are the argument, and the words around them are not.
   metricValue: {
-    color: colors.fg,
+    color: accent.base,
     fontFamily: MONOSPACE,
     fontVariantNumeric: 'tabular-nums',
   },
@@ -1189,8 +1180,9 @@ const styles = create({
     width: '100%',
     zIndex: 10,
   },
-  // What the answer buys, arriving: the lines, the total, and later the pitch.
-  // One fade for all of them, so they read as one arrival.
+  // What the answer buys, arriving: the total, the list under it, the line
+  // under that and the pitch. One fade for all of them, so every beat reads
+  // the same way.
   reveal: {
     animationDuration: {
       '@media (prefers-reduced-motion: reduce)': '0ms',
@@ -1470,17 +1462,15 @@ const styles = create({
     padding: 0,
     width: '100%',
   },
-  // The travelled part of the rail, so the dial reads its own setting, in two
-  // segments: the hours the page calls normal stay grey, and only the hours
-  // past them take the accent. The last stop always falls under the knob,
-  // which is what hides the seam; the first falls on the end of the zone, and
-  // is nothing at all until the dial is turned past it.
-  sliderFill: (percent: number, normal: number) => ({
+  // The travelled part of the rail, so the dial reads its own setting. Every
+  // hour of it is the accent, from the first: the day is the day. The stop
+  // always falls under the knob, which is what hides the seam.
+  sliderFill: (percent: number) => ({
     '::-moz-range-track': {
-      backgroundImage: `linear-gradient(to right, ${colors.muted} 0 ${normal}%, ${accent.base} ${normal}% ${percent}%, ${colors.border} ${percent}% 100%)`,
+      backgroundImage: `linear-gradient(to right, ${accent.base} 0 ${percent}%, ${colors.border} ${percent}% 100%)`,
     },
     '::-webkit-slider-runnable-track': {
-      backgroundImage: `linear-gradient(to right, ${colors.muted} 0 ${normal}%, ${accent.base} ${normal}% ${percent}%, ${colors.border} ${percent}% 100%)`,
+      backgroundImage: `linear-gradient(to right, ${accent.base} 0 ${percent}%, ${colors.border} ${percent}% 100%)`,
     },
   }),
   sliderLabel: {
@@ -1734,33 +1724,16 @@ const styles = create({
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
   },
-  // One hour arriving, rising the last few pixels into place under the hour
-  // before it. Only the hours the show itself lands are animated.
-  truth: {
-    animationDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: '300ms',
-    },
-    animationName: truthEnter,
-    animationTimingFunction: 'ease-out',
-  },
-  // One hour of the day, said once and then left standing. Nothing in it is
-  // coloured: the sentence is the blow, and it lands on its own.
+  // The one thing the hour has coming to it, said last and then left standing.
+  // Nothing in it is coloured: the sentence is the blow, and it lands on its
+  // own.
   truthLine: {
     fontSize: font.sizeLg,
     fontWeight: font.weightMedium,
     lineHeight: 1.4,
     margin: 0,
-    textWrap: 'pretty',
-  },
-  // Every hour the show has counted out, in the order it counted them. Nothing
-  // is ever taken off it: the stack is the day, growing.
-  truthStack: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s3,
-    margin: 0,
     maxWidth: HERO_MEASURE,
+    textWrap: 'pretty',
   },
 });
 
@@ -2224,11 +2197,9 @@ function ScreenTimeGate({
   const [hours, setHours] = useState(entered === null ? HOURS_DEFAULT : entered.hours);
   // The dial starts at one, so the readout needs the singular of its own word.
   const reading = hours === 1 ? m.home_gate_reading_one() : m.home_gate_reading({ hours });
-  // How far along the rail the dial has been turned, and how much of that is
-  // still the normal zone: inside it the two are the same, so the rail takes
-  // no accent at all until the dial is turned past the zone.
+  // How far along the rail the dial has been turned, which is all of the rail
+  // the accent covers: the first hour of the day counts like the twelfth.
   const travelled = ((hours - HOURS_MIN) / (HOURS_MAX - HOURS_MIN)) * 100;
-  const normal = Math.min(travelled, NORMAL_AT * 100);
 
   function onHoursChange(value: number) {
     // One metallic detent per whole hour of travel.
@@ -2271,7 +2242,7 @@ function ScreenTimeGate({
               step={HOURS_STEP}
               type="range"
               value={hours}
-              {...props(styles.slider, styles.sliderFill(travelled, normal))}
+              {...props(styles.slider, styles.sliderFill(travelled))}
             />
           </Label>
           {/* The detents, drawn where the knob lands on each of them, and the
@@ -2778,20 +2749,21 @@ function Generator() {
   const isMobile = useIsMobile();
   // Safari is the only browser that can go from the download to Settings.
   const isSafari = useIsSafari();
-  // What the reader tells the hero their day holds, in whole hours. While the
-  // show is running it is also how many of them have landed, because the stack
-  // is one line per hour up to this one.
+  // What the reader tells the hero their day holds, in whole hours. It is the
+  // answer from the moment it is given: the screen is a reveal, not a climb.
   const [hours, setHours] = useState(HOURS_DEFAULT);
   // The answer as it was given, which is what the small line over the total
   // quotes back and what the gate holds when it is reopened.
   const [entered, setEntered] = useState<Entered | null>(null);
-  // The five states of the first screen, in the order the reader meets them:
-  // the question alone, the day being counted out, the total it comes to, what
-  // that total cost, and the way on under all of it.
+  // The six states of the first screen, in the order the reader meets them:
+  // the question alone, the answer given, the total it comes to, what the same
+  // hours would have bought, what that hour has coming to it, and the way on
+  // under all of it.
   const [gateOpen, setGateOpen] = useState(true);
   const [revealed, setRevealed] = useState(false);
   const [arrived, setArrived] = useState(false);
   const [itemized, setItemized] = useState(false);
+  const [facted, setFacted] = useState(false);
   const [settled, setSettled] = useState(false);
   // Whether the till rang this total, which is the one thing on the page that
   // moves. A shared link, a reader who asked for less motion, and every answer
@@ -2848,6 +2820,10 @@ function Generator() {
   const storefrontMenu = useRef<HTMLDivElement>(null);
   // The dialog opens itself once. After that the reader asks for it.
   const sharePrompted = useRef(false);
+  // Whether the run that is landing was watched. The fact line is the beat
+  // after the total, so it has to know what the total already knew: a reader
+  // who asked for less motion gets the whole screen at once, and in silence.
+  const watched = useRef(false);
 
   const effectiveConfig = useMemo(
     () => withDerivedSites(config, customSites, excludedSites, removedSites, excludedEntries),
@@ -2910,36 +2886,34 @@ function Generator() {
     );
   }, [storefrontQuery]);
 
-  // The day being counted out an hour at a time, and then totalled, against
-  // the answer the reader just gave. Nothing on the page can skip it: it is
-  // the one thing the reader came for.
-  const { running: showRunning, start: startShow } = useShow({
-    onArrive: (answer, shown) => {
-      // A reader who asked for less motion never climbed to the answer, so the
-      // stack is only whole here; the climb has already landed on it.
-      setHours(clampHours(answer.hours));
+  // The answer the reader just gave, totalled, itemized and then named, one
+  // beat at a time. Nothing on the page can skip it: it is the one thing the
+  // reader came for.
+  const { start: startShow } = useShow({
+    onArrive: (_answer, shown) => {
       setArrived(true);
       // Less motion is the whole screen at once, and no till.
+      watched.current = shown;
       setRung(shown);
       if (shown && tickAllowed(sound, soundChosen)) {
         playCheckout();
       }
     },
-    onMetrics: () => setItemized(true),
-    onSettle: () => setSettled(true),
-    onStep: (value, total) => {
-      setHours(value);
-      if (!tickAllowed(sound, soundChosen)) {
+    onFact: (value) => {
+      setFacted(true);
+      if (!watched.current || !tickAllowed(sound, soundChosen)) {
         return;
       }
-      // The normal hours only tick, the way the dial itself does. The climb
-      // starts escalating at the hour the page starts arguing.
+      // A normal hour only ticks, the way the dial itself does. Past it the
+      // hit is pitched by the hour, against the longest day the page prices.
       if (value <= NORMAL_HOURS) {
         playTick();
         return;
       }
-      playStep(value, total);
+      playStep(value, HOURS_MAX);
     },
+    onMetrics: () => setItemized(true),
+    onSettle: () => setSettled(true),
   });
 
   // The address bar and navigator exist only in the browser: reading either
@@ -2963,6 +2937,7 @@ function Generator() {
       setRevealed(true);
       setArrived(true);
       setItemized(true);
+      setFacted(true);
       setSettled(true);
       setFriendYears(formatYears(shared.hours));
     }
@@ -3112,10 +3087,12 @@ function Generator() {
     unlockTickSound();
     setEntered(answer);
     setGateOpen(false);
+    // The total says the answer the moment it lands, so there is no climb to
+    // carry the hours: they are the reader's as soon as they are given.
+    setHours(clampHours(answer.hours));
     if (revealed) {
-      // The show is a first impression: a correction restacks the day and
-      // retotals it whole, because the reader has watched one already.
-      setHours(clampHours(answer.hours));
+      // The show is a first impression: a correction retotals the day whole,
+      // because the reader has watched one already.
       setRung(false);
       return;
     }
@@ -3477,11 +3454,9 @@ function Generator() {
   // Settings, so the download asks for no acknowledgement.
   const trial = !config.lockRemoval;
 
-  // The hours the stack has said so far: one sentence per whole hour, up to
-  // the one the answer landed on, which is also the day the total prices.
+  // The day the screen prices, and the hour it has one sentence for.
   const wholeHours = clampHours(hours);
   const locale = getLocale();
-  const stacked = Array.from({ length: wholeHours }, (_, index) => index + 1);
   // The line the whole screen adds up to, cut in two on the years inside it,
   // because the years are the one figure on the first screen in the accent.
   const years = wholeHours === 1 ? ONE_HOUR_YEARS : formatYears(wholeHours);
@@ -3490,7 +3465,8 @@ function Generator() {
       ? m.home_total_line_one({ years: LINK_SLOT })
       : m.home_total_line({ hours: wholeHours, years: LINK_SLOT })
   ).split(LINK_SLOT);
-  // What that total cost, in three things the reader can picture.
+  // What the same hours would have bought, in four things the reader can
+  // picture.
   const metrics = heroMetrics(wholeHours, locale);
   // The post the story links out to, in the middle of the sentence that tells
   // it, so the words around it keep their own order in every language.
@@ -3597,21 +3573,6 @@ function Generator() {
             sound={tickAllowed(sound, soundChosen)}
           />
         ) : null}
-        {revealed ? (
-          /* One sentence per hour of the day, each landing under the last and
-          none of them taken away again: the stack is the day, growing, and the
-          whole sentence is the blow. Nothing in it is coloured, and nothing is
-          a figure the reader has to read off a control. The live region stays
-          put so every hour that lands in it is announced; only the hours the
-          show itself counted out are the ones that rise into place. */
-          <div aria-live="polite" {...props(styles.truthStack, styles.reveal)}>
-            {stacked.map((step) => (
-              <p key={step} {...props(styles.truthLine, showRunning && styles.truth)}>
-                {homeTruth(step, locale)}
-              </p>
-            ))}
-          </div>
-        ) : null}
         {arrived ? (
           <>
             {/* The line the whole screen was counting towards, and the one
@@ -3622,27 +3583,32 @@ function Generator() {
               <span {...props(styles.totalYears, rung && styles.totalRing)}>{years}</span>
               {totalAfter}
             </p>
-            {/* What that total cost, a beat behind it: three figures on one
-            quiet line, with the arithmetic behind them at the end of it. The
-            dots are punctuation, so nothing reads them out. */}
+            {/* What the same hours would have bought, a beat behind the
+            total: four things the reader could have had, one under the other,
+            with the arithmetic behind them at the end of the list. */}
             {itemized ? (
               <div {...props(styles.metrics, styles.reveal)}>
-                {metrics.map((item, index) => (
-                  <Fragment key={item.key}>
-                    {index === 0 ? null : <span aria-hidden="true">·</span>}
-                    <span {...props(styles.metric)}>
-                      {item.before}
-                      <span {...props(styles.metricValue)}>{item.value}</span>
-                      {item.after}
-                    </span>
-                  </Fragment>
+                {metrics.map((item) => (
+                  <span key={item.key} {...props(styles.metric)}>
+                    {item.before}
+                    <span {...props(styles.metricValue)}>{item.value}</span>
+                    {item.after}
+                  </span>
                 ))}
                 <AssumptionsNote />
               </div>
             ) : null}
+            {/* The one thing that hour has coming to it, a beat behind the
+            list. Nothing in it is coloured and nothing in it is a figure: the
+            whole sentence is the blow, and it lands on its own. */}
+            {facted ? (
+              <p aria-live="polite" {...props(styles.truthLine, styles.reveal)}>
+                {homeTruth(wholeHours, locale)}
+              </p>
+            ) : null}
             {/* What the total is for, and the two ways on from it. It arrives a
-            beat after the row: there is nothing to sell until the day has been
-            added up and priced. The speaker follows it, quieter still. */}
+            beat after the line: there is nothing to sell until the day has been
+            added up, priced and named. The speaker follows it, quieter still. */}
             {settled ? (
               <div {...props(styles.heroPitch, styles.reveal)}>
                 <p {...props(styles.heroProduct)}>{m.home_hero_product()}</p>
@@ -3706,28 +3672,6 @@ function Generator() {
             <p {...props(styles.storyLine)}>{m.home_story_4()}</p>
             <p {...props(styles.storyLine)}>{m.home_story_5()}</p>
             <p {...props(styles.storySign)}>{m.home_story_sign()}</p>
-          </div>
-        </section>
-
-        {/* The other half of the story: the phone is not the enemy, the feed
-        is. It follows the story because it is the same voice answering the
-        first objection the story raises. */}
-        <section {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_useful_title()}</h2>
-          <div {...props(styles.story)}>
-            <p {...props(styles.storyLine)}>{m.home_useful_1()}</p>
-            <p {...props(styles.storyLine)}>{m.home_useful_2()}</p>
-            <p {...props(styles.storyLine)}>{m.home_useful_3()}</p>
-          </div>
-        </section>
-
-        {/* What the hours do, rather than what they cost. It follows the half
-        of the story that keeps the phone, because it is the reason the feeds
-        are the part that goes. */}
-        <section {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_consume_title()}</h2>
-          <div {...props(styles.story)}>
-            <p {...props(styles.storyLine)}>{m.home_consume_1()}</p>
           </div>
         </section>
 

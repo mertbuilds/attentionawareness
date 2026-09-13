@@ -10,16 +10,12 @@ const DAYS_PER_YEAR = 365;
 const HOURS_ROUNDING = 100;
 /** How long one book takes to read: 90,000 words at 238 a minute, with the pauses. */
 const HOURS_PER_BOOK = 8;
-/** A year of full-time work: 40 hours a week, fifty weeks of them. */
-const HOURS_PER_JOB_YEAR = 2000;
+/** One session in the gym, changed and showered. */
+const HOURS_PER_WORKOUT = 1;
+/** One dinner with people, sat down rather than eaten standing up. */
+const HOURS_PER_DINNER = 2;
 /** What the hours the reader gave away would have been paid at. */
 const DOLLARS_PER_HOUR = 20;
-/**
- * The day from which the hours come to whole years of work. A shorter day is
- * counted in the dinners it went through instead, because a fraction of a job
- * is not a thing anybody can picture.
- */
-const JOB_MIN_HOURS = 4;
 /**
  * Where the figure stands inside its own sentence. The message is written with
  * the number as a placeholder and split on it, so the row can set the number
@@ -38,8 +34,9 @@ export const HORIZON_YEARS = 20;
 export const AVERAGE_DAY = { hours: 4, minutes: 5 };
 
 /**
- * One line for every whole hour the page can be answered with. Each hour is
- * worse than the one under it, so each line is.
+ * The one extra sentence the page says at every whole hour it can be answered
+ * with, on top of the total. Each hour is worse than the one under it, so each
+ * sentence is.
  */
 const TRUTHS = [
   m.home_truth_1,
@@ -57,8 +54,8 @@ const TRUTHS = [
 ];
 
 /**
- * One item of the quiet row under the total: the sentence it is said in, and
- * the figure standing inside it, which the row sets apart from the words.
+ * One line of the quiet list under the total: the sentence it is said in, and
+ * the figure standing inside it, which the list sets apart from the words.
  */
 export type HeroMetric = { after: string; before: string; key: string; value: string };
 
@@ -86,19 +83,19 @@ export function screenHours(hoursPerDay: number): number {
 }
 
 /**
- * What the page says out loud at the hour it is on: the arithmetic first, then
- * what it means. An hour the page cannot reach has nothing to say.
+ * The one extra sentence for the hour the page is on, said under the total
+ * that already priced it. An hour the page cannot reach has nothing to say.
  */
 export function homeTruth(hoursPerDay: number, locale: Locale): string {
   return TRUTHS[hoursPerDay - 1]?.({}, { locale }) ?? '';
 }
 
 /**
- * What the total cost, in three things a reader can picture: the books they
- * did not read, what the hours would have been paid, and the years of
- * full-time work they add up to. A day too short to be a job is counted in the
- * dinners it went through instead. The numbers are grouped for the reader's
- * locale, and so are the words around them.
+ * What the same hours would have bought instead, in four things a reader can
+ * picture: the books, the workouts, the dinners with people, and what the
+ * hours would have been paid. Every day of every length is counted the same
+ * four ways. The numbers are grouped for the reader's locale, and so are the
+ * words around them.
  */
 export function heroMetrics(hoursPerDay: number, locale: Locale): Array<HeroMetric> {
   const format: Format = (value) => new Intl.NumberFormat(locale).format(Math.round(value));
@@ -110,22 +107,21 @@ export function heroMetrics(hoursPerDay: number, locale: Locale): Array<HeroMetr
       format(hours / HOURS_PER_BOOK),
     ),
     metric(
+      'workouts',
+      m.home_metrics_workouts({ n: VALUE_SLOT }, { locale }),
+      format(hours / HOURS_PER_WORKOUT),
+    ),
+    metric(
+      'dinners',
+      m.home_metrics_dinners({ n: VALUE_SLOT }, { locale }),
+      format(hours / HOURS_PER_DINNER),
+    ),
+    metric(
       'money',
       m.home_metrics_money({ amount: VALUE_SLOT }, { locale }),
       // One dollar sign in both locales: the reader is not being invoiced.
       `$${format(hours * DOLLARS_PER_HOUR)}`,
     ),
-    hoursPerDay >= JOB_MIN_HOURS
-      ? metric(
-          'job',
-          m.home_metrics_job({ years: VALUE_SLOT }, { locale }),
-          format(hours / HOURS_PER_JOB_YEAR),
-        )
-      : metric(
-          'dinners',
-          m.home_metrics_dinners({ n: VALUE_SLOT }, { locale }),
-          format(HORIZON_YEARS * DAYS_PER_YEAR),
-        ),
   ];
 }
 

@@ -286,7 +286,7 @@ describe('buildProfile', () => {
 describe('presets', () => {
   it('builds the mert preset with every blocked bundle id', () => {
     const xml = buildProfile(presets.mert);
-    expect(presets.mert.blockedApps).toHaveLength(13);
+    expect(presets.mert.blockedApps).toHaveLength(10);
     for (const app of presets.mert.blockedApps) {
       expect(xml).toContain(`<string>${app.bundleId}</string>`);
     }
