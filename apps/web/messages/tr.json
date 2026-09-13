@@ -32,7 +32,7 @@
   "home_receipt_order_label": "Siparişin, önümüzdeki {years} yıl",
   "home_receipt_dopamine_label": "Ucuz dopamin",
   "home_receipt_per_day": "S/GÜN",
-  "home_receipt_total_note": "önümüzdeki {years} yılın",
+  "home_receipt_total_note": "önümüzdeki {years} yılından",
   "home_receipt_store": "ATTENTION AWARENESS",
   "home_receipt_store_url": "attentionawareness.com",
   "home_receipt_no": "Fiş no. {number}",
