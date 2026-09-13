@@ -11,7 +11,7 @@
   "home_gate_reading": "{hours} saat",
   "home_gate_reading_one": "1 saat",
   "home_receipt_order_label": "Siparişin",
-  "home_receipt_total_label": "Toplam",
+  "home_receipt_total_label": "Toplam maliyet",
   "home_receipt_refunded": "İade edildi",
   "home_receipt_ad_revenue_label": "Platformlara reklam geliri",
   "home_receipt_ad_revenue_note": "Meta, ABD kullanıcısı başına reklam geliri, 2025 oranı, {years} yıl.",
