@@ -47,6 +47,7 @@ import {
   formatYears,
   heroMetrics,
   homeTruth,
+  HORIZON_YEARS,
   screenHours,
   screenYears,
 } from '../lib/attention-math.ts';
@@ -138,8 +139,6 @@ const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 const RECEIPT_BARCODE = '▌▐▌▌▐▌▐▐▌▌▐▌▐▌▌▐▌▐▐▌▌▐▌▐▌';
 /** A till pads its receipt numbers. */
 const RECEIPT_DIGITS = 6;
-/** Item, rate, amount: the same three columns for the headings and every row. */
-const RECEIPT_COLUMNS = '1fr 7ch 13ch';
 /** How long the receipt takes to unroll, and the hero to drift up over it. */
 const EXPAND_MS = '700ms';
 /** How long an armed Remove waits for its second click before standing down. */
@@ -1078,13 +1077,10 @@ const styles = create({
     overflow: 'hidden',
     textAlign: 'center',
   },
-  receiptColumn: {
-    color: colors.muted,
-    fontSize: 11,
-    letterSpacing: '0.08em',
-  },
-  receiptColumnAmount: {
-    textAlign: 'end',
+  receiptBlock: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s1,
   },
   receiptFoot: {
     display: 'flex',
@@ -1100,24 +1096,12 @@ const styles = create({
     gap: spacing.s1,
     textAlign: 'center',
   },
-  receiptItems: {
-    columnGap: spacing.s3,
-    display: 'grid',
-    gridTemplateColumns: RECEIPT_COLUMNS,
-  },
-  receiptList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s2,
-    listStyleType: 'none',
+  receiptHeading: {
+    color: colors.muted,
+    fontSize: 11,
+    letterSpacing: '0.12em',
     margin: 0,
-    padding: 0,
-  },
-  receiptLower: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s3,
-    paddingBlockStart: spacing.s2,
+    marginBlockEnd: spacing.s1,
   },
   receiptMeta: {
     display: 'flex',
@@ -1130,32 +1114,30 @@ const styles = create({
     justifyContent: 'space-between',
     margin: 0,
   },
-  receiptQty: {
-    color: colors.muted,
-    fontSize: {
-      '@media (min-width: 640px)': 13,
-      default: 12,
-    },
-    fontVariantNumeric: 'tabular-nums',
-    whiteSpace: 'nowrap',
+  receiptOrder: {
+    fontWeight: font.weightBold,
+    lineHeight: 1.5,
+    margin: 0,
+    textTransform: 'none',
   },
   receiptRow: {
     alignItems: 'baseline',
-    animationDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: '240ms',
-    },
-    animationName: revealEnter,
-    animationTimingFunction: 'ease-out',
-    columnGap: spacing.s3,
-    display: 'grid',
-    gridTemplateColumns: RECEIPT_COLUMNS,
+    display: 'flex',
+    gap: spacing.s3,
+    justifyContent: 'space-between',
     lineHeight: 1.6,
+    margin: 0,
   },
   receiptRule: {
     borderBlockStartColor: colors.border,
     borderBlockStartStyle: 'dashed',
     borderBlockStartWidth: 1,
+  },
+  receiptSlot: {
+    alignItems: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s6,
   },
   receiptStore: {
     fontWeight: font.weightBold,
@@ -1167,35 +1149,20 @@ const styles = create({
     margin: 0,
     textTransform: 'none',
   },
-  receiptSum: {
-    display: 'flex',
-    gap: spacing.s3,
-    justifyContent: 'space-between',
-    margin: 0,
-  },
-  receiptSums: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s2,
-  },
-  receiptTax: {
-    color: colors.muted,
-  },
   receiptThanks: {
     margin: 0,
     textAlign: 'center',
   },
   receiptTotal: {
-    alignItems: 'baseline',
+    alignItems: 'end',
     display: 'flex',
-    gap: spacing.s3,
-    justifyContent: 'space-between',
+    flexDirection: 'column',
+    gap: spacing.s1,
     margin: 0,
   },
-  receiptTotalLabel: {
-    fontSize: 11,
-    fontWeight: font.weightBold,
-    letterSpacing: '0.12em',
+  receiptTotalNote: {
+    color: colors.muted,
+    textTransform: 'none',
   },
   receiptTotalValue: {
     color: accent.base,
@@ -3586,7 +3553,10 @@ function Generator() {
   // The years as the share card prints them.
   const years = formatYears(wholeHours);
   // The bill's own number and date: the day printed as a till would.
-  const receiptNo = String(screenHours(wholeHours)).padStart(RECEIPT_DIGITS, '0');
+  // One number per visit: the second of the day the page was opened.
+  const receiptNo = String(
+    printedAt.getHours() * 3600 + printedAt.getMinutes() * 60 + printedAt.getSeconds(),
+  ).padStart(RECEIPT_DIGITS, '0');
   const printedOn = new Intl.DateTimeFormat(locale, {
     day: '2-digit',
     month: 'short',
@@ -3663,72 +3633,60 @@ function Generator() {
         {/* The receipt: empty until the reader touches the dial, then priced
         live against it. Every figure on it rolls as the hours change. */}
         <section aria-live="polite" {...props(styles.receiptWrap)}>
-          <div {...props(styles.receipt)}>
-            <div {...props(styles.receiptHead)}>
-              <p {...props(styles.receiptStore)}>{m.home_receipt_store()}</p>
-              <p {...props(styles.receiptStoreUrl)}>{m.home_receipt_store_url()}</p>
-            </div>
-            <div aria-hidden="true" {...props(styles.receiptRule)} />
-            <div {...props(styles.receiptMeta)}>
-              <p {...props(styles.receiptMetaLine)}>
-                <span>{m.home_receipt_no({ number: receiptNo })}</span>
-                <span>{printedOn}</span>
-              </p>
-              <p {...props(styles.receiptMetaLine)}>{m.home_receipt_cashier()}</p>
-            </div>
-            <div aria-hidden="true" {...props(styles.receiptRule)} />
-            <div {...props(styles.receiptItems)}>
-              <span {...props(styles.receiptColumn)}>{m.home_receipt_col_item()}</span>
-              <span {...props(styles.receiptColumn)}>{m.home_receipt_col_qty()}</span>
-              <span {...props(styles.receiptColumn, styles.receiptColumnAmount)}>
-                {m.home_receipt_col_amount()}
-              </span>
-            </div>
-            <div {...props(styles.expand, touched && styles.expandOpen)}>
-              <div
-                {...props(
-                  styles.expandInner,
-                  touched && styles.expandInnerOpen,
-                  styles.receiptLower,
-                )}
-              >
-                <ul {...props(styles.receiptList)}>
-                  <li {...props(styles.receiptRow)}>
-                    <span>{m.home_receipt_screen_label()}</span>
-                    <span {...props(styles.receiptQty)}>
-                      {m.home_receipt_screen_qty({ hours: wholeHours })}
+          <div {...props(styles.expand, touched && styles.expandOpen)}>
+            <div
+              {...props(styles.expandInner, touched && styles.expandInnerOpen, styles.receiptSlot)}
+            >
+              <div {...props(styles.receipt)}>
+                <div {...props(styles.receiptHead)}>
+                  <p {...props(styles.receiptStore)}>{m.home_receipt_store()}</p>
+                  <p {...props(styles.receiptStoreUrl)}>{m.home_receipt_store_url()}</p>
+                </div>
+                <div aria-hidden="true" {...props(styles.receiptRule)} />
+                <div {...props(styles.receiptMeta)}>
+                  <p {...props(styles.receiptMetaLine)}>
+                    <span>{m.home_receipt_no({ number: receiptNo })}</span>
+                    <span>{printedOn}</span>
+                  </p>
+                  <p {...props(styles.receiptMetaLine)}>{m.home_receipt_cashier()}</p>
+                </div>
+                <div aria-hidden="true" {...props(styles.receiptRule)} />
+                {/* The deal, in words, before any number: this many hours a
+                day, for this many years. */}
+                <div {...props(styles.receiptBlock)}>
+                  <p {...props(styles.receiptHeading)}>{m.home_receipt_order_label()}</p>
+                  <p {...props(styles.receiptOrder)}>
+                    {wholeHours === 1
+                      ? m.home_receipt_order_one({ years: HORIZON_YEARS })
+                      : m.home_receipt_order({ hours: wholeHours, years: HORIZON_YEARS })}
+                  </p>
+                </div>
+                <div aria-hidden="true" {...props(styles.receiptRule)} />
+                <div {...props(styles.receiptBlock)}>
+                  <p {...props(styles.receiptRow)}>
+                    <span>
+                      {m.home_receipt_scrolling_label({ hours: wholeHours, years: HORIZON_YEARS })}
                     </span>
                     <span {...props(styles.receiptValue)}>
                       <NumberFlow locales={locale} value={screenHours(wholeHours)} />{' '}
                       {m.home_receipt_hours_unit()}
                     </span>
-                  </li>
+                  </p>
+                </div>
+                <div aria-hidden="true" {...props(styles.receiptRule)} />
+                {/* What the same hours were worth: the four things they would
+                have bought, under one heading that says they were not bought. */}
+                <div {...props(styles.receiptBlock)}>
+                  <p {...props(styles.receiptHeading)}>{m.home_receipt_worth_label()}</p>
                   {[
-                    {
-                      item: books,
-                      label: m.home_receipt_books_label(),
-                      qty: m.home_receipt_books_qty(),
-                    },
-                    {
-                      item: workouts,
-                      label: m.home_receipt_workouts_label(),
-                      qty: m.home_receipt_workouts_qty(),
-                    },
-                    {
-                      item: dinners,
-                      label: m.home_receipt_dinners_label(),
-                      qty: m.home_receipt_dinners_qty(),
-                    },
-                    {
-                      item: money,
-                      label: m.home_receipt_money_label(),
-                      qty: m.home_receipt_money_qty(),
-                    },
+                    { item: books, label: m.home_receipt_books_label() },
+                    { item: workouts, label: m.home_receipt_workouts_label() },
+                    { item: dinners, label: m.home_receipt_dinners_label() },
+                    { item: money, label: m.home_receipt_money_label() },
                   ].map((row) =>
                     row.item === undefined ? null : (
-                      <li key={row.item.key} {...props(styles.receiptRow)}>
+                      <p key={row.item.key} {...props(styles.receiptRow)}>
                         <span>{row.label}</span>
-                        <span {...props(styles.receiptQty)}>{row.qty}</span>
                         <span {...props(styles.receiptValue)}>
                           <NumberFlow
                             locales={locale}
@@ -3736,25 +3694,16 @@ function Generator() {
                             value={row.item.amount}
                           />
                         </span>
-                      </li>
+                      </p>
                     ),
                   )}
-                </ul>
+                </div>
                 <div aria-hidden="true" {...props(styles.receiptRule)} />
-                <div {...props(styles.receiptSums)}>
-                  <p {...props(styles.receiptSum)}>
-                    <span>{m.home_receipt_subtotal()}</span>
-                    <span {...props(styles.receiptValue)}>
-                      <NumberFlow locales={locale} value={screenHours(wholeHours)} />{' '}
-                      {m.home_receipt_hours_unit()}
-                    </span>
-                  </p>
-                  <p {...props(styles.receiptSum, styles.receiptTax)}>
-                    <span>{m.home_receipt_tax()}</span>
-                    <span>{m.home_receipt_tax_value()}</span>
+                <div {...props(styles.receiptBlock)}>
+                  <p {...props(styles.receiptHeading)}>
+                    {m.home_receipt_total_label({ years: HORIZON_YEARS })}
                   </p>
                   <p {...props(styles.receiptTotal)}>
-                    <span {...props(styles.receiptTotalLabel)}>{m.home_receipt_total_label()}</span>
                     <span {...props(styles.receiptTotalValue)}>
                       <NumberFlow
                         format={{ maximumFractionDigits: 2 }}
@@ -3763,6 +3712,7 @@ function Generator() {
                       />{' '}
                       {m.home_receipt_years_unit()}
                     </span>
+                    <span {...props(styles.receiptTotalNote)}>{m.home_receipt_total_note()}</span>
                   </p>
                 </div>
                 <div aria-hidden="true" {...props(styles.receiptRule)} />
@@ -3775,14 +3725,10 @@ function Generator() {
                   <p {...props(styles.receiptThanks)}>{m.home_receipt_thanks()}</p>
                 </div>
               </div>
-            </div>
-          </div>
-          <div {...props(styles.expand, touched && styles.expandOpen)}>
-            <div
-              {...props(styles.expandInner, touched && styles.expandInnerOpen, styles.receiptAfter)}
-            >
-              <AssumptionsNote />
-              <p {...props(styles.truthLine)}>{homeTruth(wholeHours, locale)}</p>
+              <div {...props(styles.receiptAfter)}>
+                <AssumptionsNote />
+                <p {...props(styles.truthLine)}>{homeTruth(wholeHours, locale)}</p>
+              </div>
             </div>
           </div>
         </section>
