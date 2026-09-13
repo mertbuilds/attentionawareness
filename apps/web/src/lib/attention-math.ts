@@ -29,6 +29,13 @@ const MS_PER_DAY = 86_400_000;
 export const HORIZON_YEARS = 20;
 
 /**
+ * The day every page falls back to: what a US adult spends on the phone
+ * itself. The generator opens its question on it, and a link that carries no
+ * day of its own is read against it.
+ */
+export const AVERAGE_DAY = { hours: 4, minutes: 5 };
+
+/**
  * One line for every whole hour the page can be answered with. Each hour is
  * worse than the one under it, so each line is.
  */

@@ -26,6 +26,7 @@ import { createPortal } from 'react-dom';
 import { AppArtwork, artworkStyles } from '../components/app-artwork.tsx';
 import type { MetaCache } from '../components/app-artwork.tsx';
 import { AppIconFan, fanStyles } from '../components/app-icon-fan.tsx';
+import { FriendShare } from '../components/friend-share.tsx';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { ShareCard } from '../components/share-card.tsx';
 import { Sheet } from '../components/sheet.tsx';
@@ -42,6 +43,7 @@ import {
   storefronts,
 } from '../lib/app-search.ts';
 import {
+  AVERAGE_DAY,
   formatYears,
   homeTruth,
   receiptDate,
@@ -55,7 +57,7 @@ import type { ScannedApp } from '../lib/known-apps.ts';
 import { layout } from '../lib/layout.ts';
 import { buildProfile, presets } from '../lib/profile/index.ts';
 import type { BlockedApp, ProfileConfig } from '../lib/profile/index.ts';
-import { decodeShare } from '../lib/share.ts';
+import { decodeShare, sharedAppName } from '../lib/share.ts';
 import { normalizeUrl, sitesForApp, sitesForApps } from '../lib/sites.ts';
 import { playCheckout, playStep } from '../lib/sounds.ts';
 import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
@@ -183,12 +185,11 @@ const HOURS_MAX = 12;
 /** Where the page stands before the reader has answered the question. */
 const HOURS_DEFAULT = 4;
 /**
- * The day the gate opens on: what a US adult spends on the phone itself, which
- * is the figure the reader is asked to recognize or correct rather than
- * remember. The research behind it sits one quiet line under the fields.
+ * The day the gate opens on, which is the figure the reader is asked to
+ * recognize or correct rather than remember. The research behind it sits one
+ * quiet line under the fields.
  */
-const AVERAGE_HOURS = 4;
-const AVERAGE_MINUTES = 5;
+const { hours: AVERAGE_HOURS, minutes: AVERAGE_MINUTES } = AVERAGE_DAY;
 const REVIEWS_URL = 'https://www.reviews.org/internet-service/internet-screen-time-statistics';
 const DATAREPORTAL_URL = 'https://datareportal.com/global-digital-overview';
 /** What the gate takes past the hour, and how many of them make one. */
@@ -1908,18 +1909,9 @@ function initialStorefront(): string {
 const PRESET_PERMITTED: ReadonlyArray<string> =
   presets.mert.webFilter.mode === 'deny' ? presets.mert.webFilter.permittedUrls : [];
 
-/** The names the recommended list already knows, keyed by bundle id. */
-const PRESET_NAMES: Record<string, string> = Object.fromEntries(
-  presets.mert.blockedApps.map((app) => [app.bundleId, app.name]),
-);
-
-/**
- * One app out of a shared link. A link carries bundle ids and nothing else, so
- * a name the recommended list does not know falls back to the last label of
- * the id, which reads well enough until the App Store lookup lands.
- */
+/** One app out of a shared link, which carries bundle ids and nothing else. */
 function sharedApp(bundleId: string): BlockedApp {
-  return { bundleId, name: PRESET_NAMES[bundleId] ?? bundleId.split('.').at(-1) ?? bundleId };
+  return { bundleId, name: sharedAppName(bundleId) };
 }
 
 /**
@@ -4417,6 +4409,7 @@ function Generator() {
               minutes={minutes}
               years={years}
             />
+            <FriendShare apps={config.blockedApps} hours={hours} minutes={minutes} />
           </Sheet>
         ) : (
           <Dialog onOpenChange={setShareOpen} open={shareOpen}>
@@ -4440,6 +4433,7 @@ function Generator() {
                 minutes={minutes}
                 years={years}
               />
+              <FriendShare apps={config.blockedApps} hours={hours} minutes={minutes} />
             </DialogContent>
           </Dialog>
         )}

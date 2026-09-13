@@ -1,27 +1,20 @@
-import { Button } from '@attentionawareness/ui';
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { font, palette, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import type { BlockedApp } from '../lib/profile/index.ts';
-import { encodeShare, shareApps, shareTargets, shareText, SITE_URL } from '../lib/share.ts';
+import { encodeShare, shareApps, shareText, SITE_URL } from '../lib/share.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
 import type { MetaCache } from './app-artwork.tsx';
 import { AppIconFan } from './app-icon-fan.tsx';
 import { BrandMark } from './brand-mark.tsx';
+import { ShareLinks } from './share-links.tsx';
 
-/** How long the Copy button holds its "Copied" label before standing down. */
-const COPY_FEEDBACK_MS = 2000;
 /** The mark in the card's footer, beside the domain it stands for. */
 const MARK_SIZE = 20;
 
 const styles = create({
-  actions: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: spacing.s2,
-  },
   // The one surface on the site that ignores the theme: it is a picture of a
   // number, and a screenshot of it has to read the same everywhere. It is also
   // the one surface with a fixed ratio and cropped overflow, so every size
@@ -156,7 +149,6 @@ export function ShareCard({
   minutes?: number | undefined;
   years: string;
 }) {
-  const [copied, setCopied] = useState(false);
   const locale = getLocale();
 
   const url = useMemo(
@@ -167,7 +159,6 @@ export function ShareCard({
   // The names keep the casing the catalog gives them: "TikTok", not "tiktok".
   const appNames = useMemo(() => apps.map((app) => app.name), [apps]);
   const { apps: named, rest } = shareApps(appNames);
-  const targets = shareTargets(shareText({ appNames, locale, url, years }), url);
 
   // The number wears the accent and the unit stays white, but the catalog keeps
   // the word order ("{years} years", "{years} yıl"): the line is split around
@@ -177,26 +168,6 @@ export function ShareCard({
   const lead = at === -1 ? '' : line.slice(0, at);
   const unit = at === -1 ? '' : line.slice(at + years.length);
   const number = at === -1 ? line : years;
-
-  // "Copied" is the whole receipt for a copy, so it goes back on its own.
-  useEffect(() => {
-    if (!copied) {
-      return;
-    }
-    const timer = setTimeout(() => setCopied(false), COPY_FEEDBACK_MS);
-    return () => clearTimeout(timer);
-  }, [copied]);
-
-  // No clipboard at all (insecure origin) and a denied one both land here: the
-  // three intent links next to the button still carry the same url out.
-  async function copyLink() {
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-    } catch {
-      setCopied(false);
-    }
-  }
 
   return (
     <div {...props(styles.share)}>
@@ -228,26 +199,11 @@ export function ShareCard({
           </div>
         </div>
       </div>
-      <div {...props(styles.actions)}>
-        <Button render={<a href={targets.x} rel="noreferrer" target="_blank" />} variant="outline">
-          {m.share_x()}
-        </Button>
-        <Button
-          render={<a href={targets.whatsapp} rel="noreferrer" target="_blank" />}
-          variant="outline"
-        >
-          {m.share_whatsapp()}
-        </Button>
-        <Button
-          render={<a href={targets.linkedin} rel="noreferrer" target="_blank" />}
-          variant="outline"
-        >
-          {m.share_linkedin()}
-        </Button>
-        <Button onClick={() => void copyLink()} variant="outline">
-          {copied ? m.share_copied() : m.share_copy()}
-        </Button>
-      </div>
+      <ShareLinks
+        label={m.share_heading_output()}
+        text={shareText({ appNames, locale, url, years })}
+        url={url}
+      />
     </div>
   );
 }
