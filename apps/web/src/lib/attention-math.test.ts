@@ -102,7 +102,7 @@ describe('receiptLines', () => {
     expect(values(receiptLines(1, 'en'))).toEqual({
       books: '913',
       money: '$146,000',
-      screen: '7,300 h',
+      screen: '7,300 hours',
     });
   });
 
@@ -110,10 +110,10 @@ describe('receiptLines', () => {
     expect(values(receiptLines(4, 'en'))).toEqual({
       books: '3,650',
       dinners: '7,300',
-      job: '15 y',
+      job: '15 years',
       languages: '19',
       money: '$584,000',
-      screen: '29,200 h',
+      screen: '29,200 hours',
     });
   });
 
@@ -135,8 +135,8 @@ describe('receiptLines', () => {
   });
 
   it('bills the screen hours as the years of full-time work they would pay for', () => {
-    expect(values(receiptLines(5, 'en')).job).toBe('18 y');
-    expect(values(receiptLines(12, 'en')).job).toBe('44 y');
+    expect(values(receiptLines(5, 'en')).job).toBe('18 years');
+    expect(values(receiptLines(12, 'en')).job).toBe('44 years');
   });
 
   it('bills the same dinners at every length of day, because there are no more', () => {
@@ -153,7 +153,7 @@ describe('receiptLines', () => {
 
   it('bills the screen hours themselves as the first row of the bill', () => {
     expect(receiptLines(4, 'en')[0]?.key).toBe('screen');
-    expect(values(receiptLines(4, 'tr')).screen).toBe('29.200 sa');
+    expect(values(receiptLines(4, 'tr')).screen).toBe('29.200 saat');
   });
 
   it('labels the rows in the reader language', () => {

@@ -22,8 +22,9 @@ if (clientEnv.VITE_SENTRY_DSN && typeof window !== 'undefined') {
 const SITE_NAME = 'Attention Awareness';
 const SITE_URL = 'https://attentionawareness.com';
 const OG_IMAGE = `${SITE_URL}/og.png`;
-const DESCRIPTION =
-  "One person's way of taking the feeds off an iPhone for good, free and open. Read the numbers, then decide.";
+/** What the site promises, in one line. The share cards lead with it. */
+const TAGLINE = 'The website that gives you 5 years of your life back';
+const DESCRIPTION = `${SITE_NAME}. ${TAGLINE}. See your number, then take the feeds off your iPhone for good, free and open.`;
 
 export const Route = createRootRoute({
   component: RootComponent,
@@ -53,7 +54,7 @@ export const Route = createRootRoute({
       { title: SITE_NAME },
       { content: DESCRIPTION, name: 'description' },
       { content: SITE_NAME, property: 'og:site_name' },
-      { content: SITE_NAME, property: 'og:title' },
+      { content: TAGLINE, property: 'og:title' },
       { content: DESCRIPTION, property: 'og:description' },
       { content: 'website', property: 'og:type' },
       { content: SITE_URL, property: 'og:url' },
