@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 /** How long one hour of the show holds before the next one prints. */
-const STEP_MS = 900;
+const STEP_MS = 1600;
+/**
+ * How long the last hour stands on its own before the till rings it up. The
+ * climb stops, the number sits there, and only then is it totalled.
+ */
+const HOLD_MS = 600;
 /** A reader who asked for less motion is handed the bill, not the show. */
 const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
 
@@ -9,17 +14,18 @@ const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
 export type Entered = { hours: number; minutes: number };
 
 export type Show = {
-  /** Whether the scripted run owns the dial right now. */
+  /** Whether the scripted run owns the number right now. */
   running: boolean;
   /** Runs the show up to the answer, and settles the page on it. */
   start: (entered: Entered) => void;
 };
 
 /**
- * The bill being rung up, one hour at a time: the dial goes to one, then two,
- * then three, up to the hour the reader answered with, and only then does the
- * page hand the dial over. Nothing skips it, because the point of it is that
- * the reader watches their own day being counted out.
+ * The bill being rung up, one hour at a time: it counts to one, then two,
+ * then three, up to the hour the reader answered with. That last hour holds on
+ * its own for a beat, and only then is the bill totalled. Nothing skips it,
+ * because the point of it is that the reader watches their own day being
+ * counted out.
  *
  * `onStep` is given the hour and how many hours the run holds, so the caller
  * can pitch the sound against the whole climb. `onSettle` closes the run: it is
@@ -70,20 +76,25 @@ export function useShow({
     // Under an hour is one beat: there is no climb to watch.
     const total = Math.max(1, Math.floor(entered.hours));
     let printed = 1;
-    setRunning(true);
-    step.current(printed, total);
+    // The hour that is up holds for a step; the hour the run ends on holds for
+    // the shorter beat that the total lands on.
+    function queue() {
+      const last = printed === total;
+      timer.current = setTimeout(last ? ring : advance, last ? HOLD_MS : STEP_MS);
+    }
     function advance() {
-      if (printed < total) {
-        printed += 1;
-        step.current(printed, total);
-        timer.current = setTimeout(advance, STEP_MS);
-        return;
-      }
+      printed += 1;
+      step.current(printed, total);
+      queue();
+    }
+    function ring() {
       timer.current = null;
       setRunning(false);
       settle.current(entered, true);
     }
-    timer.current = setTimeout(advance, STEP_MS);
+    setRunning(true);
+    step.current(printed, total);
+    queue();
   }, []);
 
   return { running, start };

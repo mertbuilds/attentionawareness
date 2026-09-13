@@ -3,6 +3,7 @@ import { create, props } from '@stylexjs/stylex';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { receiptDate, receiptNumber } from '../lib/attention-math.ts';
 import { buildProfile, presets } from '../lib/profile/index.ts';
 import type { ProfileConfig } from '../lib/profile/index.ts';
 import { sitesForApps } from '../lib/sites.ts';
@@ -207,7 +208,7 @@ function previewFan(apps: number): HTMLElement {
   return fan as HTMLElement;
 }
 
-/** The speaker toggle at the end of the dial. */
+/** The speaker toggle at the end of the line the show counts out. */
 function speaker(): HTMLElement {
   return screen.getByRole('button', { name: m.home_math_sound_label() });
 }
@@ -269,11 +270,6 @@ function dropRandomUuid(): void {
   Object.defineProperty(crypto, 'randomUUID', { configurable: true, value: undefined });
 }
 
-/** What the slider tells a screen reader at a given number of hours. */
-function hoursReading(hours: number): string {
-  return `${m.home_math_hours({ hours })} ${m.home_math_hours_unit()}`;
-}
-
 /** The one sentence under the bar, which is the hour the dial is on. */
 function truthLine(): HTMLElement {
   const line = document.querySelector('p[aria-live="polite"]');
@@ -283,11 +279,11 @@ function truthLine(): HTMLElement {
   return line as HTMLElement;
 }
 
-/** The receipt under that line. */
+/** The receipt under that line, found through the shop printed over it. */
 function receipt(): HTMLElement {
-  const box = screen.getByText(m.home_receipt_title()).parentElement?.parentElement;
+  const box = screen.getByText(m.home_receipt_store()).parentElement?.parentElement;
   if (box === undefined || box === null) {
-    throw new Error('The receipt title should sit inside the receipt');
+    throw new Error('The shop should sit inside the receipt');
   }
   return box;
 }
@@ -299,13 +295,23 @@ function receiptLabels(): Array<string> {
     .map((row) => row.firstElementChild?.textContent ?? '');
 }
 
-/** What one named row of the receipt says that line cost. */
-function receiptValue(label: string): string {
+/** One named row of the receipt: the item, the rate, and what it came to. */
+function receiptRow(label: string): HTMLElement {
   const row = within(receipt()).getByText(label).closest('li');
   if (row === null) {
     throw new Error(`No receipt row for ${label}`);
   }
-  return row.lastElementChild?.textContent ?? '';
+  return row;
+}
+
+/** What one named row of the receipt says that line cost. */
+function receiptValue(label: string): string {
+  return receiptRow(label).lastElementChild?.textContent ?? '';
+}
+
+/** The rate the same row was billed at, in the column between the two. */
+function receiptQty(label: string): string {
+  return receiptRow(label).children[1]?.textContent ?? '';
 }
 
 /** The number under the tear line: everything the receipt adds up to. */
@@ -323,12 +329,10 @@ function gateMinutes(): HTMLElement {
   return screen.getByLabelText(m.home_gate_minutes());
 }
 
-/** The dial is not handed over with the bill any more: this asks for it. */
-function showSlider(): void {
-  const button = screen.queryByRole('button', { name: m.home_gate_explore() });
-  if (button !== null) {
-    fireEvent.click(button);
-  }
+/** The only way to another number: the gate, reopened and answered again. */
+function changeAnswer(hours: string, minutes = '0'): void {
+  fireEvent.click(screen.getByRole('button', { name: m.home_gate_change() }));
+  answerGate(hours, minutes);
 }
 
 /** Where the builder takes a Screen Time screenshot. */
@@ -378,7 +382,9 @@ function answerGate(hours: string, minutes = '0'): void {
 }
 
 /** One hour of the show, and the beat it holds for. */
-const SHOW_STEP_MS = 900;
+const SHOW_STEP_MS = 1600;
+/** What the last hour holds for on its own before the till rings it up. */
+const SHOW_HOLD_MS = 600;
 
 async function advance(ms: number): Promise<void> {
   await act(async () => {
@@ -388,14 +394,12 @@ async function advance(ms: number): Promise<void> {
 
 /**
  * The page as a shared link opens it: past the gate and past the show, with
- * the dial already the reader's. Every test about the dial itself starts here,
+ * the bill already printed. Every test about the bill itself starts here,
  * because the show is a first impression and none of them are testing it.
  */
 async function renderAnswered(hours = 4) {
   window.history.replaceState({}, '', `/?h=${hours}`);
-  const view = await renderPage();
-  showSlider();
-  return view;
+  return renderPage();
 }
 
 /** The file the download saved. The signer answers first, so this waits. */
@@ -437,7 +441,7 @@ describe('Generator', () => {
     expect(gateHours()).toBeInTheDocument();
     expect(gateMinutes()).toBeInTheDocument();
     expect(screen.queryByRole('slider')).not.toBeInTheDocument();
-    expect(screen.queryByText(m.home_receipt_title())).not.toBeInTheDocument();
+    expect(screen.queryByText(m.home_receipt_store())).not.toBeInTheDocument();
     expect(screen.queryByText(m.home_truth_4())).not.toBeInTheDocument();
     expect(screen.queryByText(m.home_hero_product())).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: m.home_hero_cta() })).not.toBeInTheDocument();
@@ -497,9 +501,9 @@ describe('Generator', () => {
     await advance(SHOW_STEP_MS * 12);
 
     expect(truthLine()).toHaveTextContent(m.home_truth_4());
-    expect(
-      within(receipt()).getByText(m.home_receipt_meta_minutes({ hours: 4, minutes: 5 })),
-    ).toBeInTheDocument();
+    expect(receiptQty(m.home_receipt_screen_label())).toBe(
+      m.home_receipt_screen_qty({ hours: 4, minutes: '05' }),
+    );
     expect(
       screen.getByText(m.home_gate_entered({ hours: 4, minutes: 5 }), { exact: false }),
     ).toBeInTheDocument();
@@ -513,21 +517,20 @@ describe('Generator', () => {
     await advance(SHOW_STEP_MS * 12);
 
     expect(truthLine()).toHaveTextContent(m.home_truth_3());
-    expect(within(receipt()).getByText(m.home_receipt_meta({ hours: 3 }))).toBeInTheDocument();
+    expect(receiptQty(m.home_receipt_screen_label())).toBe(
+      m.home_receipt_screen_qty({ hours: 3, minutes: '00' }),
+    );
   });
 
-  it('keeps the dial out of the way until the reader asks for other hours', async () => {
+  it('hands a shared link the bill, and no dial to turn it with', async () => {
     window.history.replaceState({}, '', '/?h=9');
     await renderPage();
 
-    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
     expect(truthLine()).toHaveTextContent(m.home_truth_9());
     expect(receipt()).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: m.home_gate_explore() }));
-
-    expect(screen.getByRole('slider')).toHaveValue('9');
-    expect(screen.queryByRole('button', { name: m.home_gate_explore() })).not.toBeInTheDocument();
+    // The number is the answer's, and the answer is the gate's alone.
+    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: m.home_gate_change() })).toBeInTheDocument();
   });
 
   it('says the range back to an answer it cannot use', async () => {
@@ -536,7 +539,7 @@ describe('Generator', () => {
     answerGate('13');
 
     expect(screen.getByText(m.home_gate_error())).toBeInTheDocument();
-    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
+    expect(screen.queryByText(m.home_receipt_store())).not.toBeInTheDocument();
   });
 
   it('asks again when the question is sent back unanswered', async () => {
@@ -545,7 +548,7 @@ describe('Generator', () => {
     answerGate('');
 
     expect(screen.getByText(m.home_gate_error())).toBeInTheDocument();
-    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
+    expect(screen.queryByText(m.home_receipt_store())).not.toBeInTheDocument();
   });
 
   it('leaves the old hero lines off the page', async () => {
@@ -614,73 +617,105 @@ describe('Generator', () => {
   it('prints the bill for the day it was answered with', async () => {
     await renderAnswered();
 
-    expect(screen.getByRole('slider')).toHaveValue('4');
     expect(truthLine()).toHaveTextContent(m.home_truth_4());
     expect(receiptTotal()).toBe(m.home_receipt_total_value({ years: '5' }));
   });
 
-  it('marks every whole hour of the travel with its own numbered detent', async () => {
+  it('heads the bill the way a till heads one: the shop, the number, the day', async () => {
     await renderAnswered();
-    const rail = screen.getByRole('slider').closest('div')?.parentElement;
-    const marks = Array.from(rail?.querySelectorAll('div[aria-hidden="true"] > span') ?? []);
+    const bill = within(receipt());
 
-    expect(marks).toHaveLength(12);
-    expect(marks.at(0)).toHaveTextContent('1');
-    expect(marks.at(-1)).toHaveTextContent('12');
-    expect(screen.getByRole('slider')).toHaveAttribute('step', '1');
+    expect(bill.getByText(m.home_receipt_store())).toBeInTheDocument();
+    expect(bill.getByText(m.home_receipt_store_url())).toBeInTheDocument();
+    expect(
+      bill.getByText(m.home_receipt_no({ number: receiptNumber(4, new Date()) })),
+    ).toBeInTheDocument();
+    expect(bill.getByText(receiptDate(new Date(), 'en'))).toBeInTheDocument();
+    expect(bill.getByText(m.home_receipt_cashier())).toBeInTheDocument();
   });
 
-  it('swaps the line for the hour the dial lands on', async () => {
+  it('itemizes the bill in three columns: what, at what rate, for how much', async () => {
+    await renderAnswered();
+    const bill = within(receipt());
+
+    expect(bill.getByText(m.home_receipt_col_item())).toBeInTheDocument();
+    expect(bill.getByText(m.home_receipt_col_qty())).toBeInTheDocument();
+    expect(bill.getByText(m.home_receipt_col_amount())).toBeInTheDocument();
+    expect(receiptQty(m.home_receipt_screen_label())).toBe(
+      m.home_receipt_screen_qty({ hours: 4, minutes: '00' }),
+    );
+    expect(receiptQty(m.home_receipt_books_label())).toBe(m.home_receipt_books_qty());
+    expect(receiptQty(m.home_receipt_job_label())).toBe(m.home_receipt_job_qty());
+  });
+
+  it('subtotals the screen hours, taxes the sleeping ones, then totals the years', async () => {
+    await renderAnswered();
+    const bill = within(receipt());
+    const hours = m.home_receipt_hours_value({ hours: '29,200' });
+
+    expect(receiptValue(m.home_receipt_screen_label())).toBe(hours);
+    expect(bill.getByText(m.home_receipt_subtotal()).nextElementSibling).toHaveTextContent(hours);
+    expect(bill.getByText(m.home_receipt_tax())).toBeInTheDocument();
+    expect(bill.getByText(m.home_receipt_tax_value())).toBeInTheDocument();
+    expect(receiptTotal()).toBe(m.home_receipt_total_value({ years: '5' }));
+  });
+
+  it('closes the bill the way a till closes one, barcode and all', async () => {
+    await renderAnswered();
+    const bill = within(receipt());
+
+    expect(bill.getByText(m.home_receipt_paid())).toBeInTheDocument();
+    expect(bill.getByText(m.home_receipt_no_refunds())).toBeInTheDocument();
+    expect(bill.getByText(m.home_receipt_thanks())).toBeInTheDocument();
+    // The barcode is a shape, not a word, so it is kept from a screen reader.
+    expect(receipt().querySelector('p[aria-hidden="true"]')?.textContent).toMatch(/▌/u);
+  });
+
+  it('swaps the line for the hour the answer lands on', async () => {
     await renderAnswered();
 
-    fireEvent.change(screen.getByRole('slider'), { target: { value: '6' } });
+    changeAnswer('6');
 
     expect(truthLine()).toHaveTextContent(m.home_truth_6());
     expect(screen.queryByText(m.home_truth_4())).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByRole('slider'), { target: { value: '12' } });
+    changeAnswer('12');
 
     expect(truthLine()).toHaveTextContent(m.home_truth_12());
     expect(screen.queryByText(m.home_truth_6())).not.toBeInTheDocument();
   });
 
-  it('recounts the receipt when the slider moves', async () => {
+  it('recounts the receipt when the question is answered again', async () => {
     await renderAnswered();
 
-    fireEvent.change(screen.getByRole('slider'), { target: { value: '6' } });
+    changeAnswer('6');
 
     expect(receiptTotal()).toBe(m.home_receipt_total_value({ years: '7.5' }));
     expect(receiptValue(m.home_receipt_money_label())).toBe('$876,000');
 
-    fireEvent.change(screen.getByRole('slider'), { target: { value: '12' } });
+    changeAnswer('12');
 
     expect(receiptTotal()).toBe(m.home_receipt_total_value({ years: '15' }));
   });
 
-  it('heads the receipt with the day it prices', async () => {
+  it('reprints the day being priced at the top of the items', async () => {
     await renderAnswered();
 
-    expect(within(receipt()).getByText(m.home_receipt_meta({ hours: 4 }))).toBeInTheDocument();
+    expect(receiptQty(m.home_receipt_screen_label())).toBe(
+      m.home_receipt_screen_qty({ hours: 4, minutes: '00' }),
+    );
 
-    fireEvent.change(screen.getByRole('slider'), { target: { value: '9' } });
+    changeAnswer('9', '30');
 
-    expect(within(receipt()).getByText(m.home_receipt_meta({ hours: 9 }))).toBeInTheDocument();
-  });
-
-  it('keeps the reading on the slider, with no display beside the rail', async () => {
-    await renderAnswered();
-
-    expect(screen.getByRole('slider')).toHaveAttribute('aria-valuetext', hoursReading(4));
-
-    fireEvent.change(screen.getByRole('slider'), { target: { value: '5' } });
-
-    expect(screen.getByRole('slider')).toHaveAttribute('aria-valuetext', hoursReading(5));
-    expect(screen.queryByText(m.home_math_hours_unit())).not.toBeInTheDocument();
+    expect(receiptQty(m.home_receipt_screen_label())).toBe(
+      m.home_receipt_screen_qty({ hours: 9, minutes: '30' }),
+    );
   });
 
   it('bills a receipt row the moment the day earns it, and drops it again', async () => {
     await renderAnswered();
     expect(receiptLabels()).toEqual([
+      m.home_receipt_screen_label(),
       m.home_receipt_books_label(),
       m.home_receipt_dinners_label(),
       m.home_receipt_languages_label(),
@@ -688,26 +723,60 @@ describe('Generator', () => {
       m.home_receipt_job_label(),
     ]);
 
-    fireEvent.change(screen.getByRole('slider'), { target: { value: '1' } });
-    expect(receiptLabels()).toEqual([m.home_receipt_books_label(), m.home_receipt_money_label()]);
+    changeAnswer('1');
+    expect(receiptLabels()).toEqual([
+      m.home_receipt_screen_label(),
+      m.home_receipt_books_label(),
+      m.home_receipt_money_label(),
+    ]);
 
-    fireEvent.change(screen.getByRole('slider'), { target: { value: '3' } });
-    expect(receiptLabels()).toHaveLength(4);
+    changeAnswer('3');
+    expect(receiptLabels()).toHaveLength(5);
     expect(receiptLabels()).not.toContain(m.home_receipt_job_label());
 
-    fireEvent.change(screen.getByRole('slider'), { target: { value: '12' } });
-    expect(receiptLabels()).toHaveLength(5);
+    changeAnswer('12');
+    expect(receiptLabels()).toHaveLength(6);
   });
 
   it('leaves the waking years to the total and bills a full-time job instead', async () => {
     await renderAnswered();
 
-    fireEvent.change(screen.getByRole('slider'), { target: { value: '5' } });
+    changeAnswer('5');
 
     expect(receiptLabels()).not.toContain('Waking years');
     expect(receiptValue(m.home_receipt_job_label())).toBe(
       m.home_receipt_job_value({ years: '18' }),
     );
+  });
+
+  it('folds the arithmetic behind the bill into one quiet line', async () => {
+    await renderAnswered();
+
+    expect(screen.queryByText(m.home_receipt_note_link())).not.toBeInTheDocument();
+
+    await userEvent.hover(screen.getByRole('button', { name: m.home_receipt_assumptions() }));
+
+    expect(screen.getByRole('link', { name: m.home_receipt_note_link() })).toHaveAttribute(
+      'href',
+      'https://doi.org/10.1016/j.jml.2019.104047',
+    );
+    expect(screen.getByText(m.home_receipt_note_after(), { exact: false })).toBeInTheDocument();
+
+    await userEvent.keyboard('{Escape}');
+
+    expect(screen.queryByText(m.home_receipt_note_link())).not.toBeInTheDocument();
+  });
+
+  it('opens the arithmetic in a sheet on a phone', async () => {
+    setViewport('phone');
+    await renderAnswered();
+
+    await userEvent.click(screen.getByRole('button', { name: m.home_receipt_assumptions() }));
+
+    const sheet = await screen.findByRole('dialog');
+    expect(
+      within(sheet).getByRole('link', { name: m.home_receipt_note_link() }),
+    ).toBeInTheDocument();
   });
 
   it('runs the bill up one hour at a time once the question is answered', async () => {
@@ -726,26 +795,25 @@ describe('Generator', () => {
 
     await advance(SHOW_STEP_MS * 3);
     expect(truthLine()).toHaveTextContent(m.home_truth_5());
+    // The last hour stands on its own before the till rings it up.
+    expect(screen.queryByRole('link', { name: m.home_hero_cta() })).not.toBeInTheDocument();
 
-    await advance(SHOW_STEP_MS);
+    await advance(SHOW_HOLD_MS);
     expect(screen.getByRole('link', { name: m.home_hero_cta() })).toBeInTheDocument();
     expect(receiptTotal()).toBe(m.home_receipt_total_value({ years: '6.3' }));
   });
 
-  it('offers neither the dial nor the gate while the show is running', async () => {
+  it('offers no way back into the gate while the show is running', async () => {
     vi.useFakeTimers();
     await renderPage();
     answerGate('5');
 
-    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: m.home_gate_explore() })).not.toBeInTheDocument();
-    // And there is no way back into the gate to answer over the top of it.
+    // There is no way back into the gate to answer over the top of it.
     expect(screen.queryByRole('button', { name: m.home_gate_change() })).not.toBeInTheDocument();
 
     await advance(SHOW_STEP_MS * 5);
 
     expect(screen.getByRole('button', { name: m.home_gate_change() })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: m.home_gate_explore() })).toBeInTheDocument();
   });
 
   it('settles on the minutes the show could not stop at', async () => {
@@ -756,9 +824,9 @@ describe('Generator', () => {
     await advance(SHOW_STEP_MS * 5);
 
     expect(truthLine()).toHaveTextContent(m.home_truth_5());
-    expect(
-      within(receipt()).getByText(m.home_receipt_meta_minutes({ hours: 5, minutes: 30 })),
-    ).toBeInTheDocument();
+    expect(receiptQty(m.home_receipt_screen_label())).toBe(
+      m.home_receipt_screen_qty({ hours: 5, minutes: '30' }),
+    );
     expect(
       screen.getByText(m.home_gate_entered({ hours: 5, minutes: 30 }), { exact: false }),
     ).toBeInTheDocument();
@@ -775,29 +843,26 @@ describe('Generator', () => {
     expect(screen.getByRole('link', { name: m.home_hero_cta() })).toBeInTheDocument();
   });
 
-  it('leaves the dial where a shared link put it, with no show to sit through', async () => {
+  it('leaves the bill where a shared link put it, with no show to sit through', async () => {
     vi.useFakeTimers();
     window.history.replaceState({}, '', '/?h=9');
     await renderPage();
-    showSlider();
 
-    expect(screen.getByRole('slider')).toHaveValue('9');
+    expect(truthLine()).toHaveTextContent(m.home_truth_9());
     expect(screen.getByRole('link', { name: m.home_hero_cta() })).toBeInTheDocument();
 
     await advance(SHOW_STEP_MS * 12);
 
-    expect(screen.getByRole('slider')).toHaveValue('9');
+    expect(truthLine()).toHaveTextContent(m.home_truth_9());
   });
 
   it('opens on the exact day a link carries in minutes', async () => {
     window.history.replaceState({}, '', '/?m=330');
     await renderPage();
-    showSlider();
 
-    expect(screen.getByRole('slider')).toHaveValue('5');
-    expect(
-      within(receipt()).getByText(m.home_receipt_meta_minutes({ hours: 5, minutes: 30 })),
-    ).toBeInTheDocument();
+    expect(receiptQty(m.home_receipt_screen_label())).toBe(
+      m.home_receipt_screen_qty({ hours: 5, minutes: '30' }),
+    );
     expect(receiptTotal()).toBe(m.home_receipt_total_value({ years: '6.9' }));
   });
 
@@ -805,18 +870,17 @@ describe('Generator', () => {
     vi.useFakeTimers();
     await renderAnswered(5);
 
-    fireEvent.click(screen.getByRole('button', { name: m.home_gate_change() }));
-    answerGate('9');
+    changeAnswer('9');
 
-    expect(screen.getByRole('slider')).toHaveValue('9');
-    expect(screen.getByRole('slider')).not.toHaveAttribute('aria-disabled');
+    expect(truthLine()).toHaveTextContent(m.home_truth_9());
+    expect(receiptTotal()).toBe(m.home_receipt_total_value({ years: '11.3' }));
 
     await advance(SHOW_STEP_MS * 12);
 
-    expect(screen.getByRole('slider')).toHaveValue('9');
+    expect(truthLine()).toHaveTextContent(m.home_truth_9());
   });
 
-  it('turns the detent clicks off from the speaker', async () => {
+  it('turns the clicks the show counts out off from the speaker', async () => {
     await renderAnswered();
     expect(speaker()).toHaveAttribute('aria-pressed', 'true');
 
@@ -1508,9 +1572,7 @@ describe('Generator', () => {
     window.history.replaceState({}, '', '/?h=6&a=ig,tt');
 
     await renderPage();
-    showSlider();
 
-    expect(screen.getByRole('slider')).toHaveValue('6');
     expect(truthLine()).toHaveTextContent(m.home_truth_6());
     expect(receiptTotal()).toBe(m.home_receipt_total_value({ years: '7.5' }));
     expect(screen.getAllByRole('button', { name: m.gen_app_remove() })).toHaveLength(2);
