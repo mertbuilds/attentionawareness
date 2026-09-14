@@ -24,6 +24,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'reac
 import type { ReactNode } from 'react';
 import { AppArtwork, artworkStyles } from '../components/app-artwork.tsx';
 import type { MetaCache } from '../components/app-artwork.tsx';
+import { AppIconFan, fanStyles } from '../components/app-icon-fan.tsx';
 import { FriendShare } from '../components/friend-share.tsx';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { ShareCard } from '../components/share-card.tsx';
@@ -2689,7 +2690,15 @@ function BuildPage() {
         </section>
 
         <section {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_apps_title()}</h2>
+          <h2 {...props(styles.sectionTitle)}>
+            {m.home_apps_title_before()}
+            {config.blockedApps.length === 0 ? (
+              <span {...props(fanStyles.fan)}>{m.home_apps_title_empty()}</span>
+            ) : (
+              <AppIconFan apps={config.blockedApps} meta={meta} />
+            )}
+            {m.home_apps_title_after()}
+          </h2>
           <p {...props(layout.muted)}>{m.home_apps_subtitle()}</p>
           <div ref={searchWrap} {...props(styles.searchWrap)}>
             <div {...props(styles.searchBar)}>
