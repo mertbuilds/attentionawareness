@@ -28,6 +28,7 @@
     "posthog-js": "^1.424.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "reicon-react": "1.2.5",
     "tesseract.js": "6.0.1",
     "vaul": "^1.1.2"
   },
