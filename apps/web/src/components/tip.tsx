@@ -2,8 +2,8 @@ import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { Tooltip } from '@base-ui/react/tooltip';
 import { create, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
-import { useState } from 'react';
-import type { ReactElement, ReactNode } from 'react';
+import { cloneElement, useState } from 'react';
+import type { MouseEvent, ReactElement, ReactNode } from 'react';
 import { useIsMobile } from '../lib/use-is-mobile.ts';
 import { Sheet } from './sheet.tsx';
 
@@ -119,7 +119,7 @@ export function Tip({
   /** Written over the box, and used as the sheet's heading. */
   title: string;
   /** The element that opens it: a button, with its own aria-label. */
-  trigger: ReactElement;
+  trigger: ReactElement<{ onClick?: (event: MouseEvent) => void }>;
   /** `label`: a one-word dark pill, no title row; the default is the box. */
   variant?: 'box' | 'label';
 }) {
@@ -133,7 +133,13 @@ export function Tip({
   if (isMobile) {
     return (
       <>
-        <Tooltip.Trigger onClick={() => setOpen(true)} render={trigger} />
+        {/* No tooltip root on a phone, so the trigger opens the sheet itself. */}
+        {cloneElement(trigger, {
+          onClick: (event: MouseEvent) => {
+            trigger.props.onClick?.(event);
+            setOpen(true);
+          },
+        })}
         <Sheet onOpenChange={setOpen} open={open} title={title}>
           <div {...props(styles.sheetText)}>{content ?? children}</div>
         </Sheet>
