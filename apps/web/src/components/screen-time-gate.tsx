@@ -3,6 +3,7 @@ import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import NumberFlow from '@number-flow/react';
 import { create, props } from '@stylexjs/stylex';
+import { useSyncExternalStore } from 'react';
 import { useState } from 'react';
 import { playTick } from '../lib/sounds.ts';
 import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
@@ -269,6 +270,29 @@ const styles = create({
 });
 
 /** A whole hour the page can price, whatever the answer or a link asked for. */
+/** Nothing to subscribe to: the store is only "has the client taken over". */
+function subscribeNever() {
+  return () => {};
+}
+
+/**
+ * NumberFlow is a custom element, so the server sends it empty and the digits
+ * only appear once the client has registered it. Until then the count is a
+ * plain span with the same number, so the first frame is whole.
+ */
+function Count({ value }: { value: number }) {
+  const hydrated = useSyncExternalStore(
+    subscribeNever,
+    () => true,
+    () => false,
+  );
+  return hydrated ? (
+    <NumberFlow value={value} {...props(styles.gateCount)} />
+  ) : (
+    <span {...props(styles.gateCount)}>{value}</span>
+  );
+}
+
 export function clampHours(value: number): number {
   return Math.min(Math.max(value, HOURS_MIN), HOURS_MAX);
 }
@@ -328,7 +352,7 @@ export function ScreenTimeGate({
           </svg>
         </button>
         <p aria-hidden="true" {...props(styles.gateReading)}>
-          <NumberFlow value={value} {...props(styles.gateCount)} />
+          <Count value={value} />
         </p>
         <button
           aria-label={m.home_gate_plus()}
@@ -396,7 +420,7 @@ export function HourSlider({ onPick, sound }: { onPick: (hours: number) => void;
     <div {...props(styles.gate)}>
       <div {...props(styles.stepper)}>
         <p aria-hidden="true" {...props(styles.gateReading, styles.sliderReading)}>
-          <NumberFlow value={hours} {...props(styles.gateCount)} />
+          <Count value={hours} />
         </p>
         <span aria-hidden="true" {...props(styles.stepUnit, styles.sliderUnit)}>
           {reading.replace(String(hours), '').trim()}
