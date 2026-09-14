@@ -651,6 +651,10 @@ function HomePage() {
             <p {...props(styles.storyLine)}>{m.home_story_4()}</p>
             <p {...props(styles.storyLine)}>{m.home_story_5()}</p>
             <p {...props(styles.storyLine)}>{m.home_story_6()}</p>
+            <p {...props(styles.storyLine)}>{m.home_story_7()}</p>
+            <p {...props(styles.storyLine)}>{m.home_story_8()}</p>
+            <p {...props(styles.storyLine)}>{m.home_story_9()}</p>
+            <p {...props(styles.storyLine)}>{m.home_story_10()}</p>
             <p {...props(styles.storySign)}>{m.home_story_sign()}</p>
           </div>
         </section>
