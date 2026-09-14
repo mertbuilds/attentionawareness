@@ -24,7 +24,6 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'reac
 import type { ReactNode } from 'react';
 import { AppArtwork, artworkStyles } from '../components/app-artwork.tsx';
 import type { MetaCache } from '../components/app-artwork.tsx';
-import { AppIconFan, fanStyles } from '../components/app-icon-fan.tsx';
 import { FriendShare } from '../components/friend-share.tsx';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { ShareCard } from '../components/share-card.tsx';
@@ -86,7 +85,6 @@ const SEARCH_DEBOUNCE_MS = 300;
 const SEARCH_LIMIT = 10;
 const SKELETON_ROWS = [0, 1, 2];
 const FALLBACK_COUNTRY = 'us';
-const CHANGES_ID = 'changes';
 const SUPERVISE_URL = '/supervise';
 /** The ids the two labelled site lists name their add field with. */
 const PERMITTED_INPUT_ID = 'permitted-urls';
@@ -399,13 +397,6 @@ const styles = create({
   },
   expandOpen: {
     gridTemplateRows: '1fr',
-  },
-  fanHeadline: {
-    fontSize: font.sizeLg,
-    fontWeight: font.weightMedium,
-    lineHeight: 1.6,
-    margin: 0,
-    textWrap: 'balance',
   },
   // The question's answer, set on a dial. It is the whole first screen until
   // it is given, so it sits directly under the question and nothing sits under
@@ -935,8 +926,8 @@ const styles = create({
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s3,
-    maxWidth: HERO_MEASURE,
     paddingBlockStart: spacing.s16,
+    width: '100%',
   },
   proofLead: {
     color: colors.fg,
@@ -2765,21 +2756,6 @@ function BuildPage() {
       </header>
 
       <div {...props(styles.content)}>
-        <section {...props(styles.section, styles.anchor)} id={CHANGES_ID}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_changes_title()}</h2>
-          <p {...props(styles.fanHeadline)}>
-            {m.home_fan_before()}
-            {config.blockedApps.length === 0 ? (
-              <span {...props(fanStyles.fan)}>{m.home_fan_empty()}</span>
-            ) : (
-              <AppIconFan apps={config.blockedApps} meta={meta} />
-            )}
-            {m.home_fan_after()}
-          </p>
-          <p {...props(styles.sectionBody)}>{m.home_changes_gone()}</p>
-          <p {...props(styles.sectionBody)}>{m.home_changes_stays()}</p>
-        </section>
-
         <section {...props(styles.section)}>
           <h2 {...props(styles.label)}>{m.home_deal_label()}</h2>
           <ul {...props(styles.dealList)}>
