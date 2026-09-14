@@ -11,7 +11,7 @@ import { clampHours, HourSlider, HOURS_DEFAULT } from '../components/screen-time
 import { ScreenTimeHelp } from '../components/screen-time-help.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { Tip } from '../components/tip.tsx';
-import { formatYears, screenYears, wholeYears } from '../lib/attention-math.ts';
+import { formatYears, wholeYears } from '../lib/attention-math.ts';
 import { decodeShare } from '../lib/share.ts';
 import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
 import { m } from '../paraglide/messages.js';
@@ -760,12 +760,7 @@ function HomePage() {
             <p {...props(styles.heroProduct)}>{m.home_hero_product()}</p>
             <div {...props(styles.heroActions)}>
               <Button render={<a href={`#${HOW_ID}`} />}>
-                {m.home_hero_cta({
-                  // The tilde says the months were dropped; a round year says nothing.
-                  about: wholeYears(wholeHours) === screenYears(wholeHours) ? '' : '~',
-                  article: yearsArticle(refundYears),
-                  years: refundYears,
-                })}
+                {m.home_hero_cta({ article: yearsArticle(refundYears), years: refundYears })}
               </Button>
               <a href={`#${STORY_ID}`} {...props(styles.heroSecondary)}>
                 {m.home_hero_secondary()}
