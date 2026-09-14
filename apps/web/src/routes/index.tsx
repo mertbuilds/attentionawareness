@@ -607,6 +607,9 @@ function HomePage() {
   ];
 
   const objections = [
+    { desc: m.home_faq_supervision_desc(), term: m.home_faq_supervision_term() },
+    { desc: m.home_faq_see_desc(), term: m.home_faq_see_term() },
+    { desc: m.home_faq_erase_desc(), term: m.home_faq_erase_term() },
     { desc: m.home_faq_data_desc(), term: m.home_faq_data_term() },
     { desc: m.home_faq_undo_desc(), term: m.home_faq_undo_term() },
     { desc: m.home_faq_change_desc(), term: m.home_faq_change_term() },
