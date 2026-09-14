@@ -111,7 +111,6 @@ const styles = create({
   // lines when the column they sit in is too narrow to hold both.
   preferencesRow: {
     alignItems: 'center',
-    alignSelf: 'flex-end',
     display: 'flex',
     flexWrap: 'wrap',
     gap: spacing.s3,

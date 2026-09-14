@@ -15,22 +15,27 @@ const BUILDER_URL = 'https://mertbuilds.com';
 const LINK_SLOT = '\u0000';
 
 const styles = create({
-  // The lines on one side, the controls on the other. That column is only as
-  // wide as the row, which holds it against the right edge, and the row aligns
-  // itself to the foot of the text. A phone has no second column, so the row
-  // wraps under the text, on its own left edge.
   footer: {
-    display: 'grid',
+    display: 'flex',
+    flexDirection: 'column',
     gap: spacing.s4,
-    gridTemplateColumns: {
-      '@media (min-width: 640px)': '1fr auto',
-      default: '1fr',
-    },
+  },
+  // The last line and the controls share a row, centred on each other, so the
+  // toggle sits on the text's own line. A phone wraps the controls under it.
+  last: {
+    alignItems: 'center',
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: spacing.s4,
+    justifyContent: 'space-between',
+  },
+  line: {
+    margin: 0,
   },
   lines: {
     display: 'flex',
     flexDirection: 'column',
-    gap: spacing.s1,
+    gap: spacing.s4,
   },
 });
 
@@ -47,22 +52,24 @@ export function SiteFooter({ children }: { children?: ReactNode | undefined }) {
     <footer {...props(styles.footer)}>
       <div {...props(styles.lines)}>
         {children}
-        <p {...props(layout.muted)}>
+        <p {...props(layout.muted, styles.line)}>
           {openBefore}
           <a href={REPO_URL} rel="noreferrer" target="_blank">
             {m.gen_footer_open_source_link()}
           </a>
           {openAfter}
         </p>
-        <p {...props(layout.muted)}>
+      </div>
+      <div {...props(styles.last)}>
+        <p {...props(layout.muted, styles.line)}>
           {appleBefore}
           <a href={BUILDER_URL} rel="noreferrer" target="_blank">
             {m.gen_footer_builder()}
           </a>
           {appleAfter}
         </p>
+        <PreferencesRow />
       </div>
-      <PreferencesRow />
     </footer>
   );
 }
