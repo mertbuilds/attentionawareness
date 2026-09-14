@@ -6,6 +6,8 @@ import { createPortal } from 'react-dom';
 import { useIsMobile } from '../lib/use-is-mobile.ts';
 import { Sheet } from './sheet.tsx';
 
+/** The letter on the button: not a message, so it is not in the catalog. */
+const GLYPH = 'i';
 /** How long a pointer may take to cross from the button into the box. */
 const GRACE_MS = 250;
 
@@ -35,9 +37,15 @@ const styles = create({
     padding: 0,
     width: 16,
   },
+  // A book-face italic i, the way a printed note marks one.
   glyph: {
-    height: 10,
-    width: 10,
+    fontFamily: "Georgia, 'Times New Roman', serif",
+    fontSize: 12,
+    fontStyle: 'italic',
+    fontWeight: 700,
+    lineHeight: 1,
+    marginBlockStart: -1,
+    textTransform: 'none',
   },
   popover: {
     // The 8px of bare page under the box, covered by the box itself, so a
@@ -214,16 +222,9 @@ export function InfoTip({ children, label }: { children: ReactNode; label: strin
         type="button"
         {...props(styles.button)}
       >
-        <svg aria-hidden="true" viewBox="0 0 10 10" {...props(styles.glyph)}>
-          <circle cx="5" cy="2.2" fill="currentColor" r="1" />
-          <path
-            d="M5 4.2v4"
-            fill="none"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeWidth="1.6"
-          />
-        </svg>
+        <span aria-hidden="true" {...props(styles.glyph)}>
+          {GLYPH}
+        </span>
       </button>
       {isMobile ? (
         <Sheet onOpenChange={setOpen} open={open} title={label}>
