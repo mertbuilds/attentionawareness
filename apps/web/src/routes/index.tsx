@@ -468,6 +468,8 @@ function tickAllowed(on: boolean, chosen: boolean): boolean {
 
 /** Where the reader's day is kept between visits, in this browser only. */
 const HOURS_KEY = 'aa:hours';
+/** The attribute the head script stamps on the root when hours are saved. */
+const RECALL_STAMP = 'data-aa-hours';
 
 function recallHours(): number | null {
   try {
@@ -517,6 +519,9 @@ function HomePage() {
       setHours(remembered);
       setTouched(true);
     }
+    // From here on React owns the first screen; the pre-paint stamp that hid
+    // it has done its job, and would otherwise hide it after a reset too.
+    document.documentElement.removeAttribute(RECALL_STAMP);
     if (shared.hours !== undefined) {
       // A friend already answered the question, so the page opens on their
       // number, printed.
