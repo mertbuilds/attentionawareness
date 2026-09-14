@@ -17,7 +17,7 @@ const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 export const DISPLAY_SIZE = 'clamp(32px, 3.8vw, 44px)';
 /** What the page can price, in hours a day, and the only stop it has. */
 export const HOURS_MIN = 1;
-export const HOURS_MAX = 12;
+export const HOURS_MAX = 11;
 const HOURS_STEP = 1;
 /**
  * Where the slider stands before the reader has moved it: the whole hours of
