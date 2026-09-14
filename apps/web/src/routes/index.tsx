@@ -1524,17 +1524,19 @@ const styles = create({
     cursor: 'pointer',
     display: 'inline-flex',
     flexShrink: 0,
-    height: 20,
+    height: 40,
+    insetBlockStart: spacing.s4,
+    insetInlineEnd: spacing.s4,
     justifyContent: 'center',
-    marginInlineStart: spacing.s2,
     padding: 0,
-    verticalAlign: 'middle',
-    width: 20,
+    position: 'fixed',
+    width: 40,
+    zIndex: 30,
   },
   soundGlyph: {
     display: 'block',
-    height: 16,
-    width: 16,
+    height: 24,
+    width: 24,
   },
   // Said to a screen reader and drawn for nobody: the control already carries
   // its own numbers, so the label over it is only a name.
@@ -3365,37 +3367,37 @@ function Generator() {
           correcting that figure buys, and the show counts the day out first.
           Another number is another answer: the gate is the only way to one. */}
       <header {...props(styles.hero)}>
+        <button
+          aria-label={m.home_math_sound_label()}
+          aria-pressed={sound}
+          onClick={toggleSound}
+          type="button"
+          {...props(styles.soundButton)}
+        >
+          <svg aria-hidden="true" viewBox="0 0 18 18" {...props(styles.soundGlyph)}>
+            <path d="M4 7H2v4h2l3.5 3V4L4 7Z" fill="currentColor" />
+            {sound ? (
+              <path
+                d="M10.5 6.5a3.4 3.4 0 0 1 0 5"
+                fill="none"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeWidth="1.4"
+              />
+            ) : (
+              <path
+                d="m10.5 6.5 4 5m0-5-4 5"
+                fill="none"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeWidth="1.4"
+              />
+            )}
+          </svg>
+        </button>
         <h1 {...props(styles.heroTitle)}>
           {m.home_hero_title()}
           <ScreenTimeHelp />
-          <button
-            aria-label={m.home_math_sound_label()}
-            aria-pressed={sound}
-            onClick={toggleSound}
-            type="button"
-            {...props(styles.soundButton)}
-          >
-            <svg aria-hidden="true" viewBox="0 0 18 18" {...props(styles.soundGlyph)}>
-              <path d="M4 7H2v4h2l3.5 3V4L4 7Z" fill="currentColor" />
-              {sound ? (
-                <path
-                  d="M10.5 6.5a3.4 3.4 0 0 1 0 5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeLinecap="round"
-                  strokeWidth="1.4"
-                />
-              ) : (
-                <path
-                  d="m10.5 6.5 4 5m0-5-4 5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeLinecap="round"
-                  strokeWidth="1.4"
-                />
-              )}
-            </svg>
-          </button>
         </h1>
         <ScreenTimeGate
           onChange={onHoursChange}
