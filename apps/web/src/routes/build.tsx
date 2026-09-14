@@ -136,7 +136,7 @@ const HOURS_MAX = 12;
  * the average day the line above it cites, which is the figure the reader is
  * asked to recognize or correct rather than remember.
  */
-const HOURS_DEFAULT = 6;
+const HOURS_DEFAULT = 7;
 /** Where the label for that zone is centred: the middle of the hours it names. */
 /** The machined knob, and the rail the ticks are measured against. */
 const KNOB_WIDTH = 28;

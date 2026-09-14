@@ -24,7 +24,7 @@ const HOURS_STEP = 1;
  * the average day the line above it cites, which is the figure the reader is
  * asked to recognize or correct rather than remember.
  */
-export const HOURS_DEFAULT = 6;
+export const HOURS_DEFAULT = 7;
 
 /** The machined knob, and the rail the ticks are measured against. */
 const KNOB_WIDTH = 28;
