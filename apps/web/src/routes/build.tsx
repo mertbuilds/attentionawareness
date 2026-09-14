@@ -316,35 +316,6 @@ const styles = create({
     maxWidth: 760,
     width: '100%',
   },
-  dealLabel: {
-    color: colors.muted,
-    fontSize: font.sizeSm,
-    lineHeight: 1.4,
-    textWrap: 'pretty',
-  },
-  // One number and the word it means, on one line. Three of them stacked are
-  // the whole deal, and nothing is drawn around any of them.
-  dealLine: {
-    alignItems: 'baseline',
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: spacing.s3,
-  },
-  dealList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s3,
-    listStyleType: 'none',
-    margin: 0,
-    padding: 0,
-  },
-  dealValue: {
-    color: colors.fg,
-    fontSize: font.sizeLg,
-    fontVariantNumeric: 'tabular-nums',
-    fontWeight: HEADING_WEIGHT,
-    lineHeight: 1.2,
-  },
   defDesc: {
     color: colors.muted,
     lineHeight: 1.5,
@@ -754,16 +725,6 @@ const styles = create({
     margin: 0,
     textWrap: 'pretty',
   },
-  // The page's one caption: the small line that names the group under it.
-  label: {
-    color: colors.muted,
-    fontSize: 12,
-    fontWeight: font.weightMedium,
-    letterSpacing: '0.08em',
-    lineHeight: 1.4,
-    margin: 0,
-    textTransform: 'uppercase',
-  },
   list: {
     display: 'flex',
     flexDirection: 'column',
@@ -932,26 +893,6 @@ const styles = create({
     maxWidth: 760,
     paddingBlockStart: spacing.s16,
     width: '100%',
-  },
-  proofLead: {
-    color: colors.fg,
-    fontWeight: font.weightBold,
-  },
-  proofLine: {
-    color: colors.muted,
-    fontSize: font.sizeMd,
-    lineHeight: 1.6,
-    margin: 0,
-    maxWidth: '60ch',
-    textWrap: 'pretty',
-  },
-  proofList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s4,
-    listStyleType: 'none',
-    margin: 0,
-    padding: 0,
   },
   // One cited line inside the research box, and the whole line is the source.
   receiptAfter: {
@@ -2691,6 +2632,14 @@ function BuildPage() {
         : m.gen_summary_sites_none();
   // The preview draws the profile instead of listing it: the icons of the apps
   // it hides, and the hosts it turns away. Whatever does not fit is counted.
+  // The list is the recommended one while it holds exactly the preset apps and
+  // none of their sites were unticked or deleted; only then is there nothing
+  // to reset to.
+  const recommended =
+    excludedSites.length === 0 &&
+    removedSites.length === 0 &&
+    config.blockedApps.length === presets.mert.blockedApps.length &&
+    presets.mert.blockedApps.every((app) => blockedIds.has(app.bundleId));
   const previewApps = config.blockedApps.slice(0, PREVIEW_APPS);
   const hiddenApps = config.blockedApps.length - previewApps.length;
   const deniedSites = filter.mode === 'deny' ? filter.deniedUrls : [];
@@ -2715,18 +2664,6 @@ function BuildPage() {
     month: 'short',
     year: 'numeric',
   }).format(printedAt);
-
-  const dealTiles = [
-    { label: m.home_deal_apps_label(), value: m.home_deal_apps_value() },
-    { label: m.home_deal_price_label(), value: m.home_deal_price_value() },
-    { label: m.home_deal_time_label(), value: m.home_deal_time_value() },
-  ];
-
-  const proofPoints = [
-    { body: m.home_proof_months_body(), title: m.home_proof_months_title() },
-    { body: m.home_proof_minutes_body(), title: m.home_proof_minutes_title() },
-    { body: m.home_proof_blocked_body(), title: m.home_proof_blocked_title() },
-  ];
 
   return (
     <main {...props(styles.page)}>
@@ -2753,7 +2690,6 @@ function BuildPage() {
           <span aria-hidden="true">{BACK_ARROW}</span>
           {m.nav_back_guide()}
         </a>
-        <p {...props(styles.label)}>{m.gen_step2_label()}</p>
         <h1 {...props(styles.heroTitle)}>{m.gen_step2_title()}</h1>
         <p {...props(layout.muted)}>
           {m.build_not_supervised()} <a href={SUPERVISE_URL}>{m.build_supervise_link()}</a>
@@ -2762,43 +2698,13 @@ function BuildPage() {
 
       <div {...props(styles.content)}>
         <section {...props(styles.section)}>
-          <h2 {...props(styles.label)}>{m.home_deal_label()}</h2>
-          <ul {...props(styles.dealList)}>
-            {dealTiles.map((tile) => (
-              <li key={tile.label} {...props(styles.dealLine)}>
-                <span {...props(styles.dealValue)}>{tile.value}</span>
-                <span {...props(styles.dealLabel)}>{tile.label}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_proof_title()}</h2>
-          <ul {...props(styles.proofList)}>
-            {proofPoints.map((point) => (
-              <li key={point.title}>
-                <p {...props(styles.proofLine)}>
-                  <span {...props(styles.proofLead)}>{point.title}</span> {point.body}
-                </p>
-              </li>
-            ))}
-          </ul>
+          <h2 {...props(styles.sectionTitle)}>{m.build_activity_title()}</h2>
+          <p {...props(layout.muted)}>{m.build_activity_body()}</p>
         </section>
 
         <section {...props(styles.section)}>
           <h2 {...props(styles.sectionTitle)}>{m.home_apps_title()}</h2>
-          <p {...props(layout.muted)}>
-            {m.home_apps_subtitle()}{' '}
-            <button
-              onBlur={() => setArmedRemove(null)}
-              onClick={onResetClick}
-              type="button"
-              {...props(styles.resetLink, armedRemove === RESET_ARMED && styles.resetArmed)}
-            >
-              {armedRemove === RESET_ARMED ? m.gen_remove_confirm() : m.gen_apps_reset()}
-            </button>
-          </p>
+          <p {...props(layout.muted)}>{m.home_apps_subtitle()}</p>
           <div ref={searchWrap} {...props(styles.searchWrap)}>
             <div {...props(styles.searchBar)}>
               <div
@@ -2968,6 +2874,18 @@ function BuildPage() {
               </li>
             ))}
           </ul>
+          {recommended ? null : (
+            <p {...props(layout.muted)}>
+              <button
+                onBlur={() => setArmedRemove(null)}
+                onClick={onResetClick}
+                type="button"
+                {...props(styles.resetLink, armedRemove === RESET_ARMED && styles.resetArmed)}
+              >
+                {armedRemove === RESET_ARMED ? m.gen_remove_confirm() : m.gen_apps_reset()}
+              </button>
+            </p>
+          )}
         </section>
 
         <section {...props(styles.section)}>
