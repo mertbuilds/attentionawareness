@@ -23,6 +23,8 @@ const HOURS_STEP = 1;
 /** The rail's opening sweep: up two to nine, down to six, back to seven, gliding. */
 const DEMO_SWEEP = [9, 6, 7];
 const DEMO_START_MS = 700;
+/** How long the rail waits, untouched, before it shows itself again. */
+const DEMO_REPEAT_MS = 10_000;
 /** How long the knob takes to glide one hour along the rail. */
 const DEMO_HOUR_MS = 260;
 /**
@@ -463,12 +465,19 @@ export function HourSlider({ onPick, sound }: { onPick: (hours: number) => void;
       }
       frame.current = requestAnimationFrame(tick);
     }
-    timer.current = setTimeout(() => {
-      if (!held.current) {
-        setGliding(true);
-        frame.current = requestAnimationFrame(leg);
+    // One sweep after the first beat, then one every ten seconds the rail
+    // goes untouched, each from where the last one ended.
+    function sweep() {
+      if (held.current) {
+        return;
       }
-    }, DEMO_START_MS);
+      index = 0;
+      lastWhole = Math.round(from);
+      setGliding(true);
+      frame.current = requestAnimationFrame(leg);
+      timer.current = setTimeout(sweep, DEMO_REPEAT_MS);
+    }
+    timer.current = setTimeout(sweep, DEMO_START_MS);
     return () => {
       if (timer.current !== null) {
         clearTimeout(timer.current);
