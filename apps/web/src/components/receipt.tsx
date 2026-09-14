@@ -9,37 +9,48 @@ import { InfoTip } from './info-tip.tsx';
 
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 const DISPLAY_SIZE = 40;
-/** The stripe a printed receipt ends on. Nothing scans it. */
-const RECEIPT_BARCODE = '▌▐▌▌▐▌▐▐▌▌▐▌▐▌▌▐▌▐▐▌▌▐▌▐▌';
+
+/** Paper grain: one tile of fractal noise, faint, laid over the ground. */
+const PAPER_GRAIN =
+  "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.10 0'/></filter><rect width='160' height='160' filter='url(%23g)'/></svg>\")";
+/**
+ * The torn top and bottom, as one polygon the paper is cut to: 28 teeth of
+ * up to 7px, with a little wobble. Written out because StyleX reads it at
+ * build time.
+ */
+const TORN_EDGE =
+  'polygon(0.00% 0px, 3.57% 8px, 7.14% 2px, 10.71% 7px, 14.29% 1px, 17.86% 9px, 21.43% 0px, 25.00% 8px, 28.57% 2px, 32.14% 7px, 35.71% 1px, 39.29% 9px, 42.86% 0px, 46.43% 8px, 50.00% 2px, 53.57% 7px, 57.14% 1px, 60.71% 9px, 64.29% 0px, 67.86% 8px, 71.43% 2px, 75.00% 7px, 78.57% 1px, 82.14% 9px, 85.71% 0px, 89.29% 8px, 92.86% 2px, 96.43% 7px, 100.00% 1px, 100.00% calc(100% - 0px), 96.43% calc(100% - 8px), 92.86% calc(100% - 2px), 89.29% calc(100% - 7px), 85.71% calc(100% - 1px), 82.14% calc(100% - 9px), 78.57% calc(100% - 0px), 75.00% calc(100% - 8px), 71.43% calc(100% - 2px), 67.86% calc(100% - 7px), 64.29% calc(100% - 1px), 60.71% calc(100% - 9px), 57.14% calc(100% - 0px), 53.57% calc(100% - 8px), 50.00% calc(100% - 2px), 46.43% calc(100% - 7px), 42.86% calc(100% - 1px), 39.29% calc(100% - 9px), 35.71% calc(100% - 0px), 32.14% calc(100% - 8px), 28.57% calc(100% - 2px), 25.00% calc(100% - 7px), 21.43% calc(100% - 1px), 17.86% calc(100% - 9px), 14.29% calc(100% - 0px), 10.71% calc(100% - 8px), 7.14% calc(100% - 2px), 3.57% calc(100% - 7px), 0.00% calc(100% - 1px))';
 
 const styles = create({
+  barcode: {
+    color: colors.fg,
+    display: 'block',
+    height: 44,
+    marginInline: 'auto',
+    width: '70%',
+  },
   receipt: {
     backgroundColor: colors.bg,
-    borderColor: colors.border,
-    borderRadius: radius.base,
-    borderStyle: 'solid',
-    borderWidth: 1,
+    backgroundImage: PAPER_GRAIN,
     boxSizing: 'border-box',
+    clipPath: TORN_EDGE,
     display: 'flex',
     flexDirection: 'column',
     fontFamily: MONOSPACE,
     fontSize: 13,
     gap: spacing.s3,
     maxWidth: 420,
-    padding: {
+    paddingBlock: {
+      '@media (min-width: 640px)': spacing.s8,
+      default: spacing.s6,
+    },
+    paddingInline: {
       '@media (min-width: 640px)': spacing.s4,
       default: spacing.s3,
     },
     textAlign: 'start',
     textTransform: 'uppercase',
     width: '100%',
-  },
-  receiptBarcode: {
-    color: colors.muted,
-    letterSpacing: '-0.05em',
-    margin: 0,
-    overflow: 'hidden',
-    textAlign: 'center',
   },
   receiptBlock: {
     display: 'flex',
@@ -156,6 +167,41 @@ const styles = create({
   },
 });
 
+/** Bar widths in modules, the way Code 128 spaces them: narrow to wide. */
+const BAR_WIDTHS = [1, 1, 2, 1, 3, 1, 1, 2, 1, 1, 4, 1, 2, 2, 1, 1, 3, 2, 1, 1];
+/** Bars in the stripe, with a quiet zone either side. */
+const BAR_COUNT = 46;
+
+/**
+ * The stripe a printed receipt ends on. Nothing scans it, but it is drawn the
+ * way a scanner would want it: bars of one to four modules, spaced the same,
+ * in an order the receipt number decides, so the same bill prints the same
+ * stripe.
+ */
+function Barcode({ seed }: { seed: string }) {
+  const bars: Array<{ width: number; x: number }> = [];
+  let x = 0;
+  for (let index = 0; index < BAR_COUNT; index += 1) {
+    const digit = Number(seed[index % seed.length] ?? 0);
+    const width = BAR_WIDTHS[(index + digit) % BAR_WIDTHS.length] ?? 1;
+    const gap = BAR_WIDTHS[(index * 7 + digit) % BAR_WIDTHS.length] ?? 1;
+    bars.push({ width, x });
+    x += width + gap;
+  }
+  return (
+    <svg
+      aria-hidden="true"
+      preserveAspectRatio="none"
+      viewBox={`0 0 ${x} 40`}
+      {...props(styles.barcode)}
+    >
+      {bars.map((bar) => (
+        <rect fill="currentColor" height="40" key={bar.x} width={bar.width} x={bar.x} y="0" />
+      ))}
+    </svg>
+  );
+}
+
 /**
  * The bill for a day of scrolling, priced over the horizon. Every figure on it
  * rolls as the hours change. Refunded, it wears the stamp: the same bill, torn
@@ -266,9 +312,7 @@ export function Receipt({
       </div>
       <div aria-hidden="true" {...props(styles.receiptRule)} />
       <div {...props(styles.receiptFoot)}>
-        <p aria-hidden="true" {...props(styles.receiptBarcode)}>
-          {RECEIPT_BARCODE}
-        </p>
+        <Barcode seed={number} />
         <p {...props(styles.receiptThanks)}>{m.home_receipt_thanks()}</p>
       </div>
       {refunded ? (
