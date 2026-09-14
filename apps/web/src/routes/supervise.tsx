@@ -361,6 +361,14 @@ function SuperviseGuide() {
         </section>
 
         <section {...props(styles.section)}>
+          <h2 {...props(styles.sectionTitle)}>{m.sup_next_title()}</h2>
+          <p {...props(layout.muted)}>{m.sup_next_body()}</p>
+          <p>
+            <Button render={<a href={BUILD_URL} />}>{m.sup_next_cta()}</Button>
+          </p>
+        </section>
+
+        <section {...props(styles.section)}>
           <h2 {...props(styles.sectionTitle)}>{m.sup_verified_title()}</h2>
           <Table>
             <TableHeader>
@@ -421,14 +429,6 @@ function SuperviseGuide() {
               </a>
             </li>
           </ul>
-        </section>
-
-        <section {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>{m.sup_next_title()}</h2>
-          <p {...props(layout.muted)}>{m.sup_next_body()}</p>
-          <p>
-            <Button render={<a href={BUILD_URL} />}>{m.sup_next_cta()}</Button>
-          </p>
         </section>
 
         <Separator />
