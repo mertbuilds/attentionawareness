@@ -681,12 +681,15 @@ const styles = create({
     display: 'flex',
     flexWrap: 'wrap',
     gap: spacing.s4,
+    justifyContent: 'center',
   },
   heroPitch: {
+    alignItems: 'center',
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s4,
     maxWidth: HERO_MEASURE,
+    textAlign: 'center',
   },
   // Once the day is totalled, the screen stops holding its middle: the stack
   // grows down the page, so it and the way on under it are read from the top
@@ -709,6 +712,7 @@ const styles = create({
     alignItems: 'center',
     display: 'flex',
     gap: spacing.s3,
+    justifyContent: 'center',
   },
   // The way past the button, for a reader who wants the price in time first.
   heroSecondary: {
