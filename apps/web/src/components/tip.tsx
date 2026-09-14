@@ -96,6 +96,7 @@ export function Tip({
   children,
   content,
   mobile = 'sheet',
+  side,
   style,
   title,
   trigger,
@@ -111,6 +112,8 @@ export function Tip({
    * name on hover.
    */
   mobile?: 'none' | 'sheet';
+  /** Which side of the trigger the box opens on; a label defaults to below. */
+  side?: 'bottom' | 'top';
   /** Extra style for the box, when a tip needs a different width. */
   style?: StyleXStyles;
   /** Written over the box, and used as the sheet's heading. */
@@ -143,7 +146,7 @@ export function Tip({
       <Tooltip.Trigger render={trigger} />
       <Tooltip.Portal>
         <Tooltip.Positioner
-          side={variant === 'label' ? 'bottom' : 'top'}
+          side={side ?? (variant === 'label' ? 'bottom' : 'top')}
           sideOffset={variant === 'label' ? 6 : 8}
           {...props(styles.positioner)}
         >

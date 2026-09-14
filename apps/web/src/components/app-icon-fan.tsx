@@ -126,6 +126,7 @@ export function AppIconFan({
         <Tip
           key={app.bundleId}
           mobile="none"
+          side="top"
           title={app.name}
           trigger={
             <button
