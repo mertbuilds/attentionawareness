@@ -20,8 +20,8 @@ export const DISPLAY_SIZE = 'clamp(32px, 3.8vw, 44px)';
 export const HOURS_MIN = 2;
 export const HOURS_MAX = 12;
 const HOURS_STEP = 1;
-/** The rail's opening sweep: down to five, up to eight, back, gliding. */
-const DEMO_SWEEP = [5, 8, 7];
+/** The rail's opening sweep: up two to nine, down to six, back to seven, gliding. */
+const DEMO_SWEEP = [9, 6, 7];
 const DEMO_START_MS = 700;
 /** How long the knob takes to glide one hour along the rail. */
 const DEMO_HOUR_MS = 260;
@@ -410,7 +410,7 @@ export function ScreenTimeGate({
 export function HourSlider({ onPick, sound }: { onPick: (hours: number) => void; sound: boolean }) {
   const [hours, setHours] = useState(HOURS_DEFAULT);
   const reading = hours === 1 ? m.home_gate_reading_one() : m.home_gate_reading({ hours });
-  // The rail shows itself once: the knob glides down to five, up to eight
+  // The rail shows itself once: the knob glides up to nine, down to six
   // and back to seven, ticking at every whole hour, until the reader takes
   // hold of it. While it glides the input accepts fractions; once held it is
   // whole hours again.
