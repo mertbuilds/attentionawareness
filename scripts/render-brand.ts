@@ -25,7 +25,6 @@ const font = path.join(root, 'packages/ui/fonts/SuisseIntl-Medium.woff2');
 
 /** The brand, in prose. Only the mark itself is lowercase. */
 const SITE_NAME = 'Attention Awareness';
-const TAGLINE = 'Your attention is more valuable than gold.';
 const MARK = 'aa';
 const BLACK = '#000000';
 const WHITE = '#ffffff';
@@ -80,13 +79,26 @@ const iconPage = (size: number) => `<style>${face}${reset}
   width: ${size}px;
 }</style><div class="mark">${MARK}</div>`;
 
+/** The question the share card asks, with the two words that carry it. */
+const OG_QUESTION = `Are you <em>aware</em> of where your <em>attention</em> goes?`;
+const ORANGE = '#ff4f00';
+/** The page's graph paper: the same 40px ruling, the same faint white line. */
+const OG_LINE = 'rgba(255, 255, 255, 0.08)';
+
 const ogPage = `<style>${face}${reset}
-body { align-items: center; display: flex; gap: 72px; height: 630px; padding: 0 100px; width: 1200px; }
-.mark { font-size: 200px; letter-spacing: -0.02em; line-height: 1; }
-.lines { display: flex; flex-direction: column; gap: 20px; }
-.name { font-size: 68px; letter-spacing: -0.03em; line-height: 1.05; }
-.tagline { color: ${GRAY}; font-size: 34px; font-weight: 400; letter-spacing: -0.01em; line-height: 1.3; }
-</style><div class="mark">${MARK}</div><div class="lines"><div class="name">${SITE_NAME}</div><div class="tagline">${TAGLINE}</div></div>`;
+body { height: 630px; overflow: hidden; position: relative; width: 1200px; }
+.grid {
+  background-image: linear-gradient(${OG_LINE} 1px, transparent 1px), linear-gradient(90deg, ${OG_LINE} 1px, transparent 1px);
+  background-size: 40px 40px;
+  inset: 0;
+  -webkit-mask-image: radial-gradient(ellipse at 30% 40%, black 30%, transparent 80%);
+  position: absolute;
+}
+.brand { align-items: center; color: ${GRAY}; display: flex; font-size: 26px; gap: 14px; left: 80px; position: absolute; top: 72px; }
+.mark { align-items: center; background: ${WHITE}; border-radius: 6px; color: ${BLACK}; display: flex; font-size: 22px; height: 40px; justify-content: center; letter-spacing: -0.02em; width: 40px; }
+.question { bottom: 96px; font-size: 84px; left: 80px; letter-spacing: -0.03em; line-height: 1.08; position: absolute; right: 80px; text-wrap: balance; }
+em { color: ${ORANGE}; font-style: normal; }
+</style><div class="grid"></div><div class="brand"><div class="mark">${MARK}</div>${SITE_NAME.toLowerCase()}</div><div class="question">${OG_QUESTION}</div>`;
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ deviceScaleFactor: 1 });
