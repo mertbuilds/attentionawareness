@@ -32,12 +32,6 @@ const styles = create({
     width: '70%',
   },
   paper: {
-    filter: {
-      '@media (prefers-color-scheme: dark)':
-        'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6)) drop-shadow(0 10px 14px rgba(0, 0, 0, 0.5))',
-      default:
-        'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.18)) drop-shadow(0 10px 14px rgba(0, 0, 0, 0.12))',
-    },
     maxWidth: 420,
     width: '100%',
   },
