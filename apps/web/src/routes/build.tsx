@@ -235,6 +235,18 @@ const styles = create({
     gap: spacing.s1,
     minWidth: 0,
   },
+  // The way back, over the title: one quiet line, an arrow and a word.
+  back: {
+    color: {
+      ':hover': colors.fg,
+      default: colors.muted,
+    },
+    fontSize: font.sizeSm,
+    textDecorationLine: {
+      ':hover': 'underline',
+      default: 'none',
+    },
+  },
   banner: {
     alignItems: 'center',
     borderColor: colors.border,
@@ -2742,6 +2754,9 @@ function BuildPage() {
           correcting that figure buys, and the show counts the day out first.
           Another number is another answer: the gate is the only way to one. */}
       <header {...props(styles.pageHead)}>
+        <a href={SUPERVISE_URL} {...props(styles.back)}>
+          {m.nav_back_guide()}
+        </a>
         <p {...props(styles.label)}>{m.gen_step2_label()}</p>
         <h1 {...props(styles.heroTitle)}>{m.gen_step2_title()}</h1>
         <p {...props(layout.muted)}>

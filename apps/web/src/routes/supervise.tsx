@@ -33,6 +33,18 @@ const STOPA_URL = 'https://stopa.io/post/297';
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 
 const styles = create({
+  // The way back, over the title: one quiet line, an arrow and a word.
+  back: {
+    color: {
+      ':hover': colors.fg,
+      default: colors.muted,
+    },
+    fontSize: font.sizeSm,
+    textDecorationLine: {
+      ':hover': 'underline',
+      default: 'none',
+    },
+  },
   body: {
     color: colors.muted,
     lineHeight: 1.5,
@@ -243,6 +255,9 @@ function SuperviseGuide() {
     <main {...props(styles.page)}>
       <GridTexture />
       <header {...props(styles.hero)}>
+        <a href={HOME_URL} {...props(styles.back)}>
+          {m.nav_back_home()}
+        </a>
         <h1 {...props(styles.heroTitle)}>{m.sup_title()}</h1>
         <p {...props(styles.lead)}>{m.sup_lead()}</p>
       </header>
