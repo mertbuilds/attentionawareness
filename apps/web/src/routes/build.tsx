@@ -30,7 +30,6 @@ import { GridTexture } from '../components/grid-texture.tsx';
 import { ShareCard } from '../components/share-card.tsx';
 import { Sheet } from '../components/sheet.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
-import { WorstApps } from '../components/worst-apps.tsx';
 import type { AppResult } from '../lib/app-search.ts';
 import {
   defaultStorefront,
@@ -43,8 +42,6 @@ import {
 } from '../lib/app-search.ts';
 import { formatYears } from '../lib/attention-math.ts';
 import { controls } from '../lib/controls.ts';
-import { mergeBlockedApps } from '../lib/known-apps.ts';
-import type { ScannedApp } from '../lib/known-apps.ts';
 import { layout } from '../lib/layout.ts';
 import { buildProfile, presets } from '../lib/profile/index.ts';
 import type { BlockedApp, ProfileConfig } from '../lib/profile/index.ts';
@@ -2343,10 +2340,6 @@ function BuildPage() {
   // StyleX cannot reach `details[open] > summary`, so the chevron is turned
   // from React and the element itself stays the source of truth.
   const [moreOpen, setMoreOpen] = useState(false);
-  // Step 2 opens on the screenshot picker, and what follows it is the list the
-  // picker fills in. Until the reader has used it or waved it off, the rest of
-  // the step steps back: it is there, and it is not the thing to read yet.
-  const [pickerUsed, setPickerUsed] = useState(false);
   // There is nothing to brag about until a profile has left the page.
   const [generated, setGenerated] = useState(false);
   // The second gate, on the download alone: an installed profile comes off an
@@ -2651,37 +2644,7 @@ function BuildPage() {
     });
   }
 
-  /**
-   * The apps the reader picked off their own screenshot. Ids the list already
-   * carries stay as they are, and the sites each app implies are derived from
-   * the blocked list itself, so there is nothing else to merge.
-   */
-  function applyScanned(apps: ReadonlyArray<ScannedApp>) {
-    setPickerUsed(true);
-    setMeta((current) => {
-      const next = { ...current };
-      for (const app of apps) {
-        if (app.iconUrl !== '') {
-          next[app.bundleId] = { developer: '', iconUrl: app.iconUrl };
-        }
-      }
-      return next;
-    });
-    setConfig({
-      ...config,
-      blockedApps: mergeBlockedApps(
-        config.blockedApps,
-        apps.map((app) => ({ bundleId: app.bundleId, name: app.name, sellerUrl: app.sellerUrl })),
-      ),
-    });
-  }
-
   /** A name the scan found nothing for, handed to the search bar below it. */
-  function searchFor(name: string) {
-    onQueryChange(name);
-    searchInput.current?.focus();
-  }
-
   // Removing is one click away from undoable and one click away from gone, so
   // the first click only arms the button. Only one row can be armed at a time.
   function onRemoveClick(bundleId: string) {
@@ -2975,14 +2938,7 @@ function BuildPage() {
       </header>
 
       <div {...props(styles.content)}>
-        <WorstApps
-          country={country}
-          onApply={applyScanned}
-          onSearch={searchFor}
-          onSkip={() => setPickerUsed(true)}
-        />
-
-        <section {...props(styles.section, !pickerUsed && styles.dimmed)}>
+        <section {...props(styles.section)}>
           <h2 {...props(styles.sectionTitle)}>{m.home_apps_title()}</h2>
           <p {...props(layout.muted)}>
             {m.home_apps_subtitle()}{' '}
