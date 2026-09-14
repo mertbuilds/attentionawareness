@@ -118,6 +118,7 @@ const styles = create({
   receiptStoreUrl: {
     color: colors.muted,
     margin: 0,
+    textAlign: 'center',
     textTransform: 'none',
   },
   receiptThanks: {
@@ -253,7 +254,6 @@ export function Receipt({
       <div {...props(styles.receipt, refunded && styles.stamped)}>
         <div {...props(styles.receiptHead)}>
           <p {...props(styles.receiptStore)}>{m.home_receipt_store()}</p>
-          <p {...props(styles.receiptStoreUrl)}>{m.home_receipt_store_url()}</p>
         </div>
         <div aria-hidden="true" {...props(styles.receiptRule)} />
         <div {...props(styles.receiptMeta)}>
@@ -303,6 +303,7 @@ export function Receipt({
         <div {...props(styles.receiptFoot)}>
           <Barcode seed={number} />
           <p {...props(styles.receiptThanks)}>{m.home_receipt_thanks()}</p>
+          <p {...props(styles.receiptStoreUrl)}>{m.home_receipt_store_url()}</p>
         </div>
         {refunded ? (
           <span aria-label={m.home_receipt_refunded()} role="img" {...props(styles.stamp)}>
