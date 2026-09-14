@@ -4,6 +4,7 @@ import { create, firstThatWorks, keyframes, props } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { GridTexture } from '../components/grid-texture.tsx';
+import { PreferencesRow } from '../components/preferences.tsx';
 import { Receipt } from '../components/receipt.tsx';
 import { clampHours, HourSlider, HOURS_DEFAULT } from '../components/screen-time-gate.tsx';
 import { ScreenTimeHelp } from '../components/screen-time-help.tsx';
@@ -190,6 +191,7 @@ const styles = create({
     maxWidth: 760,
     minHeight: firstThatWorks('100svh', '100vh'),
     paddingBlockEnd: '18vh',
+    position: 'relative',
     textAlign: 'center',
     width: '100%',
   },
@@ -209,6 +211,19 @@ const styles = create({
     marginInline: 'auto',
     maxWidth: HERO_MEASURE,
     textAlign: 'center',
+  },
+  // Theme and language, at the foot of the first screen and nowhere else on
+  // it: the same row the footer carries, for a reader who has not scrolled.
+  heroPrefs: {
+    display: 'flex',
+    insetBlockEnd: spacing.s6,
+    insetInlineStart: 0,
+    justifyContent: 'center',
+    // Pinned to the screen, not the hero: the hero can be taller than the
+    // viewport, and the row must sit at the foot of what is seen.
+    position: 'fixed',
+    width: '100%',
+    zIndex: 20,
   },
   heroProduct: {
     color: colors.muted,
@@ -594,6 +609,11 @@ function HomePage() {
         )}
         {/* The figure the question is asked against, and where it comes from.
         It goes the moment the reader gives their own. */}
+        {touched ? null : (
+          <div {...props(styles.heroPrefs)}>
+            <PreferencesRow />
+          </div>
+        )}
         {touched ? null : (
           <p {...props(styles.gateNote)}>
             {m.home_gate_average()}{' '}

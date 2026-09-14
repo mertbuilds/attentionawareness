@@ -89,6 +89,12 @@ const styles = create({
     maxWidth: 420,
     width: '100%',
   },
+  // NumberFlow pads its digits by a quarter em for the roll mask; the plain
+  // first-frame digit wears the same padding so nothing moves at hydration.
+  gateCountStill: {
+    display: 'inline-block',
+    paddingBlock: '0.25em',
+  },
   gateReading: {
     alignItems: 'center',
     display: 'flex',
@@ -96,9 +102,6 @@ const styles = create({
     fontSize: DISPLAY_SIZE,
     fontVariantNumeric: 'tabular-nums',
     fontWeight: 700,
-    // The same box before and after NumberFlow takes over: its digits carry
-    // a mask padding the plain span does not, so the height is fixed here.
-    height: '1.5em',
     justifyContent: 'center',
     letterSpacing: '-0.02em',
     lineHeight: 1,
@@ -300,7 +303,7 @@ function Count({ value }: { value: number }) {
   return hydrated ? (
     <NumberFlow value={value} {...props(styles.gateCount)} />
   ) : (
-    <span {...props(styles.gateCount)}>{value}</span>
+    <span {...props(styles.gateCount, styles.gateCountStill)}>{value}</span>
   );
 }
 
