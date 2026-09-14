@@ -21,7 +21,7 @@ if (clientEnv.VITE_SENTRY_DSN && typeof window !== 'undefined') {
 }
 
 /** The brand, in prose. The lowercase "aa" mark is the only lowercase form. */
-const SITE_NAME = 'Attention Awareness';
+const SITE_NAME = 'attention awareness';
 const SITE_URL = 'https://attentionawareness.com';
 const OG_IMAGE = `${SITE_URL}/og.png`;
 /** What the site promises, in one line. The share cards lead with it. */

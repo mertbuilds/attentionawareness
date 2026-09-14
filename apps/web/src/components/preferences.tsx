@@ -1,6 +1,7 @@
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import type { ReactNode } from 'react';
 import {
   applyTheme,
   readTheme,
@@ -11,6 +12,7 @@ import {
 } from '../lib/theme.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale, locales, setLocale } from '../paraglide/runtime.js';
+import { FlagGb, FlagTr } from './flags.tsx';
 
 type Locale = (typeof locales)[number];
 
@@ -20,9 +22,9 @@ const LANGUAGE_NAMES: Record<Locale, () => string> = {
   tr: m.pref_language_tr,
 };
 
-const LANGUAGE_FLAGS: Record<Locale, string> = {
-  en: '🇬🇧',
-  tr: '🇹🇷',
+const LANGUAGE_FLAGS: Record<Locale, () => ReactNode> = {
+  en: () => <FlagGb />,
+  tr: () => <FlagTr />,
 };
 
 const THEME_NAMES: Record<ThemeChoice, () => string> = {
@@ -54,7 +56,8 @@ const styles = create({
     whiteSpace: 'nowrap',
   },
   flag: {
-    fontSize: 14,
+    alignItems: 'center',
+    display: 'inline-flex',
     lineHeight: 1,
   },
   languageMenu: {
@@ -229,7 +232,7 @@ export function LanguageSwitch() {
         {/* Hidden from the name, so the control reads as its language and
             not as an unpronounceable flag. */}
         <span aria-hidden="true" {...props(styles.flag)}>
-          {LANGUAGE_FLAGS[locale]}
+          {LANGUAGE_FLAGS[locale]()}
         </span>
         <span>{LANGUAGE_NAMES[locale]()}</span>
       </button>
@@ -245,7 +248,7 @@ export function LanguageSwitch() {
               {...props(styles.option, code === locale && styles.optionSelected)}
             >
               <span aria-hidden="true" {...props(styles.flag)}>
-                {LANGUAGE_FLAGS[code]}
+                {LANGUAGE_FLAGS[code]()}
               </span>
               <span>{LANGUAGE_NAMES[code]()}</span>
             </button>
