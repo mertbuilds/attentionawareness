@@ -41,6 +41,7 @@ const styles = create({
     borderRadius: radius.base,
     borderStyle: 'solid',
     borderWidth: '1px',
+    boxSizing: 'border-box',
     color: {
       ':hover': colors.fg,
       default: colors.muted,
@@ -50,8 +51,10 @@ const styles = create({
     fontFamily: 'inherit',
     fontSize: 12,
     gap: spacing.s1,
+    // The same 28px box as the theme toggle beside it.
+    height: 28,
     lineHeight: 1,
-    paddingBlock: 6,
+    paddingBlock: 0,
     paddingInline: spacing.s2,
     whiteSpace: 'nowrap',
   },

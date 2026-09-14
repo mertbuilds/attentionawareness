@@ -3,6 +3,7 @@ import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, firstThatWorks, keyframes, props } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
+import { Mute, Restart, Sound } from 'reicon-react';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { PreferencesRow } from '../components/preferences.tsx';
 import { Receipt } from '../components/receipt.tsx';
@@ -42,6 +43,8 @@ const HERO_MEASURE = 640;
 /** The places on the page that can be linked to, and the ids they use. */
 const STORY_ID = 'story';
 const HOW_ID = 'how';
+/** The two tool icons, top right. */
+const ICON_SIZE = 22;
 const SUPERVISE_URL = '/supervise';
 const BUILD_URL = '/build';
 /** The report the average day is taken from. */
@@ -381,11 +384,6 @@ const styles = create({
   },
   // The speaker is a hint, not a headline: it only colours up on hover, and it
   // sits in the quiet row under the way on, at the size of the text beside it.
-  soundGlyph: {
-    display: 'block',
-    height: 24,
-    width: 24,
-  },
   stepLink: {
     display: 'inline-block',
     marginBlockStart: spacing.s2,
@@ -409,6 +407,10 @@ const styles = create({
     fontSize: font.sizeSm,
     lineHeight: 1.5,
     margin: 0,
+  },
+  // The restart arrow, turned over so it runs the other way round.
+  flipped: {
+    transform: 'scaleY(-1)',
   },
   toolButton: {
     alignItems: 'center',
@@ -641,38 +643,25 @@ function HomePage() {
       <header {...props(styles.hero)}>
         {/* The two tools, top right: start over, and the sound. */}
         <div {...props(styles.tools)}>
-          <Tip
-            mobile="none"
-            title={m.home_reset_label()}
-            trigger={
-              <button
-                aria-label={m.home_reset_label()}
-                onClick={reset}
-                type="button"
-                {...props(styles.toolButton)}
-              >
-                <svg aria-hidden="true" viewBox="0 0 18 18" {...props(styles.soundGlyph)}>
-                  <path
-                    d="M4.5 9a4.5 4.5 0 1 0 1.3-3.2"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeLinecap="round"
-                    strokeWidth="1.4"
-                  />
-                  <path
-                    d="M4.2 3.2v3h3"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="1.4"
-                  />
-                </svg>
-              </button>
-            }
-          >
-            {null}
-          </Tip>
+          {touched ? (
+            <Tip
+              mobile="none"
+              title={m.home_reset_label()}
+              trigger={
+                <button
+                  aria-label={m.home_reset_label()}
+                  onClick={reset}
+                  type="button"
+                  {...props(styles.toolButton)}
+                >
+                  <Restart aria-hidden="true" size={ICON_SIZE} {...props(styles.flipped)} />
+                </button>
+              }
+              variant="label"
+            >
+              {null}
+            </Tip>
+          ) : null}
           <Tip
             mobile="none"
             title={m.home_math_sound_label()}
@@ -684,28 +673,14 @@ function HomePage() {
                 type="button"
                 {...props(styles.toolButton)}
               >
-                <svg aria-hidden="true" viewBox="0 0 18 18" {...props(styles.soundGlyph)}>
-                  <path d="M4 7H2v4h2l3.5 3V4L4 7Z" fill="currentColor" />
-                  {sound ? (
-                    <path
-                      d="M10.5 6.5a3.4 3.4 0 0 1 0 5"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeLinecap="round"
-                      strokeWidth="1.4"
-                    />
-                  ) : (
-                    <path
-                      d="m10.5 6.5 4 5m0-5-4 5"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeLinecap="round"
-                      strokeWidth="1.4"
-                    />
-                  )}
-                </svg>
+                {sound ? (
+                  <Sound aria-hidden="true" size={ICON_SIZE} />
+                ) : (
+                  <Mute aria-hidden="true" size={ICON_SIZE} />
+                )}
               </button>
             }
+            variant="label"
           >
             {null}
           </Tip>
