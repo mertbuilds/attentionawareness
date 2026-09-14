@@ -2,7 +2,7 @@ import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import NumberFlow from '@number-flow/react';
 import { create, props } from '@stylexjs/stylex';
-import { adRevenue, heroMetrics, HORIZON_YEARS, screenYears } from '../lib/attention-math.ts';
+import { heroMetrics, HORIZON_YEARS, screenYears } from '../lib/attention-math.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
 import { InfoTip } from './info-tip.tsx';
@@ -254,31 +254,6 @@ export function Receipt({
           <p {...props(styles.receiptMetaLine)}>
             <span>{m.home_receipt_no({ number })}</span>
             <span>{printedOn}</span>
-          </p>
-        </div>
-        <div aria-hidden="true" {...props(styles.receiptRule)} />
-        {/* The deal, in words, before any number: this many hours a
-      day, for this many years. */}
-        <div {...props(styles.receiptBlock)}>
-          <p {...props(styles.receiptHeading)}>
-            {m.home_receipt_order_label({ years: HORIZON_YEARS })}
-          </p>
-          <p {...props(styles.receiptRow)}>
-            <span>{m.home_receipt_dopamine_label()}</span>
-            <span {...props(styles.receiptValue)}>
-              <NumberFlow locales={locale} suffix={m.home_receipt_per_day()} value={hours} />
-            </span>
-          </p>
-          <p {...props(styles.receiptRow)}>
-            <span {...props(styles.receiptLabel)}>
-              {m.home_receipt_ad_revenue_label()}
-              <InfoTip label={m.home_receipt_tip_label()}>
-                {m.home_receipt_ad_revenue_note({ years: HORIZON_YEARS })}
-              </InfoTip>
-            </span>
-            <span {...props(styles.receiptValue)}>
-              <NumberFlow locales={locale} prefix="~$" value={adRevenue()} />
-            </span>
           </p>
         </div>
         <div aria-hidden="true" {...props(styles.receiptRule)} />
