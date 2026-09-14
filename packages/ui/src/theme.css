@@ -152,3 +152,9 @@ a:not([data-slot='button']):not([data-plain]):visited {
 a:not([data-slot='button']):not([data-plain]):hover {
   text-decoration-thickness: 2px;
 }
+
+/* A reader with saved hours never sees the first screen: the root is stamped
+   by an inline script before paint, and the block waits for React. */
+html[data-aa-hours] [data-aa-untouched] {
+  display: none;
+}
