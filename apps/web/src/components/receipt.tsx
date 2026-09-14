@@ -232,7 +232,10 @@ export function Receipt({
     earth: m.home_receipt_earth_tip,
     instruments: m.home_receipt_instruments_tip,
     languages: m.home_receipt_languages_tip,
+    marathons: m.home_receipt_marathons_tip,
+    novels: m.home_receipt_novels_tip,
     skills: m.home_receipt_skills_tip,
+    travel: m.home_receipt_travel_tip,
   };
   const labels: Record<string, () => string> = {
     books: m.home_receipt_books_label,
@@ -240,7 +243,10 @@ export function Receipt({
     earth: m.home_receipt_earth_label,
     instruments: m.home_receipt_instruments_label,
     languages: m.home_receipt_languages_label,
+    marathons: m.home_receipt_marathons_label,
+    novels: m.home_receipt_novels_label,
     skills: m.home_receipt_skills_label,
+    travel: m.home_receipt_travel_label,
   };
   return (
     <div {...props(styles.paper)}>
