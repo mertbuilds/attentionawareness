@@ -11,8 +11,8 @@ const styles = create({
     borderRadius: 2,
     display: 'block',
     flexShrink: 0,
-    height: 15,
-    width: 20,
+    height: 12,
+    width: 16,
   },
 });
 
