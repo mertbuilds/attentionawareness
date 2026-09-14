@@ -2690,7 +2690,8 @@ function BuildPage() {
         </section>
 
         <section {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>
+          <h2 {...props(styles.sectionTitle)}>{m.build_apps_title()}</h2>
+          <p {...props(layout.muted)}>
             {m.home_apps_title_before()}
             {config.blockedApps.length === 0 ? (
               <span {...props(fanStyles.fan)}>{m.home_apps_title_empty()}</span>
@@ -2698,8 +2699,7 @@ function BuildPage() {
               <AppIconFan apps={config.blockedApps} meta={meta} />
             )}
             {m.home_apps_title_after()}
-          </h2>
-          <p {...props(layout.muted)}>{m.home_apps_subtitle()}</p>
+          </p>
           <div ref={searchWrap} {...props(styles.searchWrap)}>
             <div {...props(styles.searchBar)}>
               <div
