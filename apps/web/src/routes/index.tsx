@@ -60,15 +60,15 @@ const LINK_SLOT = '\u0000';
 /** A till pads its receipt numbers. */
 const RECEIPT_DIGITS = 6;
 /** How long the receipt takes to unroll, and the hero to drift up over it. */
-const EXPAND_MS = '700ms';
+const EXPAND_MS = '500ms';
 
 /**
  * Each beat of the answer arriving: nothing is on the page until the question
  * is answered, and every beat comes in the same way after it.
  */
 const revealEnter = keyframes({
-  from: { opacity: 0, transform: 'translateY(6px)' },
-  to: { opacity: 1, transform: 'translateY(0)' },
+  from: { filter: 'blur(2px)', opacity: 0, transform: 'translateY(4px)' },
+  to: { filter: 'blur(0)', opacity: 1, transform: 'translateY(0)' },
 });
 
 const styles = create({
@@ -335,10 +335,10 @@ const styles = create({
   reveal: {
     animationDuration: {
       '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: '200ms',
+      default: '150ms',
     },
     animationName: revealEnter,
-    animationTimingFunction: 'ease-out',
+    animationTimingFunction: 'ease-in-out',
   },
   row: {
     display: 'flex',
@@ -593,11 +593,13 @@ function HomePage() {
           <ScreenTimeHelp />
         </h1>
         {touched ? (
-          <ScreenTimeGate
-            onChange={onHoursChange}
-            sound={tickAllowed(sound, soundChosen)}
-            value={hours}
-          />
+          <div {...props(styles.reveal)}>
+            <ScreenTimeGate
+              onChange={onHoursChange}
+              sound={tickAllowed(sound, soundChosen)}
+              value={hours}
+            />
+          </div>
         ) : (
           <HourSlider onPick={onHoursChange} sound={tickAllowed(sound, soundChosen)} />
         )}

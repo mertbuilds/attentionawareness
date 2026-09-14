@@ -12,8 +12,8 @@ const GLYPH = 'i';
 const GRACE_MS = 250;
 
 const enter = keyframes({
-  from: { opacity: 0, transform: 'translateY(4px)' },
-  to: { opacity: 1, transform: 'translateY(0)' },
+  from: { opacity: 0, transform: 'translateY(4px) scale(0.98)' },
+  to: { opacity: 1, transform: 'translateY(0) scale(1)' },
 });
 
 const styles = create({
@@ -63,7 +63,7 @@ const styles = create({
       default: '150ms',
     },
     animationName: enter,
-    animationTimingFunction: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
+    animationTimingFunction: 'ease-out',
     backgroundColor: colors.bg,
     borderColor: colors.border,
     borderRadius: 12,
