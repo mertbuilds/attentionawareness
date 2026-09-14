@@ -311,7 +311,6 @@
   "sup_trouble_unsupervised_desc": "Geri yükleme muhtemelen başka bir yedeği kullandı. check çalıştır, geri yüklediğin yedekte IsSupervised değerinin true olduğunu doğrula, tekrar dene. Telefon denetime alınana kadar profil kurulumu \"unsupervised devices require a contentfilteruuid\" hatası verir",
   "sup_trouble_undo_term": "Geri dönmek istiyorsun",
   "sup_trouble_undo_desc": "Ayarlar > Genel > Aktar veya Sıfırla > Tüm İçeriği ve Ayarları Sil denetimi kaldırır. Sonra yerel ya da iCloud yedeğinden geri yükle. Apple'ın denetimden çıkmak için verdiği tek yol bu",
-  "sup_apple_link": "Apple denetim hakkında ne diyor.",
   "sup_notes_privacy": "Kimse telefonunu göremez. Denetim bir bayrak, bir bağlantı değil: uzaktan kontrol için bir MDM sunucusu gerekir ve bu seni hiçbirine kaydetmez. Yama kendi Mac'inde çalışır ve hiçbir şey göndermez. Profil sabit bir kısıtlama dosyasıdır; yüklendikten sonra kimse onu değiştiremez ya da bir şey okuyamaz. Bu sitenin aldığı tek şey, dosyayı imzalayabilmek için seçtiğin uygulama ve site listesidir",
   "sup_notes_title": "Dürüst notlar",
   "sup_notes_unsupported": "Bu, Apple'ın desteklediği bir yöntem değil. Yedek biçimini kullanıyor ve Apple onu değiştirebilir. Bugün iOS 26.6.1'de çalışıyor",
