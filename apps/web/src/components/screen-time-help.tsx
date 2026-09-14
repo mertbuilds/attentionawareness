@@ -1,11 +1,9 @@
 import { colors, font, palette, spacing } from '@attentionawareness/ui/tokens.stylex';
-import { create, keyframes, props } from '@stylexjs/stylex';
+import { create, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
-import { useEffect, useId, useRef, useState } from 'react';
-import { useIsMobile } from '../lib/use-is-mobile.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
-import { Sheet } from './sheet.tsx';
+import { Tip } from './tip.tsx';
 
 /**
  * The popover hangs a few pixels under its button, so the pointer crosses bare
@@ -13,14 +11,7 @@ import { Sheet } from './sheet.tsx';
  * unhurried hand takes longer than a quick one, and the trip itself is bridged
  * by the popovers, so the wait can be generous.
  */
-const HELP_GRACE_MS = 250;
 /** The report the average day in the help box is taken from. */
-
-/** The popover rises the last few pixels into place under its button. */
-const helpEnter = keyframes({
-  from: { opacity: 0, transform: 'translateY(-4px)' },
-  to: { opacity: 1, transform: 'translateY(0)' },
-});
 
 /**
  * The clip that shows where the real number lives, one recording per locale.
@@ -36,6 +27,11 @@ const SCREEN_TIME_VIDEO_URLS: Record<string, string> = {
 const SCREEN_TIME_GIF_URL: string = '';
 
 const styles = create({
+  // The clip is what the box is for: 200px of it, plus the 12px of padding
+  // on each side. The words wrap to that, rather than the box widening.
+  helpBox: {
+    width: 224,
+  },
   helpButton: {
     alignItems: 'center',
     backgroundColor: 'transparent',
@@ -84,51 +80,6 @@ const styles = create({
   },
   // Hangs under the button, aligned to its left edge. It sits inside a heading,
   // so it takes back the type the heading set.
-  helpPopover: {
-    // The 8px of bare page under the button, covered by the box itself, so a
-    // pointer crossing into the box never leaves the pair.
-    '::before': {
-      content: '',
-      height: 8,
-      insetBlockStart: -8,
-      insetInlineEnd: 0,
-      insetInlineStart: 0,
-      position: 'absolute',
-    },
-    animationDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: '150ms',
-    },
-    animationName: helpEnter,
-    animationTimingFunction: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
-    backgroundColor: colors.bg,
-    borderColor: colors.border,
-    borderRadius: 12,
-    borderStyle: 'solid',
-    borderWidth: '1px',
-    boxShadow: {
-      '@media (prefers-color-scheme: dark)': '0 12px 40px rgba(0, 0, 0, 0.35)',
-      default: '0 12px 40px rgba(0, 0, 0, 0.12)',
-    },
-    boxSizing: 'border-box',
-    display: 'flex',
-    flexDirection: 'column',
-    fontWeight: font.weightRegular,
-    gap: spacing.s2,
-    insetBlockStart: 'calc(100% + 8px)',
-    insetInlineStart: 0,
-    letterSpacing: 'normal',
-    // A phone is narrower than the box, and nothing on the page may scroll
-    // sideways.
-    maxWidth: 'calc(100vw - 32px)',
-    padding: spacing.s3,
-    position: 'absolute',
-    textAlign: 'start',
-    // The clip is what the box is for: 200px of it, plus the 12px of padding
-    // on each side. The words wrap to that, rather than the box widening.
-    width: 224,
-    zIndex: 20,
-  },
   // Given the whole width of a sheet, the clip takes as much of it as it was
   // shot at and no more.
   helpSheetSlot: {
@@ -155,13 +106,6 @@ const styles = create({
     // Narrow box, and a path like a setting name has nowhere to break.
     overflowWrap: 'anywhere',
     textWrap: 'pretty',
-  },
-  helpTitle: {
-    fontSize: 14,
-    fontWeight: font.weightMedium,
-    lineHeight: 1.4,
-    margin: 0,
-    overflowWrap: 'anywhere',
   },
   // Rides at the end of the question, and anchors the popover under it.
   helpWrap: {
@@ -213,132 +157,31 @@ function ScreenTimeClip({ style, videoUrl }: { style?: StyleXStyles; videoUrl: s
 }
 
 /**
- * The question mark at the end of the question. On a wide page hover, focus or
- * a tap opens a popover that says where the real number lives and shows it
- * being found; a pointer that leaves gets a moment to reach the popover before
- * it closes, because the two do not touch. A phone has no room for a box
- * hanging off a button, so there the same question opens a sheet.
+ * The question mark at the end of the question: where the real number lives,
+ * and a clip of it being found.
  */
 export function ScreenTimeHelp() {
   const videoUrl = screenTimeVideoUrl();
-  const isMobile = useIsMobile();
-  const [open, setOpen] = useState(false);
-  const popoverId = useId();
-  const wrap = useRef<HTMLSpanElement>(null);
-  const grace = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // A grace period that outlives the popover must not fire into nothing.
-  useEffect(
-    () => () => {
-      if (grace.current !== null) {
-        clearTimeout(grace.current);
-      }
-    },
-    [],
-  );
-
-  // Dismissed from outside itself: a pointer anywhere else, or Escape. The
-  // sheet answers both on its own, so this is the popover's alone.
-  useEffect(() => {
-    if (!open || isMobile) {
-      return;
-    }
-    function onPointerDown(event: PointerEvent) {
-      if (wrap.current?.contains(event.target as Node | null) !== true) {
-        setOpen(false);
-      }
-    }
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setOpen(false);
-      }
-    }
-    document.addEventListener('pointerdown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [isMobile, open]);
-
-  function clearGrace() {
-    if (grace.current !== null) {
-      clearTimeout(grace.current);
-      grace.current = null;
-    }
-  }
-
-  function show() {
-    clearGrace();
-    setOpen(true);
-  }
-
-  function hide() {
-    clearGrace();
-    setOpen(false);
-  }
-
-  function hideAfterGrace() {
-    clearGrace();
-    grace.current = setTimeout(() => setOpen(false), HELP_GRACE_MS);
-  }
-
   return (
-    <span
-      onPointerEnter={(event) => {
-        if (!isMobile && event.pointerType !== 'touch') {
-          show();
+    <span {...props(styles.helpWrap)}>
+      <Tip
+        content={
+          <>
+            <span {...props(styles.helpText)}>{m.home_math_help_body()}</span>
+            <ScreenTimeClip style={styles.helpSheetSlot} videoUrl={videoUrl} />
+          </>
         }
-      }}
-      onPointerLeave={(event) => {
-        if (!isMobile && event.pointerType !== 'touch') {
-          hideAfterGrace();
+        style={styles.helpBox}
+        title={m.home_math_help_title()}
+        trigger={
+          <button aria-label={m.home_math_help_label()} type="button" {...props(styles.helpButton)}>
+            ?
+          </button>
         }
-      }}
-      ref={wrap}
-      {...props(styles.helpWrap)}
-    >
-      <button
-        aria-describedby={open && !isMobile ? popoverId : undefined}
-        aria-label={m.home_math_help_label()}
-        // The sheet takes the focus with it, and a blur that closes it would
-        // shut it on the way in. The popover hangs inside this wrapper, so
-        // only focus that lands outside the pair is a reason to close.
-        onBlur={
-          isMobile
-            ? undefined
-            : (event) => {
-                if (wrap.current?.contains(event.relatedTarget) !== true) {
-                  hide();
-                }
-              }
-        }
-        onClick={show}
-        onFocus={isMobile ? undefined : show}
-        type="button"
-        {...props(styles.helpButton)}
       >
-        ?
-      </button>
-      {isMobile ? (
-        <Sheet onOpenChange={setOpen} open={open} title={m.home_math_help_title()}>
-          <span {...props(styles.helpText)}>{m.home_math_help_body()}</span>
-          <ScreenTimeClip style={styles.helpSheetSlot} videoUrl={videoUrl} />
-        </Sheet>
-      ) : open ? (
-        <span
-          id={popoverId}
-          // A press inside the box keeps the button's focus, so the blur that
-          // would shut the box under the pointer never fires.
-          onPointerDown={(event) => event.preventDefault()}
-          role="tooltip"
-          {...props(styles.helpPopover)}
-        >
-          <span {...props(styles.helpTitle)}>{m.home_math_help_title()}</span>
-          <span {...props(styles.helpText)}>{m.home_math_help_body()}</span>
-          <ScreenTimeClip videoUrl={videoUrl} />
-        </span>
-      ) : null}
+        <span {...props(styles.helpText)}>{m.home_math_help_body()}</span>
+        <ScreenTimeClip videoUrl={videoUrl} />
+      </Tip>
     </span>
   );
 }

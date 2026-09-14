@@ -1,3 +1,4 @@
+import { Tooltip } from '@base-ui/react/tooltip';
 import { PostHogProvider } from '@posthog/react';
 import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-router';
 import { useEffect, type ReactNode } from 'react';
@@ -79,8 +80,15 @@ function RootComponent() {
 }
 
 function Providers({ children }: { children: ReactNode }) {
+  // Every tooltip on the site opens after the same short pause and closes
+  // without one, so a pointer hopping between tips never waits twice.
+  const tips = (
+    <Tooltip.Provider closeDelay={0} delay={150}>
+      {children}
+    </Tooltip.Provider>
+  );
   if (!clientEnv.VITE_POSTHOG_KEY) {
-    return children;
+    return tips;
   }
   return (
     <PostHogProvider
@@ -93,7 +101,7 @@ function Providers({ children }: { children: ReactNode }) {
         ui_host: 'https://eu.posthog.com',
       }}
     >
-      {children}
+      {tips}
     </PostHogProvider>
   );
 }
