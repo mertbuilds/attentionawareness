@@ -688,6 +688,7 @@ const styles = create({
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s4,
+    marginInline: 'auto',
     maxWidth: HERO_MEASURE,
     textAlign: 'center',
   },
