@@ -1,7 +1,8 @@
 import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useIsMobile } from '../lib/use-is-mobile.ts';
 import { Sheet } from './sheet.tsx';
 
@@ -39,8 +40,8 @@ const styles = create({
     width: 10,
   },
   popover: {
-    // The 8px of bare page over the button, covered by the box itself, so a
-    // pointer crossing into the box never leaves the pair.
+    // The 8px of bare page under the box, covered by the box itself, so a
+    // pointer crossing into it never leaves the pair.
     '::after': {
       content: '',
       height: 8,
@@ -69,17 +70,15 @@ const styles = create({
     fontFamily: font.family,
     fontSize: font.sizeSm,
     fontWeight: font.weightRegular,
-    insetBlockEnd: 'calc(100% + 8px)',
-    insetInlineStart: 0,
     letterSpacing: 'normal',
     lineHeight: 1.5,
     padding: spacing.s3,
-    position: 'absolute',
+    position: 'fixed',
     textAlign: 'start',
     textTransform: 'none',
     textWrap: 'pretty',
     width: 260,
-    zIndex: 20,
+    zIndex: 60,
   },
   sheetText: {
     color: colors.muted,
@@ -109,6 +108,22 @@ export function InfoTip({ children, label }: { children: ReactNode; label: strin
   const popoverId = useId();
   const wrap = useRef<HTMLSpanElement>(null);
   const grace = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const box = useRef<HTMLSpanElement>(null);
+  // Where the box goes: over the button, clear of both viewport edges. It is
+  // portalled to the body, because the receipt is clipped to its torn edge
+  // and anything hanging off it would be cut with it.
+  const [place, setPlace] = useState<{ bottom: number; left: number } | null>(null);
+
+  useLayoutEffect(() => {
+    if (!open || isMobile || wrap.current === null) {
+      setPlace(null);
+      return;
+    }
+    const rect = wrap.current.getBoundingClientRect();
+    const width = 260;
+    const left = Math.min(Math.max(16, rect.left), window.innerWidth - width - 16);
+    setPlace({ bottom: window.innerHeight - rect.top + 8, left });
+  }, [isMobile, open]);
 
   useEffect(
     () => () => {
@@ -124,7 +139,8 @@ export function InfoTip({ children, label }: { children: ReactNode; label: strin
       return;
     }
     function onPointerDown(event: PointerEvent) {
-      if (wrap.current?.contains(event.target as Node | null) !== true) {
+      const target = event.target as Node | null;
+      if (wrap.current?.contains(target) !== true && box.current?.contains(target) !== true) {
         setOpen(false);
       }
     }
@@ -185,7 +201,10 @@ export function InfoTip({ children, label }: { children: ReactNode; label: strin
           isMobile
             ? undefined
             : (event) => {
-                if (wrap.current?.contains(event.relatedTarget) !== true) {
+                if (
+                  wrap.current?.contains(event.relatedTarget) !== true &&
+                  box.current?.contains(event.relatedTarget) !== true
+                ) {
                   hide();
                 }
               }
@@ -210,15 +229,22 @@ export function InfoTip({ children, label }: { children: ReactNode; label: strin
         <Sheet onOpenChange={setOpen} open={open} title={label}>
           <p {...props(styles.sheetText)}>{children}</p>
         </Sheet>
-      ) : open ? (
-        <span
-          id={popoverId}
-          onPointerDown={(event) => event.preventDefault()}
-          role="tooltip"
-          {...props(styles.popover)}
-        >
-          {children}
-        </span>
+      ) : open && place !== null ? (
+        createPortal(
+          <span
+            id={popoverId}
+            onPointerDown={(event) => event.preventDefault()}
+            onPointerEnter={show}
+            onPointerLeave={hideAfterGrace}
+            ref={box}
+            role="tooltip"
+            style={{ bottom: place.bottom, left: place.left }}
+            {...props(styles.popover)}
+          >
+            {children}
+          </span>,
+          document.body,
+        )
       ) : null}
     </span>
   );
