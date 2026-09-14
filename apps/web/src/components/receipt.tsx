@@ -17,7 +17,7 @@ import { InfoTip } from './info-tip.tsx';
 import { HOURS_MAX, HOURS_MIN } from './screen-time-gate.tsx';
 
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
-const DISPLAY_SIZE = 40;
+const DISPLAY_SIZE = 32;
 
 /** The paper itself: a shade off the page in both themes. */
 const PAPER = `color-mix(in srgb, ${colors.bg} 92%, ${colors.fg})`;
