@@ -23,8 +23,6 @@ const extensionIcons = path.join(root, 'apps/extension/src/icons');
 const brandModule = path.join(root, 'packages/ui/src/brand.ts');
 const font = path.join(root, 'packages/ui/fonts/SuisseIntl-Medium.woff2');
 
-/** The brand, in prose. Only the mark itself is lowercase. */
-const SITE_NAME = 'Attention Awareness';
 const MARK = 'aa';
 const BLACK = '#000000';
 const WHITE = '#ffffff';
@@ -98,7 +96,7 @@ body { height: 630px; overflow: hidden; position: relative; width: 1200px; }
 .mark { align-items: center; background: ${WHITE}; border-radius: 6px; color: ${BLACK}; display: flex; font-size: 22px; height: 40px; justify-content: center; letter-spacing: -0.02em; width: 40px; }
 .question { bottom: 96px; font-size: 84px; left: 80px; letter-spacing: -0.03em; line-height: 1.08; position: absolute; right: 80px; text-wrap: balance; }
 em { color: ${ORANGE}; font-style: normal; }
-</style><div class="grid"></div><div class="brand"><div class="mark">${MARK}</div>${SITE_NAME.toLowerCase()}</div><div class="question">${OG_QUESTION}</div>`;
+</style><div class="grid"></div><div class="brand"><div class="mark">${MARK}</div>attentionawareness.com</div><div class="question">${OG_QUESTION}</div>`;
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ deviceScaleFactor: 1 });
