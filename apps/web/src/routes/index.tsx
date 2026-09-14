@@ -1522,11 +1522,13 @@ const styles = create({
       default: colors.muted,
     },
     cursor: 'pointer',
-    display: 'flex',
+    display: 'inline-flex',
     flexShrink: 0,
     height: 20,
     justifyContent: 'center',
+    marginInlineStart: spacing.s2,
     padding: 0,
+    verticalAlign: 'middle',
     width: 20,
   },
   soundGlyph: {
@@ -3366,6 +3368,34 @@ function Generator() {
         <h1 {...props(styles.heroTitle)}>
           {m.home_hero_title()}
           <ScreenTimeHelp />
+          <button
+            aria-label={m.home_math_sound_label()}
+            aria-pressed={sound}
+            onClick={toggleSound}
+            type="button"
+            {...props(styles.soundButton)}
+          >
+            <svg aria-hidden="true" viewBox="0 0 18 18" {...props(styles.soundGlyph)}>
+              <path d="M4 7H2v4h2l3.5 3V4L4 7Z" fill="currentColor" />
+              {sound ? (
+                <path
+                  d="M10.5 6.5a3.4 3.4 0 0 1 0 5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeWidth="1.4"
+                />
+              ) : (
+                <path
+                  d="m10.5 6.5 4 5m0-5-4 5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeWidth="1.4"
+                />
+              )}
+            </svg>
+          </button>
         </h1>
         <ScreenTimeGate
           onChange={onHoursChange}
@@ -3392,36 +3422,6 @@ function Generator() {
               <a href={`#${STORY_ID}`} {...props(styles.heroSecondary)}>
                 {m.home_hero_secondary()}
               </a>
-            </div>
-            <div {...props(styles.heroQuiet)}>
-              <button
-                aria-label={m.home_math_sound_label()}
-                aria-pressed={sound}
-                onClick={toggleSound}
-                type="button"
-                {...props(styles.soundButton)}
-              >
-                <svg aria-hidden="true" viewBox="0 0 18 18" {...props(styles.soundGlyph)}>
-                  <path d="M4 7H2v4h2l3.5 3V4L4 7Z" fill="currentColor" />
-                  {sound ? (
-                    <path
-                      d="M10.5 6.5a3.4 3.4 0 0 1 0 5"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeLinecap="round"
-                      strokeWidth="1.4"
-                    />
-                  ) : (
-                    <path
-                      d="m10.5 6.5 4 5m0-5-4 5"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeLinecap="round"
-                      strokeWidth="1.4"
-                    />
-                  )}
-                </svg>
-              </button>
             </div>
           </div>
         </div>
