@@ -1,5 +1,5 @@
 import { accent } from '@attentionawareness/ui/accent.stylex';
-import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
+import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import NumberFlow from '@number-flow/react';
 import { create, props } from '@stylexjs/stylex';
 import {
@@ -18,6 +18,8 @@ import { HOURS_MAX, HOURS_MIN } from './screen-time-gate.tsx';
 
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 const DISPLAY_SIZE = 32;
+/** Stamp-pad red, louder than the palette's error tone. */
+const STAMP_RED = '#e3232b';
 
 /** The paper itself: a shade off the page in both themes. */
 const PAPER = `color-mix(in srgb, ${colors.bg} 92%, ${colors.fg})`;
@@ -186,23 +188,27 @@ const styles = create({
     textAlign: 'end',
     whiteSpace: 'nowrap',
   },
+  // Rubber stamp: a thick red ring with a thin one inside, slapped on at an
+  // angle and a little uneven in its ink.
   stamp: {
-    borderColor: colors.error,
-    borderRadius: radius.base,
+    borderColor: STAMP_RED,
+    borderRadius: 10,
     borderStyle: 'solid',
-    borderWidth: 4,
-    color: colors.error,
+    borderWidth: 6,
+    boxShadow: `inset 0 0 0 3px ${PAPER}, inset 0 0 0 5px ${STAMP_RED}`,
+    color: STAMP_RED,
     fontSize: 44,
     fontWeight: font.weightBold,
     insetBlockStart: '58%',
     insetInlineStart: '50%',
     letterSpacing: '0.2em',
-    opacity: 0.85,
-    paddingBlock: spacing.s1,
-    paddingInline: spacing.s3,
+    opacity: 0.9,
+    paddingBlock: spacing.s2,
+    paddingInline: spacing.s4,
     pointerEvents: 'none',
     position: 'absolute',
-    transform: 'translate(-50%, -50%) rotate(-14deg)',
+    textTransform: 'uppercase',
+    transform: 'translate(-50%, -50%) rotate(-22deg)',
     whiteSpace: 'nowrap',
   },
   stamped: {
