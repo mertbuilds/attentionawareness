@@ -27,6 +27,9 @@ export const Route = createFileRoute('/supervise')({
 /** The arrow before a back link: a glyph, not a message. */
 const BACK_ARROW = '\u2190';
 const HOME_URL = '/';
+/** Apple's own page on what supervision is. */
+const APPLE_SUPERVISION_URL =
+  'https://support.apple.com/guide/deployment/about-device-supervision-dep1d89f0bff/web';
 /** The generator, which is what a supervised iPhone is for. */
 const BUILD_URL = '/build';
 /** The brand in prose, the way the root document spells it. */
@@ -263,7 +266,12 @@ function SuperviseGuide() {
           {m.nav_back_home()}
         </a>
         <h1 {...props(styles.heroTitle)}>{m.sup_title()}</h1>
-        <p {...props(styles.lead)}>{m.sup_lead()}</p>
+        <p {...props(styles.lead)}>
+          {m.sup_lead()}{' '}
+          <a href={APPLE_SUPERVISION_URL} rel="noreferrer" target="_blank">
+            {m.sup_apple_link()}
+          </a>
+        </p>
       </header>
 
       <div {...props(styles.content)}>
@@ -406,6 +414,7 @@ function SuperviseGuide() {
           <ul {...props(styles.bullets)}>
             <li {...props(styles.bulletItem)}>{m.sup_notes_unsupported()}</li>
             <li {...props(styles.bulletItem)}>{m.sup_notes_organization()}</li>
+            <li {...props(styles.bulletItem)}>{m.sup_notes_privacy()}</li>
             <li {...props(styles.bulletItem)}>{m.sup_notes_roadmap()}</li>
           </ul>
         </section>
