@@ -311,7 +311,6 @@
   "sup_trouble_unsupervised_desc": "The restore probably used a different backup. Run check, confirm IsSupervised is true on the backup you restore, retry. Until the phone is supervised, installing the profile fails with \"unsupervised devices require a contentfilteruuid\"",
   "sup_trouble_undo_term": "You want to go back",
   "sup_trouble_undo_desc": "Settings > General > Transfer or Reset > Erase All Content and Settings removes supervision. Restore from your local or iCloud backup afterwards. This is the only way Apple gives to leave supervision",
-  "sup_apple_link": "What Apple says about supervision.",
   "sup_notes_privacy": "Nobody can see your phone. Supervision is a flag, not a connection: remote control needs an MDM server, and this enrols you in none. The patch runs on your own Mac and sends nothing. The profile is a fixed file of restrictions; once installed, nobody can change it or read anything back. The only thing this site ever receives is the list of apps and sites you chose, so it can sign the file",
   "sup_notes_title": "Honest notes",
   "sup_notes_unsupported": "This is not an Apple supported procedure. It uses the backup format, which Apple can change. It works on iOS 26.6.1 today",
