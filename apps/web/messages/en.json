@@ -42,6 +42,8 @@
   "sup_next_body": "The phone is ready. The next page builds the profile that hides the apps and blocks the sites, signed and ready to install.",
   "sup_next_cta": "Build your profile",
   "sup_footer_back": "Back to the start",
+  "home_receipt_screen_label": "Screen time",
+  "home_receipt_per_day": "H/DAY",
   "home_receipt_store": "Your screen time receipt",
   "home_receipt_store_url": "attentionawareness.com",
   "home_receipt_no": "Receipt no. {number}",
