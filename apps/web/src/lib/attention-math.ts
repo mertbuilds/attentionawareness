@@ -1,5 +1,6 @@
 /** Hours in a day a person is awake. The other eight are sleep. */
 export const WAKING_HOURS = 16;
+const MONTHS_PER_YEAR = 12;
 const DAYS_PER_YEAR = 365;
 /** The screen hours are an estimate, so they are shown to the nearest hundred. */
 const HOURS_ROUNDING = 100;
@@ -47,6 +48,15 @@ export function screenYears(hoursPerDay: number): number {
 export function formatYears(hoursPerDay: number): string {
   const text = screenYears(hoursPerDay).toFixed(1);
   return text.endsWith('.0') ? text.slice(0, -2) : text;
+}
+
+/** The same span split into whole years and the months left over. */
+export function yearsAndMonths(hoursPerDay: number): { months: number; years: number } {
+  const totalMonths = Math.round(screenYears(hoursPerDay) * MONTHS_PER_YEAR);
+  return {
+    months: totalMonths % MONTHS_PER_YEAR,
+    years: Math.floor(totalMonths / MONTHS_PER_YEAR),
+  };
 }
 
 /** The same span as a whole number, always rounded down: a promise, not a sum. */
