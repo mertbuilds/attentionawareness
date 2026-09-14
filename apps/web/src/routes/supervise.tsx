@@ -24,6 +24,8 @@ export const Route = createFileRoute('/supervise')({
   head: () => ({ meta: [{ title: `${m.sup_head_title()} · ${SITE_NAME}` }] }),
 });
 
+/** The arrow before a back link: a glyph, not a message. */
+const BACK_ARROW = '\u2190';
 const HOME_URL = '/';
 /** The generator, which is what a supervised iPhone is for. */
 const BUILD_URL = '/build';
@@ -35,12 +37,15 @@ const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 const styles = create({
   // The way back, over the title: one quiet line, an arrow and a word.
   back: {
+    alignItems: 'baseline',
     alignSelf: 'flex-start',
     color: {
       ':hover': colors.fg,
       default: colors.muted,
     },
+    display: 'inline-flex',
     fontSize: font.sizeSm,
+    gap: spacing.s1,
     textDecorationLine: 'none',
   },
   body: {
@@ -254,6 +259,7 @@ function SuperviseGuide() {
       <GridTexture />
       <header {...props(styles.hero)}>
         <a data-plain="" href={HOME_URL} {...props(styles.back)}>
+          <span aria-hidden="true">{BACK_ARROW}</span>
           {m.nav_back_home()}
         </a>
         <h1 {...props(styles.heroTitle)}>{m.sup_title()}</h1>

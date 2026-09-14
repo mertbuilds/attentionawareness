@@ -52,6 +52,21 @@ const styles = create({
     transitionTimingFunction: 'ease-out',
     width: 260,
   },
+  // The small kind: one word in a dark pill, for a button that only wants
+  // its name said.
+  label: {
+    backgroundColor: colors.fg,
+    borderRadius: 999,
+    borderStyle: 'none',
+    boxShadow: 'none',
+    color: colors.bg,
+    fontSize: 12,
+    lineHeight: 1.4,
+    paddingBlock: 4,
+    paddingInline: 8,
+    whiteSpace: 'nowrap',
+    width: 'auto',
+  },
   positioner: {
     zIndex: 60,
   },
@@ -80,23 +95,37 @@ const styles = create({
 export function Tip({
   children,
   content,
+  mobile = 'sheet',
   style,
   title,
   trigger,
+  variant = 'box',
 }: {
   /** Shown on a wide page, over the trigger. */
   children: ReactNode;
   /** Shown in the sheet on a phone; defaults to the same as `children`. */
   content?: ReactNode;
+  /**
+   * What a phone does: open a sheet with the content on tap (the default), or
+   * nothing, for a button whose tap already does its job and only wanted a
+   * name on hover.
+   */
+  mobile?: 'none' | 'sheet';
   /** Extra style for the box, when a tip needs a different width. */
   style?: StyleXStyles;
   /** Written over the box, and used as the sheet's heading. */
   title: string;
   /** The element that opens it: a button, with its own aria-label. */
   trigger: ReactElement;
+  /** `label`: a one-word dark pill, no title row; the default is the box. */
+  variant?: 'box' | 'label';
 }) {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
+
+  if (isMobile && mobile === 'none') {
+    return trigger;
+  }
 
   if (isMobile) {
     return (
@@ -113,9 +142,13 @@ export function Tip({
     <Tooltip.Root>
       <Tooltip.Trigger render={trigger} />
       <Tooltip.Portal>
-        <Tooltip.Positioner side="top" sideOffset={8} {...props(styles.positioner)}>
-          <Tooltip.Popup {...props(styles.popup, style)}>
-            <span {...props(styles.title)}>{title}</span>
+        <Tooltip.Positioner
+          side={variant === 'label' ? 'bottom' : 'top'}
+          sideOffset={variant === 'label' ? 6 : 8}
+          {...props(styles.positioner)}
+        >
+          <Tooltip.Popup {...props(styles.popup, variant === 'label' && styles.label, style)}>
+            {variant === 'label' ? title : <span {...props(styles.title)}>{title}</span>}
             {children}
           </Tooltip.Popup>
         </Tooltip.Positioner>

@@ -9,6 +9,7 @@ import { Receipt } from '../components/receipt.tsx';
 import { clampHours, HourSlider, HOURS_DEFAULT } from '../components/screen-time-gate.tsx';
 import { ScreenTimeHelp } from '../components/screen-time-help.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
+import { Tip } from '../components/tip.tsx';
 import { formatYears } from '../lib/attention-math.ts';
 import { decodeShare } from '../lib/share.ts';
 import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
@@ -379,27 +380,6 @@ const styles = create({
   },
   // The speaker is a hint, not a headline: it only colours up on hover, and it
   // sits in the quiet row under the way on, at the size of the text beside it.
-  soundButton: {
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-    borderStyle: 'none',
-    borderWidth: 0,
-    color: {
-      ':hover': colors.fg,
-      default: colors.muted,
-    },
-    cursor: 'pointer',
-    display: 'inline-flex',
-    flexShrink: 0,
-    height: 40,
-    insetBlockStart: spacing.s4,
-    insetInlineEnd: spacing.s4,
-    justifyContent: 'center',
-    padding: 0,
-    position: 'fixed',
-    width: 40,
-    zIndex: 30,
-  },
   soundGlyph: {
     display: 'block',
     height: 24,
@@ -429,6 +409,31 @@ const styles = create({
     lineHeight: 1.5,
     margin: 0,
   },
+  toolButton: {
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderStyle: 'none',
+    borderWidth: 0,
+    color: {
+      ':hover': colors.fg,
+      default: colors.muted,
+    },
+    cursor: 'pointer',
+    display: 'inline-flex',
+    flexShrink: 0,
+    height: 40,
+    justifyContent: 'center',
+    padding: 0,
+    width: 40,
+  },
+  tools: {
+    display: 'flex',
+    gap: spacing.s1,
+    insetBlockStart: spacing.s4,
+    insetInlineEnd: spacing.s4,
+    position: 'fixed',
+    zIndex: 30,
+  },
 });
 
 /**
@@ -447,6 +452,38 @@ function tickAllowed(on: boolean, chosen: boolean): boolean {
   return query === undefined || !query('(prefers-reduced-motion: reduce)').matches;
 }
 
+/** Where the reader's day is kept between visits, in this browser only. */
+const HOURS_KEY = 'aa:hours';
+
+function recallHours(): number | null {
+  try {
+    const raw = globalThis.localStorage.getItem(HOURS_KEY);
+    if (raw === null) {
+      return null;
+    }
+    const value = Number(raw);
+    return Number.isFinite(value) ? clampHours(value) : null;
+  } catch {
+    return null;
+  }
+}
+
+function rememberHours(value: number): void {
+  try {
+    globalThis.localStorage.setItem(HOURS_KEY, String(value));
+  } catch {
+    // Private mode or a full store: the page still works, it just forgets.
+  }
+}
+
+function forgetHours(): void {
+  try {
+    globalThis.localStorage.removeItem(HOURS_KEY);
+  } catch {
+    // Nothing to forget.
+  }
+}
+
 function HomePage() {
   const [hours, setHours] = useState(HOURS_DEFAULT);
   // Whether the reader has touched the dial: the receipt is empty until then.
@@ -460,6 +497,12 @@ function HomePage() {
   /* oxlint-disable react/set-state-in-effect -- one-shot read of browser-only state */
   useEffect(() => {
     const shared = decodeShare(globalThis.location.search);
+    const remembered = recallHours();
+    if (shared.hours === undefined && remembered !== null) {
+      // The reader has been here: the receipt opens where they left it.
+      setHours(remembered);
+      setTouched(true);
+    }
     if (shared.hours !== undefined) {
       // A friend already answered the question, so the page opens on their
       // number, printed.
@@ -501,12 +544,23 @@ function HomePage() {
   }, []);
 
   function onHoursChange(value: number) {
-    setHours(clampHours(value));
+    const next = clampHours(value);
+    setHours(next);
+    rememberHours(next);
     if (!touched) {
       // iOS opens an audio device inside a gesture and nowhere else.
       unlockTickSound();
       setTouched(true);
     }
+  }
+
+  // Back to the first screen: the remembered day is forgotten, the rail
+  // returns at its default, and the page scrolls to the top of it.
+  function reset() {
+    forgetHours();
+    setHours(HOURS_DEFAULT);
+    setTouched(false);
+    window.scrollTo({ behavior: 'smooth', top: 0 });
   }
 
   function toggleSound() {
@@ -570,34 +624,77 @@ function HomePage() {
         </div>
       )}
       <header {...props(styles.hero)}>
-        <button
-          aria-label={m.home_math_sound_label()}
-          aria-pressed={sound}
-          onClick={toggleSound}
-          type="button"
-          {...props(styles.soundButton)}
-        >
-          <svg aria-hidden="true" viewBox="0 0 18 18" {...props(styles.soundGlyph)}>
-            <path d="M4 7H2v4h2l3.5 3V4L4 7Z" fill="currentColor" />
-            {sound ? (
-              <path
-                d="M10.5 6.5a3.4 3.4 0 0 1 0 5"
-                fill="none"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeWidth="1.4"
-              />
-            ) : (
-              <path
-                d="m10.5 6.5 4 5m0-5-4 5"
-                fill="none"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeWidth="1.4"
-              />
-            )}
-          </svg>
-        </button>
+        {/* The two tools, top right: start over, and the sound. */}
+        <div {...props(styles.tools)}>
+          <Tip
+            mobile="none"
+            title={m.home_reset_label()}
+            trigger={
+              <button
+                aria-label={m.home_reset_label()}
+                onClick={reset}
+                type="button"
+                {...props(styles.toolButton)}
+              >
+                <svg aria-hidden="true" viewBox="0 0 18 18" {...props(styles.soundGlyph)}>
+                  <path
+                    d="M4.5 9a4.5 4.5 0 1 0 1.3-3.2"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeWidth="1.4"
+                  />
+                  <path
+                    d="M4.2 3.2v3h3"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="1.4"
+                  />
+                </svg>
+              </button>
+            }
+          >
+            {null}
+          </Tip>
+          <Tip
+            mobile="none"
+            title={m.home_math_sound_label()}
+            trigger={
+              <button
+                aria-label={m.home_math_sound_label()}
+                aria-pressed={sound}
+                onClick={toggleSound}
+                type="button"
+                {...props(styles.toolButton)}
+              >
+                <svg aria-hidden="true" viewBox="0 0 18 18" {...props(styles.soundGlyph)}>
+                  <path d="M4 7H2v4h2l3.5 3V4L4 7Z" fill="currentColor" />
+                  {sound ? (
+                    <path
+                      d="M10.5 6.5a3.4 3.4 0 0 1 0 5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                      strokeWidth="1.4"
+                    />
+                  ) : (
+                    <path
+                      d="m10.5 6.5 4 5m0-5-4 5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                      strokeWidth="1.4"
+                    />
+                  )}
+                </svg>
+              </button>
+            }
+          >
+            {null}
+          </Tip>
+        </div>
         {touched ? null : (
           <>
             <h1 {...props(styles.heroTitle)}>
