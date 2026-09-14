@@ -192,10 +192,16 @@ const styles = create({
       '@media (min-width: 640px)': spacing.s8,
       default: spacing.s6,
     },
-    justifyContent: 'center',
+    // Centred while it fits; a receipt taller than a phone screen starts
+    // under the brand bar instead of climbing behind it.
+    justifyContent: firstThatWorks('safe center', 'center'),
     maxWidth: 760,
     minHeight: firstThatWorks('100svh', '100vh'),
     paddingBlockEnd: '18vh',
+    paddingBlockStart: {
+      '@media (min-width: 640px)': 0,
+      default: spacing.s16,
+    },
     position: 'relative',
     textAlign: 'center',
     width: '100%',
