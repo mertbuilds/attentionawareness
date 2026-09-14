@@ -3,7 +3,7 @@ import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, firstThatWorks, keyframes, props } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
-import { Mute, Restart, Sound } from 'reicon-react';
+import { Restart, VolumeCross, VolumeUp } from 'reicon-react';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { PreferencesRow } from '../components/preferences.tsx';
 import { Receipt } from '../components/receipt.tsx';
@@ -410,7 +410,7 @@ const styles = create({
   },
   // The restart arrow, turned over so it runs the other way round.
   flipped: {
-    transform: 'scaleY(-1)',
+    transform: 'scaleX(-1)',
   },
   toolButton: {
     alignItems: 'center',
@@ -674,9 +674,9 @@ function HomePage() {
                 {...props(styles.toolButton)}
               >
                 {sound ? (
-                  <Sound aria-hidden="true" size={ICON_SIZE} />
+                  <VolumeUp aria-hidden="true" size={ICON_SIZE} />
                 ) : (
-                  <Mute aria-hidden="true" size={ICON_SIZE} />
+                  <VolumeCross aria-hidden="true" size={ICON_SIZE} />
                 )}
               </button>
             }
