@@ -7,7 +7,7 @@ import { GridTexture } from '../components/grid-texture.tsx';
 import { Receipt } from '../components/receipt.tsx';
 import {
   clampHours,
-  HourChips,
+  HourSlider,
   HOURS_DEFAULT,
   ScreenTimeGate,
 } from '../components/screen-time-gate.tsx';
@@ -599,7 +599,7 @@ function HomePage() {
             value={hours}
           />
         ) : (
-          <HourChips onPick={onHoursChange} sound={tickAllowed(sound, soundChosen)} />
+          <HourSlider onPick={onHoursChange} sound={tickAllowed(sound, soundChosen)} />
         )}
         {/* The figure the question is asked against, and where it comes from.
         It goes the moment the reader gives their own. */}
