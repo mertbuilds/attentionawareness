@@ -20,9 +20,8 @@ import { colors, font, palette, radius, spacing } from '@attentionawareness/ui/t
 import { create, firstThatWorks, keyframes, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
-import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { ReactNode } from 'react';
-import { createPortal } from 'react-dom';
 import { AppArtwork, artworkStyles } from '../components/app-artwork.tsx';
 import type { MetaCache } from '../components/app-artwork.tsx';
 import { AppIconFan, fanStyles } from '../components/app-icon-fan.tsx';
@@ -31,6 +30,7 @@ import { GridTexture } from '../components/grid-texture.tsx';
 import { ShareCard } from '../components/share-card.tsx';
 import { Sheet } from '../components/sheet.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
+import { Tip } from '../components/tip.tsx';
 import type { AppResult } from '../lib/app-search.ts';
 import {
   defaultStorefront,
@@ -103,13 +103,6 @@ const RECEIPT_DIGITS = 6;
 const EXPAND_MS = '700ms';
 /** How long an armed Remove waits for its second click before standing down. */
 const REMOVE_CONFIRM_MS = 3000;
-/**
- * The popover hangs a few pixels under its button, so the pointer crosses bare
- * page on its way in. This is how long that trip is allowed to take: an
- * unhurried hand takes longer than a quick one, and the trip itself is bridged
- * by the popovers, so the wait can be generous.
- */
-const HELP_GRACE_MS = 250;
 /**
  * The armed control is tracked by id, and the reset link needs one too. A colon
  * is not legal in a bundle id, so this can never collide with an app's row.
@@ -911,10 +904,6 @@ const styles = create({
     margin: 0,
     outlineStyle: 'none',
   },
-  previewMoreWrap: {
-    display: 'inline-flex',
-    position: 'relative',
-  },
   previewOverlap: {
     marginInlineStart: -8,
   },
@@ -922,61 +911,6 @@ const styles = create({
     display: 'flex',
     flexWrap: 'wrap',
     gap: spacing.s2,
-  },
-  // Sits straight under the pill, with no gap to cross: the pointer moving
-  // from one to the other never leaves the pair.
-  previewPopover: {
-    // The box is placed at the pill's bottom edge, so the two only ever meet
-    // at a seam. This carries the seam, and the pixel either side of it, with
-    // the box: the pointer crossing in never touches bare page.
-    '::before': {
-      content: '',
-      height: 6,
-      insetBlockStart: -6,
-      insetInlineEnd: 0,
-      insetInlineStart: 0,
-      position: 'absolute',
-    },
-    animationDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: '150ms',
-    },
-    animationName: helpEnter,
-    animationTimingFunction: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
-    backgroundColor: colors.bg,
-    borderColor: colors.border,
-    // The same corner as the chips it counts.
-    borderRadius: radius.base,
-    borderStyle: 'solid',
-    borderWidth: '1px',
-    boxShadow: {
-      '@media (prefers-color-scheme: dark)': '0 12px 40px rgba(0, 0, 0, 0.35)',
-      default: '0 12px 40px rgba(0, 0, 0, 0.12)',
-    },
-    boxSizing: 'border-box',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s2,
-    maxWidth: 'calc(100vw - 32px)',
-    padding: spacing.s3,
-    position: 'fixed',
-    textAlign: 'start',
-    width: 240,
-    // Over everything the page draws. The sheets and dialogs that sit higher
-    // are never open at the same time as this.
-    zIndex: 1000,
-  },
-  // The profile card clips what overflows it, so this is portalled onto the
-  // body and placed against the viewport instead of against the pill.
-  previewPopoverAt: (top: number, left: number) => ({
-    insetBlockStart: top,
-    insetInlineStart: left,
-  }),
-  previewPopoverTitle: {
-    color: colors.fg,
-    fontSize: font.sizeSm,
-    fontWeight: font.weightMedium,
-    lineHeight: 1.3,
   },
   previewSites: {
     display: 'flex',
@@ -1963,17 +1897,9 @@ function installSteps(isMobile: boolean, isSafari: boolean): Array<string> {
 }
 
 /**
- * The popover is portalled out of its pill, so "inside the tooltip" is two
- * subtrees, not one: the pill's wrapper and the box on the body.
- */
-function insidePair(wrap: HTMLElement | null, popover: HTMLElement | null, node: Node | null) {
-  return wrap?.contains(node) === true || popover?.contains(node) === true;
-}
-
-/**
  * The "+N" at the end of a preview row, and the only place the rest of that
- * row is written out. A pointer or the keyboard opens the list under the pill;
- * a phone, where a box hanging off a pill has nowhere to go, opens a sheet.
+ * row is written out. Hover or the keyboard opens the list over the pill; a
+ * phone opens a sheet.
  */
 function PreviewMore({
   items,
@@ -1986,149 +1912,21 @@ function PreviewMore({
   style: StyleXStyles;
   title: string;
 }) {
-  const isMobile = useIsMobile();
-  const [open, setOpen] = useState(false);
-  // Where the pill is, in the viewport. The popover is portalled out of the
-  // card, so this is the only thing that ties the two together.
-  const [at, setAt] = useState<{ left: number; top: number }>({ left: 0, top: 0 });
-  const listId = useId();
-  const wrap = useRef<HTMLSpanElement>(null);
-  // The box itself, which the portal puts outside the wrapper's subtree.
-  const popover = useRef<HTMLSpanElement>(null);
-  const grace = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // A grace period that outlives the popover must not fire into nothing.
-  useEffect(
-    () => () => {
-      if (grace.current !== null) {
-        clearTimeout(grace.current);
-      }
-    },
-    [],
-  );
-
-  // Dismissed from outside itself: a pointer anywhere else, or Escape. The
-  // sheet answers both on its own, so this is the popover's alone.
-  useEffect(() => {
-    if (!open || isMobile) {
-      return;
-    }
-    function place() {
-      const box = wrap.current?.getBoundingClientRect();
-      if (box !== undefined) {
-        setAt({ left: box.left, top: box.bottom });
-      }
-    }
-    function onPointerDown(event: PointerEvent) {
-      if (!insidePair(wrap.current, popover.current, event.target as Node | null)) {
-        setOpen(false);
-      }
-    }
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setOpen(false);
-      }
-    }
-    place();
-    document.addEventListener('pointerdown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
-    // `true`: the page scrolls in the window, but a list inside a box does not.
-    window.addEventListener('scroll', place, true);
-    window.addEventListener('resize', place);
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener('scroll', place, true);
-      window.removeEventListener('resize', place);
-    };
-  }, [isMobile, open]);
-
-  function show() {
-    if (grace.current !== null) {
-      clearTimeout(grace.current);
-      grace.current = null;
-    }
-    setOpen(true);
-  }
-
-  // The popover is not a child of the pill any more, so crossing into it
-  // leaves the pill. The grace period is what carries the pointer across.
-  function hideAfterGrace() {
-    if (grace.current !== null) {
-      clearTimeout(grace.current);
-    }
-    grace.current = setTimeout(() => setOpen(false), HELP_GRACE_MS);
-  }
-
-  const list = (
-    <span {...props(styles.previewList)}>
-      {items.map((item) => (
-        <span key={item}>{item}</span>
-      ))}
-    </span>
-  );
-
   return (
-    <span
-      onPointerEnter={(event) => {
-        if (!isMobile && event.pointerType !== 'touch') {
-          show();
-        }
-      }}
-      onPointerLeave={(event) => {
-        if (!isMobile && event.pointerType !== 'touch') {
-          hideAfterGrace();
-        }
-      }}
-      ref={wrap}
-      {...props(styles.previewMoreWrap)}
+    <Tip
+      title={title}
+      trigger={
+        <button type="button" {...props(styles.previewMoreButton, style)}>
+          {label}
+        </button>
+      }
     >
-      <button
-        aria-describedby={open && !isMobile ? listId : undefined}
-        aria-expanded={open}
-        // The sheet takes the focus with it, and a blur that closes it would
-        // shut it on the way in. A press inside the box blurs the button as
-        // well, so only focus that lands outside the pair closes it.
-        onBlur={
-          isMobile
-            ? undefined
-            : (event) => {
-                if (!insidePair(wrap.current, popover.current, event.relatedTarget)) {
-                  setOpen(false);
-                }
-              }
-        }
-        onClick={show}
-        onFocus={isMobile ? undefined : show}
-        type="button"
-        {...props(styles.previewMoreButton, style)}
-      >
-        {label}
-      </button>
-      {isMobile ? (
-        <Sheet onOpenChange={setOpen} open={open} title={title}>
-          {list}
-        </Sheet>
-      ) : open ? (
-        createPortal(
-          <span
-            id={listId}
-            // A press inside the box keeps the button's focus, so the blur that
-            // would shut the box under the pointer never fires.
-            onPointerDown={(event) => event.preventDefault()}
-            onPointerEnter={show}
-            onPointerLeave={hideAfterGrace}
-            ref={popover}
-            role="tooltip"
-            {...props(styles.previewPopover, styles.previewPopoverAt(at.top, at.left))}
-          >
-            <span {...props(styles.previewPopoverTitle)}>{title}</span>
-            {list}
-          </span>,
-          document.body,
-        )
-      ) : null}
-    </span>
+      <span {...props(styles.previewList)}>
+        {items.map((item) => (
+          <span key={item}>{item}</span>
+        ))}
+      </span>
+    </Tip>
   );
 }
 
