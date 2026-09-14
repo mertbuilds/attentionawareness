@@ -20,10 +20,10 @@ export const DISPLAY_SIZE = 'clamp(32px, 3.8vw, 44px)';
 export const HOURS_MIN = 2;
 export const HOURS_MAX = 12;
 const HOURS_STEP = 1;
-/** The rail's opening sweep: down to four, back, up to ten, back, one detent a beat. */
-const DEMO_SWEEP = [6, 5, 4, 5, 6, 7, 8, 9, 10, 9, 8, 7];
+/** The rail's opening sweep: down to five, up to eight, back, one detent a beat. */
+const DEMO_SWEEP = [6, 5, 6, 7, 8, 7];
 const DEMO_START_MS = 700;
-const DEMO_STEP_MS = 220;
+const DEMO_STEP_MS = 250;
 /**
  * Where the slider stands before the reader has moved it: the whole hours of
  * the average day the line above it cites, which is the figure the reader is
