@@ -5,12 +5,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { Receipt } from '../components/receipt.tsx';
-import {
-  clampHours,
-  HourSlider,
-  HOURS_DEFAULT,
-  ScreenTimeGate,
-} from '../components/screen-time-gate.tsx';
+import { clampHours, HourSlider, HOURS_DEFAULT } from '../components/screen-time-gate.tsx';
 import { ScreenTimeHelp } from '../components/screen-time-help.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { formatYears } from '../lib/attention-math.ts';
@@ -588,20 +583,14 @@ function HomePage() {
             )}
           </svg>
         </button>
-        <h1 {...props(styles.heroTitle)}>
-          {m.home_hero_title()}
-          <ScreenTimeHelp />
-        </h1>
-        {touched ? (
-          <div {...props(styles.reveal)}>
-            <ScreenTimeGate
-              onChange={onHoursChange}
-              sound={tickAllowed(sound, soundChosen)}
-              value={hours}
-            />
-          </div>
-        ) : (
-          <HourSlider onPick={onHoursChange} sound={tickAllowed(sound, soundChosen)} />
+        {touched ? null : (
+          <>
+            <h1 {...props(styles.heroTitle)}>
+              {m.home_hero_title()}
+              <ScreenTimeHelp />
+            </h1>
+            <HourSlider onPick={onHoursChange} sound={tickAllowed(sound, soundChosen)} />
+          </>
         )}
         {/* The figure the question is asked against, and where it comes from.
         It goes the moment the reader gives their own. */}
@@ -620,7 +609,13 @@ function HomePage() {
             <div
               {...props(styles.expandInner, touched && styles.expandInnerOpen, styles.receiptSlot)}
             >
-              <Receipt hours={wholeHours} number={receiptNo} printedOn={printedOn} />
+              <Receipt
+                hours={wholeHours}
+                number={receiptNo}
+                onChange={onHoursChange}
+                printedOn={printedOn}
+                sound={tickAllowed(sound, soundChosen)}
+              />
               <div {...props(styles.receiptAfter)}></div>
             </div>
           </div>

@@ -3,9 +3,12 @@ import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.sty
 import NumberFlow from '@number-flow/react';
 import { create, props } from '@stylexjs/stylex';
 import { heroMetrics, HORIZON_YEARS, screenYears } from '../lib/attention-math.ts';
+import { playTick } from '../lib/sounds.ts';
+import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
 import { InfoTip } from './info-tip.tsx';
+import { HOURS_MAX, HOURS_MIN } from './screen-time-gate.tsx';
 
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 const DISPLAY_SIZE = 40;
@@ -96,6 +99,33 @@ const styles = create({
     gap: spacing.s3,
     justifyContent: 'space-between',
     margin: 0,
+  },
+  // The minus and plus on the screen time row: small, borderless, in line.
+  qtyButton: {
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderStyle: 'none',
+    color: {
+      ':disabled': colors.muted,
+      ':hover': accent.base,
+      default: colors.fg,
+    },
+    cursor: { ':disabled': 'default', default: 'pointer' },
+    display: 'inline-flex',
+    height: 28,
+    justifyContent: 'center',
+    opacity: { ':disabled': 0.4, default: 1 },
+    padding: 0,
+    width: 28,
+  },
+  qtyGlyph: {
+    height: 16,
+    width: 16,
+  },
+  receiptQty: {
+    alignItems: 'center',
+    display: 'inline-flex',
+    gap: spacing.s1,
   },
   receiptRow: {
     alignItems: 'baseline',
@@ -217,14 +247,33 @@ function Barcode({ seed }: { seed: string }) {
 export function Receipt({
   hours,
   number,
+  onChange,
   printedOn,
   refunded = false,
+  sound = false,
 }: {
   hours: number;
   number: string;
+  /** Given, the screen time row carries a minus and a plus for correcting it. */
+  onChange?: (hours: number) => void;
   printedOn: string;
   refunded?: boolean;
+  sound?: boolean;
 }) {
+  function step(delta: number) {
+    if (onChange === undefined) {
+      return;
+    }
+    const next = Math.min(HOURS_MAX, Math.max(HOURS_MIN, hours + delta));
+    if (next === hours) {
+      return;
+    }
+    if (sound) {
+      primeTickSound();
+      playTick();
+    }
+    onChange(next);
+  }
   const locale = getLocale();
   const worth = heroMetrics(hours);
   const tips: Record<string, () => string> = {
@@ -262,6 +311,57 @@ export function Receipt({
             <span>{printedOn}</span>
           </p>
         </div>
+        <div aria-hidden="true" {...props(styles.receiptRule)} />
+        {/* The quantity on the receipt: the hours a day, and on the live copy
+        the minus and plus that correct them. */}
+        <p {...props(styles.receiptRow)}>
+          <span>{m.home_receipt_screen_label()}</span>
+          <span {...props(styles.receiptQty)}>
+            {onChange === undefined ? null : (
+              <button
+                aria-label={m.home_gate_minus()}
+                disabled={hours <= HOURS_MIN}
+                onClick={() => step(-1)}
+                onPointerUp={unlockTickSound}
+                type="button"
+                {...props(styles.qtyButton)}
+              >
+                <svg aria-hidden="true" viewBox="0 0 24 24" {...props(styles.qtyGlyph)}>
+                  <path
+                    d="M5 12h14"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeWidth="2.5"
+                  />
+                </svg>
+              </button>
+            )}
+            <span {...props(styles.receiptValue)}>
+              <NumberFlow locales={locale} suffix={m.home_receipt_per_day()} value={hours} />
+            </span>
+            {onChange === undefined ? null : (
+              <button
+                aria-label={m.home_gate_plus()}
+                disabled={hours >= HOURS_MAX}
+                onClick={() => step(1)}
+                onPointerUp={unlockTickSound}
+                type="button"
+                {...props(styles.qtyButton)}
+              >
+                <svg aria-hidden="true" viewBox="0 0 24 24" {...props(styles.qtyGlyph)}>
+                  <path
+                    d="M5 12h14M12 5v14"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeWidth="2.5"
+                  />
+                </svg>
+              </button>
+            )}
+          </span>
+        </p>
         <div aria-hidden="true" {...props(styles.receiptRule)} />
         {/* What the same hours would have bought, smallest to largest. */}
         <div {...props(styles.receiptBlock)}>
