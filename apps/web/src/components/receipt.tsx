@@ -265,17 +265,19 @@ export function Receipt({
         <div aria-hidden="true" {...props(styles.receiptRule)} />
         {/* What the same hours would have bought, smallest to largest. */}
         <div {...props(styles.receiptBlock)}>
-          {worth.map((row) => (
-            <p key={row.key} {...props(styles.receiptRow)}>
-              <span {...props(styles.receiptLabel)}>
-                {labels[row.key]?.() ?? row.key}
-                <InfoTip label={m.home_receipt_tip_label()}>{tips[row.key]?.()}</InfoTip>
-              </span>
-              <span {...props(styles.receiptValue)}>
-                <NumberFlow locales={locale} value={row.amount} />
-              </span>
-            </p>
-          ))}
+          {worth
+            .filter((row) => row.amount > 0)
+            .map((row) => (
+              <p key={row.key} {...props(styles.receiptRow)}>
+                <span {...props(styles.receiptLabel)}>
+                  {labels[row.key]?.() ?? row.key}
+                  <InfoTip label={m.home_receipt_tip_label()}>{tips[row.key]?.()}</InfoTip>
+                </span>
+                <span {...props(styles.receiptValue)}>
+                  <NumberFlow locales={locale} value={row.amount} />
+                </span>
+              </p>
+            ))}
         </div>
         <div aria-hidden="true" {...props(styles.receiptRule)} />
         <div {...props(styles.receiptBlock)}>
