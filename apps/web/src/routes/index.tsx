@@ -601,13 +601,16 @@ function HomePage() {
           sound={tickAllowed(sound, soundChosen)}
           value={hours}
         />
-        {/* The figure the question is asked against, and where it comes from. */}
-        <p {...props(styles.gateNote)}>
-          {m.home_gate_average()}{' '}
-          <a href={SOURCE_URL} rel="noreferrer" target="_blank" {...props(styles.gateSource)}>
-            {m.home_gate_source()}
-          </a>
-        </p>
+        {/* The figure the question is asked against, and where it comes from.
+        It goes the moment the reader gives their own. */}
+        {touched ? null : (
+          <p {...props(styles.gateNote)}>
+            {m.home_gate_average()}{' '}
+            <a href={SOURCE_URL} rel="noreferrer" target="_blank" {...props(styles.gateSource)}>
+              {m.home_gate_source()}
+            </a>
+          </p>
+        )}
         {/* The receipt: empty until the reader touches the dial, then priced
         live against it. Every figure on it rolls as the hours change. */}
         <section aria-live="polite" {...props(styles.receiptWrap)}>
