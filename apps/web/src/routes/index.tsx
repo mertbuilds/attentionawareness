@@ -517,8 +517,6 @@ function HomePage() {
   const howItWorks = [
     { body: m.home_how_supervision_body(), guide: true, title: m.home_how_supervision_title() },
     { body: m.home_how_profile_body(), guide: false, title: m.home_how_profile_title() },
-    { body: m.home_how_apps_body(), guide: false, title: m.home_how_apps_title() },
-    { body: m.home_how_websites_body(), guide: false, title: m.home_how_websites_title() },
   ];
 
   const objections = [
