@@ -10,9 +10,11 @@ import { InfoTip } from './info-tip.tsx';
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 const DISPLAY_SIZE = 40;
 
+/** The paper itself: a shade off the page in both themes. */
+const PAPER = `color-mix(in srgb, ${colors.bg} 92%, ${colors.fg})`;
 /** Paper grain: one tile of fractal noise, faint, laid over the ground. */
 const PAPER_GRAIN =
-  "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.10 0'/></filter><rect width='160' height='160' filter='url(%23g)'/></svg>\")";
+  "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='4' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.16 0'/></filter><rect width='160' height='160' filter='url(%23g)'/></svg>\")";
 /**
  * The torn top and bottom, as one polygon the paper is cut to: 28 teeth of
  * up to 7px, with a little wobble. Written out because StyleX reads it at
@@ -29,8 +31,16 @@ const styles = create({
     marginInline: 'auto',
     width: '70%',
   },
+  paper: {
+    filter: {
+      '@media (prefers-color-scheme: dark)': 'drop-shadow(0 18px 30px rgba(0, 0, 0, 0.7))',
+      default: 'drop-shadow(0 18px 30px rgba(0, 0, 0, 0.25))',
+    },
+    maxWidth: 420,
+    width: '100%',
+  },
   receipt: {
-    backgroundColor: colors.bg,
+    backgroundColor: PAPER,
     backgroundImage: PAPER_GRAIN,
     boxSizing: 'border-box',
     clipPath: TORN_EDGE,
@@ -237,89 +247,91 @@ export function Receipt({
     skills: m.home_receipt_skills_label,
   };
   return (
-    <div {...props(styles.receipt, refunded && styles.stamped)}>
-      <div {...props(styles.receiptHead)}>
-        <p {...props(styles.receiptStore)}>{m.home_receipt_store()}</p>
-        <p {...props(styles.receiptStoreUrl)}>{m.home_receipt_store_url()}</p>
-      </div>
-      <div aria-hidden="true" {...props(styles.receiptRule)} />
-      <div {...props(styles.receiptMeta)}>
-        <p {...props(styles.receiptMetaLine)}>
-          <span>{m.home_receipt_no({ number })}</span>
-          <span>{printedOn}</span>
-        </p>
-      </div>
-      <div aria-hidden="true" {...props(styles.receiptRule)} />
-      {/* The deal, in words, before any number: this many hours a
+    <div {...props(styles.paper)}>
+      <div {...props(styles.receipt, refunded && styles.stamped)}>
+        <div {...props(styles.receiptHead)}>
+          <p {...props(styles.receiptStore)}>{m.home_receipt_store()}</p>
+          <p {...props(styles.receiptStoreUrl)}>{m.home_receipt_store_url()}</p>
+        </div>
+        <div aria-hidden="true" {...props(styles.receiptRule)} />
+        <div {...props(styles.receiptMeta)}>
+          <p {...props(styles.receiptMetaLine)}>
+            <span>{m.home_receipt_no({ number })}</span>
+            <span>{printedOn}</span>
+          </p>
+        </div>
+        <div aria-hidden="true" {...props(styles.receiptRule)} />
+        {/* The deal, in words, before any number: this many hours a
       day, for this many years. */}
-      <div {...props(styles.receiptBlock)}>
-        <p {...props(styles.receiptHeading)}>
-          {m.home_receipt_order_label({ years: HORIZON_YEARS })}
-        </p>
-        <p {...props(styles.receiptRow)}>
-          <span>{m.home_receipt_dopamine_label()}</span>
-          <span {...props(styles.receiptValue)}>
-            <NumberFlow locales={locale} suffix={m.home_receipt_per_day()} value={hours} />
-          </span>
-        </p>
-        <p {...props(styles.receiptRow)}>
-          <span {...props(styles.receiptLabel)}>
-            {m.home_receipt_ad_revenue_label()}
-            <InfoTip label={m.home_receipt_tip_label()}>
-              {m.home_receipt_ad_revenue_note({ years: HORIZON_YEARS })}
-            </InfoTip>
-          </span>
-          <span {...props(styles.receiptValue)}>
-            <NumberFlow locales={locale} prefix="~$" value={adRevenue()} />
-          </span>
-        </p>
-      </div>
-      <div aria-hidden="true" {...props(styles.receiptRule)} />
-      {/* What the same hours would have bought, smallest to largest. */}
-      <div {...props(styles.receiptBlock)}>
-        <p {...props(styles.receiptHeading)}>{m.home_receipt_worth_label()}</p>
-        {worth.map((row) => (
-          <p key={row.key} {...props(styles.receiptRow)}>
-            <span {...props(styles.receiptLabel)}>
-              {labels[row.key]?.() ?? row.key}
-              <InfoTip label={m.home_receipt_tip_label()}>{tips[row.key]?.()}</InfoTip>
-            </span>
+        <div {...props(styles.receiptBlock)}>
+          <p {...props(styles.receiptHeading)}>
+            {m.home_receipt_order_label({ years: HORIZON_YEARS })}
+          </p>
+          <p {...props(styles.receiptRow)}>
+            <span>{m.home_receipt_dopamine_label()}</span>
             <span {...props(styles.receiptValue)}>
-              <NumberFlow locales={locale} value={row.amount} />
+              <NumberFlow locales={locale} suffix={m.home_receipt_per_day()} value={hours} />
             </span>
           </p>
-        ))}
-      </div>
-      <div aria-hidden="true" {...props(styles.receiptRule)} />
-      <div {...props(styles.receiptBlock)}>
-        <p {...props(styles.receiptHeading, styles.receiptLabel)}>
-          {m.home_receipt_total_label()}
-          <InfoTip label={m.home_receipt_tip_label()}>{m.home_receipt_total_tip()}</InfoTip>
-        </p>
-        <p {...props(styles.receiptTotal)}>
-          <span {...props(styles.receiptTotalValue)}>
-            <NumberFlow
-              format={{ maximumFractionDigits: 2 }}
-              locales={locale}
-              value={screenYears(hours)}
-            />{' '}
-            {m.home_receipt_years_unit()}
+          <p {...props(styles.receiptRow)}>
+            <span {...props(styles.receiptLabel)}>
+              {m.home_receipt_ad_revenue_label()}
+              <InfoTip label={m.home_receipt_tip_label()}>
+                {m.home_receipt_ad_revenue_note({ years: HORIZON_YEARS })}
+              </InfoTip>
+            </span>
+            <span {...props(styles.receiptValue)}>
+              <NumberFlow locales={locale} prefix="~$" value={adRevenue()} />
+            </span>
+          </p>
+        </div>
+        <div aria-hidden="true" {...props(styles.receiptRule)} />
+        {/* What the same hours would have bought, smallest to largest. */}
+        <div {...props(styles.receiptBlock)}>
+          <p {...props(styles.receiptHeading)}>{m.home_receipt_worth_label()}</p>
+          {worth.map((row) => (
+            <p key={row.key} {...props(styles.receiptRow)}>
+              <span {...props(styles.receiptLabel)}>
+                {labels[row.key]?.() ?? row.key}
+                <InfoTip label={m.home_receipt_tip_label()}>{tips[row.key]?.()}</InfoTip>
+              </span>
+              <span {...props(styles.receiptValue)}>
+                <NumberFlow locales={locale} value={row.amount} />
+              </span>
+            </p>
+          ))}
+        </div>
+        <div aria-hidden="true" {...props(styles.receiptRule)} />
+        <div {...props(styles.receiptBlock)}>
+          <p {...props(styles.receiptHeading, styles.receiptLabel)}>
+            {m.home_receipt_total_label()}
+            <InfoTip label={m.home_receipt_tip_label()}>{m.home_receipt_total_tip()}</InfoTip>
+          </p>
+          <p {...props(styles.receiptTotal)}>
+            <span {...props(styles.receiptTotalValue)}>
+              <NumberFlow
+                format={{ maximumFractionDigits: 2 }}
+                locales={locale}
+                value={screenYears(hours)}
+              />{' '}
+              {m.home_receipt_years_unit()}
+            </span>
+            <span {...props(styles.receiptTotalNote)}>
+              {m.home_receipt_total_note({ years: HORIZON_YEARS })}
+            </span>
+          </p>
+        </div>
+        <div aria-hidden="true" {...props(styles.receiptRule)} />
+        <div {...props(styles.receiptFoot)}>
+          <Barcode seed={number} />
+          <p {...props(styles.receiptThanks)}>{m.home_receipt_thanks()}</p>
+        </div>
+        {refunded ? (
+          <span aria-label={m.home_receipt_refunded()} role="img" {...props(styles.stamp)}>
+            {m.home_receipt_refunded()}
           </span>
-          <span {...props(styles.receiptTotalNote)}>
-            {m.home_receipt_total_note({ years: HORIZON_YEARS })}
-          </span>
-        </p>
+        ) : null}
       </div>
-      <div aria-hidden="true" {...props(styles.receiptRule)} />
-      <div {...props(styles.receiptFoot)}>
-        <Barcode seed={number} />
-        <p {...props(styles.receiptThanks)}>{m.home_receipt_thanks()}</p>
-      </div>
-      {refunded ? (
-        <span aria-label={m.home_receipt_refunded()} role="img" {...props(styles.stamp)}>
-          {m.home_receipt_refunded()}
-        </span>
-      ) : null}
     </div>
   );
 }
