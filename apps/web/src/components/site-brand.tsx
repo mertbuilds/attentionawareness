@@ -19,8 +19,8 @@ const styles = create({
     insetBlockStart: spacing.s4,
     insetInlineStart: spacing.s4,
     position: 'fixed',
-    textDecoration: 'none',
     textDecorationLine: 'none',
+    textTransform: 'lowercase',
     zIndex: 30,
   },
 });
@@ -28,7 +28,7 @@ const styles = create({
 /** The name, top left on every page, and the way home. */
 export function SiteBrand() {
   return (
-    <a href="/" {...props(styles.link)}>
+    <a data-plain="" href="/" {...props(styles.link)}>
       <BrandMark size={MARK_SIZE} />
       {m.site_name()}
     </a>
