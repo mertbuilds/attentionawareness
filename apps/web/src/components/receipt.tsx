@@ -6,7 +6,7 @@ import {
   formatYears,
   heroMetrics,
   HORIZON_YEARS,
-  screenYears,
+  yearsAndMonths,
   WAKING_HOURS,
 } from '../lib/attention-math.ts';
 import { playTick } from '../lib/sounds.ts';
@@ -281,6 +281,7 @@ export function Receipt({
     onChange(next);
   }
   const locale = getLocale();
+  const span = yearsAndMonths(hours);
   const worth = heroMetrics(hours);
   const tips: Record<string, () => string> = {
     books: m.home_receipt_books_tip,
@@ -399,12 +400,13 @@ export function Receipt({
           </p>
           <p {...props(styles.receiptTotal)}>
             <span {...props(styles.receiptTotalValue)}>
-              <NumberFlow
-                format={{ maximumFractionDigits: 2 }}
-                locales={locale}
-                value={screenYears(hours)}
-              />{' '}
-              {m.home_receipt_years_unit()}
+              <NumberFlow locales={locale} value={span.years} /> {m.home_receipt_years_unit()}
+              {span.months > 0 ? (
+                <>
+                  {' '}
+                  <NumberFlow locales={locale} value={span.months} /> {m.home_receipt_months_unit()}
+                </>
+              ) : null}
             </span>
             <span {...props(styles.receiptTotalNote)}>
               {m.home_receipt_total_note({ years: HORIZON_YEARS })}
