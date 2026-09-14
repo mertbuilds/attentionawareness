@@ -474,6 +474,12 @@ export function HourSlider({ onPick, sound }: { onPick: (hours: number) => void;
       if (held.current) {
         return;
       }
+      // Open the device before the first tick: a browser that has heard from
+      // this reader before lets it sound, a brand-new tab keeps it silent
+      // until their first press, and either way the ticks go through it.
+      if (sound) {
+        primeTickSound();
+      }
       index = 0;
       lastWhole = Math.round(from);
       setGliding(true);
