@@ -4,7 +4,7 @@ import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import NumberFlow from '@number-flow/react';
 import { create, props } from '@stylexjs/stylex';
 import { useSyncExternalStore } from 'react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { playTick } from '../lib/sounds.ts';
 import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
 import { m } from '../paraglide/messages.js';
@@ -20,6 +20,10 @@ export const DISPLAY_SIZE = 'clamp(32px, 3.8vw, 44px)';
 export const HOURS_MIN = 2;
 export const HOURS_MAX = 12;
 const HOURS_STEP = 1;
+/** The rail's opening sweep: up two, back, down two, back, one detent a beat. */
+const DEMO_SWEEP = [8, 9, 8, 7, 6, 5, 6, 7];
+const DEMO_START_MS = 700;
+const DEMO_STEP_MS = 220;
 /**
  * Where the slider stands before the reader has moved it: the whole hours of
  * the average day the line above it cites, which is the figure the reader is
@@ -400,10 +404,49 @@ export function ScreenTimeGate({
  */
 export function HourSlider({ onPick, sound }: { onPick: (hours: number) => void; sound: boolean }) {
   const [hours, setHours] = useState(HOURS_DEFAULT);
+  // The rail shows itself once: a sweep up and back, then down and back, one
+  // detent at a time, until the reader takes hold of it.
+  const demo = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const held = useRef(false);
+
+  useEffect(() => {
+    const steps = DEMO_SWEEP;
+    let index = 0;
+    function advance() {
+      if (held.current || index >= steps.length) {
+        demo.current = null;
+        return;
+      }
+      const next = steps[index] ?? HOURS_DEFAULT;
+      index += 1;
+      setHours(next);
+      if (sound) {
+        playTick();
+      }
+      demo.current = setTimeout(advance, DEMO_STEP_MS);
+    }
+    demo.current = setTimeout(advance, DEMO_START_MS);
+    return () => {
+      if (demo.current !== null) {
+        clearTimeout(demo.current);
+      }
+    };
+    // The sweep runs once, on mount, with the sound setting it opened with.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot demo
+  }, []);
+
+  function hold() {
+    held.current = true;
+    if (demo.current !== null) {
+      clearTimeout(demo.current);
+      demo.current = null;
+    }
+  }
   const reading = hours === 1 ? m.home_gate_reading_one() : m.home_gate_reading({ hours });
   const travelled = ((hours - HOURS_MIN) / (HOURS_MAX - HOURS_MIN)) * 100;
 
   function onHoursChange(value: number) {
+    hold();
     if (value !== hours && sound) {
       primeTickSound();
       playTick();
@@ -434,12 +477,14 @@ export function HourSlider({ onPick, sound }: { onPick: (hours: number) => void;
             max={HOURS_MAX}
             min={HOURS_MIN}
             onChange={(event) => onHoursChange(Number(event.target.value))}
+            onKeyDown={hold}
             onKeyUp={(event) => {
               if (event.key === 'Enter') {
                 pick(event);
               }
             }}
             onPointerDown={() => {
+              hold();
               if (sound) {
                 primeTickSound();
               }
