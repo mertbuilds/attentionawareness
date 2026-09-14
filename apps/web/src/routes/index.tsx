@@ -39,7 +39,6 @@ const SECTION_GAP = '96px';
 const HERO_MEASURE = 640;
 /** The places on the page that can be linked to, and the ids they use. */
 const STORY_ID = 'story';
-const SUPERVISE_ID = 'supervision';
 const HOW_ID = 'how';
 const SUPERVISE_URL = '/supervise';
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
@@ -633,17 +632,6 @@ function HomePage() {
             <p {...props(styles.storyLine)}>{m.home_story_5()}</p>
             <p {...props(styles.storyLine)}>{m.home_story_6()}</p>
             <p {...props(styles.storySign)}>{m.home_story_sign()}</p>
-          </div>
-        </section>
-
-        {/* The one thing the reader has to do first, said plainly, and the way
-        into it. */}
-        <section {...props(styles.section, styles.anchor)} id={SUPERVISE_ID}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_supervise_title()}</h2>
-          <p {...props(styles.sectionBody)}>{m.home_supervise_body_1()}</p>
-          <p {...props(styles.sectionBody)}>{m.home_supervise_body_2()}</p>
-          <div {...props(styles.row)}>
-            <Button render={<a href={SUPERVISE_URL} />}>{m.home_supervise_cta()}</Button>
           </div>
         </section>
 
