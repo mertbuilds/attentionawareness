@@ -125,6 +125,7 @@ export function AppIconFan({
       {apps.map((app, index) => (
         <Tip
           key={app.bundleId}
+          mobile="none"
           title={app.name}
           trigger={
             <button
@@ -163,6 +164,7 @@ export function AppIconFan({
               <AppArtwork meta={meta[app.bundleId]} name={app.name} style={styles.fanArtwork} />
             </button>
           }
+          variant="label"
         >
           {null}
         </Tip>

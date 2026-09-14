@@ -85,6 +85,8 @@ const SEARCH_DEBOUNCE_MS = 300;
 const SEARCH_LIMIT = 10;
 const SKELETON_ROWS = [0, 1, 2];
 const FALLBACK_COUNTRY = 'us';
+/** The arrow before a back link: a glyph, not a message. */
+const BACK_ARROW = '\u2190';
 const SUPERVISE_URL = '/supervise';
 /** The ids the two labelled site lists name their add field with. */
 const PERMITTED_INPUT_ID = 'permitted-urls';
@@ -235,12 +237,15 @@ const styles = create({
   },
   // The way back, over the title: one quiet line, an arrow and a word.
   back: {
+    alignItems: 'baseline',
     alignSelf: 'flex-start',
     color: {
       ':hover': colors.fg,
       default: colors.muted,
     },
+    display: 'inline-flex',
     fontSize: font.sizeSm,
+    gap: spacing.s1,
     textDecorationLine: 'none',
   },
   banner: {
@@ -2745,6 +2750,7 @@ function BuildPage() {
           Another number is another answer: the gate is the only way to one. */}
       <header {...props(styles.pageHead)}>
         <a data-plain="" href={SUPERVISE_URL} {...props(styles.back)}>
+          <span aria-hidden="true">{BACK_ARROW}</span>
           {m.nav_back_guide()}
         </a>
         <p {...props(styles.label)}>{m.gen_step2_label()}</p>
