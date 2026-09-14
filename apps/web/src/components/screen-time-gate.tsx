@@ -45,12 +45,12 @@ const styles = create({
     cursor: 'pointer',
     display: 'inline-flex',
     fontFamily: MONOSPACE,
-    fontSize: font.sizeLg,
+    fontSize: 24,
     fontVariantNumeric: 'tabular-nums',
     fontWeight: 600,
-    height: 48,
+    height: 64,
     justifyContent: 'center',
-    minWidth: 48,
+    minWidth: 64,
     paddingBlock: 0,
     paddingInline: spacing.s3,
     transitionDuration: '120ms',
@@ -73,8 +73,8 @@ const styles = create({
   chips: {
     alignItems: 'start',
     display: 'grid',
-    gap: spacing.s2,
-    gridTemplateColumns: 'repeat(6, auto)',
+    gap: spacing.s3,
+    gridTemplateColumns: 'repeat(4, auto)',
     justifyContent: 'center',
     listStyleType: 'none',
     margin: 0,
@@ -264,13 +264,13 @@ export function ScreenTimeGate({
   );
 }
 
-/** The average day, to the nearest whole hour: 6 hours 40 minutes rounds up. */
-const AVERAGE_HOURS = 7;
+/** The average day in whole hours: 6 hours 40 minutes. */
+const AVERAGE_HOURS = 6;
 /** Every hour the page can be answered with, one to twelve. */
 const HOURS = Array.from({ length: HOURS_MAX - HOURS_MIN + 1 }, (_, index) => HOURS_MIN + index);
 
 /**
- * The first screen's answer: twelve pills, two rows of six, and nothing
+ * The first screen's answer: twelve pills, three rows of four, and nothing
  * chosen for the reader. A tap is the answer, and the stepper takes over from
  * there for corrections.
  */
