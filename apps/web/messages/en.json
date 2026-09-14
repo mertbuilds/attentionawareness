@@ -86,6 +86,7 @@
   "home_deal_time_value": "45 minutes",
   "home_deal_time_label": "Once. Some iPhones add a one-hour security wait first",
   "home_how_step": "{n}. {title}",
+  "home_how_build_link": "Create your profile (requires supervision)",
   "home_how_title": "You just need two things",
   "home_how_profile_title": "A configuration profile",
   "home_how_profile_body": "A configuration profile is the file companies use to manage work phones. This site builds yours in the browser and signs it; nothing is uploaded. Yours can block apps by name so they never open even if downloaded, block websites in every browser, filter adult content, and lock itself so it stays.",

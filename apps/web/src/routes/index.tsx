@@ -43,6 +43,7 @@ const HERO_MEASURE = 640;
 const STORY_ID = 'story';
 const HOW_ID = 'how';
 const SUPERVISE_URL = '/supervise';
+const BUILD_URL = '/build';
 /** The report the average day is taken from. */
 const SOURCE_URL = 'https://datareportal.com/global-digital-overview';
 /** The post this started from, linked out of the paragraph that tells it. */
@@ -589,9 +590,20 @@ function HomePage() {
   const [storyBefore, storyAfter] = m.home_story_1({ post: LINK_SLOT }).split(LINK_SLOT);
 
   // Supervision leads: it is the step the other three stand on.
+  // Each step ends in the way into it: the guide, then the generator.
   const howItWorks = [
-    { body: m.home_how_supervision_body(), guide: true, title: m.home_how_supervision_title() },
-    { body: m.home_how_profile_body(), guide: false, title: m.home_how_profile_title() },
+    {
+      body: m.home_how_supervision_body(),
+      href: SUPERVISE_URL,
+      link: m.gen_supervise_link(),
+      title: m.home_how_supervision_title(),
+    },
+    {
+      body: m.home_how_profile_body(),
+      href: BUILD_URL,
+      link: m.home_how_build_link(),
+      title: m.home_how_profile_title(),
+    },
   ];
 
   const objections = [
@@ -787,11 +799,9 @@ function HomePage() {
                   {m.home_how_step({ n: index + 1, title: step.title })}
                 </h3>
                 <p {...props(styles.howBody)}>{step.body}</p>
-                {step.guide ? (
-                  <a href={SUPERVISE_URL} {...props(styles.stepLink)}>
-                    {m.gen_supervise_link()}
-                  </a>
-                ) : null}
+                <a href={step.href} {...props(styles.stepLink)}>
+                  {step.link}
+                </a>
               </li>
             ))}
           </ol>
