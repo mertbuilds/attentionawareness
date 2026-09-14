@@ -25,6 +25,7 @@ import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { AppArtwork, artworkStyles } from '../components/app-artwork.tsx';
 import type { MetaCache } from '../components/app-artwork.tsx';
+import { AppIconFan, fanStyles } from '../components/app-icon-fan.tsx';
 import { FriendShare } from '../components/friend-share.tsx';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { ShareCard } from '../components/share-card.tsx';
@@ -85,6 +86,7 @@ const SEARCH_DEBOUNCE_MS = 300;
 const SEARCH_LIMIT = 10;
 const SKELETON_ROWS = [0, 1, 2];
 const FALLBACK_COUNTRY = 'us';
+const CHANGES_ID = 'changes';
 const SUPERVISE_URL = '/supervise';
 /** The ids the two labelled site lists name their add field with. */
 const PERMITTED_INPUT_ID = 'permitted-urls';
@@ -2909,6 +2911,18 @@ function BuildPage() {
     year: 'numeric',
   }).format(printedAt);
 
+  const dealTiles = [
+    { label: m.home_deal_apps_label(), value: m.home_deal_apps_value() },
+    { label: m.home_deal_price_label(), value: m.home_deal_price_value() },
+    { label: m.home_deal_time_label(), value: m.home_deal_time_value() },
+  ];
+
+  const proofPoints = [
+    { body: m.home_proof_months_body(), title: m.home_proof_months_title() },
+    { body: m.home_proof_minutes_body(), title: m.home_proof_minutes_title() },
+    { body: m.home_proof_blocked_body(), title: m.home_proof_blocked_title() },
+  ];
+
   return (
     <main {...props(styles.page)}>
       <GridTexture />
@@ -2938,6 +2952,46 @@ function BuildPage() {
       </header>
 
       <div {...props(styles.content)}>
+        <section {...props(styles.section, styles.anchor)} id={CHANGES_ID}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_changes_title()}</h2>
+          <p {...props(styles.fanHeadline)}>
+            {m.home_fan_before()}
+            {config.blockedApps.length === 0 ? (
+              <span {...props(fanStyles.fan)}>{m.home_fan_empty()}</span>
+            ) : (
+              <AppIconFan apps={config.blockedApps} meta={meta} />
+            )}
+            {m.home_fan_after()}
+          </p>
+          <p {...props(styles.sectionBody)}>{m.home_changes_gone()}</p>
+          <p {...props(styles.sectionBody)}>{m.home_changes_stays()}</p>
+        </section>
+
+        <section {...props(styles.section)}>
+          <h2 {...props(styles.label)}>{m.home_deal_label()}</h2>
+          <ul {...props(styles.dealList)}>
+            {dealTiles.map((tile) => (
+              <li key={tile.label} {...props(styles.dealLine)}>
+                <span {...props(styles.dealValue)}>{tile.value}</span>
+                <span {...props(styles.dealLabel)}>{tile.label}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section {...props(styles.section)}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_proof_title()}</h2>
+          <ul {...props(styles.proofList)}>
+            {proofPoints.map((point) => (
+              <li key={point.title}>
+                <p {...props(styles.proofLine)}>
+                  <span {...props(styles.proofLead)}>{point.title}</span> {point.body}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+
         <section {...props(styles.section)}>
           <h2 {...props(styles.sectionTitle)}>{m.home_apps_title()}</h2>
           <p {...props(layout.muted)}>
