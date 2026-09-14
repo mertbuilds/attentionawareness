@@ -1,4 +1,5 @@
 import {
+  Button,
   Label,
   Separator,
   Table,
@@ -24,6 +25,8 @@ export const Route = createFileRoute('/supervise')({
 });
 
 const HOME_URL = '/';
+/** The generator, which is what a supervised iPhone is for. */
+const BUILD_URL = '/build';
 /** The brand in prose, the way the root document spells it. */
 const SITE_NAME = 'Attention Awareness';
 const STOPA_URL = 'https://stopa.io/post/297';
@@ -398,6 +401,14 @@ function SuperviseGuide() {
               </a>
             </li>
           </ul>
+        </section>
+
+        <section {...props(styles.section)}>
+          <h2 {...props(styles.sectionTitle)}>{m.sup_next_title()}</h2>
+          <p {...props(layout.muted)}>{m.sup_next_body()}</p>
+          <p>
+            <Button render={<a href={BUILD_URL} />}>{m.sup_next_cta()}</Button>
+          </p>
         </section>
 
         <Separator />
