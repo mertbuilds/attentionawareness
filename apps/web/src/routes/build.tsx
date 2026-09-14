@@ -103,11 +103,6 @@ const RECEIPT_DIGITS = 6;
 const EXPAND_MS = '700ms';
 /** How long an armed Remove waits for its second click before standing down. */
 const REMOVE_CONFIRM_MS = 3000;
-/**
- * The armed control is tracked by id, and the reset link needs one too. A colon
- * is not legal in a bundle id, so this can never collide with an app's row.
- */
-const RESET_ARMED = 'reset:apps';
 /** A chip names a host; the scheme carries nothing the user needs to read. */
 const SITE_SCHEME = /^https?:\/\//u;
 /**
@@ -1010,13 +1005,6 @@ const styles = create({
   },
   removeIdle: {
     minWidth: 48,
-  },
-  resetArmed: {
-    color: {
-      ':hover': colors.error,
-      default: colors.error,
-    },
-    fontWeight: font.weightMedium,
   },
   // Sits in the subtitle sentence, so it takes the paragraph's own type.
   resetLink: {
@@ -2407,19 +2395,16 @@ function BuildPage() {
     setArmedRemove(bundleId);
   }
 
-  // The same two-step, on the whole list: one click arms, the next resets. The
-  // recommended apps come back with every site they imply, so the rows that
-  // were unticked or deleted are forgotten too; the user's own urls stay.
+  // One click, no confirmation: the link only shows while the list differs
+  // from the preset, so there is nothing to lose that was not chosen on
+  // purpose. The recommended apps come back with every site they imply, so
+  // the rows that were unticked or deleted are forgotten too; the user's own
+  // urls stay.
   function onResetClick() {
-    if (armedRemove === RESET_ARMED) {
-      setArmedRemove(null);
-      const next = { ...config, blockedApps: [...presets.mert.blockedApps] };
-      setConfig(next);
-      setExcludedSites([]);
-      setRemovedSites([]);
-      return;
-    }
-    setArmedRemove(RESET_ARMED);
+    setArmedRemove(null);
+    setConfig({ ...config, blockedApps: [...presets.mert.blockedApps] });
+    setExcludedSites([]);
+    setRemovedSites([]);
   }
 
   function setWebMode(mode: WebMode) {
@@ -2876,13 +2861,8 @@ function BuildPage() {
           </ul>
           {recommended ? null : (
             <p {...props(layout.muted)}>
-              <button
-                onBlur={() => setArmedRemove(null)}
-                onClick={onResetClick}
-                type="button"
-                {...props(styles.resetLink, armedRemove === RESET_ARMED && styles.resetArmed)}
-              >
-                {armedRemove === RESET_ARMED ? m.gen_remove_confirm() : m.gen_apps_reset()}
+              <button onClick={onResetClick} type="button" {...props(styles.resetLink)}>
+                {m.gen_apps_reset()}
               </button>
             </p>
           )}
