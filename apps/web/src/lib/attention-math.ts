@@ -1,5 +1,5 @@
 /** Hours in a day a person is awake. The other eight are sleep. */
-const WAKING_HOURS = 16;
+export const WAKING_HOURS = 16;
 const DAYS_PER_YEAR = 365;
 /** The screen hours are an estimate, so they are shown to the nearest hundred. */
 const HOURS_ROUNDING = 100;

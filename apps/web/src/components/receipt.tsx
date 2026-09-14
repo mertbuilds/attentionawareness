@@ -2,7 +2,13 @@ import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import NumberFlow from '@number-flow/react';
 import { create, props } from '@stylexjs/stylex';
-import { heroMetrics, HORIZON_YEARS, screenYears } from '../lib/attention-math.ts';
+import {
+  formatYears,
+  heroMetrics,
+  HORIZON_YEARS,
+  screenYears,
+  WAKING_HOURS,
+} from '../lib/attention-math.ts';
 import { playTick } from '../lib/sounds.ts';
 import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
 import { m } from '../paraglide/messages.js';
@@ -383,7 +389,13 @@ export function Receipt({
         <div {...props(styles.receiptBlock)}>
           <p {...props(styles.receiptHeading, styles.receiptLabel)}>
             {m.home_receipt_total_label()}
-            <InfoTip label={m.home_receipt_tip_label()}>{m.home_receipt_total_tip()}</InfoTip>
+            <InfoTip label={m.home_receipt_tip_label()}>
+              {m.home_receipt_total_tip({
+                hours,
+                percent: Math.round((hours / WAKING_HOURS) * 100),
+                years: formatYears(hours),
+              })}
+            </InfoTip>
           </p>
           <p {...props(styles.receiptTotal)}>
             <span {...props(styles.receiptTotalValue)}>
