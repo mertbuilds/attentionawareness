@@ -49,6 +49,11 @@ export function formatYears(hoursPerDay: number): string {
   return text.endsWith('.0') ? text.slice(0, -2) : text;
 }
 
+/** The same span as a whole number, always rounded down: a promise, not a sum. */
+export function wholeYears(hoursPerDay: number): number {
+  return Math.floor(screenYears(hoursPerDay));
+}
+
 /** The same span counted in waking hours, rounded to the nearest hundred. */
 export function screenHours(hoursPerDay: number): number {
   return Math.round(exactHours(hoursPerDay) / HOURS_ROUNDING) * HOURS_ROUNDING;
