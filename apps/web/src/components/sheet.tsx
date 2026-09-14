@@ -42,10 +42,13 @@ const styles = create({
     // Tall enough for a share card, never so tall that the page behind it is
     // gone: what does not fit scrolls inside the sheet.
     maxHeight: '90vh',
+    // A one-line note still gets a sheet worth pulling up, not a sliver.
+    minHeight: '28vh',
     outlineStyle: 'none',
     overflowY: 'auto',
-    // The sheet lands on the home bar, so the last row clears it.
-    paddingBlockEnd: `calc(${spacing.s4} + env(safe-area-inset-bottom))`,
+    // The sheet lands on the home bar, so the last row clears it by 32px at
+    // least, and by the home bar's own height on top of that.
+    paddingBlockEnd: `calc(${spacing.s8} + env(safe-area-inset-bottom))`,
     paddingBlockStart: spacing.s4,
     paddingInline: spacing.s4,
     position: 'fixed',
