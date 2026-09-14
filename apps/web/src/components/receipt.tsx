@@ -259,7 +259,6 @@ export function Receipt({
         <div aria-hidden="true" {...props(styles.receiptRule)} />
         {/* What the same hours would have bought, smallest to largest. */}
         <div {...props(styles.receiptBlock)}>
-          <p {...props(styles.receiptHeading)}>{m.home_receipt_worth_label()}</p>
           {worth.map((row) => (
             <p key={row.key} {...props(styles.receiptRow)}>
               <span {...props(styles.receiptLabel)}>
