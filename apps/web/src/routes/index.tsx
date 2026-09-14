@@ -48,7 +48,6 @@ const HOW_ID = 'how';
 const SUPERVISE_URL = '/supervise';
 /** The report the average day is taken from. */
 const SOURCE_URL = 'https://datareportal.com/global-digital-overview';
-const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 /** The post this started from, linked out of the paragraph that tells it. */
 const STORY_URL = 'https://stopa.io/post/297';
 /**
@@ -265,14 +264,6 @@ const styles = create({
     listStyleType: 'none',
     margin: 0,
     padding: 0,
-  },
-  // The count, in the till's own face: it numbers the step and says nothing.
-  howNumber: {
-    color: colors.muted,
-    fontFamily: MONOSPACE,
-    fontSize: 12,
-    fontVariantNumeric: 'tabular-nums',
-    lineHeight: 1.4,
   },
   howStep: {
     display: 'flex',
@@ -636,7 +627,7 @@ function HomePage() {
           <div {...props(styles.expandInner, touched && styles.expandInnerOpen, styles.heroPitch)}>
             <p {...props(styles.heroProduct)}>{m.home_hero_product()}</p>
             <div {...props(styles.heroActions)}>
-              <Button render={<a href={SUPERVISE_URL} />}>{m.home_hero_cta()}</Button>
+              <Button render={<a href={`#${HOW_ID}`} />}>{m.home_hero_cta()}</Button>
               <a href={`#${STORY_ID}`} {...props(styles.heroSecondary)}>
                 {m.home_hero_secondary()}
               </a>
@@ -672,8 +663,9 @@ function HomePage() {
           <ol {...props(styles.howList)}>
             {howItWorks.map((step, index) => (
               <li key={step.title} {...props(styles.howStep)}>
-                <span {...props(styles.howNumber)}>{index + 1}</span>
-                <h3 {...props(styles.howTitle)}>{step.title}</h3>
+                <h3 {...props(styles.howTitle)}>
+                  {m.home_how_step({ n: index + 1, title: step.title })}
+                </h3>
                 <p {...props(styles.howBody)}>{step.body}</p>
                 {step.guide ? (
                   <a href={SUPERVISE_URL} {...props(styles.stepLink)}>

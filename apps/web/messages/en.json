@@ -81,6 +81,7 @@
   "home_deal_price_label": "Free, open source",
   "home_deal_time_value": "45 minutes",
   "home_deal_time_label": "Once. Some iPhones add a one-hour security wait first",
+  "home_how_step": "{n}. {title}",
   "home_how_title": "Here's how it works",
   "home_how_profile_title": "A profile, not an app",
   "home_how_profile_body": "A configuration profile is the file companies use to manage work phones. This site builds yours in the browser and signs it; nothing is uploaded. Yours can block apps by name so they never open even if downloaded, block websites in every browser, filter adult content, and lock itself so it stays.",
