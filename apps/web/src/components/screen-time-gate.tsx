@@ -35,7 +35,7 @@ const styles = create({
       ':hover': accent.base,
       default: colors.border,
     },
-    borderRadius: 999,
+    borderRadius: 14,
     borderStyle: 'solid',
     borderWidth: 1,
     color: {
@@ -44,31 +44,20 @@ const styles = create({
     },
     cursor: 'pointer',
     display: 'inline-flex',
+    flexDirection: 'column',
     fontFamily: MONOSPACE,
-    fontSize: 24,
+    fontSize: 30,
     fontVariantNumeric: 'tabular-nums',
-    fontWeight: 600,
-    height: 64,
+    fontWeight: 700,
+    gap: 2,
+    height: 76,
     justifyContent: 'center',
-    minWidth: 64,
+    lineHeight: 1,
+    minWidth: 84,
     paddingBlock: 0,
     paddingInline: spacing.s3,
     transitionDuration: '120ms',
     transitionProperty: 'background-color, border-color, color',
-  },
-  // The pill the average day lands on, and the word under it that says so.
-  chipAverage: {
-    borderColor: accent.base,
-  },
-  chipNote: {
-    color: accent.base,
-    display: 'block',
-    fontSize: 11,
-    letterSpacing: '0.08em',
-    lineHeight: 1,
-    marginBlockStart: spacing.s1,
-    textAlign: 'center',
-    textTransform: 'uppercase',
   },
   chips: {
     alignItems: 'start',
@@ -79,6 +68,15 @@ const styles = create({
     listStyleType: 'none',
     margin: 0,
     padding: 0,
+  },
+  // The unit under the number, so a pill reads as "4 hours" at a glance.
+  chipUnit: {
+    fontFamily: font.family,
+    fontSize: 12,
+    fontWeight: font.weightRegular,
+    letterSpacing: 'normal',
+    lineHeight: 1,
+    opacity: 0.7,
   },
   // The question's answer, set on a dial. It is the whole first screen until
   // it is given, so it sits directly under the question and nothing sits under
@@ -264,8 +262,6 @@ export function ScreenTimeGate({
   );
 }
 
-/** The average day in whole hours: 6 hours 40 minutes. */
-const AVERAGE_HOURS = 6;
 /** Every hour the page can be answered with, one to twelve. */
 const HOURS = Array.from({ length: HOURS_MAX - HOURS_MIN + 1 }, (_, index) => HOURS_MIN + index);
 
@@ -290,15 +286,13 @@ export function HourChips({ onPick, sound }: { onPick: (hours: number) => void; 
             }}
             onPointerUp={unlockTickSound}
             type="button"
-            {...props(styles.chip, hours === AVERAGE_HOURS && styles.chipAverage)}
+            {...props(styles.chip)}
           >
             {hours}
-          </button>
-          {hours === AVERAGE_HOURS ? (
-            <span aria-hidden="true" {...props(styles.chipNote)}>
-              {m.home_gate_average_mark()}
+            <span {...props(styles.chipUnit)}>
+              {hours === 1 ? m.home_gate_unit_one() : m.home_gate_unit()}
             </span>
-          ) : null}
+          </button>
         </li>
       ))}
     </ul>
