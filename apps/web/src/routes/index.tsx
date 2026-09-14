@@ -437,6 +437,17 @@ const styles = create({
     position: 'fixed',
     zIndex: 30,
   },
+  // Lays out like the hero itself: one column, centred, same gaps.
+  untouched: {
+    alignItems: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: {
+      '@media (min-width: 640px)': spacing.s8,
+      default: spacing.s6,
+    },
+    width: '100%',
+  },
 });
 
 /**
@@ -685,29 +696,28 @@ function HomePage() {
             {null}
           </Tip>
         </div>
+        {/* The first screen: the question, the rail, the average and the
+        preferences. A reader with saved hours never sees it: an inline
+        script in the head stamps the root before first paint, and the
+        `data-aa-untouched` block is hidden by a global rule until React
+        restores the receipt. */}
         {touched ? null : (
-          <>
+          <div data-aa-untouched="" {...props(styles.untouched)}>
             <h1 {...props(styles.heroTitle)}>
               {m.home_hero_title()}
               <ScreenTimeHelp />
             </h1>
             <HourSlider onPick={onHoursChange} sound={tickAllowed(sound, soundChosen)} />
-          </>
-        )}
-        {/* The figure the question is asked against, and where it comes from.
-        It goes the moment the reader gives their own. */}
-        {touched ? null : (
-          <div {...props(styles.heroPrefs)}>
-            <PreferencesRow />
+            <div {...props(styles.heroPrefs)}>
+              <PreferencesRow />
+            </div>
+            <p {...props(styles.gateNote)}>
+              {m.home_gate_average()}{' '}
+              <a href={SOURCE_URL} rel="noreferrer" target="_blank" {...props(styles.gateSource)}>
+                {m.home_gate_source()}
+              </a>
+            </p>
           </div>
-        )}
-        {touched ? null : (
-          <p {...props(styles.gateNote)}>
-            {m.home_gate_average()}{' '}
-            <a href={SOURCE_URL} rel="noreferrer" target="_blank" {...props(styles.gateSource)}>
-              {m.home_gate_source()}
-            </a>
-          </p>
         )}
         {/* The receipt: empty until the reader touches the dial, then priced
         live against it. Every figure on it rolls as the hours change. */}

@@ -22,6 +22,9 @@ if (clientEnv.VITE_SENTRY_DSN && typeof window !== 'undefined') {
 
 /** The brand, in prose. The lowercase "aa" mark is the only lowercase form. */
 const SITE_NAME = 'attention awareness';
+/** Reads the saved hours before anything paints. Same key as the homepage. */
+const RECALL_SCRIPT =
+  "try{if(localStorage.getItem('aa:hours'))document.documentElement.setAttribute('data-aa-hours','')}catch(e){}";
 const SITE_URL = 'https://attentionawareness.com';
 const OG_IMAGE = `${SITE_URL}/og.png`;
 /** What the site promises, in one line. The share cards lead with it. */
@@ -112,6 +115,9 @@ function RootDocument({ children }: { children: ReactNode }) {
     <html lang={getLocale()}>
       <head>
         <HeadContent />
+        {/* Before first paint: a reader with saved hours gets the root stamped,
+        and the first screen stays hidden until the receipt is restored. */}
+        <script dangerouslySetInnerHTML={{ __html: RECALL_SCRIPT }} />
       </head>
       <body>
         <Providers>
