@@ -2,18 +2,13 @@ import { Button } from '@attentionawareness/ui';
 import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, firstThatWorks, keyframes, props } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
-import { useEffect, useMemo, useState } from 'react';
-import type { MetaCache } from '../components/app-artwork.tsx';
-import { AppIconFan, fanStyles } from '../components/app-icon-fan.tsx';
+import { useEffect, useState } from 'react';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { Receipt } from '../components/receipt.tsx';
 import { clampHours, HOURS_DEFAULT, ScreenTimeGate } from '../components/screen-time-gate.tsx';
 import { ScreenTimeHelp } from '../components/screen-time-help.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
-import type { AppResult } from '../lib/app-search.ts';
-import { lookupApps } from '../lib/app-search.ts';
 import { formatYears } from '../lib/attention-math.ts';
-import { presets } from '../lib/profile/index.ts';
 import { decodeShare } from '../lib/share.ts';
 import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
 import { m } from '../paraglide/messages.js';
@@ -44,7 +39,6 @@ const SECTION_GAP = '96px';
 const HERO_MEASURE = 640;
 /** The places on the page that can be linked to, and the ids they use. */
 const STORY_ID = 'story';
-const CHANGES_ID = 'changes';
 const SUPERVISE_ID = 'supervision';
 const HOW_ID = 'how';
 const SUPERVISE_URL = '/supervise';
@@ -62,7 +56,6 @@ const LINK_SLOT = '\u0000';
 const RECEIPT_DIGITS = 6;
 /** How long the receipt takes to unroll, and the hero to drift up over it. */
 const EXPAND_MS = '700ms';
-const FALLBACK_COUNTRY = 'us';
 
 /**
  * Each beat of the answer arriving: nothing is on the page until the question
@@ -120,35 +113,6 @@ const styles = create({
     maxWidth: 760,
     width: '100%',
   },
-  dealLabel: {
-    color: colors.muted,
-    fontSize: font.sizeSm,
-    lineHeight: 1.4,
-    textWrap: 'pretty',
-  },
-  // One number and the word it means, on one line. Three of them stacked are
-  // the whole deal, and nothing is drawn around any of them.
-  dealLine: {
-    alignItems: 'baseline',
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: spacing.s3,
-  },
-  dealList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s3,
-    listStyleType: 'none',
-    margin: 0,
-    padding: 0,
-  },
-  dealValue: {
-    color: colors.fg,
-    fontSize: font.sizeLg,
-    fontVariantNumeric: 'tabular-nums',
-    fontWeight: HEADING_WEIGHT,
-    lineHeight: 1.2,
-  },
   defDesc: {
     color: colors.muted,
     lineHeight: 1.5,
@@ -194,13 +158,6 @@ const styles = create({
   },
   expandOpen: {
     gridTemplateRows: '1fr',
-  },
-  fanHeadline: {
-    fontSize: font.sizeLg,
-    fontWeight: font.weightMedium,
-    lineHeight: 1.6,
-    margin: 0,
-    textWrap: 'balance',
   },
   // The first screen, whole, and one thing at a time down it: the question,
   // then the lines the answer earns, then the total they come to, then what to
@@ -341,28 +298,6 @@ const styles = create({
     // The containing block the grid layer measures itself against.
     position: 'relative',
   },
-  // What each of the three says first, which is the claim; the rest of the
-  // line is what backs it.
-  proofLead: {
-    color: colors.fg,
-    fontWeight: font.weightBold,
-  },
-  proofLine: {
-    color: colors.muted,
-    fontSize: font.sizeMd,
-    lineHeight: 1.6,
-    margin: 0,
-    maxWidth: '60ch',
-    textWrap: 'pretty',
-  },
-  proofList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s4,
-    listStyleType: 'none',
-    margin: 0,
-    padding: 0,
-  },
   // One cited line inside the research box, and the whole line is the source.
   receiptAfter: {
     alignItems: 'center',
@@ -492,29 +427,6 @@ function tickAllowed(on: boolean, chosen: boolean): boolean {
   return query === undefined || !query('(prefers-reduced-motion: reduce)').matches;
 }
 
-/**
- * Every requested id is recorded, found or not: caching a miss as `null` is
- * what keeps a storefront without that app from being looked up on every
- * render.
- */
-function mergeMeta(
-  current: MetaCache,
-  requested: ReadonlyArray<string>,
-  found: ReadonlyArray<AppResult>,
-): MetaCache {
-  const next: MetaCache = { ...current };
-  for (const bundleId of requested) {
-    next[bundleId] = null;
-  }
-  for (const app of found) {
-    next[app.bundleId] = { developer: app.developer, iconUrl: app.iconUrl };
-  }
-  return next;
-}
-
-/** The apps the profile hides, as the page shows them: the recommended list. */
-const config = presets.mert;
-
 function HomePage() {
   const [hours, setHours] = useState(HOURS_DEFAULT);
   // Whether the reader has touched the dial: the receipt is empty until then.
@@ -523,18 +435,7 @@ function HomePage() {
   const [printedAt] = useState(() => new Date());
   const [sound, setSound] = useState(true);
   const [soundChosen, setSoundChosen] = useState(false);
-  const [meta, setMeta] = useState<MetaCache>({});
   const [friendYears, setFriendYears] = useState<string | null>(null);
-  const country = FALLBACK_COUNTRY;
-
-  const unknownIds = useMemo(
-    () =>
-      config.blockedApps
-        .filter((app) => meta[app.bundleId] === undefined)
-        .map((app) => app.bundleId)
-        .join(','),
-    [meta],
-  );
 
   /* oxlint-disable react/set-state-in-effect -- one-shot read of browser-only state */
   useEffect(() => {
@@ -579,28 +480,6 @@ function HomePage() {
     return stop;
   }, []);
 
-  // Artwork is the only color on the page, and the config carries no icons, so
-  // ids nothing is known about are looked up in one request. Caching every
-  // answer, misses included, empties the list and stops the effect.
-  useEffect(() => {
-    if (unknownIds === '') {
-      return;
-    }
-    const requested = unknownIds.split(',');
-    const controller = new AbortController();
-    void lookupApps(requested, { country, signal: controller.signal })
-      .then((apps) => {
-        setMeta((current) => mergeMeta(current, requested, apps));
-      })
-      .catch(() => {
-        if (controller.signal.aborted) {
-          return;
-        }
-        setMeta((current) => mergeMeta(current, requested, []));
-      });
-    return () => controller.abort();
-  }, [country, unknownIds]);
-
   function onHoursChange(value: number) {
     setHours(clampHours(value));
     if (!touched) {
@@ -633,13 +512,7 @@ function HomePage() {
   }).format(printedAt);
   // The post the story links out to, in the middle of the sentence that tells
   // it, so the words around it keep their own order in every language.
-  const [storyBefore, storyAfter] = m.home_story_2({ post: LINK_SLOT }).split(LINK_SLOT);
-
-  const dealTiles = [
-    { label: m.home_deal_apps_label(), value: m.home_deal_apps_value() },
-    { label: m.home_deal_price_label(), value: m.home_deal_price_value() },
-    { label: m.home_deal_time_label(), value: m.home_deal_time_value() },
-  ];
+  const [storyBefore, storyAfter] = m.home_story_1({ post: LINK_SLOT }).split(LINK_SLOT);
 
   // Supervision leads: it is the step the other three stand on.
   const howItWorks = [
@@ -647,12 +520,6 @@ function HomePage() {
     { body: m.home_how_profile_body(), guide: false, title: m.home_how_profile_title() },
     { body: m.home_how_apps_body(), guide: false, title: m.home_how_apps_title() },
     { body: m.home_how_websites_body(), guide: false, title: m.home_how_websites_title() },
-  ];
-
-  const proofPoints = [
-    { body: m.home_proof_months_body(), title: m.home_proof_months_title() },
-    { body: m.home_proof_minutes_body(), title: m.home_proof_minutes_title() },
-    { body: m.home_proof_blocked_body(), title: m.home_proof_blocked_title() },
   ];
 
   const objections = [
@@ -760,26 +627,13 @@ function HomePage() {
               </a>
               {storyAfter}
             </p>
+            <p {...props(styles.storyLine)}>{m.home_story_2()}</p>
             <p {...props(styles.storyLine)}>{m.home_story_3()}</p>
             <p {...props(styles.storyLine)}>{m.home_story_4()}</p>
             <p {...props(styles.storyLine)}>{m.home_story_5()}</p>
+            <p {...props(styles.storyLine)}>{m.home_story_6()}</p>
             <p {...props(styles.storySign)}>{m.home_story_sign()}</p>
           </div>
-        </section>
-
-        <section {...props(styles.section, styles.anchor)} id={CHANGES_ID}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_changes_title()}</h2>
-          <p {...props(styles.fanHeadline)}>
-            {m.home_fan_before()}
-            {config.blockedApps.length === 0 ? (
-              <span {...props(fanStyles.fan)}>{m.home_fan_empty()}</span>
-            ) : (
-              <AppIconFan apps={config.blockedApps} meta={meta} />
-            )}
-            {m.home_fan_after()}
-          </p>
-          <p {...props(styles.sectionBody)}>{m.home_changes_gone()}</p>
-          <p {...props(styles.sectionBody)}>{m.home_changes_stays()}</p>
         </section>
 
         {/* The one thing the reader has to do first, said plainly, and the way
@@ -809,31 +663,6 @@ function HomePage() {
               </li>
             ))}
           </ol>
-        </section>
-
-        <section {...props(styles.section)}>
-          <h2 {...props(styles.label)}>{m.home_deal_label()}</h2>
-          <ul {...props(styles.dealList)}>
-            {dealTiles.map((tile) => (
-              <li key={tile.label} {...props(styles.dealLine)}>
-                <span {...props(styles.dealValue)}>{tile.value}</span>
-                <span {...props(styles.dealLabel)}>{tile.label}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_proof_title()}</h2>
-          <ul {...props(styles.proofList)}>
-            {proofPoints.map((point) => (
-              <li key={point.title}>
-                <p {...props(styles.proofLine)}>
-                  <span {...props(styles.proofLead)}>{point.title}</span> {point.body}
-                </p>
-              </li>
-            ))}
-          </ul>
         </section>
 
         <section {...props(styles.section)}>
