@@ -15,7 +15,7 @@ export const Route = createFileRoute('/friend')({
 
 const HOME_URL = '/';
 /** The brand in prose, the way the root document spells it. */
-const SITE_NAME = 'Attention Awareness';
+const SITE_NAME = 'attention awareness';
 /**
  * The apps a link with no list of its own stands for: the four the recommended
  * profile is known by, named in full because there is no rest to count.

@@ -28,7 +28,7 @@ const HOME_URL = '/';
 /** The generator, which is what a supervised iPhone is for. */
 const BUILD_URL = '/build';
 /** The brand in prose, the way the root document spells it. */
-const SITE_NAME = 'Attention Awareness';
+const SITE_NAME = 'attention awareness';
 const STOPA_URL = 'https://stopa.io/post/297';
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 
