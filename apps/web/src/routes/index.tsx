@@ -644,7 +644,9 @@ function HomePage() {
           <div {...props(styles.expandInner, touched && styles.expandInnerOpen, styles.heroPitch)}>
             <p {...props(styles.heroProduct)}>{m.home_hero_product()}</p>
             <div {...props(styles.heroActions)}>
-              <Button render={<a href={`#${HOW_ID}`} />}>{m.home_hero_cta()}</Button>
+              <Button render={<a href={`#${HOW_ID}`} />}>
+                {m.home_hero_cta({ years: formatYears(wholeHours) })}
+              </Button>
               <a href={`#${STORY_ID}`} {...props(styles.heroSecondary)}>
                 {m.home_hero_secondary()}
               </a>
