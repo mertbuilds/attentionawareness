@@ -188,33 +188,72 @@ const styles = create({
     textAlign: 'end',
     whiteSpace: 'nowrap',
   },
-  // Rubber stamp: a thick red ring with a thin one inside, slapped on at an
-  // angle and a little uneven in its ink.
+  // Rubber stamp: slapped on at an angle, over the total.
   stamp: {
-    borderColor: STAMP_RED,
-    borderRadius: 10,
-    borderStyle: 'solid',
-    borderWidth: 6,
-    boxShadow: `inset 0 0 0 3px ${PAPER}, inset 0 0 0 5px ${STAMP_RED}`,
-    color: STAMP_RED,
-    fontSize: 44,
-    fontWeight: font.weightBold,
+    height: 'auto',
     insetBlockStart: '58%',
     insetInlineStart: '50%',
-    letterSpacing: '0.2em',
-    opacity: 0.9,
-    paddingBlock: spacing.s2,
-    paddingInline: spacing.s4,
+    opacity: 0.92,
     pointerEvents: 'none',
     position: 'absolute',
-    textTransform: 'uppercase',
-    transform: 'translate(-50%, -50%) rotate(-22deg)',
-    whiteSpace: 'nowrap',
+    transform: 'translate(-50%, -50%) rotate(-12deg)',
+    width: '78%',
   },
   stamped: {
     position: 'relative',
   },
 });
+
+/** The stamp's box, in its own units; the text is fitted to it. */
+const STAMP_W = 560;
+const STAMP_H = 150;
+/**
+ * REFUNDED, the way a rubber stamp prints it: a thick rounded ring, a thin one
+ * inside, bold serif capitals, and the grain of ink that missed the paper. All
+ * vector, so it is as sharp as the screen it lands on.
+ */
+function Stamp({ label }: { label: string }) {
+  const text = label.toUpperCase();
+  return (
+    <svg
+      aria-label={label}
+      role="img"
+      viewBox={`0 0 ${STAMP_W} ${STAMP_H}`}
+      {...props(styles.stamp)}
+    >
+      <defs>
+        {/* Ink that did not take: the speckle a rubber stamp leaves. */}
+        <filter height="1" id="stamp-grain" width="1" x="0" y="0">
+          <feTurbulence baseFrequency="0.9" numOctaves="3" seed="7" type="fractalNoise" />
+          <feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 -5 4" />
+        </filter>
+        <mask id="stamp-mask">
+          <rect fill="white" height={STAMP_H} width={STAMP_W} />
+          <rect fill="black" filter="url(#stamp-grain)" height={STAMP_H} width={STAMP_W} />
+        </mask>
+      </defs>
+      <g fill="none" mask="url(#stamp-mask)" stroke={STAMP_RED}>
+        <rect height={STAMP_H - 14} rx="18" strokeWidth="14" width={STAMP_W - 14} x="7" y="7" />
+        <rect height={STAMP_H - 44} rx="8" strokeWidth="4" width={STAMP_W - 44} x="22" y="22" />
+        <text
+          dominantBaseline="central"
+          fill={STAMP_RED}
+          fontFamily="'Times New Roman', Times, Georgia, serif"
+          fontSize="104"
+          fontWeight="700"
+          lengthAdjust="spacingAndGlyphs"
+          stroke="none"
+          textAnchor="middle"
+          textLength={STAMP_W - 80}
+          x={STAMP_W / 2}
+          y={STAMP_H / 2}
+        >
+          {text}
+        </text>
+      </g>
+    </svg>
+  );
+}
 
 /** Bar widths in modules, the way Code 128 spaces them: narrow to wide. */
 const BAR_WIDTHS = [1, 1, 2, 1, 3, 1, 1, 2, 1, 1, 4, 1, 2, 2, 1, 1, 3, 2, 1, 1];
@@ -425,11 +464,7 @@ export function Receipt({
           <p {...props(styles.receiptThanks)}>{m.home_receipt_thanks()}</p>
           <p {...props(styles.receiptStoreUrl)}>{m.home_receipt_store_url()}</p>
         </div>
-        {refunded ? (
-          <span aria-label={m.home_receipt_refunded()} role="img" {...props(styles.stamp)}>
-            {m.home_receipt_refunded()}
-          </span>
-        ) : null}
+        {refunded ? <Stamp label={m.home_receipt_refunded()} /> : null}
       </div>
     </div>
   );
