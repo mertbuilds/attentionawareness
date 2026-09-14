@@ -21,7 +21,7 @@ const BLANKS = /\s+/gu;
 
 /** The slider's own range, so a tampered `h` lands somewhere it can render. */
 const HOURS_MIN = 1;
-const HOURS_MAX = 12;
+const HOURS_MAX = 11;
 /** What an older link's `m` is read against, now that the page has no minutes. */
 const MINUTES_PER_HOUR = 60;
 

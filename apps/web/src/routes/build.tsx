@@ -130,7 +130,7 @@ const PREVIEW_SITES = 6;
 const ROW_APPS = 3;
 /** What the page can price, in hours a day, and the only stop it has. */
 const HOURS_MIN = 1;
-const HOURS_MAX = 12;
+const HOURS_MAX = 11;
 /**
  * Where the slider stands before the reader has moved it: the whole hours of
  * the average day the line above it cites, which is the figure the reader is
