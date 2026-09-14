@@ -15,8 +15,6 @@ const HOURS_PER_DEGREE = 4800;
 const HOURS_PER_SKILL = 10_000;
 /** Once around the Earth on foot: 40,075 km at 5 km/h. */
 const HOURS_PER_EARTH_WALK = 8000;
-/** Meta's yearly ad revenue per US and Canada user, 2025 filings, in dollars. */
-const AD_REVENUE_PER_USER_YEAR = 220;
 
 /** How far ahead the page projects a daily habit. */
 export const HORIZON_YEARS = 20;
@@ -65,11 +63,6 @@ export function heroMetrics(hoursPerDay: number): Array<HeroMetric> {
     { amount: Math.floor(hours / HOURS_PER_SKILL), key: 'skills' },
     { amount: Math.floor(hours / HOURS_PER_EARTH_WALK), key: 'earth' },
   ];
-}
-
-/** What the reader's attention sold for over the horizon, in dollars. */
-export function adRevenue(): number {
-  return AD_REVENUE_PER_USER_YEAR * HORIZON_YEARS;
 }
 
 /** The waking hours inside the screen years, unrounded. */
