@@ -428,11 +428,7 @@ function SuperviseGuide() {
 
         <Separator />
 
-        <SiteFooter>
-          <p {...props(layout.muted)}>
-            <a href={HOME_URL}>{m.sup_footer_back()}</a>
-          </p>
-        </SiteFooter>
+        <SiteFooter />
       </div>
     </main>
   );

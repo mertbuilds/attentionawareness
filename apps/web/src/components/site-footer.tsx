@@ -47,7 +47,6 @@ export function SiteFooter({ children }: { children?: ReactNode | undefined }) {
     <footer {...props(styles.footer)}>
       <div {...props(styles.lines)}>
         {children}
-        <p {...props(layout.muted)}>{m.footer_tagline()}</p>
         <p {...props(layout.muted)}>
           {openBefore}
           <a href={REPO_URL} rel="noreferrer" target="_blank">
