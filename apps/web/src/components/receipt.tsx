@@ -18,8 +18,8 @@ import { HOURS_MAX, HOURS_MIN } from './screen-time-gate.tsx';
 
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 const DISPLAY_SIZE = 32;
-/** Stamp-pad red, louder than the palette's error tone. */
-const STAMP_RED = '#e3232b';
+/** The stamp is a picture: red ink on nothing, tilted as it was pressed. */
+const STAMP_URL = '/stamp-refunded.webp';
 
 /** The paper itself: a shade off the page in both themes. */
 const PAPER = `color-mix(in srgb, ${colors.bg} 92%, ${colors.fg})`;
@@ -188,83 +188,20 @@ const styles = create({
     textAlign: 'end',
     whiteSpace: 'nowrap',
   },
-  // Rubber stamp: slapped on at an angle, over the total.
+  // Rubber stamp: slapped on over the total. The tilt is in the picture.
   stamp: {
     height: 'auto',
     insetBlockStart: '58%',
     insetInlineStart: '50%',
-    opacity: 0.92,
     pointerEvents: 'none',
     position: 'absolute',
-    transform: 'translate(-50%, -50%) rotate(-12deg)',
-    width: '78%',
+    transform: 'translate(-50%, -50%)',
+    width: '92%',
   },
   stamped: {
     position: 'relative',
   },
 });
-
-/** The stamp's box, in its own units; the text is fitted to it. */
-const STAMP_W = 560;
-const STAMP_H = 150;
-/**
- * REFUNDED, the way a rubber stamp prints it: a thick rounded ring, a thin one
- * inside, bold serif capitals, and the grain of ink that missed the paper. All
- * vector, so it is as sharp as the screen it lands on.
- */
-function Stamp({ label }: { label: string }) {
-  const text = label.toUpperCase();
-  return (
-    <svg
-      aria-label={label}
-      role="img"
-      viewBox={`0 0 ${STAMP_W} ${STAMP_H}`}
-      {...props(styles.stamp)}
-    >
-      <defs>
-        {/* Ink that did not take: the speckle a rubber stamp leaves. */}
-        <filter height="1" id="stamp-grain" width="1" x="0" y="0">
-          <feTurbulence baseFrequency="1.4" numOctaves="4" seed="7" type="fractalNoise" />
-          <feColorMatrix
-            result="fine"
-            type="matrix"
-            values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 -9 5.6"
-          />
-          <feTurbulence baseFrequency="0.06" numOctaves="2" seed="3" type="fractalNoise" />
-          <feColorMatrix
-            result="patches"
-            type="matrix"
-            values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 -6 3.4"
-          />
-          <feComposite in="fine" in2="patches" operator="over" />
-        </filter>
-        <mask id="stamp-mask">
-          <rect fill="white" height={STAMP_H} width={STAMP_W} />
-          <rect fill="black" filter="url(#stamp-grain)" height={STAMP_H} width={STAMP_W} />
-        </mask>
-      </defs>
-      <g fill="none" mask="url(#stamp-mask)" stroke={STAMP_RED}>
-        <rect height={STAMP_H - 14} rx="18" strokeWidth="14" width={STAMP_W - 14} x="7" y="7" />
-        <rect height={STAMP_H - 44} rx="8" strokeWidth="4" width={STAMP_W - 44} x="22" y="22" />
-        <text
-          dominantBaseline="central"
-          fill={STAMP_RED}
-          fontFamily="'Alfa Slab One', 'Times New Roman', serif"
-          fontSize="96"
-          fontWeight="400"
-          lengthAdjust="spacingAndGlyphs"
-          stroke="none"
-          textAnchor="middle"
-          textLength={STAMP_W - 80}
-          x={STAMP_W / 2}
-          y={STAMP_H / 2}
-        >
-          {text}
-        </text>
-      </g>
-    </svg>
-  );
-}
 
 /** Bar widths in modules, the way Code 128 spaces them: narrow to wide. */
 const BAR_WIDTHS = [1, 1, 2, 1, 3, 1, 1, 2, 1, 1, 4, 1, 2, 2, 1, 1, 3, 2, 1, 1];
@@ -475,7 +412,9 @@ export function Receipt({
           <p {...props(styles.receiptThanks)}>{m.home_receipt_thanks()}</p>
           <p {...props(styles.receiptStoreUrl)}>{m.home_receipt_store_url()}</p>
         </div>
-        {refunded ? <Stamp label={m.home_receipt_refunded()} /> : null}
+        {refunded ? (
+          <img alt={m.home_receipt_refunded()} src={STAMP_URL} {...props(styles.stamp)} />
+        ) : null}
       </div>
     </div>
   );
