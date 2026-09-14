@@ -2,6 +2,7 @@ import { Tooltip } from '@base-ui/react/tooltip';
 import { PostHogProvider } from '@posthog/react';
 import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-router';
 import { useEffect, type ReactNode } from 'react';
+import { SiteBrand } from '../components/site-brand.tsx';
 import { clientEnv } from '../lib/env.ts';
 import { getLocale } from '../paraglide/runtime.js';
 import '@attentionawareness/ui/fonts.css';
@@ -113,7 +114,10 @@ function RootDocument({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <Providers>{children}</Providers>
+        <Providers>
+          <SiteBrand />
+          {children}
+        </Providers>
         <Scripts />
       </body>
     </html>
