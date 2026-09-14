@@ -184,6 +184,8 @@ const styles = create({
   // The rail's readout stands alone, so it fills the stepper's middle column.
   sliderReading: {
     gridColumn: 2,
+    // No stepper beside it, so nothing to hold a second digit's room for.
+    width: 'auto',
   },
   sliderUnit: {
     gridColumn: 2,
