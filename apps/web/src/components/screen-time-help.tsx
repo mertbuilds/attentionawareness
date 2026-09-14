@@ -15,7 +15,6 @@ import { Sheet } from './sheet.tsx';
  */
 const HELP_GRACE_MS = 250;
 /** The report the average day in the help box is taken from. */
-const SOURCE_URL = 'https://datareportal.com/global-digital-overview';
 
 /** The popover rises the last few pixels into place under its button. */
 const helpEnter = keyframes({
@@ -147,11 +146,6 @@ const styles = create({
     display: 'flex',
     overflow: 'hidden',
     width: 200,
-  },
-  helpSource: {
-    color: colors.fg,
-    textDecoration: 'underline',
-    textUnderlineOffset: 2,
   },
   helpText: {
     color: colors.muted,
@@ -330,12 +324,6 @@ export function ScreenTimeHelp() {
         <Sheet onOpenChange={setOpen} open={open} title={m.home_math_help_title()}>
           <span {...props(styles.helpText)}>{m.home_math_help_body()}</span>
           <ScreenTimeClip style={styles.helpSheetSlot} videoUrl={videoUrl} />
-          <span {...props(styles.helpText)}>
-            {m.home_gate_average()}{' '}
-            <a href={SOURCE_URL} rel="noreferrer" target="_blank" {...props(styles.helpSource)}>
-              {m.home_gate_source()}
-            </a>
-          </span>
         </Sheet>
       ) : open ? (
         <span
@@ -349,12 +337,6 @@ export function ScreenTimeHelp() {
           <span {...props(styles.helpTitle)}>{m.home_math_help_title()}</span>
           <span {...props(styles.helpText)}>{m.home_math_help_body()}</span>
           <ScreenTimeClip videoUrl={videoUrl} />
-          <span {...props(styles.helpText)}>
-            {m.home_gate_average()}{' '}
-            <a href={SOURCE_URL} rel="noreferrer" target="_blank" {...props(styles.helpSource)}>
-              {m.home_gate_source()}
-            </a>
-          </span>
         </span>
       ) : null}
     </span>

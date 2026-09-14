@@ -41,6 +41,8 @@ const HERO_MEASURE = 640;
 const STORY_ID = 'story';
 const HOW_ID = 'how';
 const SUPERVISE_URL = '/supervise';
+/** The report the average day is taken from. */
+const SOURCE_URL = 'https://datareportal.com/global-digital-overview';
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 /** The post this started from, linked out of the paragraph that tells it. */
 const STORY_URL = 'https://stopa.io/post/297';
@@ -163,6 +165,19 @@ const styles = create({
   // do about it. One column at every width, because the order is the argument.
   // The same box as `content`, so the whole page keeps one left edge; what
   // stands in it is narrower, because a line this size is read, not scanned.
+  gateNote: {
+    color: colors.muted,
+    fontSize: font.sizeSm,
+    lineHeight: 1.5,
+    margin: 0,
+    marginBlockStart: `calc(-1 * ${spacing.s4})`,
+    textWrap: 'pretty',
+  },
+  gateSource: {
+    color: colors.muted,
+    textDecoration: 'underline',
+    textUnderlineOffset: 2,
+  },
   hero: {
     alignItems: 'center',
     boxSizing: 'border-box',
@@ -586,6 +601,13 @@ function HomePage() {
           sound={tickAllowed(sound, soundChosen)}
           value={hours}
         />
+        {/* The figure the question is asked against, and where it comes from. */}
+        <p {...props(styles.gateNote)}>
+          {m.home_gate_average()}{' '}
+          <a href={SOURCE_URL} rel="noreferrer" target="_blank" {...props(styles.gateSource)}>
+            {m.home_gate_source()}
+          </a>
+        </p>
         {/* The receipt: empty until the reader touches the dial, then priced
         live against it. Every figure on it rolls as the hours change. */}
         <section aria-live="polite" {...props(styles.receiptWrap)}>
