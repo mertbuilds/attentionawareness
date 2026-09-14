@@ -5,6 +5,12 @@ const DAYS_PER_YEAR = 365;
 const HOURS_ROUNDING = 100;
 /** How long one book takes to read: 90,000 words at 238 a minute, with the pauses. */
 const HOURS_PER_BOOK = 8;
+/** A week away: 16 waking hours, seven days. */
+const HOURS_PER_TRAVEL_WEEK = 112;
+/** A marathon, with the 16-week training block before it. */
+const HOURS_PER_MARATHON = 200;
+/** A novel's first draft. */
+const HOURS_PER_NOVEL = 500;
 /** Hours to speak a language well (US Foreign Service Institute, category III). */
 const HOURS_PER_LANGUAGE = 1500;
 /** Hours to play an instrument well. */
@@ -49,14 +55,17 @@ export function screenHours(hoursPerDay: number): number {
 }
 
 /**
- * What the same hours would have bought, smallest to largest: books, then
- * languages, instruments, degrees, world-class skills, and walks around the
- * Earth. Every one is whole; nobody pictures half a degree.
+ * What the same hours would have bought, smallest to largest: books, weeks
+ * away, marathons, novels, languages, instruments, degrees, world-class
+ * skills, and walks around the Earth. Every one is whole; nobody pictures half a degree.
  */
 export function heroMetrics(hoursPerDay: number): Array<HeroMetric> {
   const hours = screenHours(hoursPerDay);
   return [
     { amount: Math.round(hours / HOURS_PER_BOOK), key: 'books' },
+    { amount: Math.floor(hours / HOURS_PER_TRAVEL_WEEK), key: 'travel' },
+    { amount: Math.floor(hours / HOURS_PER_MARATHON), key: 'marathons' },
+    { amount: Math.floor(hours / HOURS_PER_NOVEL), key: 'novels' },
     { amount: Math.floor(hours / HOURS_PER_LANGUAGE), key: 'languages' },
     { amount: Math.floor(hours / HOURS_PER_INSTRUMENT), key: 'instruments' },
     { amount: Math.floor(hours / HOURS_PER_DEGREE), key: 'degrees' },
