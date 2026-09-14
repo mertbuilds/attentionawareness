@@ -20,8 +20,8 @@ export const DISPLAY_SIZE = 'clamp(32px, 3.8vw, 44px)';
 export const HOURS_MIN = 2;
 export const HOURS_MAX = 12;
 const HOURS_STEP = 1;
-/** The rail's opening sweep: up two, back, down two, back, one detent a beat. */
-const DEMO_SWEEP = [8, 9, 8, 7, 6, 5, 6, 7];
+/** The rail's opening sweep: down two, back, up two, back, one detent a beat. */
+const DEMO_SWEEP = [6, 5, 6, 7, 8, 9, 8, 7];
 const DEMO_START_MS = 700;
 const DEMO_STEP_MS = 220;
 /**
