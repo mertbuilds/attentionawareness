@@ -84,7 +84,7 @@
   "home_how_profile_title": "A configuration profile",
   "home_how_profile_body": "A configuration profile is the file companies use to manage work phones. This site builds yours in the browser and signs it; nothing is uploaded. Yours can block apps by name so they never open even if downloaded, block websites in every browser, filter adult content, and lock itself so it stays.",
   "home_how_supervision_title": "Enabling supervision",
-  "home_how_supervision_body": "Supervision is a device mode Apple built for schools and companies. A supervised iPhone accepts settings a normal one refuses: hiding apps, and a profile that cannot be removed. Apple's way to get there erases the phone; our guide does it from a backup and keeps everything.",
+  "home_how_supervision_body": "Supervision is a device mode Apple built for schools and companies. A supervised iPhone accepts settings a normal one refuses: hiding apps, and a profile that cannot be removed. Apple's way to get there erases the phone; our guide does it from a backup and keeps everything. The whole setup takes about 45 minutes, plus a one-hour security delay on some iPhones.",
   "home_faq_title": "Frequently asked questions",
   "home_faq_supervision_term": "What is supervision?",
   "home_faq_supervision_desc": "A device mode Apple built for schools and companies. A supervised iPhone accepts settings a normal one refuses: hiding apps, and a profile that cannot be removed. Everything else about the phone stays the same.",
