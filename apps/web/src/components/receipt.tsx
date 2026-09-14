@@ -224,8 +224,19 @@ function Stamp({ label }: { label: string }) {
       <defs>
         {/* Ink that did not take: the speckle a rubber stamp leaves. */}
         <filter height="1" id="stamp-grain" width="1" x="0" y="0">
-          <feTurbulence baseFrequency="0.9" numOctaves="3" seed="7" type="fractalNoise" />
-          <feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 -5 4" />
+          <feTurbulence baseFrequency="1.4" numOctaves="4" seed="7" type="fractalNoise" />
+          <feColorMatrix
+            result="fine"
+            type="matrix"
+            values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 -9 5.6"
+          />
+          <feTurbulence baseFrequency="0.06" numOctaves="2" seed="3" type="fractalNoise" />
+          <feColorMatrix
+            result="patches"
+            type="matrix"
+            values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 -6 3.4"
+          />
+          <feComposite in="fine" in2="patches" operator="over" />
         </filter>
         <mask id="stamp-mask">
           <rect fill="white" height={STAMP_H} width={STAMP_W} />
@@ -238,9 +249,9 @@ function Stamp({ label }: { label: string }) {
         <text
           dominantBaseline="central"
           fill={STAMP_RED}
-          fontFamily="'Times New Roman', Times, Georgia, serif"
-          fontSize="104"
-          fontWeight="700"
+          fontFamily="'Abril Fatface', 'Times New Roman', serif"
+          fontSize="96"
+          fontWeight="400"
           lengthAdjust="spacingAndGlyphs"
           stroke="none"
           textAnchor="middle"
