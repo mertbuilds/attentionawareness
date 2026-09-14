@@ -249,7 +249,7 @@ function Stamp({ label }: { label: string }) {
         <text
           dominantBaseline="central"
           fill={STAMP_RED}
-          fontFamily="'Abril Fatface', 'Times New Roman', serif"
+          fontFamily="'Alfa Slab One', 'Times New Roman', serif"
           fontSize="96"
           fontWeight="400"
           lengthAdjust="spacingAndGlyphs"
