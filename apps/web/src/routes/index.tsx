@@ -5,7 +5,12 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { Receipt } from '../components/receipt.tsx';
-import { clampHours, HOURS_DEFAULT, ScreenTimeGate } from '../components/screen-time-gate.tsx';
+import {
+  clampHours,
+  HourChips,
+  HOURS_DEFAULT,
+  ScreenTimeGate,
+} from '../components/screen-time-gate.tsx';
 import { ScreenTimeHelp } from '../components/screen-time-help.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { formatYears } from '../lib/attention-math.ts';
@@ -596,11 +601,15 @@ function HomePage() {
           {m.home_hero_title()}
           <ScreenTimeHelp />
         </h1>
-        <ScreenTimeGate
-          onChange={onHoursChange}
-          sound={tickAllowed(sound, soundChosen)}
-          value={hours}
-        />
+        {touched ? (
+          <ScreenTimeGate
+            onChange={onHoursChange}
+            sound={tickAllowed(sound, soundChosen)}
+            value={hours}
+          />
+        ) : (
+          <HourChips onPick={onHoursChange} sound={tickAllowed(sound, soundChosen)} />
+        )}
         {/* The figure the question is asked against, and where it comes from.
         It goes the moment the reader gives their own. */}
         {touched ? null : (
