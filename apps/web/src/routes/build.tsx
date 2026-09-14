@@ -1099,10 +1099,11 @@ const styles = create({
     transitionProperty: 'border-color, box-shadow',
     width: '100%',
   },
+  // Edge to edge inside the bar, so it reads as one line of the border.
   searchDivider: {
+    alignSelf: 'stretch',
     backgroundColor: colors.border,
     flexShrink: 0,
-    height: '60%',
     width: 1,
   },
   // The bar owns the border and the ring, so the field itself carries neither.
