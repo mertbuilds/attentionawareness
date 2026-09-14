@@ -1,10 +1,16 @@
 import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useIsMobile } from '../lib/use-is-mobile.ts';
 import { Sheet } from './sheet.tsx';
+
+/**
+ * Every tip on the page, by the function that shuts it. Opening one shuts the
+ * rest at once, so a pointer hopping between buttons never has two boxes up.
+ */
+const closers = new Set<() => void>();
 
 /** The letter on the button: not a message, so it is not in the catalog. */
 const GLYPH = 'i';
@@ -133,14 +139,24 @@ export function InfoTip({ children, label }: { children: ReactNode; label: strin
     setPlace({ bottom: window.innerHeight - rect.top + 8, left });
   }, [isMobile, open]);
 
-  useEffect(
-    () => () => {
+  // The closer is stable (it only touches refs and a state setter), so the
+  // registry holds it directly for the life of the tip.
+  const hide = useCallback(() => {
+    if (grace.current !== null) {
+      clearTimeout(grace.current);
+      grace.current = null;
+    }
+    setOpen(false);
+  }, []);
+  useEffect(() => {
+    closers.add(hide);
+    return () => {
+      closers.delete(hide);
       if (grace.current !== null) {
         clearTimeout(grace.current);
       }
-    },
-    [],
-  );
+    };
+  }, [hide]);
 
   useEffect(() => {
     if (!open || isMobile) {
@@ -174,12 +190,10 @@ export function InfoTip({ children, label }: { children: ReactNode; label: strin
 
   function show() {
     clearGrace();
+    for (const close of closers) {
+      close();
+    }
     setOpen(true);
-  }
-
-  function hide() {
-    clearGrace();
-    setOpen(false);
   }
 
   function hideAfterGrace() {
