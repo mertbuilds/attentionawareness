@@ -20,10 +20,11 @@ export const DISPLAY_SIZE = 'clamp(32px, 3.8vw, 44px)';
 export const HOURS_MIN = 2;
 export const HOURS_MAX = 12;
 const HOURS_STEP = 1;
-/** The rail's opening sweep: down to five, up to eight, back, one detent a beat. */
-const DEMO_SWEEP = [6, 5, 6, 7, 8, 7];
+/** The rail's opening sweep: down to five, up to eight, back, gliding. */
+const DEMO_SWEEP = [5, 8, 7];
 const DEMO_START_MS = 700;
-const DEMO_STEP_MS = 250;
+/** How long the knob takes to glide one hour along the rail. */
+const DEMO_HOUR_MS = 260;
 /**
  * Where the slider stands before the reader has moved it: the whole hours of
  * the average day the line above it cites, which is the figure the reader is
@@ -87,11 +88,15 @@ const styles = create({
     width: '100%',
   },
   gateReading: {
+    alignItems: 'center',
     display: 'flex',
     fontFamily: MONOSPACE,
     fontSize: DISPLAY_SIZE,
     fontVariantNumeric: 'tabular-nums',
     fontWeight: 700,
+    // The same box before and after NumberFlow takes over: its digits carry
+    // a mask padding the plain span does not, so the height is fixed here.
+    height: '1.5em',
     justifyContent: 'center',
     letterSpacing: '-0.02em',
     lineHeight: 1,
@@ -404,46 +409,94 @@ export function ScreenTimeGate({
  */
 export function HourSlider({ onPick, sound }: { onPick: (hours: number) => void; sound: boolean }) {
   const [hours, setHours] = useState(HOURS_DEFAULT);
-  // The rail shows itself once: a sweep up and back, then down and back, one
-  // detent at a time, until the reader takes hold of it.
-  const demo = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reading = hours === 1 ? m.home_gate_reading_one() : m.home_gate_reading({ hours });
+  // The rail shows itself once: the knob glides down to five, up to eight
+  // and back to seven, ticking at every whole hour, until the reader takes
+  // hold of it. While it glides the input accepts fractions; once held it is
+  // whole hours again.
+  const [gliding, setGliding] = useState(false);
+  const [glide, setGlide] = useState<number | null>(null);
+  const frame = useRef<number | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const held = useRef(false);
 
   useEffect(() => {
-    const steps = DEMO_SWEEP;
+    let from = HOURS_DEFAULT;
     let index = 0;
-    function advance() {
-      if (held.current || index >= steps.length) {
-        demo.current = null;
+    let lastWhole = HOURS_DEFAULT;
+    function leg(startedAt: number) {
+      const to = DEMO_SWEEP[index];
+      if (held.current || to === undefined) {
+        setGliding(false);
+        setGlide(null);
+        frame.current = null;
         return;
       }
-      const next = steps[index] ?? HOURS_DEFAULT;
-      index += 1;
-      setHours(next);
-      if (sound) {
-        playTick();
+      const target: number = to;
+      const duration = Math.abs(target - from) * DEMO_HOUR_MS;
+      function tick(now: number) {
+        if (held.current) {
+          setGliding(false);
+          setGlide(null);
+          frame.current = null;
+          return;
+        }
+        const t = Math.min(1, (now - startedAt) / duration);
+        const eased = 1 - (1 - t) * (1 - t);
+        const value = from + (target - from) * eased;
+        setGlide(value);
+        const whole = Math.round(value);
+        if (whole !== lastWhole) {
+          lastWhole = whole;
+          setHours(whole);
+          if (sound) {
+            playTick();
+          }
+        }
+        if (t < 1) {
+          frame.current = requestAnimationFrame(tick);
+          return;
+        }
+        from = target;
+        index += 1;
+        frame.current = requestAnimationFrame(leg);
       }
-      demo.current = setTimeout(advance, DEMO_STEP_MS);
+      frame.current = requestAnimationFrame(tick);
     }
-    demo.current = setTimeout(advance, DEMO_START_MS);
+    timer.current = setTimeout(() => {
+      if (!held.current) {
+        setGliding(true);
+        frame.current = requestAnimationFrame(leg);
+      }
+    }, DEMO_START_MS);
     return () => {
-      if (demo.current !== null) {
-        clearTimeout(demo.current);
+      if (timer.current !== null) {
+        clearTimeout(timer.current);
+      }
+      if (frame.current !== null) {
+        cancelAnimationFrame(frame.current);
       }
     };
     // The sweep runs once, on mount, with the sound setting it opened with.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot demo
   }, []);
 
+  const shown = glide ?? hours;
+  const travelled = ((shown - HOURS_MIN) / (HOURS_MAX - HOURS_MIN)) * 100;
+
   function hold() {
     held.current = true;
-    if (demo.current !== null) {
-      clearTimeout(demo.current);
-      demo.current = null;
+    if (timer.current !== null) {
+      clearTimeout(timer.current);
+      timer.current = null;
     }
+    if (frame.current !== null) {
+      cancelAnimationFrame(frame.current);
+      frame.current = null;
+    }
+    setGliding(false);
+    setGlide(null);
   }
-  const reading = hours === 1 ? m.home_gate_reading_one() : m.home_gate_reading({ hours });
-  const travelled = ((hours - HOURS_MIN) / (HOURS_MAX - HOURS_MIN)) * 100;
 
   function onHoursChange(value: number) {
     hold();
@@ -491,9 +544,9 @@ export function HourSlider({ onPick, sound }: { onPick: (hours: number) => void;
             }}
             onPointerUp={pick}
             onTouchEnd={pick}
-            step={1}
+            step={gliding ? 'any' : 1}
             type="range"
-            value={hours}
+            value={shown}
             {...props(styles.slider, styles.sliderFill(travelled))}
           />
         </Label>
