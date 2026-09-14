@@ -89,6 +89,14 @@ const FALLBACK_COUNTRY = 'us';
 /** The arrow before a back link: a glyph, not a message. */
 const BACK_ARROW = '\u2190';
 const SUPERVISE_URL = '/supervise';
+/**
+ * The recording of Screen Time's activity list, per locale. Empty until the
+ * clips are shot; the slot holds a placeholder until then.
+ */
+const ACTIVITY_VIDEO_URLS: Record<string, string> = {
+  en: '',
+  tr: '',
+};
 /** The ids the two labelled site lists name their add field with. */
 const PERMITTED_INPUT_ID = 'permitted-urls';
 const ALLOWED_INPUT_ID = 'allowed-urls';
@@ -546,6 +554,31 @@ const styles = create({
   helpSheetSlot: {
     alignSelf: 'center',
     maxWidth: 320,
+    width: '100%',
+  },
+  // Reserved for the activity clip: portrait like the phone it is shot on,
+  // dashed until the recording exists.
+  activitySlot: {
+    alignItems: 'center',
+    aspectRatio: '720 / 1120',
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderStyle: 'dashed',
+    borderWidth: '1px',
+    color: colors.muted,
+    display: 'flex',
+    fontSize: font.sizeSm,
+    justifyContent: 'center',
+    maxWidth: '100%',
+    overflow: 'hidden',
+    width: 240,
+  },
+  activityVideo: {
+    backgroundColor: palette.black,
+    borderStyle: 'none',
+    display: 'block',
+    height: '100%',
+    objectFit: 'cover',
     width: '100%',
   },
   // The clip is shot on a phone, so the slot it fills is portrait. Black
@@ -2639,6 +2672,7 @@ function BuildPage() {
   // The day the screen prices, and the hour it has one sentence for.
   const wholeHours = clampHours(hours);
   const locale = getLocale();
+  const activityVideoUrl = ACTIVITY_VIDEO_URLS[locale] ?? ACTIVITY_VIDEO_URLS.en ?? '';
   // The years as the share card prints them.
   const years = formatYears(wholeHours);
   // The bill's own number and date: the day printed as a till would.
@@ -2687,6 +2721,22 @@ function BuildPage() {
         <section {...props(styles.section)}>
           <h2 {...props(styles.sectionTitle)}>{m.build_activity_title()}</h2>
           <p {...props(layout.muted)}>{m.build_activity_body()}</p>
+          <div {...props(styles.activitySlot)}>
+            {activityVideoUrl === '' ? (
+              m.build_activity_video()
+            ) : (
+              <video
+                autoPlay
+                key={activityVideoUrl}
+                loop
+                muted
+                playsInline
+                preload="metadata"
+                src={activityVideoUrl}
+                {...props(styles.activityVideo)}
+              />
+            )}
+          </div>
         </section>
 
         <section {...props(styles.section)}>
