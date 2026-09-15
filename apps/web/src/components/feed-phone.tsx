@@ -12,7 +12,7 @@ const DEMO_START_MS = 700;
 /** How long the whole show takes, from the first hour to the default. */
 const DEMO_MS = 2500;
 /** Left alone this long after the show, the feed nods: one video down, one back up. */
-const IDLE_MS = 10_000;
+const IDLE_MS = 5000;
 const NOD_MS = 700;
 /** The rest after a wheel stops that counts as letting go. */
 const SETTLE_MS = 220;
@@ -89,7 +89,7 @@ const styles = create({
   phone: {
     backgroundColor: '#000',
     borderColor: `color-mix(in srgb, ${colors.fg} 26%, ${colors.bg})`,
-    borderRadius: '15.5cqw',
+    borderRadius: '17cqw',
     borderStyle: 'solid',
     borderWidth: '2.2cqw',
     boxShadow: '0 12px 40px rgba(0, 0, 0, 0.35)',
@@ -104,7 +104,7 @@ const styles = create({
   // 146.6, and the thing that takes every scroll and drag aimed at it.
   shell: {
     aspectRatio: `${PHONE_WIDTH} / ${PHONE_HEIGHT}`,
-    borderRadius: '15.5cqw',
+    borderRadius: '17cqw',
     boxShadow: {
       ':focus-visible': `0 0 0 3px ${colors.muted}`,
       default: 'none',
@@ -137,9 +137,10 @@ const styles = create({
   shellShowing: {
     cursor: 'default',
   },
-  // The screen inside the bezel, with the corner the display has.
+  // The screen inside the bezel. Its corner is concentric with the body's:
+  // the outer radius less the rim and the bezel, 17 minus 2.2 minus 3.
   screen: {
-    borderRadius: '13cqw',
+    borderRadius: '11.8cqw',
     height: '100%',
     overflow: 'hidden',
     position: 'relative',
@@ -238,11 +239,14 @@ function Video({ height, index }: { height: number; index: number }) {
  */
 export function FeedPhone({
   onChange,
+  onNod,
   onPick,
   sound,
 }: {
   /** Every hour the feed lands on, as it lands: the page reads it live. */
   onChange: (hours: number) => void;
+  /** The feed is nodding on its own between six and seven, or has stopped. */
+  onNod?: ((nodding: boolean) => void) | undefined;
   /** The hour the feed is let go at. */
   onPick: (hours: number) => void;
   sound: boolean;
@@ -267,8 +271,8 @@ export function FeedPhone({
   const lastAt = useRef(0);
   const velocity = useRef(0);
   const dragFrom = useRef(0);
-  const latest = useRef({ hours, onChange, onPick, screenHeight, sound });
-  latest.current = { hours, onChange, onPick, screenHeight, sound };
+  const latest = useRef({ hours, onChange, onNod, onPick, screenHeight, sound });
+  latest.current = { hours, onChange, onNod, onPick, screenHeight, sound };
 
   // A video is exactly one screen tall, whatever the screen turns out to be.
   useLayoutEffect(() => {
@@ -332,22 +336,36 @@ export function FeedPhone({
     if (idleTimer.current !== null) {
       clearTimeout(idleTimer.current);
       idleTimer.current = null;
+      latest.current.onNod?.(false);
     }
   }
 
   // Left alone after the show, the feed nods once: a video down, a pause,
   // and back up. Then it waits again, until the reader takes hold.
   function waitThenNod() {
+    // Six, seven, six: the page hears of it a beat early, so what it shows
+    // for it is there when the feed moves.
     idleTimer.current = setTimeout(() => {
       const here = Math.round(travelled.current);
-      setSnapping(true);
-      moveTo(here + 1);
+      const sixSeven = here + HOURS_MIN === 6;
+      if (sixSeven) {
+        latest.current.onNod?.(true);
+      }
       idleTimer.current = setTimeout(() => {
         setSnapping(true);
-        moveTo(here);
-        waitThenNod();
+        moveTo(here + 1);
+        idleTimer.current = setTimeout(() => {
+          setSnapping(true);
+          moveTo(here);
+          idleTimer.current = setTimeout(() => {
+            if (sixSeven) {
+              latest.current.onNod?.(false);
+            }
+            waitThenNod();
+          }, NOD_MS);
+        }, NOD_MS);
       }, NOD_MS);
-    }, IDLE_MS);
+    }, IDLE_MS - NOD_MS);
   }
 
   // The feed shows itself once: from two hours it steps to the default one

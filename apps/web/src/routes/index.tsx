@@ -100,6 +100,12 @@ const billLeave = keyframes({
   from: { filter: 'blur(0)', opacity: 1, transform: 'translateY(0)' },
   to: { filter: `blur(${SLIDE_BLUR})`, opacity: 0, transform: 'translateY(100svh)' },
 });
+/** One hand of the six-seven: up, and down, while the other does the reverse. */
+const weigh = keyframes({
+  '0%': { transform: 'translateY(0)' },
+  '100%': { transform: 'translateY(0)' },
+  '50%': { transform: 'translateY(-6px)' },
+});
 const screenReturn = keyframes({
   from: { filter: `blur(${SLIDE_BLUR})`, opacity: 0, transform: 'translateY(-100svh)' },
   to: { filter: 'blur(0)', opacity: 1, transform: 'translateY(0)' },
@@ -322,10 +328,47 @@ const styles = create({
     },
   },
   // The words the number lands in: orange, like the number and the bill.
+  hand: {
+    animationDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: '700ms',
+    },
+    animationIterationCount: 'infinite',
+    animationName: weigh,
+    animationTimingFunction: 'ease-in-out',
+    display: 'inline-block',
+    fontSize: 20,
+    lineHeight: 1,
+  },
+  handLeft: {
+    transform: 'scaleX(-1)',
+  },
+  handRight: {
+    animationDelay: '350ms',
+  },
+  // Under the number, out of the flow, so the line never moves for them.
+  hands: {
+    display: 'flex',
+    gap: 2,
+    insetBlockStart: '100%',
+    insetInlineStart: '50%',
+    justifyContent: 'center',
+    opacity: 0,
+    pointerEvents: 'none',
+    position: 'absolute',
+    transform: 'translateX(-50%)',
+    transitionDuration: '250ms',
+    transitionProperty: 'opacity',
+    whiteSpace: 'nowrap',
+  },
+  handsShown: {
+    opacity: 1,
+  },
   // The number's box: its width is set by the digit count and animated.
   heroCount: {
     display: 'inline-block',
     overflow: 'visible',
+    position: 'relative',
     textAlign: 'center',
     verticalAlign: 'baseline',
     whiteSpace: 'nowrap',
@@ -664,7 +707,7 @@ const MARK = /\[\[(.*?)\]\]/u;
  * The claim with the reader's number inside it. The catalog marks the orange
  * stretches, so each language puts them where its grammar wants them.
  */
-function HeroTitle({ hours }: { hours: number }) {
+function HeroTitle({ hours, sixSeven }: { hours: number; sixSeven: boolean }) {
   const text = hours === 1 ? m.home_hero_title_one() : m.home_hero_title();
   // With tabular figures every digit is one ch wide, so the number's box is
   // as many ch as it has digits, and it glides between one and two while
@@ -685,6 +728,12 @@ function HeroTitle({ hours }: { hours: number }) {
               {...props(styles.heroCount)}
             >
               <Count value={hours} />
+              {/* Six, seven. Palms up, one hand rising as the other falls:
+              the gesture the number pair comes with now. */}
+              <span aria-hidden="true" {...props(styles.hands, sixSeven && styles.handsShown)}>
+                <span {...props(styles.hand, styles.handLeft)}>🫴</span>
+                <span {...props(styles.hand, styles.handRight)}>🫴</span>
+              </span>
             </motion.span>
             {part.slice(part.indexOf('#') + 1)}
             <br {...props(styles.heroBreak)} />
@@ -726,6 +775,8 @@ function HomePage() {
   // Whether the bill is on screen: the way back to the question shows only
   // while there is a bill to come back from.
   const [billInView, setBillInView] = useState(true);
+  // The feed is nodding six, seven, six on its own: the hands come out.
+  const [sixSeven, setSixSeven] = useState(false);
   // After the way back the bill is already off screen: its box closes in one
   // frame, so nothing of it shows under the question while it closes.
   const [snapClose, setSnapClose] = useState(false);
@@ -1014,11 +1065,12 @@ function HomePage() {
             )}
           >
             <h1 {...props(styles.heroTitle)}>
-              <HeroTitle hours={hours} />
+              <HeroTitle hours={hours} sixSeven={sixSeven} />
               <AverageHelp />
             </h1>
             <FeedPhone
               onChange={setHours}
+              onNod={setSixSeven}
               onPick={onHoursChange}
               sound={tickAllowed(sound, soundChosen)}
             />
