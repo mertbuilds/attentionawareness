@@ -50,7 +50,6 @@ const ICON_SIZE = 22;
 const SUPERVISE_URL = '/supervise';
 const BUILD_URL = '/build';
 /** The report the average day is taken from. */
-const SOURCE_URL = 'https://datareportal.com/global-digital-overview';
 /** The post this started from, linked out of the paragraph that tells it. */
 const STORY_URL = 'https://stopa.io/post/297';
 /**
@@ -188,21 +187,6 @@ const styles = create({
     opacity: 1,
     visibility: 'visible',
   },
-  gateNote: {
-    color: colors.muted,
-    fontSize: font.sizeSm,
-    lineHeight: 1.5,
-    margin: 0,
-    maxWidth: '40ch',
-    paddingInline: spacing.s4,
-    textAlign: 'center',
-    textWrap: 'pretty',
-  },
-  gateSource: {
-    color: colors.muted,
-    textDecoration: 'underline',
-    textUnderlineOffset: 2,
-  },
   hero: {
     alignItems: 'center',
     boxSizing: 'border-box',
@@ -245,26 +229,6 @@ const styles = create({
     marginInline: 'auto',
     maxWidth: HERO_MEASURE,
     textAlign: 'center',
-  },
-  // Theme and language, at the foot of the first screen and nowhere else on
-  // it: the same row the footer carries, for a reader who has not scrolled.
-  heroPrefs: {
-    alignItems: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    insetBlockEnd: spacing.s6,
-    insetInlineStart: 0,
-    justifyContent: 'center',
-    // Pinned to the screen, not the hero: the hero can be taller than the
-    // viewport, and the row must sit at the foot of what is seen. On a short
-    // screen there is no foot to spare, so it takes its place in the column.
-    position: {
-      '@media (max-height: 720px)': 'static',
-      '@media (max-width: 639px)': 'static',
-      default: 'fixed',
-    },
-    width: '100%',
-    zIndex: 20,
   },
   heroProduct: {
     color: colors.muted,
@@ -837,27 +801,19 @@ function HomePage() {
           <div data-aa-untouched="" {...props(styles.untouched)}>
             <h1 {...props(styles.heroTitle)}>
               <HeroTitle hours={hours} />
-              <ScreenTimeHelp />
             </h1>
             <FeedPhone
               onChange={setHours}
               onPick={onHoursChange}
               sound={tickAllowed(sound, soundChosen)}
             />
+            <ScreenTimeHelp />
             {/* In the page from the start, so nothing moves when it appears:
             it fades in once the rail has been held. */}
             <div aria-hidden={!picked} {...props(styles.gateCta, picked && styles.gateCtaShown)}>
               <Button onClick={showBill} tabIndex={picked ? 0 : -1}>
                 {m.home_gate_cta()}
               </Button>
-            </div>
-            <div {...props(styles.heroPrefs)}>
-              <p {...props(styles.gateNote)}>
-                {m.home_gate_average()}{' '}
-                <a href={SOURCE_URL} rel="noreferrer" target="_blank" {...props(styles.gateSource)}>
-                  {m.home_gate_source()}
-                </a>
-              </p>
             </div>
           </div>
         )}
