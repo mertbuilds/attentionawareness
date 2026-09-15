@@ -159,9 +159,9 @@ const styles = create({
   },
   // A dark wash over the clip, so the words are what the eye lands on.
   overlayText: {
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     boxDecorationBreak: 'clone',
-    color: '#000',
+    color: '#fff',
     fontSize: '7cqw',
     fontWeight: font.weightBold,
     lineHeight: 1.35,
@@ -785,7 +785,7 @@ function Video({ current, height, index }: { current: boolean; height: number; i
       </div>
       <span {...props(styles.shade)} />
       {/* The honest caption, the way a creator burns it into the middle of
-      the video: big, centred, black on a white band. */}
+      the video: big, centred, white on a black band. */}
       <div {...props(styles.overlay)}>
         <span {...props(styles.overlayText)}>{CAPTIONS[index]?.() ?? ''}</span>
       </div>
