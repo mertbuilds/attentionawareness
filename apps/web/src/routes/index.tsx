@@ -11,7 +11,7 @@ import { clampHours, HourSlider, HOURS_DEFAULT } from '../components/screen-time
 import { ScreenTimeHelp } from '../components/screen-time-help.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { Tip } from '../components/tip.tsx';
-import { formatYears, wholeYears } from '../lib/attention-math.ts';
+import { formatYears } from '../lib/attention-math.ts';
 import { decodeShare } from '../lib/share.ts';
 import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
 import { m } from '../paraglide/messages.js';
@@ -474,12 +474,6 @@ function tickAllowed(on: boolean, chosen: boolean): boolean {
 
 /** Where the reader's day is kept between visits, in this browser only. */
 const HOURS_KEY = 'aa:hours';
-/** Whole years that start with a vowel sound, so the button says "an". */
-const AN_YEARS = new Set([8, 11, 18]);
-
-function yearsArticle(years: number): string {
-  return AN_YEARS.has(years) ? 'an' : 'a';
-}
 /** The attribute the head script stamps on the root when hours are saved. */
 const RECALL_STAMP = 'data-aa-hours';
 
@@ -604,7 +598,6 @@ function HomePage() {
   }
 
   const wholeHours = clampHours(hours);
-  const refundYears = wholeYears(wholeHours);
   const locale = getLocale();
   // The bill's own number and date: one number per visit, the second of the
   // day the page was opened, and the date it was opened on.
@@ -759,10 +752,8 @@ function HomePage() {
           <div {...props(styles.expandInner, touched && styles.expandInnerOpen, styles.heroPitch)}>
             <p {...props(styles.heroProduct)}>{m.home_hero_product()}</p>
             <div {...props(styles.heroActions)}>
-              <Button render={<a href={`#${HOW_ID}`} />}>
-                {m.home_hero_cta({ article: yearsArticle(refundYears), years: refundYears })}
-              </Button>
-              <a href={`#${STORY_ID}`} {...props(styles.heroSecondary)}>
+              <Button render={<a href={`#${STORY_ID}`} />}>{m.home_hero_cta()}</Button>
+              <a href={`#${HOW_ID}`} {...props(styles.heroSecondary)}>
                 {m.home_hero_secondary()}
               </a>
             </div>
