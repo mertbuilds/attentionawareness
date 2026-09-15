@@ -140,6 +140,15 @@ export function tickVoices(): StepVoices {
   return strike(1, HIT_SECONDS, 0, 0);
 }
 
+/** How far under the detent the bill's plus and minus click: a third of the pitch. */
+const CLICK_FALL = 0.33;
+const CLICK_SECONDS = 0.05;
+
+/** The click of the bill's plus and minus: the same hit, an octave and more down. */
+export function clickVoices(): StepVoices {
+  return strike(CLICK_FALL, CLICK_SECONDS, 0, 0.6);
+}
+
 /**
  * What one hour of the show sounds like. It is the gate's own detent, pitched
  * a step lower for every hour it stands above, with the note lengthening
@@ -235,6 +244,11 @@ function play(voices: StepVoices): void {
 /** One detent of the slider the question is answered on. */
 export function playTick(): void {
   play(tickVoices());
+}
+
+/** One press of the bill's plus or minus. */
+export function playClick(): void {
+  play(clickVoices());
 }
 
 /** One hour of the show. */
