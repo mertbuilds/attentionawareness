@@ -35,12 +35,9 @@ const PAPER_GRAIN =
 const LINE_BLUR = 3;
 const LINE_DISTANCE = 12;
 const LINE_MS = 500;
-const LINE_STAGGER_MS = 40;
+/** One line every three quarters of a second: the bill prints, it does not flash. */
+const LINE_STAGGER_MS = 750;
 const SMOOTH_OUT: [number, number, number, number] = [0.22, 1, 0.36, 1];
-/** How long the whole sheet may take to print, however many lines it holds. */
-const PRINT_SPAN_MS = 720;
-/** The lines under the items: the total, the rule, the site. */
-const LINES_AFTER_ITEMS = 3;
 
 /**
  * A line of the bill, held back until the sheet lands. `printing` takes the
@@ -337,9 +334,7 @@ export function Receipt({
   const rows = worth.filter((row) => row.amount > 0);
   const itemsAt = meta.length + 2;
   const closeAt = itemsAt + rows.length;
-  // A longer day buys more lines, and the sheet still prints inside one span.
-  const beat =
-    Math.min(LINE_STAGGER_MS, PRINT_SPAN_MS / Math.max(closeAt + LINES_AFTER_ITEMS - 1, 1)) / 1000;
+  const beat = LINE_STAGGER_MS / 1000;
   // A reader who asked for less motion is handed the whole bill at once.
   const state = reduced ? 'printed' : print;
   return (
