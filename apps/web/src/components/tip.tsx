@@ -70,9 +70,13 @@ const styles = create({
   positioner: {
     zIndex: 60,
   },
+  // A column, so a clip inside can centre itself under the words.
   sheetText: {
     color: colors.muted,
+    display: 'flex',
+    flexDirection: 'column',
     fontSize: font.sizeSm,
+    gap: spacing.s3,
     lineHeight: 1.5,
     margin: 0,
     textTransform: 'none',

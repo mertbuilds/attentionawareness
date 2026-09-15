@@ -46,9 +46,8 @@ const styles = create({
     minHeight: '28vh',
     outlineStyle: 'none',
     overflowY: 'auto',
-    // The sheet lands on the home bar, so the last row clears it by 32px at
-    // least, and by the home bar's own height on top of that.
-    paddingBlockEnd: `calc(${spacing.s8} + env(safe-area-inset-bottom))`,
+    // 32px under the last row and nothing more.
+    paddingBlockEnd: spacing.s8,
     paddingBlockStart: spacing.s4,
     paddingInline: spacing.s4,
     position: 'fixed',
