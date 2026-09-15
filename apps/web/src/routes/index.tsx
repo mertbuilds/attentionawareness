@@ -1085,6 +1085,8 @@ function HomePage() {
             </h1>
             <FeedPhone
               onChange={setHours}
+              // Two nods and no touch: the way on shows itself anyway.
+              onIdle={() => setPicked(true)}
               onNod={(nodding) => {
                 setSixSeven(nodding);
                 if (nodding) {

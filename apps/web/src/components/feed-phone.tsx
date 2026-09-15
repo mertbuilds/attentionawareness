@@ -30,6 +30,8 @@ const DEMO_START_MS = 700;
 const SHOW_STEP_MS = 2000;
 /** Left alone this long after the show, the feed nods: one video down, one back up. */
 const IDLE_MS = 5000;
+/** After this many nods with no touch, the page is told the reader is only watching. */
+const IDLE_NODS = 2;
 const NOD_MS = 700;
 /** The rest after a wheel stops that counts as letting go. */
 const SETTLE_MS = 220;
@@ -788,12 +790,15 @@ function Video({ current, height, index }: { current: boolean; height: number; i
  */
 export function FeedPhone({
   onChange,
+  onIdle,
   onNod,
   onPick,
   sound,
 }: {
   /** Every hour the feed lands on, as it lands: the page reads it live. */
   onChange: (hours: number) => void;
+  /** The feed has nodded twice with nobody touching it: the page may move on. */
+  onIdle?: (() => void) | undefined;
   /** The feed is nodding on its own between six and seven, or has stopped. */
   onNod?: ((nodding: boolean) => void) | undefined;
   /** The hour the feed is let go at. */
@@ -815,13 +820,14 @@ export function FeedPhone({
   const showing = useRef(true);
   const [ready, setReady] = useState(false);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const nods = useRef(0);
   const settle = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastY = useRef(0);
   const lastAt = useRef(0);
   const velocity = useRef(0);
   const dragFrom = useRef(0);
-  const latest = useRef({ hours, onChange, onNod, onPick, screenHeight, sound });
-  latest.current = { hours, onChange, onNod, onPick, screenHeight, sound };
+  const latest = useRef({ hours, onChange, onIdle, onNod, onPick, screenHeight, sound });
+  latest.current = { hours, onChange, onIdle, onNod, onPick, screenHeight, sound };
 
   // A video is exactly one screen tall, whatever the screen turns out to be.
   useLayoutEffect(() => {
@@ -908,6 +914,10 @@ export function FeedPhone({
         idleTimer.current = setTimeout(() => {
           if (sixSeven) {
             latest.current.onNod?.(false);
+          }
+          nods.current += 1;
+          if (nods.current === IDLE_NODS) {
+            latest.current.onIdle?.();
           }
           waitThenNod();
         }, NOD_MS);
