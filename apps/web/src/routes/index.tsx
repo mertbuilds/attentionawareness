@@ -3,6 +3,7 @@ import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, firstThatWorks, keyframes, props } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
+import { motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { Restart, VolumeCross, VolumeUp } from 'reicon-react';
 import { DEMO_FROM, FeedPhone } from '../components/feed-phone.tsx';
@@ -286,15 +287,18 @@ const styles = create({
     },
   },
   // The words the number lands in: orange, like the number and the bill.
-  heroMark: {
-    color: accent.base,
-  },
-  // Two digits wide whatever it reads, so the line never shifts as it rolls.
+  // The number's box: its width is set by the digit count and animated.
   heroCount: {
     display: 'inline-block',
-    fontVariantNumeric: 'tabular-nums',
-    minWidth: '1.2em',
+    overflow: 'visible',
     textAlign: 'center',
+    verticalAlign: 'baseline',
+    whiteSpace: 'nowrap',
+  },
+  heroMark: {
+    color: accent.base,
+    // Every digit the same width, so 6 to 7 moves nothing; only 9 to 10 does.
+    fontVariantNumeric: 'tabular-nums',
   },
   // The line breaks after the hours on a wide screen, so the claim reads as
   // two lines: what we did, and how often. A phone wraps it as it must.
@@ -567,6 +571,9 @@ function forgetHours(): void {
   }
 }
 
+/** How the number's box glides when it gains or loses a digit. */
+const GLIDE = { damping: 28, stiffness: 260, type: 'spring' } as const;
+
 /** The marked stretches of the title, [[like this]]; # is where the number goes. */
 const MARK = /\[\[(.*?)\]\]/u;
 
@@ -576,6 +583,10 @@ const MARK = /\[\[(.*?)\]\]/u;
  */
 function HeroTitle({ hours }: { hours: number }) {
   const text = hours === 1 ? m.home_hero_title_one() : m.home_hero_title();
+  // With tabular figures every digit is one ch wide, so the number's box is
+  // as many ch as it has digits, and it glides between one and two while
+  // the digits roll; the words around it ride along instead of jumping.
+  const digits = String(hours).length;
   return text.split(MARK).map((part, index) =>
     index % 2 === 0 ? (
       <span key={index}>{part}</span>
@@ -584,9 +595,14 @@ function HeroTitle({ hours }: { hours: number }) {
         {part.includes('#') ? (
           <>
             {part.slice(0, part.indexOf('#'))}
-            <span {...props(styles.heroCount)}>
+            <motion.span
+              animate={{ width: `${digits}ch` }}
+              initial={false}
+              transition={GLIDE}
+              {...props(styles.heroCount)}
+            >
               <Count value={hours} />
-            </span>
+            </motion.span>
             {part.slice(part.indexOf('#') + 1)}
             <br {...props(styles.heroBreak)} />
           </>
