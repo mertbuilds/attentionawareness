@@ -245,7 +245,6 @@ export function FeedPhone({
   const screen = useRef<HTMLDivElement>(null);
   const travelled = useRef(DEMO_FROM - HOURS_MIN);
   const holding = useRef(false);
-  const frame = useRef<number | null>(null);
   const demoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const settle = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastY = useRef(0);
@@ -314,34 +313,30 @@ export function FeedPhone({
       clearTimeout(demoTimer.current);
       demoTimer.current = null;
     }
-    if (frame.current !== null) {
-      cancelAnimationFrame(frame.current);
-      frame.current = null;
-    }
   }
 
-  // The feed shows itself once: from two hours it scrolls to the default,
-  // ticking at every video, until the reader takes hold of it.
+  // The feed shows itself once: from two hours it steps to the default one
+  // video at a time, a tick and a pause at each, until the reader takes hold.
   useEffect(() => {
     const from = DEMO_FROM - HOURS_MIN;
     const to = HOURS_DEFAULT - HOURS_MIN;
+    const pause = DEMO_MS / (to - from);
+    let at = from;
+    const step = () => {
+      at += 1;
+      setSnapping(true);
+      moveTo(at);
+      if (at < to) {
+        demoTimer.current = setTimeout(step, pause);
+      } else {
+        demoTimer.current = null;
+      }
+    };
     demoTimer.current = setTimeout(() => {
       if (latest.current.sound) {
         primeTickSound();
       }
-      const started = performance.now();
-      const step = (now: number) => {
-        const t = Math.min(1, (now - started) / DEMO_MS);
-        // Ease out: quick to leave, slow to land.
-        const eased = 1 - (1 - t) ** 3;
-        moveTo(from + (to - from) * eased);
-        if (t < 1) {
-          frame.current = requestAnimationFrame(step);
-        } else {
-          frame.current = null;
-        }
-      };
-      frame.current = requestAnimationFrame(step);
+      step();
     }, DEMO_START_MS);
     return stopShow;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot show
