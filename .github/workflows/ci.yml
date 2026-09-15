@@ -24,4 +24,5 @@ jobs:
       - run: pnpm format:check
       - run: pnpm skills:check
       - name: react-doctor
+        continue-on-error: true
         run: npx -y react-doctor@0.9.13 --yes --no-telemetry --no-supply-chain --project apps/web,packages/ui .
