@@ -133,6 +133,10 @@ const styles = create({
   shellHeld: {
     cursor: 'grabbing',
   },
+  // Not the reader's yet: no hand offered.
+  shellShowing: {
+    cursor: 'default',
+  },
   // The screen inside the bezel, with the corner the display has.
   screen: {
     borderRadius: '13cqw',
@@ -256,6 +260,7 @@ export function FeedPhone({
   const demoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // The feed is not the reader's until the show has played.
   const showing = useRef(true);
+  const [ready, setReady] = useState(false);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const settle = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastY = useRef(0);
@@ -361,6 +366,7 @@ export function FeedPhone({
       } else {
         demoTimer.current = null;
         showing.current = false;
+        setReady(true);
         waitThenNod();
       }
     };
@@ -485,7 +491,7 @@ export function FeedPhone({
         ref={phone}
         role="slider"
         tabIndex={0}
-        {...props(styles.shell, held && styles.shellHeld)}
+        {...props(styles.shell, !ready && styles.shellShowing, held && styles.shellHeld)}
       >
         <div aria-hidden="true" {...props(styles.phone)}>
           <span {...props(styles.island)} />
