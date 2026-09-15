@@ -26,3 +26,13 @@ body {
 summary::-webkit-details-marker {
   display: none;
 }
+
+/*
+ * Vaul hangs a cover twice the sheet's height under every drawer, for the
+ * rubber-band gap on iOS. The sheet is its own scroll box here, so that cover
+ * counted as 1277px of empty scroll under the content. The page behind is the
+ * same colour, so nothing shows in the gap without it.
+ */
+[data-vaul-drawer]::after {
+  display: none;
+}

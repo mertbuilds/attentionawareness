@@ -26,6 +26,7 @@ const SITE_NAME = 'attention awareness';
 const RECALL_SCRIPT =
   "try{if(localStorage.getItem('aa:hours'))document.documentElement.setAttribute('data-aa-hours','')}catch(e){}";
 const SITE_URL = 'https://attentionawareness.com';
+const ICON_SUFFIX = import.meta.env.DEV ? '-dev' : '';
 /** The site's own OpenPanel project. The id is public by design. */
 const ANALYTICS_CLIENT_ID = '7969381f-4a54-484b-abe4-79148bce2206';
 /**
@@ -47,9 +48,10 @@ export const Route = createRootRoute({
     links: [
       // The SVG first: it inverts with the browser's own theme. The PNG is
       // there for Safari, which takes the first icon it understands.
-      { href: '/favicon.svg', rel: 'icon', type: 'image/svg+xml' },
-      { href: '/favicon.png', rel: 'icon', sizes: '32x32', type: 'image/png' },
-      { href: '/apple-touch-icon.png', rel: 'apple-touch-icon' },
+      // The dev build wears a blue mark, so a dev tab is never taken for the site.
+      { href: `/favicon${ICON_SUFFIX}.svg`, rel: 'icon', type: 'image/svg+xml' },
+      { href: `/favicon${ICON_SUFFIX}.png`, rel: 'icon', sizes: '32x32', type: 'image/png' },
+      { href: `/apple-touch-icon${ICON_SUFFIX}.png`, rel: 'apple-touch-icon' },
       // Dev-only: link the unplugin's compiled CSS so SSR HTML is styled on
       // first paint (the virtual:stylex:runtime import only injects after
       // hydration — without this link every refresh flashes unstyled).
