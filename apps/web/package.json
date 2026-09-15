@@ -24,6 +24,7 @@
     "@tanstack/react-start": "^1.168.49",
     "asn1js": "^3.0.10",
     "evlog": "^2.28.0",
+    "motion": "^13.2.0",
     "pkijs": "^3.4.0",
     "posthog-js": "^1.424.1",
     "react": "^19.2.8",
