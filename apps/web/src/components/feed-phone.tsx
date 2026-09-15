@@ -158,15 +158,19 @@ const styles = create({
     textAlign: 'center',
   },
   // A dark wash over the clip, so the words are what the eye lands on.
+  // The band hugs each line of text the way Instagram sets its captions:
+  // an inline box, cloned across line breaks, with rounded ends.
   overlayText: {
     backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    borderRadius: '2cqw',
     boxDecorationBreak: 'clone',
     color: '#fff',
-    fontSize: '7cqw',
+    display: 'inline',
+    fontSize: '9cqw',
     fontWeight: font.weightBold,
-    lineHeight: 1.35,
-    paddingBlock: '0.4cqw',
-    paddingInline: '2cqw',
+    lineHeight: 1.5,
+    paddingBlock: '0.6cqw',
+    paddingInline: '2.4cqw',
     textWrap: 'balance',
     WebkitBoxDecorationBreak: 'clone',
   },
