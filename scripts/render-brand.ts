@@ -27,6 +27,8 @@ const MARK = 'aa';
 const BLACK = '#000000';
 const WHITE = '#ffffff';
 const GRAY = '#8a8a8a';
+/** The dev build's tab: iOS blue, so a dev tab is never mistaken for the site. */
+const DEV_BLUE = '#0a84ff';
 /**
  * How much of an icon square the two letters take. Wider than the page mark's
  * 0.44: an icon is read at 16px in a tab, where a quiet mark is no mark.
@@ -48,6 +50,8 @@ type Box = { maxX: number; maxY: number; minX: number; minY: number };
 const icons = [
   { dir: out, file: 'favicon.png', size: 32 },
   { dir: out, file: 'apple-touch-icon.png', size: 180 },
+  { bg: DEV_BLUE, dir: out, file: 'favicon-dev.png', size: 32 },
+  { bg: DEV_BLUE, dir: out, file: 'apple-touch-icon-dev.png', size: 180 },
   { dir: out, file: 'icon-512.png', size: 512 },
   { dir: extensionIcons, file: 'icon-16.png', size: 16 },
   { dir: extensionIcons, file: 'icon-32.png', size: 32 },
@@ -65,7 +69,8 @@ const face = `@font-face {
 const reset = `* { margin: 0; padding: 0; box-sizing: border-box; }
 body { background: ${BLACK}; color: ${WHITE}; font-family: 'Suisse Intl'; font-weight: 500; -webkit-font-smoothing: antialiased; }`;
 
-const iconPage = (size: number) => `<style>${face}${reset}
+const iconPage = (size: number, bg = BLACK) => `<style>${face}${reset}
+body { background: ${bg}; }
 .mark {
   align-items: center;
   display: flex;
@@ -105,7 +110,7 @@ mkdirSync(extensionIcons, { recursive: true });
 
 for (const icon of icons) {
   await page.setViewportSize({ height: icon.size, width: icon.size });
-  await page.setContent(iconPage(icon.size));
+  await page.setContent(iconPage(icon.size, 'bg' in icon ? icon.bg : BLACK));
   await page.evaluate(() => document.fonts.ready);
   await page.screenshot({ path: path.join(icon.dir, icon.file) });
   const where = path.relative(root, path.join(icon.dir, icon.file));
@@ -212,4 +217,9 @@ const svg = [
 ].join('');
 
 writeFileSync(path.join(out, 'favicon.svg'), `${svg}\n`);
+const devSvg = svg.replace(
+  /<style>.*?<\/style>/u,
+  `<style>.bg{fill:${DEV_BLUE}}.fg{fill:${WHITE}}</style>`,
+);
+writeFileSync(path.join(out, 'favicon-dev.svg'), `${devSvg}\n`);
 process.stdout.write(`render-brand: favicon.svg (${svg.length} bytes)\n`);
