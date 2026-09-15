@@ -63,11 +63,7 @@ const styles = create({
     borderRadius: 999,
     borderStyle: 'solid',
     borderWidth: '1px',
-    color: {
-      ':focus-visible': colors.fg,
-      ':hover': colors.fg,
-      default: colors.muted,
-    },
+    color: colors.muted,
     cursor: 'pointer',
     display: 'flex',
     flexShrink: 0,
@@ -231,6 +227,7 @@ export function AverageHelp() {
             ?
           </button>
         }
+        untitled
       >
         <AverageNote />
       </Tip>

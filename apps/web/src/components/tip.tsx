@@ -104,6 +104,7 @@ export function Tip({
   style,
   title,
   trigger,
+  untitled = false,
   variant = 'box',
 }: {
   /** Shown on a wide page, over the trigger. */
@@ -124,6 +125,8 @@ export function Tip({
   title: string;
   /** The element that opens it: a button, with its own aria-label. */
   trigger: ReactElement<{ onClick?: (event: MouseEvent) => void }>;
+  /** The box shows only its content; the title still names the sheet on a phone. */
+  untitled?: boolean;
   /** `label`: a one-word dark pill, no title row; the default is the box. */
   variant?: 'box' | 'label';
 }) {
@@ -161,7 +164,8 @@ export function Tip({
           {...props(styles.positioner)}
         >
           <Tooltip.Popup {...props(styles.popup, variant === 'label' && styles.label, style)}>
-            {variant === 'label' ? title : <span {...props(styles.title)}>{title}</span>}
+            {variant === 'label' ? title : null}
+            {variant === 'box' && !untitled ? <span {...props(styles.title)}>{title}</span> : null}
             {children}
           </Tooltip.Popup>
         </Tooltip.Positioner>
