@@ -153,9 +153,11 @@ const styles = create({
     display: 'flex',
     flexShrink: 0,
     justifyContent: 'space-between',
+    overflow: 'hidden',
     paddingBlockEnd: '5cqw',
     paddingBlockStart: '14cqw',
     paddingInline: '4cqw',
+    position: 'relative',
     width: '100%',
   },
   videoActions: {
@@ -164,6 +166,7 @@ const styles = create({
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s3,
+    position: 'relative',
   },
   videoAvatar: {
     backgroundColor: BLOCK_STRONG,
@@ -174,12 +177,22 @@ const styles = create({
     height: 22,
     width: 22,
   },
+  // The clip fills the video edge to edge, under the caption and the actions.
   videoCaption: {
     alignSelf: 'flex-end',
     display: 'flex',
     flexDirection: 'column',
     gap: 6,
+    position: 'relative',
     width: '70%',
+  },
+  videoClip: {
+    height: '100%',
+    insetBlockStart: 0,
+    insetInlineStart: 0,
+    objectFit: 'cover',
+    position: 'absolute',
+    width: '100%',
   },
   videoHeart: {
     backgroundColor: BLOCK_STRONG,
@@ -210,12 +223,47 @@ const styles = create({
   },
 });
 
-function Video({ height, index }: { height: number; index: number }) {
+/** The clip a video plays, by its place in the feed: 01.mp4 is the first. */
+function clipUrl(index: number, kind: 'jpg' | 'mp4'): string {
+  return `/media/feed/${String(index + 1).padStart(2, '0')}.${kind}`;
+}
+
+/**
+ * One video of the feed. The clip plays only while this is the video on
+ * screen, muted and looping, over a wash that stands in until the file has
+ * loaded or when there is none.
+ */
+function Video({ current, height, index }: { current: boolean; height: number; index: number }) {
+  const clip = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const element = clip.current;
+    if (element === null) {
+      return;
+    }
+    if (current) {
+      void element.play().catch(() => {
+        // A clip that is missing, or a browser that will not run it, is
+        // the wash instead. Nothing waits on it.
+      });
+    } else {
+      element.pause();
+    }
+  }, [current]);
   return (
     <div
       style={{ backgroundImage: WASHES[index % WASHES.length], height }}
       {...props(styles.video)}
     >
+      <video
+        loop
+        muted
+        playsInline
+        poster={clipUrl(index, 'jpg')}
+        preload={current ? 'auto' : 'metadata'}
+        ref={clip}
+        src={clipUrl(index, 'mp4')}
+        {...props(styles.videoClip)}
+      />
       <div {...props(styles.videoCaption)}>
         <span {...props(styles.videoName)} />
         <span {...props(styles.videoLine)} />
@@ -517,7 +565,12 @@ export function FeedPhone({
               {...props(styles.feed, snapping && styles.feedSnapping)}
             >
               {Array.from({ length: VIDEO_COUNT }, (_, index) => (
-                <Video height={screenHeight} index={index} key={index} />
+                <Video
+                  current={index === Math.round(position)}
+                  height={screenHeight}
+                  index={index}
+                  key={index}
+                />
               ))}
             </div>
           </div>
