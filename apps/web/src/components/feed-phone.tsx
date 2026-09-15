@@ -8,6 +8,21 @@ import { m } from '../paraglide/messages.js';
 import { HOURS_DEFAULT, HOURS_MAX, HOURS_MIN } from './screen-time-gate.tsx';
 
 /** One caption per clip, by its place in the feed. */
+const HANDLES = [
+  m.home_feed_handle_1,
+  m.home_feed_handle_2,
+  m.home_feed_handle_3,
+  m.home_feed_handle_4,
+  m.home_feed_handle_5,
+  m.home_feed_handle_6,
+  m.home_feed_handle_7,
+  m.home_feed_handle_8,
+  m.home_feed_handle_9,
+  m.home_feed_handle_10,
+  m.home_feed_handle_11,
+  m.home_feed_handle_12,
+];
+
 const CAPTIONS = [
   m.home_feed_caption_1,
   m.home_feed_caption_2,
@@ -174,8 +189,10 @@ const styles = create({
     textWrap: 'balance',
     WebkitBoxDecorationBreak: 'clone',
   },
+  // Darker with every video down the feed: the first is a little dimmed,
+  // the last is nearly black.
   shade: {
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    backgroundColor: '#000',
     inset: 0,
     pointerEvents: 'none',
     position: 'absolute',
@@ -686,6 +703,15 @@ function IconBattery({ style }: { style?: StyleXStyles }) {
   );
 }
 
+/** How dark the wash over a video is: from a little at the top of the feed to almost all at the foot. */
+const SHADE_FIRST = 0.35;
+const SHADE_LAST = 0.92;
+function shadeFor(index: number): number {
+  const last = HOURS_MAX - HOURS_MIN;
+  const at = Math.min(index, last) / last;
+  return SHADE_FIRST + (SHADE_LAST - SHADE_FIRST) * at;
+}
+
 /** The clip a video plays, by its place in the feed: 01.mp4 is the first. */
 function clipUrl(index: number, kind: 'jpg' | 'mp4'): string {
   return `/media/feed/${String(index + 1).padStart(2, '0')}.${kind}`;
@@ -719,6 +745,7 @@ function formatCount(value: number): string {
  * rides with it: the caption, the action rail, and how far the clip has run.
  */
 function Video({ current, height, index }: { current: boolean; height: number; index: number }) {
+  const handle = HANDLES[index]?.() ?? HANDLES[0]?.() ?? '';
   const clip = useRef<HTMLVideoElement>(null);
   const [played, setPlayed] = useState(0);
   const poster = clipUrl(index, 'jpg');
@@ -787,24 +814,20 @@ function Video({ current, height, index }: { current: boolean; height: number; i
           <span style={{ backgroundImage: `url("${poster}")` }} {...props(styles.discCore)} />
         </span>
       </div>
-      <span {...props(styles.shade)} />
+      <span style={{ opacity: shadeFor(index) }} {...props(styles.shade)} />
       {/* The honest caption, the way a creator burns it into the middle of
       the video: big, centred, white on a black band. */}
       <div {...props(styles.overlay)}>
         <span {...props(styles.overlayText)}>{CAPTIONS[index]?.() ?? ''}</span>
       </div>
       <div {...props(styles.caption)}>
-        <span {...props(styles.captionHandle)}>{m.home_feed_handle()}</span>
+        <span {...props(styles.captionHandle)}>{handle}</span>
         <span {...props(styles.music)}>
           <Icon name="music" style={styles.musicIcon} />
           <span {...props(styles.marquee)}>
             <span {...props(styles.marqueeTrack)}>
-              <span {...props(styles.marqueeCopy)}>
-                {m.home_feed_sound({ name: m.home_feed_handle() })}
-              </span>
-              <span {...props(styles.marqueeCopy)}>
-                {m.home_feed_sound({ name: m.home_feed_handle() })}
-              </span>
+              <span {...props(styles.marqueeCopy)}>{m.home_feed_sound({ name: handle })}</span>
+              <span {...props(styles.marqueeCopy)}>{m.home_feed_sound({ name: handle })}</span>
             </span>
           </span>
         </span>
