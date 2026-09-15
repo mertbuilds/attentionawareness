@@ -10,7 +10,7 @@ import { DEMO_FROM, FeedPhone } from '../components/feed-phone.tsx';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { Receipt } from '../components/receipt.tsx';
 import { clampHours, Count, HOURS_DEFAULT } from '../components/screen-time-gate.tsx';
-import { ScreenTimeHelp } from '../components/screen-time-help.tsx';
+import { AverageHelp, ScreenTimeHelp } from '../components/screen-time-help.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { Tip } from '../components/tip.tsx';
 import { formatYears } from '../lib/attention-math.ts';
@@ -171,6 +171,12 @@ const styles = create({
   // do about it. One column at every width, because the order is the argument.
   // The same box as `content`, so the whole page keeps one left edge; what
   // stands in it is narrower, because a line this size is read, not scanned.
+  gateHint: {
+    color: colors.muted,
+    fontSize: 13,
+    margin: 0,
+    textAlign: 'center',
+  },
   // Hidden in place until the rail is held, then faded in: the box is laid
   // out from the first paint, so the page does not move when it shows.
   gateCta: {
@@ -578,6 +584,20 @@ function HeroTitle({ hours }: { hours: number }) {
   );
 }
 
+/** The caption under the phone; the marked words open the screen time help. */
+function ScrollHint() {
+  return m
+    .home_gate_scroll_hint()
+    .split(MARK)
+    .map((part, index) =>
+      index % 2 === 0 ? (
+        <span key={index}>{part}</span>
+      ) : (
+        <ScreenTimeHelp key={index} label={part} />
+      ),
+    );
+}
+
 function HomePage() {
   const [hours, setHours] = useState(DEMO_FROM);
   // Whether the reader has touched the dial: the receipt is empty until then.
@@ -801,13 +821,16 @@ function HomePage() {
           <div data-aa-untouched="" {...props(styles.untouched)}>
             <h1 {...props(styles.heroTitle)}>
               <HeroTitle hours={hours} />
+              <AverageHelp />
             </h1>
             <FeedPhone
               onChange={setHours}
               onPick={onHoursChange}
               sound={tickAllowed(sound, soundChosen)}
             />
-            <ScreenTimeHelp />
+            <p {...props(styles.gateHint)}>
+              <ScrollHint />
+            </p>
             {/* In the page from the start, so nothing moves when it appears:
             it fades in once the rail has been held. */}
             <div aria-hidden={!picked} {...props(styles.gateCta, picked && styles.gateCtaShown)}>

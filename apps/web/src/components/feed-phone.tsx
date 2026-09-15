@@ -23,12 +23,14 @@ const FLICK_SPEED = 0.35;
 const SNAP_MS = 260;
 /** Videos in the feed: one per hour, and a few past the last. */
 const VIDEO_COUNT = HOURS_MAX - HOURS_MIN + 3;
-const PHONE_WIDTH = 176;
-const PHONE_HEIGHT = 320;
-/** On a short screen the whole first screen must still fit above the fold. */
-const PHONE_HEIGHT_SHORT = 240;
+/** An iPhone 15 Pro is 71.6 by 146.6 millimetres: the mock keeps that shape. */
+const PHONE_WIDTH = 71.6;
+const PHONE_HEIGHT = 146.6;
+/** How tall the mock stands on a wide screen, and on a short one. */
+const PHONE_TALL = 360;
+const PHONE_TALL_SHORT = 260;
 /** Until the screen is measured, a video is this tall. */
-const SCREEN_FALLBACK = PHONE_HEIGHT - 14;
+const SCREEN_FALLBACK = PHONE_TALL - 14;
 /** The placeholder shapes of a video: a shade off the screen in both themes. */
 const BLOCK = `color-mix(in srgb, ${colors.fg} 12%, transparent)`;
 const BLOCK_STRONG = `color-mix(in srgb, ${colors.fg} 22%, transparent)`;
@@ -64,17 +66,6 @@ const styles = create({
     minHeight: 0,
     width: '100%',
   },
-  hint: {
-    color: colors.muted,
-    fontSize: 13,
-    margin: 0,
-    opacity: 1,
-    transitionDuration: '250ms',
-    transitionProperty: 'opacity',
-  },
-  hintGone: {
-    opacity: 0,
-  },
   // The island at the top of the screen, over the feed.
   island: {
     backgroundColor: 'rgba(0, 0, 0, 0.85)',
@@ -93,7 +84,7 @@ const styles = create({
     aspectRatio: `${PHONE_WIDTH} / ${PHONE_HEIGHT}`,
     backgroundColor: colors.bg,
     borderColor: `color-mix(in srgb, ${colors.fg} 22%, ${colors.bg})`,
-    borderRadius: 30,
+    borderRadius: 26,
     borderStyle: 'solid',
     borderWidth: 7,
     boxShadow: {
@@ -109,9 +100,9 @@ const styles = create({
       default: 0,
     },
     height: {
-      '@media (max-height: 720px)': PHONE_HEIGHT_SHORT,
+      '@media (max-height: 720px)': PHONE_TALL_SHORT,
       '@media (max-width: 639px)': 'auto',
-      default: PHONE_HEIGHT,
+      default: PHONE_TALL,
     },
     minHeight: 0,
     outlineStyle: 'none',
@@ -119,10 +110,8 @@ const styles = create({
     position: 'relative',
     touchAction: 'none',
     userSelect: 'none',
-    width: {
-      '@media (max-width: 639px)': 'auto',
-      default: PHONE_WIDTH,
-    },
+    // The width follows the height through the aspect ratio.
+    width: 'auto',
   },
   phoneHeld: {
     cursor: 'grabbing',
@@ -240,7 +229,6 @@ export function FeedPhone({
   const [screenHeight, setScreenHeight] = useState(SCREEN_FALLBACK);
   const [snapping, setSnapping] = useState(false);
   const [held, setHeld] = useState(false);
-  const [touched, setTouched] = useState(false);
   const phone = useRef<HTMLDivElement>(null);
   const screen = useRef<HTMLDivElement>(null);
   const travelled = useRef(DEMO_FROM - HOURS_MIN);
@@ -352,7 +340,6 @@ export function FeedPhone({
     function onWheel(event: WheelEvent) {
       event.preventDefault();
       stopShow();
-      setTouched(true);
       if (settle.current === null) {
         dragFrom.current = Math.round(travelled.current);
       }
@@ -384,7 +371,6 @@ export function FeedPhone({
     dragFrom.current = Math.round(travelled.current);
     holding.current = true;
     setHeld(true);
-    setTouched(true);
   }
 
   function onPointerMove(event: React.PointerEvent<HTMLDivElement>) {
@@ -416,7 +402,6 @@ export function FeedPhone({
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
       stopShow();
-      setTouched(true);
       setSnapping(true);
       moveTo(Math.round(travelled.current) + (event.key === 'ArrowDown' ? 1 : -1));
     }
@@ -461,9 +446,6 @@ export function FeedPhone({
           </div>
         </div>
       </div>
-      <p aria-hidden="true" {...props(styles.hint, touched && styles.hintGone)}>
-        {m.home_gate_scroll_hint()}
-      </p>
     </div>
   );
 }

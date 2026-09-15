@@ -1,4 +1,4 @@
-import { colors, font, palette } from '@attentionawareness/ui/tokens.stylex';
+import { colors, font, palette, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { m } from '../paraglide/messages.js';
@@ -41,18 +41,54 @@ const styles = create({
     color: {
       ':focus-visible': colors.fg,
       ':hover': colors.fg,
-      default: colors.muted,
+      default: 'inherit',
     },
     cursor: 'pointer',
     fontFamily: 'inherit',
-    fontSize: 13,
-    fontWeight: font.weightRegular,
-    lineHeight: 1.5,
+    fontSize: 'inherit',
+    fontWeight: 'inherit',
+    lineHeight: 'inherit',
     padding: 0,
     textDecorationLine: 'underline',
     textUnderlineOffset: 3,
   },
-  // The average, at the foot of the box, with its source.
+  markBox: {
+    width: 260,
+  },
+  // The small ring at the end of the claim.
+  markButton: {
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    color: {
+      ':focus-visible': colors.fg,
+      ':hover': colors.fg,
+      default: colors.muted,
+    },
+    cursor: 'pointer',
+    display: 'flex',
+    flexShrink: 0,
+    fontFamily: 'inherit',
+    fontSize: 12,
+    fontWeight: font.weightRegular,
+    height: 20,
+    justifyContent: 'center',
+    letterSpacing: 'normal',
+    lineHeight: 1,
+    padding: 0,
+    width: 20,
+  },
+  // Rides at the end of the claim, and anchors the box under it.
+  markWrap: {
+    display: 'inline-flex',
+    marginInlineStart: spacing.s2,
+    position: 'relative',
+    verticalAlign: 'middle',
+  },
+  // The average, with its source.
   helpNote: {
     color: colors.muted,
     fontSize: font.sizeSm,
@@ -117,8 +153,7 @@ const styles = create({
   },
   // Under the phone, centred, and the anchor the popover opens from.
   helpWrap: {
-    display: 'inline-flex',
-    justifyContent: 'center',
+    display: 'inline',
     position: 'relative',
   },
 });
@@ -176,10 +211,36 @@ function AverageNote() {
 }
 
 /**
+ * The question mark at the end of the claim: what the average person's
+ * number is, and where it comes from.
+ */
+export function AverageHelp() {
+  return (
+    <span {...props(styles.markWrap)}>
+      <Tip
+        style={styles.markBox}
+        title={m.home_gate_average_title()}
+        trigger={
+          <button
+            aria-label={m.home_gate_average_label()}
+            type="button"
+            {...props(styles.markButton)}
+          >
+            ?
+          </button>
+        }
+      >
+        <AverageNote />
+      </Tip>
+    </span>
+  );
+}
+
+/**
  * The line under the phone: where the real number lives, a clip of it being
  * found, and what the average person's number is.
  */
-export function ScreenTimeHelp() {
+export function ScreenTimeHelp({ label }: { label: string }) {
   const videoUrl = screenTimeVideoUrl();
   return (
     <span {...props(styles.helpWrap)}>
@@ -188,20 +249,18 @@ export function ScreenTimeHelp() {
           <>
             <span {...props(styles.helpText)}>{m.home_math_help_body()}</span>
             <ScreenTimeClip style={styles.helpSheetSlot} videoUrl={videoUrl} />
-            <AverageNote />
           </>
         }
         style={styles.helpBox}
         title={m.home_math_help_title()}
         trigger={
-          <button type="button" {...props(styles.helpButton)}>
-            {m.home_math_help_label()}
+          <button aria-label={m.home_math_help_label()} type="button" {...props(styles.helpButton)}>
+            {label}
           </button>
         }
       >
         <span {...props(styles.helpText)}>{m.home_math_help_body()}</span>
         <ScreenTimeClip videoUrl={videoUrl} />
-        <AverageNote />
       </Tip>
     </span>
   );
