@@ -6,7 +6,9 @@ import { m } from '../paraglide/messages.js';
 import { PreferencesRow } from './preferences.tsx';
 
 const REPO_URL = 'https://github.com/mertbuilds/attentionawareness';
-const BUILDER_URL = 'https://mertbuilds.com';
+/** Every link to one of Mert's own sites carries utm tags, so the visit is traced to this site. */
+const BUILDER_URL =
+  'https://mertbuilds.com/?utm_source=attentionawareness.com&utm_medium=referral&utm_campaign=footer';
 /**
  * Where a link stands inside a sentence. The message is written with the link
  * as a placeholder and split on it, so the words around it keep their own
