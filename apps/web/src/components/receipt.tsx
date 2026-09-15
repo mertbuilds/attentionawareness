@@ -461,11 +461,11 @@ export function Receipt({
         </motion.div>
         <motion.div
           aria-hidden="true"
-          custom={(closeAt + 1) * beat}
+          custom={closeAt * beat}
           variants={sheetLine}
           {...props(styles.receiptRule)}
         />
-        <motion.p custom={(closeAt + 2) * beat} variants={sheetLine} {...props(styles.billSite)}>
+        <motion.p custom={closeAt * beat} variants={sheetLine} {...props(styles.billSite)}>
           <a data-plain="" href={SITE_URL} {...props(styles.billSiteLink)}>
             {m.home_receipt_store_url()}
           </a>
