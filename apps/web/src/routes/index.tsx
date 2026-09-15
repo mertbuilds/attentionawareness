@@ -289,6 +289,13 @@ const styles = create({
   heroMark: {
     color: accent.base,
   },
+  // Two digits wide whatever it reads, so the line never shifts as it rolls.
+  heroCount: {
+    display: 'inline-block',
+    fontVariantNumeric: 'tabular-nums',
+    minWidth: '1.2em',
+    textAlign: 'center',
+  },
   // The line breaks after the hours on a wide screen, so the claim reads as
   // two lines: what we did, and how often. A phone wraps it as it must.
   heroBreak: {
@@ -577,7 +584,9 @@ function HeroTitle({ hours }: { hours: number }) {
         {part.includes('#') ? (
           <>
             {part.slice(0, part.indexOf('#'))}
-            <Count value={hours} />
+            <span {...props(styles.heroCount)}>
+              <Count value={hours} />
+            </span>
             {part.slice(part.indexOf('#') + 1)}
             <br {...props(styles.heroBreak)} />
           </>
