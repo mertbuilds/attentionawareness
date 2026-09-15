@@ -1,5 +1,5 @@
 import { colors, spacing } from '@attentionawareness/ui/tokens.stylex';
-import { create, keyframes, props } from '@stylexjs/stylex';
+import { create, props } from '@stylexjs/stylex';
 import { useEffect, useRef, useState } from 'react';
 import { playTick } from '../lib/sounds.ts';
 import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
@@ -10,6 +10,10 @@ import { HOURS_DEFAULT, HOURS_MAX, HOURS_MIN, HourReadout } from './screen-time-
 const PIXELS_PER_HOUR = 140;
 /** How far the feed can travel, from the first hour to the last. */
 const TRAVEL = (HOURS_MAX - HOURS_MIN) * PIXELS_PER_HOUR;
+/** The feed shows itself first: it starts at one hour and scrolls to the default. */
+const DEMO_START_MS = 700;
+/** How long the show takes per hour. */
+const DEMO_HOUR_MS = 550;
 /** The rest after a wheel stops that counts as letting go. */
 const SETTLE_MS = 300;
 /** Posts in the feed: enough to scroll past the last hour with feed to spare. */
@@ -23,28 +27,11 @@ const PHONE_HEIGHT_SHORT = 240;
 const BLOCK = `color-mix(in srgb, ${colors.fg} 10%, transparent)`;
 const BLOCK_STRONG = `color-mix(in srgb, ${colors.fg} 16%, transparent)`;
 
-/** The nudge the feed gives itself until it is touched: a scroll, hinted. */
-const nudge = keyframes({
-  '0%': { transform: 'translateY(0)' },
-  '100%': { transform: 'translateY(0)' },
-  '12%': { transform: 'translateY(-28px)' },
-  '24%': { transform: 'translateY(0)' },
-});
-
 const styles = create({
   feed: {
     display: 'flex',
     flexDirection: 'column',
     willChange: 'transform',
-  },
-  feedNudge: {
-    animationDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: '6s',
-    },
-    animationIterationCount: 'infinite',
-    animationName: nudge,
-    animationTimingFunction: 'ease-in-out',
   },
   gate: {
     alignItems: 'center',
@@ -210,13 +197,15 @@ function Post({ index }: { index: number }) {
  * act that costs the hours is the act that counts them.
  */
 export function FeedPhone({ onPick, sound }: { onPick: (hours: number) => void; sound: boolean }) {
-  const [hours, setHours] = useState(HOURS_DEFAULT);
-  const [offset, setOffset] = useState(offsetFor(HOURS_DEFAULT));
+  const [hours, setHours] = useState(HOURS_MIN);
+  const [offset, setOffset] = useState(offsetFor(HOURS_MIN));
   const [held, setHeld] = useState(false);
   const holding = useRef(false);
   const [touched, setTouched] = useState(false);
   const phone = useRef<HTMLDivElement>(null);
-  const travelled = useRef(offsetFor(HOURS_DEFAULT));
+  const travelled = useRef(offsetFor(HOURS_MIN));
+  const frame = useRef<number | null>(null);
+  const demoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const settle = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastY = useRef(0);
   const latest = useRef({ hours, onPick, sound });
@@ -241,6 +230,46 @@ export function FeedPhone({ onPick, sound }: { onPick: (hours: number) => void; 
     latest.current.onPick(hoursFor(travelled.current));
   }
 
+  // The show stops the moment the reader takes hold.
+  function stopShow() {
+    if (demoTimer.current !== null) {
+      clearTimeout(demoTimer.current);
+      demoTimer.current = null;
+    }
+    if (frame.current !== null) {
+      cancelAnimationFrame(frame.current);
+      frame.current = null;
+    }
+  }
+
+  // The feed shows itself once: from one hour it scrolls to the default,
+  // ticking at every hour, until the reader takes hold of it.
+  useEffect(() => {
+    const from = offsetFor(HOURS_MIN);
+    const to = offsetFor(HOURS_DEFAULT);
+    const length = ((to - from) / PIXELS_PER_HOUR) * DEMO_HOUR_MS;
+    demoTimer.current = setTimeout(() => {
+      if (latest.current.sound) {
+        primeTickSound();
+      }
+      const started = performance.now();
+      const step = (now: number) => {
+        const t = Math.min(1, (now - started) / length);
+        // Ease out: quick to leave, slow to land.
+        const eased = 1 - (1 - t) ** 3;
+        moveBy(from + (to - from) * eased - travelled.current);
+        if (t < 1) {
+          frame.current = requestAnimationFrame(step);
+        } else {
+          frame.current = null;
+        }
+      };
+      frame.current = requestAnimationFrame(step);
+    }, DEMO_START_MS);
+    return stopShow;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot show
+  }, []);
+
   // The wheel must not scroll the page while it scrolls the feed, and a
   // passive listener cannot say so: the handler goes on by hand.
   useEffect(() => {
@@ -250,6 +279,7 @@ export function FeedPhone({ onPick, sound }: { onPick: (hours: number) => void; 
     }
     function onWheel(event: WheelEvent) {
       event.preventDefault();
+      stopShow();
       setTouched(true);
       moveBy(event.deltaY);
       if (settle.current !== null) {
@@ -269,6 +299,7 @@ export function FeedPhone({ onPick, sound }: { onPick: (hours: number) => void; 
 
   function onPointerDown(event: React.PointerEvent<HTMLDivElement>) {
     event.currentTarget.setPointerCapture(event.pointerId);
+    stopShow();
     lastY.current = event.clientY;
     holding.current = true;
     setHeld(true);
@@ -299,6 +330,7 @@ export function FeedPhone({ onPick, sound }: { onPick: (hours: number) => void; 
   function onKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
+      stopShow();
       setTouched(true);
       moveBy(event.key === 'ArrowDown' ? PIXELS_PER_HOUR : -PIXELS_PER_HOUR);
     }
@@ -335,11 +367,9 @@ export function FeedPhone({ onPick, sound }: { onPick: (hours: number) => void; 
         <span aria-hidden="true" {...props(styles.island)} />
         <div aria-hidden="true" {...props(styles.screen)}>
           <div style={{ transform: `translateY(${-offset}px)` }} {...props(styles.feed)}>
-            <div {...props(!touched && styles.feedNudge)}>
-              {Array.from({ length: POST_COUNT }, (_, index) => (
-                <Post index={index} key={index} />
-              ))}
-            </div>
+            {Array.from({ length: POST_COUNT }, (_, index) => (
+              <Post index={index} key={index} />
+            ))}
           </div>
         </div>
       </div>
