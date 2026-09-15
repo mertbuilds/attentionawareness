@@ -12,7 +12,7 @@
   "home_gate_unit": "hours",
   "home_gate_unit_one": "hour",
   "home_gate_cta": "See what it costs",
-  "home_gate_scroll_hint": "Scroll like you usually do, to pick your [[screen time]]",
+  "home_gate_scroll_hint": "Scroll to pick your [[screen time]]",
   "home_gate_source": "DataReportal, 2024",
   "home_gate_slider_label": "Hours a day on your phone",
   "home_gate_reading": "{hours} hours",
