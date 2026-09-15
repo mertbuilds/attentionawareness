@@ -19,6 +19,7 @@ import { HOURS_MAX, HOURS_MIN } from './screen-time-gate.tsx';
 const DISPLAY_SIZE = 32;
 /** The stamp is a picture: red ink on nothing, tilted as it was pressed. */
 const STAMP_URL = '/stamp-cancelled.webp';
+const SITE_URL = 'https://attentionawareness.com';
 
 /** The paper itself: a shade off the page in both themes. */
 const PAPER = `color-mix(in srgb, ${colors.bg} 92%, ${colors.fg})`;
@@ -26,26 +27,6 @@ const PAPER = `color-mix(in srgb, ${colors.bg} 92%, ${colors.fg})`;
 const PAPER_GRAIN =
   "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='4' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.16 0'/></filter><rect width='160' height='160' filter='url(%23g)'/></svg>\")";
 const styles = create({
-  billHead: {
-    alignItems: 'start',
-    display: 'flex',
-    gap: spacing.s4,
-    justifyContent: 'space-between',
-  },
-  billIssuer: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 2,
-  },
-  billIssuerName: {
-    fontWeight: font.weightMedium,
-    margin: 0,
-  },
-  billIssuerUrl: {
-    color: colors.muted,
-    fontSize: 12,
-    margin: 0,
-  },
   // The document's name, the way an invoice prints it: large, top right.
   billKind: {
     fontSize: 20,
@@ -53,7 +34,14 @@ const styles = create({
     letterSpacing: '-0.01em',
     lineHeight: 1.1,
     margin: 0,
-    textAlign: 'end',
+    textAlign: 'center',
+  },
+  // The site, once, at the very foot.
+  billSite: {
+    color: colors.muted,
+    fontSize: 12,
+    margin: 0,
+    textAlign: 'center',
   },
   // Bill number, date, due, billed to: label on the left, value on the right.
   billMeta: {
@@ -85,6 +73,10 @@ const styles = create({
     margin: 0,
     paddingBlockEnd: spacing.s1,
     textTransform: 'uppercase',
+  },
+  billSiteLink: {
+    color: 'inherit',
+    textDecorationLine: 'none',
   },
   billTerms: {
     color: colors.muted,
@@ -301,13 +293,7 @@ export function Receipt({
   return (
     <div {...props(styles.paper)}>
       <div {...props(styles.receipt, refunded && styles.stamped)}>
-        <div {...props(styles.billHead)}>
-          <div {...props(styles.billIssuer)}>
-            <p {...props(styles.billIssuerName)}>{m.home_receipt_store()}</p>
-            <p {...props(styles.billIssuerUrl)}>{m.home_receipt_store_url()}</p>
-          </div>
-          <p {...props(styles.billKind)}>{m.home_bill_kind()}</p>
-        </div>
+        <p {...props(styles.billKind)}>{m.home_bill_kind()}</p>
         <dl {...props(styles.billMeta)}>
           <dt {...props(styles.billMetaLabel)}>{m.home_bill_no_label()}</dt>
           <dd {...props(styles.billMetaValue)}>{number}</dd>
@@ -421,6 +407,11 @@ export function Receipt({
           <p {...props(styles.billTerms)}>{m.home_bill_terms_label()}</p>
           <p {...props(styles.receiptThanks)}>{m.home_receipt_thanks()}</p>
         </div>
+        <p {...props(styles.billSite)}>
+          <a data-plain="" href={SITE_URL} {...props(styles.billSiteLink)}>
+            {m.home_receipt_store_url()}
+          </a>
+        </p>
         {refunded ? (
           <img alt={m.home_receipt_refunded()} src={STAMP_URL} {...props(styles.stamp)} />
         ) : null}
