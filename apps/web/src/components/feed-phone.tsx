@@ -343,29 +343,27 @@ export function FeedPhone({
   // Left alone after the show, the feed nods once: a video down, a pause,
   // and back up. Then it waits again, until the reader takes hold.
   function waitThenNod() {
-    // Six, seven, six: the page hears of it a beat early, so what it shows
-    // for it is there when the feed moves.
+    // Six, seven, six: the page hears of it as the feed moves, so what it
+    // shows for it moves in step.
     idleTimer.current = setTimeout(() => {
       const here = Math.round(travelled.current);
       const sixSeven = here + HOURS_MIN === 6;
       if (sixSeven) {
         latest.current.onNod?.(true);
       }
+      setSnapping(true);
+      moveTo(here + 1);
       idleTimer.current = setTimeout(() => {
         setSnapping(true);
-        moveTo(here + 1);
+        moveTo(here);
         idleTimer.current = setTimeout(() => {
-          setSnapping(true);
-          moveTo(here);
-          idleTimer.current = setTimeout(() => {
-            if (sixSeven) {
-              latest.current.onNod?.(false);
-            }
-            waitThenNod();
-          }, NOD_MS);
+          if (sixSeven) {
+            latest.current.onNod?.(false);
+          }
+          waitThenNod();
         }, NOD_MS);
       }, NOD_MS);
-    }, IDLE_MS - NOD_MS);
+    }, IDLE_MS);
   }
 
   // The feed shows itself once: from two hours it steps to the default one
