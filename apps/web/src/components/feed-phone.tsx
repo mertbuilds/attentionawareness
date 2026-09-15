@@ -29,8 +29,8 @@ const VIDEO_COUNT = HOURS_MAX - HOURS_MIN + 3;
 const PHONE_WIDTH = 71.6;
 const PHONE_HEIGHT = 146.6;
 /** How tall the mock stands on a wide screen, and on a short one. */
-const PHONE_TALL = 360;
-const PHONE_TALL_SHORT = 260;
+const PHONE_TALL = 430;
+const PHONE_TALL_SHORT = 300;
 /** Until the screen is measured, a video is this tall. */
 const SCREEN_FALLBACK = PHONE_TALL - 14;
 /** The placeholder shapes of a video: a shade off the screen in both themes. */

@@ -282,7 +282,7 @@ const styles = create({
     minHeight: firstThatWorks('100svh', '100vh'),
     paddingBlockEnd: {
       '@media (max-width: 639px)': spacing.s6,
-      default: '18vh',
+      default: '8vh',
     },
     paddingBlockStart: {
       '@media (min-width: 640px)': 0,
@@ -604,7 +604,7 @@ const styles = create({
     },
     gap: {
       '@media (max-height: 720px)': spacing.s4,
-      '@media (min-width: 640px)': spacing.s8,
+      '@media (min-width: 640px)': spacing.s6,
       default: spacing.s4,
     },
     minHeight: 0,
