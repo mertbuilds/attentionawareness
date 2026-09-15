@@ -67,6 +67,8 @@ const EXPAND_MS = '500ms';
 const SLIDE_MS = 500;
 const SLIDE_DURATION = `${SLIDE_MS}ms`;
 const SLIDE_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
+/** How long the six-seven hands take to fade. */
+const HANDS_FADE = '250ms';
 /** The blur the two screens carry while they travel. */
 const SLIDE_BLUR = '3px';
 
@@ -334,15 +336,11 @@ const styles = create({
       default: '700ms',
     },
     animationIterationCount: 'infinite',
+    animationName: weigh,
     animationTimingFunction: 'ease-in-out',
     display: 'inline-block',
     fontSize: 20,
     lineHeight: 1,
-  },
-  // The hands only move while they show, so each showing starts from rest
-  // and the first rise lands with the feed's step to seven.
-  handMoving: {
-    animationName: weigh,
   },
   handRight: {
     animationDelay: '350ms',
@@ -358,7 +356,7 @@ const styles = create({
     pointerEvents: 'none',
     position: 'absolute',
     transform: 'translateX(-50%)',
-    transitionDuration: '250ms',
+    transitionDuration: HANDS_FADE,
     transitionProperty: 'opacity',
     whiteSpace: 'nowrap',
   },
@@ -708,7 +706,16 @@ const MARK = /\[\[(.*?)\]\]/u;
  * The claim with the reader's number inside it. The catalog marks the orange
  * stretches, so each language puts them where its grammar wants them.
  */
-function HeroTitle({ hours, sixSeven }: { hours: number; sixSeven: boolean }) {
+function HeroTitle({
+  hours,
+  nodRun,
+  sixSeven,
+}: {
+  hours: number;
+  /** Counts the nods, so the hands start from rest at each one. */
+  nodRun: number;
+  sixSeven: boolean;
+}) {
   const text = hours === 1 ? m.home_hero_title_one() : m.home_hero_title();
   // With tabular figures every digit is one ch wide, so the number's box is
   // as many ch as it has digits, and it glides between one and two while
@@ -731,11 +738,15 @@ function HeroTitle({ hours, sixSeven }: { hours: number; sixSeven: boolean }) {
               <Count value={hours} />
               {/* Six, seven. Palms up, one hand rising as the other falls:
               the gesture the number pair comes with now. */}
-              <span aria-hidden="true" {...props(styles.hands, sixSeven && styles.handsShown)}>
-                <span {...props(styles.hand, sixSeven && styles.handMoving)}>🫴</span>
-                <span {...props(styles.hand, styles.handRight, sixSeven && styles.handMoving)}>
-                  🫴
-                </span>
+              <span
+                aria-hidden="true"
+                // A new pair at every nod: their bob starts from rest with
+                // the step to seven, and keeps going while they fade.
+                key={nodRun}
+                {...props(styles.hands, sixSeven && styles.handsShown)}
+              >
+                <span {...props(styles.hand)}>🫴</span>
+                <span {...props(styles.hand, styles.handRight)}>🫴</span>
               </span>
             </motion.span>
             {part.slice(part.indexOf('#') + 1)}
@@ -780,6 +791,7 @@ function HomePage() {
   const [billInView, setBillInView] = useState(true);
   // The feed is nodding six, seven, six on its own: the hands come out.
   const [sixSeven, setSixSeven] = useState(false);
+  const [nodRun, setNodRun] = useState(0);
   // After the way back the bill is already off screen: its box closes in one
   // frame, so nothing of it shows under the question while it closes.
   const [snapClose, setSnapClose] = useState(false);
@@ -1068,12 +1080,17 @@ function HomePage() {
             )}
           >
             <h1 {...props(styles.heroTitle)}>
-              <HeroTitle hours={hours} sixSeven={sixSeven} />
+              <HeroTitle hours={hours} nodRun={nodRun} sixSeven={sixSeven} />
               <AverageHelp />
             </h1>
             <FeedPhone
               onChange={setHours}
-              onNod={setSixSeven}
+              onNod={(nodding) => {
+                setSixSeven(nodding);
+                if (nodding) {
+                  setNodRun((run) => run + 1);
+                }
+              }}
               onPick={onHoursChange}
               sound={tickAllowed(sound, soundChosen)}
             />
