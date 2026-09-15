@@ -1,31 +1,39 @@
 import { colors, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { playTick } from '../lib/sounds.ts';
 import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
 import { m } from '../paraglide/messages.js';
 import { HOURS_DEFAULT, HOURS_MAX, HOURS_MIN } from './screen-time-gate.tsx';
 
-/** One screen of feed is one hour: this much scrolling adds an hour. */
-const PIXELS_PER_HOUR = 140;
-/** How far the feed can travel, from the first hour to the last. */
-const TRAVEL = (HOURS_MAX - HOURS_MIN) * PIXELS_PER_HOUR;
 /** The feed shows itself first: from this hour it scrolls to the default. */
 export const DEMO_FROM = 2;
 const DEMO_START_MS = 700;
 /** How long the whole show takes, from the first hour to the default. */
 const DEMO_MS = 2500;
 /** The rest after a wheel stops that counts as letting go. */
-const SETTLE_MS = 300;
-/** Posts in the feed: enough to scroll past the last hour with feed to spare. */
-const POST_COUNT = 24;
+const SETTLE_MS = 220;
+/** How long the feed takes to snap to the nearest video once let go. */
+const SNAP_MS = 260;
+/** Videos in the feed: one per hour, and a few past the last. */
+const VIDEO_COUNT = HOURS_MAX - HOURS_MIN + 3;
 const PHONE_WIDTH = 176;
 const PHONE_HEIGHT = 320;
 /** On a short screen the whole first screen must still fit above the fold. */
 const PHONE_HEIGHT_SHORT = 240;
-/** The placeholder blocks of a post: a shade off the screen in both themes. */
-const BLOCK = `color-mix(in srgb, ${colors.fg} 10%, transparent)`;
-const BLOCK_STRONG = `color-mix(in srgb, ${colors.fg} 16%, transparent)`;
+/** Until the screen is measured, a video is this tall. */
+const SCREEN_FALLBACK = PHONE_HEIGHT - 14;
+/** The placeholder shapes of a video: a shade off the screen in both themes. */
+const BLOCK = `color-mix(in srgb, ${colors.fg} 12%, transparent)`;
+const BLOCK_STRONG = `color-mix(in srgb, ${colors.fg} 22%, transparent)`;
+/** Each video is its own dark wash, so the eye sees the cut between them. */
+const WASHES = [
+  'linear-gradient(160deg, #2a1f3d, #0f0a1a)',
+  'linear-gradient(160deg, #1f3d2a, #0a1a0f)',
+  'linear-gradient(160deg, #3d2a1f, #1a0f0a)',
+  'linear-gradient(160deg, #1f2a3d, #0a0f1a)',
+  'linear-gradient(160deg, #3d1f2a, #1a0a0f)',
+];
 
 const styles = create({
   feed: {
@@ -33,11 +41,21 @@ const styles = create({
     flexDirection: 'column',
     willChange: 'transform',
   },
+  feedSnapping: {
+    transitionDuration: `${SNAP_MS}ms`,
+    transitionProperty: 'transform',
+    transitionTimingFunction: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
+  },
   gate: {
     alignItems: 'center',
     display: 'flex',
     flexDirection: 'column',
+    flexGrow: {
+      '@media (max-width: 639px)': 1,
+      default: 0,
+    },
     gap: spacing.s4,
+    minHeight: 0,
     width: '100%',
   },
   hint: {
@@ -51,9 +69,22 @@ const styles = create({
   hintGone: {
     opacity: 0,
   },
+  // The island at the top of the screen, over the feed.
+  island: {
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    borderRadius: 999,
+    height: 18,
+    insetBlockStart: 8,
+    insetInlineStart: '50%',
+    position: 'absolute',
+    transform: 'translateX(-50%)',
+    width: 60,
+    zIndex: 2,
+  },
   // The phone: a dark slab with a screen cut into it. The screen clips the
   // feed and takes every scroll and drag aimed at it.
   phone: {
+    aspectRatio: `${PHONE_WIDTH} / ${PHONE_HEIGHT}`,
     backgroundColor: colors.bg,
     borderColor: `color-mix(in srgb, ${colors.fg} 22%, ${colors.bg})`,
     borderRadius: 30,
@@ -65,159 +96,126 @@ const styles = create({
     },
     boxSizing: 'border-box',
     cursor: 'grab',
+    // On a phone it grows to the room it is given and keeps its shape; on a
+    // wide screen it is a fixed size, shorter when the window is short.
+    flexGrow: {
+      '@media (max-width: 639px)': 1,
+      default: 0,
+    },
     height: {
       '@media (max-height: 720px)': PHONE_HEIGHT_SHORT,
+      '@media (max-width: 639px)': 'auto',
       default: PHONE_HEIGHT,
     },
+    minHeight: 0,
     outlineStyle: 'none',
     overflow: 'hidden',
     position: 'relative',
     touchAction: 'none',
     userSelect: 'none',
-    width: PHONE_WIDTH,
+    width: {
+      '@media (max-width: 639px)': 'auto',
+      default: PHONE_WIDTH,
+    },
   },
   phoneHeld: {
     cursor: 'grabbing',
   },
-  // The island at the top of the screen, over the feed.
-  island: {
-    backgroundColor: `color-mix(in srgb, ${colors.fg} 22%, ${colors.bg})`,
-    borderRadius: 999,
-    height: 18,
-    insetBlockStart: 8,
-    insetInlineStart: '50%',
-    position: 'absolute',
-    transform: 'translateX(-50%)',
-    width: 60,
-    zIndex: 2,
-  },
-  // One post the way a photo feed lays it out: who, the picture edge to
-  // edge, the three actions, the likes, a line of caption.
-  post: {
-    boxSizing: 'border-box',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s2,
-    paddingBlockEnd: spacing.s3,
-  },
-  postActions: {
-    alignItems: 'center',
-    display: 'flex',
-    gap: spacing.s2,
-    paddingInline: spacing.s2,
-  },
-  postAvatar: {
-    backgroundColor: BLOCK_STRONG,
-    borderRadius: 999,
-    flexShrink: 0,
-    height: 22,
-    width: 22,
-  },
-  postCaption: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 5,
-    paddingInline: spacing.s2,
-  },
-  postHead: {
-    alignItems: 'center',
-    display: 'flex',
-    gap: spacing.s2,
-    paddingBlock: spacing.s1,
-    paddingInline: spacing.s2,
-  },
-  postHeart: {
-    backgroundColor: BLOCK_STRONG,
-    borderRadius: '50% 50% 0 50%',
-    height: 12,
-    transform: 'rotate(45deg) scale(0.9)',
-    width: 12,
-  },
-  postIcon: {
-    backgroundColor: BLOCK_STRONG,
-    borderRadius: 4,
-    height: 12,
-    width: 12,
-  },
-  postIconRound: {
-    backgroundColor: BLOCK_STRONG,
-    borderRadius: 999,
-    height: 12,
-    width: 12,
-  },
-  // Square, the width of the screen: a photo.
-  postImage: {
-    aspectRatio: '1',
-    backgroundColor: BLOCK,
-    width: '100%',
-  },
-  postImageAlt: {
-    aspectRatio: '4 / 5',
-  },
-  postLine: {
-    backgroundColor: BLOCK,
-    borderRadius: 3,
-    height: 6,
-  },
-  postLineMid: {
-    width: '70%',
-  },
-  postLineShort: {
-    width: '45%',
-  },
-  postName: {
-    backgroundColor: BLOCK_STRONG,
-    borderRadius: 3,
-    height: 6,
-    width: 64,
-  },
   screen: {
     height: '100%',
-    // The feed starts under the island, and the first post is cut by the
-    // top of the screen the way a feed always is.
-    paddingBlockStart: 36,
     position: 'relative',
     width: '100%',
   },
+  // One video: the whole screen, a caption at the foot, the actions down
+  // the right edge.
+  video: {
+    boxSizing: 'border-box',
+    display: 'flex',
+    flexShrink: 0,
+    justifyContent: 'space-between',
+    paddingBlockEnd: spacing.s4,
+    paddingBlockStart: spacing.s8,
+    paddingInline: spacing.s3,
+    width: '100%',
+  },
+  videoActions: {
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s3,
+  },
+  videoAvatar: {
+    backgroundColor: BLOCK_STRONG,
+    borderColor: colors.fg,
+    borderRadius: 999,
+    borderStyle: 'solid',
+    borderWidth: 1.5,
+    height: 22,
+    width: 22,
+  },
+  videoCaption: {
+    alignSelf: 'flex-end',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6,
+    width: '70%',
+  },
+  videoHeart: {
+    backgroundColor: BLOCK_STRONG,
+    borderRadius: '50% 50% 0 50%',
+    height: 14,
+    transform: 'rotate(45deg) scale(0.9)',
+    width: 14,
+  },
+  videoIcon: {
+    backgroundColor: BLOCK_STRONG,
+    borderRadius: 999,
+    height: 14,
+    width: 14,
+  },
+  videoLine: {
+    backgroundColor: BLOCK,
+    borderRadius: 3,
+    height: 6,
+  },
+  videoLineShort: {
+    width: '50%',
+  },
+  videoName: {
+    backgroundColor: BLOCK_STRONG,
+    borderRadius: 3,
+    height: 7,
+    width: 56,
+  },
 });
 
-/** The feed's travel for a number of hours. */
-function offsetFor(hours: number): number {
-  return (hours - HOURS_MIN) * PIXELS_PER_HOUR;
-}
-
-/** The hour a feed offset lands on. */
-function hoursFor(offset: number): number {
-  return Math.min(HOURS_MAX, Math.max(HOURS_MIN, HOURS_MIN + Math.round(offset / PIXELS_PER_HOUR)));
-}
-
-function Post({ index }: { index: number }) {
-  // Every third picture is taller, the way a feed mixes squares and portraits.
-  const tall = index % 3 === 2;
+function Video({ height, index }: { height: number; index: number }) {
   return (
-    <div {...props(styles.post)}>
-      <div {...props(styles.postHead)}>
-        <span {...props(styles.postAvatar)} />
-        <span {...props(styles.postName)} />
+    <div
+      style={{ backgroundImage: WASHES[index % WASHES.length], height }}
+      {...props(styles.video)}
+    >
+      <div {...props(styles.videoCaption)}>
+        <span {...props(styles.videoName)} />
+        <span {...props(styles.videoLine)} />
+        <span {...props(styles.videoLine, styles.videoLineShort)} />
       </div>
-      <span {...props(styles.postImage, tall && styles.postImageAlt)} />
-      <div {...props(styles.postActions)}>
-        <span {...props(styles.postHeart)} />
-        <span {...props(styles.postIconRound)} />
-        <span {...props(styles.postIcon)} />
-      </div>
-      <div {...props(styles.postCaption)}>
-        <span {...props(styles.postLine, styles.postLineShort)} />
-        <span {...props(styles.postLine, styles.postLineMid)} />
+      <div {...props(styles.videoActions)}>
+        <span {...props(styles.videoAvatar)} />
+        <span {...props(styles.videoHeart)} />
+        <span {...props(styles.videoIcon)} />
+        <span {...props(styles.videoIcon)} />
       </div>
     </div>
   );
 }
 
 /**
- * The question's answer, scrolled rather than set: a phone with a feed in it,
- * and every screen of feed scrolled is an hour. Down adds, up takes away. The
- * act that costs the hours is the act that counts them.
+ * The question's answer, scrolled rather than set: a phone with a video feed
+ * in it, and every video scrolled past is an hour. Down adds, up takes away,
+ * and the feed snaps to a whole video when let go. The act that costs the
+ * hours is the act that counts them.
  */
 export function FeedPhone({
   onChange,
@@ -231,24 +229,41 @@ export function FeedPhone({
   sound: boolean;
 }) {
   const [hours, setHours] = useState(DEMO_FROM);
-  const [offset, setOffset] = useState(offsetFor(DEMO_FROM));
+  // Where the feed is, in videos from the first hour; a fraction mid-drag.
+  const [position, setPosition] = useState(DEMO_FROM - HOURS_MIN);
+  const [screenHeight, setScreenHeight] = useState(SCREEN_FALLBACK);
+  const [snapping, setSnapping] = useState(false);
   const [held, setHeld] = useState(false);
-  const holding = useRef(false);
   const [touched, setTouched] = useState(false);
   const phone = useRef<HTMLDivElement>(null);
-  const travelled = useRef(offsetFor(DEMO_FROM));
+  const screen = useRef<HTMLDivElement>(null);
+  const travelled = useRef(DEMO_FROM - HOURS_MIN);
+  const holding = useRef(false);
   const frame = useRef<number | null>(null);
   const demoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const settle = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastY = useRef(0);
-  const latest = useRef({ hours, onChange, onPick, sound });
-  latest.current = { hours, onChange, onPick, sound };
+  const latest = useRef({ hours, onChange, onPick, screenHeight, sound });
+  latest.current = { hours, onChange, onPick, screenHeight, sound };
 
-  function moveBy(delta: number) {
-    const next = Math.min(TRAVEL, Math.max(0, travelled.current + delta));
-    travelled.current = next;
-    setOffset(next);
-    const landed = hoursFor(next);
+  // A video is exactly one screen tall, whatever the screen turns out to be.
+  useLayoutEffect(() => {
+    const element = screen.current;
+    if (element === null) {
+      return;
+    }
+    const measure = () => setScreenHeight(element.clientHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  function moveTo(next: number) {
+    const clamped = Math.min(HOURS_MAX - HOURS_MIN, Math.max(0, next));
+    travelled.current = clamped;
+    setPosition(clamped);
+    const landed = HOURS_MIN + Math.round(clamped);
     if (landed !== latest.current.hours) {
       if (latest.current.sound) {
         primeTickSound();
@@ -259,9 +274,17 @@ export function FeedPhone({
     }
   }
 
+  function moveBy(pixels: number) {
+    setSnapping(false);
+    moveTo(travelled.current + pixels / latest.current.screenHeight);
+  }
+
+  // Let go: the feed snaps to the nearest video, and the page hears the hour.
   function letGo() {
     unlockTickSound();
-    latest.current.onPick(hoursFor(travelled.current));
+    setSnapping(true);
+    moveTo(Math.round(travelled.current));
+    latest.current.onPick(HOURS_MIN + Math.round(travelled.current));
   }
 
   // The show stops the moment the reader takes hold.
@@ -277,21 +300,20 @@ export function FeedPhone({
   }
 
   // The feed shows itself once: from two hours it scrolls to the default,
-  // ticking at every hour, until the reader takes hold of it.
+  // ticking at every video, until the reader takes hold of it.
   useEffect(() => {
-    const from = offsetFor(DEMO_FROM);
-    const to = offsetFor(HOURS_DEFAULT);
-    const length = DEMO_MS;
+    const from = DEMO_FROM - HOURS_MIN;
+    const to = HOURS_DEFAULT - HOURS_MIN;
     demoTimer.current = setTimeout(() => {
       if (latest.current.sound) {
         primeTickSound();
       }
       const started = performance.now();
       const step = (now: number) => {
-        const t = Math.min(1, (now - started) / length);
+        const t = Math.min(1, (now - started) / DEMO_MS);
         // Ease out: quick to leave, slow to land.
         const eased = 1 - (1 - t) ** 3;
-        moveBy(from + (to - from) * eased - travelled.current);
+        moveTo(from + (to - from) * eased);
         if (t < 1) {
           frame.current = requestAnimationFrame(step);
         } else {
@@ -366,7 +388,8 @@ export function FeedPhone({
       event.preventDefault();
       stopShow();
       setTouched(true);
-      moveBy(event.key === 'ArrowDown' ? PIXELS_PER_HOUR : -PIXELS_PER_HOUR);
+      setSnapping(true);
+      moveTo(Math.round(travelled.current) + (event.key === 'ArrowDown' ? 1 : -1));
     }
   }
 
@@ -398,10 +421,13 @@ export function FeedPhone({
         {...props(styles.phone, held && styles.phoneHeld)}
       >
         <span aria-hidden="true" {...props(styles.island)} />
-        <div aria-hidden="true" {...props(styles.screen)}>
-          <div style={{ transform: `translateY(${-offset}px)` }} {...props(styles.feed)}>
-            {Array.from({ length: POST_COUNT }, (_, index) => (
-              <Post index={index} key={index} />
+        <div aria-hidden="true" ref={screen} {...props(styles.screen)}>
+          <div
+            style={{ transform: `translateY(${-position * screenHeight}px)` }}
+            {...props(styles.feed, snapping && styles.feedSnapping)}
+          >
+            {Array.from({ length: VIDEO_COUNT }, (_, index) => (
+              <Video height={screenHeight} index={index} key={index} />
             ))}
           </div>
         </div>
