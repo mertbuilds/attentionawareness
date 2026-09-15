@@ -9,7 +9,7 @@ import { Restart, VolumeCross, VolumeUp } from 'reicon-react';
 import { DEMO_FROM, FeedPhone } from '../components/feed-phone.tsx';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { Receipt } from '../components/receipt.tsx';
-import { clampHours, Count, HOURS_DEFAULT } from '../components/screen-time-gate.tsx';
+import { clampHours, Count } from '../components/screen-time-gate.tsx';
 import { AverageHelp, ScreenTimeHelp } from '../components/screen-time-help.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { Tip } from '../components/tip.tsx';
@@ -71,7 +71,7 @@ const SLIDE_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
 const SLIDE_BLUR = '3px';
 
 /** Where the bill is between the question being asked and it being answered. */
-type BillStage = 'held' | 'printed' | 'printing' | 'sliding';
+type BillStage = 'held' | 'printed' | 'printing' | 'returning' | 'sliding';
 
 /**
  * Each beat of the answer arriving: nothing is on the page until the question
@@ -93,6 +93,15 @@ const screenLeave = keyframes({
 });
 const billArrive = keyframes({
   from: { filter: `blur(${SLIDE_BLUR})`, opacity: 0, transform: 'translateY(100svh)' },
+  to: { filter: 'blur(0)', opacity: 1, transform: 'translateY(0)' },
+});
+/** The same two moves run backwards: the bill goes down, the question comes down. */
+const billLeave = keyframes({
+  from: { filter: 'blur(0)', opacity: 1, transform: 'translateY(0)' },
+  to: { filter: `blur(${SLIDE_BLUR})`, opacity: 0, transform: 'translateY(100svh)' },
+});
+const screenReturn = keyframes({
+  from: { filter: `blur(${SLIDE_BLUR})`, opacity: 0, transform: 'translateY(-100svh)' },
   to: { filter: 'blur(0)', opacity: 1, transform: 'translateY(0)' },
 });
 
@@ -143,6 +152,16 @@ const styles = create({
     },
     animationName: billArrive,
     animationTimingFunction: SLIDE_EASE,
+  },
+  billLeaving: {
+    animationDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: SLIDE_DURATION,
+    },
+    animationFillMode: 'forwards',
+    animationName: billLeave,
+    animationTimingFunction: SLIDE_EASE,
+    pointerEvents: 'none',
   },
   content: {
     display: 'flex',
@@ -508,6 +527,20 @@ const styles = create({
   },
   // The buttons are 40px tall and the brand mark 24px, both from a 16px top:
   // pulled up by half the difference, their centres meet on one line.
+  // Start over rides with the bill: on screen while the bill is, gone when
+  // the reader has scrolled past it.
+  toolAway: {
+    opacity: 0,
+    pointerEvents: 'none',
+  },
+  toolFade: {
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: '250ms',
+    },
+    transitionProperty: 'opacity',
+    transitionTimingFunction: 'ease-in-out',
+  },
   tools: {
     display: 'flex',
     gap: spacing.s1,
@@ -554,6 +587,21 @@ const styles = create({
   untouchedLeavingAt: (top: number) => ({
     insetBlockStart: top,
   }),
+  // On its way back: over the bill going down under it, coming down from
+  // above into the place it left.
+  untouchedReturning: {
+    animationDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: SLIDE_DURATION,
+    },
+    animationName: screenReturn,
+    animationTimingFunction: SLIDE_EASE,
+    insetInlineEnd: 0,
+    insetInlineStart: 0,
+    pointerEvents: 'none',
+    position: 'absolute',
+    zIndex: 1,
+  },
 });
 
 /**
@@ -674,6 +722,13 @@ function HomePage() {
   // there and not from the top of the column.
   const [leaveTop, setLeaveTop] = useState(0);
   const firstScreen = useRef<HTMLDivElement>(null);
+  const billSection = useRef<HTMLElement>(null);
+  // Whether the bill is on screen: the way back to the question shows only
+  // while there is a bill to come back from.
+  const [billInView, setBillInView] = useState(true);
+  // After the way back the bill is already off screen: its box closes in one
+  // frame, so nothing of it shows under the question while it closes.
+  const [snapClose, setSnapClose] = useState(false);
   // Whether the reader has set the rail down once: the way to the bill shows
   // itself then, and not before.
   const [picked, setPicked] = useState(false);
@@ -712,7 +767,8 @@ function HomePage() {
   // the whole page while it leaves: nothing under it can be scrolled to
   // before the bill has landed in its place.
   useEffect(() => {
-    document.documentElement.style.overflow = touched && stage !== 'sliding' ? '' : 'hidden';
+    document.documentElement.style.overflow =
+      touched && stage !== 'sliding' && stage !== 'returning' ? '' : 'hidden';
     return () => {
       document.documentElement.style.overflow = '';
     };
@@ -727,6 +783,33 @@ function HomePage() {
     const timer = setTimeout(() => setStage('printing'), SLIDE_MS);
     return () => clearTimeout(timer);
   }, [stage]);
+
+  // The screens have swapped back: the bill is gone and the first screen
+  // takes the column again.
+  useEffect(() => {
+    if (stage !== 'returning') {
+      return;
+    }
+    const timer = setTimeout(() => {
+      setStage('held');
+      setTouched(false);
+    }, SLIDE_MS);
+    return () => clearTimeout(timer);
+  }, [stage]);
+
+  // Watches the bill: Start over fades out once it has scrolled away and
+  // back in when it returns.
+  useEffect(() => {
+    const element = billSection.current;
+    if (element === null || !touched) {
+      return;
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      setBillInView(entry?.isIntersecting ?? true);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [touched]);
 
   // iOS Safari opens an audio device inside a gesture and nowhere else, so the
   // first gesture it accepts anywhere on the page opens one. Once that works
@@ -769,19 +852,25 @@ function HomePage() {
     // Measured before the screen is taken out of the column, so it leaves
     // from exactly where the reader last saw it.
     setLeaveTop(firstScreen.current?.offsetTop ?? 0);
+    setSnapClose(false);
     setStage('sliding');
     setTouched(true);
   }
 
-  // Back to the first screen: the remembered day is forgotten, the rail
-  // returns at its default, and the page scrolls to the top of it.
+  // Back to the first screen: the remembered day is forgotten, the feed
+  // starts its show again, and the two screens swap back the way they came.
   function reset() {
     forgetHours();
-    setHours(HOURS_DEFAULT);
-    setStage('held');
-    setTouched(false);
+    setHours(DEMO_FROM);
     setPicked(false);
-    window.scrollTo({ behavior: 'smooth', top: 0 });
+    setBillInView(true);
+    // A section link may have brought the reader here; the fresh question
+    // carries no anchor.
+    history.replaceState(null, '', `${location.pathname}${location.search}`);
+    window.scrollTo({ behavior: 'instant', top: 0 });
+    setLeaveTop(0);
+    setSnapClose(true);
+    setStage('returning');
   }
 
   function toggleSound() {
@@ -861,24 +950,26 @@ function HomePage() {
       <header {...props(styles.hero)}>
         {/* The two tools, top right: start over, and the sound. */}
         <div {...props(styles.tools)}>
-          {touched ? (
-            <Tip
-              mobile="none"
-              title={m.home_reset_label()}
-              trigger={
-                <button
-                  aria-label={m.home_reset_label()}
-                  onClick={reset}
-                  type="button"
-                  {...props(styles.toolButton)}
-                >
-                  <Restart aria-hidden="true" size={ICON_SIZE} {...props(styles.flipped)} />
-                </button>
-              }
-              variant="label"
-            >
-              {null}
-            </Tip>
+          {touched && stage !== 'returning' ? (
+            <div {...props(styles.toolFade, !billInView && styles.toolAway)}>
+              <Tip
+                mobile="none"
+                title={m.home_reset_label()}
+                trigger={
+                  <button
+                    aria-label={m.home_reset_label()}
+                    onClick={reset}
+                    type="button"
+                    {...props(styles.toolButton)}
+                  >
+                    <Restart aria-hidden="true" size={ICON_SIZE} {...props(styles.flipped)} />
+                  </button>
+                }
+                variant="label"
+              >
+                {null}
+              </Tip>
+            </div>
           ) : null}
           <Tip
             mobile="none"
@@ -908,14 +999,18 @@ function HomePage() {
         script in the head stamps the root before first paint, and the
         `data-aa-untouched` block is hidden by a global rule until React
         restores the receipt. */}
-        {touched && stage !== 'sliding' ? null : (
+        {touched && stage !== 'sliding' && stage !== 'returning' ? null : (
           <div
             data-aa-untouched=""
+            // A fresh key on the way back, so the feed's show plays again.
+            key={stage === 'returning' ? 'returning' : 'held'}
             ref={firstScreen}
             {...props(
               styles.untouched,
               stage === 'sliding' && styles.untouchedLeaving,
               stage === 'sliding' && styles.untouchedLeavingAt(leaveTop),
+              stage === 'returning' && styles.untouchedReturning,
+              stage === 'returning' && styles.untouchedLeavingAt(leaveTop),
             )}
           >
             <h1 {...props(styles.heroTitle)}>
@@ -943,19 +1038,24 @@ function HomePage() {
         live against it. Every figure on it rolls as the hours change. */}
         <section
           aria-live="polite"
-          {...props(styles.receiptWrap, stage === 'sliding' && styles.billArriving)}
+          ref={billSection}
+          {...props(
+            styles.receiptWrap,
+            stage === 'sliding' && styles.billArriving,
+            stage === 'returning' && styles.billLeaving,
+          )}
         >
           <div
             {...props(
               styles.expand,
-              touched ? styles.expandSnap : styles.expandTween,
+              touched || snapClose ? styles.expandSnap : styles.expandTween,
               touched && styles.expandOpen,
             )}
           >
             <div
               {...props(
                 styles.expandInner,
-                touched ? styles.expandInnerSnap : styles.expandInnerTween,
+                touched || snapClose ? styles.expandInnerSnap : styles.expandInnerTween,
                 touched && styles.expandInnerOpen,
                 styles.receiptSlot,
               )}
@@ -964,7 +1064,7 @@ function HomePage() {
                 hours={wholeHours}
                 number={receiptNo}
                 onChange={onHoursChange}
-                print={stage === 'sliding' ? 'held' : stage}
+                print={stage === 'sliding' ? 'held' : stage === 'returning' ? 'printed' : stage}
                 printedOn={printedOn}
                 sound={tickAllowed(sound, soundChosen)}
               />
@@ -975,15 +1075,16 @@ function HomePage() {
         <div
           {...props(
             styles.expand,
-            touched ? styles.expandSnap : styles.expandTween,
+            touched || snapClose ? styles.expandSnap : styles.expandTween,
             touched && styles.expandOpen,
             stage === 'sliding' && styles.billArriving,
+            stage === 'returning' && styles.billLeaving,
           )}
         >
           <div
             {...props(
               styles.expandInner,
-              touched ? styles.expandInnerSnap : styles.expandInnerTween,
+              touched || snapClose ? styles.expandInnerSnap : styles.expandInnerTween,
               touched && styles.expandInnerOpen,
               styles.heroPitch,
             )}

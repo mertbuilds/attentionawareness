@@ -3,6 +3,7 @@ import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import NumberFlow from '@number-flow/react';
 import { create, props } from '@stylexjs/stylex';
 import { motion, useReducedMotion, type Variants } from 'motion/react';
+import { useEffect } from 'react';
 import {
   formatYears,
   heroMetrics,
@@ -337,6 +338,23 @@ export function Receipt({
   const itemsAt = 2;
   const closeAt = itemsAt + rows.length;
   const beat = LINE_STAGGER_MS / 1000;
+  // Every line that lands makes the sound the feed makes: one for the head,
+  // then one a beat down to the total.
+  useEffect(() => {
+    if (print !== 'printing' || !sound || reduced) {
+      return;
+    }
+    const timers = Array.from({ length: closeAt + 1 }, (_, step) =>
+      setTimeout(playTick, step * LINE_STAGGER_MS),
+    );
+    return () => {
+      for (const timer of timers) {
+        clearTimeout(timer);
+      }
+    };
+    // The print runs once, and the ticks with it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot print
+  }, [print]);
   // A reader who asked for less motion is handed the whole bill at once.
   const state = reduced ? 'printed' : print;
   return (
