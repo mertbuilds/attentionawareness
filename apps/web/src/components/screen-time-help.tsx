@@ -30,7 +30,7 @@ const styles = create({
   // The clip is what the box is for: 200px of it, plus the 12px of padding
   // on each side. The words wrap to that, rather than the box widening.
   helpBox: {
-    width: 224,
+    width: 320,
   },
   helpButton: {
     alignItems: 'center',
@@ -96,7 +96,7 @@ const styles = create({
     borderRadius: 12,
     display: 'flex',
     overflow: 'hidden',
-    width: 200,
+    width: 296,
   },
   helpText: {
     color: colors.muted,

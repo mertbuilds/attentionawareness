@@ -216,7 +216,10 @@ const styles = create({
     justifyContent: firstThatWorks('safe center', 'center'),
     maxWidth: 760,
     minHeight: firstThatWorks('100svh', '100vh'),
-    paddingBlockEnd: '18vh',
+    paddingBlockEnd: {
+      '@media (max-width: 639px)': spacing.s6,
+      default: '18vh',
+    },
     paddingBlockStart: {
       '@media (min-width: 640px)': 0,
       default: spacing.s16,
@@ -256,6 +259,7 @@ const styles = create({
     // screen there is no foot to spare, so it takes its place in the column.
     position: {
       '@media (max-height: 720px)': 'static',
+      '@media (max-width: 639px)': 'static',
       default: 'fixed',
     },
     width: '100%',
@@ -285,16 +289,27 @@ const styles = create({
   heroMark: {
     color: accent.base,
   },
+  // The line breaks after the hours on a wide screen, so the claim reads as
+  // two lines: what we did, and how often. A phone wraps it as it must.
+  heroBreak: {
+    display: {
+      '@media (min-width: 640px)': 'inline',
+      default: 'none',
+    },
+  },
   heroTitle: {
     fontSize: {
-      '@media (min-width: 640px)': 32,
+      '@media (min-width: 640px)': 44,
       default: 28,
     },
     fontWeight: HEADING_WEIGHT,
     letterSpacing: '-0.02em',
     lineHeight: 1.1,
     margin: 0,
-    maxWidth: HERO_MEASURE,
+    maxWidth: {
+      '@media (min-width: 640px)': 760,
+      default: HERO_MEASURE,
+    },
     textWrap: 'balance',
   },
   howBody: {
@@ -475,15 +490,22 @@ const styles = create({
     zIndex: 30,
   },
   // Lays out like the hero itself: one column, centred, same gaps.
+  // On a phone the column takes the whole first screen: the question at the
+  // top, the words at the foot, and the phone grows into whatever is between.
   untouched: {
     alignItems: 'center',
     display: 'flex',
     flexDirection: 'column',
+    flexGrow: {
+      '@media (max-width: 639px)': 1,
+      default: 0,
+    },
     gap: {
       '@media (max-height: 720px)': spacing.s4,
       '@media (min-width: 640px)': spacing.s8,
-      default: spacing.s6,
+      default: spacing.s4,
     },
+    minHeight: 0,
     width: '100%',
   },
 });
@@ -557,6 +579,7 @@ function HeroTitle({ hours }: { hours: number }) {
             {part.slice(0, part.indexOf('#'))}
             <Count value={hours} />
             {part.slice(part.indexOf('#') + 1)}
+            <br {...props(styles.heroBreak)} />
           </>
         ) : (
           part
