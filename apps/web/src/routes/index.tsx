@@ -4,9 +4,10 @@ import { create, firstThatWorks, keyframes, props } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { Restart, VolumeCross, VolumeUp } from 'reicon-react';
+import { FeedPhone } from '../components/feed-phone.tsx';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { Receipt } from '../components/receipt.tsx';
-import { clampHours, HourSlider, HOURS_DEFAULT } from '../components/screen-time-gate.tsx';
+import { clampHours, HOURS_DEFAULT } from '../components/screen-time-gate.tsx';
 import { ScreenTimeHelp } from '../components/screen-time-help.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { Tip } from '../components/tip.tsx';
@@ -752,7 +753,7 @@ function HomePage() {
               {m.home_hero_title()}
               <ScreenTimeHelp />
             </h1>
-            <HourSlider onPick={onHoursChange} sound={tickAllowed(sound, soundChosen)} />
+            <FeedPhone onPick={onHoursChange} sound={tickAllowed(sound, soundChosen)} />
             {/* In the page from the start, so nothing moves when it appears:
             it fades in once the rail has been held. */}
             <div aria-hidden={!picked} {...props(styles.gateCta, picked && styles.gateCtaShown)}>
