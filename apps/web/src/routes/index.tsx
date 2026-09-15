@@ -102,9 +102,11 @@ const billLeave = keyframes({
 });
 /** One hand of the six-seven: up, and down, while the other does the reverse. */
 const weigh = keyframes({
-  '0%': { transform: 'translateY(0)' },
-  '100%': { transform: 'translateY(0)' },
-  '50%': { transform: 'translateY(-6px)' },
+  // The rise is its own property, so the left hand keeps its mirror while
+  // it bobs.
+  '0%': { translate: '0 0' },
+  '100%': { translate: '0 0' },
+  '50%': { translate: '0 -6px' },
 });
 const screenReturn = keyframes({
   from: { filter: `blur(${SLIDE_BLUR})`, opacity: 0, transform: 'translateY(-100svh)' },
