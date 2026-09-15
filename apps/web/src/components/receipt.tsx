@@ -367,12 +367,16 @@ export function Receipt({
     if (print !== 'printing' || !sound || reduced) {
       return;
     }
-    // Every line lands with a thud; the last batch, the total, with the fahh.
+    // Every line lands with a thud; the last batch, the total, with the thud
+    // and the fahh together.
     void loadClip(LINE_CLIP);
     void loadClip(TOTAL_CLIP);
     const timers = Array.from({ length: closeAt + 1 }, (_, step) =>
       setTimeout(() => {
-        playClip(step === closeAt ? TOTAL_CLIP : LINE_CLIP);
+        playClip(LINE_CLIP);
+        if (step === closeAt) {
+          playClip(TOTAL_CLIP);
+        }
         keepInView(step);
       }, step * LINE_STAGGER_MS),
     );
