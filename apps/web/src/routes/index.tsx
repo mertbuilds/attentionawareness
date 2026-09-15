@@ -5,7 +5,6 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { Restart, VolumeCross, VolumeUp } from 'reicon-react';
 import { GridTexture } from '../components/grid-texture.tsx';
-import { PreferencesRow } from '../components/preferences.tsx';
 import { Receipt } from '../components/receipt.tsx';
 import { clampHours, HourSlider, HOURS_DEFAULT } from '../components/screen-time-gate.tsx';
 import { ScreenTimeHelp } from '../components/screen-time-help.tsx';
@@ -247,7 +246,6 @@ const styles = create({
     alignItems: 'center',
     display: 'flex',
     flexDirection: 'column',
-    gap: spacing.s4,
     insetBlockEnd: spacing.s6,
     insetInlineStart: 0,
     justifyContent: 'center',
@@ -767,7 +765,6 @@ function HomePage() {
                   {m.home_gate_source()}
                 </a>
               </p>
-              <PreferencesRow />
             </div>
           </div>
         )}
