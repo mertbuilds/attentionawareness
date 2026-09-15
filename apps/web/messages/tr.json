@@ -1,7 +1,8 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
   "app_name": "attentionawareness",
-  "home_hero_title": "Günlük ortalama ekran süren ne kadar?",
+  "home_hero_title": "Her [[gün]] [[# saat]] kaydırmayı normal saydık",
+  "home_hero_title_one": "Her [[gün]] [[# saat]] kaydırmayı normal saydık",
   "home_hero_product": "Bu site, iPhone'unda uygulamaları ve siteleri ücretsiz olarak ve kolayca geri alamayacağın bir biçimde nasıl engelleyeceğini gösteriyor. Bir kişi kendisi için yaptı, işe yaradığı için paylaştı.",
   "home_hero_cta": "Bunu neden yaptığımı oku",
   "home_hero_secondary": "Faturayı iptal et",
@@ -72,7 +73,7 @@
   "home_reset_label": "Baştan başla",
   "home_math_sound_label": "Ses açık/kapalı",
   "home_math_help_label": "Ekran süreni nasıl görürsün",
-  "home_math_help_title": "Gerçek sayını gör",
+  "home_math_help_title": "Ekran süreni nasıl kontrol edersin?",
   "home_math_help_body": "Ayarlar > Ekran Süresi > Günlük Ortalama",
   "home_math_help_clip": "Klip geliyor",
   "home_total_line": "Günde {hours} saat, önümüzdeki yirmi yılın {years} yılı demek.",

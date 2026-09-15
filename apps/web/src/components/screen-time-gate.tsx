@@ -32,7 +32,7 @@ const DEMO_HOUR_MS = 260;
  * the average day the line above it cites, which is the figure the reader is
  * asked to recognize or correct rather than remember.
  */
-export const HOURS_DEFAULT = 4;
+export const HOURS_DEFAULT = 6;
 
 /** The machined knob, and the rail the ticks are measured against. */
 const KNOB_WIDTH = 28;
@@ -294,7 +294,7 @@ function subscribeNever() {
  * only appear once the client has registered it. Until then the count is a
  * plain span with the same number, so the first frame is whole.
  */
-function Count({ value }: { value: number }) {
+export function Count({ value }: { value: number }) {
   const hydrated = useSyncExternalStore(
     subscribeNever,
     () => true,

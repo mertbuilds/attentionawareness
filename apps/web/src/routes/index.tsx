@@ -1,13 +1,14 @@
 import { Button } from '@attentionawareness/ui';
+import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, firstThatWorks, keyframes, props } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { Restart, VolumeCross, VolumeUp } from 'reicon-react';
-import { FeedPhone } from '../components/feed-phone.tsx';
+import { DEMO_FROM, FeedPhone } from '../components/feed-phone.tsx';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { Receipt } from '../components/receipt.tsx';
-import { clampHours, HOURS_DEFAULT } from '../components/screen-time-gate.tsx';
+import { clampHours, Count, HOURS_DEFAULT } from '../components/screen-time-gate.tsx';
 import { ScreenTimeHelp } from '../components/screen-time-help.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { Tip } from '../components/tip.tsx';
@@ -280,6 +281,10 @@ const styles = create({
       default: 'none',
     },
   },
+  // The words the number lands in: orange, like the number and the bill.
+  heroMark: {
+    color: accent.base,
+  },
   heroTitle: {
     fontSize: {
       '@media (min-width: 640px)': 32,
@@ -533,8 +538,36 @@ function forgetHours(): void {
   }
 }
 
+/** The marked stretches of the title, [[like this]]; # is where the number goes. */
+const MARK = /\[\[(.*?)\]\]/u;
+
+/**
+ * The claim with the reader's number inside it. The catalog marks the orange
+ * stretches, so each language puts them where its grammar wants them.
+ */
+function HeroTitle({ hours }: { hours: number }) {
+  const text = hours === 1 ? m.home_hero_title_one() : m.home_hero_title();
+  return text.split(MARK).map((part, index) =>
+    index % 2 === 0 ? (
+      <span key={index}>{part}</span>
+    ) : (
+      <span key={index} {...props(styles.heroMark)}>
+        {part.includes('#') ? (
+          <>
+            {part.slice(0, part.indexOf('#'))}
+            <Count value={hours} />
+            {part.slice(part.indexOf('#') + 1)}
+          </>
+        ) : (
+          part
+        )}
+      </span>
+    ),
+  );
+}
+
 function HomePage() {
-  const [hours, setHours] = useState(HOURS_DEFAULT);
+  const [hours, setHours] = useState(DEMO_FROM);
   // Whether the reader has touched the dial: the receipt is empty until then.
   const [touched, setTouched] = useState(false);
   // Whether the reader has set the rail down once: the way to the bill shows
@@ -755,10 +788,14 @@ function HomePage() {
         {touched ? null : (
           <div data-aa-untouched="" {...props(styles.untouched)}>
             <h1 {...props(styles.heroTitle)}>
-              {m.home_hero_title()}
+              <HeroTitle hours={hours} />
               <ScreenTimeHelp />
             </h1>
-            <FeedPhone onPick={onHoursChange} sound={tickAllowed(sound, soundChosen)} />
+            <FeedPhone
+              onChange={setHours}
+              onPick={onHoursChange}
+              sound={tickAllowed(sound, soundChosen)}
+            />
             {/* In the page from the start, so nothing moves when it appears:
             it fades in once the rail has been held. */}
             <div aria-hidden={!picked} {...props(styles.gateCta, picked && styles.gateCtaShown)}>
