@@ -13,6 +13,12 @@ const DEMO_START_MS = 700;
 const DEMO_MS = 2500;
 /** The rest after a wheel stops that counts as letting go. */
 const SETTLE_MS = 220;
+/**
+ * A swipe need not carry the feed half way: this much of a video, or a flick
+ * this fast, moves to the next one. A feed is easy to move, or it is not one.
+ */
+const SWIPE_FRACTION = 0.12;
+const FLICK_SPEED = 0.35;
 /** How long the feed takes to snap to the nearest video once let go. */
 const SNAP_MS = 260;
 /** Videos in the feed: one per hour, and a few past the last. */
@@ -243,6 +249,9 @@ export function FeedPhone({
   const demoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const settle = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastY = useRef(0);
+  const lastAt = useRef(0);
+  const velocity = useRef(0);
+  const dragFrom = useRef(0);
   const latest = useRef({ hours, onChange, onPick, screenHeight, sound });
   latest.current = { hours, onChange, onPick, screenHeight, sound };
 
@@ -279,12 +288,24 @@ export function FeedPhone({
     moveTo(travelled.current + pixels / latest.current.screenHeight);
   }
 
-  // Let go: the feed snaps to the nearest video, and the page hears the hour.
-  function letGo() {
+  // Let go: the feed snaps to a whole video, and the page hears the hour. A
+  // drag past a small part of a video, or a flick, carries on to the next.
+  function letGo(flick = 0) {
     unlockTickSound();
     setSnapping(true);
-    moveTo(Math.round(travelled.current));
-    latest.current.onPick(HOURS_MIN + Math.round(travelled.current));
+    const from = dragFrom.current;
+    const moved = travelled.current - from;
+    let target = Math.round(travelled.current);
+    if (Math.abs(moved) >= SWIPE_FRACTION || Math.abs(flick) >= FLICK_SPEED) {
+      const direction = moved !== 0 ? Math.sign(moved) : Math.sign(flick);
+      target = direction > 0 ? Math.ceil(travelled.current) : Math.floor(travelled.current);
+      if (target === from) {
+        target = from + direction;
+      }
+    }
+    moveTo(target);
+    dragFrom.current = target;
+    latest.current.onPick(HOURS_MIN + Math.round(target));
   }
 
   // The show stops the moment the reader takes hold.
@@ -337,11 +358,17 @@ export function FeedPhone({
       event.preventDefault();
       stopShow();
       setTouched(true);
+      if (settle.current === null) {
+        dragFrom.current = Math.round(travelled.current);
+      }
       moveBy(event.deltaY);
       if (settle.current !== null) {
         clearTimeout(settle.current);
       }
-      settle.current = setTimeout(letGo, SETTLE_MS);
+      settle.current = setTimeout(() => {
+        settle.current = null;
+        letGo();
+      }, SETTLE_MS);
     }
     element.addEventListener('wheel', onWheel, { passive: false });
     return () => {
@@ -357,6 +384,9 @@ export function FeedPhone({
     event.currentTarget.setPointerCapture(event.pointerId);
     stopShow();
     lastY.current = event.clientY;
+    lastAt.current = event.timeStamp;
+    velocity.current = 0;
+    dragFrom.current = Math.round(travelled.current);
     holding.current = true;
     setHeld(true);
     setTouched(true);
@@ -367,8 +397,12 @@ export function FeedPhone({
       return;
     }
     // A finger dragging up pulls the feed up: the feed scrolls down.
-    moveBy(lastY.current - event.clientY);
+    const dy = lastY.current - event.clientY;
+    const dt = Math.max(1, event.timeStamp - lastAt.current);
+    velocity.current = dy / dt;
+    moveBy(dy);
     lastY.current = event.clientY;
+    lastAt.current = event.timeStamp;
   }
 
   function onPointerUp(event: React.PointerEvent<HTMLDivElement>) {
@@ -380,7 +414,7 @@ export function FeedPhone({
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
     setHeld(false);
-    letGo();
+    letGo(velocity.current);
   }
 
   function onKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
