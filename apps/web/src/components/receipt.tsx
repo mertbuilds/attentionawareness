@@ -199,12 +199,12 @@ const styles = create({
     borderBlockStartStyle: 'solid',
     borderBlockStartWidth: 1,
   },
-  // The amount due: a heavy rule over it, the way a bill sets its total apart.
+  // The amount due: a solid rule over it, the way a bill sets its total apart.
   receiptTotal: {
     alignItems: 'end',
     borderBlockStartColor: colors.fg,
     borderBlockStartStyle: 'solid',
-    borderBlockStartWidth: 2,
+    borderBlockStartWidth: 1,
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s1,
