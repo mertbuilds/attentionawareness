@@ -1,9 +1,26 @@
-import { colors, spacing } from '@attentionawareness/ui/tokens.stylex';
+import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { unlockTickSound } from '../lib/tick-sound.ts';
+import { playClick } from '../lib/sounds.ts';
+import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
 import { m } from '../paraglide/messages.js';
 import { HOURS_DEFAULT, HOURS_MAX, HOURS_MIN } from './screen-time-gate.tsx';
+
+/** One caption per clip, by its place in the feed. */
+const CAPTIONS = [
+  m.home_feed_caption_1,
+  m.home_feed_caption_2,
+  m.home_feed_caption_3,
+  m.home_feed_caption_4,
+  m.home_feed_caption_5,
+  m.home_feed_caption_6,
+  m.home_feed_caption_7,
+  m.home_feed_caption_8,
+  m.home_feed_caption_9,
+  m.home_feed_caption_10,
+  m.home_feed_caption_11,
+  m.home_feed_caption_12,
+];
 
 /** The feed shows itself first: from this hour it scrolls to the default. */
 export const DEMO_FROM = 2;
@@ -34,7 +51,6 @@ const PHONE_TALL_SHORT = 300;
 /** Until the screen is measured, a video is this tall. */
 const SCREEN_FALLBACK = PHONE_TALL - 14;
 /** The placeholder shapes of a video: a shade off the screen in both themes. */
-const BLOCK = `color-mix(in srgb, ${colors.fg} 12%, transparent)`;
 const BLOCK_STRONG = `color-mix(in srgb, ${colors.fg} 22%, transparent)`;
 /** Each video is its own dark wash, so the eye sees the cut between them. */
 const WASHES = [
@@ -206,19 +222,21 @@ const styles = create({
     height: 14,
     width: 14,
   },
-  videoLine: {
-    backgroundColor: BLOCK,
-    borderRadius: 3,
-    height: 6,
-  },
-  videoLineShort: {
-    width: '50%',
-  },
+  // The handle and the caption, the way a feed sets them: white on the
+  // picture, with a shadow so they read on anything.
   videoName: {
-    backgroundColor: BLOCK_STRONG,
-    borderRadius: 3,
-    height: 7,
-    width: 56,
+    color: '#fff',
+    fontSize: '4cqw',
+    fontWeight: font.weightMedium,
+    lineHeight: 1.2,
+    textShadow: '0 1px 4px rgba(0, 0, 0, 0.8)',
+  },
+  videoText: {
+    color: '#fff',
+    fontSize: '3.6cqw',
+    lineHeight: 1.3,
+    textShadow: '0 1px 4px rgba(0, 0, 0, 0.8)',
+    textWrap: 'pretty',
   },
 });
 
@@ -232,17 +250,7 @@ function clipUrl(index: number, kind: 'jpg' | 'mp4'): string {
  * screen, muted and looping, over a wash that stands in until the file has
  * loaded or when there is none.
  */
-function Video({
-  current,
-  height,
-  index,
-  sound,
-}: {
-  current: boolean;
-  height: number;
-  index: number;
-  sound: boolean;
-}) {
+function Video({ current, height, index }: { current: boolean; height: number; index: number }) {
   const clip = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     const element = clip.current;
@@ -253,15 +261,11 @@ function Video({
       element.pause();
       return;
     }
-    element.muted = !sound;
     void element.play().catch(() => {
-      // The browser will not play sound before a gesture: the clip runs
-      // muted until the reader has touched the page. A clip that is missing
-      // is the wash instead. Nothing waits on either.
-      element.muted = true;
-      void element.play().catch(() => {});
+      // A clip that is missing, or a browser that will not run it, is the
+      // wash instead. Nothing waits on it.
     });
-  }, [current, sound]);
+  }, [current]);
   return (
     <div
       style={{ backgroundImage: WASHES[index % WASHES.length], height }}
@@ -269,7 +273,7 @@ function Video({
     >
       <video
         loop
-        muted={!sound}
+        muted
         playsInline
         poster={clipUrl(index, 'jpg')}
         preload={current ? 'auto' : 'metadata'}
@@ -278,9 +282,8 @@ function Video({
         {...props(styles.videoClip)}
       />
       <div {...props(styles.videoCaption)}>
-        <span {...props(styles.videoName)} />
-        <span {...props(styles.videoLine)} />
-        <span {...props(styles.videoLine, styles.videoLineShort)} />
+        <span {...props(styles.videoName)}>{m.home_feed_handle()}</span>
+        <span {...props(styles.videoText)}>{CAPTIONS[index]?.() ?? ''}</span>
       </div>
       <div {...props(styles.videoActions)}>
         <span {...props(styles.videoAvatar)} />
@@ -354,6 +357,10 @@ export function FeedPhone({
     setPosition(clamped);
     const landed = HOURS_MIN + Math.round(clamped);
     if (landed !== latest.current.hours) {
+      if (latest.current.sound) {
+        primeTickSound();
+        playClick();
+      }
       setHours(landed);
       latest.current.onChange(landed);
     }
@@ -574,7 +581,6 @@ export function FeedPhone({
                   height={screenHeight}
                   index={index}
                   key={index}
-                  sound={sound}
                 />
               ))}
             </div>
