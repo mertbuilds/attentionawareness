@@ -31,7 +31,7 @@ const styles = create({
   // The clip is what the box is for: 200px of it, plus the 12px of padding
   // on each side. The words wrap to that, rather than the box widening.
   helpBox: {
-    width: 320,
+    width: 280,
   },
   // A line of muted text under the phone, underlined, the way a link is.
   helpButton: {
@@ -139,8 +139,10 @@ const styles = create({
     backgroundColor: palette.black,
     borderRadius: 12,
     display: 'flex',
+    // Twice the box's own gap between the path and the clip.
+    marginBlockStart: spacing.s2,
     overflow: 'hidden',
-    width: 296,
+    width: 256,
   },
   helpText: {
     color: colors.muted,
