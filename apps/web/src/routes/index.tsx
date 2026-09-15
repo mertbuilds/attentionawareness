@@ -531,7 +531,7 @@ function HomePage() {
   const [hours, setHours] = useState(HOURS_DEFAULT);
   // Whether the reader has touched the dial: the receipt is empty until then.
   const [touched, setTouched] = useState(false);
-  // Whether the reader has taken hold of the rail: the way to the bill shows
+  // Whether the reader has set the rail down once: the way to the bill shows
   // itself then, and not before.
   const [picked, setPicked] = useState(false);
   // The date on the bill: when the page was opened, not when it was rung up.
@@ -592,9 +592,12 @@ function HomePage() {
     return stop;
   }, []);
 
+  // The rail was let go at a value: the way to the bill shows on the first
+  // release, and the bill itself only tracks the day once it is open.
   function onHoursChange(value: number) {
     const next = clampHours(value);
     setHours(next);
+    setPicked(true);
     if (touched) {
       rememberHours(next);
     }
@@ -749,11 +752,7 @@ function HomePage() {
               {m.home_hero_title()}
               <ScreenTimeHelp />
             </h1>
-            <HourSlider
-              onPick={onHoursChange}
-              onTouch={() => setPicked(true)}
-              sound={tickAllowed(sound, soundChosen)}
-            />
+            <HourSlider onPick={onHoursChange} sound={tickAllowed(sound, soundChosen)} />
             {/* In the page from the start, so nothing moves when it appears:
             it fades in once the rail has been held. */}
             <div aria-hidden={!picked} {...props(styles.gateCta, picked && styles.gateCtaShown)}>
