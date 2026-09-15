@@ -39,8 +39,8 @@ const LINE_STAGGER_MS = 40;
 const SMOOTH_OUT: [number, number, number, number] = [0.22, 1, 0.36, 1];
 /** How long the whole sheet may take to print, however many lines it holds. */
 const PRINT_SPAN_MS = 720;
-/** The lines under the items: the total, the rule, the terms, the site. */
-const LINES_AFTER_ITEMS = 4;
+/** The lines under the items: the total, the rule, the site. */
+const LINES_AFTER_ITEMS = 3;
 
 /**
  * A line of the bill, held back until the sheet lands. `printing` takes the
@@ -114,11 +114,6 @@ const styles = create({
   billSiteLink: {
     color: 'inherit',
     textDecorationLine: 'none',
-  },
-  billTerms: {
-    color: colors.muted,
-    fontSize: 12,
-    margin: 0,
   },
   paper: {
     maxWidth: 480,
@@ -203,10 +198,6 @@ const styles = create({
     borderBlockStartColor: colors.border,
     borderBlockStartStyle: 'solid',
     borderBlockStartWidth: 1,
-  },
-  receiptThanks: {
-    fontWeight: font.weightMedium,
-    margin: 0,
   },
   // The amount due: a heavy rule over it, the way a bill sets its total apart.
   receiptTotal: {
@@ -335,7 +326,7 @@ export function Receipt({
   };
   const reduced = useReducedMotion();
   // What the bill says, in the order the till prints it: four meta rows, the
-  // column heads, the day itself, the items the day bought, and four lines
+  // column heads, the day itself, the items the day bought, and three lines
   // under them. Each line's place in that order is its place in the queue.
   const meta = [
     { label: m.home_bill_no_label(), value: number },
@@ -481,15 +472,7 @@ export function Receipt({
           variants={sheetLine}
           {...props(styles.receiptRule)}
         />
-        <motion.div
-          custom={(closeAt + 2) * beat}
-          variants={sheetLine}
-          {...props(styles.receiptBlock)}
-        >
-          <p {...props(styles.billTerms)}>{m.home_bill_terms_label()}</p>
-          <p {...props(styles.receiptThanks)}>{m.home_receipt_thanks()}</p>
-        </motion.div>
-        <motion.p custom={(closeAt + 3) * beat} variants={sheetLine} {...props(styles.billSite)}>
+        <motion.p custom={(closeAt + 2) * beat} variants={sheetLine} {...props(styles.billSite)}>
           <a data-plain="" href={SITE_URL} {...props(styles.billSiteLink)}>
             {m.home_receipt_store_url()}
           </a>
