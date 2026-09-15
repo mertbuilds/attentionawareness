@@ -26,6 +26,16 @@ const SITE_NAME = 'attention awareness';
 const RECALL_SCRIPT =
   "try{if(localStorage.getItem('aa:hours'))document.documentElement.setAttribute('data-aa-hours','')}catch(e){}";
 const SITE_URL = 'https://attentionawareness.com';
+/** The site's own OpenPanel project. The id is public by design. */
+const ANALYTICS_CLIENT_ID = '7969381f-4a54-484b-abe4-79148bce2206';
+/**
+ * Loads the analytics through the site's own proxy. Page views only, no link
+ * or attribute tracking, and nothing at all from an automated browser.
+ */
+const ANALYTICS_SCRIPT =
+  'if(!navigator.webdriver){window.op=window.op||function(){(window.op.q=window.op.q||[]).push(arguments)};' +
+  `window.op('init',{clientId:'${ANALYTICS_CLIENT_ID}',apiUrl:'/op',trackScreenViews:true,trackOutgoingLinks:false,trackAttributes:false});` +
+  "var s=document.createElement('script');s.src='/op/op1.js';s.async=true;document.head.appendChild(s)}";
 const OG_IMAGE = `${SITE_URL}/og.png`;
 /** What the site promises, in one line. The share cards lead with it. */
 const TAGLINE = 'The website that gives you 5 years of your life back';
@@ -118,6 +128,7 @@ function RootDocument({ children }: { children: ReactNode }) {
         {/* Before first paint: a reader with saved hours gets the root stamped,
         and the first screen stays hidden until the receipt is restored. */}
         <script dangerouslySetInnerHTML={{ __html: RECALL_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: ANALYTICS_SCRIPT }} />
       </head>
       <body>
         <Providers>
