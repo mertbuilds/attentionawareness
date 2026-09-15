@@ -307,6 +307,21 @@ function Count({ value }: { value: number }) {
   );
 }
 
+/** The big orange figure and its unit, as every picker on the page reads it. */
+export function HourReadout({ hours }: { hours: number }) {
+  const reading = hours === 1 ? m.home_gate_reading_one() : m.home_gate_reading({ hours });
+  return (
+    <div {...props(styles.stepper)}>
+      <p aria-hidden="true" {...props(styles.gateReading, styles.sliderReading)}>
+        <Count value={hours} />
+      </p>
+      <span aria-hidden="true" {...props(styles.stepUnit, styles.sliderUnit)}>
+        {reading.replace(String(hours), '').trim()}
+      </span>
+    </div>
+  );
+}
+
 export function clampHours(value: number): number {
   return Math.min(Math.max(value, HOURS_MIN), HOURS_MAX);
 }
