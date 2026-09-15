@@ -48,12 +48,12 @@ const styles = create({
   },
   // The document's name, the way an invoice prints it: large, top right.
   billKind: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: font.weightBold,
-    letterSpacing: '0.06em',
-    lineHeight: 1,
+    letterSpacing: '-0.01em',
+    lineHeight: 1.1,
     margin: 0,
-    textTransform: 'uppercase',
+    textAlign: 'end',
   },
   // Bill number, date, due, billed to: label on the left, value on the right.
   billMeta: {
