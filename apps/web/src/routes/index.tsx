@@ -454,10 +454,12 @@ const styles = create({
     padding: 0,
     width: 40,
   },
+  // The buttons are 40px tall and the brand mark 24px, both from a 16px top:
+  // pulled up by half the difference, their centres meet on one line.
   tools: {
     display: 'flex',
     gap: spacing.s1,
-    insetBlockStart: spacing.s4,
+    insetBlockStart: spacing.s2,
     insetInlineEnd: spacing.s4,
     position: 'fixed',
     zIndex: 30,
