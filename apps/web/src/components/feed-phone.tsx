@@ -17,6 +17,8 @@ const POST_COUNT = 24;
 const POST_HEIGHT = 140;
 const PHONE_WIDTH = 176;
 const PHONE_HEIGHT = 320;
+/** On a short screen the whole first screen must still fit above the fold. */
+const PHONE_HEIGHT_SHORT = 240;
 /** The placeholder blocks of a post: a shade off the screen in both themes. */
 const BLOCK = `color-mix(in srgb, ${colors.fg} 10%, transparent)`;
 const BLOCK_STRONG = `color-mix(in srgb, ${colors.fg} 16%, transparent)`;
@@ -76,7 +78,10 @@ const styles = create({
     },
     boxSizing: 'border-box',
     cursor: 'grab',
-    height: PHONE_HEIGHT,
+    height: {
+      '@media (max-height: 720px)': PHONE_HEIGHT_SHORT,
+      default: PHONE_HEIGHT,
+    },
     outlineStyle: 'none',
     overflow: 'hidden',
     position: 'relative',
@@ -208,6 +213,7 @@ export function FeedPhone({ onPick, sound }: { onPick: (hours: number) => void; 
   const [hours, setHours] = useState(HOURS_DEFAULT);
   const [offset, setOffset] = useState(offsetFor(HOURS_DEFAULT));
   const [held, setHeld] = useState(false);
+  const holding = useRef(false);
   const [touched, setTouched] = useState(false);
   const phone = useRef<HTMLDivElement>(null);
   const travelled = useRef(offsetFor(HOURS_DEFAULT));
@@ -264,12 +270,13 @@ export function FeedPhone({ onPick, sound }: { onPick: (hours: number) => void; 
   function onPointerDown(event: React.PointerEvent<HTMLDivElement>) {
     event.currentTarget.setPointerCapture(event.pointerId);
     lastY.current = event.clientY;
+    holding.current = true;
     setHeld(true);
     setTouched(true);
   }
 
   function onPointerMove(event: React.PointerEvent<HTMLDivElement>) {
-    if (!held) {
+    if (!holding.current) {
       return;
     }
     // A finger dragging up pulls the feed up: the feed scrolls down.
@@ -278,10 +285,13 @@ export function FeedPhone({ onPick, sound }: { onPick: (hours: number) => void; 
   }
 
   function onPointerUp(event: React.PointerEvent<HTMLDivElement>) {
-    if (!held) {
+    if (!holding.current) {
       return;
     }
-    event.currentTarget.releasePointerCapture(event.pointerId);
+    holding.current = false;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
     setHeld(false);
     letGo();
   }

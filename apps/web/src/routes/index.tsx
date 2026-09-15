@@ -251,8 +251,12 @@ const styles = create({
     insetInlineStart: 0,
     justifyContent: 'center',
     // Pinned to the screen, not the hero: the hero can be taller than the
-    // viewport, and the row must sit at the foot of what is seen.
-    position: 'fixed',
+    // viewport, and the row must sit at the foot of what is seen. On a short
+    // screen there is no foot to spare, so it takes its place in the column.
+    position: {
+      '@media (max-height: 720px)': 'static',
+      default: 'fixed',
+    },
     width: '100%',
     zIndex: 20,
   },
@@ -471,6 +475,7 @@ const styles = create({
     display: 'flex',
     flexDirection: 'column',
     gap: {
+      '@media (max-height: 720px)': spacing.s4,
       '@media (min-width: 640px)': spacing.s8,
       default: spacing.s6,
     },
