@@ -218,15 +218,16 @@ const styles = create({
     textAlign: 'end',
     whiteSpace: 'nowrap',
   },
-  // Rubber stamp: slapped on over the total. The tilt is in the picture.
+  // Rubber stamp: slapped across the middle of the bill, tilted a little
+  // past the tilt the picture already has.
   stamp: {
     height: 'auto',
-    insetBlockStart: '78%',
+    insetBlockStart: '50%',
     insetInlineStart: '50%',
     pointerEvents: 'none',
     position: 'absolute',
-    transform: 'translate(-50%, -50%)',
-    width: '80%',
+    transform: 'translate(-50%, -50%) rotate(-10deg)',
+    width: '84%',
   },
   stamped: {
     position: 'relative',
