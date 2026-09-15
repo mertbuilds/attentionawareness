@@ -102,8 +102,6 @@ const billLeave = keyframes({
 });
 /** One hand of the six-seven: up, and down, while the other does the reverse. */
 const weigh = keyframes({
-  // The rise is its own property, so the left hand keeps its mirror while
-  // it bobs.
   '0%': { translate: '0 0' },
   '100%': { translate: '0 0' },
   '50%': { translate: '0 -6px' },
@@ -343,9 +341,6 @@ const styles = create({
   },
   // The hands only move while they show, so each showing starts from rest
   // and the first rise lands with the feed's step to seven.
-  handLeft: {
-    transform: 'scaleX(-1)',
-  },
   handMoving: {
     animationName: weigh,
   },
@@ -737,9 +732,7 @@ function HeroTitle({ hours, sixSeven }: { hours: number; sixSeven: boolean }) {
               {/* Six, seven. Palms up, one hand rising as the other falls:
               the gesture the number pair comes with now. */}
               <span aria-hidden="true" {...props(styles.hands, sixSeven && styles.handsShown)}>
-                <span {...props(styles.hand, styles.handLeft, sixSeven && styles.handMoving)}>
-                  🫴
-                </span>
+                <span {...props(styles.hand, sixSeven && styles.handMoving)}>🫴</span>
                 <span {...props(styles.hand, styles.handRight, sixSeven && styles.handMoving)}>
                   🫴
                 </span>
