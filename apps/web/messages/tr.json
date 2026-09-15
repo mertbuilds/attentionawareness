@@ -10,7 +10,7 @@
   "home_gate_unit": "saat",
   "home_gate_unit_one": "saat",
   "home_gate_cta": "Bedelini gör",
-  "home_gate_scroll_hint": "Akışı kaydır. Her video bir saat.",
+  "home_gate_scroll_hint": "Her zamanki gibi kaydır, saatlerini ayarla",
   "home_gate_source": "DataReportal, 2024",
   "home_gate_slider_label": "Günde telefonda kaç saat",
   "home_gate_reading": "{hours} saat",
