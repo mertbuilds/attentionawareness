@@ -412,7 +412,16 @@ export function ScreenTimeGate({
  * for the reader until they drag it. The moment the drag ends, or Enter is
  * pressed, the rail hands its value over and the stepper takes its place.
  */
-export function HourSlider({ onPick, sound }: { onPick: (hours: number) => void; sound: boolean }) {
+export function HourSlider({
+  onPick,
+  onTouch,
+  sound,
+}: {
+  onPick: (hours: number) => void;
+  /** The reader took hold of the rail: the show stops and the page may react. */
+  onTouch?: (() => void) | undefined;
+  sound: boolean;
+}) {
   const [hours, setHours] = useState(HOURS_DEFAULT);
   const reading = hours === 1 ? m.home_gate_reading_one() : m.home_gate_reading({ hours });
   // The rail shows itself once: the knob glides up to nine, down to six
@@ -503,6 +512,9 @@ export function HourSlider({ onPick, sound }: { onPick: (hours: number) => void;
   const travelled = ((shown - HOURS_MIN) / (HOURS_MAX - HOURS_MIN)) * 100;
 
   function hold() {
+    if (!held.current) {
+      onTouch?.();
+    }
     held.current = true;
     if (timer.current !== null) {
       clearTimeout(timer.current);

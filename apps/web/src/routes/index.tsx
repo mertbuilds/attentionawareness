@@ -170,12 +170,30 @@ const styles = create({
   // do about it. One column at every width, because the order is the argument.
   // The same box as `content`, so the whole page keeps one left edge; what
   // stands in it is narrower, because a line this size is read, not scanned.
+  // Hidden in place until the rail is held, then faded in: the box is laid
+  // out from the first paint, so the page does not move when it shows.
+  gateCta: {
+    opacity: 0,
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: '250ms',
+    },
+    transitionProperty: 'opacity, visibility',
+    transitionTimingFunction: 'ease-in-out',
+    visibility: 'hidden',
+  },
+  gateCtaShown: {
+    opacity: 1,
+    visibility: 'visible',
+  },
   gateNote: {
     color: colors.muted,
     fontSize: font.sizeSm,
     lineHeight: 1.5,
     margin: 0,
-    marginBlockStart: `calc(-1 * ${spacing.s4})`,
+    maxWidth: '40ch',
+    paddingInline: spacing.s4,
+    textAlign: 'center',
     textWrap: 'pretty',
   },
   gateSource: {
@@ -226,7 +244,10 @@ const styles = create({
   // Theme and language, at the foot of the first screen and nowhere else on
   // it: the same row the footer carries, for a reader who has not scrolled.
   heroPrefs: {
+    alignItems: 'center',
     display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s4,
     insetBlockEnd: spacing.s6,
     insetInlineStart: 0,
     justifyContent: 'center',
@@ -510,6 +531,9 @@ function HomePage() {
   const [hours, setHours] = useState(HOURS_DEFAULT);
   // Whether the reader has touched the dial: the receipt is empty until then.
   const [touched, setTouched] = useState(false);
+  // Whether the reader has taken hold of the rail: the way to the bill shows
+  // itself then, and not before.
+  const [picked, setPicked] = useState(false);
   // The date on the bill: when the page was opened, not when it was rung up.
   const [printedAt] = useState(() => new Date());
   const [sound, setSound] = useState(true);
@@ -571,12 +595,18 @@ function HomePage() {
   function onHoursChange(value: number) {
     const next = clampHours(value);
     setHours(next);
-    rememberHours(next);
-    if (!touched) {
-      // iOS opens an audio device inside a gesture and nowhere else.
-      unlockTickSound();
-      setTouched(true);
+    if (touched) {
+      rememberHours(next);
     }
+  }
+
+  // The reader asked for the bill: the day they set is kept, and the bill
+  // unrolls for it.
+  function showBill() {
+    // iOS opens an audio device inside a gesture and nowhere else.
+    unlockTickSound();
+    rememberHours(hours);
+    setTouched(true);
   }
 
   // Back to the first screen: the remembered day is forgotten, the rail
@@ -585,6 +615,7 @@ function HomePage() {
     forgetHours();
     setHours(HOURS_DEFAULT);
     setTouched(false);
+    setPicked(false);
     window.scrollTo({ behavior: 'smooth', top: 0 });
   }
 
@@ -718,16 +749,27 @@ function HomePage() {
               {m.home_hero_title()}
               <ScreenTimeHelp />
             </h1>
-            <HourSlider onPick={onHoursChange} sound={tickAllowed(sound, soundChosen)} />
+            <HourSlider
+              onPick={onHoursChange}
+              onTouch={() => setPicked(true)}
+              sound={tickAllowed(sound, soundChosen)}
+            />
+            {/* In the page from the start, so nothing moves when it appears:
+            it fades in once the rail has been held. */}
+            <div aria-hidden={!picked} {...props(styles.gateCta, picked && styles.gateCtaShown)}>
+              <Button onClick={showBill} tabIndex={picked ? 0 : -1}>
+                {m.home_gate_cta()}
+              </Button>
+            </div>
             <div {...props(styles.heroPrefs)}>
+              <p {...props(styles.gateNote)}>
+                {m.home_gate_average()}{' '}
+                <a href={SOURCE_URL} rel="noreferrer" target="_blank" {...props(styles.gateSource)}>
+                  {m.home_gate_source()}
+                </a>
+              </p>
               <PreferencesRow />
             </div>
-            <p {...props(styles.gateNote)}>
-              {m.home_gate_average()}{' '}
-              <a href={SOURCE_URL} rel="noreferrer" target="_blank" {...props(styles.gateSource)}>
-                {m.home_gate_source()}
-              </a>
-            </p>
           </div>
         )}
         {/* The receipt: empty until the reader touches the dial, then priced
