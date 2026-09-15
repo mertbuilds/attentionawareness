@@ -332,7 +332,9 @@ export function Receipt({
     { label: m.home_bill_to_label(), value: m.home_bill_to_value() },
   ];
   const rows = worth.filter((row) => row.amount > 0);
-  const itemsAt = meta.length + 2;
+  // The head of the bill lands in one go; from the screen time row down,
+  // one line a beat.
+  const itemsAt = 2;
   const closeAt = itemsAt + rows.length;
   const beat = LINE_STAGGER_MS / 1000;
   // A reader who asked for less motion is handed the whole bill at once.
@@ -346,9 +348,9 @@ export function Receipt({
       >
         <p {...props(styles.billKind)}>{m.home_bill_kind()}</p>
         <dl {...props(styles.billMeta)}>
-          {meta.map((row, index) => (
+          {meta.map((row) => (
             <motion.div
-              custom={index * beat}
+              custom={0}
               key={row.label}
               variants={sheetLine}
               {...props(styles.billMetaRow)}
@@ -358,17 +360,13 @@ export function Receipt({
             </motion.div>
           ))}
         </dl>
-        <motion.p custom={meta.length * beat} variants={sheetLine} {...props(styles.billColumns)}>
+        <motion.p custom={0} variants={sheetLine} {...props(styles.billColumns)}>
           <span>{m.home_bill_col_item()}</span>
           <span>{m.home_bill_col_qty()}</span>
         </motion.p>
         {/* The quantity on the bill: the hours a day, and on the live copy
         the minus and plus that correct them. */}
-        <motion.p
-          custom={(meta.length + 1) * beat}
-          variants={sheetLine}
-          {...props(styles.receiptRow)}
-        >
+        <motion.p custom={beat} variants={sheetLine} {...props(styles.receiptRow)}>
           <span>{m.home_receipt_screen_label()}</span>
           <span {...props(styles.receiptQty)}>
             {onChange === undefined ? null : (
