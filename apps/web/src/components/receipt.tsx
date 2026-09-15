@@ -2,6 +2,7 @@ import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import NumberFlow from '@number-flow/react';
 import { create, props } from '@stylexjs/stylex';
+import { motion, useReducedMotion, type Variants } from 'motion/react';
 import {
   formatYears,
   heroMetrics,
@@ -26,6 +27,37 @@ const PAPER = `color-mix(in srgb, ${colors.bg} 92%, ${colors.fg})`;
 /** Paper grain: one tile of fractal noise, faint, laid over the ground. */
 const PAPER_GRAIN =
   "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='4' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.16 0'/></filter><rect width='160' height='160' filter='url(%23g)'/></svg>\")";
+/**
+ * The sheet prints itself: every line under the title rises out of a blur,
+ * one after the next, top to bottom. The measures are the motion tokens for
+ * a text reveal - a 12px rise, a 3px blur, 500ms a line, 40ms between two.
+ */
+const LINE_BLUR = 3;
+const LINE_DISTANCE = 12;
+const LINE_MS = 500;
+const LINE_STAGGER_MS = 40;
+const SMOOTH_OUT: [number, number, number, number] = [0.22, 1, 0.36, 1];
+/** How long the whole sheet may take to print, however many lines it holds. */
+const PRINT_SPAN_MS = 720;
+/** The lines under the items: the total, the rule, the terms, the site. */
+const LINES_AFTER_ITEMS = 4;
+
+/**
+ * A line of the bill, held back until the sheet lands. `printing` takes the
+ * line's own delay as its custom value; `printed` is the whole bill at once,
+ * for a restored one and for the picture on a share card.
+ */
+const sheetLine: Variants = {
+  held: { filter: `blur(${LINE_BLUR}px)`, opacity: 0, y: LINE_DISTANCE },
+  printed: { filter: 'blur(0px)', opacity: 1, transition: { duration: 0 }, y: 0 },
+  printing: (delay: number) => ({
+    filter: 'blur(0px)',
+    opacity: 1,
+    transition: { delay, duration: LINE_MS / 1000, ease: SMOOTH_OUT },
+    y: 0,
+  }),
+};
+
 const styles = create({
   // The document's name, the way an invoice prints it: large, top right.
   billKind: {
@@ -44,16 +76,21 @@ const styles = create({
     textAlign: 'center',
   },
   // Bill number, date, due, billed to: label on the left, value on the right.
+  // One row per pair, because each of them prints as its own line.
   billMeta: {
-    columnGap: spacing.s4,
-    display: 'grid',
-    gridTemplateColumns: 'auto 1fr',
+    display: 'flex',
+    flexDirection: 'column',
     margin: 0,
     rowGap: 2,
   },
   billMetaLabel: {
     color: colors.muted,
     margin: 0,
+  },
+  billMetaRow: {
+    columnGap: spacing.s4,
+    display: 'flex',
+    justifyContent: 'space-between',
   },
   billMetaValue: {
     fontVariantNumeric: 'tabular-nums',
@@ -239,6 +276,7 @@ export function Receipt({
   hours,
   number,
   onChange,
+  print = 'printed',
   printedOn,
   refunded = false,
   sound = false,
@@ -247,6 +285,11 @@ export function Receipt({
   number: string;
   /** Given, the screen time row carries a minus and a plus for correcting it. */
   onChange?: (hours: number) => void;
+  /**
+   * How the lines under the title arrive: all of them at once, held back
+   * behind the title, or printed one after the next.
+   */
+  print?: 'held' | 'printed' | 'printing';
   printedOn: string;
   refunded?: boolean;
   sound?: boolean;
@@ -290,29 +333,56 @@ export function Receipt({
     skills: m.home_receipt_skills_label,
     travel: m.home_receipt_travel_label,
   };
+  const reduced = useReducedMotion();
+  // What the bill says, in the order the till prints it: four meta rows, the
+  // column heads, the day itself, the items the day bought, and four lines
+  // under them. Each line's place in that order is its place in the queue.
+  const meta = [
+    { label: m.home_bill_no_label(), value: number },
+    { label: m.home_bill_date_label(), value: printedOn },
+    { label: m.home_bill_due_label(), value: m.home_bill_due_value({ years: HORIZON_YEARS }) },
+    { label: m.home_bill_to_label(), value: m.home_bill_to_value() },
+  ];
+  const rows = worth.filter((row) => row.amount > 0);
+  const itemsAt = meta.length + 2;
+  const closeAt = itemsAt + rows.length;
+  // A longer day buys more lines, and the sheet still prints inside one span.
+  const beat =
+    Math.min(LINE_STAGGER_MS, PRINT_SPAN_MS / Math.max(closeAt + LINES_AFTER_ITEMS - 1, 1)) / 1000;
+  // A reader who asked for less motion is handed the whole bill at once.
+  const state = reduced ? 'printed' : print;
   return (
     <div {...props(styles.paper)}>
-      <div {...props(styles.receipt, refunded && styles.stamped)}>
+      <motion.div
+        animate={state}
+        initial={false}
+        {...props(styles.receipt, refunded && styles.stamped)}
+      >
         <p {...props(styles.billKind)}>{m.home_bill_kind()}</p>
         <dl {...props(styles.billMeta)}>
-          <dt {...props(styles.billMetaLabel)}>{m.home_bill_no_label()}</dt>
-          <dd {...props(styles.billMetaValue)}>{number}</dd>
-          <dt {...props(styles.billMetaLabel)}>{m.home_bill_date_label()}</dt>
-          <dd {...props(styles.billMetaValue)}>{printedOn}</dd>
-          <dt {...props(styles.billMetaLabel)}>{m.home_bill_due_label()}</dt>
-          <dd {...props(styles.billMetaValue)}>
-            {m.home_bill_due_value({ years: HORIZON_YEARS })}
-          </dd>
-          <dt {...props(styles.billMetaLabel)}>{m.home_bill_to_label()}</dt>
-          <dd {...props(styles.billMetaValue)}>{m.home_bill_to_value()}</dd>
+          {meta.map((row, index) => (
+            <motion.div
+              custom={index * beat}
+              key={row.label}
+              variants={sheetLine}
+              {...props(styles.billMetaRow)}
+            >
+              <dt {...props(styles.billMetaLabel)}>{row.label}</dt>
+              <dd {...props(styles.billMetaValue)}>{row.value}</dd>
+            </motion.div>
+          ))}
         </dl>
-        <p {...props(styles.billColumns)}>
+        <motion.p custom={meta.length * beat} variants={sheetLine} {...props(styles.billColumns)}>
           <span>{m.home_bill_col_item()}</span>
           <span>{m.home_bill_col_qty()}</span>
-        </p>
+        </motion.p>
         {/* The quantity on the bill: the hours a day, and on the live copy
         the minus and plus that correct them. */}
-        <p {...props(styles.receiptRow)}>
+        <motion.p
+          custom={(meta.length + 1) * beat}
+          variants={sheetLine}
+          {...props(styles.receiptRow)}
+        >
           <span>{m.home_receipt_screen_label()}</span>
           <span {...props(styles.receiptQty)}>
             {onChange === undefined ? null : (
@@ -359,24 +429,27 @@ export function Receipt({
               </button>
             )}
           </span>
-        </p>
+        </motion.p>
         {/* What the same hours would have bought, smallest to largest. */}
         <div {...props(styles.receiptBlock)}>
-          {worth
-            .filter((row) => row.amount > 0)
-            .map((row) => (
-              <p key={row.key} {...props(styles.receiptRow)}>
-                <span {...props(styles.receiptLabel)}>
-                  {labels[row.key]?.() ?? row.key}
-                  <InfoTip label={m.home_receipt_tip_label()}>{tips[row.key]?.()}</InfoTip>
-                </span>
-                <span {...props(styles.receiptValue)}>
-                  <NumberFlow locales={locale} value={row.amount} />
-                </span>
-              </p>
-            ))}
+          {rows.map((row, index) => (
+            <motion.p
+              custom={(itemsAt + index) * beat}
+              key={row.key}
+              variants={sheetLine}
+              {...props(styles.receiptRow)}
+            >
+              <span {...props(styles.receiptLabel)}>
+                {labels[row.key]?.() ?? row.key}
+                <InfoTip label={m.home_receipt_tip_label()}>{tips[row.key]?.()}</InfoTip>
+              </span>
+              <span {...props(styles.receiptValue)}>
+                <NumberFlow locales={locale} value={row.amount} />
+              </span>
+            </motion.p>
+          ))}
         </div>
-        <div {...props(styles.receiptTotal)}>
+        <motion.div custom={closeAt * beat} variants={sheetLine} {...props(styles.receiptTotal)}>
           <p {...props(styles.receiptTotalHeading)}>
             {m.home_receipt_total_label()}
             <InfoTip label={m.home_receipt_tip_label()}>
@@ -401,21 +474,30 @@ export function Receipt({
               {m.home_receipt_total_note({ years: HORIZON_YEARS })}
             </span>
           </p>
-        </div>
-        <div aria-hidden="true" {...props(styles.receiptRule)} />
-        <div {...props(styles.receiptBlock)}>
+        </motion.div>
+        <motion.div
+          aria-hidden="true"
+          custom={(closeAt + 1) * beat}
+          variants={sheetLine}
+          {...props(styles.receiptRule)}
+        />
+        <motion.div
+          custom={(closeAt + 2) * beat}
+          variants={sheetLine}
+          {...props(styles.receiptBlock)}
+        >
           <p {...props(styles.billTerms)}>{m.home_bill_terms_label()}</p>
           <p {...props(styles.receiptThanks)}>{m.home_receipt_thanks()}</p>
-        </div>
-        <p {...props(styles.billSite)}>
+        </motion.div>
+        <motion.p custom={(closeAt + 3) * beat} variants={sheetLine} {...props(styles.billSite)}>
           <a data-plain="" href={SITE_URL} {...props(styles.billSiteLink)}>
             {m.home_receipt_store_url()}
           </a>
-        </p>
+        </motion.p>
         {refunded ? (
           <img alt={m.home_receipt_refunded()} src={STAMP_URL} {...props(styles.stamp)} />
         ) : null}
-      </div>
+      </motion.div>
     </div>
   );
 }

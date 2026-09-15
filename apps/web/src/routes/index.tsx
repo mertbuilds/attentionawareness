@@ -4,7 +4,7 @@ import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, firstThatWorks, keyframes, props } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { motion } from 'motion/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Restart, VolumeCross, VolumeUp } from 'reicon-react';
 import { DEMO_FROM, FeedPhone } from '../components/feed-phone.tsx';
 import { GridTexture } from '../components/grid-texture.tsx';
@@ -61,8 +61,17 @@ const STORY_URL = 'https://stopa.io/post/297';
 const LINK_SLOT = '\u0000';
 /** A till pads its receipt numbers. */
 const RECEIPT_DIGITS = 6;
-/** How long the receipt takes to unroll, and the hero to drift up over it. */
+/** How long the receipt takes to roll back up when the reader starts over. */
 const EXPAND_MS = '500ms';
+/** How long the first screen takes to leave, and the bill to arrive under it. */
+const SLIDE_MS = 500;
+const SLIDE_DURATION = `${SLIDE_MS}ms`;
+const SLIDE_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
+/** The blur the two screens carry while they travel. */
+const SLIDE_BLUR = '3px';
+
+/** Where the bill is between the question being asked and it being answered. */
+type BillStage = 'held' | 'printed' | 'printing' | 'sliding';
 
 /**
  * Each beat of the answer arriving: nothing is on the page until the question
@@ -70,6 +79,20 @@ const EXPAND_MS = '500ms';
  */
 const revealEnter = keyframes({
   from: { filter: 'blur(2px)', opacity: 0, transform: 'translateY(4px)' },
+  to: { filter: 'blur(0)', opacity: 1, transform: 'translateY(0)' },
+});
+
+/**
+ * The question leaving and the answer arriving, together. The page reads as
+ * one screen scrolled up over another: one goes a screen up and off, the
+ * other comes a screen down into the place it left.
+ */
+const screenLeave = keyframes({
+  from: { filter: 'blur(0)', opacity: 1, transform: 'translateY(0)' },
+  to: { filter: `blur(${SLIDE_BLUR})`, opacity: 0, transform: 'translateY(-100svh)' },
+});
+const billArrive = keyframes({
+  from: { filter: `blur(${SLIDE_BLUR})`, opacity: 0, transform: 'translateY(100svh)' },
   to: { filter: 'blur(0)', opacity: 1, transform: 'translateY(0)' },
 });
 
@@ -111,6 +134,16 @@ const styles = create({
     marginInlineStart: 'auto',
     padding: 0,
   },
+  // The bill, and the words under it, riding up into the screen the question
+  // has just left.
+  billArriving: {
+    animationDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: SLIDE_DURATION,
+    },
+    animationName: billArrive,
+    animationTimingFunction: SLIDE_EASE,
+  },
   content: {
     display: 'flex',
     flexDirection: 'column',
@@ -141,30 +174,43 @@ const styles = create({
   expand: {
     display: 'grid',
     gridTemplateRows: '0fr',
-    transitionDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: EXPAND_MS,
-    },
     transitionProperty: 'grid-template-rows',
-    transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
+    transitionTimingFunction: SLIDE_EASE,
     width: '100%',
   },
   expandInner: {
     minHeight: 0,
     opacity: 0,
     overflow: 'hidden',
-    transitionDelay: '150ms',
-    transitionDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: EXPAND_MS,
-    },
     transitionProperty: 'opacity',
   },
   expandInnerOpen: {
     opacity: 1,
   },
+  // Opening is not a tween any more: the box takes its full height at once,
+  // under a bill that slides into it. Only the way back is drawn.
+  expandInnerSnap: {
+    transitionDelay: '0ms',
+    transitionDuration: '0ms',
+  },
+  expandInnerTween: {
+    transitionDelay: '150ms',
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: EXPAND_MS,
+    },
+  },
   expandOpen: {
     gridTemplateRows: '1fr',
+  },
+  expandSnap: {
+    transitionDuration: '0ms',
+  },
+  expandTween: {
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: EXPAND_MS,
+    },
   },
   // The first screen, whole, and one thing at a time down it: the question,
   // then the lines the answer earns, then the total they come to, then what to
@@ -489,6 +535,25 @@ const styles = create({
     minHeight: 0,
     width: '100%',
   },
+  // On its way out: pinned where it stood, so it leaves from there, and over
+  // the bill coming up under it.
+  untouchedLeaving: {
+    animationDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: SLIDE_DURATION,
+    },
+    animationFillMode: 'forwards',
+    animationName: screenLeave,
+    animationTimingFunction: SLIDE_EASE,
+    insetInlineEnd: 0,
+    insetInlineStart: 0,
+    pointerEvents: 'none',
+    position: 'absolute',
+    zIndex: 1,
+  },
+  untouchedLeavingAt: (top: number) => ({
+    insetBlockStart: top,
+  }),
 });
 
 /**
@@ -602,6 +667,13 @@ function HomePage() {
   const [hours, setHours] = useState(DEMO_FROM);
   // Whether the reader has touched the dial: the receipt is empty until then.
   const [touched, setTouched] = useState(false);
+  // How the bill got here: held behind the first screen, sliding up into the
+  // place it leaves, printing its lines, or simply on the page.
+  const [stage, setStage] = useState<BillStage>('held');
+  // Where the first screen stood when it was asked to go, so it leaves from
+  // there and not from the top of the column.
+  const [leaveTop, setLeaveTop] = useState(0);
+  const firstScreen = useRef<HTMLDivElement>(null);
   // Whether the reader has set the rail down once: the way to the bill shows
   // itself then, and not before.
   const [picked, setPicked] = useState(false);
@@ -616,8 +688,10 @@ function HomePage() {
     const shared = decodeShare(globalThis.location.search);
     const remembered = recallHours();
     if (shared.hours === undefined && remembered !== null) {
-      // The reader has been here: the receipt opens where they left it.
+      // The reader has been here: the receipt opens where they left it,
+      // whole, because it was printed on the last visit.
       setHours(remembered);
+      setStage('printed');
       setTouched(true);
     }
     // From here on React owns the first screen; the pre-paint stamp that hid
@@ -627,20 +701,32 @@ function HomePage() {
       // A friend already answered the question, so the page opens on their
       // number, printed.
       setHours(shared.hours);
+      setStage('printed');
       setTouched(true);
       setFriendYears(formatYears(shared.hours));
     }
   }, []);
   /* oxlint-enable react/set-state-in-effect */
 
-  // The first screen is the whole page until the dial is touched: nothing
-  // under it can be scrolled to before the receipt exists.
+  // The first screen is the whole page until the dial is touched, and stays
+  // the whole page while it leaves: nothing under it can be scrolled to
+  // before the bill has landed in its place.
   useEffect(() => {
-    document.documentElement.style.overflow = touched ? '' : 'hidden';
+    document.documentElement.style.overflow = touched && stage !== 'sliding' ? '' : 'hidden';
     return () => {
       document.documentElement.style.overflow = '';
     };
-  }, [touched]);
+  }, [stage, touched]);
+
+  // The screens have swapped: the page is free again, and the bill prints
+  // the rest of itself line by line.
+  useEffect(() => {
+    if (stage !== 'sliding') {
+      return;
+    }
+    const timer = setTimeout(() => setStage('printing'), SLIDE_MS);
+    return () => clearTimeout(timer);
+  }, [stage]);
 
   // iOS Safari opens an audio device inside a gesture and nowhere else, so the
   // first gesture it accepts anywhere on the page opens one. Once that works
@@ -680,6 +766,10 @@ function HomePage() {
     // iOS opens an audio device inside a gesture and nowhere else.
     unlockTickSound();
     rememberHours(hours);
+    // Measured before the screen is taken out of the column, so it leaves
+    // from exactly where the reader last saw it.
+    setLeaveTop(firstScreen.current?.offsetTop ?? 0);
+    setStage('sliding');
     setTouched(true);
   }
 
@@ -688,6 +778,7 @@ function HomePage() {
   function reset() {
     forgetHours();
     setHours(HOURS_DEFAULT);
+    setStage('held');
     setTouched(false);
     setPicked(false);
     window.scrollTo({ behavior: 'smooth', top: 0 });
@@ -817,8 +908,16 @@ function HomePage() {
         script in the head stamps the root before first paint, and the
         `data-aa-untouched` block is hidden by a global rule until React
         restores the receipt. */}
-        {touched ? null : (
-          <div data-aa-untouched="" {...props(styles.untouched)}>
+        {touched && stage !== 'sliding' ? null : (
+          <div
+            data-aa-untouched=""
+            ref={firstScreen}
+            {...props(
+              styles.untouched,
+              stage === 'sliding' && styles.untouchedLeaving,
+              stage === 'sliding' && styles.untouchedLeavingAt(leaveTop),
+            )}
+          >
             <h1 {...props(styles.heroTitle)}>
               <HeroTitle hours={hours} />
               <AverageHelp />
@@ -842,15 +941,30 @@ function HomePage() {
         )}
         {/* The receipt: empty until the reader touches the dial, then priced
         live against it. Every figure on it rolls as the hours change. */}
-        <section aria-live="polite" {...props(styles.receiptWrap)}>
-          <div {...props(styles.expand, touched && styles.expandOpen)}>
+        <section
+          aria-live="polite"
+          {...props(styles.receiptWrap, stage === 'sliding' && styles.billArriving)}
+        >
+          <div
+            {...props(
+              styles.expand,
+              touched ? styles.expandSnap : styles.expandTween,
+              touched && styles.expandOpen,
+            )}
+          >
             <div
-              {...props(styles.expandInner, touched && styles.expandInnerOpen, styles.receiptSlot)}
+              {...props(
+                styles.expandInner,
+                touched ? styles.expandInnerSnap : styles.expandInnerTween,
+                touched && styles.expandInnerOpen,
+                styles.receiptSlot,
+              )}
             >
               <Receipt
                 hours={wholeHours}
                 number={receiptNo}
                 onChange={onHoursChange}
+                print={stage === 'sliding' ? 'held' : stage}
                 printedOn={printedOn}
                 sound={tickAllowed(sound, soundChosen)}
               />
@@ -858,8 +972,22 @@ function HomePage() {
             </div>
           </div>
         </section>
-        <div {...props(styles.expand, touched && styles.expandOpen)}>
-          <div {...props(styles.expandInner, touched && styles.expandInnerOpen, styles.heroPitch)}>
+        <div
+          {...props(
+            styles.expand,
+            touched ? styles.expandSnap : styles.expandTween,
+            touched && styles.expandOpen,
+            stage === 'sliding' && styles.billArriving,
+          )}
+        >
+          <div
+            {...props(
+              styles.expandInner,
+              touched ? styles.expandInnerSnap : styles.expandInnerTween,
+              touched && styles.expandInnerOpen,
+              styles.heroPitch,
+            )}
+          >
             <p {...props(styles.heroProduct)}>{m.home_hero_product()}</p>
             <div {...props(styles.heroActions)}>
               <Button render={<a href={`#${STORY_ID}`} />}>{m.home_hero_cta()}</Button>
