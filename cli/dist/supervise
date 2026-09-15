@@ -36,7 +36,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-__version__ = "0.2.1"
+__version__ = "0.2.2"
 
 EXIT_OK = 0
 EXIT_REFUSED = 1
@@ -721,8 +721,12 @@ def select_backup(udid: str | None = None, root: Path | None = None) -> Backup:
 # Patching
 
 
-def plan_patch(original: bytes, recorded_size: int) -> PatchPlan:
-    """Work out the new file bytes without writing anything."""
+def plan_patch(original: bytes, recorded_size: int, supervised: bool = True) -> PatchPlan:
+    """Work out the new file bytes without writing anything.
+
+    `supervised` is the state the backup should say afterwards: true to
+    supervise, false to take supervision off again.
+    """
     is_binary = original.startswith(b"bplist00")
     plist_format = plistlib.FMT_BINARY if is_binary else plistlib.FMT_XML
     content = plistlib.loads(original)
@@ -734,10 +738,11 @@ def plan_patch(original: bytes, recorded_size: int) -> PatchPlan:
         plist_format="binary" if is_binary else "xml",
         old_size=recorded_size,
     )
-    if content.get("IsSupervised") is not True:
-        plan.changes.append(f"IsSupervised: {plist_value(content.get('IsSupervised'))} -> true")
-        content["IsSupervised"] = True
-    if content.get("CloudConfigurationUIComplete") is False:
+    wanted = "true" if supervised else "false"
+    if content.get("IsSupervised") is not supervised:
+        plan.changes.append(f"IsSupervised: {plist_value(content.get('IsSupervised'))} -> {wanted}")
+        content["IsSupervised"] = supervised
+    if supervised and content.get("CloudConfigurationUIComplete") is False:
         plan.changes.append("CloudConfigurationUIComplete: false -> true")
         content["CloudConfigurationUIComplete"] = True
 
@@ -863,12 +868,13 @@ def apply_patch(backup: Backup, plan: PatchPlan) -> None:
     write_content(backup, plan.new_bytes)
 
 
-def verify_patch(backup: Backup) -> int:
+def verify_patch(backup: Backup, supervised: bool = True) -> int:
     """Re-read the patched backup. Return the byte size that both sides agree on."""
     plain = read_content(backup)
     content = plistlib.loads(plain)
-    if content.get("IsSupervised") is not True:
-        raise Refusal("Verification failed. IsSupervised is not true. Run the unpatch command.")
+    if content.get("IsSupervised") is not supervised:
+        wanted = "true" if supervised else "false"
+        raise Refusal(f"Verification failed. IsSupervised is not {wanted}. Run the unpatch command.")
     row = read_supervision_row(backup.path, backup.keys)
     if row is None:
         raise Refusal("Verification failed. Manifest.db lost the supervision row.")
@@ -1029,7 +1035,7 @@ def cmd_check(args) -> int:
     return EXIT_OK
 
 
-def print_checklist(backup: Backup) -> None:
+def print_checklist(backup: Backup, supervised: bool = True) -> None:
     print("")
     print("Now restore the backup in Finder:")
     print("  1. On the iPhone, turn off Stolen Device Protection.")
@@ -1042,13 +1048,26 @@ def print_checklist(backup: Backup) -> None:
     print("     Click Restore Backup and pick this backup:")
     print(f"     {backup.device_name}, made {backup.date}.")
     print("  4. Wait for the restore and the reboot. Open Settings on the iPhone.")
-    print("     The banner at the top must say that this iPhone is supervised.")
+    if supervised:
+        print("     The banner at the top must say that this iPhone is supervised.")
+    else:
+        print("     The supervision banner at the top must be gone, and with it")
+        print("     every profile that supervision held in place.")
     print("  5. Turn Find My iPhone on again.")
     print("  6. Run the verify command:")
     print("     supervise verify")
 
 
 def cmd_patch(args) -> int:
+    return patch_to(args, supervised=True)
+
+
+def cmd_unsupervise(args) -> int:
+    return patch_to(args, supervised=False)
+
+
+def patch_to(args, supervised: bool) -> int:
+    """Set the backup's supervision flag one way or the other, then verify it."""
     backup = unlock_if_encrypted(select_backup(args.udid), args)
     if not backup.has_supervision_row:
         raise Refusal(
@@ -1060,11 +1079,12 @@ def cmd_patch(args) -> int:
             f"The supervision file is missing at {backup.content_path}.\n"
             "The backup is incomplete. Make a new backup in Finder."
         )
-    if backup.is_supervised is True:
-        print("This backup already says that the iPhone is supervised. Nothing to change.")
+    if backup.is_supervised is supervised:
+        state = "supervised" if supervised else "not supervised"
+        print(f"This backup already says that the iPhone is {state}. Nothing to change.")
         return EXIT_OK
 
-    plan = plan_patch(read_content(backup), backup.recorded_size)
+    plan = plan_patch(read_content(backup), backup.recorded_size, supervised)
     refuse_slow_manifest_rewrite(backup, plan)
     print(describe_plan(backup, plan))
     if not args.yes:
@@ -1078,9 +1098,10 @@ def cmd_patch(args) -> int:
     print("")
     print(f"Saved the untouched files here: {pristine_dir}")
     apply_patch(backup, plan)
-    size = verify_patch(backup)
-    print(f"Patched. IsSupervised is true and the file is {size} bytes, as Manifest.db records.")
-    print_checklist(backup)
+    size = verify_patch(backup, supervised)
+    wanted = "true" if supervised else "false"
+    print(f"Patched. IsSupervised is {wanted} and the file is {size} bytes, as Manifest.db records.")
+    print_checklist(backup, supervised)
     return EXIT_OK
 
 
@@ -1205,6 +1226,15 @@ def build_parser() -> argparse.ArgumentParser:
     patch.add_argument("--yes", action="store_true", help="Do not ask for confirmation.")
     patch.add_argument("--password", help=PASSWORD_HELP)
     patch.set_defaults(handler=cmd_patch, json=False)
+
+    unsupervise = subparsers.add_parser(
+        "unsupervise",
+        help="Set IsSupervised to false in a backup, to take supervision off again.",
+    )
+    unsupervise.add_argument("--udid", help="Pick the backup with this UDID.")
+    unsupervise.add_argument("--yes", action="store_true", help="Do not ask for confirmation.")
+    unsupervise.add_argument("--password", help=PASSWORD_HELP)
+    unsupervise.set_defaults(handler=cmd_unsupervise, json=False)
 
     unpatch = subparsers.add_parser("unpatch", help="Put back the untouched copies of a backup.")
     unpatch.add_argument("--udid", help="Pick the backup with this UDID.")

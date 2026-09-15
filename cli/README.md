@@ -77,6 +77,7 @@ The tool has no dependencies. Python 3.9 or newer is enough.
 ```
 supervise check
 supervise patch
+supervise unsupervise
 supervise unpatch
 supervise verify
 supervise run
@@ -88,6 +89,8 @@ supervise run
   when you add `--password`.
 - `patch` sets the flag. It shows you what it will change and asks for confirmation.
   Add `--yes` to skip the question.
+- `unsupervise` sets the flag back to false, for taking supervision off again. Same
+  flow as `patch`: back up, run it, restore. Not yet verified on a device.
 - `unpatch` puts back the untouched copies that `patch` saved.
 - `verify` asks the connected iPhone whether it is supervised. It uses `cfgutil` from
   Apple Configurator.

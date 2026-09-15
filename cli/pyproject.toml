@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "supervise-iphone"
 # Keep in step with __version__ in src/supervise_iphone/cli.py.
-version = "0.2.1"
+version = "0.2.2"
 description = "Turn on iOS supervised mode without erasing the iPhone."
 readme = "README.md"
 requires-python = ">=3.9"
