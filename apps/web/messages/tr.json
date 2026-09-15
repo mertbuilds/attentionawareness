@@ -51,7 +51,7 @@
   "home_bill_date_label": "Düzenlenme",
   "home_bill_due_label": "Vade",
   "home_bill_due_value": "Önümüzdeki {years} yıl",
-  "home_bill_to_label": "Alıcı",
+  "home_bill_to_label": "Borçlu",
   "home_bill_to_value": "Sen",
   "home_bill_col_item": "Kalem",
   "home_bill_col_qty": "Miktar",
