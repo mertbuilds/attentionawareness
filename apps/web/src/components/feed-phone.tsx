@@ -67,31 +67,46 @@ const styles = create({
     width: '100%',
   },
   // The island at the top of the screen, over the feed.
+  // The island, at the top of the screen, over the feed: 126 by 37 points on
+  // a 393 point screen, 11 points down.
   island: {
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    backgroundColor: '#000',
     borderRadius: 999,
-    height: 18,
-    insetBlockStart: 8,
+    height: '9.4cqw',
+    insetBlockStart: 'calc(3cqw + 2.8cqw)',
     insetInlineStart: '50%',
     position: 'absolute',
     transform: 'translateX(-50%)',
-    width: 60,
+    width: '32cqw',
     zIndex: 2,
   },
-  // The phone: a dark slab with a screen cut into it. The screen clips the
-  // feed and takes every scroll and drag aimed at it.
+  // The phone's body: a titanium rim, a black bezel, and the screen cut into
+  // it with the corner an iPhone 15 Pro has. Everything is sized from the
+  // body's own width, so it is the same phone at every size.
   phone: {
-    aspectRatio: `${PHONE_WIDTH} / ${PHONE_HEIGHT}`,
-    backgroundColor: colors.bg,
-    borderColor: `color-mix(in srgb, ${colors.fg} 22%, ${colors.bg})`,
-    borderRadius: 26,
+    backgroundColor: '#000',
+    borderColor: `color-mix(in srgb, ${colors.fg} 26%, ${colors.bg})`,
+    borderRadius: '15.5cqw',
     borderStyle: 'solid',
-    borderWidth: 7,
+    borderWidth: '2.2cqw',
+    boxShadow: '0 12px 40px rgba(0, 0, 0, 0.35)',
+    boxSizing: 'border-box',
+    height: '100%',
+    overflow: 'hidden',
+    padding: '3cqw',
+    position: 'relative',
+    width: '100%',
+  },
+  // The box the phone is sized in: the shape of an iPhone 15 Pro, 71.6 by
+  // 146.6, and the thing that takes every scroll and drag aimed at it.
+  shell: {
+    aspectRatio: `${PHONE_WIDTH} / ${PHONE_HEIGHT}`,
+    borderRadius: '15.5cqw',
     boxShadow: {
       ':focus-visible': `0 0 0 3px ${colors.muted}`,
-      default: '0 12px 40px rgba(0, 0, 0, 0.35)',
+      default: 'none',
     },
-    boxSizing: 'border-box',
+    containerType: 'inline-size',
     cursor: 'grab',
     // On a phone it grows to the room it is given and keeps its shape; on a
     // wide screen it is a fixed size, shorter when the window is short.
@@ -106,18 +121,20 @@ const styles = create({
     },
     minHeight: 0,
     outlineStyle: 'none',
-    overflow: 'hidden',
     position: 'relative',
     touchAction: 'none',
     userSelect: 'none',
     // The width follows the height through the aspect ratio.
     width: 'auto',
   },
-  phoneHeld: {
+  shellHeld: {
     cursor: 'grabbing',
   },
+  // The screen inside the bezel, with the corner the display has.
   screen: {
+    borderRadius: '13cqw',
     height: '100%',
+    overflow: 'hidden',
     position: 'relative',
     width: '100%',
   },
@@ -128,9 +145,9 @@ const styles = create({
     display: 'flex',
     flexShrink: 0,
     justifyContent: 'space-between',
-    paddingBlockEnd: spacing.s4,
-    paddingBlockStart: spacing.s8,
-    paddingInline: spacing.s3,
+    paddingBlockEnd: '5cqw',
+    paddingBlockStart: '14cqw',
+    paddingInline: '4cqw',
     width: '100%',
   },
   videoActions: {
@@ -432,17 +449,19 @@ export function FeedPhone({
         ref={phone}
         role="slider"
         tabIndex={0}
-        {...props(styles.phone, held && styles.phoneHeld)}
+        {...props(styles.shell, held && styles.shellHeld)}
       >
-        <span aria-hidden="true" {...props(styles.island)} />
-        <div aria-hidden="true" ref={screen} {...props(styles.screen)}>
-          <div
-            style={{ transform: `translateY(${-position * screenHeight}px)` }}
-            {...props(styles.feed, snapping && styles.feedSnapping)}
-          >
-            {Array.from({ length: VIDEO_COUNT }, (_, index) => (
-              <Video height={screenHeight} index={index} key={index} />
-            ))}
+        <div aria-hidden="true" {...props(styles.phone)}>
+          <span {...props(styles.island)} />
+          <div ref={screen} {...props(styles.screen)}>
+            <div
+              style={{ transform: `translateY(${-position * screenHeight}px)` }}
+              {...props(styles.feed, snapping && styles.feedSnapping)}
+            >
+              {Array.from({ length: VIDEO_COUNT }, (_, index) => (
+                <Video height={screenHeight} index={index} key={index} />
+              ))}
+            </div>
           </div>
         </div>
       </div>
