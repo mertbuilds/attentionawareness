@@ -11,6 +11,9 @@ export const DEMO_FROM = 2;
 const DEMO_START_MS = 700;
 /** How long the whole show takes, from the first hour to the default. */
 const DEMO_MS = 2500;
+/** Left alone this long after the show, the feed nods: one video down, one back up. */
+const IDLE_MS = 10_000;
+const NOD_MS = 700;
 /** The rest after a wheel stops that counts as letting go. */
 const SETTLE_MS = 220;
 /**
@@ -251,6 +254,9 @@ export function FeedPhone({
   const travelled = useRef(DEMO_FROM - HOURS_MIN);
   const holding = useRef(false);
   const demoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The feed is not the reader's until the show has played.
+  const showing = useRef(true);
+  const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const settle = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastY = useRef(0);
   const lastAt = useRef(0);
@@ -318,6 +324,25 @@ export function FeedPhone({
       clearTimeout(demoTimer.current);
       demoTimer.current = null;
     }
+    if (idleTimer.current !== null) {
+      clearTimeout(idleTimer.current);
+      idleTimer.current = null;
+    }
+  }
+
+  // Left alone after the show, the feed nods once: a video down, a pause,
+  // and back up. Then it waits again, until the reader takes hold.
+  function waitThenNod() {
+    idleTimer.current = setTimeout(() => {
+      const here = Math.round(travelled.current);
+      setSnapping(true);
+      moveTo(here + 1);
+      idleTimer.current = setTimeout(() => {
+        setSnapping(true);
+        moveTo(here);
+        waitThenNod();
+      }, NOD_MS);
+    }, IDLE_MS);
   }
 
   // The feed shows itself once: from two hours it steps to the default one
@@ -335,6 +360,8 @@ export function FeedPhone({
         demoTimer.current = setTimeout(step, pause);
       } else {
         demoTimer.current = null;
+        showing.current = false;
+        waitThenNod();
       }
     };
     demoTimer.current = setTimeout(() => {
@@ -356,6 +383,9 @@ export function FeedPhone({
     }
     function onWheel(event: WheelEvent) {
       event.preventDefault();
+      if (showing.current) {
+        return;
+      }
       stopShow();
       if (settle.current === null) {
         dragFrom.current = Math.round(travelled.current);
@@ -380,6 +410,9 @@ export function FeedPhone({
   }, []);
 
   function onPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (showing.current) {
+      return;
+    }
     event.currentTarget.setPointerCapture(event.pointerId);
     stopShow();
     lastY.current = event.clientY;
@@ -418,6 +451,9 @@ export function FeedPhone({
   function onKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
+      if (showing.current) {
+        return;
+      }
       stopShow();
       setSnapping(true);
       moveTo(Math.round(travelled.current) + (event.key === 'ArrowDown' ? 1 : -1));
