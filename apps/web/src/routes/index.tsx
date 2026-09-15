@@ -334,14 +334,18 @@ const styles = create({
       default: '700ms',
     },
     animationIterationCount: 'infinite',
-    animationName: weigh,
     animationTimingFunction: 'ease-in-out',
     display: 'inline-block',
     fontSize: 20,
     lineHeight: 1,
   },
+  // The hands only move while they show, so each showing starts from rest
+  // and the first rise lands with the feed's step to seven.
   handLeft: {
     transform: 'scaleX(-1)',
+  },
+  handMoving: {
+    animationName: weigh,
   },
   handRight: {
     animationDelay: '350ms',
@@ -731,8 +735,12 @@ function HeroTitle({ hours, sixSeven }: { hours: number; sixSeven: boolean }) {
               {/* Six, seven. Palms up, one hand rising as the other falls:
               the gesture the number pair comes with now. */}
               <span aria-hidden="true" {...props(styles.hands, sixSeven && styles.handsShown)}>
-                <span {...props(styles.hand, styles.handLeft)}>🫴</span>
-                <span {...props(styles.hand, styles.handRight)}>🫴</span>
+                <span {...props(styles.hand, styles.handLeft, sixSeven && styles.handMoving)}>
+                  🫴
+                </span>
+                <span {...props(styles.hand, styles.handRight, sixSeven && styles.handMoving)}>
+                  🫴
+                </span>
               </span>
             </motion.span>
             {part.slice(part.indexOf('#') + 1)}
