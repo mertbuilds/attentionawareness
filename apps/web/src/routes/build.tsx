@@ -126,7 +126,7 @@ const PREVIEW_SITES = 6;
 /** How many apps one site row names before the rest are left implied. */
 const ROW_APPS = 3;
 /** What the page can price, in hours a day, and the only stop it has. */
-const HOURS_MIN = 2;
+const HOURS_MIN = 1;
 const HOURS_MAX = 12;
 /**
  * Where the slider stands before the reader has moved it: the whole hours of

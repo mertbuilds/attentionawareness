@@ -17,7 +17,7 @@ const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
  */
 export const DISPLAY_SIZE = 'clamp(32px, 3.8vw, 44px)';
 /** What the page can price, in hours a day, and the only stop it has. */
-export const HOURS_MIN = 2;
+export const HOURS_MIN = 1;
 export const HOURS_MAX = 12;
 const HOURS_STEP = 1;
 /** The rail's opening sweep: up two to nine, down to six, back to seven, gliding. */
@@ -32,7 +32,7 @@ const DEMO_HOUR_MS = 260;
  * the average day the line above it cites, which is the figure the reader is
  * asked to recognize or correct rather than remember.
  */
-export const HOURS_DEFAULT = 7;
+export const HOURS_DEFAULT = 4;
 
 /** The machined knob, and the rail the ticks are measured against. */
 const KNOB_WIDTH = 28;
