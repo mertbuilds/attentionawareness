@@ -145,11 +145,29 @@ const styles = create({
     lineHeight: 1.2,
     textShadow: '0 1px 4px rgba(0, 0, 0, 0.8)',
   },
-  captionText: {
-    fontSize: '3.4cqw',
+  // The burnt-in caption: across the upper middle of the video, out of the
+  // rail's and the caption block's way.
+  overlay: {
+    display: 'flex',
+    insetBlockStart: '22%',
+    insetInlineEnd: '10cqw',
+    insetInlineStart: '10cqw',
+    justifyContent: 'center',
+    pointerEvents: 'none',
+    position: 'absolute',
+    textAlign: 'center',
+  },
+  overlayText: {
+    backgroundColor: '#fff',
+    boxDecorationBreak: 'clone',
+    color: '#000',
+    fontSize: '7cqw',
+    fontWeight: font.weightBold,
     lineHeight: 1.35,
-    textShadow: '0 1px 4px rgba(0, 0, 0, 0.8)',
-    textWrap: 'pretty',
+    paddingBlock: '0.4cqw',
+    paddingInline: '2cqw',
+    textWrap: 'balance',
+    WebkitBoxDecorationBreak: 'clone',
   },
   // The record at the foot of the rail: a dark disc with a lighter ring and
   // the clip's own frame at its centre.
@@ -758,9 +776,13 @@ function Video({ current, height, index }: { current: boolean; height: number; i
           <span style={{ backgroundImage: `url("${poster}")` }} {...props(styles.discCore)} />
         </span>
       </div>
+      {/* The honest caption, the way a creator burns it into the middle of
+      the video: big, centred, white on a black band. */}
+      <div {...props(styles.overlay)}>
+        <span {...props(styles.overlayText)}>{CAPTIONS[index]?.() ?? ''}</span>
+      </div>
       <div {...props(styles.caption)}>
         <span {...props(styles.captionHandle)}>{m.home_feed_handle()}</span>
-        <span {...props(styles.captionText)}>{CAPTIONS[index]?.() ?? ''}</span>
         <span {...props(styles.music)}>
           <Icon name="music" style={styles.musicIcon} />
           <span {...props(styles.marquee)}>
