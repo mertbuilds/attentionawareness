@@ -98,8 +98,12 @@ const styles = create({
   receipt: {
     backgroundColor: PAPER,
     backgroundImage: PAPER_GRAIN,
+    // A real border, not a ring: the hero clips the paper's box while it
+    // unrolls, and a ring outside the box is the first thing cut.
+    borderColor: colors.border,
     borderRadius: 4,
-    boxShadow: `0 0 0 1px ${colors.border}`,
+    borderStyle: 'solid',
+    borderWidth: 1,
     boxSizing: 'border-box',
     display: 'flex',
     flexDirection: 'column',
