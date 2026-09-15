@@ -11,6 +11,7 @@ import {
   yearsAndMonths,
   WAKING_HOURS,
 } from '../lib/attention-math.ts';
+import { loadClip, playClip } from '../lib/clips.ts';
 import { playTick } from '../lib/sounds.ts';
 import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
 import { m } from '../paraglide/messages.js';
@@ -36,6 +37,9 @@ const PAPER_GRAIN =
 const LINE_BLUR = 3;
 const LINE_DISTANCE = 12;
 const LINE_MS = 500;
+/** What a printed line sounds like, and what the total sounds like. */
+const LINE_CLIP = '/media/bumm.mp3';
+const TOTAL_CLIP = '/media/fahh.mp3';
 /** Where the newest printed line is kept on the screen: a little under the middle. */
 const PRINT_LINE_AT = 0.6;
 /** One line every three quarters of a second: the bill prints, it does not flash. */
@@ -363,9 +367,12 @@ export function Receipt({
     if (print !== 'printing' || !sound || reduced) {
       return;
     }
+    // Every line lands with a thud; the last batch, the total, with the fahh.
+    void loadClip(LINE_CLIP);
+    void loadClip(TOTAL_CLIP);
     const timers = Array.from({ length: closeAt + 1 }, (_, step) =>
       setTimeout(() => {
-        playTick();
+        playClip(step === closeAt ? TOTAL_CLIP : LINE_CLIP);
         keepInView(step);
       }, step * LINE_STAGGER_MS),
     );
