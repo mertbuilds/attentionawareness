@@ -3,7 +3,7 @@ import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import NumberFlow from '@number-flow/react';
 import { create, props } from '@stylexjs/stylex';
 import { motion, useReducedMotion, type Variants } from 'motion/react';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   formatYears,
   heroMetrics,
@@ -36,6 +36,8 @@ const PAPER_GRAIN =
 const LINE_BLUR = 3;
 const LINE_DISTANCE = 12;
 const LINE_MS = 500;
+/** Where the newest printed line is kept on the screen: a little under the middle. */
+const PRINT_LINE_AT = 0.6;
 /** One line every three quarters of a second: the bill prints, it does not flash. */
 const LINE_STAGGER_MS = 750;
 const SMOOTH_OUT: [number, number, number, number] = [0.22, 1, 0.36, 1];
@@ -323,6 +325,7 @@ export function Receipt({
     travel: m.home_receipt_travel_label,
   };
   const reduced = useReducedMotion();
+  const paper = useRef<HTMLDivElement>(null);
   // What the bill says, in the order the till prints it: four meta rows, the
   // column heads, the day itself, the items the day bought, and three lines
   // under them. Each line's place in that order is its place in the queue.
@@ -338,6 +341,22 @@ export function Receipt({
   const itemsAt = 2;
   const closeAt = itemsAt + rows.length;
   const beat = LINE_STAGGER_MS / 1000;
+  // The newest line stays a little under the middle of the screen: when it
+  // would print lower than that, the page scrolls up to meet it.
+  function keepInView(step: number) {
+    const lines = Array.from(
+      paper.current?.querySelectorAll<HTMLElement>(`[data-line="${step}"]`) ?? [],
+    );
+    const line = lines.at(-1);
+    if (line === undefined) {
+      return;
+    }
+    const top = line.getBoundingClientRect().top;
+    const rest = window.innerHeight * PRINT_LINE_AT;
+    if (top > rest) {
+      window.scrollBy({ behavior: 'smooth', top: top - rest });
+    }
+  }
   // Every line that lands makes the sound the feed makes: one for the head,
   // then one a beat down to the total.
   useEffect(() => {
@@ -345,7 +364,10 @@ export function Receipt({
       return;
     }
     const timers = Array.from({ length: closeAt + 1 }, (_, step) =>
-      setTimeout(playTick, step * LINE_STAGGER_MS),
+      setTimeout(() => {
+        playTick();
+        keepInView(step);
+      }, step * LINE_STAGGER_MS),
     );
     return () => {
       for (const timer of timers) {
@@ -362,6 +384,7 @@ export function Receipt({
       <motion.div
         animate={state}
         initial={false}
+        ref={paper}
         {...props(styles.receipt, refunded && styles.stamped)}
       >
         <p {...props(styles.billKind)}>{m.home_bill_kind()}</p>
@@ -378,13 +401,13 @@ export function Receipt({
             </motion.div>
           ))}
         </dl>
-        <motion.p custom={0} variants={sheetLine} {...props(styles.billColumns)}>
+        <motion.p custom={0} data-line={0} variants={sheetLine} {...props(styles.billColumns)}>
           <span>{m.home_bill_col_item()}</span>
           <span>{m.home_bill_col_qty()}</span>
         </motion.p>
         {/* The quantity on the bill: the hours a day, and on the live copy
         the minus and plus that correct them. */}
-        <motion.p custom={beat} variants={sheetLine} {...props(styles.receiptRow)}>
+        <motion.p custom={beat} data-line={1} variants={sheetLine} {...props(styles.receiptRow)}>
           <span>{m.home_receipt_screen_label()}</span>
           <span {...props(styles.receiptQty)}>
             {onChange === undefined ? null : (
@@ -437,6 +460,7 @@ export function Receipt({
           {rows.map((row, index) => (
             <motion.p
               custom={(itemsAt + index) * beat}
+              data-line={itemsAt + index}
               key={row.key}
               variants={sheetLine}
               {...props(styles.receiptRow)}
@@ -483,7 +507,12 @@ export function Receipt({
           variants={sheetLine}
           {...props(styles.receiptRule)}
         />
-        <motion.p custom={closeAt * beat} variants={sheetLine} {...props(styles.billSite)}>
+        <motion.p
+          custom={closeAt * beat}
+          data-line={closeAt}
+          variants={sheetLine}
+          {...props(styles.billSite)}
+        >
           <a data-plain="" href={SITE_URL} {...props(styles.billSiteLink)}>
             {m.home_receipt_store_url()}
           </a>
