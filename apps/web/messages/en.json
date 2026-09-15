@@ -1,7 +1,8 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
   "app_name": "attentionawareness",
-  "home_hero_title": "What's your daily average screen time?",
+  "home_hero_title": "We normalized scrolling [[# hours]] every single [[day]]",
+  "home_hero_title_one": "We normalized scrolling [[# hour]] every single [[day]]",
   "home_hero_product": "This site shows how to block apps and websites on your iPhone for free, in a way you cannot easily undo. Built by one person for himself, shared because it worked.",
   "home_hero_cta": "Read why I built it",
   "home_hero_secondary": "Cancel the bill",
@@ -72,7 +73,7 @@
   "home_reset_label": "Start over",
   "home_math_sound_label": "Sound on/off",
   "home_math_help_label": "How to check your screen time",
-  "home_math_help_title": "Check your real number",
+  "home_math_help_title": "How to check your screen time?",
   "home_math_help_body": "Settings > Screen Time > Daily Average",
   "home_math_help_clip": "Clip coming",
   "home_total_line": "{hours} hours a day is {years} years of the next twenty.",

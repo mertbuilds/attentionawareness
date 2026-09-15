@@ -4,21 +4,21 @@ import { useEffect, useRef, useState } from 'react';
 import { playTick } from '../lib/sounds.ts';
 import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
 import { m } from '../paraglide/messages.js';
-import { HOURS_DEFAULT, HOURS_MAX, HOURS_MIN, HourReadout } from './screen-time-gate.tsx';
+import { HOURS_DEFAULT, HOURS_MAX, HOURS_MIN } from './screen-time-gate.tsx';
 
 /** One screen of feed is one hour: this much scrolling adds an hour. */
 const PIXELS_PER_HOUR = 140;
 /** How far the feed can travel, from the first hour to the last. */
 const TRAVEL = (HOURS_MAX - HOURS_MIN) * PIXELS_PER_HOUR;
-/** The feed shows itself first: it starts at one hour and scrolls to the default. */
+/** The feed shows itself first: from this hour it scrolls to the default. */
+export const DEMO_FROM = 2;
 const DEMO_START_MS = 700;
-/** How long the show takes per hour. */
-const DEMO_HOUR_MS = 550;
+/** How long the whole show takes, from the first hour to the default. */
+const DEMO_MS = 2500;
 /** The rest after a wheel stops that counts as letting go. */
 const SETTLE_MS = 300;
 /** Posts in the feed: enough to scroll past the last hour with feed to spare. */
 const POST_COUNT = 24;
-const POST_HEIGHT = 140;
 const PHONE_WIDTH = 176;
 const PHONE_HEIGHT = 320;
 /** On a short screen the whole first screen must still fit above the fold. */
@@ -91,55 +91,85 @@ const styles = create({
     width: 60,
     zIndex: 2,
   },
+  // One post the way a photo feed lays it out: who, the picture edge to
+  // edge, the three actions, the likes, a line of caption.
   post: {
     boxSizing: 'border-box',
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s2,
-    height: POST_HEIGHT,
-    paddingBlock: spacing.s3,
-    paddingInline: spacing.s3,
+    paddingBlockEnd: spacing.s3,
+  },
+  postActions: {
+    alignItems: 'center',
+    display: 'flex',
+    gap: spacing.s2,
+    paddingInline: spacing.s2,
   },
   postAvatar: {
     backgroundColor: BLOCK_STRONG,
     borderRadius: 999,
     flexShrink: 0,
-    height: 20,
-    width: 20,
+    height: 22,
+    width: 22,
   },
-  postDot: {
-    backgroundColor: BLOCK_STRONG,
-    borderRadius: 999,
-    height: 10,
-    width: 10,
+  postCaption: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 5,
+    paddingInline: spacing.s2,
   },
   postHead: {
     alignItems: 'center',
     display: 'flex',
     gap: spacing.s2,
+    paddingBlock: spacing.s1,
+    paddingInline: spacing.s2,
   },
+  postHeart: {
+    backgroundColor: BLOCK_STRONG,
+    borderRadius: '50% 50% 0 50%',
+    height: 12,
+    transform: 'rotate(45deg) scale(0.9)',
+    width: 12,
+  },
+  postIcon: {
+    backgroundColor: BLOCK_STRONG,
+    borderRadius: 4,
+    height: 12,
+    width: 12,
+  },
+  postIconRound: {
+    backgroundColor: BLOCK_STRONG,
+    borderRadius: 999,
+    height: 12,
+    width: 12,
+  },
+  // Square, the width of the screen: a photo.
   postImage: {
+    aspectRatio: '1',
     backgroundColor: BLOCK,
-    borderRadius: 8,
-    flexGrow: 1,
+    width: '100%',
+  },
+  postImageAlt: {
+    aspectRatio: '4 / 5',
   },
   postLine: {
     backgroundColor: BLOCK,
     borderRadius: 3,
     height: 6,
   },
-  postLines: {
-    display: 'flex',
-    flexDirection: 'column',
-    flexGrow: 1,
-    gap: 5,
+  postLineMid: {
+    width: '70%',
   },
   postLineShort: {
     width: '45%',
   },
-  postRow: {
-    display: 'flex',
-    gap: spacing.s3,
+  postName: {
+    backgroundColor: BLOCK_STRONG,
+    borderRadius: 3,
+    height: 6,
+    width: 64,
   },
   screen: {
     height: '100%',
@@ -162,30 +192,23 @@ function hoursFor(offset: number): number {
 }
 
 function Post({ index }: { index: number }) {
-  // Every third post carries a picture; the others are text.
-  const withImage = index % 3 !== 1;
+  // Every third picture is taller, the way a feed mixes squares and portraits.
+  const tall = index % 3 === 2;
   return (
     <div {...props(styles.post)}>
       <div {...props(styles.postHead)}>
         <span {...props(styles.postAvatar)} />
-        <div {...props(styles.postLines)}>
-          <span {...props(styles.postLine, styles.postLineShort)} />
-          <span {...props(styles.postLine)} />
-        </div>
+        <span {...props(styles.postName)} />
       </div>
-      {withImage ? (
-        <span {...props(styles.postImage)} />
-      ) : (
-        <div {...props(styles.postLines)}>
-          <span {...props(styles.postLine)} />
-          <span {...props(styles.postLine)} />
-          <span {...props(styles.postLine, styles.postLineShort)} />
-        </div>
-      )}
-      <div {...props(styles.postRow)}>
-        <span {...props(styles.postDot)} />
-        <span {...props(styles.postDot)} />
-        <span {...props(styles.postDot)} />
+      <span {...props(styles.postImage, tall && styles.postImageAlt)} />
+      <div {...props(styles.postActions)}>
+        <span {...props(styles.postHeart)} />
+        <span {...props(styles.postIconRound)} />
+        <span {...props(styles.postIcon)} />
+      </div>
+      <div {...props(styles.postCaption)}>
+        <span {...props(styles.postLine, styles.postLineShort)} />
+        <span {...props(styles.postLine, styles.postLineMid)} />
       </div>
     </div>
   );
@@ -196,20 +219,30 @@ function Post({ index }: { index: number }) {
  * and every screen of feed scrolled is an hour. Down adds, up takes away. The
  * act that costs the hours is the act that counts them.
  */
-export function FeedPhone({ onPick, sound }: { onPick: (hours: number) => void; sound: boolean }) {
-  const [hours, setHours] = useState(HOURS_MIN);
-  const [offset, setOffset] = useState(offsetFor(HOURS_MIN));
+export function FeedPhone({
+  onChange,
+  onPick,
+  sound,
+}: {
+  /** Every hour the feed lands on, as it lands: the page reads it live. */
+  onChange: (hours: number) => void;
+  /** The hour the feed is let go at. */
+  onPick: (hours: number) => void;
+  sound: boolean;
+}) {
+  const [hours, setHours] = useState(DEMO_FROM);
+  const [offset, setOffset] = useState(offsetFor(DEMO_FROM));
   const [held, setHeld] = useState(false);
   const holding = useRef(false);
   const [touched, setTouched] = useState(false);
   const phone = useRef<HTMLDivElement>(null);
-  const travelled = useRef(offsetFor(HOURS_MIN));
+  const travelled = useRef(offsetFor(DEMO_FROM));
   const frame = useRef<number | null>(null);
   const demoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const settle = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastY = useRef(0);
-  const latest = useRef({ hours, onPick, sound });
-  latest.current = { hours, onPick, sound };
+  const latest = useRef({ hours, onChange, onPick, sound });
+  latest.current = { hours, onChange, onPick, sound };
 
   function moveBy(delta: number) {
     const next = Math.min(TRAVEL, Math.max(0, travelled.current + delta));
@@ -222,6 +255,7 @@ export function FeedPhone({ onPick, sound }: { onPick: (hours: number) => void; 
         playTick();
       }
       setHours(landed);
+      latest.current.onChange(landed);
     }
   }
 
@@ -242,12 +276,12 @@ export function FeedPhone({ onPick, sound }: { onPick: (hours: number) => void; 
     }
   }
 
-  // The feed shows itself once: from one hour it scrolls to the default,
+  // The feed shows itself once: from two hours it scrolls to the default,
   // ticking at every hour, until the reader takes hold of it.
   useEffect(() => {
-    const from = offsetFor(HOURS_MIN);
+    const from = offsetFor(DEMO_FROM);
     const to = offsetFor(HOURS_DEFAULT);
-    const length = ((to - from) / PIXELS_PER_HOUR) * DEMO_HOUR_MS;
+    const length = DEMO_MS;
     demoTimer.current = setTimeout(() => {
       if (latest.current.sound) {
         primeTickSound();
@@ -346,7 +380,6 @@ export function FeedPhone({ onPick, sound }: { onPick: (hours: number) => void; 
 
   return (
     <div {...props(styles.gate)}>
-      <HourReadout hours={hours} />
       <div
         aria-label={m.home_gate_slider_label()}
         aria-valuemax={HOURS_MAX}
