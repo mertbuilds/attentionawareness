@@ -1,16 +1,15 @@
 import { colors, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { playTick } from '../lib/sounds.ts';
-import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
+import { unlockTickSound } from '../lib/tick-sound.ts';
 import { m } from '../paraglide/messages.js';
 import { HOURS_DEFAULT, HOURS_MAX, HOURS_MIN } from './screen-time-gate.tsx';
 
 /** The feed shows itself first: from this hour it scrolls to the default. */
 export const DEMO_FROM = 2;
 const DEMO_START_MS = 700;
-/** How long the whole show takes, from the first hour to the default. */
-const DEMO_MS = 2500;
+/** How long each video of the show plays before the next. */
+const SHOW_STEP_MS = 2000;
 /** Left alone this long after the show, the feed nods: one video down, one back up. */
 const IDLE_MS = 5000;
 const NOD_MS = 700;
@@ -233,22 +232,36 @@ function clipUrl(index: number, kind: 'jpg' | 'mp4'): string {
  * screen, muted and looping, over a wash that stands in until the file has
  * loaded or when there is none.
  */
-function Video({ current, height, index }: { current: boolean; height: number; index: number }) {
+function Video({
+  current,
+  height,
+  index,
+  sound,
+}: {
+  current: boolean;
+  height: number;
+  index: number;
+  sound: boolean;
+}) {
   const clip = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     const element = clip.current;
     if (element === null) {
       return;
     }
-    if (current) {
-      void element.play().catch(() => {
-        // A clip that is missing, or a browser that will not run it, is
-        // the wash instead. Nothing waits on it.
-      });
-    } else {
+    if (!current) {
       element.pause();
+      return;
     }
-  }, [current]);
+    element.muted = !sound;
+    void element.play().catch(() => {
+      // The browser will not play sound before a gesture: the clip runs
+      // muted until the reader has touched the page. A clip that is missing
+      // is the wash instead. Nothing waits on either.
+      element.muted = true;
+      void element.play().catch(() => {});
+    });
+  }, [current, sound]);
   return (
     <div
       style={{ backgroundImage: WASHES[index % WASHES.length], height }}
@@ -256,7 +269,7 @@ function Video({ current, height, index }: { current: boolean; height: number; i
     >
       <video
         loop
-        muted
+        muted={!sound}
         playsInline
         poster={clipUrl(index, 'jpg')}
         preload={current ? 'auto' : 'metadata'}
@@ -341,10 +354,6 @@ export function FeedPhone({
     setPosition(clamped);
     const landed = HOURS_MIN + Math.round(clamped);
     if (landed !== latest.current.hours) {
-      if (latest.current.sound) {
-        primeTickSound();
-        playTick();
-      }
       setHours(landed);
       latest.current.onChange(landed);
     }
@@ -419,7 +428,7 @@ export function FeedPhone({
   useEffect(() => {
     const from = DEMO_FROM - HOURS_MIN;
     const to = HOURS_DEFAULT - HOURS_MIN;
-    const pause = DEMO_MS / (to - from);
+    const pause = SHOW_STEP_MS;
     let at = from;
     const step = () => {
       at += 1;
@@ -434,12 +443,7 @@ export function FeedPhone({
         waitThenNod();
       }
     };
-    demoTimer.current = setTimeout(() => {
-      if (latest.current.sound) {
-        primeTickSound();
-      }
-      step();
-    }, DEMO_START_MS);
+    demoTimer.current = setTimeout(step, DEMO_START_MS);
     return stopShow;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot show
   }, []);
@@ -570,6 +574,7 @@ export function FeedPhone({
                   height={screenHeight}
                   index={index}
                   key={index}
+                  sound={sound}
                 />
               ))}
             </div>

@@ -12,8 +12,7 @@ import {
   WAKING_HOURS,
 } from '../lib/attention-math.ts';
 import { loadClip, playClip } from '../lib/clips.ts';
-import { playTick } from '../lib/sounds.ts';
-import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
+import { unlockTickSound } from '../lib/tick-sound.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
 import { InfoTip } from './info-tip.tsx';
@@ -296,10 +295,6 @@ export function Receipt({
     const next = Math.min(HOURS_MAX, Math.max(HOURS_MIN, hours + delta));
     if (next === hours) {
       return;
-    }
-    if (sound) {
-      primeTickSound();
-      playTick();
     }
     onChange(next);
   }
