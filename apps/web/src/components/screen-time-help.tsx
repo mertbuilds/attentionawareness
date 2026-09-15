@@ -1,4 +1,4 @@
-import { colors, font, palette, spacing } from '@attentionawareness/ui/tokens.stylex';
+import { colors, font, palette } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { m } from '../paraglide/messages.js';
@@ -25,6 +25,7 @@ const SCREEN_TIME_VIDEO_URLS: Record<string, string> = {
   tr: '/media/screentime-tr.mp4',
 };
 const SCREEN_TIME_GIF_URL: string = '';
+const SOURCE_URL = 'https://datareportal.com/global-digital-overview';
 
 const styles = create({
   // The clip is what the box is for: 200px of it, plus the 12px of padding
@@ -32,30 +33,37 @@ const styles = create({
   helpBox: {
     width: 320,
   },
+  // A line of muted text under the phone, underlined, the way a link is.
   helpButton: {
-    alignItems: 'center',
     backgroundColor: 'transparent',
-    borderColor: colors.border,
-    borderRadius: 999,
-    borderStyle: 'solid',
-    borderWidth: '1px',
+    borderStyle: 'none',
+    borderWidth: 0,
     color: {
       ':focus-visible': colors.fg,
       ':hover': colors.fg,
       default: colors.muted,
     },
     cursor: 'pointer',
-    display: 'flex',
-    flexShrink: 0,
     fontFamily: 'inherit',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: font.weightRegular,
-    height: 20,
-    justifyContent: 'center',
-    letterSpacing: 'normal',
-    lineHeight: 1,
+    lineHeight: 1.5,
     padding: 0,
-    width: 20,
+    textDecorationLine: 'underline',
+    textUnderlineOffset: 3,
+  },
+  // The average, at the foot of the box, with its source.
+  helpNote: {
+    color: colors.muted,
+    fontSize: font.sizeSm,
+    lineHeight: 1.5,
+    margin: 0,
+    textWrap: 'pretty',
+  },
+  helpSource: {
+    color: colors.muted,
+    textDecorationLine: 'underline',
+    textUnderlineOffset: 2,
   },
   // What the slot says while it waits for a clip to be shot.
   helpClip: {
@@ -107,12 +115,11 @@ const styles = create({
     overflowWrap: 'anywhere',
     textWrap: 'pretty',
   },
-  // Rides at the end of the question, and anchors the popover under it.
+  // Under the phone, centred, and the anchor the popover opens from.
   helpWrap: {
     display: 'inline-flex',
-    marginInlineStart: spacing.s2,
+    justifyContent: 'center',
     position: 'relative',
-    verticalAlign: 'middle',
   },
 });
 
@@ -156,9 +163,21 @@ function ScreenTimeClip({ style, videoUrl }: { style?: StyleXStyles; videoUrl: s
   );
 }
 
+/** The average, with its source, as the box ends. */
+function AverageNote() {
+  return (
+    <p {...props(styles.helpNote)}>
+      {m.home_gate_average()}{' '}
+      <a href={SOURCE_URL} rel="noreferrer" target="_blank" {...props(styles.helpSource)}>
+        {m.home_gate_source()}
+      </a>
+    </p>
+  );
+}
+
 /**
- * The question mark at the end of the question: where the real number lives,
- * and a clip of it being found.
+ * The line under the phone: where the real number lives, a clip of it being
+ * found, and what the average person's number is.
  */
 export function ScreenTimeHelp() {
   const videoUrl = screenTimeVideoUrl();
@@ -169,18 +188,20 @@ export function ScreenTimeHelp() {
           <>
             <span {...props(styles.helpText)}>{m.home_math_help_body()}</span>
             <ScreenTimeClip style={styles.helpSheetSlot} videoUrl={videoUrl} />
+            <AverageNote />
           </>
         }
         style={styles.helpBox}
         title={m.home_math_help_title()}
         trigger={
-          <button aria-label={m.home_math_help_label()} type="button" {...props(styles.helpButton)}>
-            ?
+          <button type="button" {...props(styles.helpButton)}>
+            {m.home_math_help_label()}
           </button>
         }
       >
         <span {...props(styles.helpText)}>{m.home_math_help_body()}</span>
         <ScreenTimeClip videoUrl={videoUrl} />
+        <AverageNote />
       </Tip>
     </span>
   );
