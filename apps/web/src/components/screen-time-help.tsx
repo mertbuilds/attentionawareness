@@ -11,8 +11,6 @@ import { Tip } from './tip.tsx';
  * unhurried hand takes longer than a quick one, and the trip itself is bridged
  * by the popovers, so the wait can be generous.
  */
-/** The report the average day in the help box is taken from. */
-
 /**
  * The clip that shows where the real number lives, one recording per locale.
  * The video wins when the reader's locale has one, English stands in when it
@@ -25,7 +23,6 @@ const SCREEN_TIME_VIDEO_URLS: Record<string, string> = {
   tr: '/media/screentime-tr.mp4',
 };
 const SCREEN_TIME_GIF_URL: string = '';
-const SOURCE_URL = 'https://datareportal.com/global-digital-overview';
 
 const styles = create({
   // The clip is what the box is for: 200px of it, plus the 12px of padding
@@ -51,51 +48,6 @@ const styles = create({
     padding: 0,
     textDecorationLine: 'underline',
     textUnderlineOffset: 3,
-  },
-  markBox: {
-    width: 260,
-  },
-  // The small ring at the end of the claim.
-  markButton: {
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-    borderColor: colors.border,
-    borderRadius: 999,
-    borderStyle: 'solid',
-    borderWidth: '1px',
-    color: colors.muted,
-    cursor: 'pointer',
-    display: 'flex',
-    flexShrink: 0,
-    fontFamily: 'inherit',
-    fontSize: 12,
-    fontWeight: font.weightRegular,
-    height: 20,
-    justifyContent: 'center',
-    letterSpacing: 'normal',
-    lineHeight: 1,
-    padding: 0,
-    width: 20,
-  },
-  // Rides at the end of the claim, and anchors the box under it.
-  markWrap: {
-    display: 'inline-flex',
-    marginInlineStart: spacing.s2,
-    position: 'relative',
-    verticalAlign: 'middle',
-  },
-  // The average, with its source.
-  helpNote: {
-    color: colors.muted,
-    fontSize: font.sizeSm,
-    lineHeight: 1.5,
-    margin: 0,
-    textWrap: 'pretty',
-  },
-  helpSource: {
-    color: colors.muted,
-    textDecorationLine: 'underline',
-    textUnderlineOffset: 2,
   },
   // What the slot says while it waits for a clip to be shot.
   helpClip: {
@@ -196,48 +148,9 @@ function ScreenTimeClip({ style, videoUrl }: { style?: StyleXStyles; videoUrl: s
   );
 }
 
-/** The average, with its source, as the box ends. */
-function AverageNote() {
-  return (
-    <p {...props(styles.helpNote)}>
-      {m.home_gate_average()}{' '}
-      <a href={SOURCE_URL} rel="noreferrer" target="_blank" {...props(styles.helpSource)}>
-        {m.home_gate_source()}
-      </a>
-    </p>
-  );
-}
-
 /**
- * The question mark at the end of the claim: what the average person's
- * number is, and where it comes from.
- */
-export function AverageHelp() {
-  return (
-    <span {...props(styles.markWrap)}>
-      <Tip
-        style={styles.markBox}
-        title={m.home_gate_average_title()}
-        trigger={
-          <button
-            aria-label={m.home_gate_average_label()}
-            type="button"
-            {...props(styles.markButton)}
-          >
-            ?
-          </button>
-        }
-        untitled
-      >
-        <AverageNote />
-      </Tip>
-    </span>
-  );
-}
-
-/**
- * The line under the phone: where the real number lives, a clip of it being
- * found, and what the average person's number is.
+ * The line under the phone: where the reader's own number lives, and a clip
+ * of it being found.
  */
 export function ScreenTimeHelp({ label }: { label: string }) {
   const videoUrl = screenTimeVideoUrl();
