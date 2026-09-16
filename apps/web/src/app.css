@@ -11,6 +11,40 @@ html {
   }
 }
 
+/*
+ * The scrollbar is a hairline: `thin` where Firefox and Chromium honour it,
+ * the WebKit box for the rest. `scrollbar-color` inherits, `scrollbar-width`
+ * does not, so `*` carries the width into the sheet and every other inner
+ * scroll box. macOS overlay scrollbars stay as they are - `overflow` is
+ * untouched.
+ */
+html {
+  scrollbar-color: color-mix(in srgb, var(--kya-fg) 30%, transparent) transparent;
+  scrollbar-width: thin;
+}
+
+* {
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--kya-fg) 30%, transparent);
+  border-radius: 3px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--kya-fg) 50%, transparent);
+}
+
 body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
