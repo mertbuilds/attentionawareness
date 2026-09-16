@@ -47,6 +47,11 @@ const SECTION_GAP = '96px';
  * takes, which is less, because these are read rather than scanned.
  */
 const HERO_MEASURE = 640;
+/**
+ * How far past its slot the bill is allowed to paint: the widest shadow under
+ * it is 12px down and 32px soft, and the torn edge takes a few pixels more.
+ */
+const SHEET_SHADOW_ROOM = '48px';
 /** The places on the page that can be linked to, and the ids they use. */
 const STORY_ID = 'story';
 const HOW_ID = 'how';
@@ -473,11 +478,18 @@ const styles = create({
     flexDirection: 'column',
     gap: spacing.s4,
   },
+  // The bill's own slot. The box above it is cut off at its edges so the
+  // opening reads as an unroll, and the sheet's shadow falls outside those
+  // edges: `clip` keeps the cut without a scroll box, and the margin lets the
+  // shadow and the torn outline out of it. It costs no layout, so nothing
+  // moves and nothing scrolls sideways on a phone.
   receiptSlot: {
     alignItems: 'center',
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s6,
+    overflow: 'clip',
+    overflowClipMargin: SHEET_SHADOW_ROOM,
   },
   receiptWrap: {
     alignItems: 'center',
@@ -880,10 +892,20 @@ function HomePage() {
     setHours(clampHours(value));
   }
 
+  // The rail's count, put away: no hands, and no run behind the next screen
+  // to open with.
+  function restSixSeven() {
+    setSixSeven(false);
+    setSixSevenRun(0);
+  }
+
   // The reader wants out: first the question the bill is priced against.
   function askHours() {
     // iOS opens an audio device inside a gesture and nowhere else.
     unlockTickSound();
+    // The question arrives with the rail at rest: the count that follows is
+    // the first this screen has had.
+    restSixSeven();
     // Measured before the screen is taken out of the column, so it leaves
     // from exactly where the reader last saw it.
     setLeaveTop(firstScreen.current?.offsetTop ?? 0);
@@ -908,6 +930,7 @@ function HomePage() {
   function reset() {
     forgetHours();
     setHours(HOURS_DEFAULT);
+    restSixSeven();
     setPicked(false);
     setShown(false);
     setBillInView(true);
@@ -1149,9 +1172,10 @@ function HomePage() {
             <div {...props(styles.gateDial)}>
               <HourReadout hours={wholeHours} sixSeven={sixSeven} sixSevenRun={sixSevenRun} />
               <HourSlider
-                // The count waits for this screen to land: it is still on its
-                // way in while the show is leaving.
-                arrived={stage !== 'asking'}
+                // The count runs while this screen stands and at no other
+                // time: it is on its way in while the show leaves, and on its
+                // way out as soon as the bill or the way back is asked for.
+                arrived={stage === 'asked'}
                 onChange={pickHours}
                 onSixSeven={(showing) => {
                   setSixSeven(showing);

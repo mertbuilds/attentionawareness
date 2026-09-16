@@ -3,7 +3,7 @@ import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import NumberFlow from '@number-flow/react';
 import { create, props } from '@stylexjs/stylex';
 import { motion, useReducedMotion, type Variants } from 'motion/react';
-import { lazy, Suspense, useEffect, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   formatYears,
   heroMetrics,
@@ -12,10 +12,10 @@ import {
   WAKING_HOURS,
 } from '../lib/attention-math.ts';
 import { playClick, playStamp, playStampHeavy } from '../lib/sounds.ts';
-import { subscribeTheme } from '../lib/theme.ts';
 import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
+import { BillFilters, paperRoot, PaperSheet } from './bill-paper.tsx';
 import { InfoTip } from './info-tip.tsx';
 import { HOURS_MAX, HOURS_MIN } from './screen-time-gate.tsx';
 
@@ -23,38 +23,6 @@ const DISPLAY_SIZE = 32;
 /** The stamp is a picture: red ink on nothing, tilted as it was pressed. */
 const STAMP_URL = '/stamp-cancelled.webp';
 const SITE_URL = 'https://attentionawareness.com';
-
-/** The paper itself: a shade off the page in both themes. */
-const PAPER = `color-mix(in srgb, ${colors.bg} 92%, ${colors.fg})`;
-/** Paper grain: one tile of fractal noise, faint, laid over the ground. */
-const PAPER_GRAIN =
-  "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='4' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.16 0'/></filter><rect width='160' height='160' filter='url(%23g)'/></svg>\")";
-/**
- * The paper the shader draws, one pair per theme. `back` is what PAPER above
- * resolves to (`--kya-bg` mixed 92% with `--kya-fg`): #ebebeb on light, #141414
- * on dark. `front` is the light a fold catches, one shade over it. Both are
- * written out because a shader takes a color, not a `color-mix()`.
- */
-const PAPER_SHADER = {
-  dark: { back: '#141414', front: '#262626' },
-  light: { back: '#ebebeb', front: '#ffffff' },
-} as const;
-
-type PaperTheme = keyof typeof PAPER_SHADER;
-
-/** One sheet, milled the same way every time. */
-const PAPER_SEED = 5.8;
-/** Enough pixels for a 480px sheet at 3x, and no more: a phone draws it too. */
-const PAPER_PIXELS = 1_500_000;
-
-/**
- * The texture is WebGL, so it is loaded only where there is a canvas to draw
- * into: the client, and only after it has hydrated.
- */
-const PaperTexture = lazy(async () => {
-  const shaders = await import('@paper-design/shaders-react');
-  return { default: shaders.PaperTexture };
-});
 
 /**
  * The sheet prints itself: every line under the title rises out of a blur,
@@ -143,33 +111,13 @@ const styles = create({
     color: 'inherit',
     textDecorationLine: 'none',
   },
-  // The paper itself, under everything the bill prints. It sits inside the
-  // border, so its corners are the sheet's 4px less that border's 1px.
-  billPaper: {
-    borderRadius: 3,
-    inset: 0,
-    overflow: 'hidden',
-    pointerEvents: 'none',
-    position: 'absolute',
-    zIndex: 0,
-  },
-  billShader: {
-    height: '100%',
-    width: '100%',
-  },
   paper: {
     maxWidth: 480,
     width: '100%',
   },
+  // The sheet: no border and no corners of its own. What draws its edge is the
+  // torn outline of the paper laid behind it.
   receipt: {
-    backgroundColor: PAPER,
-    backgroundImage: PAPER_GRAIN,
-    // A real border, not a ring: the hero clips the paper's box while it
-    // unrolls, and a ring outside the box is the first thing cut.
-    borderColor: colors.border,
-    borderRadius: 4,
-    borderStyle: 'solid',
-    borderWidth: 1,
     boxSizing: 'border-box',
     display: 'flex',
     flexDirection: 'column',
@@ -185,8 +133,6 @@ const styles = create({
       '@media (min-width: 640px)': spacing.s8,
       default: spacing.s4,
     },
-    // The paper is laid inside this box, so the box is what it is laid against.
-    position: 'relative',
     textAlign: 'start',
     width: '100%',
   },
@@ -194,13 +140,11 @@ const styles = create({
     display: 'flex',
     flexDirection: 'column',
   },
-  // Everything the bill prints, kept over the paper.
+  // Everything the bill prints, in the order the till prints it.
   receiptContent: {
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s6,
-    position: 'relative',
-    zIndex: 1,
   },
   receiptLabel: {
     alignItems: 'center',
@@ -308,66 +252,6 @@ const styles = create({
   },
 });
 
-/** The paper the theme is asking for, read off the document the CSS reads. */
-function readPaperTheme(): PaperTheme | null {
-  const forced = document.documentElement.dataset['theme'];
-  if (forced === 'dark' || forced === 'light') {
-    return forced;
-  }
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-}
-
-/** The theme changes from the switch in the footer, or from the system itself. */
-function subscribePaperTheme(onChange: () => void): () => void {
-  const dark = window.matchMedia('(prefers-color-scheme: dark)');
-  dark.addEventListener('change', onChange);
-  const unsubscribe = subscribeTheme(onChange);
-  return () => {
-    dark.removeEventListener('change', onChange);
-    unsubscribe();
-  };
-}
-
-/**
- * The server has no canvas and no theme to read, and it renders that same
- * answer while hydrating, which is what keeps the paper out of the first frame
- * and hydration quiet.
- */
-const noPaperTheme = (): PaperTheme | null => null;
-
-/**
- * The surface of the sheet: fibers, crumples and four soft folds, drawn once
- * and left alone. It is behind every line and it never takes a click.
- */
-function BillPaper({ theme }: { theme: PaperTheme }) {
-  const paper = PAPER_SHADER[theme];
-  return (
-    <div aria-hidden="true" {...props(styles.billPaper)}>
-      <Suspense fallback={null}>
-        <PaperTexture
-          colorBack={paper.back}
-          colorFront={paper.front}
-          contrast={0.25}
-          crumples={0.2}
-          crumpleSize={0.35}
-          drops={0.1}
-          fade={0}
-          fiber={0.25}
-          fiberSize={0.2}
-          fit="cover"
-          foldCount={4}
-          folds={0.4}
-          maxPixelCount={PAPER_PIXELS}
-          roughness={0.35}
-          scale={0.7}
-          seed={PAPER_SEED}
-          {...props(styles.billShader)}
-        />
-      </Suspense>
-    </div>
-  );
-}
-
 /**
  * The bill for a day of scrolling, priced over the horizon. Every figure on it
  * rolls as the hours change. Refunded, it wears the stamp: the same bill, torn
@@ -435,7 +319,6 @@ export function Receipt({
     travel: m.home_receipt_travel_label,
   };
   const reduced = useReducedMotion();
-  const paperTheme = useSyncExternalStore(subscribePaperTheme, readPaperTheme, noPaperTheme);
   const paper = useRef<HTMLDivElement>(null);
   // What the bill says, in the order the till prints it: four meta rows, the
   // column heads, the day itself, the items the day bought, and three lines
@@ -496,9 +379,9 @@ export function Receipt({
   const state = reduced ? 'printed' : print;
   return (
     <div {...props(styles.paper)}>
-      <motion.div animate={state} initial={false} ref={paper} {...props(styles.receipt)}>
-        {paperTheme === null ? null : <BillPaper theme={paperTheme} />}
-        <div {...props(styles.receiptContent)}>
+      <BillFilters />
+      <motion.div animate={state} initial={false} ref={paper} {...props(styles.receipt, paperRoot)}>
+        <PaperSheet style={styles.receiptContent}>
           <p {...props(styles.billKind)}>{m.home_bill_kind()}</p>
           <dl {...props(styles.billMeta)}>
             {meta.map((row) => (
@@ -630,7 +513,7 @@ export function Receipt({
               {m.home_receipt_store_url()}
             </a>
           </motion.p>
-        </div>
+        </PaperSheet>
         {refunded ? (
           <img alt={m.home_receipt_refunded()} src={STAMP_URL} {...props(styles.stamp)} />
         ) : null}
