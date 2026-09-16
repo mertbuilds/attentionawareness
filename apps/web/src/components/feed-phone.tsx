@@ -1,6 +1,13 @@
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
+import {
+  animate,
+  motion,
+  useMotionValue,
+  useMotionValueEvent,
+  useReducedMotion,
+} from 'motion/react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { playClick } from '../lib/sounds.ts';
 import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
@@ -73,8 +80,16 @@ const SWIPE_FRACTION = 0.12;
 const FLICK_SPEED = 0.35;
 /** How long the feed takes to snap to the nearest video once let go. */
 const SNAP_MS = 260;
+/** The curve it travels on: the one the transition was written in. */
+const SNAP_EASE: [number, number, number, number] = [0.2, 0.8, 0.2, 1];
 /** Videos in the feed: one per clip shot for it, 01 through 11, and the black one. */
 const VIDEO_COUNT = 12;
+/**
+ * How near the video on screen a clip has to be to be asked for at all. The
+ * two on either side keep the next move ready; the rest ask the network for
+ * nothing until the feed comes to them, so no phone holds twelve clips open.
+ */
+const PRELOAD_REACH = 2;
 /**
  * The slot the feed ends on: a black screen with the same chrome over it.
  * There is no clip and no poster frame behind it, so it asks the network for
@@ -118,11 +133,6 @@ const styles = create({
     display: 'flex',
     flexDirection: 'column',
     willChange: 'transform',
-  },
-  feedSnapping: {
-    transitionDuration: `${SNAP_MS}ms`,
-    transitionProperty: 'transform',
-    transitionTimingFunction: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
   },
   gate: {
     alignItems: 'center',
@@ -386,6 +396,11 @@ function shadeFor(index: number): number {
   return SHADE_FIRST + (SHADE_LAST - SHADE_FIRST) * at;
 }
 
+/** No further up than the first video, and no further down than the last. */
+function inFeed(place: number): number {
+  return Math.min(VIDEO_COUNT - 1, Math.max(0, place));
+}
+
 /** A key pressed into a field, or into a word being edited, is not the feed's. */
 function isTyping(target: EventTarget | null): boolean {
   const element = target as HTMLElement | null;
@@ -400,10 +415,15 @@ function platformFor(index: number): Platform {
   return index === BLANK_INDEX ? 'tiktok' : (PLATFORMS[index % PLATFORMS.length] ?? 'tiktok');
 }
 
-/** The clip a video plays, by its place in the feed: 01.mp4 is the first. */
-function clipUrl(index: number, kind: 'jpg' | 'mp4'): string {
+/**
+ * The clip a video plays, by its place in the feed: 01.mp4 is the first. Each
+ * one is cut twice, `01.av1.mp4` and `01.mp4`, and shown behind `01.jpg`.
+ */
+function clipUrl(index: number, kind: 'av1.mp4' | 'jpg' | 'mp4'): string {
   return `/media/feed/${String(index + 1).padStart(2, '0')}.${kind}`;
 }
+/** What the small cut is, so a browser that can read AV1 takes it. */
+const AV1_TYPE = 'video/mp4; codecs=av01.0.05M.08';
 
 /**
  * The numbers beside the actions. They are made up, but every video has its
@@ -421,11 +441,21 @@ function counts(index: number) {
 /**
  * One video of the feed. The clip plays only while this is the video on
  * screen, muted and looping, over a wash that stands in until the file has
- * loaded or when there is none. The chrome around it is whichever app this
- * slot wears: the clip, the wash and the burnt-in caption are the same in
- * every one of them.
+ * loaded or when there is none. A slot the feed is nowhere near asks for no
+ * clip at all. The chrome around it is whichever app this slot wears: the
+ * clip, the wash and the burnt-in caption are the same in every one of them.
  */
-function Video({ current, height, index }: { current: boolean; height: number; index: number }) {
+function Video({
+  current,
+  height,
+  index,
+  near,
+}: {
+  current: boolean;
+  height: number;
+  index: number;
+  near: boolean;
+}) {
   const handle = HANDLES[index]?.() ?? HANDLES[0]?.() ?? '';
   const video = useRef<HTMLVideoElement>(null);
   const [played, setPlayed] = useState(0);
@@ -470,11 +500,13 @@ function Video({ current, height, index }: { current: boolean; height: number; i
               onTimeUpdate={onTimeUpdate}
               playsInline
               poster={poster}
-              preload={current ? 'auto' : 'metadata'}
+              preload={current ? 'auto' : near ? 'metadata' : 'none'}
               ref={video}
-              src={clipUrl(index, 'mp4')}
               {...props(styles.videoClip)}
-            />
+            >
+              <source src={clipUrl(index, 'av1.mp4')} type={AV1_TYPE} />
+              <source src={clipUrl(index, 'mp4')} type="video/mp4" />
+            </video>
           )
         }
         counts={counts(index)}
@@ -502,18 +534,26 @@ export function FeedPhone({
   onDone?: (() => void) | undefined;
   sound: boolean;
 }) {
-  // Where the feed is, in videos from the first; a fraction mid-drag.
+  // The video the feed stands on. It changes as the feed passes the half way
+  // mark to the next one and at no other time, so a drag between two videos
+  // renders nothing.
   const [position, setPosition] = useState(0);
   const [screenHeight, setScreenHeight] = useState(SCREEN_FALLBACK);
-  const [snapping, setSnapping] = useState(false);
   const [held, setHeld] = useState(false);
+  // Where the feed is, in pixels up from the first video. The track is moved
+  // by this and by nothing else: a hand on it never goes through React.
+  const y = useMotionValue(0);
+  const reduced = useReducedMotion();
   const phone = useRef<HTMLDivElement>(null);
   const screen = useRef<HTMLDivElement>(null);
+  // The same place, counted in videos; a fraction mid-drag.
   const travelled = useRef(0);
   // The whole clip the feed last landed on, so a landing sounds once.
   const landed = useRef(0);
   const holding = useRef(false);
   const demoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The travel to a whole video, while there is one running.
+  const snap = useRef<ReturnType<typeof animate> | null>(null);
   // The feed is not the reader's until the show has played.
   const showing = useRef(true);
   const [ready, setReady] = useState(false);
@@ -522,11 +562,11 @@ export function FeedPhone({
   const lastAt = useRef(0);
   const velocity = useRef(0);
   const dragFrom = useRef(0);
-  const latest = useRef({ onDone, screenHeight, sound });
-  latest.current = { onDone, screenHeight, sound };
+  const latest = useRef({ onDone, reduced, screenHeight, sound });
+  latest.current = { onDone, reduced, screenHeight, sound };
   // The hour and the icons belong to the phone, not to the app, but they have
   // to be read against whatever the app on screen is: dark words on a light one.
-  const skin = platformFor(Math.round(position));
+  const skin = platformFor(position);
   const light = skin === 'facebook' || skin === 'linkedin';
 
   // A video is exactly one screen tall, whatever the screen turns out to be.
@@ -542,30 +582,65 @@ export function FeedPhone({
     return () => observer.disconnect();
   }, []);
 
-  function moveTo(next: number) {
-    const clamped = Math.min(VIDEO_COUNT - 1, Math.max(0, next));
-    travelled.current = clamped;
-    setPosition(clamped);
-    const whole = Math.round(clamped);
-    if (whole !== landed.current) {
-      if (latest.current.sound) {
-        primeTickSound();
-        playClick();
-      }
-      landed.current = whole;
+  // The screen has been measured, or the window has changed shape: the feed
+  // stands on the video it stood on, at the height that video now is.
+  useEffect(() => {
+    snap.current?.stop();
+    y.set(-travelled.current * screenHeight);
+  }, [screenHeight, y]);
+
+  // The feed has come to a whole video: it says so once, and that video is
+  // the one that plays. Every landing there is comes through here, and the
+  // clip it last landed on is what keeps one landing to one click.
+  function land(whole: number) {
+    if (whole === landed.current) {
+      return;
     }
+    landed.current = whole;
+    if (latest.current.sound) {
+      primeTickSound();
+      playClick();
+    }
+    setPosition(whole);
+  }
+
+  // The feed goes where it is put, at once: a hand on it, or a wheel under it.
+  function moveTo(next: number) {
+    snap.current?.stop();
+    travelled.current = inFeed(next);
+    y.set(-travelled.current * latest.current.screenHeight);
   }
 
   function moveBy(pixels: number) {
-    setSnapping(false);
     moveTo(travelled.current + pixels / latest.current.screenHeight);
   }
+
+  // The feed travels to a whole video, on the curve the transition had before
+  // it. A reader who asked for less motion is put there instead. Where it
+  // lands is not said here: the track says it, once, on its way.
+  function snapTo(whole: number) {
+    const target = inFeed(whole);
+    travelled.current = target;
+    snap.current?.stop();
+    snap.current = animate(y, -target * latest.current.screenHeight, {
+      duration: latest.current.reduced === true ? 0 : SNAP_MS / 1000,
+      ease: SNAP_EASE,
+    });
+  }
+
+  // Which video is on screen follows the track itself, so it is right through
+  // a drag as well as through a snap: the one place a landing is read off.
+  useMotionValueEvent(y, 'change', (pixels) => {
+    const height = latest.current.screenHeight;
+    if (height > 0) {
+      land(inFeed(Math.round(-pixels / height)));
+    }
+  });
 
   // Let go: the feed snaps to a whole video. A drag past a small part of a
   // video, or a flick, carries on to the next.
   function letGo(flick = 0) {
     unlockTickSound();
-    setSnapping(true);
     const from = dragFrom.current;
     const moved = travelled.current - from;
     let target = Math.round(travelled.current);
@@ -576,7 +651,7 @@ export function FeedPhone({
         target = from + direction;
       }
     }
-    moveTo(target);
+    snapTo(target);
     dragFrom.current = target;
   }
 
@@ -597,8 +672,7 @@ export function FeedPhone({
     let pause = SHOW_FIRST_MS;
     const step = () => {
       at += 1;
-      setSnapping(true);
-      moveTo(at);
+      snapTo(at);
       if (at >= last) {
         demoTimer.current = null;
         showing.current = false;
@@ -611,7 +685,10 @@ export function FeedPhone({
     };
     // A beat to take the phone in, then the first clip's own long hold.
     demoTimer.current = setTimeout(step, DEMO_START_MS + SHOW_FIRST_MS);
-    return stopShow;
+    return () => {
+      stopShow();
+      snap.current?.stop();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot show
   }, []);
 
@@ -678,8 +755,7 @@ export function FeedPhone({
         return;
       }
       stopShow();
-      setSnapping(true);
-      moveTo(Math.round(travelled.current) + step);
+      snapTo(Math.round(travelled.current) + step);
     }
     function onKeyUp(event: KeyboardEvent) {
       if (moved(event) !== 0) {
@@ -749,19 +825,17 @@ export function FeedPhone({
         <div aria-hidden="true" {...props(styles.phone)}>
           <span {...props(styles.island)} />
           <div ref={screen} {...props(styles.screen)}>
-            <div
-              style={{ transform: `translateY(${-position * screenHeight}px)` }}
-              {...props(styles.feed, snapping && styles.feedSnapping)}
-            >
+            <motion.div style={{ y }} {...props(styles.feed)}>
               {Array.from({ length: VIDEO_COUNT }, (_, index) => (
                 <Video
-                  current={index === Math.round(position)}
+                  current={index === position}
                   height={screenHeight}
                   index={index}
                   key={index}
+                  near={Math.abs(index - position) <= PRELOAD_REACH}
                 />
               ))}
-            </div>
+            </motion.div>
             <div {...props(styles.statusBar, light && styles.statusBarDark)}>
               <span>{m.home_feed_status_time()}</span>
               <span {...props(styles.statusIcons)}>
