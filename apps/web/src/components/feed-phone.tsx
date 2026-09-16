@@ -1,4 +1,4 @@
-import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
+import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -77,6 +77,14 @@ const BLANK_INDEX = VIDEO_COUNT - 1;
 /** An iPhone 15 Pro is 71.6 by 146.6 millimetres: the mock keeps that shape. */
 const PHONE_WIDTH = 71.6;
 const PHONE_HEIGHT = 146.6;
+/**
+ * The body's corner on the box the body fills. Inside that box the corner is
+ * 17cqw, but a box cannot query itself: 17cqw written on the box would measure
+ * the window instead. It is the same corner in percentages here, 17 of the
+ * width across and, on this shape, 8.3 of the height down, which comes to the
+ * same number both ways. Only the focus ring is drawn from it.
+ */
+const SHELL_RADIUS = '17% / 8.3%';
 /** How tall the mock stands on a wide screen, and on a short one. */
 const PHONE_TALL = 430;
 const PHONE_TALL_SHORT = 300;
@@ -141,6 +149,48 @@ const styles = create({
     width: '32cqw',
     zIndex: 2,
   },
+  // One key, drawn the way a key is: a hairline box around the arrow on it.
+  keycap: {
+    alignItems: 'center',
+    borderColor: colors.border,
+    borderRadius: radius.base,
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    display: 'inline-flex',
+    height: 16,
+    justifyContent: 'center',
+    width: 16,
+  },
+  // What the two arrows do, in the corner of the window. It is a keyboard's
+  // line: a reader who swipes has no keys to be told about, and never sees it.
+  keys: {
+    alignItems: 'center',
+    color: colors.muted,
+    display: {
+      '@media (hover: none)': 'none',
+      '@media (max-width: 639px)': 'none',
+      default: 'flex',
+    },
+    fontSize: 12,
+    gap: spacing.s1,
+    insetBlockEnd: spacing.s4,
+    insetInlineEnd: spacing.s4,
+    lineHeight: 1,
+    opacity: 0,
+    position: 'fixed',
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: '400ms',
+    },
+    transitionProperty: 'opacity, visibility',
+    transitionTimingFunction: 'ease-in-out',
+    visibility: 'hidden',
+    zIndex: 30,
+  },
+  keysShown: {
+    opacity: 1,
+    visibility: 'visible',
+  },
   // The phone's body: a titanium rim, a black bezel, and the screen cut into
   // it with the corner an iPhone 15 Pro has. Everything is sized from the
   // body's own width, so it is the same phone at every size.
@@ -171,11 +221,7 @@ const styles = create({
   // 146.6, and the thing that takes every scroll and drag aimed at it.
   shell: {
     aspectRatio: `${PHONE_WIDTH} / ${PHONE_HEIGHT}`,
-    borderRadius: '17cqw',
-    boxShadow: {
-      ':focus-visible': `0 0 0 3px ${colors.muted}`,
-      default: 'none',
-    },
+    borderRadius: SHELL_RADIUS,
     containerType: 'inline-size',
     cursor: 'grab',
     // On a phone it grows to the room it is given and keeps its shape; on a
@@ -190,7 +236,15 @@ const styles = create({
       default: PHONE_TALL,
     },
     minHeight: 0,
-    outlineStyle: 'none',
+    // The ring the keyboard gets, and only it: it takes the phone's own corner
+    // and stands off it, so what is marked is the phone rather than a box.
+    outlineColor: colors.fg,
+    outlineOffset: 4,
+    outlineStyle: {
+      ':focus-visible': 'solid',
+      default: 'none',
+    },
+    outlineWidth: 2,
     position: 'relative',
     touchAction: 'none',
     userSelect: 'none',
@@ -316,6 +370,15 @@ function shadeFor(index: number): number {
   const last = VIDEO_COUNT - 1;
   const at = Math.min(index, last) / last;
   return SHADE_FIRST + (SHADE_LAST - SHADE_FIRST) * at;
+}
+
+/** A key pressed into a field, or into a word being edited, is not the feed's. */
+function isTyping(target: EventTarget | null): boolean {
+  const element = target as HTMLElement | null;
+  const tag = element?.tagName;
+  return (
+    element?.isContentEditable === true || tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA'
+  );
 }
 
 /** The slot a clip wears, and the black one at the end, which keeps TikTok's. */
@@ -572,6 +635,51 @@ export function FeedPhone({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- refs carry the latest values
   }, []);
 
+  // The arrows move the feed from anywhere on the screen, not only while the
+  // phone holds focus: the phone is the whole of this screen, and the only
+  // thing on it there is to move. The listener goes with the feed, so it is
+  // gone the moment the screen is.
+  useEffect(() => {
+    function moved(event: KeyboardEvent): number {
+      if (
+        isTyping(event.target) ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey
+      ) {
+        return 0;
+      }
+      return event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0;
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      const step = moved(event);
+      if (step === 0) {
+        return;
+      }
+      // The page must not scroll while the feed does.
+      event.preventDefault();
+      if (showing.current) {
+        return;
+      }
+      stopShow();
+      setSnapping(true);
+      moveTo(Math.round(travelled.current) + step);
+    }
+    function onKeyUp(event: KeyboardEvent) {
+      if (moved(event) !== 0) {
+        letGo();
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refs carry the latest values
+  }, []);
+
   function onPointerDown(event: React.PointerEvent<HTMLDivElement>) {
     if (showing.current) {
       return;
@@ -611,30 +719,10 @@ export function FeedPhone({
     letGo(velocity.current);
   }
 
-  function onKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
-    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-      event.preventDefault();
-      if (showing.current) {
-        return;
-      }
-      stopShow();
-      setSnapping(true);
-      moveTo(Math.round(travelled.current) + (event.key === 'ArrowDown' ? 1 : -1));
-    }
-  }
-
-  function onKeyUp(event: React.KeyboardEvent<HTMLDivElement>) {
-    if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Enter') {
-      letGo();
-    }
-  }
-
   return (
     <div {...props(styles.gate)}>
       <div
         aria-label={m.home_feed_label()}
-        onKeyDown={onKeyDown}
-        onKeyUp={onKeyUp}
         onPointerCancel={onPointerUp}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -670,6 +758,21 @@ export function FeedPhone({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * The keys that move the feed, in the corner of the window. It says itself
+ * once the show has run and the feed is the reader's, and goes quiet with the
+ * screen it belongs to.
+ */
+export function FeedKeysHint({ shown }: { shown: boolean }) {
+  return (
+    <div aria-hidden="true" {...props(styles.keys, shown && styles.keysShown)}>
+      <span {...props(styles.keycap)}>{m.home_feed_key_up()}</span>
+      <span {...props(styles.keycap)}>{m.home_feed_key_down()}</span>
+      <span>{m.home_feed_keys_hint()}</span>
     </div>
   );
 }
