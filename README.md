@@ -1,4 +1,4 @@
-# Attention Awareness
+# attention awareness
 
 Free, open-source tools to take your attention back. <https://attentionawareness.com>
 
