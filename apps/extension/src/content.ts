@@ -21,7 +21,7 @@ const PATH_POLL_MS = 500;
 
 const TIKTOK_NOTE = 'TikTok is off.';
 const SHORTS_NOTE = 'Shorts is off.';
-const NOTE_BRAND = 'Attention Awareness';
+const NOTE_BRAND = 'attention awareness';
 
 const site = siteFor(location.hostname);
 const style = document.createElement('style');

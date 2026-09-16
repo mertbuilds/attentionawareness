@@ -9,7 +9,7 @@ is in `README.md`.
 ### Name
 
 ```
-Attention Awareness
+attention awareness
 ```
 
 ### Summary
@@ -25,7 +25,7 @@ Hides the feeds that farm your attention on X, YouTube, Instagram and TikTok, pl
 Plain text, max 16,000 characters. This one is 1,308.
 
 ```
-Attention Awareness removes the surfaces built to hold you, and leaves the rest of the site alone.
+attention awareness removes the surfaces built to hold you, and leaves the rest of the site alone.
 
 What goes
 
@@ -70,7 +70,7 @@ English
 ### Single purpose description
 
 ```
-Attention Awareness hides the attention farming feeds on X, YouTube, Instagram and TikTok, and on any other site the user writes a rule for, by injecting CSS into those pages.
+attention awareness hides the attention farming feeds on X, YouTube, Instagram and TikTok, and on any other site the user writes a rule for, by injecting CSS into those pages.
 ```
 
 ### Permission justifications
