@@ -1,12 +1,26 @@
 /** Loud enough to feel mechanical, quiet enough to drag the slider with. */
-export const PEAK_GAIN = 0.25;
+export const PEAK_GAIN = 0.325;
 /** An exponential ramp cannot reach zero, so it lands just under hearing. */
 export const SILENCE = 0.0001;
 /** One sample at the lowest rate every browser accepts: the unlock buffer. */
 const UNLOCK_RATE = 22_050;
+/**
+ * The limiter every voice is played through. Each sound is written to land
+ * under the ceiling on its own, the heaviest stamp included; this is here for
+ * the moment two of them land together, so a detent over a stamp is held
+ * rather than cracked. A whisker under full scale, with no knee and a fast
+ * hand, which is a limiter and not a compressor: under the threshold, which is
+ * where the page lives, it does nothing at all.
+ */
+const LIMIT_THRESHOLD_DB = -0.3;
+const LIMIT_RATIO = 20;
+const LIMIT_ATTACK_SECONDS = 0.001;
+const LIMIT_RELEASE_SECONDS = 0.05;
 
 /** The one device the page opens, kept for every later click. */
 let context: AudioContext | null = null;
+/** The one limiter in front of its speaker, opened with it and kept with it. */
+let limiter: DynamicsCompressorNode | null = null;
 
 /**
  * The device, opened on first ask. Where there is no Web Audio at all (a
@@ -65,6 +79,25 @@ export function unlockTickSound(): boolean {
     return false;
   }
   return true;
+}
+
+/**
+ * Where every voice on the page connects: the limiter, not the speaker. It is
+ * built the first time a sound is played and kept for the life of the device.
+ */
+export function tickOutput(device: AudioContext): AudioNode {
+  if (limiter === null || limiter.context !== device) {
+    const node = device.createDynamicsCompressor();
+    const now = device.currentTime;
+    node.attack.setValueAtTime(LIMIT_ATTACK_SECONDS, now);
+    node.knee.setValueAtTime(0, now);
+    node.ratio.setValueAtTime(LIMIT_RATIO, now);
+    node.release.setValueAtTime(LIMIT_RELEASE_SECONDS, now);
+    node.threshold.setValueAtTime(LIMIT_THRESHOLD_DB, now);
+    node.connect(device.destination);
+    limiter = node;
+  }
+  return limiter;
 }
 
 /**

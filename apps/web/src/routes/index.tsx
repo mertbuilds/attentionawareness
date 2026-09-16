@@ -8,7 +8,13 @@ import { Restart, VolumeCross, VolumeUp } from 'reicon-react';
 import { FeedPhone } from '../components/feed-phone.tsx';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { Receipt } from '../components/receipt.tsx';
-import { clampHours, HOURS_DEFAULT } from '../components/screen-time-gate.tsx';
+import {
+  clampHours,
+  HOURS_DEFAULT,
+  HourReadout,
+  HourSlider,
+} from '../components/screen-time-gate.tsx';
+import { AverageNote, ScreenTimeMark } from '../components/screen-time-help.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { Tip } from '../components/tip.tsx';
 import { formatYears } from '../lib/attention-math.ts';
@@ -73,8 +79,13 @@ const SLIDE_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
 /** The blur the two screens carry while they travel. */
 const SLIDE_BLUR = '3px';
 
-/** Where the bill is between the question being asked and it being answered. */
-type BillStage = 'held' | 'printed' | 'printing' | 'returning' | 'sliding';
+/**
+ * Which of the page's three screens the reader is on, and how it got there:
+ * the show, the question the bill is priced against, then the bill. `asking`
+ * and `sliding` are the two swaps forward, `returning` the one back, whichever
+ * screen is standing when it is asked for.
+ */
+type Stage = 'asked' | 'asking' | 'held' | 'printed' | 'printing' | 'returning' | 'sliding';
 
 /**
  * Each beat of the answer arriving: nothing is on the page until the question
@@ -86,9 +97,10 @@ const revealEnter = keyframes({
 });
 
 /**
- * The question leaving and the answer arriving, together. The page reads as
- * one screen scrolled up over another: one goes a screen up and off, the
- * other comes a screen down into the place it left.
+ * One screen leaving and the next arriving, together. The page reads as one
+ * screen scrolled up over another: one goes a screen up and off, the other
+ * comes a screen down into the place it left. Every swap on the page is these
+ * four moves, whichever pair of screens is making it.
  */
 const screenLeave = keyframes({
   from: { filter: 'blur(0)', opacity: 1, transform: 'translateY(0)' },
@@ -234,16 +246,19 @@ const styles = create({
       default: EXPAND_MS,
     },
   },
-  // The first screen, whole, and one thing at a time down it: the question,
-  // then the lines the answer earns, then the total they come to, then what to
-  // do about it. One column at every width, because the order is the argument.
-  // The same box as `content`, so the whole page keeps one left edge; what
-  // stands in it is narrower, because a line this size is read, not scanned.
-  gateHint: {
-    color: colors.muted,
-    fontSize: 13,
-    margin: 0,
-    textAlign: 'center',
+  // The question the bill is priced against: one column, centred, in the same
+  // measure the show it replaces stands in, so the two swap without anything
+  // moving sideways.
+  gateAsk: {
+    alignItems: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: {
+      '@media (min-width: 640px)': spacing.s8,
+      default: spacing.s6,
+    },
+    maxWidth: HERO_MEASURE,
+    width: '100%',
   },
   // Hidden in place until the rail is held, then faded in: the box is laid
   // out from the first paint, so the page does not move when it shows.
@@ -260,6 +275,15 @@ const styles = create({
   gateCtaShown: {
     opacity: 1,
     visibility: 'visible',
+  },
+  // The rail and the figure it reads, as one thing: the figure is the rail's
+  // own readout, so nothing comes between them.
+  gateDial: {
+    alignItems: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s2,
+    width: '100%',
   },
   // The way back into the show: the quietest thing on the screen, laid out
   // from the first paint and faded in once the show has run itself out.
@@ -703,13 +727,15 @@ function HomePage() {
   const [hours, setHours] = useState(HOURS_DEFAULT);
   // Whether the reader has touched the dial: the receipt is empty until then.
   const [touched, setTouched] = useState(false);
-  // How the bill got here: held behind the first screen, sliding up into the
-  // place it leaves, printing its lines, or simply on the page.
-  const [stage, setStage] = useState<BillStage>('held');
-  // Where the first screen stood when it was asked to go, so it leaves from
-  // there and not from the top of the column.
+  // Which screen is on the page, and how it got there: the show, the question
+  // under it, the bill sliding up into the place the question leaves, printing
+  // its lines, or simply standing there.
+  const [stage, setStage] = useState<Stage>('held');
+  // Where the screen on its way out stood when it was asked to go, so it
+  // leaves from there and not from the top of the column.
   const [leaveTop, setLeaveTop] = useState(0);
   const firstScreen = useRef<HTMLDivElement>(null);
+  const askScreen = useRef<HTMLDivElement>(null);
   const billSection = useRef<HTMLElement>(null);
   // Whether the bill is on screen: the way back to the question shows only
   // while there is a bill to come back from.
@@ -765,6 +791,15 @@ function HomePage() {
       document.documentElement.style.overflow = '';
     };
   }, [stage, touched]);
+
+  // The screens have swapped: the question has the column to itself.
+  useEffect(() => {
+    if (stage !== 'asking') {
+      return;
+    }
+    const timer = setTimeout(() => setStage('asked'), SLIDE_MS);
+    return () => clearTimeout(timer);
+  }, [stage]);
 
   // The screens have swapped: the page is free again, and the bill prints
   // the rest of itself line by line.
@@ -835,22 +870,37 @@ function HomePage() {
     }
   }
 
-  // The reader asked for the bill: the day they set is kept, and the bill
-  // unrolls for it.
-  function showBill() {
+  // The rail moved, under the reader's hand or under its own sweep: the figure
+  // over it follows, and nothing is kept until the bill is asked for.
+  function pickHours(value: number) {
+    setHours(clampHours(value));
+  }
+
+  // The reader wants out: first the question the bill is priced against.
+  function askHours() {
     // iOS opens an audio device inside a gesture and nowhere else.
     unlockTickSound();
-    rememberHours(hours);
     // Measured before the screen is taken out of the column, so it leaves
     // from exactly where the reader last saw it.
     setLeaveTop(firstScreen.current?.offsetTop ?? 0);
+    setStage('asking');
+  }
+
+  // The question is answered: the day they set is kept, and the bill unrolls
+  // for it.
+  function showBill() {
+    unlockTickSound();
+    rememberHours(hours);
+    setLeaveTop(askScreen.current?.offsetTop ?? 0);
     setSnapClose(false);
     setStage('sliding');
     setTouched(true);
   }
 
-  // Back to the first screen: the remembered day is forgotten, the feed
-  // starts its show again, and the two screens swap back the way they came.
+  // Back to the first screen, from the bill or from the question alike: the
+  // remembered day is forgotten, the day itself goes back to the average, the
+  // feed starts its show again, and the two screens swap back the way they
+  // came.
   function reset() {
     forgetHours();
     setHours(HOURS_DEFAULT);
@@ -887,6 +937,23 @@ function HomePage() {
   }
 
   const wholeHours = clampHours(hours);
+  // Which screen holds the column and which is on its way off it. The way back
+  // drops whatever is standing, so the bill and the question tell themselves
+  // apart by whether the bill has been asked for at all.
+  const showLeaving = stage === 'asking';
+  const showShown = stage === 'held' || stage === 'returning' || showLeaving;
+  const askLeaving = stage === 'sliding' || (stage === 'returning' && !touched);
+  const askShown = stage === 'asked' || askLeaving || showLeaving;
+  const billLeaving = stage === 'returning' && touched;
+  // What the bill itself is doing under all that: printing, or printed once it
+  // has been; whole again on the way back, so it drops rather than unprints;
+  // and held behind whichever screen stands in front of it.
+  const billPrint: 'held' | 'printed' | 'printing' =
+    stage === 'printed' || stage === 'printing'
+      ? stage
+      : stage === 'returning'
+        ? 'printed'
+        : 'held';
   const locale = getLocale();
   // The bill's own number and date: one number per visit, the second of the
   // day the page was opened, and the date it was opened on.
@@ -954,7 +1021,7 @@ function HomePage() {
       <header {...props(styles.hero)}>
         {/* The two tools, top right: start over, and the sound. */}
         <div {...props(styles.tools)}>
-          {touched && stage !== 'returning' ? (
+          {(touched || askShown) && stage !== 'returning' ? (
             <div {...props(styles.toolFade, !billInView && styles.toolAway)}>
               <Tip
                 mobile="none"
@@ -1003,7 +1070,7 @@ function HomePage() {
         script in the head stamps the root before first paint, and the
         `data-aa-untouched` block is hidden by a global rule until React
         restores the receipt. */}
-        {touched && stage !== 'sliding' && stage !== 'returning' ? null : (
+        {showShown ? (
           <div
             data-aa-untouched=""
             // A fresh key on the way back, so the feed's show plays again.
@@ -1011,8 +1078,8 @@ function HomePage() {
             ref={firstScreen}
             {...props(
               styles.untouched,
-              stage === 'sliding' && styles.untouchedLeaving,
-              stage === 'sliding' && styles.untouchedLeavingAt(leaveTop),
+              showLeaving && styles.untouchedLeaving,
+              showLeaving && styles.untouchedLeavingAt(leaveTop),
               stage === 'returning' && styles.untouchedReturning,
               stage === 'returning' && styles.untouchedLeavingAt(leaveTop),
             )}
@@ -1047,12 +1114,41 @@ function HomePage() {
             {/* In the page from the start, so nothing moves when it appears:
             it fades in once the show has run. */}
             <div aria-hidden={!picked} {...props(styles.gateCta, picked && styles.gateCtaShown)}>
-              <Button onClick={showBill} tabIndex={picked ? 0 : -1}>
+              <Button onClick={askHours} tabIndex={picked ? 0 : -1}>
                 {m.home_gate_cta()}
               </Button>
             </div>
           </div>
-        )}
+        ) : null}
+        {/* The question the bill is priced against, on a screen of its own: it
+        arrives the way the bill does and leaves the same way the show did. */}
+        {askShown ? (
+          <div
+            ref={askScreen}
+            {...props(
+              styles.gateAsk,
+              showLeaving && styles.billArriving,
+              stage === 'sliding' && styles.untouchedLeaving,
+              stage === 'sliding' && styles.untouchedLeavingAt(leaveTop),
+              stage === 'returning' && styles.billLeaving,
+            )}
+          >
+            <h2 {...props(styles.heroTitle)}>
+              {m.home_gate_question()}
+              <ScreenTimeMark />
+            </h2>
+            <AverageNote />
+            <div {...props(styles.gateDial)}>
+              <HourReadout hours={wholeHours} />
+              <HourSlider
+                onChange={pickHours}
+                sound={tickAllowed(sound, soundChosen)}
+                value={wholeHours}
+              />
+            </div>
+            <Button onClick={showBill}>{m.home_gate_show()}</Button>
+          </div>
+        ) : null}
         {/* The receipt: empty until the reader touches the dial, then priced
         live against it. Every figure on it rolls as the hours change. */}
         <section
@@ -1061,7 +1157,7 @@ function HomePage() {
           {...props(
             styles.receiptWrap,
             stage === 'sliding' && styles.billArriving,
-            stage === 'returning' && styles.billLeaving,
+            billLeaving && styles.billLeaving,
           )}
         >
           <div
@@ -1083,7 +1179,7 @@ function HomePage() {
                 hours={wholeHours}
                 number={receiptNo}
                 onChange={onHoursChange}
-                print={stage === 'sliding' ? 'held' : stage === 'returning' ? 'printed' : stage}
+                print={billPrint}
                 printedOn={printedOn}
                 sound={tickAllowed(sound, soundChosen)}
               />
@@ -1097,7 +1193,7 @@ function HomePage() {
             touched || snapClose ? styles.expandSnap : styles.expandTween,
             touched && styles.expandOpen,
             stage === 'sliding' && styles.billArriving,
-            stage === 'returning' && styles.billLeaving,
+            billLeaving && styles.billLeaving,
           )}
         >
           <div

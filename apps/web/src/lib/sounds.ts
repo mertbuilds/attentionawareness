@@ -1,4 +1,4 @@
-import { PEAK_GAIN, SILENCE, tickDevice } from './tick-sound.ts';
+import { PEAK_GAIN, SILENCE, tickDevice, tickOutput } from './tick-sound.ts';
 
 /**
  * The hit itself: two sine partials struck together, which is what makes a
@@ -51,6 +51,34 @@ const CLUNK_SECONDS = 0.04;
 const CLUNK_CUTOFF_HZ = 400;
 const CLUNK_GAIN = PEAK_GAIN * 0.5;
 
+/**
+ * The stamp landing on paper: the block's own thump through the sheet, and the
+ * slap of its face over the top. Nothing in it rings, because nothing in it is
+ * metal: it is wood and rubber on a sheet of paper.
+ */
+const STAMP_THUMP_HZ = 96;
+const STAMP_THUMP_SECONDS = 0.075;
+/** The face, as the band of noise it is heard in, and how long it is heard. */
+const STAMP_SLAP_HZ = 1900;
+const STAMP_SLAP_Q = 0.9;
+const STAMP_SLAP_SECONDS = 0.03;
+/** What the slap is worth against the thump under it. */
+const STAMP_SLAP_SHARE = 0.55;
+/**
+ * What the pair adds up to the moment it lands. A stamp is the loudest thing
+ * on the page by a long way, so it carries its own ceiling rather than a share
+ * of the detents': close to full scale, and under the limiter's threshold, so
+ * a stamp landing on its own is heard exactly as it is written.
+ */
+const STAMP_PEAK = 0.82;
+/**
+ * The total's stamp is the same block leaned on: pitched down, held longer and
+ * played at the loudest the page allows.
+ */
+const STAMP_HEAVY_FALL = 0.72;
+const STAMP_HEAVY_STRETCH = 1.6;
+const STAMP_HEAVY_PEAK = 0.95;
+
 /** One oscillator of a sound: what it plays, how loud, and for how long. */
 export type Voice = {
   frequency: number;
@@ -87,6 +115,12 @@ export type BellVoice = {
 export type ClunkVoice = { at: number; cutoffHz: number; gain: number; seconds: number };
 
 export type CheckoutVoices = { bells: ReadonlyArray<BellVoice>; clunk: ClunkVoice };
+
+/** The band a burst of noise is heard through, where it is heard through one. */
+export type Filter = { hz: number; q?: number; type: BiquadFilterType };
+
+/** One stamp, as the two voices that say it. */
+export type StampVoices = { slap: NoiseVoice; slapBand: Filter; thump: Voice };
 
 /**
  * How far up the climb one step stands. The first step is the clean detent and
@@ -178,6 +212,29 @@ export function checkoutVoices(): CheckoutVoices {
   };
 }
 
+/**
+ * A rubber stamp landing: the block's thump, with the slap of its face over
+ * the top. The heavy one is the same stamp leaned on, for the one line the
+ * whole bill adds up to.
+ */
+export function stampVoices(heavy: boolean): StampVoices {
+  const fall = heavy ? STAMP_HEAVY_FALL : 1;
+  const stretch = heavy ? STAMP_HEAVY_STRETCH : 1;
+  // The two voices are written as one landing, so they are shared out of the
+  // peak rather than added on top of it.
+  const share = (heavy ? STAMP_HEAVY_PEAK : STAMP_PEAK) / (1 + STAMP_SLAP_SHARE);
+  return {
+    slap: { gain: share * STAMP_SLAP_SHARE, seconds: STAMP_SLAP_SECONDS * stretch },
+    slapBand: { hz: STAMP_SLAP_HZ * fall, q: STAMP_SLAP_Q, type: 'bandpass' },
+    thump: {
+      frequency: STAMP_THUMP_HZ * fall,
+      gain: share,
+      seconds: STAMP_THUMP_SECONDS * stretch,
+      type: 'triangle',
+    },
+  };
+}
+
 function tone(device: AudioContext, at: number, voice: Voice): void {
   const oscillator = device.createOscillator();
   const gain = device.createGain();
@@ -186,13 +243,13 @@ function tone(device: AudioContext, at: number, voice: Voice): void {
   gain.gain.setValueAtTime(voice.gain, at);
   gain.gain.exponentialRampToValueAtTime(SILENCE, at + voice.seconds);
   oscillator.connect(gain);
-  gain.connect(device.destination);
+  gain.connect(tickOutput(device));
   oscillator.start(at);
   oscillator.stop(at + voice.seconds);
 }
 
-/** White noise, optionally with everything over a cutoff taken off it. */
-function burst(device: AudioContext, at: number, voice: NoiseVoice, cutoffHz?: number): void {
+/** White noise, optionally heard through a band rather than whole. */
+function burst(device: AudioContext, at: number, voice: NoiseVoice, band?: Filter): void {
   const frames = Math.max(1, Math.round(device.sampleRate * voice.seconds));
   const buffer = device.createBuffer(1, frames, device.sampleRate);
   const samples = buffer.getChannelData(0);
@@ -204,16 +261,19 @@ function burst(device: AudioContext, at: number, voice: NoiseVoice, cutoffHz?: n
   const gain = device.createGain();
   gain.gain.setValueAtTime(voice.gain, at);
   gain.gain.exponentialRampToValueAtTime(SILENCE, at + voice.seconds);
-  if (cutoffHz === undefined) {
+  if (band === undefined) {
     source.connect(gain);
   } else {
     const filter = device.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(cutoffHz, at);
+    filter.type = band.type;
+    filter.frequency.setValueAtTime(band.hz, at);
+    if (band.q !== undefined) {
+      filter.Q.setValueAtTime(band.q, at);
+    }
     source.connect(filter);
     filter.connect(gain);
   }
-  gain.connect(device.destination);
+  gain.connect(tickOutput(device));
   source.start(at);
   source.stop(at + voice.seconds);
 }
@@ -238,6 +298,22 @@ function play(voices: StepVoices): void {
     }
   } catch {
     // A device the browser will not run must never hold the control up.
+  }
+}
+
+/** One stamp, played. Silent where no gesture has opened a device yet. */
+function stamp(heavy: boolean): void {
+  const device = tickDevice();
+  if (device === null) {
+    return;
+  }
+  try {
+    const now = device.currentTime;
+    const { slap, slapBand, thump } = stampVoices(heavy);
+    tone(device, now, thump);
+    burst(device, now, slap, slapBand);
+  } catch {
+    // A bill nobody hears is still a bill.
   }
 }
 
@@ -279,8 +355,18 @@ export function playCheckout(): void {
         type: 'sine',
       });
     }
-    burst(device, now + clunk.at, clunk, clunk.cutoffHz);
+    burst(device, now + clunk.at, clunk, { hz: clunk.cutoffHz, type: 'lowpass' });
   } catch {
     // The same: a bill nobody hears is still a bill.
   }
+}
+
+/** One line of the bill, stamped as it lands. */
+export function playStamp(): void {
+  stamp(false);
+}
+
+/** The line the whole bill adds up to, stamped with the big block. */
+export function playStampHeavy(): void {
+  stamp(true);
 }
