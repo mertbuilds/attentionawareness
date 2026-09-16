@@ -28,12 +28,25 @@ const HOURS_STEP = 1;
 const DEMO_UP = 7;
 /** How long the rail stands still on the landed screen before it shows itself. */
 const DEMO_START_MS = 500;
-/** How long it waits, still untouched, before it shows itself again. */
+/**
+ * How long it waits, still untouched, before it shows itself again, counted
+ * from the start of a run. A run is a step up, the hold, and a step back, with
+ * the hands fading over the tail of it, so it ends at DEMO_STEP_MS +
+ * DEMO_HOLD_MS + HANDS_FADE: 2475ms, and the rail rests the other 2525ms.
+ */
 const DEMO_REPEAT_MS = 5000;
 /** How long the knob takes to glide one hour along the rail. */
 const DEMO_STEP_MS = 350;
-/** How long it stands on seven before it steps back. */
-const DEMO_HOLD_MS = 500;
+/** How many whole bobs the six-seven hands are lit for. */
+const HANDS_CYCLES = 3;
+/** One bob of a hand, up and back down, at the pace the pair reads lively. */
+const HANDS_BOB_MS = 700;
+/**
+ * How long it stands on seven before it steps back. The hands come out with
+ * the step up, not on landing, so the hold is the rest of their three bobs
+ * once that step is paid for: lit for exactly HANDS_CYCLES * HANDS_BOB_MS.
+ */
+const DEMO_HOLD_MS = HANDS_CYCLES * HANDS_BOB_MS - DEMO_STEP_MS;
 /** How long the six-seven hands take to fade. */
 const HANDS_FADE = '375ms';
 /** The hands read off the readout's own size, so they scale with it. */
@@ -132,7 +145,7 @@ const styles = create({
   hand: {
     animationDuration: {
       '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: '1050ms',
+      default: `${HANDS_BOB_MS}ms`,
     },
     animationIterationCount: 'infinite',
     animationName: weigh,
@@ -143,7 +156,7 @@ const styles = create({
   },
   handRight: {
     // Half the bob, so the pair is always one hand up and one hand coming down.
-    animationDelay: '525ms',
+    animationDelay: `${HANDS_BOB_MS / 2}ms`,
   },
   // Under the number, out of the flow, so the readout never moves for them.
   // The number's box carries the roll mask's own padding under the digit, so
