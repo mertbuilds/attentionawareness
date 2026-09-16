@@ -40,11 +40,18 @@ const CAPTIONS = [
 ];
 
 /**
- * The app each slot wears: the five of them in turn, over and over down the
+ * The app each slot wears: the six of them in turn, over and over down the
  * feed. It is the same clips and the same words the whole way; only the
  * chrome around them changes hands.
  */
-const PLATFORMS: ReadonlyArray<Platform> = ['tiktok', 'reels', 'shorts', 'x', 'linkedin'];
+const PLATFORMS: ReadonlyArray<Platform> = [
+  'tiktok',
+  'reels',
+  'shorts',
+  'x',
+  'linkedin',
+  'facebook',
+];
 
 /** The beat the feed waits before it starts showing itself. */
 const DEMO_START_MS = 700;
@@ -363,12 +370,19 @@ function IconBattery({ style }: { style?: StyleXStyles }) {
   );
 }
 
-/** How dark the wash over a video is: from a little at the top of the feed to almost all at the foot. */
-const SHADE_FIRST = 0.35;
+/**
+ * How dark the wash over a video is: nothing at all down the first seven, and
+ * from the eighth on a little at first and almost all at the foot of the feed.
+ */
+const SHADE_FROM_INDEX = 7;
+const SHADE_FIRST = 0.3;
 const SHADE_LAST = 0.96;
 function shadeFor(index: number): number {
   const last = VIDEO_COUNT - 1;
-  const at = Math.min(index, last) / last;
+  if (index < SHADE_FROM_INDEX) {
+    return 0;
+  }
+  const at = (Math.min(index, last) - SHADE_FROM_INDEX) / (last - SHADE_FROM_INDEX);
   return SHADE_FIRST + (SHADE_LAST - SHADE_FIRST) * at;
 }
 
@@ -512,7 +526,8 @@ export function FeedPhone({
   latest.current = { onDone, screenHeight, sound };
   // The hour and the icons belong to the phone, not to the app, but they have
   // to be read against whatever the app on screen is: dark words on a light one.
-  const light = platformFor(Math.round(position)) === 'linkedin';
+  const skin = platformFor(Math.round(position));
+  const light = skin === 'facebook' || skin === 'linkedin';
 
   // A video is exactly one screen tall, whatever the screen turns out to be.
   useLayoutEffect(() => {

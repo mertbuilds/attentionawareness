@@ -5,10 +5,10 @@ import type { ReactNode } from 'react';
 import { m } from '../paraglide/messages.js';
 
 /**
- * The five skins the feed wears. Every slot hands one of them the same parts,
+ * The six skins the feed wears. Every slot hands one of them the same parts,
  * so the only thing a slot decides is which app it is today.
  */
-export type Platform = 'linkedin' | 'reels' | 'shorts' | 'tiktok' | 'x';
+export type Platform = 'facebook' | 'linkedin' | 'reels' | 'shorts' | 'tiktok' | 'x';
 
 /** The numbers beside the actions, as the slot derives them. */
 export type Counts = {
@@ -43,7 +43,7 @@ const RAIL_BOTTOM = NAV_HEIGHT + 2;
 /** TikTok's two colours: the plus in the tab bar, and the badge on the avatar. */
 const CYAN = '#25f4ee';
 const RED = '#fe2c55';
-/** One colour each from the other four: the rest of them are black or white. */
+/** One colour each from the other five: the rest of them are black or white. */
 const YT_RED = '#ff0033';
 const X_BLUE = '#1d9bf0';
 const X_MUTED = '#71767b';
@@ -53,6 +53,12 @@ const LI_FEED = '#f4f2ee';
 const LI_FIELD = '#edf3f8';
 const LI_MUTED = 'rgba(0, 0, 0, 0.6)';
 const LI_LINE = 'rgba(0, 0, 0, 0.08)';
+const FB_BLUE = '#0866ff';
+const FB_FEED = '#f0f2f5';
+const FB_CHIP = '#e4e6eb';
+const FB_MUTED = '#65676b';
+const FB_LINE = '#ced0d4';
+const FB_BADGE = '#e41e3f';
 
 /** The record under the rail turns while the clip plays. */
 const discSpin = keyframes({
@@ -142,8 +148,13 @@ const LINE_ICONS = {
     'M3.7 5.4h16.6c1 0 1.7.8 1.7 1.7v9.8c0 1-.8 1.7-1.7 1.7H3.7c-1 0-1.7-.8-1.7-1.7V7.1c0-1 .8-1.7 1.7-1.7z',
     'm2.6 6.7 9.4 6.2 9.4-6.2',
   ],
+  menu: ['M3.6 6.9h16.8', 'M3.6 12h16.8', 'M3.6 17.1h16.8'],
   message: [
     'M4.2 4.6h15.6c1 0 1.7.8 1.7 1.7v9.4c0 1-.8 1.7-1.7 1.7h-8.4l-4.5 3.3v-3.3H4.2c-1 0-1.7-.8-1.7-1.7V6.3c0-1 .8-1.7 1.7-1.7z',
+  ],
+  messenger: [
+    'M12 3.1c-5 0-9 3.7-9 8.4 0 2.6 1.3 4.9 3.3 6.5v3.4l3.1-1.7c.8.2 1.7.3 2.6.3 5 0 9-3.7 9-8.4s-4-8.5-9-8.5z',
+    'm7.4 13.9 3.4-3.6 2.1 2.2 3.7-3.8',
   ],
   network: [
     'M9.3 4.6a3.3 3.3 0 1 1 0 6.6 3.3 3.3 0 0 1 0-6.6z',
@@ -152,6 +163,10 @@ const LINE_ICONS = {
     'M18.1 15.5c1.9.4 3.3 2 3.3 3.9',
   ],
   plane: ['M21.4 2.6 2.6 9.4l7.5 2.9 2.9 7.5 8.4-17.2z', 'M10.1 12.3 21.4 2.6'],
+  play: [
+    'M5.2 4.6h13.6a2.8 2.8 0 0 1 2.8 2.8v9.2a2.8 2.8 0 0 1-2.8 2.8H5.2a2.8 2.8 0 0 1-2.8-2.8V7.4a2.8 2.8 0 0 1 2.8-2.8z',
+    'm10.2 9.2 4.6 2.8-4.6 2.8V9.2z',
+  ],
   plusCircle: ['M12 3.2a8.8 8.8 0 1 1 0 17.6 8.8 8.8 0 0 1 0-17.6z', 'M12 8.2v7.6', 'M8.2 12h7.6'],
   plusSquare: [
     'M5 4.6h14c.8 0 1.4.6 1.4 1.4v12c0 .8-.6 1.4-1.4 1.4H5c-.8 0-1.4-.6-1.4-1.4V6c0-.8.6-1.4 1.4-1.4z',
@@ -309,6 +324,258 @@ const styles = create({
     borderRadius: 999,
     height: '4.6cqw',
     width: '4.6cqw',
+  },
+  // Facebook: one action under the card, an icon with its word beside it.
+  fbAction: {
+    alignItems: 'center',
+    display: 'flex',
+    gap: '1.4cqw',
+  },
+  fbActionIcon: {
+    height: '4.8cqw',
+    width: '4.8cqw',
+  },
+  fbActionLabel: {
+    fontSize: '2.9cqw',
+    fontWeight: font.weightMedium,
+  },
+  fbActions: {
+    color: FB_MUTED,
+    display: 'flex',
+    justifyContent: 'space-around',
+    paddingBlock: '1.8cqw',
+    paddingInline: '2cqw',
+  },
+  fbAvatar: {
+    backgroundColor: FB_CHIP,
+    backgroundPosition: 'center',
+    backgroundSize: 'cover',
+    borderRadius: 999,
+    flexShrink: 0,
+    height: '10cqw',
+    width: '10cqw',
+  },
+  // The count on the bell, which is the only red in the bar.
+  fbBadge: {
+    alignItems: 'center',
+    backgroundColor: FB_BADGE,
+    borderRadius: 999,
+    color: '#fff',
+    display: 'flex',
+    fontSize: '2.2cqw',
+    fontWeight: font.weightBold,
+    height: '3.6cqw',
+    insetBlockStart: '1.4cqw',
+    insetInlineStart: '55%',
+    justifyContent: 'center',
+    lineHeight: 1,
+    position: 'absolute',
+    width: '3.6cqw',
+  },
+  // The whole screen, the grey Facebook stands its cards on.
+  fbBoard: {
+    backgroundColor: FB_FEED,
+    inset: 0,
+    position: 'absolute',
+  },
+  fbCard: {
+    backgroundColor: '#fff',
+    color: '#050505',
+    textAlign: 'start',
+  },
+  fbDots: {
+    color: FB_MUTED,
+    flexShrink: 0,
+    height: '5cqw',
+    width: '5cqw',
+  },
+  fbEmoji: {
+    fontSize: '3.2cqw',
+    letterSpacing: '-0.4cqw',
+  },
+  // The card and the one behind it, with the feed's own grey showing between.
+  fbFeed: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8cqw',
+    insetBlockStart: '33.6cqw',
+    insetInlineEnd: 0,
+    insetInlineStart: 0,
+    position: 'absolute',
+  },
+  fbHead: {
+    alignItems: 'center',
+    display: 'flex',
+    gap: '2.4cqw',
+    paddingBlock: '2.4cqw',
+    paddingInline: '3.2cqw',
+  },
+  fbLine: {
+    backgroundColor: FB_LINE,
+    display: 'block',
+    height: '0.2cqw',
+    marginInline: '3.2cqw',
+  },
+  // The picture in the post: four by five, the tallest Facebook shows, and
+  // capped on a screen this size so the card, the gap under it and the card
+  // behind it all still stand. The clip fills the box and is cut to it.
+  fbMedia: {
+    aspectRatio: '4 / 5',
+    maxHeight: '100cqw',
+    overflow: 'hidden',
+    position: 'relative',
+    width: '100%',
+  },
+  fbMeta: {
+    color: FB_MUTED,
+    display: 'block',
+    fontSize: '2.7cqw',
+    lineHeight: 1.3,
+  },
+  fbName: {
+    fontSize: '3.5cqw',
+    fontWeight: font.weightBold,
+    lineHeight: 1.2,
+  },
+  // The next post, showing over the gap: enough of it to say the feed does
+  // not stop here.
+  fbPeek: {
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    display: 'flex',
+    gap: '2.4cqw',
+    paddingBlock: '2.6cqw',
+    paddingInline: '3.2cqw',
+  },
+  fbPeekAvatar: {
+    backgroundColor: FB_CHIP,
+    borderRadius: 999,
+    flexShrink: 0,
+    height: '10cqw',
+    width: '10cqw',
+  },
+  fbPeekLine: {
+    backgroundColor: FB_CHIP,
+    borderRadius: 999,
+    height: '2.6cqw',
+    width: '32cqw',
+  },
+  fbPeekLineShort: {
+    width: '19cqw',
+  },
+  fbPeekText: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1.6cqw',
+  },
+  fbPerson: {
+    display: 'flex',
+    flexDirection: 'column',
+    flexGrow: 1,
+    gap: '0.4cqw',
+    minWidth: 0,
+  },
+  fbReactions: {
+    alignItems: 'center',
+    color: FB_MUTED,
+    display: 'flex',
+    fontSize: '2.8cqw',
+    gap: '1.2cqw',
+    paddingBlock: '2cqw',
+    paddingInline: '3.2cqw',
+  },
+  fbSocial: {
+    marginInlineStart: 'auto',
+  },
+  fbTab: {
+    alignItems: 'center',
+    color: FB_MUTED,
+    display: 'flex',
+    flexBasis: 0,
+    flexGrow: 1,
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  fbTabActive: {
+    color: FB_BLUE,
+  },
+  fbTabIcon: {
+    height: '5.6cqw',
+    width: '5.6cqw',
+  },
+  // The tabs sit under the word, the way Facebook has them: the whole app
+  // across one row, and a line under the one you are on.
+  fbTabs: {
+    alignItems: 'stretch',
+    backgroundColor: '#fff',
+    borderBlockEndColor: FB_LINE,
+    borderBlockEndStyle: 'solid',
+    borderBlockEndWidth: '0.2cqw',
+    boxSizing: 'border-box',
+    display: 'flex',
+    height: '10.4cqw',
+    insetBlockStart: '23.2cqw',
+    insetInlineEnd: 0,
+    insetInlineStart: 0,
+    position: 'absolute',
+  },
+  fbTabUnderline: {
+    backgroundColor: FB_BLUE,
+    height: '0.7cqw',
+    insetBlockEnd: 0,
+    insetInlineEnd: 0,
+    insetInlineStart: 0,
+    position: 'absolute',
+  },
+  fbText: {
+    display: 'block',
+    fontSize: '3.3cqw',
+    lineHeight: 1.35,
+    paddingBlockEnd: '2.4cqw',
+    paddingInline: '3.2cqw',
+  },
+  // The bar over the feed: the word in the app's own blue, and the round
+  // buttons at the other end. It runs up behind the hour, which is where
+  // Facebook puts its white.
+  fbTop: {
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    boxSizing: 'border-box',
+    display: 'flex',
+    height: '23.2cqw',
+    insetBlockStart: 0,
+    insetInlineEnd: 0,
+    insetInlineStart: 0,
+    justifyContent: 'space-between',
+    paddingBlockStart: '12.2cqw',
+    paddingInline: '3.2cqw',
+    position: 'absolute',
+  },
+  fbTopButton: {
+    alignItems: 'center',
+    backgroundColor: FB_CHIP,
+    borderRadius: 999,
+    color: '#050505',
+    display: 'flex',
+    height: '8.2cqw',
+    justifyContent: 'center',
+    width: '8.2cqw',
+  },
+  fbTopIcon: {
+    height: '4.4cqw',
+    width: '4.4cqw',
+  },
+  fbTopTools: {
+    alignItems: 'center',
+    display: 'flex',
+    gap: '2cqw',
+  },
+  fbWordmark: {
+    color: FB_BLUE,
+    fontSize: '6.4cqw',
+    fontWeight: font.weightBold,
+    letterSpacing: '-0.2cqw',
+    lineHeight: 1,
   },
   // An outline button: Instagram's follow, drawn in the line the app gives it.
   followPill: {
@@ -1583,8 +1850,113 @@ function LinkedInChrome({ caption, clip, counts, frame, handle, shade }: ChromeP
   );
 }
 
+/**
+ * Facebook: the app everybody still has. The word in blue, the whole app in a
+ * row of tabs under it, one white card on grey, and the next card already
+ * showing at the foot so the feed reads as a feed.
+ */
+function FacebookChrome({ caption, clip, counts, frame, handle, shade }: ChromeProps) {
+  return (
+    <>
+      <span {...props(styles.fbBoard)} />
+      <div {...props(styles.fbTop)}>
+        <span {...props(styles.fbWordmark)}>{m.home_feed_ui_fb_wordmark()}</span>
+        <span {...props(styles.fbTopTools)}>
+          <span {...props(styles.fbTopButton)}>
+            <Icon name="plus" style={[styles.fbTopIcon, styles.iconPlain]} />
+          </span>
+          <span {...props(styles.fbTopButton)}>
+            <LineIcon name="search" style={[styles.fbTopIcon, styles.iconPlain]} />
+          </span>
+          <span {...props(styles.fbTopButton)}>
+            <LineIcon name="messenger" style={[styles.fbTopIcon, styles.iconPlain]} />
+          </span>
+        </span>
+      </div>
+      <div {...props(styles.fbTabs)}>
+        <span {...props(styles.fbTab, styles.fbTabActive)}>
+          <LineIcon name="home" style={[styles.fbTabIcon, styles.iconPlain]} />
+          <span {...props(styles.fbTabUnderline)} />
+        </span>
+        <span {...props(styles.fbTab)}>
+          <LineIcon name="play" style={[styles.fbTabIcon, styles.iconPlain]} />
+        </span>
+        <span {...props(styles.fbTab)}>
+          <LineIcon name="network" style={[styles.fbTabIcon, styles.iconPlain]} />
+        </span>
+        <span {...props(styles.fbTab)}>
+          <LineIcon name="shop" style={[styles.fbTabIcon, styles.iconPlain]} />
+        </span>
+        <span {...props(styles.fbTab)}>
+          <LineIcon name="bell" style={[styles.fbTabIcon, styles.iconPlain]} />
+          <span {...props(styles.fbBadge)}>{m.home_feed_ui_fb_badge()}</span>
+        </span>
+        <span {...props(styles.fbTab)}>
+          <LineIcon name="menu" style={[styles.fbTabIcon, styles.iconPlain]} />
+        </span>
+      </div>
+      <div {...props(styles.fbFeed)}>
+        <div {...props(styles.fbCard)}>
+          <div {...props(styles.fbHead)}>
+            <span style={frame} {...props(styles.fbAvatar)} />
+            <span {...props(styles.fbPerson)}>
+              <span {...props(styles.fbName)}>{displayName(handle)}</span>
+              <span {...props(styles.fbMeta)}>{m.home_feed_ui_fb_posted()}</span>
+            </span>
+            <Icon name="dots" style={[styles.fbDots, styles.iconPlain]} />
+          </div>
+          <span {...props(styles.fbText)}>{caption}</span>
+          <div {...props(styles.fbMedia)}>
+            {clip}
+            <Shade value={shade} />
+            <Band caption={caption} tight />
+          </div>
+          <div {...props(styles.fbReactions)}>
+            <span {...props(styles.fbEmoji)}>{m.home_feed_ui_fb_reactions()}</span>
+            <span>{formatCount(counts.likes)}</span>
+            <span {...props(styles.fbSocial)}>
+              {m.home_feed_ui_fb_social({
+                comments: formatCount(counts.comments),
+                shares: formatCount(counts.shares),
+              })}
+            </span>
+          </div>
+          <span {...props(styles.fbLine)} />
+          <div {...props(styles.fbActions)}>
+            <span {...props(styles.fbAction)}>
+              <LineIcon name="thumbUp" style={[styles.fbActionIcon, styles.iconPlain]} />
+              <span {...props(styles.fbActionLabel)}>{m.home_feed_ui_like()}</span>
+            </span>
+            <span {...props(styles.fbAction)}>
+              <LineIcon name="comment" style={[styles.fbActionIcon, styles.iconPlain]} />
+              <span {...props(styles.fbActionLabel)}>{m.home_feed_ui_comment()}</span>
+            </span>
+            <span {...props(styles.fbAction)}>
+              <LineIcon name="plane" style={[styles.fbActionIcon, styles.iconPlain]} />
+              <span {...props(styles.fbActionLabel)}>{m.home_feed_ui_send()}</span>
+            </span>
+            <span {...props(styles.fbAction)}>
+              <LineIcon name="share" style={[styles.fbActionIcon, styles.iconPlain]} />
+              <span {...props(styles.fbActionLabel)}>{m.home_feed_ui_share()}</span>
+            </span>
+          </div>
+        </div>
+        <div {...props(styles.fbPeek)}>
+          <span {...props(styles.fbPeekAvatar)} />
+          <span {...props(styles.fbPeekText)}>
+            <span {...props(styles.fbPeekLine)} />
+            <span {...props(styles.fbPeekLine, styles.fbPeekLineShort)} />
+          </span>
+        </div>
+      </div>
+      <span {...props(styles.homeIndicator, styles.homeIndicatorDark)} />
+    </>
+  );
+}
+
 /** The skin a slot wears, by the name the slot carries. */
 export const CHROMES: Record<Platform, (chrome: ChromeProps) => ReactNode> = {
+  facebook: FacebookChrome,
   linkedin: LinkedInChrome,
   reels: ReelsChrome,
   shorts: ShortsChrome,
