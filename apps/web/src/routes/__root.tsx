@@ -11,6 +11,9 @@ import '../app.css';
 
 if (import.meta.env.DEV && typeof window !== 'undefined') {
   void import('react-grab');
+  // Dev-only: the knobs panel emulates scheme, motion, locale and width in place.
+  const knobs = await import('devknobs');
+  knobs.mount();
   // Dev-only: StyleX HMR runtime injects styles; production CSS is emitted into app.css at build.
   void import('virtual:stylex:runtime');
 }

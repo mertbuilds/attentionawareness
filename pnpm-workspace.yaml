@@ -59,3 +59,4 @@ minimumReleaseAgeExclude:
   - posthog-js@1.424.1
   - wrangler@4.128.0
   - '@testing-library/user-event@14.6.7'
+  - devknobs@0.0.1
