@@ -1022,6 +1022,28 @@ const styles = create({
     flexDirection: 'column',
     gap: '1.6cqw',
   },
+  // X's peek stands on the app's own black rather than on a card, and its
+  // head sets a name and a handle on one line, so the face keeps to the top.
+  peekX: {
+    backgroundColor: X_LINE,
+  },
+  peekXBoard: {
+    alignItems: 'flex-start',
+    backgroundColor: 'transparent',
+  },
+  peekXHandle: {
+    width: '13cqw',
+  },
+  peekXHead: {
+    alignItems: 'center',
+    display: 'flex',
+    gap: '1.2cqw',
+  },
+  peekXName: {
+    backgroundColor: X_MUTED,
+    height: '3cqw',
+    width: '18cqw',
+  },
   // How far the clip has run, on the seam between the video and the tab bar.
   progress: {
     backgroundColor: 'rgba(255, 255, 255, 0.28)',
@@ -1265,13 +1287,19 @@ const styles = create({
     color: '#e7e9ea',
     display: 'flex',
     gap: `${GAP}cqw`,
+    paddingBlockStart: `${GAP}cqw`,
+    paddingInline: `${GUTTER}cqw`,
+    textAlign: 'start',
+  },
+  // The post, and the next one showing under its line: X sets one under the
+  // other with no grey between, so the timeline reads as one column.
+  xFeed: {
+    display: 'flex',
+    flexDirection: 'column',
     insetBlockStart: `${CARD_TOP}cqw`,
     insetInlineEnd: 0,
     insetInlineStart: 0,
-    paddingBlockStart: `${GAP}cqw`,
-    paddingInline: `${GUTTER}cqw`,
     position: 'absolute',
-    textAlign: 'start',
   },
   xHandle: {
     color: X_MUTED,
@@ -1752,44 +1780,57 @@ function XChrome({ caption, clip, counts, frame, handle, shade }: ChromeProps) {
   return (
     <>
       <span {...props(styles.xBoard)} />
-      <div {...props(styles.xCard)}>
-        <span style={frame} {...props(styles.xAvatar)} />
-        <div {...props(styles.xBody)}>
-          <span {...props(styles.xNameRow)}>
-            <span {...props(styles.xName)}>{displayName(handle)}</span>
-            <span {...props(styles.xHandle)}>{m.home_feed_ui_x_meta({ handle })}</span>
+      <div {...props(styles.xFeed)}>
+        <div {...props(styles.xCard)}>
+          <span style={frame} {...props(styles.xAvatar)} />
+          <div {...props(styles.xBody)}>
+            <span {...props(styles.xNameRow)}>
+              <span {...props(styles.xName)}>{displayName(handle)}</span>
+              <span {...props(styles.xHandle)}>{m.home_feed_ui_x_meta({ handle })}</span>
+            </span>
+            <span {...props(styles.xText)}>{m.home_feed_x_text()}</span>
+            <div {...props(styles.xMedia)}>
+              {clip}
+              <Shade value={shade} />
+              <Band caption={caption} tight />
+            </div>
+            <div {...props(styles.xActions)}>
+              <span {...props(styles.xAction)}>
+                <LineIcon name="comment" style={styles.xActionIcon} />
+                {formatCount(counts.comments)}
+              </span>
+              <span {...props(styles.xAction)}>
+                <LineIcon name="repost" style={styles.xActionIcon} />
+                {formatCount(counts.shares)}
+              </span>
+              <span {...props(styles.xAction)}>
+                <LineIcon name="heart" style={styles.xActionIcon} />
+                {formatCount(counts.likes)}
+              </span>
+              <span {...props(styles.xAction)}>
+                <LineIcon name="views" style={styles.xActionIcon} />
+                {formatCount(counts.likes * 12)}
+              </span>
+              <span {...props(styles.xAction)}>
+                <LineIcon name="bookmark" style={styles.xActionIcon} />
+              </span>
+              <span {...props(styles.xAction)}>
+                <LineIcon name="upload" style={styles.xActionIcon} />
+              </span>
+            </div>
+            <span {...props(styles.xLine)} />
+          </div>
+        </div>
+        <div {...props(styles.peek, styles.peekXBoard)}>
+          <span {...props(styles.peekAvatar, styles.peekX)} />
+          <span {...props(styles.peekText)}>
+            <span {...props(styles.peekXHead)}>
+              <span {...props(styles.peekLine, styles.peekXName)} />
+              <span {...props(styles.peekLine, styles.peekX, styles.peekXHandle)} />
+            </span>
+            <span {...props(styles.peekLine, styles.peekX)} />
+            <span {...props(styles.peekLine, styles.peekLineShort, styles.peekX)} />
           </span>
-          <span {...props(styles.xText)}>{m.home_feed_x_text()}</span>
-          <div {...props(styles.xMedia)}>
-            {clip}
-            <Shade value={shade} />
-            <Band caption={caption} tight />
-          </div>
-          <div {...props(styles.xActions)}>
-            <span {...props(styles.xAction)}>
-              <LineIcon name="comment" style={styles.xActionIcon} />
-              {formatCount(counts.comments)}
-            </span>
-            <span {...props(styles.xAction)}>
-              <LineIcon name="repost" style={styles.xActionIcon} />
-              {formatCount(counts.shares)}
-            </span>
-            <span {...props(styles.xAction)}>
-              <LineIcon name="heart" style={styles.xActionIcon} />
-              {formatCount(counts.likes)}
-            </span>
-            <span {...props(styles.xAction)}>
-              <LineIcon name="views" style={styles.xActionIcon} />
-              {formatCount(counts.likes * 12)}
-            </span>
-            <span {...props(styles.xAction)}>
-              <LineIcon name="bookmark" style={styles.xActionIcon} />
-            </span>
-            <span {...props(styles.xAction)}>
-              <LineIcon name="upload" style={styles.xActionIcon} />
-            </span>
-          </div>
-          <span {...props(styles.xLine)} />
         </div>
       </div>
       <div {...props(styles.xTop)}>
