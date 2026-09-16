@@ -3,7 +3,7 @@ import { create, props } from '@stylexjs/stylex';
 import type { ReactNode } from 'react';
 import { layout } from '../lib/layout.ts';
 import { m } from '../paraglide/messages.js';
-import { PreferencesRow } from './preferences.tsx';
+import { ThemeSwitch } from './preferences.tsx';
 
 const REPO_URL = 'https://github.com/mertbuilds/attentionawareness';
 /** Every link to one of Mert's own sites carries utm tags, so the visit is traced to this site. */
@@ -22,8 +22,8 @@ const styles = create({
     flexDirection: 'column',
     gap: spacing.s4,
   },
-  // The last line and the controls share a row, centred on each other, so the
-  // toggle sits on the text's own line. A phone wraps the controls under it.
+  // The last line and the theme control share a row, centred on each other, so
+  // the toggle sits on the text's own line. A phone wraps the control under it.
   last: {
     alignItems: 'center',
     display: 'flex',
@@ -42,9 +42,9 @@ const styles = create({
 });
 
 /**
- * The same footer on every page: what this is, who made it, and the theme and
- * language controls. A page with one more line of its own passes it in, and it
- * joins the column above the shared three.
+ * The same footer on every page: what this is, who made it, and the theme
+ * control. A page with one more line of its own passes it in, and it joins the
+ * column above the shared three.
  */
 export function SiteFooter({ children }: { children?: ReactNode | undefined }) {
   const [openBefore, openAfter] = m.gen_footer_open_source({ source: LINK_SLOT }).split(LINK_SLOT);
@@ -70,7 +70,7 @@ export function SiteFooter({ children }: { children?: ReactNode | undefined }) {
           </a>
           {appleAfter}
         </p>
-        <PreferencesRow />
+        <ThemeSwitch />
       </div>
     </footer>
   );

@@ -5,7 +5,6 @@ import { useEffect, type ReactNode } from 'react';
 import { SiteBrand } from '../components/site-brand.tsx';
 import { WipBanner } from '../components/wip-banner.tsx';
 import { clientEnv } from '../lib/env.ts';
-import { getLocale } from '../paraglide/runtime.js';
 import '@attentionawareness/ui/fonts.css';
 import '@attentionawareness/ui/theme.css';
 import '../app.css';
@@ -134,7 +133,7 @@ function Providers({ children }: { children: ReactNode }) {
 
 function RootDocument({ children }: { children: ReactNode }) {
   return (
-    <html lang={getLocale()}>
+    <html lang="en">
       <head>
         <HeadContent />
         {/* Before first paint: a reader with saved hours gets the root stamped,
