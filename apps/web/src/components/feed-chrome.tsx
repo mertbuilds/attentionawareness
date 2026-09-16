@@ -1887,7 +1887,7 @@ function LinkedInChrome({ caption, clip, counts, frame, handle, shade }: ChromeP
             </span>
             <span {...props(styles.liFollow)}>{m.home_feed_ui_follow()}</span>
           </div>
-          <span {...props(styles.liText)}>{caption}</span>
+          <span {...props(styles.liText)}>{m.home_feed_linkedin_text()}</span>
           <div {...props(styles.liMedia)}>
             {clip}
             <Shade value={shade} />
