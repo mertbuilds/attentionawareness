@@ -35,11 +35,42 @@ export type ChromeProps = {
   shade: number;
 };
 
+/**
+ * Every measure here is a share of the phone body's own width, in cqw. The
+ * screen is 89.6 of them across and an iPhone screen is 393 points wide, so a
+ * point is 0.228 of them. The handful of measures the six skins agree on are
+ * written out first, in the points they come from, and the rest is set off
+ * them: that is what keeps one skin's bar the height of another's.
+ */
+/** 11pt: the air a bar keeps under the phone's own line. */
+const AIR = 2.6;
+/** 40pt: the face over a post. */
+const AVATAR = 9.1;
+/** 44pt: a top bar. */
+const BAR = 10;
+/** 10pt: the grey a feed leaves between one card and the next. */
+const FEED_GAP = 2.4;
+/** 12pt: an avatar to the words beside it. */
+const GAP = 2.7;
+/** 16pt: the margin a card keeps either side, and the step down a rail. */
+const GUTTER = 3.6;
+/** 52pt: a row of actions under a card, words and all. */
+const ROW = 12;
+/** 32pt: a row of counted icons, which carries no words and stands lower. */
+const ROW_TIGHT = 7.4;
+/** 47pt: a row of tabs under a bar. */
+const TAB_ROW = 10.8;
+/** Where the phone's own line ends. Every app starts its air below this. */
+const STATUS_END = 12.2;
+/** The first bar, the tabs under it, and the first card under those. */
+const BAR_TOP = STATUS_END + AIR;
+const TABS_TOP = BAR_TOP + BAR;
+const CARD_TOP = TABS_TOP + TAB_ROW;
 /** The tab bar and the home indicator under it, measured up from the foot. */
 const NAV_HEIGHT = 17;
 /** The caption block and the action rail both stand clear of the tab bar. */
-const CAPTION_BOTTOM = NAV_HEIGHT + 3;
-const RAIL_BOTTOM = NAV_HEIGHT + 2;
+const CAPTION_BOTTOM = NAV_HEIGHT + GUTTER;
+const RAIL_BOTTOM = NAV_HEIGHT + GAP;
 /** TikTok's two colours: the plus in the tab bar, and the badge on the avatar. */
 const CYAN = '#25f4ee';
 const RED = '#fe2c55';
@@ -257,7 +288,7 @@ const styles = create({
     flexDirection: 'column',
     gap: '1.4cqw',
     insetBlockEnd: `${CAPTION_BOTTOM}cqw`,
-    insetInlineStart: '4cqw',
+    insetInlineStart: `${GUTTER}cqw`,
     position: 'absolute',
     textAlign: 'start',
     width: '62%',
@@ -338,13 +369,15 @@ const styles = create({
   fbActionLabel: {
     fontSize: '2.9cqw',
     fontWeight: font.weightMedium,
+    lineHeight: 1.2,
   },
   fbActions: {
+    alignItems: 'center',
     color: FB_MUTED,
     display: 'flex',
+    height: `${ROW}cqw`,
     justifyContent: 'space-around',
-    paddingBlock: '1.8cqw',
-    paddingInline: '2cqw',
+    paddingInline: `${GAP}cqw`,
   },
   fbAvatar: {
     backgroundColor: FB_CHIP,
@@ -352,8 +385,8 @@ const styles = create({
     backgroundSize: 'cover',
     borderRadius: 999,
     flexShrink: 0,
-    height: '10cqw',
-    width: '10cqw',
+    height: `${AVATAR}cqw`,
+    width: `${AVATAR}cqw`,
   },
   // The count on the bell, which is the only red in the bar.
   fbBadge: {
@@ -397,8 +430,8 @@ const styles = create({
   fbFeed: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '8cqw',
-    insetBlockStart: '33.6cqw',
+    gap: `${FEED_GAP}cqw`,
+    insetBlockStart: `${CARD_TOP + FEED_GAP}cqw`,
     insetInlineEnd: 0,
     insetInlineStart: 0,
     position: 'absolute',
@@ -406,22 +439,22 @@ const styles = create({
   fbHead: {
     alignItems: 'center',
     display: 'flex',
-    gap: '2.4cqw',
+    gap: `${GAP}cqw`,
     paddingBlock: '2.4cqw',
-    paddingInline: '3.2cqw',
+    paddingInline: `${GUTTER}cqw`,
   },
   fbLine: {
     backgroundColor: FB_LINE,
     display: 'block',
     height: '0.2cqw',
-    marginInline: '3.2cqw',
+    marginInline: `${GUTTER}cqw`,
   },
   // The picture in the post: four by five, the tallest Facebook shows, and
   // capped on a screen this size so the card, the gap under it and the card
   // behind it all still stand. The clip fills the box and is cut to it.
   fbMedia: {
     aspectRatio: '4 / 5',
-    maxHeight: '100cqw',
+    maxHeight: '96cqw',
     overflow: 'hidden',
     position: 'relative',
     width: '100%',
@@ -437,37 +470,6 @@ const styles = create({
     fontWeight: font.weightBold,
     lineHeight: 1.2,
   },
-  // The next post, showing over the gap: enough of it to say the feed does
-  // not stop here.
-  fbPeek: {
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    display: 'flex',
-    gap: '2.4cqw',
-    paddingBlock: '2.6cqw',
-    paddingInline: '3.2cqw',
-  },
-  fbPeekAvatar: {
-    backgroundColor: FB_CHIP,
-    borderRadius: 999,
-    flexShrink: 0,
-    height: '10cqw',
-    width: '10cqw',
-  },
-  fbPeekLine: {
-    backgroundColor: FB_CHIP,
-    borderRadius: 999,
-    height: '2.6cqw',
-    width: '32cqw',
-  },
-  fbPeekLineShort: {
-    width: '19cqw',
-  },
-  fbPeekText: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1.6cqw',
-  },
   fbPerson: {
     display: 'flex',
     flexDirection: 'column',
@@ -481,8 +483,8 @@ const styles = create({
     display: 'flex',
     fontSize: '2.8cqw',
     gap: '1.2cqw',
-    paddingBlock: '2cqw',
-    paddingInline: '3.2cqw',
+    height: '7.6cqw',
+    paddingInline: `${GUTTER}cqw`,
   },
   fbSocial: {
     marginInlineStart: 'auto',
@@ -513,8 +515,8 @@ const styles = create({
     borderBlockEndWidth: '0.2cqw',
     boxSizing: 'border-box',
     display: 'flex',
-    height: '10.4cqw',
-    insetBlockStart: '23.2cqw',
+    height: `${TAB_ROW}cqw`,
+    insetBlockStart: `${TABS_TOP}cqw`,
     insetInlineEnd: 0,
     insetInlineStart: 0,
     position: 'absolute',
@@ -532,7 +534,7 @@ const styles = create({
     fontSize: '3.3cqw',
     lineHeight: 1.35,
     paddingBlockEnd: '2.4cqw',
-    paddingInline: '3.2cqw',
+    paddingInline: `${GUTTER}cqw`,
   },
   // The bar over the feed: the word in the app's own blue, and the round
   // buttons at the other end. It runs up behind the hour, which is where
@@ -542,13 +544,13 @@ const styles = create({
     backgroundColor: '#fff',
     boxSizing: 'border-box',
     display: 'flex',
-    height: '23.2cqw',
+    height: `${TABS_TOP}cqw`,
     insetBlockStart: 0,
     insetInlineEnd: 0,
     insetInlineStart: 0,
     justifyContent: 'space-between',
-    paddingBlockStart: '12.2cqw',
-    paddingInline: '3.2cqw',
+    paddingBlockStart: `${BAR_TOP}cqw`,
+    paddingInline: `${GUTTER}cqw`,
     position: 'absolute',
   },
   fbTopButton: {
@@ -630,19 +632,21 @@ const styles = create({
     gap: '0.8cqw',
   },
   liActionIcon: {
-    height: '5cqw',
-    width: '5cqw',
+    height: '4.6cqw',
+    width: '4.6cqw',
   },
   liActionLabel: {
     fontSize: '2.7cqw',
     fontWeight: font.weightMedium,
+    lineHeight: 1.2,
   },
   liActions: {
+    alignItems: 'center',
     color: LI_MUTED,
     display: 'flex',
+    height: `${ROW}cqw`,
     justifyContent: 'space-around',
-    paddingBlock: '2cqw',
-    paddingInline: '2cqw',
+    paddingInline: `${GAP}cqw`,
   },
   liAvatar: {
     backgroundColor: '#c9c5bd',
@@ -650,8 +654,8 @@ const styles = create({
     backgroundSize: 'cover',
     borderRadius: 999,
     flexShrink: 0,
-    height: '10.4cqw',
-    width: '10.4cqw',
+    height: `${AVATAR}cqw`,
+    width: `${AVATAR}cqw`,
   },
   // LinkedIn: the whole screen, the light grey its feed sits on.
   liBoard: {
@@ -659,24 +663,33 @@ const styles = create({
     inset: 0,
     position: 'absolute',
   },
-  // The post itself: white, edge to edge, the way the app stacks them.
+  // The post itself: white, edge to edge, the way the app stacks them. It
+  // stands in the feed under the bar rather than on the screen, so the words
+  // under the picture are part of the card and not a row of their own.
   liCard: {
     backgroundColor: '#fff',
     color: '#000',
-    insetBlockStart: '24.4cqw',
-    insetInlineEnd: 0,
-    insetInlineStart: 0,
-    position: 'absolute',
     textAlign: 'start',
   },
   liDegree: {
     color: LI_MUTED,
     fontSize: '2.9cqw',
     fontWeight: font.weightMedium,
+    lineHeight: 1.25,
   },
   liEmoji: {
     fontSize: '3.2cqw',
     letterSpacing: '-0.4cqw',
+  },
+  // The card, and the next one showing under it.
+  liFeed: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: `${FEED_GAP}cqw`,
+    insetBlockStart: `${TABS_TOP}cqw`,
+    insetInlineEnd: 0,
+    insetInlineStart: 0,
+    position: 'absolute',
   },
   liFollow: {
     color: LI_BLUE,
@@ -687,9 +700,9 @@ const styles = create({
   liHead: {
     alignItems: 'flex-start',
     display: 'flex',
-    gap: '2.4cqw',
-    paddingBlock: '2.8cqw',
-    paddingInline: '3.2cqw',
+    gap: `${GAP}cqw`,
+    paddingBlock: `${GAP}cqw`,
+    paddingInline: `${GUTTER}cqw`,
   },
   liHeadline: {
     color: LI_MUTED,
@@ -702,8 +715,9 @@ const styles = create({
   },
   liLine: {
     backgroundColor: LI_LINE,
+    display: 'block',
     height: '0.2cqw',
-    marginInline: '3.2cqw',
+    marginInline: `${GUTTER}cqw`,
   },
   // The picture in the post: the only part of a light card the wash touches.
   liMedia: {
@@ -721,7 +735,7 @@ const styles = create({
   liName: {
     fontSize: '3.5cqw',
     fontWeight: font.weightBold,
-    lineHeight: 1.2,
+    lineHeight: 1.25,
   },
   liNameRow: {
     alignItems: 'baseline',
@@ -760,8 +774,8 @@ const styles = create({
     display: 'flex',
     fontSize: '2.7cqw',
     gap: '1cqw',
-    paddingBlock: '2cqw',
-    paddingInline: '3.2cqw',
+    height: '7.6cqw',
+    paddingInline: `${GUTTER}cqw`,
   },
   // The search field the app puts the whole feed under.
   liSearch: {
@@ -771,7 +785,7 @@ const styles = create({
     color: LI_MUTED,
     display: 'flex',
     flexGrow: 1,
-    height: '7.6cqw',
+    height: '8cqw',
     paddingInline: '2.4cqw',
   },
   liText: {
@@ -779,19 +793,19 @@ const styles = create({
     fontSize: '3.3cqw',
     lineHeight: 1.35,
     paddingBlockEnd: '2.4cqw',
-    paddingInline: '3.2cqw',
+    paddingInline: `${GUTTER}cqw`,
   },
   liTop: {
     alignItems: 'center',
     backgroundColor: '#fff',
     color: '#000',
     display: 'flex',
-    gap: '2.6cqw',
-    height: '12.2cqw',
-    insetBlockStart: '12.2cqw',
+    gap: `${GAP}cqw`,
+    height: `${BAR}cqw`,
+    insetBlockStart: `${BAR_TOP}cqw`,
     insetInlineEnd: 0,
     insetInlineStart: 0,
-    paddingInline: '3.2cqw',
+    paddingInline: `${GUTTER}cqw`,
     position: 'absolute',
   },
   liTopAvatar: {
@@ -972,6 +986,42 @@ const styles = create({
     textWrap: 'balance',
     WebkitBoxDecorationBreak: 'clone',
   },
+  // The next post, showing under the gap: enough of it to say the feed does
+  // not stop here.
+  peek: {
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    display: 'flex',
+    gap: `${GAP}cqw`,
+    paddingBlock: '2.4cqw',
+    paddingInline: `${GUTTER}cqw`,
+  },
+  peekAvatar: {
+    borderRadius: 999,
+    flexShrink: 0,
+    height: `${AVATAR}cqw`,
+    width: `${AVATAR}cqw`,
+  },
+  // Each feed's own grey, on the face and on the lines beside it.
+  peekFb: {
+    backgroundColor: FB_CHIP,
+  },
+  peekLi: {
+    backgroundColor: LI_FIELD,
+  },
+  peekLine: {
+    borderRadius: 999,
+    height: '2.6cqw',
+    width: '32cqw',
+  },
+  peekLineShort: {
+    width: '19cqw',
+  },
+  peekText: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1.6cqw',
+  },
   // How far the clip has run, on the seam between the video and the tab bar.
   progress: {
     backgroundColor: 'rgba(255, 255, 255, 0.28)',
@@ -999,7 +1049,7 @@ const styles = create({
     color: '#fff',
     display: 'flex',
     flexDirection: 'column',
-    gap: '3.4cqw',
+    gap: `${GUTTER}cqw`,
     insetBlockEnd: `${RAIL_BOTTOM}cqw`,
     insetInlineEnd: '2.4cqw',
     position: 'absolute',
@@ -1038,17 +1088,23 @@ const styles = create({
     width: '2.6cqw',
   },
   railCount: {
-    fontSize: '2.7cqw',
+    fontSize: '2.6cqw',
     fontWeight: font.weightMedium,
     lineHeight: 1,
     textShadow: '0 1px 3px rgba(0, 0, 0, 0.6)',
   },
+  // Instagram and YouTube count more actions into the same height, so they
+  // draw them smaller and stand them closer than TikTok does.
   railGap: {
-    gap: '2.4cqw',
+    gap: '2.6cqw',
   },
   railIcon: {
-    height: '7.6cqw',
-    width: '7.6cqw',
+    height: '7.4cqw',
+    width: '7.4cqw',
+  },
+  railIconSmall: {
+    height: '6.8cqw',
+    width: '6.8cqw',
   },
   railItem: {
     alignItems: 'center',
@@ -1082,7 +1138,7 @@ const styles = create({
   },
   search: {
     height: '5.2cqw',
-    insetInlineEnd: '4cqw',
+    insetInlineEnd: `${GUTTER}cqw`,
     position: 'absolute',
     width: '5.2cqw',
   },
@@ -1113,7 +1169,7 @@ const styles = create({
     fontSize: '3.8cqw',
     fontWeight: font.weightBold,
     lineHeight: 1,
-    paddingInline: '2.4cqw',
+    paddingInline: `${GAP}cqw`,
     position: 'relative',
     textShadow: '0 1px 4px rgba(0, 0, 0, 0.6)',
   },
@@ -1134,8 +1190,8 @@ const styles = create({
     alignItems: 'center',
     color: '#fff',
     display: 'flex',
-    height: '9cqw',
-    insetBlockStart: '13.2cqw',
+    height: `${BAR}cqw`,
+    insetBlockStart: `${BAR_TOP}cqw`,
     insetInlineEnd: 0,
     insetInlineStart: 0,
     justifyContent: 'center',
@@ -1151,12 +1207,12 @@ const styles = create({
     alignItems: 'center',
     color: '#fff',
     display: 'flex',
-    height: '9cqw',
-    insetBlockStart: '13.2cqw',
+    height: `${BAR}cqw`,
+    insetBlockStart: `${BAR_TOP}cqw`,
     insetInlineEnd: 0,
     insetInlineStart: 0,
     justifyContent: 'space-between',
-    paddingInline: '4cqw',
+    paddingInline: `${GUTTER}cqw`,
     position: 'absolute',
   },
   topIcon: {
@@ -1183,8 +1239,9 @@ const styles = create({
     color: X_MUTED,
     display: 'flex',
     fontSize: '2.8cqw',
+    height: `${ROW_TIGHT}cqw`,
     justifyContent: 'space-between',
-    marginBlockStart: '2.6cqw',
+    marginBlockStart: '1.4cqw',
   },
   xAvatar: {
     backgroundColor: '#2f3336',
@@ -1192,8 +1249,8 @@ const styles = create({
     backgroundSize: 'cover',
     borderRadius: 999,
     flexShrink: 0,
-    height: '10cqw',
-    width: '10cqw',
+    height: `${AVATAR}cqw`,
+    width: `${AVATAR}cqw`,
   },
   xBoard: {
     backgroundColor: '#000',
@@ -1207,17 +1264,19 @@ const styles = create({
   xCard: {
     color: '#e7e9ea',
     display: 'flex',
-    gap: '2.4cqw',
-    insetBlockStart: '34cqw',
+    gap: `${GAP}cqw`,
+    insetBlockStart: `${CARD_TOP}cqw`,
     insetInlineEnd: 0,
     insetInlineStart: 0,
-    paddingInline: '3.2cqw',
+    paddingBlockStart: `${GAP}cqw`,
+    paddingInline: `${GUTTER}cqw`,
     position: 'absolute',
     textAlign: 'start',
   },
   xHandle: {
     color: X_MUTED,
     fontSize: '3.3cqw',
+    lineHeight: 1.3,
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
@@ -1226,7 +1285,7 @@ const styles = create({
     backgroundColor: X_LINE,
     display: 'block',
     height: '0.2cqw',
-    marginBlockStart: '3cqw',
+    marginBlockStart: `${GAP}cqw`,
   },
   xLogo: {
     height: '5.6cqw',
@@ -1239,7 +1298,7 @@ const styles = create({
     borderRadius: '4cqw',
     borderStyle: 'solid',
     borderWidth: '0.2cqw',
-    marginBlockStart: '2.4cqw',
+    marginBlockStart: `${GAP}cqw`,
     overflow: 'hidden',
     position: 'relative',
     width: '100%',
@@ -1247,6 +1306,7 @@ const styles = create({
   xName: {
     fontSize: '3.5cqw',
     fontWeight: font.weightBold,
+    lineHeight: 1.3,
   },
   xNameRow: {
     alignItems: 'center',
@@ -1280,8 +1340,8 @@ const styles = create({
     borderBlockEndStyle: 'solid',
     borderBlockEndWidth: '0.2cqw',
     display: 'flex',
-    height: '10.4cqw',
-    insetBlockStart: '23.4cqw',
+    height: `${TAB_ROW}cqw`,
+    insetBlockStart: `${TABS_TOP}cqw`,
     insetInlineEnd: 0,
     insetInlineStart: 0,
     position: 'absolute',
@@ -1298,15 +1358,15 @@ const styles = create({
     display: 'block',
     fontSize: '3.6cqw',
     lineHeight: 1.35,
-    marginBlockStart: '0.8cqw',
+    marginBlockStart: '1cqw',
   },
   // The bar over the timeline: the reader on one side, the mark in the middle.
   xTop: {
     alignItems: 'center',
     color: '#e7e9ea',
     display: 'flex',
-    height: '11.2cqw',
-    insetBlockStart: '12.2cqw',
+    height: `${BAR}cqw`,
+    insetBlockStart: `${BAR_TOP}cqw`,
     insetInlineEnd: 0,
     insetInlineStart: 0,
     justifyContent: 'center',
@@ -1317,10 +1377,10 @@ const styles = create({
     backgroundPosition: 'center',
     backgroundSize: 'cover',
     borderRadius: 999,
-    height: '6.4cqw',
-    insetInlineStart: '4cqw',
+    height: '7.3cqw',
+    insetInlineStart: `${GUTTER}cqw`,
     position: 'absolute',
-    width: '6.4cqw',
+    width: '7.3cqw',
   },
 });
 
@@ -1539,18 +1599,18 @@ function ReelsChrome({
       <span {...props(styles.scrimBottom)} />
       <div {...props(styles.rail, styles.railGap)}>
         <span {...props(styles.railItem)}>
-          <LineIcon name="heart" style={styles.railIcon} />
+          <LineIcon name="heart" style={[styles.railIcon, styles.railIconSmall]} />
           <span {...props(styles.railCount)}>{formatCount(counts.likes)}</span>
         </span>
         <span {...props(styles.railItem)}>
-          <LineIcon name="comment" style={styles.railIcon} />
+          <LineIcon name="comment" style={[styles.railIcon, styles.railIconSmall]} />
           <span {...props(styles.railCount)}>{formatCount(counts.comments)}</span>
         </span>
         <span {...props(styles.railItem)}>
-          <LineIcon name="plane" style={styles.railIcon} />
+          <LineIcon name="plane" style={[styles.railIcon, styles.railIconSmall]} />
           <span {...props(styles.railCount)}>{formatCount(counts.shares)}</span>
         </span>
-        <Icon name="dots" style={styles.railIcon} />
+        <Icon name="dots" style={[styles.railIcon, styles.railIconSmall]} />
         <span style={{ ...frame, ...spin(current) }} {...props(styles.audio)} />
       </div>
       <Shade value={shade} />
@@ -1609,23 +1669,23 @@ function ShortsChrome({
       <span {...props(styles.scrimBottom)} />
       <div {...props(styles.rail, styles.railGap)}>
         <span {...props(styles.railItem)}>
-          <LineIcon name="thumbUp" style={styles.railIcon} />
+          <LineIcon name="thumbUp" style={[styles.railIcon, styles.railIconSmall]} />
           <span {...props(styles.railCount)}>{formatCount(counts.likes)}</span>
         </span>
         <span {...props(styles.railItem)}>
-          <LineIcon name="thumbDown" style={styles.railIcon} />
+          <LineIcon name="thumbDown" style={[styles.railIcon, styles.railIconSmall]} />
           <span {...props(styles.railCount)}>{m.home_feed_ui_dislike()}</span>
         </span>
         <span {...props(styles.railItem)}>
-          <LineIcon name="comment" style={styles.railIcon} />
+          <LineIcon name="comment" style={[styles.railIcon, styles.railIconSmall]} />
           <span {...props(styles.railCount)}>{formatCount(counts.comments)}</span>
         </span>
         <span {...props(styles.railItem)}>
-          <LineIcon name="share" style={styles.railIcon} />
+          <LineIcon name="share" style={[styles.railIcon, styles.railIconSmall]} />
           <span {...props(styles.railCount)}>{m.home_feed_ui_share()}</span>
         </span>
         <span {...props(styles.railItem)}>
-          <LineIcon name="remix" style={styles.railIcon} />
+          <LineIcon name="remix" style={[styles.railIcon, styles.railIconSmall]} />
           <span {...props(styles.railCount)}>{m.home_feed_ui_remix()}</span>
         </span>
         <span style={{ ...frame, ...spin(current) }} {...props(styles.audio)} />
@@ -1772,52 +1832,61 @@ function LinkedInChrome({ caption, clip, counts, frame, handle, shade }: ChromeP
         </span>
         <LineIcon name="message" style={[styles.topIcon, styles.iconPlain]} />
       </div>
-      <div {...props(styles.liCard)}>
-        <div {...props(styles.liHead)}>
-          <span style={frame} {...props(styles.liAvatar)} />
-          <span {...props(styles.liPerson)}>
-            <span {...props(styles.liNameRow)}>
-              <span {...props(styles.liName)}>{displayName(handle)}</span>
-              <span {...props(styles.liDegree)}>{m.home_feed_ui_li_degree()}</span>
+      <div {...props(styles.liFeed)}>
+        <div {...props(styles.liCard)}>
+          <div {...props(styles.liHead)}>
+            <span style={frame} {...props(styles.liAvatar)} />
+            <span {...props(styles.liPerson)}>
+              <span {...props(styles.liNameRow)}>
+                <span {...props(styles.liName)}>{displayName(handle)}</span>
+                <span {...props(styles.liDegree)}>{m.home_feed_ui_li_degree()}</span>
+              </span>
+              <span {...props(styles.liHeadline)}>{m.home_feed_linkedin_headline()}</span>
+              <span {...props(styles.liMeta)}>{m.home_feed_ui_li_posted()}</span>
             </span>
-            <span {...props(styles.liHeadline)}>{m.home_feed_linkedin_headline()}</span>
-            <span {...props(styles.liMeta)}>{m.home_feed_ui_li_posted()}</span>
-          </span>
-          <span {...props(styles.liFollow)}>{m.home_feed_ui_follow()}</span>
+            <span {...props(styles.liFollow)}>{m.home_feed_ui_follow()}</span>
+          </div>
+          <span {...props(styles.liText)}>{caption}</span>
+          <div {...props(styles.liMedia)}>
+            {clip}
+            <Shade value={shade} />
+            <Band caption={caption} tight />
+          </div>
+          <div {...props(styles.liReactions)}>
+            <span {...props(styles.liEmoji)}>{m.home_feed_ui_li_reactions()}</span>
+            <span>
+              {m.home_feed_ui_li_social({
+                comments: formatCount(counts.comments),
+                likes: formatCount(counts.likes),
+                reposts: formatCount(counts.saves),
+              })}
+            </span>
+          </div>
+          <span {...props(styles.liLine)} />
+          <div {...props(styles.liActions)}>
+            <span {...props(styles.liAction)}>
+              <LineIcon name="thumbUp" style={[styles.liActionIcon, styles.iconPlain]} />
+              <span {...props(styles.liActionLabel)}>{m.home_feed_ui_like()}</span>
+            </span>
+            <span {...props(styles.liAction)}>
+              <LineIcon name="comment" style={[styles.liActionIcon, styles.iconPlain]} />
+              <span {...props(styles.liActionLabel)}>{m.home_feed_ui_comment()}</span>
+            </span>
+            <span {...props(styles.liAction)}>
+              <LineIcon name="repost" style={[styles.liActionIcon, styles.iconPlain]} />
+              <span {...props(styles.liActionLabel)}>{m.home_feed_ui_repost()}</span>
+            </span>
+            <span {...props(styles.liAction)}>
+              <LineIcon name="plane" style={[styles.liActionIcon, styles.iconPlain]} />
+              <span {...props(styles.liActionLabel)}>{m.home_feed_ui_send()}</span>
+            </span>
+          </div>
         </div>
-        <span {...props(styles.liText)}>{caption}</span>
-        <div {...props(styles.liMedia)}>
-          {clip}
-          <Shade value={shade} />
-          <Band caption={caption} tight />
-        </div>
-        <div {...props(styles.liReactions)}>
-          <span {...props(styles.liEmoji)}>{m.home_feed_ui_li_reactions()}</span>
-          <span>
-            {m.home_feed_ui_li_social({
-              comments: formatCount(counts.comments),
-              likes: formatCount(counts.likes),
-              reposts: formatCount(counts.saves),
-            })}
-          </span>
-        </div>
-        <span {...props(styles.liLine)} />
-        <div {...props(styles.liActions)}>
-          <span {...props(styles.liAction)}>
-            <LineIcon name="thumbUp" style={[styles.liActionIcon, styles.iconPlain]} />
-            <span {...props(styles.liActionLabel)}>{m.home_feed_ui_like()}</span>
-          </span>
-          <span {...props(styles.liAction)}>
-            <LineIcon name="comment" style={[styles.liActionIcon, styles.iconPlain]} />
-            <span {...props(styles.liActionLabel)}>{m.home_feed_ui_comment()}</span>
-          </span>
-          <span {...props(styles.liAction)}>
-            <LineIcon name="repost" style={[styles.liActionIcon, styles.iconPlain]} />
-            <span {...props(styles.liActionLabel)}>{m.home_feed_ui_repost()}</span>
-          </span>
-          <span {...props(styles.liAction)}>
-            <LineIcon name="plane" style={[styles.liActionIcon, styles.iconPlain]} />
-            <span {...props(styles.liActionLabel)}>{m.home_feed_ui_send()}</span>
+        <div {...props(styles.peek)}>
+          <span {...props(styles.peekAvatar, styles.peekLi)} />
+          <span {...props(styles.peekText)}>
+            <span {...props(styles.peekLine, styles.peekLi)} />
+            <span {...props(styles.peekLine, styles.peekLineShort, styles.peekLi)} />
           </span>
         </div>
       </div>
@@ -1941,11 +2010,11 @@ function FacebookChrome({ caption, clip, counts, frame, handle, shade }: ChromeP
             </span>
           </div>
         </div>
-        <div {...props(styles.fbPeek)}>
-          <span {...props(styles.fbPeekAvatar)} />
-          <span {...props(styles.fbPeekText)}>
-            <span {...props(styles.fbPeekLine)} />
-            <span {...props(styles.fbPeekLine, styles.fbPeekLineShort)} />
+        <div {...props(styles.peek)}>
+          <span {...props(styles.peekAvatar, styles.peekFb)} />
+          <span {...props(styles.peekText)}>
+            <span {...props(styles.peekLine, styles.peekFb)} />
+            <span {...props(styles.peekLine, styles.peekLineShort, styles.peekFb)} />
           </span>
         </div>
       </div>
