@@ -9,11 +9,11 @@ import { FeedPhone } from '../components/feed-phone.tsx';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { Receipt } from '../components/receipt.tsx';
 import { clampHours, HOURS_DEFAULT } from '../components/screen-time-gate.tsx';
-import { ScreenTimeHelp } from '../components/screen-time-help.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { Tip } from '../components/tip.tsx';
 import { formatYears } from '../lib/attention-math.ts';
 import { decodeShare } from '../lib/share.ts';
+import { playClick } from '../lib/sounds.ts';
 import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
@@ -46,6 +46,10 @@ const STORY_ID = 'story';
 const HOW_ID = 'how';
 /** The two tool icons, top right. */
 const ICON_SIZE = 22;
+/** The glyph on the way back into the show, a step under the word beside it. */
+const REPLAY_ICON_SIZE = 14;
+/** How tall the row it stands in is, under the phone and over it alike. */
+const REPLAY_ROW_HEIGHT = 18;
 const SUPERVISE_URL = '/supervise';
 const BUILD_URL = '/build';
 /** The report the average day is taken from. */
@@ -256,6 +260,44 @@ const styles = create({
   gateCtaShown: {
     opacity: 1,
     visibility: 'visible',
+  },
+  // The way back into the show: the quietest thing on the screen, laid out
+  // from the first paint and faded in once the show has run itself out.
+  gateReplay: {
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderStyle: 'none',
+    borderWidth: 0,
+    color: {
+      ':hover': colors.fg,
+      default: colors.muted,
+    },
+    cursor: 'pointer',
+    display: 'inline-flex',
+    fontFamily: 'inherit',
+    fontSize: 13,
+    gap: spacing.s1,
+    lineHeight: 1,
+    opacity: 0,
+    padding: 0,
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: '400ms',
+    },
+    transitionProperty: 'opacity, visibility',
+    transitionTimingFunction: 'ease-in-out',
+    visibility: 'hidden',
+  },
+  gateReplayShown: {
+    opacity: 1,
+    visibility: 'visible',
+  },
+  // The row the way back into the show stands in. The same row is kept empty
+  // over the phone, so what the button takes under it is given back above it
+  // and the phone stands where it stood when there was no button.
+  gateRow: {
+    flexShrink: 0,
+    height: REPLAY_ROW_HEIGHT,
   },
   hero: {
     alignItems: 'center',
@@ -657,24 +699,6 @@ function HeroTitle() {
     );
 }
 
-/**
- * The caption under the phone: the day the bill is priced against, and the
- * marked words that open the screen time help for a reader whose own day is
- * not the average one.
- */
-function AverageHint() {
-  return m
-    .home_gate_average_hint({ hours: HOURS_DEFAULT })
-    .split(MARK)
-    .map((part, index) =>
-      index % 2 === 0 ? (
-        <span key={index}>{part}</span>
-      ) : (
-        <ScreenTimeHelp key={index} label={part} />
-      ),
-    );
-}
-
 function HomePage() {
   const [hours, setHours] = useState(HOURS_DEFAULT);
   // Whether the reader has touched the dial: the receipt is empty until then.
@@ -696,6 +720,10 @@ function HomePage() {
   // Whether the show has run its course: the way to the bill shows itself
   // then, and not before.
   const [picked, setPicked] = useState(false);
+  // Which run of the show is on screen, and whether it has ended. The count
+  // is the feed's key: a fresh one is a fresh show from the first clip.
+  const [run, setRun] = useState(0);
+  const [shown, setShown] = useState(false);
   // The date on the bill: when the page was opened, not when it was rung up.
   const [printedAt] = useState(() => new Date());
   const [sound, setSound] = useState(true);
@@ -827,6 +855,7 @@ function HomePage() {
     forgetHours();
     setHours(HOURS_DEFAULT);
     setPicked(false);
+    setShown(false);
     setBillInView(true);
     // A section link may have brought the reader here; the fresh question
     // carries no anchor.
@@ -835,6 +864,17 @@ function HomePage() {
     setLeaveTop(0);
     setSnapClose(true);
     setStage('returning');
+  }
+
+  // The reader asked for the show again: the feed is mounted anew, and the
+  // way back into it goes quiet until this run has ended too.
+  function replay() {
+    if (tickAllowed(sound, soundChosen)) {
+      primeTickSound();
+      playClick();
+    }
+    setShown(false);
+    setRun((value) => value + 1);
   }
 
   function toggleSound() {
@@ -980,14 +1020,30 @@ function HomePage() {
             <h1 {...props(styles.heroTitle)}>
               <HeroTitle />
             </h1>
+            {/* The replay row again, empty: the phone is centred on the
+            screen, so the button under it is answered over it. */}
+            <span {...props(styles.gateRow)} />
             <FeedPhone
+              key={run}
               // The show has reached the last clip: the way on shows itself.
-              onDone={() => setPicked(true)}
+              onDone={() => {
+                setPicked(true);
+                setShown(true);
+              }}
               sound={tickAllowed(sound, soundChosen)}
             />
-            <p {...props(styles.gateHint)}>
-              <AverageHint />
-            </p>
+            {/* In the column from the first paint, so the page does not move
+            when the show ends and this fades in under the phone. */}
+            <button
+              aria-hidden={!shown}
+              onClick={replay}
+              tabIndex={shown ? 0 : -1}
+              type="button"
+              {...props(styles.gateRow, styles.gateReplay, shown && styles.gateReplayShown)}
+            >
+              <Restart aria-hidden="true" size={REPLAY_ICON_SIZE} {...props(styles.flipped)} />
+              {m.home_gate_replay()}
+            </button>
             {/* In the page from the start, so nothing moves when it appears:
             it fades in once the show has run. */}
             <div aria-hidden={!picked} {...props(styles.gateCta, picked && styles.gateCtaShown)}>

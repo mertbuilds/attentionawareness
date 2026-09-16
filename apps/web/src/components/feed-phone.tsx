@@ -57,8 +57,14 @@ const SWIPE_FRACTION = 0.12;
 const FLICK_SPEED = 0.35;
 /** How long the feed takes to snap to the nearest video once let go. */
 const SNAP_MS = 260;
-/** Videos in the feed: one per clip shot for it, 01 through 12. */
+/** Videos in the feed: one per clip shot for it, 01 through 11, and the black one. */
 const VIDEO_COUNT = 12;
+/**
+ * The slot the feed ends on: a black screen with the same chrome over it.
+ * There is no clip and no poster frame behind it, so it asks the network for
+ * nothing, and there is nothing to 404 on.
+ */
+const BLANK_INDEX = VIDEO_COUNT - 1;
 /** An iPhone 15 Pro is 71.6 by 146.6 millimetres: the mock keeps that shape. */
 const PHONE_WIDTH = 71.6;
 const PHONE_HEIGHT = 146.6;
@@ -628,6 +634,10 @@ const styles = create({
     alignItems: 'center',
     display: 'flex',
   },
+  // The end of the feed: black, whatever the wash would have been.
+  videoBlank: {
+    backgroundColor: '#000',
+  },
   // One video: the whole screen, with its own chrome over it.
   video: {
     boxSizing: 'border-box',
@@ -748,6 +758,10 @@ function Video({ current, height, index }: { current: boolean; height: number; i
   const clip = useRef<HTMLVideoElement>(null);
   const [played, setPlayed] = useState(0);
   const poster = clipUrl(index, 'jpg');
+  const blank = index === BLANK_INDEX;
+  // The avatar and the record wear the clip's own frame. The black slot has
+  // no frame to wear, so they keep the flat grey their styles give them.
+  const frame = blank ? undefined : { backgroundImage: `url("${poster}")` };
   const stat = counts(index);
   useEffect(() => {
     const element = clip.current;
@@ -771,24 +785,26 @@ function Video({ current, height, index }: { current: boolean; height: number; i
   }
   return (
     <div
-      style={{ backgroundImage: WASHES[index % WASHES.length], height }}
-      {...props(styles.video)}
+      style={blank ? { height } : { backgroundImage: WASHES[index % WASHES.length], height }}
+      {...props(styles.video, blank && styles.videoBlank)}
     >
-      <video
-        loop
-        muted
-        onTimeUpdate={onTimeUpdate}
-        playsInline
-        poster={poster}
-        preload={current ? 'auto' : 'metadata'}
-        ref={clip}
-        src={clipUrl(index, 'mp4')}
-        {...props(styles.videoClip)}
-      />
+      {blank ? null : (
+        <video
+          loop
+          muted
+          onTimeUpdate={onTimeUpdate}
+          playsInline
+          poster={poster}
+          preload={current ? 'auto' : 'metadata'}
+          ref={clip}
+          src={clipUrl(index, 'mp4')}
+          {...props(styles.videoClip)}
+        />
+      )}
       <span {...props(styles.scrimTop)} />
       <span {...props(styles.scrimBottom)} />
       <div {...props(styles.rail)}>
-        <span style={{ backgroundImage: `url("${poster}")` }} {...props(styles.railAvatar)}>
+        <span style={frame} {...props(styles.railAvatar)}>
           <span {...props(styles.railBadge)}>
             <Icon name="plus" style={styles.railBadgeIcon} />
           </span>
@@ -810,7 +826,7 @@ function Video({ current, height, index }: { current: boolean; height: number; i
           <span {...props(styles.railCount)}>{formatCount(stat.shares)}</span>
         </span>
         <span {...props(styles.disc)}>
-          <span style={{ backgroundImage: `url("${poster}")` }} {...props(styles.discCore)} />
+          <span style={frame} {...props(styles.discCore)} />
         </span>
       </div>
       <span style={{ opacity: shadeFor(index) }} {...props(styles.shade)} />
