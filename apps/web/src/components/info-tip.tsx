@@ -47,6 +47,7 @@ const styles = create({
 export function InfoTip({ children, label }: { children: ReactNode; label: string }) {
   return (
     <Tip
+      paper
       title={label}
       trigger={
         <button aria-label={label} type="button" {...props(styles.button)}>

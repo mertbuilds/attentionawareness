@@ -5,6 +5,7 @@ import type { StyleXStyles } from '@stylexjs/stylex';
 import { cloneElement, useState } from 'react';
 import type { MouseEvent, ReactElement, ReactNode } from 'react';
 import { useIsMobile } from '../lib/use-is-mobile.ts';
+import { paperRoot, PaperSheet } from './bill-paper.tsx';
 import { Sheet } from './sheet.tsx';
 
 const styles = create({
@@ -51,6 +52,21 @@ const styles = create({
     transitionProperty: 'opacity, transform',
     transitionTimingFunction: 'ease-out',
     width: 260,
+  },
+  // A note torn off the bill: the box gives up its own face, and the scrap of
+  // paper under the words draws the edge instead.
+  popupPaper: {
+    backgroundColor: 'transparent',
+    borderRadius: 0,
+    borderStyle: 'none',
+    borderWidth: 0,
+    boxShadow: 'none',
+  },
+  // What is written on the scrap, in the column the box would have laid out.
+  popupInk: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s2,
   },
   // The small kind: one word in a dark pill, for a button that only wants
   // its name said.
@@ -100,6 +116,7 @@ export function Tip({
   children,
   content,
   mobile = 'sheet',
+  paper = false,
   side,
   style,
   title,
@@ -117,6 +134,12 @@ export function Tip({
    * name on hover.
    */
   mobile?: 'none' | 'sheet';
+  /**
+   * Drawn as a scrap of the bill's own paper rather than as a box: a torn
+   * edge, the grain, and the ink pressed into it. The sheet on a phone is
+   * untouched by it.
+   */
+  paper?: boolean;
   /** Which side of the trigger the box opens on; a label defaults to below. */
   side?: 'bottom' | 'top';
   /** Extra style for the box, when a tip needs a different width. */
@@ -154,6 +177,15 @@ export function Tip({
     );
   }
 
+  // What the box says, whether it is drawn as a box or as a scrap of paper.
+  const written = (
+    <>
+      {variant === 'label' ? title : null}
+      {variant === 'box' && !untitled ? <span {...props(styles.title)}>{title}</span> : null}
+      {children}
+    </>
+  );
+
   return (
     <Tooltip.Root>
       <Tooltip.Trigger render={trigger} />
@@ -163,10 +195,22 @@ export function Tip({
           sideOffset={variant === 'label' ? 6 : 8}
           {...props(styles.positioner)}
         >
-          <Tooltip.Popup {...props(styles.popup, variant === 'label' && styles.label, style)}>
-            {variant === 'label' ? title : null}
-            {variant === 'box' && !untitled ? <span {...props(styles.title)}>{title}</span> : null}
-            {children}
+          <Tooltip.Popup
+            {...props(
+              styles.popup,
+              variant === 'label' && styles.label,
+              paper && styles.popupPaper,
+              paper && paperRoot,
+              style,
+            )}
+          >
+            {paper ? (
+              <PaperSheet scrap style={styles.popupInk}>
+                {written}
+              </PaperSheet>
+            ) : (
+              written
+            )}
           </Tooltip.Popup>
         </Tooltip.Positioner>
       </Tooltip.Portal>

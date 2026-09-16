@@ -30,9 +30,11 @@ const DEMO_UP = 7;
 const DEMO_START_MS = 500;
 /**
  * How long it waits, still untouched, before it shows itself again, counted
- * from the start of a run. A run is a step up, the hold, and a step back, with
- * the hands fading over the tail of it, so it ends at DEMO_STEP_MS +
- * DEMO_HOLD_MS + HANDS_FADE: 2475ms, and the rail rests the other 2525ms.
+ * from the start of a run. A run is a step up, the hold, and a step back, and
+ * the hands outlast the rail: the number is back on six at 2150ms with the
+ * pair still lit, so the run ends when they have finished fading, at
+ * HANDS_CYCLES * HANDS_BOB_MS + HANDS_FADE: 2475ms, and the rail rests the
+ * other 2525ms.
  */
 const DEMO_REPEAT_MS = 5000;
 /** How long the knob takes to glide one hour along the rail. */
@@ -41,12 +43,15 @@ const DEMO_STEP_MS = 350;
 const HANDS_CYCLES = 3;
 /** One bob of a hand, up and back down, at the pace the pair reads lively. */
 const HANDS_BOB_MS = 700;
+/** How early the number turns back: it steps down while the hands finish their last bob. */
+const DEMO_EARLY_MS = 300;
 /**
  * How long it stands on seven before it steps back. The hands come out with
  * the step up, not on landing, so the hold is the rest of their three bobs
- * once that step is paid for: lit for exactly HANDS_CYCLES * HANDS_BOB_MS.
+ * once that step and the early turn are paid for. The hands are lit for
+ * exactly HANDS_CYCLES * HANDS_BOB_MS whatever the rail does under them.
  */
-const DEMO_HOLD_MS = HANDS_CYCLES * HANDS_BOB_MS - DEMO_STEP_MS;
+const DEMO_HOLD_MS = HANDS_CYCLES * HANDS_BOB_MS - DEMO_STEP_MS - DEMO_EARLY_MS;
 /** How long the six-seven hands take to fade. */
 const HANDS_FADE = '375ms';
 /** The hands read off the readout's own size, so they scale with it. */
@@ -388,7 +393,10 @@ export function HourReadout({
   hours: number;
   /** The rail is stepping six, seven, six on its own: the hands come out. */
   sixSeven: boolean;
-  /** Counts the runs, so the hands start from rest at each one. */
+  /**
+   * Counts the runs, so the hands start from rest at each one. Zero is a
+   * screen the rail has not counted on yet, and no hands in the page at all.
+   */
   sixSevenRun: number;
 }) {
   const reading = hours === 1 ? m.home_gate_reading_one() : m.home_gate_reading({ hours });
@@ -397,16 +405,20 @@ export function HourReadout({
       <p aria-hidden="true" {...props(styles.gateReading, styles.sliderReading)}>
         <Count value={hours} />
         {/* Six, seven. Palms up, both weighing, the right one half a beat
-        behind: the gesture the number pair comes with now. */}
-        <span
-          // A new pair at every run: their bob starts from rest with the step
-          // to seven, and keeps going while they fade.
-          key={sixSevenRun}
-          {...props(styles.hands, sixSeven && styles.handsShown)}
-        >
-          <span {...props(styles.hand)}>{HAND}</span>
-          <span {...props(styles.hand, styles.handRight)}>{HAND}</span>
-        </span>
+        behind: the gesture the number pair comes with now. The first count
+        puts them in the page, so a screen cannot open with them already out;
+        they stay after it, at rest, because the fade needs them there. */}
+        {sixSevenRun > 0 ? (
+          <span
+            // A new pair at every run: their bob starts from rest with the step
+            // to seven, and keeps going while they fade.
+            key={sixSevenRun}
+            {...props(styles.hands, sixSeven && styles.handsShown)}
+          >
+            <span {...props(styles.hand)}>{HAND}</span>
+            <span {...props(styles.hand, styles.handRight)}>{HAND}</span>
+          </span>
+        ) : null}
       </p>
       <span aria-hidden="true" {...props(styles.stepUnit, styles.sliderUnit)}>
         {reading.replace(String(hours), '').trim()}
@@ -528,7 +540,10 @@ export function HourSlider({
   sound,
   value,
 }: {
-  /** Whether the screen the rail stands on has landed; the show waits for it. */
+  /**
+   * Whether the screen the rail stands on is standing: the show waits for it
+   * to land and stops the moment it starts to leave.
+   */
   arrived: boolean;
   /** Every whole hour the rail passes, the reader's own and the show's alike. */
   onChange: (hours: number) => void;
@@ -546,6 +561,7 @@ export function HourSlider({
   const frame = useRef<number | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pause = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hands = useRef<ReturnType<typeof setTimeout> | null>(null);
   const held = useRef(false);
   // The rail's live reading, for the show's own guard: it only ever counts
   // from the hour it started on.
@@ -609,15 +625,19 @@ export function HourSlider({
       lastWhole = HOURS_DEFAULT;
       setGliding(true);
       onSixSeven(true);
+      // The hands keep their own time: three whole bobs from the moment they
+      // come out, so the number can turn back under them and they are still
+      // weighing while they fade.
+      hands.current = setTimeout(() => {
+        hands.current = null;
+        onSixSeven(false);
+      }, HANDS_CYCLES * HANDS_BOB_MS);
       stepTo(HOURS_DEFAULT, DEMO_UP, () => {
         pause.current = setTimeout(() => {
           pause.current = null;
           if (held.current) {
             return;
           }
-          // The hands go as the number comes back, so they are still weighing
-          // while they fade.
-          onSixSeven(false);
           stepTo(DEMO_UP, HOURS_DEFAULT, rest);
         }, DEMO_HOLD_MS);
       });
@@ -631,9 +651,18 @@ export function HourSlider({
       if (pause.current !== null) {
         clearTimeout(pause.current);
       }
+      if (hands.current !== null) {
+        clearTimeout(hands.current);
+        hands.current = null;
+      }
       if (frame.current !== null) {
         cancelAnimationFrame(frame.current);
       }
+      // The screen is leaving: the rail stops where it is and the pair goes
+      // with it, so nothing of this run is left for the next screen to open
+      // with.
+      onSixSeven(false);
+      rest();
     };
     // The count runs once, when the screen lands, with the sound setting it
     // arrived with.
@@ -652,6 +681,10 @@ export function HourSlider({
     if (pause.current !== null) {
       clearTimeout(pause.current);
       pause.current = null;
+    }
+    if (hands.current !== null) {
+      clearTimeout(hands.current);
+      hands.current = null;
     }
     if (frame.current !== null) {
       cancelAnimationFrame(frame.current);
