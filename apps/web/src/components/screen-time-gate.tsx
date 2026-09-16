@@ -31,20 +31,26 @@ const DEMO_START_MS = 500;
 /**
  * How long it waits, still untouched, before it shows itself again, counted
  * from the start of a run. A run is a step up, the hold, and a step back, and
- * the hands outlast the rail: the number is back on six at 2150ms with the
+ * the hands outlast the rail: the number is back on six at 1434ms with the
  * pair still lit, so the run ends when they have finished fading, at
- * HANDS_CYCLES * HANDS_BOB_MS + HANDS_FADE: 2475ms, and the rail rests the
- * other 2525ms.
+ * HANDS_CYCLES * HANDS_BOB_MS + HANDS_FADE: 1651ms, and the rail rests the
+ * other 3349ms.
  */
 const DEMO_REPEAT_MS = 5000;
+/**
+ * The pace of the whole run, against the timings it was first cut at. Every
+ * duration below is one of those base numbers times this, so the parts keep
+ * their proportions and the next tempo change is this one number.
+ */
+const DEMO_TEMPO = 2 / 3;
 /** How long the knob takes to glide one hour along the rail. */
-const DEMO_STEP_MS = 350;
+const DEMO_STEP_MS = Math.round(350 * DEMO_TEMPO);
 /** How many whole bobs the six-seven hands are lit for. */
 const HANDS_CYCLES = 3;
 /** One bob of a hand, up and back down, at the pace the pair reads lively. */
-const HANDS_BOB_MS = 700;
+const HANDS_BOB_MS = Math.round(700 * DEMO_TEMPO);
 /** How early the number turns back: it steps down while the hands finish their last bob. */
-const DEMO_EARLY_MS = 300;
+const DEMO_EARLY_MS = Math.round(300 * DEMO_TEMPO);
 /**
  * How long it stands on seven before it steps back. The hands come out with
  * the step up, not on landing, so the hold is the rest of their three bobs
@@ -53,7 +59,7 @@ const DEMO_EARLY_MS = 300;
  */
 const DEMO_HOLD_MS = HANDS_CYCLES * HANDS_BOB_MS - DEMO_STEP_MS - DEMO_EARLY_MS;
 /** How long the six-seven hands take to fade. */
-const HANDS_FADE = '375ms';
+const HANDS_FADE = `${Math.round(375 * DEMO_TEMPO)}ms`;
 /** The hands read off the readout's own size, so they scale with it. */
 const HANDS_SIZE = `calc(${DISPLAY_SIZE} * 0.45)`;
 /** The palm-up hand the gesture is made of, twice. */
