@@ -14,7 +14,7 @@ export const Route = createFileRoute('/extension/privacy')({
 });
 
 /** The brand in prose, the way the root document spells it. */
-const SITE_NAME = 'Attention Awareness';
+const SITE_NAME = 'attention awareness';
 const REPO_URL = 'https://github.com/mertbuilds/attentionawareness';
 const ISSUES_URL = 'https://github.com/mertbuilds/attentionawareness/issues';
 /**

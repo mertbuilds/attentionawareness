@@ -396,7 +396,7 @@
   "sup_alt_erase_link": "stopa.io/post/297",
   "ext_privacy_head_title": "Extension privacy",
   "ext_privacy_title": "Browser extension privacy",
-  "ext_privacy_lead": "The Attention Awareness extension hides feeds with CSS. It collects nothing.",
+  "ext_privacy_lead": "The attention awareness extension hides feeds with CSS. It collects nothing.",
   "ext_privacy_stores_title": "What it stores",
   "ext_privacy_stores_body": "Your switches (on or off per site) and the custom CSS rules you write, in the browser's extension storage.",
   "ext_privacy_stores_sync": "If you are signed into your browser, the browser may sync that storage across your devices. Nothing else.",

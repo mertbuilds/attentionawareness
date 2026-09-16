@@ -1,6 +1,6 @@
 # Privacy
 
-Attention Awareness collects nothing.
+attention awareness collects nothing.
 
 ## What it stores
 
