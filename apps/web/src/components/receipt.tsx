@@ -261,6 +261,7 @@ export function Receipt({
   hours,
   number,
   onChange,
+  onPrinted,
   print = 'printed',
   printedOn,
   refunded = false,
@@ -270,6 +271,8 @@ export function Receipt({
   number: string;
   /** Given, the screen time row carries a minus and a plus for correcting it. */
   onChange?: (hours: number) => void;
+  /** Called once the last line of a print has landed and the bill stands whole. */
+  onPrinted?: () => void;
   /**
    * How the lines under the title arrive: all of them at once, held back
    * behind the title, or printed one after the next.
@@ -373,6 +376,27 @@ export function Receipt({
       }
     };
     // The print runs once, and the ticks with it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot print
+  }, [print]);
+  // The caller is told when the bill has finished printing, so that whatever
+  // it held for the print - the page's own scroll, while the lines land - is
+  // handed back at the end of the last line and not before.
+  const printed = useRef(onPrinted);
+  useEffect(() => {
+    printed.current = onPrinted;
+  }, [onPrinted]);
+  useEffect(() => {
+    if (print !== 'printing') {
+      return;
+    }
+    if (reduced) {
+      // Nothing is printing: the whole bill was handed over at once.
+      printed.current?.();
+      return;
+    }
+    const timer = setTimeout(() => printed.current?.(), closeAt * LINE_STAGGER_MS + LINE_MS);
+    return () => clearTimeout(timer);
+    // The print runs once, and its end with it.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot print
   }, [print]);
   // A reader who asked for less motion is handed the whole bill at once.

@@ -18,6 +18,7 @@ import { AverageNote, ScreenTimeMark } from '../components/screen-time-help.tsx'
 import { SiteFooter } from '../components/site-footer.tsx';
 import { Tip } from '../components/tip.tsx';
 import { formatYears } from '../lib/attention-math.ts';
+import { useScrollLock } from '../lib/scroll-lock.ts';
 import { decodeShare } from '../lib/share.ts';
 import { playClick } from '../lib/sounds.ts';
 import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
@@ -808,6 +809,11 @@ function HomePage() {
     };
   }, [stage, touched]);
 
+  // From the moment the bill starts coming up until its last line has landed,
+  // the page owns the scroll: the reader cannot pull it out from under the
+  // lines, while the print keeps scrolling the newest one into view itself.
+  useScrollLock(stage === 'sliding' || stage === 'printing');
+
   // The screens have swapped: the question has the column to itself.
   useEffect(() => {
     if (stage !== 'asking') {
@@ -921,6 +927,12 @@ function HomePage() {
     setSnapClose(false);
     setStage('sliding');
     setTouched(true);
+  }
+
+  // The last line has landed: the bill stands whole, and the page has its
+  // own scroll back.
+  function billPrinted() {
+    setStage('printed');
   }
 
   // Back to the first screen, from the bill or from the question alike: the
@@ -1220,6 +1232,7 @@ function HomePage() {
                 hours={wholeHours}
                 number={receiptNo}
                 onChange={onHoursChange}
+                onPrinted={billPrinted}
                 print={billPrint}
                 printedOn={printedOn}
                 sound={tickAllowed(sound, soundChosen)}
