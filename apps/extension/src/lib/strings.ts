@@ -7,7 +7,7 @@ import type { SiteId } from './sites.ts';
 export const strings = {
   add: 'Add rule',
   badDomain: 'That is not a domain.',
-  brand: 'Attention Awareness',
+  brand: 'attention awareness',
   cssLabel: 'CSS',
   customCss: 'Custom CSS',
   customIntro: 'Your own rules. One block per site, applied on top of the built-in ones.',
