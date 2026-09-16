@@ -65,7 +65,7 @@ Web app (`apps/web`): `pnpm --filter @attentionawareness/web dev` (:3000 standal
 
 - TanStack Start on Cloudflare Workers. Custom entry `src/server.ts` (wrangler `main`) wraps the Start handler with `paraglideMiddleware` and an evlog wide event per request (Axiom drain when `AXIOM_TOKEN`+`AXIOM_DATASET` set); wrangler `observability` stays disabled so logs are not duplicated.
 - React Compiler is on (`react({ compiler: true })` via `oxc-transform-react`). react-grab loads in dev only.
-- i18n: Paraglide v2, `messages/en.json` + `messages/tr.json`. Generated `src/paraglide/` and `src/routeTree.gen.ts` are gitignored build output — never edit them, they regenerate on `vite dev`/`build`. All user-facing strings go through `m.*()`.
+- i18n: Paraglide v2, English only (`locales: ["en"]`, `strategy: ['baseLocale']`). `messages/tr.json` stays on disk, unlisted and uncompiled, for the day Turkish comes back. Generated `src/paraglide/` and `src/routeTree.gen.ts` are gitignored build output — never edit them, they regenerate on `vite dev`/`build`. All user-facing strings go through `m.*()`.
 - Analytics: PostHog only when `VITE_POSTHOG_KEY` is set — provider in `__root.tsx` (defaults `2026-05-30`, heatmaps on, inputs masked), ingest reverse-proxied through the `/ingest/$` server route to PostHog EU so adblockers don't drop events.
 - Sentry: client init in `__root.tsx` only when `VITE_SENTRY_DSN` is set.
 - StyleX in routes: import `../app.css` (build injection target) — there is no importable `virtual:stylex.css` module; in dev the plugin middleware serves the CSS itself.

@@ -34,10 +34,11 @@ export default defineConfig(({ command, mode }) => {
       // hydration attribute mismatch that detaches React's event tree (dead forms).
       stylex.vite({ debug: false, useCSSLayers: true }),
       paraglideVitePlugin({
-        cookieName: 'PARAGLIDE_LOCALE',
         outdir: './src/paraglide',
         project: './project.inlang',
-        strategy: ['cookie', 'preferredLanguage', 'baseLocale'],
+        // English only for now, so the base locale is the whole strategy: no
+        // cookie and no browser preference can resolve anything else.
+        strategy: ['baseLocale'],
       }),
     ],
     server: {

@@ -434,9 +434,6 @@
   "pref_theme_system": "System",
   "pref_theme_light": "Light",
   "pref_theme_dark": "Dark",
-  "pref_language_label": "Language",
-  "pref_language_en": "English",
-  "pref_language_tr": "Türkçe",
   "gen_summary_adult": "Adult sites blocked",
   "sheet_close": "Close"
 }
