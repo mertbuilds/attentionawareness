@@ -3,6 +3,7 @@ import { PostHogProvider } from '@posthog/react';
 import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-router';
 import { useEffect, type ReactNode } from 'react';
 import { SiteBrand } from '../components/site-brand.tsx';
+import { WipBanner } from '../components/wip-banner.tsx';
 import { clientEnv } from '../lib/env.ts';
 import { getLocale } from '../paraglide/runtime.js';
 import '@attentionawareness/ui/fonts.css';
@@ -28,6 +29,12 @@ const SITE_NAME = 'attention awareness';
 /** Reads the saved hours before anything paints. Same key as the homepage. */
 const RECALL_SCRIPT =
   "try{if(localStorage.getItem('aa:hours'))document.documentElement.setAttribute('data-aa-hours','')}catch(e){}";
+/**
+ * Takes the work-in-progress strip off the page before it paints, for a reader
+ * who has already put it away. Same key as the strip's own button.
+ */
+const WIP_SCRIPT =
+  "try{if(localStorage.getItem('aa-wip-dismissed'))document.documentElement.setAttribute('data-aa-wip-off','')}catch(e){}";
 const SITE_URL = 'https://attentionawareness.com';
 const ICON_SUFFIX = import.meta.env.DEV ? '-dev' : '';
 /** The site's own OpenPanel project. The id is public by design. */
@@ -133,10 +140,12 @@ function RootDocument({ children }: { children: ReactNode }) {
         {/* Before first paint: a reader with saved hours gets the root stamped,
         and the first screen stays hidden until the receipt is restored. */}
         <script dangerouslySetInnerHTML={{ __html: RECALL_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: WIP_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: ANALYTICS_SCRIPT }} />
       </head>
       <body>
         <Providers>
+          <WipBanner />
           <SiteBrand />
           {children}
         </Providers>

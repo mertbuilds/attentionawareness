@@ -125,6 +125,8 @@
   "nav_back_home": "Back to the start",
   "nav_back_guide": "Back to supervision",
   "site_name": "attention awareness",
+  "site_wip": "Work in progress. Things change daily, some of it breaks.",
+  "site_wip_dismiss": "Dismiss",
   "home_bill_kind": "The Attention Bill",
   "home_bill_no_label": "Bill number",
   "home_bill_date_label": "Issued",
