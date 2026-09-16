@@ -5,7 +5,6 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { playClick } from '../lib/sounds.ts';
 import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
 import { m } from '../paraglide/messages.js';
-import { HOURS_DEFAULT, HOURS_MAX, HOURS_MIN } from './screen-time-gate.tsx';
 
 /** One caption per clip, by its place in the feed. */
 const HANDLES = [
@@ -38,16 +37,16 @@ const CAPTIONS = [
   m.home_feed_caption_12,
 ];
 
-/** The feed shows itself first: from this hour it scrolls to the default. */
-export const DEMO_FROM = 2;
+/** The beat the feed waits before it starts showing itself. */
 const DEMO_START_MS = 700;
-/** How long each video of the show plays before the next. */
-const SHOW_STEP_MS = 2000;
-/** Left alone this long after the show, the feed nods: one video down, one back up. */
-const IDLE_MS = 5000;
-/** After this many nods with no touch, the page is told the reader is only watching. */
-const IDLE_NODS = 2;
-const NOD_MS = 700;
+/**
+ * The show is a cold shower: the first clip is held long enough to read, and
+ * every clip after it is held less, down to a floor no eye can keep up with.
+ * The pauses run 2000, 1560, 1217, 949, 740, 577, 450, 351, 300, 300, 300.
+ */
+const SHOW_FIRST_MS = 2000;
+const SHOW_FALL = 0.78;
+const SHOW_FLOOR_MS = 300;
 /** The rest after a wheel stops that counts as letting go. */
 const SETTLE_MS = 220;
 /**
@@ -58,8 +57,8 @@ const SWIPE_FRACTION = 0.12;
 const FLICK_SPEED = 0.35;
 /** How long the feed takes to snap to the nearest video once let go. */
 const SNAP_MS = 260;
-/** Videos in the feed: one per hour, and a few past the last. */
-const VIDEO_COUNT = HOURS_MAX - HOURS_MIN + 3;
+/** Videos in the feed: one per clip shot for it, 01 through 12. */
+const VIDEO_COUNT = 12;
 /** An iPhone 15 Pro is 71.6 by 146.6 millimetres: the mock keeps that shape. */
 const PHONE_WIDTH = 71.6;
 const PHONE_HEIGHT = 146.6;
@@ -705,9 +704,9 @@ function IconBattery({ style }: { style?: StyleXStyles }) {
 
 /** How dark the wash over a video is: from a little at the top of the feed to almost all at the foot. */
 const SHADE_FIRST = 0.35;
-const SHADE_LAST = 0.92;
+const SHADE_LAST = 0.96;
 function shadeFor(index: number): number {
-  const last = HOURS_MAX - HOURS_MIN;
+  const last = VIDEO_COUNT - 1;
   const at = Math.min(index, last) / last;
   return SHADE_FIRST + (SHADE_LAST - SHADE_FIRST) * at;
 }
@@ -840,51 +839,41 @@ function Video({ current, height, index }: { current: boolean; height: number; i
 }
 
 /**
- * The question's answer, scrolled rather than set: a phone with a video feed
- * in it, and every video scrolled past is an hour. Down adds, up takes away,
- * and the feed snaps to a whole video when let go. The act that costs the
- * hours is the act that counts them.
+ * The feed the page opens on: a phone that scrolls itself, faster with every
+ * clip, from the first to the twelfth and no further. It answers nothing and
+ * counts nothing. Once the show has run the reader can move it by hand, which
+ * is all that does: it moves the feed.
  */
 export function FeedPhone({
-  onChange,
-  onIdle,
-  onNod,
-  onPick,
+  onDone,
   sound,
 }: {
-  /** Every hour the feed lands on, as it lands: the page reads it live. */
-  onChange: (hours: number) => void;
-  /** The feed has nodded twice with nobody touching it: the page may move on. */
-  onIdle?: (() => void) | undefined;
-  /** The feed is nodding on its own between six and seven, or has stopped. */
-  onNod?: ((nodding: boolean) => void) | undefined;
-  /** The hour the feed is let go at. */
-  onPick: (hours: number) => void;
+  /** The show has reached the last clip. */
+  onDone?: (() => void) | undefined;
   sound: boolean;
 }) {
-  const [hours, setHours] = useState(DEMO_FROM);
-  // Where the feed is, in videos from the first hour; a fraction mid-drag.
-  const [position, setPosition] = useState(DEMO_FROM - HOURS_MIN);
+  // Where the feed is, in videos from the first; a fraction mid-drag.
+  const [position, setPosition] = useState(0);
   const [screenHeight, setScreenHeight] = useState(SCREEN_FALLBACK);
   const [snapping, setSnapping] = useState(false);
   const [held, setHeld] = useState(false);
   const phone = useRef<HTMLDivElement>(null);
   const screen = useRef<HTMLDivElement>(null);
-  const travelled = useRef(DEMO_FROM - HOURS_MIN);
+  const travelled = useRef(0);
+  // The whole clip the feed last landed on, so a landing sounds once.
+  const landed = useRef(0);
   const holding = useRef(false);
   const demoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // The feed is not the reader's until the show has played.
   const showing = useRef(true);
   const [ready, setReady] = useState(false);
-  const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const nods = useRef(0);
   const settle = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastY = useRef(0);
   const lastAt = useRef(0);
   const velocity = useRef(0);
   const dragFrom = useRef(0);
-  const latest = useRef({ hours, onChange, onIdle, onNod, onPick, screenHeight, sound });
-  latest.current = { hours, onChange, onIdle, onNod, onPick, screenHeight, sound };
+  const latest = useRef({ onDone, screenHeight, sound });
+  latest.current = { onDone, screenHeight, sound };
 
   // A video is exactly one screen tall, whatever the screen turns out to be.
   useLayoutEffect(() => {
@@ -900,17 +889,16 @@ export function FeedPhone({
   }, []);
 
   function moveTo(next: number) {
-    const clamped = Math.min(HOURS_MAX - HOURS_MIN, Math.max(0, next));
+    const clamped = Math.min(VIDEO_COUNT - 1, Math.max(0, next));
     travelled.current = clamped;
     setPosition(clamped);
-    const landed = HOURS_MIN + Math.round(clamped);
-    if (landed !== latest.current.hours) {
+    const whole = Math.round(clamped);
+    if (whole !== landed.current) {
       if (latest.current.sound) {
         primeTickSound();
         playClick();
       }
-      setHours(landed);
-      latest.current.onChange(landed);
+      landed.current = whole;
     }
   }
 
@@ -919,8 +907,8 @@ export function FeedPhone({
     moveTo(travelled.current + pixels / latest.current.screenHeight);
   }
 
-  // Let go: the feed snaps to a whole video, and the page hears the hour. A
-  // drag past a small part of a video, or a flick, carries on to the next.
+  // Let go: the feed snaps to a whole video. A drag past a small part of a
+  // video, or a flick, carries on to the next.
   function letGo(flick = 0) {
     unlockTickSound();
     setSnapping(true);
@@ -936,7 +924,6 @@ export function FeedPhone({
     }
     moveTo(target);
     dragFrom.current = target;
-    latest.current.onPick(HOURS_MIN + Math.round(target));
   }
 
   // The show stops the moment the reader takes hold.
@@ -945,64 +932,31 @@ export function FeedPhone({
       clearTimeout(demoTimer.current);
       demoTimer.current = null;
     }
-    if (idleTimer.current !== null) {
-      clearTimeout(idleTimer.current);
-      idleTimer.current = null;
-      latest.current.onNod?.(false);
-    }
   }
 
-  // Left alone after the show, the feed nods once: a video down, a pause,
-  // and back up. Then it waits again, until the reader takes hold.
-  function waitThenNod() {
-    // Six, seven, six: the page hears of it as the feed moves, so what it
-    // shows for it moves in step.
-    idleTimer.current = setTimeout(() => {
-      const here = Math.round(travelled.current);
-      const sixSeven = here + HOURS_MIN === 6;
-      if (sixSeven) {
-        latest.current.onNod?.(true);
-      }
-      setSnapping(true);
-      moveTo(here + 1);
-      idleTimer.current = setTimeout(() => {
-        setSnapping(true);
-        moveTo(here);
-        idleTimer.current = setTimeout(() => {
-          if (sixSeven) {
-            latest.current.onNod?.(false);
-          }
-          nods.current += 1;
-          if (nods.current === IDLE_NODS) {
-            latest.current.onIdle?.();
-          }
-          waitThenNod();
-        }, NOD_MS);
-      }, NOD_MS);
-    }, IDLE_MS);
-  }
-
-  // The feed shows itself once: from two hours it steps to the default one
-  // video at a time, a tick and a pause at each, until the reader takes hold.
+  // The feed shows itself once: from the first clip it steps to the last, one
+  // clip at a time, and each pause is shorter than the one before it until the
+  // floor. It ends on the twelfth and stays there.
   useEffect(() => {
-    const from = DEMO_FROM - HOURS_MIN;
-    const to = HOURS_DEFAULT - HOURS_MIN;
-    const pause = SHOW_STEP_MS;
-    let at = from;
+    const last = VIDEO_COUNT - 1;
+    let at = 0;
+    let pause = SHOW_FIRST_MS;
     const step = () => {
       at += 1;
       setSnapping(true);
       moveTo(at);
-      if (at < to) {
-        demoTimer.current = setTimeout(step, pause);
-      } else {
+      if (at >= last) {
         demoTimer.current = null;
         showing.current = false;
         setReady(true);
-        waitThenNod();
+        latest.current.onDone?.();
+        return;
       }
+      pause = Math.max(SHOW_FLOOR_MS, Math.round(pause * SHOW_FALL));
+      demoTimer.current = setTimeout(step, pause);
     };
-    demoTimer.current = setTimeout(step, DEMO_START_MS);
+    // A beat to take the phone in, then the first clip's own long hold.
+    demoTimer.current = setTimeout(step, DEMO_START_MS + SHOW_FIRST_MS);
     return stopShow;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot show
   }, []);
@@ -1099,16 +1053,10 @@ export function FeedPhone({
     }
   }
 
-  const reading = hours === 1 ? m.home_gate_reading_one() : m.home_gate_reading({ hours });
-
   return (
     <div {...props(styles.gate)}>
       <div
-        aria-label={m.home_gate_slider_label()}
-        aria-valuemax={HOURS_MAX}
-        aria-valuemin={HOURS_MIN}
-        aria-valuenow={hours}
-        aria-valuetext={reading}
+        aria-label={m.home_feed_label()}
         onKeyDown={onKeyDown}
         onKeyUp={onKeyUp}
         onPointerCancel={onPointerUp}
@@ -1116,7 +1064,6 @@ export function FeedPhone({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         ref={phone}
-        role="slider"
         tabIndex={0}
         {...props(styles.shell, !ready && styles.shellShowing, held && styles.shellHeld)}
       >

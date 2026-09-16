@@ -3,14 +3,13 @@ import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, firstThatWorks, keyframes, props } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
-import { motion } from 'motion/react';
 import { useEffect, useRef, useState } from 'react';
 import { Restart, VolumeCross, VolumeUp } from 'reicon-react';
-import { DEMO_FROM, FeedPhone } from '../components/feed-phone.tsx';
+import { FeedPhone } from '../components/feed-phone.tsx';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { Receipt } from '../components/receipt.tsx';
-import { clampHours, Count } from '../components/screen-time-gate.tsx';
-import { AverageHelp, ScreenTimeHelp } from '../components/screen-time-help.tsx';
+import { clampHours, HOURS_DEFAULT } from '../components/screen-time-gate.tsx';
+import { ScreenTimeHelp } from '../components/screen-time-help.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { Tip } from '../components/tip.tsx';
 import { formatYears } from '../lib/attention-math.ts';
@@ -67,8 +66,6 @@ const EXPAND_MS = '500ms';
 const SLIDE_MS = 500;
 const SLIDE_DURATION = `${SLIDE_MS}ms`;
 const SLIDE_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
-/** How long the six-seven hands take to fade. */
-const HANDS_FADE = '250ms';
 /** The blur the two screens carry while they travel. */
 const SLIDE_BLUR = '3px';
 
@@ -101,12 +98,6 @@ const billArrive = keyframes({
 const billLeave = keyframes({
   from: { filter: 'blur(0)', opacity: 1, transform: 'translateY(0)' },
   to: { filter: `blur(${SLIDE_BLUR})`, opacity: 0, transform: 'translateY(100svh)' },
-});
-/** One hand of the six-seven: up, and down, while the other does the reverse. */
-const weigh = keyframes({
-  '0%': { translate: '0 0' },
-  '100%': { translate: '0 0' },
-  '50%': { translate: '0 -6px' },
 });
 const screenReturn = keyframes({
   from: { filter: `blur(${SLIDE_BLUR})`, opacity: 0, transform: 'translateY(-100svh)' },
@@ -329,61 +320,9 @@ const styles = create({
       default: 'none',
     },
   },
-  // The words the number lands in: orange, like the number and the bill.
-  hand: {
-    animationDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: '700ms',
-    },
-    animationIterationCount: 'infinite',
-    animationName: weigh,
-    animationTimingFunction: 'ease-in-out',
-    display: 'inline-block',
-    fontSize: 20,
-    lineHeight: 1,
-  },
-  handRight: {
-    animationDelay: '350ms',
-  },
-  // Under the number, out of the flow, so the line never moves for them.
-  hands: {
-    display: 'flex',
-    gap: 2,
-    insetBlockStart: '100%',
-    insetInlineStart: '50%',
-    justifyContent: 'center',
-    opacity: 0,
-    pointerEvents: 'none',
-    position: 'absolute',
-    transform: 'translateX(-50%)',
-    transitionDuration: HANDS_FADE,
-    transitionProperty: 'opacity',
-    whiteSpace: 'nowrap',
-  },
-  handsShown: {
-    opacity: 1,
-  },
-  // The number's box: its width is set by the digit count and animated.
-  heroCount: {
-    display: 'inline-block',
-    overflow: 'visible',
-    position: 'relative',
-    textAlign: 'center',
-    verticalAlign: 'baseline',
-    whiteSpace: 'nowrap',
-  },
+  // The words the claim turns on: orange, like the figures on the bill.
   heroMark: {
     color: accent.base,
-    // Every digit the same width, so 6 to 7 moves nothing; only 9 to 10 does.
-    fontVariantNumeric: 'tabular-nums',
-  },
-  // The line breaks after the hours on a wide screen, so the claim reads as
-  // two lines: what we did, and how often. A phone wraps it as it must.
-  heroBreak: {
-    display: {
-      '@media (min-width: 640px)': 'inline',
-      default: 'none',
-    },
   },
   heroTitle: {
     fontSize: {
@@ -696,74 +635,36 @@ function forgetHours(): void {
   }
 }
 
-/** How the number's box glides when it gains or loses a digit. */
-const GLIDE = { damping: 28, stiffness: 260, type: 'spring' } as const;
-
-/** The marked stretches of the title, [[like this]]; # is where the number goes. */
+/** The marked stretches of the title, [[like this]]. */
 const MARK = /\[\[(.*?)\]\]/u;
 
 /**
- * The claim with the reader's number inside it. The catalog marks the orange
- * stretches, so each language puts them where its grammar wants them.
+ * The claim the page opens on. The catalog marks the orange stretches, so
+ * each language puts them where its grammar wants them.
  */
-function HeroTitle({
-  hours,
-  nodRun,
-  sixSeven,
-}: {
-  hours: number;
-  /** Counts the nods, so the hands start from rest at each one. */
-  nodRun: number;
-  sixSeven: boolean;
-}) {
-  const text = hours === 1 ? m.home_hero_title_one() : m.home_hero_title();
-  // With tabular figures every digit is one ch wide, so the number's box is
-  // as many ch as it has digits, and it glides between one and two while
-  // the digits roll; the words around it ride along instead of jumping.
-  const digits = String(hours).length;
-  return text.split(MARK).map((part, index) =>
-    index % 2 === 0 ? (
-      <span key={index}>{part}</span>
-    ) : (
-      <span key={index} {...props(styles.heroMark)}>
-        {part.includes('#') ? (
-          <>
-            {part.slice(0, part.indexOf('#'))}
-            <motion.span
-              animate={{ width: `${digits}ch` }}
-              initial={false}
-              transition={GLIDE}
-              {...props(styles.heroCount)}
-            >
-              <Count value={hours} />
-              {/* Six, seven. Palms up, one hand rising as the other falls:
-              the gesture the number pair comes with now. */}
-              <span
-                aria-hidden="true"
-                // A new pair at every nod: their bob starts from rest with
-                // the step to seven, and keeps going while they fade.
-                key={nodRun}
-                {...props(styles.hands, sixSeven && styles.handsShown)}
-              >
-                <span {...props(styles.hand)}>🫴</span>
-                <span {...props(styles.hand, styles.handRight)}>🫴</span>
-              </span>
-            </motion.span>
-            {part.slice(part.indexOf('#') + 1)}
-            <br {...props(styles.heroBreak)} />
-          </>
-        ) : (
-          part
-        )}
-      </span>
-    ),
-  );
+function HeroTitle() {
+  return m
+    .home_hero_title()
+    .split(MARK)
+    .map((part, index) =>
+      index % 2 === 0 ? (
+        <span key={index}>{part}</span>
+      ) : (
+        <span key={index} {...props(styles.heroMark)}>
+          {part}
+        </span>
+      ),
+    );
 }
 
-/** The caption under the phone; the marked words open the screen time help. */
-function ScrollHint() {
+/**
+ * The caption under the phone: the day the bill is priced against, and the
+ * marked words that open the screen time help for a reader whose own day is
+ * not the average one.
+ */
+function AverageHint() {
   return m
-    .home_gate_scroll_hint()
+    .home_gate_average_hint({ hours: HOURS_DEFAULT })
     .split(MARK)
     .map((part, index) =>
       index % 2 === 0 ? (
@@ -775,7 +676,7 @@ function ScrollHint() {
 }
 
 function HomePage() {
-  const [hours, setHours] = useState(DEMO_FROM);
+  const [hours, setHours] = useState(HOURS_DEFAULT);
   // Whether the reader has touched the dial: the receipt is empty until then.
   const [touched, setTouched] = useState(false);
   // How the bill got here: held behind the first screen, sliding up into the
@@ -789,14 +690,11 @@ function HomePage() {
   // Whether the bill is on screen: the way back to the question shows only
   // while there is a bill to come back from.
   const [billInView, setBillInView] = useState(true);
-  // The feed is nodding six, seven, six on its own: the hands come out.
-  const [sixSeven, setSixSeven] = useState(false);
-  const [nodRun, setNodRun] = useState(0);
   // After the way back the bill is already off screen: its box closes in one
   // frame, so nothing of it shows under the question while it closes.
   const [snapClose, setSnapClose] = useState(false);
-  // Whether the reader has set the rail down once: the way to the bill shows
-  // itself then, and not before.
+  // Whether the show has run its course: the way to the bill shows itself
+  // then, and not before.
   const [picked, setPicked] = useState(false);
   // The date on the bill: when the page was opened, not when it was rung up.
   const [printedAt] = useState(() => new Date());
@@ -898,8 +796,8 @@ function HomePage() {
     return stop;
   }, []);
 
-  // The rail was let go at a value: the way to the bill shows on the first
-  // release, and the bill itself only tracks the day once it is open.
+  // The bill's own stepper moved the day: it is kept, and every figure on the
+  // bill is priced against it from here.
   function onHoursChange(value: number) {
     const next = clampHours(value);
     setHours(next);
@@ -927,7 +825,7 @@ function HomePage() {
   // starts its show again, and the two screens swap back the way they came.
   function reset() {
     forgetHours();
-    setHours(DEMO_FROM);
+    setHours(HOURS_DEFAULT);
     setPicked(false);
     setBillInView(true);
     // A section link may have brought the reader here; the fresh question
@@ -1080,27 +978,18 @@ function HomePage() {
             )}
           >
             <h1 {...props(styles.heroTitle)}>
-              <HeroTitle hours={hours} nodRun={nodRun} sixSeven={sixSeven} />
-              <AverageHelp />
+              <HeroTitle />
             </h1>
             <FeedPhone
-              onChange={setHours}
-              // Two nods and no touch: the way on shows itself anyway.
-              onIdle={() => setPicked(true)}
-              onNod={(nodding) => {
-                setSixSeven(nodding);
-                if (nodding) {
-                  setNodRun((run) => run + 1);
-                }
-              }}
-              onPick={onHoursChange}
+              // The show has reached the last clip: the way on shows itself.
+              onDone={() => setPicked(true)}
               sound={tickAllowed(sound, soundChosen)}
             />
             <p {...props(styles.gateHint)}>
-              <ScrollHint />
+              <AverageHint />
             </p>
             {/* In the page from the start, so nothing moves when it appears:
-            it fades in once the rail has been held. */}
+            it fades in once the show has run. */}
             <div aria-hidden={!picked} {...props(styles.gateCta, picked && styles.gateCtaShown)}>
               <Button onClick={showBill} tabIndex={picked ? 0 : -1}>
                 {m.home_gate_cta()}
