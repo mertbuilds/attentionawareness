@@ -5,6 +5,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { layout } from '../lib/layout.ts';
+import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
 
 export const Route = createFileRoute('/extension/privacy')({
@@ -77,7 +78,7 @@ const styles = create({
     // The stacking context that keeps the grid layer above the page's own
     // background instead of behind it.
     isolation: 'isolate',
-    minHeight: '100vh',
+    minHeight: `calc(100vh - ${wip.height})`,
     paddingBlockEnd: spacing.s16,
     paddingBlockStart: {
       '@media (min-width: 640px)': 96,

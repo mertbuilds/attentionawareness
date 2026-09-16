@@ -50,6 +50,7 @@ import { decodeShare, sharedAppName } from '../lib/share.ts';
 import { normalizeUrl, sitesForApp, sitesForApps } from '../lib/sites.ts';
 import { unlockTickSound } from '../lib/tick-sound.ts';
 import { useIsMobile } from '../lib/use-is-mobile.ts';
+import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
 
@@ -636,7 +637,7 @@ const styles = create({
     },
     justifyContent: 'center',
     maxWidth: 760,
-    minHeight: firstThatWorks('100svh', '100vh'),
+    minHeight: firstThatWorks(`calc(100svh - ${wip.height})`, `calc(100vh - ${wip.height})`),
     paddingBlockEnd: '18vh',
     textAlign: 'center',
     width: '100%',
@@ -811,7 +812,7 @@ const styles = create({
     // The stacking context that keeps the grid layer above the page's own
     // background instead of behind it.
     isolation: 'isolate',
-    minHeight: '100vh',
+    minHeight: `calc(100vh - ${wip.height})`,
     paddingBlockEnd: spacing.s16,
     paddingBlockStart: {
       '@media (min-width: 640px)': 96,
@@ -1404,7 +1405,7 @@ const styles = create({
     display: 'inline-flex',
     flexShrink: 0,
     height: 40,
-    insetBlockStart: spacing.s4,
+    insetBlockStart: `calc(${spacing.s4} + ${wip.height})`,
     insetInlineEnd: spacing.s4,
     justifyContent: 'center',
     padding: 0,

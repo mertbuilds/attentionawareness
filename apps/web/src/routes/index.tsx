@@ -22,6 +22,7 @@ import { useScrollLock } from '../lib/scroll-lock.ts';
 import { decodeShare } from '../lib/share.ts';
 import { playClick } from '../lib/sounds.ts';
 import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
+import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
 
@@ -342,7 +343,7 @@ const styles = create({
     // under the brand bar instead of climbing behind it.
     justifyContent: firstThatWorks('safe center', 'center'),
     maxWidth: 760,
-    minHeight: firstThatWorks('100svh', '100vh'),
+    minHeight: firstThatWorks(`calc(100svh - ${wip.height})`, `calc(100vh - ${wip.height})`),
     paddingBlockEnd: {
       '@media (max-width: 639px)': spacing.s6,
       default: '8vh',
@@ -462,7 +463,7 @@ const styles = create({
     // The stacking context that keeps the grid layer above the page's own
     // background instead of behind it.
     isolation: 'isolate',
-    minHeight: '100vh',
+    minHeight: `calc(100vh - ${wip.height})`,
     paddingBlockEnd: spacing.s16,
     paddingBlockStart: {
       '@media (min-width: 640px)': 96,
@@ -604,7 +605,7 @@ const styles = create({
   tools: {
     display: 'flex',
     gap: spacing.s1,
-    insetBlockStart: spacing.s2,
+    insetBlockStart: `calc(${spacing.s2} + ${wip.height})`,
     insetInlineEnd: spacing.s4,
     position: 'fixed',
     zIndex: 30,
