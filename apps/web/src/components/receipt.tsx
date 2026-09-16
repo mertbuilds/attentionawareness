@@ -3,7 +3,7 @@ import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import NumberFlow from '@number-flow/react';
 import { create, props } from '@stylexjs/stylex';
 import { motion, useReducedMotion, type Variants } from 'motion/react';
-import { useEffect, useRef } from 'react';
+import { lazy, Suspense, useEffect, useRef, useSyncExternalStore } from 'react';
 import {
   formatYears,
   heroMetrics,
@@ -12,6 +12,7 @@ import {
   WAKING_HOURS,
 } from '../lib/attention-math.ts';
 import { playClick, playStamp, playStampHeavy } from '../lib/sounds.ts';
+import { subscribeTheme } from '../lib/theme.ts';
 import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
@@ -28,6 +29,33 @@ const PAPER = `color-mix(in srgb, ${colors.bg} 92%, ${colors.fg})`;
 /** Paper grain: one tile of fractal noise, faint, laid over the ground. */
 const PAPER_GRAIN =
   "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='4' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.16 0'/></filter><rect width='160' height='160' filter='url(%23g)'/></svg>\")";
+/**
+ * The paper the shader draws, one pair per theme. `back` is what PAPER above
+ * resolves to (`--kya-bg` mixed 92% with `--kya-fg`): #ebebeb on light, #141414
+ * on dark. `front` is the light a fold catches, one shade over it. Both are
+ * written out because a shader takes a color, not a `color-mix()`.
+ */
+const PAPER_SHADER = {
+  dark: { back: '#141414', front: '#262626' },
+  light: { back: '#ebebeb', front: '#ffffff' },
+} as const;
+
+type PaperTheme = keyof typeof PAPER_SHADER;
+
+/** One sheet, milled the same way every time. */
+const PAPER_SEED = 5.8;
+/** Enough pixels for a 480px sheet at 3x, and no more: a phone draws it too. */
+const PAPER_PIXELS = 1_500_000;
+
+/**
+ * The texture is WebGL, so it is loaded only where there is a canvas to draw
+ * into: the client, and only after it has hydrated.
+ */
+const PaperTexture = lazy(async () => {
+  const shaders = await import('@paper-design/shaders-react');
+  return { default: shaders.PaperTexture };
+});
+
 /**
  * The sheet prints itself: every line under the title rises out of a blur,
  * one after the next, top to bottom. The measures are the motion tokens for
@@ -115,6 +143,20 @@ const styles = create({
     color: 'inherit',
     textDecorationLine: 'none',
   },
+  // The paper itself, under everything the bill prints. It sits inside the
+  // border, so its corners are the sheet's 4px less that border's 1px.
+  billPaper: {
+    borderRadius: 3,
+    inset: 0,
+    overflow: 'hidden',
+    pointerEvents: 'none',
+    position: 'absolute',
+    zIndex: 0,
+  },
+  billShader: {
+    height: '100%',
+    width: '100%',
+  },
   paper: {
     maxWidth: 480,
     width: '100%',
@@ -143,12 +185,22 @@ const styles = create({
       '@media (min-width: 640px)': spacing.s8,
       default: spacing.s4,
     },
+    // The paper is laid inside this box, so the box is what it is laid against.
+    position: 'relative',
     textAlign: 'start',
     width: '100%',
   },
   receiptBlock: {
     display: 'flex',
     flexDirection: 'column',
+  },
+  // Everything the bill prints, kept over the paper.
+  receiptContent: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s6,
+    position: 'relative',
+    zIndex: 1,
   },
   receiptLabel: {
     alignItems: 'center',
@@ -252,11 +304,69 @@ const styles = create({
     position: 'absolute',
     transform: 'translate(-50%, -50%) rotate(-10deg)',
     width: '84%',
-  },
-  stamped: {
-    position: 'relative',
+    zIndex: 2,
   },
 });
+
+/** The paper the theme is asking for, read off the document the CSS reads. */
+function readPaperTheme(): PaperTheme | null {
+  const forced = document.documentElement.dataset['theme'];
+  if (forced === 'dark' || forced === 'light') {
+    return forced;
+  }
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+/** The theme changes from the switch in the footer, or from the system itself. */
+function subscribePaperTheme(onChange: () => void): () => void {
+  const dark = window.matchMedia('(prefers-color-scheme: dark)');
+  dark.addEventListener('change', onChange);
+  const unsubscribe = subscribeTheme(onChange);
+  return () => {
+    dark.removeEventListener('change', onChange);
+    unsubscribe();
+  };
+}
+
+/**
+ * The server has no canvas and no theme to read, and it renders that same
+ * answer while hydrating, which is what keeps the paper out of the first frame
+ * and hydration quiet.
+ */
+const noPaperTheme = (): PaperTheme | null => null;
+
+/**
+ * The surface of the sheet: fibers, crumples and four soft folds, drawn once
+ * and left alone. It is behind every line and it never takes a click.
+ */
+function BillPaper({ theme }: { theme: PaperTheme }) {
+  const paper = PAPER_SHADER[theme];
+  return (
+    <div aria-hidden="true" {...props(styles.billPaper)}>
+      <Suspense fallback={null}>
+        <PaperTexture
+          colorBack={paper.back}
+          colorFront={paper.front}
+          contrast={0.25}
+          crumples={0.2}
+          crumpleSize={0.35}
+          drops={0.1}
+          fade={0}
+          fiber={0.25}
+          fiberSize={0.2}
+          fit="cover"
+          foldCount={4}
+          folds={0.4}
+          maxPixelCount={PAPER_PIXELS}
+          roughness={0.35}
+          scale={0.7}
+          seed={PAPER_SEED}
+          {...props(styles.billShader)}
+        />
+      </Suspense>
+    </div>
+  );
+}
 
 /**
  * The bill for a day of scrolling, priced over the horizon. Every figure on it
@@ -325,6 +435,7 @@ export function Receipt({
     travel: m.home_receipt_travel_label,
   };
   const reduced = useReducedMotion();
+  const paperTheme = useSyncExternalStore(subscribePaperTheme, readPaperTheme, noPaperTheme);
   const paper = useRef<HTMLDivElement>(null);
   // What the bill says, in the order the till prints it: four meta rows, the
   // column heads, the day itself, the items the day bought, and three lines
@@ -385,142 +496,141 @@ export function Receipt({
   const state = reduced ? 'printed' : print;
   return (
     <div {...props(styles.paper)}>
-      <motion.div
-        animate={state}
-        initial={false}
-        ref={paper}
-        {...props(styles.receipt, refunded && styles.stamped)}
-      >
-        <p {...props(styles.billKind)}>{m.home_bill_kind()}</p>
-        <dl {...props(styles.billMeta)}>
-          {meta.map((row) => (
-            <motion.div
-              custom={0}
-              key={row.label}
-              variants={sheetLine}
-              {...props(styles.billMetaRow)}
-            >
-              <dt {...props(styles.billMetaLabel)}>{row.label}</dt>
-              <dd {...props(styles.billMetaValue)}>{row.value}</dd>
-            </motion.div>
-          ))}
-        </dl>
-        <motion.p custom={0} data-line={0} variants={sheetLine} {...props(styles.billColumns)}>
-          <span>{m.home_bill_col_item()}</span>
-          <span>{m.home_bill_col_qty()}</span>
-        </motion.p>
-        {/* The quantity on the bill: the hours a day, and on the live copy
-        the minus and plus that correct them. */}
-        <motion.p custom={beat} data-line={1} variants={sheetLine} {...props(styles.receiptRow)}>
-          <span>{m.home_receipt_screen_label()}</span>
-          <span {...props(styles.receiptQty)}>
-            {onChange === undefined ? null : (
-              <button
-                aria-label={m.home_gate_minus()}
-                disabled={hours <= HOURS_MIN}
-                onClick={() => step(-1)}
-                onPointerUp={unlockTickSound}
-                type="button"
-                {...props(styles.qtyButton)}
+      <motion.div animate={state} initial={false} ref={paper} {...props(styles.receipt)}>
+        {paperTheme === null ? null : <BillPaper theme={paperTheme} />}
+        <div {...props(styles.receiptContent)}>
+          <p {...props(styles.billKind)}>{m.home_bill_kind()}</p>
+          <dl {...props(styles.billMeta)}>
+            {meta.map((row) => (
+              <motion.div
+                custom={0}
+                key={row.label}
+                variants={sheetLine}
+                {...props(styles.billMetaRow)}
               >
-                <svg aria-hidden="true" viewBox="0 0 24 24" {...props(styles.qtyGlyph)}>
-                  <path
-                    d="M5 12h14"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeLinecap="round"
-                    strokeWidth="2.5"
-                  />
-                </svg>
-              </button>
-            )}
-            <span {...props(styles.receiptValue)}>
-              <NumberFlow locales={locale} suffix={m.home_receipt_per_day()} value={hours} />
-            </span>
-            {onChange === undefined ? null : (
-              <button
-                aria-label={m.home_gate_plus()}
-                disabled={hours >= HOURS_MAX}
-                onClick={() => step(1)}
-                onPointerUp={unlockTickSound}
-                type="button"
-                {...props(styles.qtyButton)}
-              >
-                <svg aria-hidden="true" viewBox="0 0 24 24" {...props(styles.qtyGlyph)}>
-                  <path
-                    d="M5 12h14M12 5v14"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeLinecap="round"
-                    strokeWidth="2.5"
-                  />
-                </svg>
-              </button>
-            )}
-          </span>
-        </motion.p>
-        {/* What the same hours would have bought, smallest to largest. */}
-        <div {...props(styles.receiptBlock)}>
-          {rows.map((row, index) => (
-            <motion.p
-              custom={(itemsAt + index) * beat}
-              data-line={itemsAt + index}
-              key={row.key}
-              variants={sheetLine}
-              {...props(styles.receiptRow)}
-            >
-              <span {...props(styles.receiptLabel)}>
-                {labels[row.key]?.() ?? row.key}
-                <InfoTip label={m.home_receipt_tip_label()}>{tips[row.key]?.()}</InfoTip>
-              </span>
+                <dt {...props(styles.billMetaLabel)}>{row.label}</dt>
+                <dd {...props(styles.billMetaValue)}>{row.value}</dd>
+              </motion.div>
+            ))}
+          </dl>
+          <motion.p custom={0} data-line={0} variants={sheetLine} {...props(styles.billColumns)}>
+            <span>{m.home_bill_col_item()}</span>
+            <span>{m.home_bill_col_qty()}</span>
+          </motion.p>
+          {/* The quantity on the bill: the hours a day, and on the live copy
+          the minus and plus that correct them. */}
+          <motion.p custom={beat} data-line={1} variants={sheetLine} {...props(styles.receiptRow)}>
+            <span>{m.home_receipt_screen_label()}</span>
+            <span {...props(styles.receiptQty)}>
+              {onChange === undefined ? null : (
+                <button
+                  aria-label={m.home_gate_minus()}
+                  disabled={hours <= HOURS_MIN}
+                  onClick={() => step(-1)}
+                  onPointerUp={unlockTickSound}
+                  type="button"
+                  {...props(styles.qtyButton)}
+                >
+                  <svg aria-hidden="true" viewBox="0 0 24 24" {...props(styles.qtyGlyph)}>
+                    <path
+                      d="M5 12h14"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                      strokeWidth="2.5"
+                    />
+                  </svg>
+                </button>
+              )}
               <span {...props(styles.receiptValue)}>
-                <NumberFlow locales={locale} value={row.amount} />
+                <NumberFlow locales={locale} suffix={m.home_receipt_per_day()} value={hours} />
               </span>
-            </motion.p>
-          ))}
+              {onChange === undefined ? null : (
+                <button
+                  aria-label={m.home_gate_plus()}
+                  disabled={hours >= HOURS_MAX}
+                  onClick={() => step(1)}
+                  onPointerUp={unlockTickSound}
+                  type="button"
+                  {...props(styles.qtyButton)}
+                >
+                  <svg aria-hidden="true" viewBox="0 0 24 24" {...props(styles.qtyGlyph)}>
+                    <path
+                      d="M5 12h14M12 5v14"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                      strokeWidth="2.5"
+                    />
+                  </svg>
+                </button>
+              )}
+            </span>
+          </motion.p>
+          {/* What the same hours would have bought, smallest to largest. */}
+          <div {...props(styles.receiptBlock)}>
+            {rows.map((row, index) => (
+              <motion.p
+                custom={(itemsAt + index) * beat}
+                data-line={itemsAt + index}
+                key={row.key}
+                variants={sheetLine}
+                {...props(styles.receiptRow)}
+              >
+                <span {...props(styles.receiptLabel)}>
+                  {labels[row.key]?.() ?? row.key}
+                  <InfoTip label={m.home_receipt_tip_label()}>{tips[row.key]?.()}</InfoTip>
+                </span>
+                <span {...props(styles.receiptValue)}>
+                  <NumberFlow locales={locale} value={row.amount} />
+                </span>
+              </motion.p>
+            ))}
+          </div>
+          <motion.div custom={closeAt * beat} variants={sheetLine} {...props(styles.receiptTotal)}>
+            <p {...props(styles.receiptTotalHeading)}>
+              {m.home_receipt_total_label()}
+              <InfoTip label={m.home_receipt_tip_label()}>
+                {m.home_receipt_total_tip({
+                  hours,
+                  percent: Math.round((hours / WAKING_HOURS) * 100),
+                  years: formatYears(hours),
+                })}
+              </InfoTip>
+            </p>
+            <p {...props(styles.receiptTotal, styles.receiptTotalBare)}>
+              <span {...props(styles.receiptTotalValue)}>
+                <NumberFlow locales={locale} value={span.years} /> {m.home_receipt_years_unit()}
+                {span.months > 0 ? (
+                  <>
+                    {' '}
+                    <NumberFlow locales={locale} value={span.months} />{' '}
+                    {m.home_receipt_months_unit()}
+                  </>
+                ) : null}
+              </span>
+              <span {...props(styles.receiptTotalNote)}>
+                {m.home_receipt_total_note({ years: HORIZON_YEARS })}
+              </span>
+            </p>
+          </motion.div>
+          <motion.div
+            aria-hidden="true"
+            custom={closeAt * beat}
+            variants={sheetLine}
+            {...props(styles.receiptRule)}
+          />
+          <motion.p
+            custom={closeAt * beat}
+            data-line={closeAt}
+            variants={sheetLine}
+            {...props(styles.billSite)}
+          >
+            <a data-plain="" href={SITE_URL} {...props(styles.billSiteLink)}>
+              {m.home_receipt_store_url()}
+            </a>
+          </motion.p>
         </div>
-        <motion.div custom={closeAt * beat} variants={sheetLine} {...props(styles.receiptTotal)}>
-          <p {...props(styles.receiptTotalHeading)}>
-            {m.home_receipt_total_label()}
-            <InfoTip label={m.home_receipt_tip_label()}>
-              {m.home_receipt_total_tip({
-                hours,
-                percent: Math.round((hours / WAKING_HOURS) * 100),
-                years: formatYears(hours),
-              })}
-            </InfoTip>
-          </p>
-          <p {...props(styles.receiptTotal, styles.receiptTotalBare)}>
-            <span {...props(styles.receiptTotalValue)}>
-              <NumberFlow locales={locale} value={span.years} /> {m.home_receipt_years_unit()}
-              {span.months > 0 ? (
-                <>
-                  {' '}
-                  <NumberFlow locales={locale} value={span.months} /> {m.home_receipt_months_unit()}
-                </>
-              ) : null}
-            </span>
-            <span {...props(styles.receiptTotalNote)}>
-              {m.home_receipt_total_note({ years: HORIZON_YEARS })}
-            </span>
-          </p>
-        </motion.div>
-        <motion.div
-          aria-hidden="true"
-          custom={closeAt * beat}
-          variants={sheetLine}
-          {...props(styles.receiptRule)}
-        />
-        <motion.p
-          custom={closeAt * beat}
-          data-line={closeAt}
-          variants={sheetLine}
-          {...props(styles.billSite)}
-        >
-          <a data-plain="" href={SITE_URL} {...props(styles.billSiteLink)}>
-            {m.home_receipt_store_url()}
-          </a>
-        </motion.p>
         {refunded ? (
           <img alt={m.home_receipt_refunded()} src={STAMP_URL} {...props(styles.stamp)} />
         ) : null}
