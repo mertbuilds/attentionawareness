@@ -47,6 +47,24 @@ const CAPTIONS = [
 ];
 
 /**
+ * What each slot posts, under the handle or over the picture, by its place in
+ * the feed. The black slot at the end posts nothing.
+ */
+const POSTS = [
+  m.home_feed_post_1,
+  m.home_feed_post_2,
+  m.home_feed_post_3,
+  m.home_feed_post_4,
+  m.home_feed_post_5,
+  m.home_feed_post_6,
+  m.home_feed_post_7,
+  m.home_feed_post_8,
+  m.home_feed_post_9,
+  m.home_feed_post_10,
+  m.home_feed_post_11,
+];
+
+/**
  * The app each slot wears: the six of them in turn, over and over down the
  * feed. It is the same clips and the same words the whole way; only the
  * chrome around them changes hands.
@@ -514,6 +532,7 @@ function Video({
         frame={frame}
         handle={handle}
         played={played}
+        post={POSTS[index]?.() ?? ''}
         shade={shadeFor(index)}
       />
     </div>
