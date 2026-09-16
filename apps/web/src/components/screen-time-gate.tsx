@@ -31,9 +31,9 @@ const DEMO_START_MS = 500;
 /** How long it waits, still untouched, before it shows itself again. */
 const DEMO_REPEAT_MS = 5000;
 /** How long the knob takes to glide one hour along the rail. */
-const DEMO_STEP_MS = 525;
+const DEMO_STEP_MS = 350;
 /** How long it stands on seven before it steps back. */
-const DEMO_HOLD_MS = 750;
+const DEMO_HOLD_MS = 500;
 /** How long the six-seven hands take to fade. */
 const HANDS_FADE = '375ms';
 /** The hands read off the readout's own size, so they scale with it. */
@@ -152,7 +152,7 @@ const styles = create({
   hands: {
     display: 'flex',
     gap: 2,
-    insetBlockStart: '100%',
+    insetBlockStart: 'calc(100% - 4px)',
     insetInlineStart: '50%',
     justifyContent: 'center',
     opacity: 0,
