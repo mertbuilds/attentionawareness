@@ -5,7 +5,7 @@ import { create, firstThatWorks, keyframes, props } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import { Restart, VolumeCross, VolumeUp } from 'reicon-react';
-import { FeedPhone } from '../components/feed-phone.tsx';
+import { FeedKeysHint, FeedPhone } from '../components/feed-phone.tsx';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { Receipt } from '../components/receipt.tsx';
 import {
@@ -750,6 +750,10 @@ function HomePage() {
   // is the feed's key: a fresh one is a fresh show from the first clip.
   const [run, setRun] = useState(0);
   const [shown, setShown] = useState(false);
+  // The rail is counting six, seven, six on its own: the readout puts its
+  // hands out, and the count keeps them starting from rest at each one.
+  const [sixSeven, setSixSeven] = useState(false);
+  const [sixSevenRun, setSixSevenRun] = useState(0);
   // The date on the bill: when the page was opened, not when it was rung up.
   const [printedAt] = useState(() => new Date());
   const [sound, setSound] = useState(true);
@@ -1120,6 +1124,10 @@ function HomePage() {
             </div>
           </div>
         ) : null}
+        {/* Outside the screen itself, because it stands in the window's corner
+        rather than in the column, and a leaving screen carries its column with
+        it. */}
+        <FeedKeysHint shown={shown && (stage === 'held' || stage === 'returning')} />
         {/* The question the bill is priced against, on a screen of its own: it
         arrives the way the bill does and leaves the same way the show did. */}
         {askShown ? (
@@ -1139,12 +1147,18 @@ function HomePage() {
             </h2>
             <AverageNote />
             <div {...props(styles.gateDial)}>
-              <HourReadout hours={wholeHours} />
+              <HourReadout hours={wholeHours} sixSeven={sixSeven} sixSevenRun={sixSevenRun} />
               <HourSlider
-                // The sweep waits for this screen to land: it is still on its
+                // The count waits for this screen to land: it is still on its
                 // way in while the show is leaving.
                 arrived={stage !== 'asking'}
                 onChange={pickHours}
+                onSixSeven={(showing) => {
+                  setSixSeven(showing);
+                  if (showing) {
+                    setSixSevenRun((count) => count + 1);
+                  }
+                }}
                 sound={tickAllowed(sound, soundChosen)}
                 value={wholeHours}
               />

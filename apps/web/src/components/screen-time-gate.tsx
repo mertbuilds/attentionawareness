@@ -2,7 +2,7 @@ import { Label } from '@attentionawareness/ui';
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import NumberFlow from '@number-flow/react';
-import { create, props } from '@stylexjs/stylex';
+import { create, keyframes, props } from '@stylexjs/stylex';
 import { useSyncExternalStore } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { playClick, playTick } from '../lib/sounds.ts';
@@ -21,16 +21,25 @@ export const HOURS_MIN = 2;
 export const HOURS_MAX = 12;
 const HOURS_STEP = 1;
 /**
- * The rail's own sweep: up two, down three, back one, gliding. It ends where
- * it began, so a rail nobody has touched still answers with the average day.
+ * The rail's own show: six, seven, six. It steps one hour up, stands there,
+ * and steps back, so a rail nobody has touched still answers with the average
+ * day it started on.
  */
-const DEMO_SWEEP = [8, 5, 6];
+const DEMO_UP = 7;
 /** How long the rail stands still on the landed screen before it shows itself. */
 const DEMO_START_MS = 500;
 /** How long it waits, still untouched, before it shows itself again. */
 const DEMO_REPEAT_MS = 5000;
 /** How long the knob takes to glide one hour along the rail. */
-const DEMO_HOUR_MS = 260;
+const DEMO_STEP_MS = 525;
+/** How long it stands on seven before it steps back. */
+const DEMO_HOLD_MS = 750;
+/** How long the six-seven hands take to fade. */
+const HANDS_FADE = '375ms';
+/** The hands read off the readout's own size, so they scale with it. */
+const HANDS_SIZE = `calc(${DISPLAY_SIZE} * 0.45)`;
+/** The palm-up hand the gesture is made of, twice. */
+const HAND = '\u{1FAF4}';
 /**
  * Where the slider stands before the reader has moved it: the whole hours of
  * the average day the line above it cites, which is the figure the reader is
@@ -70,6 +79,13 @@ const KNOB_NOTCH_SIZE = '2px 18px';
 const TICKS = Array.from({ length: (HOURS_MAX - HOURS_MIN) / HOURS_STEP + 1 }, (_, index) => {
   const value = HOURS_MIN + index * HOURS_STEP;
   return { at: (value - HOURS_MIN) / (HOURS_MAX - HOURS_MIN), value };
+});
+
+/** One hand of the six-seven: up, and down, the other half a beat behind. */
+const weigh = keyframes({
+  '0%': { translate: '0 0' },
+  '100%': { translate: '0 0' },
+  '50%': { translate: '0 -6px' },
 });
 
 const styles = create({
@@ -112,6 +128,43 @@ const styles = create({
     margin: 0,
     // Room for two digits, so one digit sits in the same box as twelve.
     width: '2.4ch',
+  },
+  hand: {
+    animationDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: '1050ms',
+    },
+    animationIterationCount: 'infinite',
+    animationName: weigh,
+    animationTimingFunction: 'ease-in-out',
+    display: 'inline-block',
+    fontSize: HANDS_SIZE,
+    lineHeight: 1,
+  },
+  handRight: {
+    // Half the bob, so the pair is always one hand up and one hand coming down.
+    animationDelay: '525ms',
+  },
+  // Under the number, out of the flow, so the readout never moves for them.
+  // The number's box carries the roll mask's own padding under the digit, so
+  // the pair hangs off the foot of that box and over the unit word, which is
+  // where the gesture belongs and what it is allowed to cover.
+  hands: {
+    display: 'flex',
+    gap: 2,
+    insetBlockStart: '100%',
+    insetInlineStart: '50%',
+    justifyContent: 'center',
+    opacity: 0,
+    pointerEvents: 'none',
+    position: 'absolute',
+    transform: 'translateX(-50%)',
+    transitionDuration: HANDS_FADE,
+    transitionProperty: 'opacity',
+    whiteSpace: 'nowrap',
+  },
+  handsShown: {
+    opacity: 1,
   },
   // Said to a screen reader and drawn for nobody: the control already carries
   // its own numbers, so the label over it is only a name.
@@ -203,6 +256,8 @@ const styles = create({
   // The rail's readout stands alone, so it fills the stepper's middle column.
   sliderReading: {
     gridColumn: 2,
+    // The hands hang off this box, so it is the one they are measured from.
+    position: 'relative',
     // No stepper beside it, so nothing to hold a second digit's room for.
     width: 'auto',
   },
@@ -312,12 +367,33 @@ export function Count({ value }: { value: number }) {
 }
 
 /** The big orange figure and its unit, as every picker on the page reads it. */
-export function HourReadout({ hours }: { hours: number }) {
+export function HourReadout({
+  hours,
+  sixSeven,
+  sixSevenRun,
+}: {
+  hours: number;
+  /** The rail is stepping six, seven, six on its own: the hands come out. */
+  sixSeven: boolean;
+  /** Counts the runs, so the hands start from rest at each one. */
+  sixSevenRun: number;
+}) {
   const reading = hours === 1 ? m.home_gate_reading_one() : m.home_gate_reading({ hours });
   return (
     <div {...props(styles.stepper)}>
       <p aria-hidden="true" {...props(styles.gateReading, styles.sliderReading)}>
         <Count value={hours} />
+        {/* Six, seven. Palms up, both weighing, the right one half a beat
+        behind: the gesture the number pair comes with now. */}
+        <span
+          // A new pair at every run: their bob starts from rest with the step
+          // to seven, and keeps going while they fade.
+          key={sixSevenRun}
+          {...props(styles.hands, sixSeven && styles.handsShown)}
+        >
+          <span {...props(styles.hand)}>{HAND}</span>
+          <span {...props(styles.hand, styles.handRight)}>{HAND}</span>
+        </span>
       </p>
       <span aria-hidden="true" {...props(styles.stepUnit, styles.sliderUnit)}>
         {reading.replace(String(hours), '').trim()}
@@ -428,20 +504,23 @@ export function ScreenTimeGate({
 
 /**
  * The question's answer, set rather than typed: a rail from two to twelve,
- * whole hours only. Left alone it shows itself, gliding away and back to where
- * it stood, so the reader can see it is a thing to be dragged; the first touch
- * stops that for good and the rail is theirs.
+ * whole hours only. Left alone it counts six, seven, six, gliding up an hour
+ * and back to where it stood, so the reader can see it is a thing to be
+ * dragged; the first touch stops that for good and the rail is theirs.
  */
 export function HourSlider({
   arrived,
   onChange,
+  onSixSeven,
   sound,
   value,
 }: {
-  /** Whether the screen the rail stands on has landed; the sweep waits for it. */
+  /** Whether the screen the rail stands on has landed; the show waits for it. */
   arrived: boolean;
-  /** Every whole hour the rail passes, the reader's own and the sweep's alike. */
+  /** Every whole hour the rail passes, the reader's own and the show's alike. */
   onChange: (hours: number) => void;
+  /** Whether the rail is counting six, seven, six: the readout puts its hands out. */
+  onSixSeven: (showing: boolean) => void;
   /** Whether a detent may click, which is the page's answer, not the rail's. */
   sound: boolean;
   value: number;
@@ -453,33 +532,34 @@ export function HourSlider({
   const [glide, setGlide] = useState<number | null>(null);
   const frame = useRef<number | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pause = useRef<ReturnType<typeof setTimeout> | null>(null);
   const held = useRef(false);
+  // The rail's live reading, for the show's own guard: it only ever counts
+  // from the hour it started on.
+  const at = useRef(value);
+  at.current = value;
 
   useEffect(() => {
     if (!arrived) {
       return;
     }
-    let from = HOURS_DEFAULT;
-    let index = 0;
     let lastWhole = HOURS_DEFAULT;
-    function leg(startedAt: number) {
-      const to = DEMO_SWEEP[index];
-      if (held.current || to === undefined) {
-        setGliding(false);
-        setGlide(null);
-        frame.current = null;
-        return;
-      }
-      const target: number = to;
-      const duration = Math.abs(target - from) * DEMO_HOUR_MS;
+    function rest() {
+      setGliding(false);
+      setGlide(null);
+      frame.current = null;
+    }
+    // One hour along the rail, gliding, reporting every whole hour it lands
+    // on as the reader's own hand would.
+    function stepTo(from: number, target: number, done: () => void) {
+      let startedAt: number | null = null;
       function tick(now: number) {
         if (held.current) {
-          setGliding(false);
-          setGlide(null);
-          frame.current = null;
+          rest();
           return;
         }
-        const t = Math.min(1, (now - startedAt) / duration);
+        startedAt ??= now;
+        const t = Math.min(1, (now - startedAt) / DEMO_STEP_MS);
         const eased = 1 - (1 - t) * (1 - t);
         const reached = from + (target - from) * eased;
         setGlide(reached);
@@ -495,17 +575,16 @@ export function HourSlider({
           frame.current = requestAnimationFrame(tick);
           return;
         }
-        from = target;
-        index += 1;
-        frame.current = requestAnimationFrame(leg);
+        frame.current = null;
+        done();
       }
       frame.current = requestAnimationFrame(tick);
     }
-    // One sweep as soon as the landed rail has stood still long enough to be
-    // read, then one every five seconds it goes on standing there, each from
-    // where the last one ended.
-    function sweep() {
-      if (held.current) {
+    // One count as soon as the landed rail has stood still long enough to be
+    // read, then one every five seconds it goes on standing there: six, a
+    // hand up to seven, a moment there, and back down to six.
+    function count() {
+      if (held.current || at.current !== HOURS_DEFAULT) {
         return;
       }
       // Open the device before the first click: a browser that has heard from
@@ -514,22 +593,36 @@ export function HourSlider({
       if (sound) {
         primeTickSound();
       }
-      index = 0;
-      lastWhole = Math.round(from);
+      lastWhole = HOURS_DEFAULT;
       setGliding(true);
-      frame.current = requestAnimationFrame(leg);
-      timer.current = setTimeout(sweep, DEMO_REPEAT_MS);
+      onSixSeven(true);
+      stepTo(HOURS_DEFAULT, DEMO_UP, () => {
+        pause.current = setTimeout(() => {
+          pause.current = null;
+          if (held.current) {
+            return;
+          }
+          // The hands go as the number comes back, so they are still weighing
+          // while they fade.
+          onSixSeven(false);
+          stepTo(DEMO_UP, HOURS_DEFAULT, rest);
+        }, DEMO_HOLD_MS);
+      });
+      timer.current = setTimeout(count, DEMO_REPEAT_MS);
     }
-    timer.current = setTimeout(sweep, DEMO_START_MS);
+    timer.current = setTimeout(count, DEMO_START_MS);
     return () => {
       if (timer.current !== null) {
         clearTimeout(timer.current);
+      }
+      if (pause.current !== null) {
+        clearTimeout(pause.current);
       }
       if (frame.current !== null) {
         cancelAnimationFrame(frame.current);
       }
     };
-    // The sweep runs once, when the screen lands, with the sound setting it
+    // The count runs once, when the screen lands, with the sound setting it
     // arrived with.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot demo
   }, [arrived]);
@@ -543,12 +636,17 @@ export function HourSlider({
       clearTimeout(timer.current);
       timer.current = null;
     }
+    if (pause.current !== null) {
+      clearTimeout(pause.current);
+      pause.current = null;
+    }
     if (frame.current !== null) {
       cancelAnimationFrame(frame.current);
       frame.current = null;
     }
     setGliding(false);
     setGlide(null);
+    onSixSeven(false);
   }
 
   function onRailChange(hours: number) {
