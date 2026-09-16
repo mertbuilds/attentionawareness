@@ -3,6 +3,7 @@ import { create, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
+import { HOURS_DEFAULT } from './screen-time-gate.tsx';
 import { Tip } from './tip.tsx';
 
 /**
@@ -176,4 +177,25 @@ export function ScreenTimeHelp({ label }: { label: string }) {
       </Tip>
     </span>
   );
+}
+
+/** The marked stretches of a message, [[like this]]. */
+const MARK = /\[\[(.*?)\]\]/u;
+
+/**
+ * The caption that names the day the bill is priced against, with the marked
+ * words that open the help above for a reader whose own day is not the
+ * average one.
+ */
+export function AverageHint() {
+  return m
+    .home_gate_average_hint({ hours: HOURS_DEFAULT })
+    .split(MARK)
+    .map((part, index) =>
+      index % 2 === 0 ? (
+        <span key={index}>{part}</span>
+      ) : (
+        <ScreenTimeHelp key={index} label={part} />
+      ),
+    );
 }
