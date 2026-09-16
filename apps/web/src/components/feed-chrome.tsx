@@ -31,6 +31,8 @@ export type ChromeProps = {
   handle: string;
   /** How far the clip has run, in percent. */
   played: number;
+  /** The words the slot posts: the body of a post, or the line under a handle. */
+  post: string;
   /** How dark the wash over the clip is. */
   shade: number;
 };
@@ -312,14 +314,16 @@ const styles = create({
     lineHeight: 1.2,
     textShadow: '0 1px 4px rgba(0, 0, 0, 0.8)',
   },
-  // The line under the handle: the same words the clip carries burnt in.
+  // The line under the handle: what the slot posted, two lines of it at most.
   captionLine: {
+    display: '-webkit-box',
     fontSize: '3.2cqw',
     lineHeight: 1.3,
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     textShadow: '0 1px 4px rgba(0, 0, 0, 0.8)',
-    whiteSpace: 'nowrap',
+    WebkitBoxOrient: 'vertical',
+    WebkitLineClamp: 2,
   },
   // The avatar, the handle and the follow button, all on one line.
   captionRow: {
@@ -530,11 +534,14 @@ const styles = create({
     position: 'absolute',
   },
   fbText: {
-    display: 'block',
+    display: '-webkit-box',
     fontSize: '3.3cqw',
     lineHeight: 1.35,
+    overflow: 'hidden',
     paddingBlockEnd: '2.4cqw',
     paddingInline: `${GUTTER}cqw`,
+    WebkitBoxOrient: 'vertical',
+    WebkitLineClamp: 3,
   },
   // The bar over the feed: the word in the app's own blue, and the round
   // buttons at the other end. It runs up behind the hour, which is where
@@ -789,11 +796,14 @@ const styles = create({
     paddingInline: '2.4cqw',
   },
   liText: {
-    display: 'block',
+    display: '-webkit-box',
     fontSize: '3.3cqw',
     lineHeight: 1.35,
+    overflow: 'hidden',
     paddingBlockEnd: '2.4cqw',
     paddingInline: `${GUTTER}cqw`,
+    WebkitBoxOrient: 'vertical',
+    WebkitLineClamp: 3,
   },
   liTop: {
     alignItems: 'center',
@@ -1383,10 +1393,13 @@ const styles = create({
     width: '14cqw',
   },
   xText: {
-    display: 'block',
+    display: '-webkit-box',
     fontSize: '3.6cqw',
     lineHeight: 1.35,
     marginBlockStart: '1cqw',
+    overflow: 'hidden',
+    WebkitBoxOrient: 'vertical',
+    WebkitLineClamp: 3,
   },
   // The bar over the timeline: the reader on one side, the mark in the middle.
   xTop: {
@@ -1519,6 +1532,7 @@ function TikTokChrome({
   frame,
   handle,
   played,
+  post,
   shade,
 }: ChromeProps) {
   return (
@@ -1556,6 +1570,7 @@ function TikTokChrome({
       <Band caption={caption} />
       <div {...props(styles.caption)}>
         <span {...props(styles.captionHandle)}>{handle}</span>
+        <span {...props(styles.captionLine)}>{post}</span>
         <span {...props(styles.music)}>
           <Icon name="music" style={styles.musicIcon} />
           <Marquee text={m.home_feed_sound({ name: handle })} />
@@ -1618,6 +1633,7 @@ function ReelsChrome({
   frame,
   handle,
   played,
+  post,
   shade,
 }: ChromeProps) {
   return (
@@ -1649,7 +1665,7 @@ function ReelsChrome({
           <span {...props(styles.captionHandle)}>{handle}</span>
           <span {...props(styles.followPill)}>{m.home_feed_ui_follow()}</span>
         </span>
-        <span {...props(styles.captionLine)}>{caption}</span>
+        <span {...props(styles.captionLine)}>{post}</span>
         <span {...props(styles.music)}>
           <Icon name="music" style={styles.musicIcon} />
           <Marquee text={m.home_feed_ui_original_audio({ name: handle })} />
@@ -1688,6 +1704,7 @@ function ShortsChrome({
   frame,
   handle,
   played,
+  post,
   shade,
 }: ChromeProps) {
   return (
@@ -1726,7 +1743,7 @@ function ShortsChrome({
           <span {...props(styles.captionHandle)}>{handle}</span>
           <span {...props(styles.subscribePill)}>{m.home_feed_ui_subscribe()}</span>
         </span>
-        <span {...props(styles.captionLine)}>{caption}</span>
+        <span {...props(styles.captionLine)}>{post}</span>
         <span {...props(styles.music)}>
           <Icon name="music" style={styles.musicIcon} />
           <Marquee text={m.home_feed_sound({ name: handle })} />
@@ -1776,7 +1793,7 @@ function ShortsChrome({
  * X: not a feed of full-screen videos at all, but a timeline. The clip is a
  * picture inside a post, and the post is what the reader scrolls past.
  */
-function XChrome({ caption, clip, counts, frame, handle, shade }: ChromeProps) {
+function XChrome({ caption, clip, counts, frame, handle, post, shade }: ChromeProps) {
   return (
     <>
       <span {...props(styles.xBoard)} />
@@ -1788,7 +1805,7 @@ function XChrome({ caption, clip, counts, frame, handle, shade }: ChromeProps) {
               <span {...props(styles.xName)}>{displayName(handle)}</span>
               <span {...props(styles.xHandle)}>{m.home_feed_ui_x_meta({ handle })}</span>
             </span>
-            <span {...props(styles.xText)}>{m.home_feed_x_text()}</span>
+            <span {...props(styles.xText)}>{post}</span>
             <div {...props(styles.xMedia)}>
               {clip}
               <Shade value={shade} />
@@ -1862,7 +1879,7 @@ function XChrome({ caption, clip, counts, frame, handle, shade }: ChromeProps) {
  * LinkedIn: the same clip, in a suit. A white card on light grey, a headline
  * nobody reads, and four words under the picture instead of a rail.
  */
-function LinkedInChrome({ caption, clip, counts, frame, handle, shade }: ChromeProps) {
+function LinkedInChrome({ caption, clip, counts, frame, handle, post, shade }: ChromeProps) {
   return (
     <>
       <span {...props(styles.liBoard)} />
@@ -1887,7 +1904,7 @@ function LinkedInChrome({ caption, clip, counts, frame, handle, shade }: ChromeP
             </span>
             <span {...props(styles.liFollow)}>{m.home_feed_ui_follow()}</span>
           </div>
-          <span {...props(styles.liText)}>{m.home_feed_linkedin_text()}</span>
+          <span {...props(styles.liText)}>{post}</span>
           <div {...props(styles.liMedia)}>
             {clip}
             <Shade value={shade} />
@@ -1965,7 +1982,7 @@ function LinkedInChrome({ caption, clip, counts, frame, handle, shade }: ChromeP
  * row of tabs under it, one white card on grey, and the next card already
  * showing at the foot so the feed reads as a feed.
  */
-function FacebookChrome({ caption, clip, counts, frame, handle, shade }: ChromeProps) {
+function FacebookChrome({ caption, clip, counts, frame, handle, post, shade }: ChromeProps) {
   return (
     <>
       <span {...props(styles.fbBoard)} />
@@ -2015,7 +2032,7 @@ function FacebookChrome({ caption, clip, counts, frame, handle, shade }: ChromeP
             </span>
             <Icon name="dots" style={[styles.fbDots, styles.iconPlain]} />
           </div>
-          <span {...props(styles.fbText)}>{caption}</span>
+          <span {...props(styles.fbText)}>{post}</span>
           <div {...props(styles.fbMedia)}>
             {clip}
             <Shade value={shade} />
