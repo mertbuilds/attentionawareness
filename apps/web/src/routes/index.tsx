@@ -1141,6 +1141,9 @@ function HomePage() {
             <div {...props(styles.gateDial)}>
               <HourReadout hours={wholeHours} />
               <HourSlider
+                // The sweep waits for this screen to land: it is still on its
+                // way in while the show is leaving.
+                arrived={stage !== 'asking'}
                 onChange={pickHours}
                 sound={tickAllowed(sound, soundChosen)}
                 value={wholeHours}

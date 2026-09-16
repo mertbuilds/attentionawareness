@@ -25,10 +25,10 @@ const HOURS_STEP = 1;
  * it began, so a rail nobody has touched still answers with the average day.
  */
 const DEMO_SWEEP = [8, 5, 6];
-/** How long the rail stands still, untouched, before it shows itself. */
-const DEMO_START_MS = 5000;
+/** How long the rail stands still on the landed screen before it shows itself. */
+const DEMO_START_MS = 500;
 /** How long it waits, still untouched, before it shows itself again. */
-const DEMO_REPEAT_MS = 10_000;
+const DEMO_REPEAT_MS = 5000;
 /** How long the knob takes to glide one hour along the rail. */
 const DEMO_HOUR_MS = 260;
 /**
@@ -433,10 +433,13 @@ export function ScreenTimeGate({
  * stops that for good and the rail is theirs.
  */
 export function HourSlider({
+  arrived,
   onChange,
   sound,
   value,
 }: {
+  /** Whether the screen the rail stands on has landed; the sweep waits for it. */
+  arrived: boolean;
   /** Every whole hour the rail passes, the reader's own and the sweep's alike. */
   onChange: (hours: number) => void;
   /** Whether a detent may click, which is the page's answer, not the rail's. */
@@ -453,6 +456,9 @@ export function HourSlider({
   const held = useRef(false);
 
   useEffect(() => {
+    if (!arrived) {
+      return;
+    }
     let from = HOURS_DEFAULT;
     let index = 0;
     let lastWhole = HOURS_DEFAULT;
@@ -495,9 +501,9 @@ export function HourSlider({
       }
       frame.current = requestAnimationFrame(tick);
     }
-    // One sweep once the rail has stood still long enough to be missed, then
-    // one every ten seconds it goes on standing there, each from where the
-    // last one ended.
+    // One sweep as soon as the landed rail has stood still long enough to be
+    // read, then one every five seconds it goes on standing there, each from
+    // where the last one ended.
     function sweep() {
       if (held.current) {
         return;
@@ -523,9 +529,10 @@ export function HourSlider({
         cancelAnimationFrame(frame.current);
       }
     };
-    // The sweep runs once, on mount, with the sound setting it opened with.
+    // The sweep runs once, when the screen lands, with the sound setting it
+    // arrived with.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot demo
-  }, []);
+  }, [arrived]);
 
   const shown = glide ?? value;
   const travelled = ((shown - HOURS_MIN) / (HOURS_MAX - HOURS_MIN)) * 100;
