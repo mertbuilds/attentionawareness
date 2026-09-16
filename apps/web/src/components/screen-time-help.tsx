@@ -3,7 +3,6 @@ import { create, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
-import { HOURS_DEFAULT } from './screen-time-gate.tsx';
 import { Tip } from './tip.tsx';
 
 /**
@@ -24,31 +23,14 @@ const SCREEN_TIME_VIDEO_URLS: Record<string, string> = {
   tr: '/media/screentime-tr.mp4',
 };
 const SCREEN_TIME_GIF_URL: string = '';
+/** The report the average day is taken from. */
+const SOURCE_URL = 'https://datareportal.com/global-digital-overview';
 
 const styles = create({
   // The clip is what the box is for: 200px of it, plus the 12px of padding
   // on each side. The words wrap to that, rather than the box widening.
   helpBox: {
     width: 280,
-  },
-  // A line of muted text under the phone, underlined, the way a link is.
-  helpButton: {
-    backgroundColor: 'transparent',
-    borderStyle: 'none',
-    borderWidth: 0,
-    color: {
-      ':focus-visible': colors.fg,
-      ':hover': colors.fg,
-      default: 'inherit',
-    },
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-    fontSize: 'inherit',
-    fontWeight: 'inherit',
-    lineHeight: 'inherit',
-    padding: 0,
-    textDecorationLine: 'underline',
-    textUnderlineOffset: 3,
   },
   // What the slot says while it waits for a clip to be shot.
   helpClip: {
@@ -70,6 +52,22 @@ const styles = create({
     height: '100%',
     objectFit: 'cover',
     width: '100%',
+  },
+  // The average day, and the report it is taken from: a line under the
+  // question, in the measure a sentence is read at rather than scanned.
+  helpNote: {
+    color: colors.muted,
+    fontSize: font.sizeSm,
+    lineHeight: 1.5,
+    margin: 0,
+    maxWidth: '40ch',
+    textAlign: 'center',
+    textWrap: 'pretty',
+  },
+  helpSource: {
+    color: colors.muted,
+    textDecorationLine: 'underline',
+    textUnderlineOffset: 2,
   },
   // Hangs under the button, aligned to its left edge. It sits inside a heading,
   // so it takes back the type the heading set.
@@ -102,10 +100,38 @@ const styles = create({
     overflowWrap: 'anywhere',
     textWrap: 'pretty',
   },
-  // Under the phone, centred, and the anchor the popover opens from.
-  helpWrap: {
-    display: 'inline',
+  // The small ring at the end of the question.
+  markButton: {
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    color: {
+      ':focus-visible': colors.fg,
+      ':hover': colors.fg,
+      default: colors.muted,
+    },
+    cursor: 'pointer',
+    display: 'flex',
+    flexShrink: 0,
+    fontFamily: 'inherit',
+    fontSize: 12,
+    fontWeight: font.weightRegular,
+    height: 20,
+    justifyContent: 'center',
+    letterSpacing: 'normal',
+    lineHeight: 1,
+    padding: 0,
+    width: 20,
+  },
+  // Rides at the end of the question, and anchors the box under it.
+  markWrap: {
+    display: 'inline-flex',
+    marginInlineStart: spacing.s2,
     position: 'relative',
+    verticalAlign: 'middle',
   },
 });
 
@@ -150,13 +176,29 @@ function ScreenTimeClip({ style, videoUrl }: { style?: StyleXStyles; videoUrl: s
 }
 
 /**
- * The line under the phone: where the reader's own number lives, and a clip
- * of it being found.
+ * The average day the question is asked against, and the report it comes from.
+ * It is a line under the question, not a claim about the reader: their own
+ * number is the answer, this is only the shape of one.
  */
-export function ScreenTimeHelp({ label }: { label: string }) {
+export function AverageNote() {
+  return (
+    <p {...props(styles.helpNote)}>
+      {m.home_gate_average()}{' '}
+      <a href={SOURCE_URL} rel="noreferrer" target="_blank" {...props(styles.helpSource)}>
+        {m.home_gate_source()}
+      </a>
+    </p>
+  );
+}
+
+/**
+ * The question mark at the end of the question: where the reader's own number
+ * lives, and a clip of it being found.
+ */
+export function ScreenTimeMark() {
   const videoUrl = screenTimeVideoUrl();
   return (
-    <span {...props(styles.helpWrap)}>
+    <span {...props(styles.markWrap)}>
       <Tip
         content={
           <>
@@ -167,8 +209,8 @@ export function ScreenTimeHelp({ label }: { label: string }) {
         style={styles.helpBox}
         title={m.home_math_help_title()}
         trigger={
-          <button aria-label={m.home_math_help_label()} type="button" {...props(styles.helpButton)}>
-            {label}
+          <button aria-label={m.home_math_help_label()} type="button" {...props(styles.markButton)}>
+            ?
           </button>
         }
       >
@@ -177,25 +219,4 @@ export function ScreenTimeHelp({ label }: { label: string }) {
       </Tip>
     </span>
   );
-}
-
-/** The marked stretches of a message, [[like this]]. */
-const MARK = /\[\[(.*?)\]\]/u;
-
-/**
- * The caption that names the day the bill is priced against, with the marked
- * words that open the help above for a reader whose own day is not the
- * average one.
- */
-export function AverageHint() {
-  return m
-    .home_gate_average_hint({ hours: HOURS_DEFAULT })
-    .split(MARK)
-    .map((part, index) =>
-      index % 2 === 0 ? (
-        <span key={index}>{part}</span>
-      ) : (
-        <ScreenTimeHelp key={index} label={part} />
-      ),
-    );
 }

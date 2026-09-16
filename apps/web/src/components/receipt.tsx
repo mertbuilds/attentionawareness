@@ -11,8 +11,7 @@ import {
   yearsAndMonths,
   WAKING_HOURS,
 } from '../lib/attention-math.ts';
-import { loadClip, playClip } from '../lib/clips.ts';
-import { playClick } from '../lib/sounds.ts';
+import { playClick, playStamp, playStampHeavy } from '../lib/sounds.ts';
 import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
@@ -37,9 +36,6 @@ const PAPER_GRAIN =
 const LINE_BLUR = 3;
 const LINE_DISTANCE = 12;
 const LINE_MS = 500;
-/** What a printed line sounds like, and what the total sounds like. */
-const LINE_CLIP = '/media/bumm.mp3';
-const TOTAL_CLIP = '/media/fahh.mp3';
 /** Where the newest printed line is kept on the screen: a little under the middle. */
 const PRINT_LINE_AT = 0.6;
 /** One line every three quarters of a second: the bill prints, it does not flash. */
@@ -361,21 +357,18 @@ export function Receipt({
       window.scrollBy({ behavior: 'smooth', top: top - rest });
     }
   }
-  // Every line that lands makes the sound the feed makes: one for the head,
-  // then one a beat down to the total.
+  // Every line that lands is stamped into the paper: one stamp for the head,
+  // then one a beat down to the total, which takes the big block.
   useEffect(() => {
     if (print !== 'printing' || !sound || reduced) {
       return;
     }
-    // Every line lands with a thud; the last batch, the total, with the thud
-    // and the fahh together.
-    void loadClip(LINE_CLIP);
-    void loadClip(TOTAL_CLIP);
     const timers = Array.from({ length: closeAt + 1 }, (_, step) =>
       setTimeout(() => {
-        playClip(LINE_CLIP);
         if (step === closeAt) {
-          playClip(TOTAL_CLIP);
+          playStampHeavy();
+        } else {
+          playStamp();
         }
         keepInView(step);
       }, step * LINE_STAGGER_MS),

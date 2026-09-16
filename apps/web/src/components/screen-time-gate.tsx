@@ -5,7 +5,7 @@ import NumberFlow from '@number-flow/react';
 import { create, props } from '@stylexjs/stylex';
 import { useSyncExternalStore } from 'react';
 import { useEffect, useRef, useState } from 'react';
-import { playTick } from '../lib/sounds.ts';
+import { playClick, playTick } from '../lib/sounds.ts';
 import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
 import { m } from '../paraglide/messages.js';
 
@@ -20,10 +20,14 @@ export const DISPLAY_SIZE = 'clamp(32px, 3.8vw, 44px)';
 export const HOURS_MIN = 2;
 export const HOURS_MAX = 12;
 const HOURS_STEP = 1;
-/** The rail's opening sweep: up two to nine, down to six, back to seven, gliding. */
-const DEMO_SWEEP = [9, 6, 7];
-const DEMO_START_MS = 700;
-/** How long the rail waits, untouched, before it shows itself again. */
+/**
+ * The rail's own sweep: up two, down three, back one, gliding. It ends where
+ * it began, so a rail nobody has touched still answers with the average day.
+ */
+const DEMO_SWEEP = [8, 5, 6];
+/** How long the rail stands still, untouched, before it shows itself. */
+const DEMO_START_MS = 5000;
+/** How long it waits, still untouched, before it shows itself again. */
 const DEMO_REPEAT_MS = 10_000;
 /** How long the knob takes to glide one hour along the rail. */
 const DEMO_HOUR_MS = 260;
@@ -423,17 +427,25 @@ export function ScreenTimeGate({
 }
 
 /**
- * The first screen's answer: a rail from one to twelve, and nothing chosen
- * for the reader until they drag it. The moment the drag ends, or Enter is
- * pressed, the rail hands its value over and the stepper takes its place.
+ * The question's answer, set rather than typed: a rail from two to twelve,
+ * whole hours only. Left alone it shows itself, gliding away and back to where
+ * it stood, so the reader can see it is a thing to be dragged; the first touch
+ * stops that for good and the rail is theirs.
  */
-export function HourSlider({ onPick, sound }: { onPick: (hours: number) => void; sound: boolean }) {
-  const [hours, setHours] = useState(HOURS_DEFAULT);
-  const reading = hours === 1 ? m.home_gate_reading_one() : m.home_gate_reading({ hours });
-  // The rail shows itself once: the knob glides up to nine, down to six
-  // and back to seven, ticking at every whole hour, until the reader takes
-  // hold of it. While it glides the input accepts fractions; once held it is
-  // whole hours again.
+export function HourSlider({
+  onChange,
+  sound,
+  value,
+}: {
+  /** Every whole hour the rail passes, the reader's own and the sweep's alike. */
+  onChange: (hours: number) => void;
+  /** Whether a detent may click, which is the page's answer, not the rail's. */
+  sound: boolean;
+  value: number;
+}) {
+  const reading = value === 1 ? m.home_gate_reading_one() : m.home_gate_reading({ hours: value });
+  // While it glides the input accepts fractions; once held it is whole hours
+  // again.
   const [gliding, setGliding] = useState(false);
   const [glide, setGlide] = useState<number | null>(null);
   const frame = useRef<number | null>(null);
@@ -463,14 +475,14 @@ export function HourSlider({ onPick, sound }: { onPick: (hours: number) => void;
         }
         const t = Math.min(1, (now - startedAt) / duration);
         const eased = 1 - (1 - t) * (1 - t);
-        const value = from + (target - from) * eased;
-        setGlide(value);
-        const whole = Math.round(value);
+        const reached = from + (target - from) * eased;
+        setGlide(reached);
+        const whole = Math.round(reached);
         if (whole !== lastWhole) {
           lastWhole = whole;
-          setHours(whole);
+          onChange(whole);
           if (sound) {
-            playTick();
+            playClick();
           }
         }
         if (t < 1) {
@@ -483,15 +495,16 @@ export function HourSlider({ onPick, sound }: { onPick: (hours: number) => void;
       }
       frame.current = requestAnimationFrame(tick);
     }
-    // One sweep after the first beat, then one every ten seconds the rail
-    // goes untouched, each from where the last one ended.
+    // One sweep once the rail has stood still long enough to be missed, then
+    // one every ten seconds it goes on standing there, each from where the
+    // last one ended.
     function sweep() {
       if (held.current) {
         return;
       }
-      // Open the device before the first tick: a browser that has heard from
+      // Open the device before the first click: a browser that has heard from
       // this reader before lets it sound, a brand-new tab keeps it silent
-      // until their first press, and either way the ticks go through it.
+      // until their first press, and either way the clicks go through it.
       if (sound) {
         primeTickSound();
       }
@@ -514,7 +527,7 @@ export function HourSlider({ onPick, sound }: { onPick: (hours: number) => void;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot demo
   }, []);
 
-  const shown = glide ?? hours;
+  const shown = glide ?? value;
   const travelled = ((shown - HOURS_MIN) / (HOURS_MAX - HOURS_MIN)) * 100;
 
   function hold() {
@@ -531,65 +544,44 @@ export function HourSlider({ onPick, sound }: { onPick: (hours: number) => void;
     setGlide(null);
   }
 
-  function onHoursChange(value: number) {
+  function onRailChange(hours: number) {
     hold();
-    if (value !== hours && sound) {
+    if (hours !== value && sound) {
       primeTickSound();
-      playTick();
+      playClick();
     }
-    setHours(value);
-  }
-
-  function pick(event: React.SyntheticEvent<HTMLInputElement>) {
-    unlockTickSound();
-    onPick(Number(event.currentTarget.value));
+    onChange(hours);
   }
 
   return (
-    <div {...props(styles.gate)}>
-      <div {...props(styles.stepper)}>
-        <p aria-hidden="true" {...props(styles.gateReading, styles.sliderReading)}>
-          <Count value={hours} />
-        </p>
-        <span aria-hidden="true" {...props(styles.stepUnit, styles.sliderUnit)}>
-          {reading.replace(String(hours), '').trim()}
-        </span>
-      </div>
-      <div {...props(styles.gateRail)}>
-        <Label style={styles.sliderLabel}>
-          <span {...props(styles.srOnly)}>{m.home_gate_slider_label()}</span>
-          <input
-            aria-valuetext={reading}
-            max={HOURS_MAX}
-            min={HOURS_MIN}
-            onChange={(event) => onHoursChange(Number(event.target.value))}
-            onKeyDown={hold}
-            onKeyUp={(event) => {
-              if (event.key === 'Enter') {
-                pick(event);
-              }
-            }}
-            onPointerDown={() => {
-              hold();
-              if (sound) {
-                primeTickSound();
-              }
-            }}
-            onPointerUp={pick}
-            onTouchEnd={pick}
-            step={gliding ? 'any' : 1}
-            type="range"
-            value={shown}
-            {...props(styles.slider, styles.sliderFill(travelled))}
-          />
-        </Label>
-        <div aria-hidden="true" {...props(styles.tickRail)}>
-          {TICKS.map((tick) => (
-            <span key={tick.value} {...props(styles.tick, styles.tickAt(tick.at))}>
-              <span {...props(styles.tickNumber)}>{tick.value}</span>
-            </span>
-          ))}
-        </div>
+    <div {...props(styles.gateRail)}>
+      <Label style={styles.sliderLabel}>
+        <span {...props(styles.srOnly)}>{m.home_gate_slider_label()}</span>
+        <input
+          aria-valuetext={reading}
+          max={HOURS_MAX}
+          min={HOURS_MIN}
+          onChange={(event) => onRailChange(Number(event.target.value))}
+          onKeyDown={hold}
+          onPointerDown={() => {
+            hold();
+            if (sound) {
+              primeTickSound();
+            }
+          }}
+          onPointerUp={unlockTickSound}
+          step={gliding ? 'any' : 1}
+          type="range"
+          value={shown}
+          {...props(styles.slider, styles.sliderFill(travelled))}
+        />
+      </Label>
+      <div aria-hidden="true" {...props(styles.tickRail)}>
+        {TICKS.map((tick) => (
+          <span key={tick.value} {...props(styles.tick, styles.tickAt(tick.at))}>
+            <span {...props(styles.tickNumber)}>{tick.value}</span>
+          </span>
+        ))}
       </div>
     </div>
   );
