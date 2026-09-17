@@ -18,6 +18,12 @@ struct AttentionAwarenessApp: App {
             DeviceReport.printJSON()
             exit(0)
         }
+
+        // `--backup <udid> <root>` and `--restore <udid> <root>` run the
+        // backup engine from a terminal, print every phase change and exit 0
+        // or 1. They are how `Backup/` is checked against a real iPhone
+        // without the window. Ctrl+C cancels the run.
+        BackupCommandLine.runIfAsked()
     }
 
     var body: some Scene {

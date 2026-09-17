@@ -95,13 +95,15 @@ targets:
         embed: true
         codeSign: true
 
-  # The patch layer is compiled into the test bundle as well as into the app, so
-  # the tests need no host application, no window and no libimobiledevice.
+  # The patch and backup layers are compiled into the test bundle as well as
+  # into the app, so the tests need no host application, no window and no
+  # libimobiledevice.
   AttentionAwarenessTests:
     type: bundle.unit-test
     platform: macOS
     sources:
       - Sources/Patch
+      - Sources/Backup
       - Tests
     settings:
       base:
