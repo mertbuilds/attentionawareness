@@ -4,9 +4,10 @@ Native macOS app (SwiftUI, macOS 14+) that turns the supervise procedure into
 plug in, click, wait: back up the iPhone, patch the backup, restore it, install
 the profile over USB. The Python `cli/` does the same thing by hand.
 
-This step is the scaffold only. The device, backup, patch and wizard layers land
-in later steps; `ContentView` currently lists the seven steps as plain text and
-prints the connected device count to prove the libimobiledevice link works.
+The backup and wizard layers land in later steps. `ContentView` currently lists
+the seven steps as plain text and, under them, shows what the connected iPhone
+says about itself: name, model, iOS version, Find My, backup encryption and
+supervision.
 
 ## Build
 
@@ -14,6 +15,7 @@ prints the connected device count to prove the libimobiledevice link works.
 bash scripts/vendor.sh
 xcodegen generate
 xcodebuild -scheme AttentionAwareness -configuration Debug build
+xcodebuild test -scheme AttentionAwareness -destination 'platform=macOS,arch=arm64'
 ```
 
 The app lands at `build/Build/Products/Debug/Attention Awareness.app` when you
@@ -24,7 +26,9 @@ quick check without opening a window:
 "build/Build/Products/Debug/Attention Awareness.app/Contents/MacOS/Attention Awareness" --devices
 ```
 
-It prints the number of connected iPhones and exits.
+It prints the number of connected iPhones and exits. `--probe` goes further and
+prints everything `Sources/Device/` reads from each connected iPhone as JSON,
+which is how the device layer is checked without the window.
 
 ## Layout
 
@@ -33,6 +37,10 @@ It prints the number of connected iPhones and exits.
   so never edit project settings in Xcode: edit `project.yml` and regenerate.
 - `Sources/` holds the Swift code, `Info.plist`, the entitlements (empty dict,
   no sandbox: the app needs usbmuxd and unsandboxed file access) and the icon.
+- `Sources/Device/` is the device layer: `DeviceWatcher` publishes the iPhones on
+  the cable and re-reads them on every connect and disconnect, `Lockdown` reads
+  the values the wizard checks, `MCInstall` reads supervision and installs a
+  profile over USB.
 - `Vendor/` is filled by `scripts/vendor.sh` and gitignored except for
   `Vendor/include/module.modulemap`. The script copies libimobiledevice, its
   dependencies and the `idevicebackup2` helper out of Homebrew, rewrites every

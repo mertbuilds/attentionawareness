@@ -94,3 +94,37 @@ targets:
       - framework: Vendor/lib/libcrypto.3.dylib
         embed: true
         codeSign: true
+
+  # The patch layer is compiled into the test bundle as well as into the app, so
+  # the tests need no host application, no window and no libimobiledevice.
+  AttentionAwarenessTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - Sources/Patch
+      - Tests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.attentionawareness.mac.tests
+        PRODUCT_NAME: AttentionAwarenessTests
+        GENERATE_INFOPLIST_FILE: YES
+        ENABLE_HARDENED_RUNTIME: NO
+
+schemes:
+  AttentionAwareness:
+    build:
+      targets:
+        AttentionAwareness: all
+        AttentionAwarenessTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - AttentionAwarenessTests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release

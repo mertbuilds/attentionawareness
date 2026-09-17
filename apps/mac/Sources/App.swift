@@ -10,6 +10,14 @@ struct AttentionAwarenessApp: App {
             print(DeviceProbe.connectedDeviceCount())
             exit(0)
         }
+
+        // `--probe` prints what the device layer reads from every connected
+        // iPhone as JSON. It is a development aid for checking `Device/`
+        // without the window.
+        if CommandLine.arguments.contains("--probe") {
+            DeviceReport.printJSON()
+            exit(0)
+        }
     }
 
     var body: some Scene {
