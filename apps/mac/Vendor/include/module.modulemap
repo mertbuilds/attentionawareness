@@ -1,0 +1,13 @@
+// Clang module over the vendored libimobiledevice headers, so Swift can
+// `import CImobileDevice`. Vendor/include is on HEADER_SEARCH_PATHS and
+// SWIFT_INCLUDE_PATHS; `scripts/vendor.sh` fills the rest of this directory.
+module CImobileDevice {
+    header "libimobiledevice/libimobiledevice.h"
+    header "libimobiledevice/lockdown.h"
+    header "libimobiledevice/mobilebackup2.h"
+    header "libimobiledevice/property_list_service.h"
+    header "libimobiledevice/service.h"
+    header "plist/plist.h"
+    header "usbmuxd.h"
+    export *
+}
