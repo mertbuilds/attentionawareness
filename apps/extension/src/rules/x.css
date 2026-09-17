@@ -5,15 +5,23 @@
  * block in the right sidebar. Explore stays, because search lives behind it;
  * the Following feed, notifications, messages and the profile stay untouched.
  *
- * The hooks are `data-testid` attributes, the only names X does not hash. The
- * "For you" tab is taken out of flow instead of being set to `display: none`:
- * it sits in a scroll-snap list that measures its own children, and removing
- * one leaves the underline under nothing.
+ * The hooks are `data-testid` attributes, the only names X does not hash.
+ * `ScrollSnap-List` is not the timeline's own: the composer toolbar, the photo
+ * carousel inside every tweet and every other tab row (profile, explore,
+ * notifications) are the same list, and their first child is the image upload
+ * button, the first photo and the first tab. So the rule is keyed on the home
+ * path and excludes the toolbar and articles, which leaves the one element it
+ * was written for. The "For you" tab is taken out of flow instead of being set
+ * to `display: none`: it sits in a scroll-snap list that measures its own
+ * children, and removing one leaves the underline under nothing.
  *
- * Verified 2026-09-11.
+ * Verified 2026-09-17.
  */
 
-nav [data-testid='ScrollSnap-List'] > div:first-child {
+html[data-aa-path='/home']
+  nav:not([data-testid='toolBar'] nav):not(article nav)
+  [data-testid='ScrollSnap-List']
+  > div:first-child {
   position: absolute !important;
   visibility: hidden !important;
 }
