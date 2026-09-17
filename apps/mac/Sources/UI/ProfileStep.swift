@@ -16,6 +16,7 @@ struct ProfileStep: View {
             VStack(alignment: .leading, spacing: 12) {
                 if let url = SiteLink.build {
                     Link("Open attentionawareness.com/build", destination: url)
+                        .focusable(false)
                 }
 
                 switch model.profile.stage {

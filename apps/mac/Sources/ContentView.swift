@@ -27,6 +27,10 @@ struct ContentView: View {
                     Link("attentionawareness.com", destination: url)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        // A quiet footer line, not a control: while a step has
+                        // nothing to focus, AppKit would otherwise land the
+                        // keyboard focus ring on it.
+                        .focusable(false)
                 }
             }
             .padding(.horizontal, 20)
