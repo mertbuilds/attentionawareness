@@ -12,6 +12,9 @@ storybook-static/
 apps/extension/*.zip
 # the CLI the site serves, copied from cli/dist by the web prebuild script
 apps/web/public/cli/
+# the Mac app the site serves: the dmg is a release artifact, the two small
+# files beside it (appcast.xml, latest.json) are committed
+apps/web/public/mac/*.dmg
 
 # caches
 .turbo/
