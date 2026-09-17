@@ -22,6 +22,15 @@ enum Plist {
         return value != 0
     }
 
+    /// Returns the value of an integer node as an unsigned number. The disk
+    /// usage values the wizard reads are all sizes in bytes.
+    static func integer(_ node: plist_t?) -> UInt64? {
+        guard let node, plist_get_node_type(node) == PLIST_INT else { return nil }
+        var value: UInt64 = 0
+        plist_get_uint_val(node, &value)
+        return value
+    }
+
     /// Returns a child of a dictionary node, or nil when the node is not a
     /// dictionary or the key is absent.
     static func item(_ node: plist_t?, _ key: String) -> plist_t? {

@@ -18,6 +18,8 @@ enum DeviceReport {
                 entry["iosVersion"] = device.iosVersion ?? NSNull()
                 entry["findMyOn"] = device.findMyOn ?? NSNull()
                 entry["backupEncrypted"] = device.backupEncrypted ?? NSNull()
+                entry["dataCapacity"] = device.dataCapacity ?? NSNull()
+                entry["dataAvailable"] = device.dataAvailable ?? NSNull()
                 entry["pairingState"] = device.pairingState.rawValue
 
                 if device.pairingState == .paired {

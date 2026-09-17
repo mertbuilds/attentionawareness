@@ -1,104 +1,66 @@
 import SwiftUI
 
+/// The one window: one step at a time, a Back button where stepping back is
+/// safe, and the site underneath.
 struct ContentView: View {
-    @StateObject private var watcher = DeviceWatcher()
-
-    private let steps = [
-        "Connect",
-        "Checks",
-        "Back up",
-        "Patch",
-        "Restore",
-        "Profile",
-        "Done",
-    ]
+    @StateObject private var model = WizardModel()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Attention Awareness")
-                .font(.title2)
-                .fontWeight(.semibold)
+        VStack(spacing: 0) {
+            ScrollView {
+                WizardStepContent(step: model.step, model: model)
+                    .frame(maxWidth: WizardStyle.contentWidth, alignment: .leading)
+                    .padding(28)
+                    .frame(maxWidth: .infinity)
+            }
 
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(steps, id: \.self) { step in
-                    Text(step)
-                        .font(.body)
+            Divider()
+
+            HStack {
+                if model.step.allowsBack, !model.isBusy {
+                    Button("Back") {
+                        model.back()
+                    }
+                }
+                Spacer()
+                if let url = SiteLink.home {
+                    Link("attentionawareness.com", destination: url)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
-
-            Spacer()
-
-            deviceBlock
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
         }
-        .padding(24)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Color(nsColor: .windowBackgroundColor))
     }
+}
 
-    /// What the phone on the cable says right now. `DeviceWatcher` reads it
-    /// again on every connect and disconnect.
-    @ViewBuilder
-    private var deviceBlock: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            if let device = watcher.devices.first {
-                switch device.pairingState {
-                case .paired:
-                    pairedLines(for: device)
-                case .trustPending:
-                    Text(DeviceError.trustPending.localizedDescription)
-                case .untrusted:
-                    Text(DeviceError.trustDenied.localizedDescription)
-                }
-            } else {
-                Text("Plug in your iPhone with a cable.")
-            }
+/// The step on screen.
+///
+/// It takes the step rather than reading it off the model, so the hidden
+/// `--ui-smoke` flag can build every one of them in turn without walking the
+/// wizard through a real iPhone.
+struct WizardStepContent: View {
+    let step: WizardStep
+    @ObservedObject var model: WizardModel
 
-            if let error = watcher.lastError {
-                Text(error)
-                    .foregroundStyle(.red)
-            }
+    var body: some View {
+        switch step {
+        case .connect:
+            ConnectStep(model: model)
+        case .checks:
+            ChecksStep(model: model)
+        case .backUp:
+            BackupStep(model: model)
+        case .patch:
+            PatchStep(model: model)
+        case .restore:
+            RestoreStep(model: model)
+        case .profile:
+            ProfileStep(model: model)
+        case .done:
+            DoneStep(model: model)
         }
-        .font(.footnote)
-        .foregroundStyle(.secondary)
-    }
-
-    @ViewBuilder
-    private func pairedLines(for device: ConnectedDevice) -> some View {
-        Text(device.name ?? "iPhone")
-        Text(modelLine(for: device))
-        Text(device.iosVersion.map { "iOS \($0)" } ?? "iOS version unknown")
-        Text("Find My: \(onOff(device.findMyOn))")
-        Text("Backup encryption: \(onOff(device.backupEncrypted))")
-        Text(supervisionLine(for: device))
-    }
-
-    private func modelLine(for device: ConnectedDevice) -> String {
-        switch (device.marketingName, device.productType) {
-        case (.some(let marketing), .some(let product)):
-            return "\(marketing) (\(product))"
-        case (.some(let marketing), .none):
-            return marketing
-        case (.none, .some(let product)):
-            return product
-        case (.none, .none):
-            return "Model unknown"
-        }
-    }
-
-    private func supervisionLine(for device: ConnectedDevice) -> String {
-        guard let configuration = watcher.cloudConfigurations[device.udid] else {
-            return "Supervised: unknown"
-        }
-        guard configuration.isSupervised else {
-            return "Supervised: no"
-        }
-        guard let organization = configuration.organizationName else {
-            return "Supervised: yes"
-        }
-        return "Supervised: yes (\(organization))"
-    }
-
-    private func onOff(_ value: Bool?) -> String {
-        guard let value else { return "unknown" }
-        return value ? "on" : "off"
     }
 }

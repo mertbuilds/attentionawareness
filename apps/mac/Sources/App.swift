@@ -24,6 +24,11 @@ struct AttentionAwarenessApp: App {
         // or 1. They are how `Backup/` is checked against a real iPhone
         // without the window. Ctrl+C cancels the run.
         BackupCommandLine.runIfAsked()
+
+        // `--ui-smoke` builds every step of the wizard offscreen and prints
+        // the size each one asks for, so the window can be checked without a
+        // display and without an iPhone.
+        UISmoke.runIfAsked()
     }
 
     var body: some Scene {
@@ -32,5 +37,12 @@ struct AttentionAwarenessApp: App {
                 .frame(minWidth: 560, minHeight: 520)
         }
         .windowResizability(.contentMinSize)
+        .commands {
+            CommandGroup(replacing: .help) {
+                if let url = SiteLink.help {
+                    Link("Attention Awareness help", destination: url)
+                }
+            }
+        }
     }
 }

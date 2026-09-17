@@ -104,6 +104,9 @@ targets:
     sources:
       - Sources/Patch
       - Sources/Backup
+      # The step order is the one part of the window that needs neither
+      # SwiftUI nor an iPhone, so it is tested here with the rest.
+      - Sources/UI/WizardStep.swift
       - Tests
     settings:
       base:

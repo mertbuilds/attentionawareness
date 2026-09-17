@@ -4,10 +4,9 @@ Native macOS app (SwiftUI, macOS 14+) that turns the supervise procedure into
 plug in, click, wait: back up the iPhone, patch the backup, restore it, install
 the profile over USB. The Python `cli/` does the same thing by hand.
 
-The backup and wizard layers land in later steps. `ContentView` currently lists
-the seven steps as plain text and, under them, shows what the connected iPhone
-says about itself: name, model, iOS version, Find My, backup encryption and
-supervision.
+The window is the wizard: Connect, Checks, Back up, Patch, Restore, Profile,
+Done, one step at a time. Unsupervising walks the same steps in reverse and
+leaves the profile out, so it is six.
 
 ## Build
 
@@ -32,7 +31,13 @@ quick check without opening a window:
 
 It prints the number of connected iPhones and exits. `--probe` goes further and
 prints everything `Sources/Device/` reads from each connected iPhone as JSON,
-which is how the device layer is checked without the window.
+which is how the device layer is checked without the window. `--backup <udid>
+<root>` and `--restore <udid> <root>` run the backup engine from a terminal.
+
+`--ui-smoke` builds every step of the wizard offscreen and prints the size each
+one asks for, so the window can be checked on a Mac whose display is asleep. Add
+a folder, `--ui-smoke /tmp/shots`, and it writes a picture of each step there as
+well.
 
 ## Layout
 
@@ -41,6 +46,11 @@ which is how the device layer is checked without the window.
   so never edit project settings in Xcode: edit `project.yml` and regenerate.
 - `Sources/` holds the Swift code, `Info.plist`, the entitlements (empty dict,
   no sandbox: the app needs usbmuxd and unsandboxed file access) and the icon.
+- `Sources/UI/` is the window: `WizardStep` is the step order and nothing else,
+  which is why the tests can run it; `WizardModel` holds one run of the wizard
+  and owns the device watcher and the backup engine; the rest is one file per
+  step. Errors from the three layers are shown in the step that caused them,
+  never in a modal alert.
 - `Sources/Device/` is the device layer: `DeviceWatcher` publishes the iPhones on
   the cable and re-reads them on every connect and disconnect, `Lockdown` reads
   the values the wizard checks, `MCInstall` reads supervision and installs a

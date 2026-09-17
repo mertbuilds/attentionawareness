@@ -24,6 +24,11 @@ struct ConnectedDevice: Identifiable, Equatable {
     let iosVersion: String?
     let findMyOn: Bool?
     let backupEncrypted: Bool?
+    /// How much the phone holds in total, in bytes, and how much of that is
+    /// still free. The difference is what a full backup has to copy. Not every
+    /// iOS version answers the disk usage domain, so both can be nil.
+    let dataCapacity: UInt64?
+    let dataAvailable: UInt64?
     let pairingState: PairingState
 
     /// The udids of the phones reachable over the cable. Devices that usbmuxd
@@ -63,6 +68,8 @@ struct ConnectedDevice: Identifiable, Equatable {
                 iosVersion: session.string(key: "ProductVersion"),
                 findMyOn: session.bool(domain: "com.apple.fmip", key: "IsAssociated"),
                 backupEncrypted: session.bool(domain: "com.apple.mobile.backup", key: "WillEncrypt"),
+                dataCapacity: session.integer(domain: "com.apple.disk_usage", key: "TotalDataCapacity"),
+                dataAvailable: session.integer(domain: "com.apple.disk_usage", key: "TotalDataAvailable"),
                 pairingState: .paired
             )
         } catch DeviceError.trustPending {
@@ -85,6 +92,8 @@ struct ConnectedDevice: Identifiable, Equatable {
             iosVersion: session?.string(key: "ProductVersion"),
             findMyOn: nil,
             backupEncrypted: nil,
+            dataCapacity: nil,
+            dataAvailable: nil,
             pairingState: pairingState
         )
     }
@@ -151,6 +160,12 @@ final class LockdownSession {
     /// Reads a boolean value. Pass nil as the domain for the root domain.
     func bool(domain: String? = nil, key: String) -> Bool? {
         value(domain: domain, key: key, convert: Plist.bool)
+    }
+
+    /// Reads an unsigned integer value. Pass nil as the domain for the root
+    /// domain.
+    func integer(domain: String? = nil, key: String) -> UInt64? {
+        value(domain: domain, key: key, convert: Plist.integer)
     }
 
     /// Asks the phone to start a service and hands back its descriptor. The
