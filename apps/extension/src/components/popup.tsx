@@ -13,7 +13,13 @@ import { sentences, SITE_ORDER, siteStrings, strings } from '../lib/strings.ts';
 import { BrandMark } from './brand-mark.tsx';
 import { Switch } from './switch.tsx';
 
-const WEBSITE_URL = 'https://attentionawareness.com';
+/**
+ * The way out of the popup: the guide that says what the extension hides on
+ * each site and what a switch does. Every link to one of Mert's own sites
+ * carries utm tags, so the visit is traced back to the popup.
+ */
+const GUIDE_URL =
+  'https://attentionawareness.com/guides/use-social-media-from-your-computer?utm_source=extension&utm_medium=referral&utm_campaign=popup';
 
 const styles = create({
   brand: {
@@ -172,7 +178,7 @@ export function Popup() {
           {strings.customCss}
         </button>
         <button
-          onClick={() => void chrome.tabs.create({ url: WEBSITE_URL })}
+          onClick={() => void chrome.tabs.create({ url: GUIDE_URL })}
           type="button"
           {...props(styles.quiet)}
         >
