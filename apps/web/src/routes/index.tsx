@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Restart, VolumeCross, VolumeUp } from 'reicon-react';
 import { FeedKeysHint, FeedPhone } from '../components/feed-phone.tsx';
 import { GridTexture } from '../components/grid-texture.tsx';
+import { MacDownload } from '../components/mac-download.tsx';
 import { Receipt } from '../components/receipt.tsx';
 import {
   clampHours,
@@ -54,6 +55,9 @@ const HERO_MEASURE = 640;
  * it is 12px down and 32px soft, and the torn edge takes a few pixels more.
  */
 const SHEET_SHADOW_ROOM = '48px';
+/** Where each of the two steps stands in the list that numbers them. */
+const APP_STEP = 1;
+const PROFILE_STEP = 2;
 /** The places on the page that can be linked to, and the ids they use. */
 const STORY_ID = 'story';
 const HOW_ID = 'how';
@@ -63,8 +67,8 @@ const ICON_SIZE = 22;
 const REPLAY_ICON_SIZE = 14;
 /** How tall the row it stands in is, under the phone and over it alike. */
 const REPLAY_ROW_HEIGHT = 18;
-const SUPERVISE_URL = '/supervise';
-const MAC_URL = '/mac';
+/** The same procedure by hand, for a reader who would rather type it. */
+const GUIDE_URL = '/guides/supervise-iphone-without-erasing';
 const BUILD_URL = '/build';
 /** The report the average day is taken from. */
 /** The post this started from, linked out of the paragraph that tells it. */
@@ -431,10 +435,22 @@ const styles = create({
     margin: 0,
     padding: 0,
   },
+  // The download stands off the sentence above it by more than the step's own
+  // line spacing, so the button reads as the step rather than as a footnote.
+  howDownload: {
+    marginBlockStart: spacing.s4,
+  },
   howStep: {
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s1,
+  },
+  // The other way through the first step, a step quieter than the step itself.
+  howTerminal: {
+    color: colors.muted,
+    fontSize: font.sizeSm,
+    marginBlockEnd: 0,
+    marginBlockStart: spacing.s4,
   },
   howTitle: {
     fontSize: 18,
@@ -1019,24 +1035,11 @@ function HomePage() {
   // it, so the words around it keep their own order in every language.
   const [storyBefore, storyAfter] = m.home_story_1({ post: LINK_SLOT }).split(LINK_SLOT);
 
-  // Supervision leads: it is the step the other three stand on.
-  // Each step ends in the way into it: the guide, then the generator.
-  const howItWorks = [
-    {
-      body: m.home_how_supervision_body(),
-      // The Mac app first: it is the shorter way to the same place.
-      links: [
-        { href: MAC_URL, text: m.mac_home_link() },
-        { href: SUPERVISE_URL, text: m.gen_supervise_link() },
-      ],
-      title: m.home_how_supervision_title(),
-    },
-    {
-      body: m.home_how_profile_body(),
-      links: [{ href: BUILD_URL, text: m.home_how_build_link() }],
-      title: m.home_how_profile_title(),
-    },
-  ];
+  // The terminal is the other way through the first step, offered under the
+  // download rather than beside it: most readers want the button.
+  const [terminalBefore, terminalAfter] = m
+    .home_how_app_terminal({ guide: LINK_SLOT })
+    .split(LINK_SLOT);
 
   const objections = [
     { desc: m.home_faq_supervision_desc(), term: m.home_faq_supervision_term() },
@@ -1311,21 +1314,33 @@ function HomePage() {
         <section {...props(styles.section, styles.anchor)} id={HOW_ID}>
           <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
           <ol {...props(styles.howList)}>
-            {howItWorks.map((step, index) => (
-              <li key={step.title} {...props(styles.howStep)}>
-                <h3 {...props(styles.howTitle)}>
-                  {m.home_how_step({ n: index + 1, title: step.title })}
-                </h3>
-                <p {...props(styles.howBody)}>{step.body}</p>
-                <div {...props(styles.stepLinks)}>
-                  {step.links.map((link) => (
-                    <a href={link.href} key={link.href} {...props(styles.stepLink)}>
-                      {link.text}
-                    </a>
-                  ))}
-                </div>
-              </li>
-            ))}
+            {/* The app, and the download itself: the step is the button, so
+                there is nothing to read before taking it. */}
+            <li {...props(styles.howStep)}>
+              <h3 {...props(styles.howTitle)}>
+                {m.home_how_step({ n: APP_STEP, title: m.home_how_app_title() })}
+              </h3>
+              <p {...props(styles.howBody)}>{m.home_how_app_body()}</p>
+              <div {...props(styles.howDownload)}>
+                <MacDownload />
+              </div>
+              <p {...props(styles.howTerminal)}>
+                {terminalBefore}
+                <a href={GUIDE_URL}>{m.home_how_app_terminal_link()}</a>
+                {terminalAfter}
+              </p>
+            </li>
+            <li {...props(styles.howStep)}>
+              <h3 {...props(styles.howTitle)}>
+                {m.home_how_step({ n: PROFILE_STEP, title: m.home_how_profile_title() })}
+              </h3>
+              <p {...props(styles.howBody)}>{m.home_how_profile_body()}</p>
+              <div {...props(styles.stepLinks)}>
+                <a href={BUILD_URL} {...props(styles.stepLink)}>
+                  {m.home_how_build_link()}
+                </a>
+              </div>
+            </li>
           </ol>
         </section>
 
