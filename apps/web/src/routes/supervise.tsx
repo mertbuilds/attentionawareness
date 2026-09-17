@@ -33,7 +33,15 @@ const BUILD_URL = '/build';
 /** The brand in prose, the way the root document spells it. */
 const SITE_NAME = 'attention awareness';
 const STOPA_URL = 'https://stopa.io/post/297';
+/** The same procedure as an app, for a reader who would rather click than type. */
+const MAC_URL = '/mac';
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
+/**
+ * Where a link stands inside a sentence, the way the footer does it: the
+ * message carries the link as a placeholder and is split on it, so the words
+ * around it keep their own order and spacing in every language.
+ */
+const LINK_SLOT = '\u0000';
 
 const styles = create({
   // The way back, over the title: one quiet line, an arrow and a word.
@@ -234,6 +242,7 @@ function SuperviseGuide() {
   // The ticks are for reading along, and nothing is stored: a reload starts the
   // list over.
   const [checked, setChecked] = useState<ReadonlyArray<string>>([]);
+  const [macBefore, macAfter] = m.mac_promo_body({ app: LINK_SLOT }).split(LINK_SLOT);
 
   const toggle = (id: string): void => {
     setChecked(checked.includes(id) ? checked.filter((value) => value !== id) : [...checked, id]);
@@ -268,6 +277,15 @@ function SuperviseGuide() {
       </header>
 
       <div {...props(styles.content)}>
+        <section {...props(styles.section)}>
+          <h2 {...props(styles.sectionTitle)}>{m.mac_promo_title()}</h2>
+          <p {...props(styles.body)}>
+            {macBefore}
+            <a href={MAC_URL}>{m.mac_promo_link()}</a>
+            {macAfter}
+          </p>
+        </section>
+
         <section {...props(styles.section)}>
           <div {...props(styles.twoCol)}>
             <div {...props(styles.column)}>

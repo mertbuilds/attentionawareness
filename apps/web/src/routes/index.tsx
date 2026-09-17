@@ -64,6 +64,7 @@ const REPLAY_ICON_SIZE = 14;
 /** How tall the row it stands in is, under the phone and over it alike. */
 const REPLAY_ROW_HEIGHT = 18;
 const SUPERVISE_URL = '/supervise';
+const MAC_URL = '/mac';
 const BUILD_URL = '/build';
 /** The report the average day is taken from. */
 /** The post this started from, linked out of the paragraph that tells it. */
@@ -545,6 +546,13 @@ const styles = create({
     display: 'inline-block',
     marginBlockStart: spacing.s2,
   },
+  // A step with more than one way into it lays them side by side, and drops
+  // them under each other when the row runs out of width.
+  stepLinks: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: spacing.s6,
+  },
   story: {
     display: 'flex',
     flexDirection: 'column',
@@ -1016,14 +1024,16 @@ function HomePage() {
   const howItWorks = [
     {
       body: m.home_how_supervision_body(),
-      href: SUPERVISE_URL,
-      link: m.gen_supervise_link(),
+      // The Mac app first: it is the shorter way to the same place.
+      links: [
+        { href: MAC_URL, text: m.mac_home_link() },
+        { href: SUPERVISE_URL, text: m.gen_supervise_link() },
+      ],
       title: m.home_how_supervision_title(),
     },
     {
       body: m.home_how_profile_body(),
-      href: BUILD_URL,
-      link: m.home_how_build_link(),
+      links: [{ href: BUILD_URL, text: m.home_how_build_link() }],
       title: m.home_how_profile_title(),
     },
   ];
@@ -1307,9 +1317,13 @@ function HomePage() {
                   {m.home_how_step({ n: index + 1, title: step.title })}
                 </h3>
                 <p {...props(styles.howBody)}>{step.body}</p>
-                <a href={step.href} {...props(styles.stepLink)}>
-                  {step.link}
-                </a>
+                <div {...props(styles.stepLinks)}>
+                  {step.links.map((link) => (
+                    <a href={link.href} key={link.href} {...props(styles.stepLink)}>
+                      {link.text}
+                    </a>
+                  ))}
+                </div>
               </li>
             ))}
           </ol>
