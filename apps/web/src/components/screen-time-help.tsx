@@ -25,6 +25,8 @@ const SCREEN_TIME_VIDEO_URLS: Record<string, string> = {
 const SCREEN_TIME_GIF_URL: string = '';
 /** The report the average day is taken from. */
 const SOURCE_URL = 'https://datareportal.com/global-digital-overview';
+/** The letter on the button: not a message, so it is not in the catalog. */
+const GLYPH = 'i';
 
 const styles = create({
   // The clip is what the box is for: 200px of it, plus the 12px of padding
@@ -99,6 +101,16 @@ const styles = create({
     // Narrow box, and a path like a setting name has nowhere to break.
     overflowWrap: 'anywhere',
     textWrap: 'pretty',
+  },
+  // A book-face italic i, the way a printed note marks one.
+  glyph: {
+    fontFamily: "Georgia, 'Times New Roman', serif",
+    fontSize: 12,
+    fontStyle: 'italic',
+    fontWeight: 700,
+    lineHeight: 1,
+    marginBlockStart: -1,
+    textTransform: 'none',
   },
   // The small ring at the end of the question.
   markButton: {
@@ -192,7 +204,7 @@ export function AverageNote() {
 }
 
 /**
- * The question mark at the end of the question: where the reader's own number
+ * The small i at the end of the question: where the reader's own number
  * lives, and a clip of it being found.
  */
 export function ScreenTimeMark() {
@@ -210,7 +222,9 @@ export function ScreenTimeMark() {
         title={m.home_math_help_title()}
         trigger={
           <button aria-label={m.home_math_help_label()} type="button" {...props(styles.markButton)}>
-            ?
+            <span aria-hidden="true" {...props(styles.glyph)}>
+              {GLYPH}
+            </span>
           </button>
         }
       >

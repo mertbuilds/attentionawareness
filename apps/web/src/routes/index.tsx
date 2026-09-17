@@ -551,7 +551,9 @@ const styles = create({
     gap: spacing.s4,
     maxWidth: 640,
   },
+  // Ten paragraphs of prose, so the ink is pulled a step toward the page.
   storyLine: {
+    color: `color-mix(in srgb, ${colors.fg} 80%, ${colors.bg})`,
     fontSize: 18,
     lineHeight: 1.7,
     margin: 0,
