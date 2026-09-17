@@ -11,7 +11,11 @@ supervision.
 
 ## Build
 
+Apple Silicon only, macOS 14 and up. The vendored C libraries are built arm64
+with a deployment target of 14.0, and the app carries no Intel slice.
+
 ```sh
+bash scripts/build-libimobiledevice.sh
 bash scripts/vendor.sh
 xcodegen generate
 xcodebuild -scheme AttentionAwareness -configuration Debug build
@@ -41,11 +45,25 @@ which is how the device layer is checked without the window.
   the cable and re-reads them on every connect and disconnect, `Lockdown` reads
   the values the wizard checks, `MCInstall` reads supervision and installs a
   profile over USB.
-- `Vendor/` is filled by `scripts/vendor.sh` and gitignored except for
-  `Vendor/include/module.modulemap`. The script copies libimobiledevice, its
-  dependencies and the `idevicebackup2` helper out of Homebrew, rewrites every
-  install name to `@rpath/`, and fails if a `/opt/homebrew` path survives. Run
-  it again after `brew upgrade libimobiledevice`.
+- `Vendor/` is filled by the two scripts below and gitignored except for
+  `Vendor/include/module.modulemap`.
+- `scripts/build-libimobiledevice.sh` clones libplist, libimobiledevice-glue,
+  libusbmuxd, libtatsu, libimobiledevice and OpenSSL at the release tags
+  Homebrew ships, builds each one with `-arch arm64` and
+  `MACOSX_DEPLOYMENT_TARGET=14.0`, and installs them into `Vendor/prefix`.
+  Sources land in `Vendor/src`. Autotools come from Homebrew and are installed
+  if missing. A component already in the prefix is skipped; `--force` rebuilds
+  everything. The Homebrew bottles cannot be used as they are: they are built
+  for the newest macOS, so linking them makes ld warn and the app would not
+  run on 14. OpenSSL is built from source too, for the same reason, which
+  keeps libimobiledevice on the pairing SSL path it is tested with.
+- `scripts/vendor.sh` copies the dylibs, the `idevicebackup2` helper and the
+  headers out of `Vendor/prefix`, rewrites every install name to `@rpath/`,
+  and fails if a path outside the OS survives or if anything reports a minimum
+  OS version above 14.0. Without `Vendor/prefix` it falls back to Homebrew with
+  a warning, and then only the minimum-version check is downgraded to a warning
+  as well, so a dev build still runs on the machine that built it. Run it again
+  after rebuilding `Vendor/prefix`.
 - The dylibs are embedded in `Contents/Frameworks`, the helper in
   `Contents/Helpers`, both signed on copy.
 

@@ -25,6 +25,9 @@ NOTARY_PROFILE="attentionawareness-notary"
 BUILD_DIR="build/release"
 
 echo "==> vendor libimobiledevice"
+# A no-op once Vendor/prefix is there, and the only thing that keeps a release
+# off the Homebrew fallback, which would ship dylibs built for the newest macOS.
+bash scripts/build-libimobiledevice.sh
 bash scripts/vendor.sh
 
 # Regenerate project.pbxproj from project.yml so any config drift is reset.
