@@ -9,7 +9,7 @@ struct AttentionAwarenessApp: App {
     private let updaterController: SPUStandardUpdaterController
 
     init() {
-        // `Attention Awareness.app/Contents/MacOS/Attention Awareness --devices`
+        // `attention awareness.app/Contents/MacOS/attention awareness --devices`
         // prints the connected device count and exits. It proves the app links
         // and loads the vendored libimobiledevice without opening a window.
         if CommandLine.arguments.contains("--devices") {
@@ -46,7 +46,7 @@ struct AttentionAwarenessApp: App {
     }
 
     var body: some Scene {
-        Window("Attention Awareness", id: "main") {
+        Window("attention awareness", id: "main") {
             ContentView()
                 .frame(minWidth: 560, minHeight: 520)
         }
@@ -57,7 +57,7 @@ struct AttentionAwarenessApp: App {
             }
             CommandGroup(replacing: .help) {
                 if let url = SiteLink.help {
-                    Link("Attention Awareness help", destination: url)
+                    Link("attention awareness help", destination: url)
                 }
             }
         }

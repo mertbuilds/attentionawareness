@@ -7,7 +7,7 @@ import Foundation
 /// is how the backup layer is checked against a real iPhone from a terminal:
 ///
 /// ```sh
-/// "Attention Awareness.app/Contents/MacOS/Attention Awareness" --backup <udid> /tmp/aa-backup-test
+/// "attention awareness.app/Contents/MacOS/attention awareness" --backup <udid> /tmp/aa-backup-test
 /// ```
 ///
 /// Ctrl+C cancels the run the same way the Cancel button does. The backup
@@ -29,8 +29,8 @@ enum BackupCommandLine {
     }
 
     static let usage = """
-        usage: Attention Awareness --backup <udid> <backup root>
-               Attention Awareness --restore <udid> <backup root>
+        usage: attention awareness --backup <udid> <backup root>
+               attention awareness --restore <udid> <backup root>
         The backup password, if the iPhone encrypts its backups, comes from BACKUP_PASSWORD.
         """
 

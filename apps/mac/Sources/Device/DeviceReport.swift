@@ -1,7 +1,7 @@
 import Foundation
 
 /// A hidden command line path for checking the device layer without opening the
-/// window: `Attention Awareness --probe` prints what lockdown and MCInstall say
+/// window: `attention awareness --probe` prints what lockdown and MCInstall say
 /// about every connected iPhone as JSON, then exits. It is a development aid,
 /// not a feature, so nothing in the UI mentions it.
 enum DeviceReport {

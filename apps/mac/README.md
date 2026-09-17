@@ -1,4 +1,4 @@
-# Attention Awareness for Mac
+# attention awareness for Mac
 
 Native macOS app (SwiftUI, macOS 14+) that turns the supervise procedure into
 plug in, click, wait: back up the iPhone, patch the backup, restore it, install
@@ -21,12 +21,12 @@ xcodebuild -scheme AttentionAwareness -configuration Debug build
 xcodebuild test -scheme AttentionAwareness -destination 'platform=macOS,arch=arm64'
 ```
 
-The app lands at `build/Build/Products/Debug/Attention Awareness.app` when you
+The app lands at `build/Build/Products/Debug/attention awareness.app` when you
 pass `-derivedDataPath build`, otherwise in the usual DerivedData directory. A
 quick check without opening a window:
 
 ```sh
-"build/Build/Products/Debug/Attention Awareness.app/Contents/MacOS/Attention Awareness" --devices
+"build/Build/Products/Debug/attention awareness.app/Contents/MacOS/attention awareness" --devices
 ```
 
 It prints the number of connected iPhones and exits. `--probe` goes further and

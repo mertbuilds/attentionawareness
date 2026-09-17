@@ -33,7 +33,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 PROJECT="AttentionAwareness"
-APP_NAME="Attention Awareness"
+APP_NAME="attention awareness"
 CONFIG="Release"
 TEAM_ID="3HGP3W3TLD"
 NOTARY_PROFILE="attentionawareness-notary"
@@ -143,7 +143,7 @@ VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/C
 BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APP/Contents/Info.plist")
 TAG="mac-v$VERSION"
 DOWNLOAD_PREFIX="https://github.com/$GH_REPO/releases/download/$TAG/"
-RELEASE_ZIP="$BUILD_DIR/Attention-Awareness-$VERSION-$BUILD.zip"
+RELEASE_ZIP="$BUILD_DIR/attention-awareness-$VERSION-$BUILD.zip"
 
 echo "==> create release zip"
 /usr/bin/ditto -c -k --keepParent "$APP" "$RELEASE_ZIP"
@@ -151,7 +151,7 @@ echo "==> create release zip"
 # Plain drag-to-Applications dmg via hdiutil. caffeinagent uses dmgbuild for a
 # custom background; swap this out once there is background art to place.
 echo "==> build dmg (drag-to-applications)"
-RELEASE_DMG="$BUILD_DIR/Attention-Awareness-$VERSION.dmg"
+RELEASE_DMG="$BUILD_DIR/attention-awareness-$VERSION.dmg"
 DMG_STAGE="$BUILD_DIR/dmg"
 rm -rf "$DMG_STAGE" "$RELEASE_DMG"
 mkdir -p "$DMG_STAGE"
@@ -185,7 +185,7 @@ echo "==> stage release folder"
 rm -rf "$SITE_DIR"
 mkdir -p "$SITE_DIR"
 cp "$RELEASE_DMG" "$SITE_DIR/"
-SITE_DMG="$SITE_DIR/Attention-Awareness-$VERSION.dmg"
+SITE_DMG="$SITE_DIR/attention-awareness-$VERSION.dmg"
 
 # The published appcast is the input, so older versions keep their entry in the
 # feed instead of being dropped on every release.
@@ -196,12 +196,12 @@ fi
 # Named after the dmg, which is how generate_appcast finds the notes for this
 # item and embeds them in the feed. Write release-notes/<version>.md to say
 # something better than the default.
-NOTES="$SITE_DIR/Attention-Awareness-$VERSION.md"
+NOTES="$SITE_DIR/attention-awareness-$VERSION.md"
 if [ -f "release-notes/$VERSION.md" ]; then
   cp "release-notes/$VERSION.md" "$NOTES"
 else
   cat > "$NOTES" <<NOTESFILE
-Attention Awareness $VERSION for Mac, build $BUILD.
+attention awareness $VERSION for Mac, build $BUILD.
 
 Download the dmg, drag the app to Applications and open it.
 NOTESFILE
@@ -237,7 +237,7 @@ cat > "$SITE_DIR/latest.json" <<JSON
 {
   "version": "$VERSION",
   "build": "$BUILD",
-  "url": "${DOWNLOAD_PREFIX}Attention-Awareness-$VERSION.dmg",
+  "url": "${DOWNLOAD_PREFIX}attention-awareness-$VERSION.dmg",
   "size": $DMG_SIZE,
   "sha256": "$DMG_SHA",
   "date": "$RELEASE_DATE"
@@ -264,7 +264,7 @@ echo "  version: $VERSION (build $BUILD), tag $TAG"
 echo "  dmg size: $DMG_SIZE bytes"
 echo "  dmg sha256: $DMG_SHA"
 echo "  sparkle signature: $ED_SIGNATURE"
-echo "  download url: ${DOWNLOAD_PREFIX}Attention-Awareness-$VERSION.dmg"
+echo "  download url: ${DOWNLOAD_PREFIX}attention-awareness-$VERSION.dmg"
 echo "  signed by: $(codesign -dvv "$APP" 2>&1 | grep 'Authority=' | head -1)"
 if [ "$NOTARIZE" = 1 ]; then
   echo "  notarized app: $(xcrun stapler validate "$APP" 2>&1 | tail -1)"

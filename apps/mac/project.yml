@@ -54,8 +54,8 @@ targets:
     info:
       path: Sources/Info.plist
       properties:
-        CFBundleName: Attention Awareness
-        CFBundleDisplayName: Attention Awareness
+        CFBundleName: attention awareness
+        CFBundleDisplayName: attention awareness
         CFBundleIdentifier: $(PRODUCT_BUNDLE_IDENTIFIER)
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
@@ -74,7 +74,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.attentionawareness.mac
-        PRODUCT_NAME: Attention Awareness
+        PRODUCT_NAME: attention awareness
         INFOPLIST_KEY_NSPrincipalClass: NSApplication
         CODE_SIGN_ENTITLEMENTS: Sources/AttentionAwareness.entitlements
         HEADER_SEARCH_PATHS:

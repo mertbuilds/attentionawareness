@@ -60,7 +60,7 @@ enum PatchError: LocalizedError {
             return """
                 macOS blocked access to the backup folder at \(url.path).
                 Open System Settings, then Privacy & Security, then Full Disk Access.
-                Turn the switch on for Attention Awareness, then try again.
+                Turn the switch on for attention awareness, then try again.
                 """
         case .noBackupFolder(let url):
             return "There is no backup folder at \(url.path)."

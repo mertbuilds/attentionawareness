@@ -20,7 +20,7 @@ final class BackupFolder {
     /// A backup folder that this app wrote. No Full Disk Access is needed here.
     static var applicationSupportRoot: URL {
         FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support/Attention Awareness/Backups")
+            .appendingPathComponent("Library/Application Support/attention awareness/Backups")
     }
 
     let url: URL
