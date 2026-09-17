@@ -1,11 +1,10 @@
-import { Button, Separator } from '@attentionawareness/ui';
+import { Separator } from '@attentionawareness/ui';
 import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
 import { GridTexture } from '../components/grid-texture.tsx';
+import { MacDownload } from '../components/mac-download.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
-import { layout } from '../lib/layout.ts';
 import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
 
@@ -28,34 +27,19 @@ const HOME_URL = '/';
 /** The generator. The profile the Profile step installs is built there. */
 const BUILD_URL = '/build';
 /** The same procedure by hand, for a reader who would rather type it. */
-const SUPERVISE_URL = '/supervise';
+const GUIDE_URL = '/guides/supervise-iphone-without-erasing';
+/** Everything written out, the guide above included. */
+const GUIDES_URL = '/guides';
 /** The brand in prose, the way the root document spells it. */
 const SITE_NAME = 'attention awareness';
 const PAGE_URL = 'https://attentionawareness.com/mac';
 const REPO_URL = 'https://github.com/mertbuilds/attentionawareness';
-/**
- * What a release writes beside the dmg. It does not exist before the first one,
- * so the page reads it rather than carrying a version of its own: no file, no
- * download.
- */
-const LATEST_URL = '/mac/latest.json';
-/** A download size is quoted in decimal megabytes, the way Finder counts them. */
-const BYTES_PER_MB = 1_000_000;
-/** How much of a megabyte a download size is worth reading. */
-const SIZE_DIGITS = 1;
 /**
  * Where a link stands inside a sentence, the way the footer does it: the
  * message carries the link as a placeholder and is split on it, so the words
  * around it keep their own order and spacing in every language.
  */
 const LINK_SLOT = '\u0000';
-
-/** The three fields of `latest.json` this page reads. The rest is the updater's. */
-type Release = {
-  size: number;
-  url: string;
-  version: string;
-};
 
 const styles = create({
   // The way back, over the title: one quiet line, an arrow and a word.
@@ -97,13 +81,6 @@ const styles = create({
     maxWidth: 760,
     width: '100%',
   },
-  // The button and the size line under it, left edge shared with the prose.
-  download: {
-    alignItems: 'flex-start',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s3,
-  },
   // Same column as `content`, so the hero and every section share a left edge.
   hero: {
     display: 'flex',
@@ -126,6 +103,14 @@ const styles = create({
     lineHeight: 1.5,
     margin: 0,
     textWrap: 'pretty',
+  },
+  // The way back and the way to the guides, side by side on one quiet row.
+  nav: {
+    alignItems: 'baseline',
+    alignSelf: 'flex-start',
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: spacing.s4,
   },
   page: {
     alignItems: 'center',
@@ -173,45 +158,7 @@ const styles = create({
   },
 });
 
-/**
- * Reads `latest.json` once the page is up. A missing, unreadable or incomplete
- * file leaves the state null, which is what turns the download off: the page
- * never names a version it has not read.
- */
-function useLatestRelease(): Release | null {
-  const [release, setRelease] = useState<Release | null>(null);
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    const read = async (): Promise<void> => {
-      try {
-        const response = await fetch(LATEST_URL, { signal: controller.signal });
-        if (!response.ok) {
-          return;
-        }
-        const payload = (await response.json()) as Partial<Release>;
-        if (
-          typeof payload.size === 'number' &&
-          typeof payload.url === 'string' &&
-          typeof payload.version === 'string'
-        ) {
-          setRelease({ size: payload.size, url: payload.url, version: payload.version });
-        }
-      } catch {
-        // No release yet, or the network refused it. The button stays off.
-      }
-    };
-
-    void read();
-    return () => controller.abort();
-  }, []);
-
-  return release;
-}
-
 function MacApp() {
-  const release = useLatestRelease();
   const [profileBefore, profileAfter] = m.mac_step_profile({ builder: LINK_SLOT }).split(LINK_SLOT);
   const [sourceBefore, sourceAfter] = m.mac_honest_source({ repo: LINK_SLOT }).split(LINK_SLOT);
   const [cliBefore, cliAfter] = m.mac_cli_body({ guide: LINK_SLOT }).split(LINK_SLOT);
@@ -220,10 +167,15 @@ function MacApp() {
     <main {...props(styles.page)}>
       <GridTexture />
       <header {...props(styles.hero)}>
-        <a data-plain="" href={HOME_URL} {...props(styles.back)}>
-          <span aria-hidden="true">{BACK_ARROW}</span>
-          {m.nav_back_home()}
-        </a>
+        <div {...props(styles.nav)}>
+          <a data-plain="" href={HOME_URL} {...props(styles.back)}>
+            <span aria-hidden="true">{BACK_ARROW}</span>
+            {m.nav_back_home()}
+          </a>
+          <a data-plain="" href={GUIDES_URL} {...props(styles.back)}>
+            {m.guides_nav_link()}
+          </a>
+        </div>
         <h1 {...props(styles.heroTitle)}>{m.mac_title()}</h1>
         <p {...props(styles.lead)}>{m.mac_lead()}</p>
         <p {...props(styles.body)}>{m.mac_requirements()}</p>
@@ -232,21 +184,7 @@ function MacApp() {
       <div {...props(styles.content)}>
         <section {...props(styles.section)}>
           <h2 {...props(styles.sectionTitle)}>{m.mac_download_title()}</h2>
-          <div {...props(styles.download)}>
-            {release === null ? (
-              <Button disabled>{m.mac_download_unreleased()}</Button>
-            ) : (
-              <Button render={<a download href={release.url} />}>{m.mac_download_cta()}</Button>
-            )}
-            {release === null ? null : (
-              <p {...props(layout.muted)}>
-                {m.mac_download_build({
-                  size: (release.size / BYTES_PER_MB).toFixed(SIZE_DIGITS),
-                  version: release.version,
-                })}
-              </p>
-            )}
-          </div>
+          <MacDownload />
           <p {...props(styles.body)}>{m.mac_download_notarized()}</p>
         </section>
 
@@ -288,7 +226,7 @@ function MacApp() {
           <h2 {...props(styles.sectionTitle)}>{m.mac_cli_title()}</h2>
           <p {...props(styles.body)}>
             {cliBefore}
-            <a href={SUPERVISE_URL}>{m.mac_cli_link()}</a>
+            <a href={GUIDE_URL}>{m.mac_cli_link()}</a>
             {cliAfter}
           </p>
         </section>

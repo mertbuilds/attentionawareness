@@ -89,7 +89,8 @@ const SKELETON_ROWS = [0, 1, 2];
 const FALLBACK_COUNTRY = 'us';
 /** The arrow before a back link: a glyph, not a message. */
 const BACK_ARROW = '\u2190';
-const SUPERVISE_URL = '/supervise';
+/** The guide the profile assumes you have followed. */
+const GUIDE_URL = '/guides/supervise-iphone-without-erasing';
 /**
  * The recording of Screen Time's activity list, per locale. Empty until the
  * clips are shot; the slot holds a placeholder until then.
@@ -2708,13 +2709,13 @@ function BuildPage() {
           correcting that figure buys, and the show counts the day out first.
           Another number is another answer: the gate is the only way to one. */}
       <header {...props(styles.pageHead)}>
-        <a data-plain="" href={SUPERVISE_URL} {...props(styles.back)}>
+        <a data-plain="" href={GUIDE_URL} {...props(styles.back)}>
           <span aria-hidden="true">{BACK_ARROW}</span>
           {m.nav_back_guide()}
         </a>
         <h1 {...props(styles.heroTitle)}>{m.gen_step2_title()}</h1>
         <p {...props(layout.muted)}>
-          {m.build_not_supervised()} <a href={SUPERVISE_URL}>{m.build_supervise_link()}</a>
+          {m.build_not_supervised()} <a href={GUIDE_URL}>{m.build_supervise_link()}</a>
         </p>
       </header>
 
