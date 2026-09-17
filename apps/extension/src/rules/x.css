@@ -15,6 +15,10 @@
  * to `display: none`: it sits in a scroll-snap list that measures its own
  * children, and removing one leaves the underline under nothing.
  *
+ * The news box has no section of its own any more: it is reached as the
+ * child of the `Trending` wrapper that holds a `news_sidebar`. That wrapper
+ * holds the whole sidebar, so it is never the target itself.
+ *
  * Verified 2026-09-17.
  */
 
@@ -29,6 +33,10 @@ html[data-aa-path='/home']
 [data-testid='sidebarColumn'] [data-testid='trend'],
 [data-testid='sidebarColumn'] [data-testid='news_sidebar'],
 [data-testid='sidebarColumn'] section:has([data-testid='trend']),
-[data-testid='sidebarColumn'] section:has([data-testid='news_sidebar']) {
+[data-testid='sidebarColumn'] section:has([data-testid='news_sidebar']),
+[data-testid='sidebarColumn']
+  [aria-label='Trending']
+  > div
+  > div:has([data-testid='news_sidebar']) {
   display: none !important;
 }
