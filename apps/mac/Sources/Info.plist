@@ -26,5 +26,13 @@
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2026 Mert Duzgun</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://attentionawareness.com/mac/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>4bQcmYkBAELBOBPKFXmzEXVewke6iC4THkFZqsROLEk=</string>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
 </dict>
 </plist>

@@ -1,7 +1,13 @@
+import Combine
+import Sparkle
 import SwiftUI
 
 @main
 struct AttentionAwarenessApp: App {
+    /// Sparkle. The feed, the public key and the once-a-day schedule are in
+    /// `Info.plist`; nothing here needs a delegate.
+    private let updaterController: SPUStandardUpdaterController
+
     init() {
         // `Attention Awareness.app/Contents/MacOS/Attention Awareness --devices`
         // prints the connected device count and exits. It proves the app links
@@ -29,6 +35,14 @@ struct AttentionAwarenessApp: App {
         // the size each one asks for, so the window can be checked without a
         // display and without an iPhone.
         UISmoke.runIfAsked()
+
+        // Last, so that every flag above leaves without ever asking the site
+        // for an update.
+        updaterController = SPUStandardUpdaterController(
+            startingUpdater: true,
+            updaterDelegate: nil,
+            userDriverDelegate: nil
+        )
     }
 
     var body: some Scene {
@@ -38,11 +52,29 @@ struct AttentionAwarenessApp: App {
         }
         .windowResizability(.contentMinSize)
         .commands {
+            CommandGroup(after: .appInfo) {
+                CheckForUpdatesButton(updater: updaterController.updater)
+            }
             CommandGroup(replacing: .help) {
                 if let url = SiteLink.help {
                     Link("Attention Awareness help", destination: url)
                 }
             }
         }
+    }
+}
+
+/// The app menu's update item. Sparkle turns it off while a check is already
+/// running, which is what `canCheckForUpdates` publishes.
+private struct CheckForUpdatesButton: View {
+    let updater: SPUUpdater
+    @State private var canCheck = false
+
+    var body: some View {
+        Button("Check for updates") {
+            updater.checkForUpdates()
+        }
+        .disabled(!canCheck)
+        .onReceive(updater.publisher(for: \.canCheckForUpdates)) { canCheck = $0 }
     }
 }

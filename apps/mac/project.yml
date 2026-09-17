@@ -6,9 +6,20 @@ options:
   createIntermediateGroups: true
   generateEmptyDirectories: true
 
+packages:
+  # Auto-update. The binary target ships Sparkle.framework, which Xcode embeds
+  # in Contents/Frameworks and signs with the app's identity.
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    majorVersion: 2.10.0
+
 settings:
   base:
     SWIFT_VERSION: '5.10'
+    # Apple Silicon only, like the vendored dylibs. Without this a Release
+    # build for generic/platform=macOS also builds an Intel slice, which has
+    # nothing to link against.
+    ARCHS: arm64
     MARKETING_VERSION: '0.1.0'
     CURRENT_PROJECT_VERSION: '1'
     ENABLE_HARDENED_RUNTIME: YES
@@ -52,6 +63,14 @@ targets:
         CFBundleIconFile: AppIcon
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         NSHumanReadableCopyright: 'Copyright © 2026 Mert Duzgun'
+        # Sparkle. The appcast is written by scripts/release.sh and served by
+        # the site; the public half of the EdDSA key pair whose private half
+        # lives in the login keychain, backed up in
+        # ~/.config/attentionawareness/sparkle-ed25519.key.
+        SUFeedURL: https://attentionawareness.com/mac/appcast.xml
+        SUPublicEDKey: 4bQcmYkBAELBOBPKFXmzEXVewke6iC4THkFZqsROLEk=
+        SUEnableAutomaticChecks: true
+        SUScheduledCheckInterval: 86400
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.attentionawareness.mac
@@ -70,9 +89,33 @@ targets:
         LD_RUNPATH_SEARCH_PATHS:
           - $(inherited)
           - '@executable_path/../Frameworks'
+    postBuildScripts:
+      # Sparkle's Swift package ships an ad-hoc signed xcframework, and Xcode's
+      # embed step re-signs only the outer framework, so Updater.app, the two
+      # XPC services and Autoupdate would still be ad-hoc and the notary
+      # service would refuse the app. Sign them inside out here. None of them
+      # carries an entitlement to keep, and Xcode seals the app after this
+      # phase, so the app's own signature stays Xcode's.
+      - name: Sign Sparkle's nested helpers
+        basedOnDependencyAnalysis: false
+        script: |
+          [ "${CODE_SIGNING_ALLOWED:-NO}" = "YES" ] || exit 0
+          FRAMEWORK="$CODESIGNING_FOLDER_PATH/Contents/Frameworks/Sparkle.framework/Versions/B"
+          [ -d "$FRAMEWORK" ] || exit 0
+          for item in \
+            "$FRAMEWORK/XPCServices/Downloader.xpc" \
+            "$FRAMEWORK/XPCServices/Installer.xpc" \
+            "$FRAMEWORK/Updater.app" \
+            "$FRAMEWORK/Autoupdate" \
+            "$FRAMEWORK"
+          do
+            codesign --force --sign "$EXPANDED_CODE_SIGN_IDENTITY" $OTHER_CODE_SIGN_FLAGS "$item"
+          done
+
     # Vendored by scripts/vendor.sh, linked from Vendor/lib and embedded in
     # Contents/Frameworks so nothing resolves through Homebrew at run time.
     dependencies:
+      - package: Sparkle
       - framework: Vendor/lib/libimobiledevice-1.0.6.dylib
         embed: true
         codeSign: true

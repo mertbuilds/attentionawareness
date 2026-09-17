@@ -79,6 +79,86 @@ well.
 
 ## Release
 
-`bash scripts/release.sh` builds Release, signs with the Developer ID, notarizes,
-staples and writes a dmg. It needs the notary keychain profile
-`attentionawareness-notary`; the header of the script says how to create it.
+```sh
+bash scripts/bump.sh 0.2.0        # marketing version, and one on the build number
+bash scripts/release.sh
+```
+
+`scripts/bump.sh` is the only place the two version numbers are edited: it sets
+`MARKETING_VERSION` in `project.yml` and adds one to `CURRENT_PROJECT_VERSION`.
+Sparkle compares the build number, so it has to go up on every release even when
+the marketing version stays the same.
+
+`scripts/release.sh` builds Release, signs with the Developer ID, notarizes,
+staples, writes a dmg, signs the dmg for Sparkle, puts the dmg on GitHub
+Releases and writes the two files the site serves under `/mac/`:
+
+- The dmg goes to the release tagged `mac-v<version>` on
+  `mertbuilds/attentionawareness`, because the site deploys from git and a dmg
+  does not belong in the repository. `apps/web/public/mac/*.dmg` is gitignored
+  for the same reason.
+- `apps/web/public/mac/appcast.xml` is the feed Sparkle reads, written by
+  `generate_appcast` with the release's download URL as
+  `--download-url-prefix`. The copy already published there is used as the
+  input, so older versions keep their entry in the feed.
+- `apps/web/public/mac/latest.json` is
+  `{ version, build, url, size, sha256, date }` for the download page, where
+  `url` is the dmg on GitHub.
+
+Both small files are committed with the site, so the next deploy points Sparkle
+and the download page at the release that was just made. Everything, the dmg
+included, is also left in `build/release/site/`. The script prints every path it
+wrote.
+
+Release notes come from `release-notes/<version>.md` when that file is there,
+and from a two-line default when it is not. The same file is the body of the
+GitHub release, and `generate_appcast` embeds it in the feed, so it is also the
+text Sparkle shows in its update window.
+
+The script needs the notary keychain profile `attentionawareness-notary`.
+Create it once with:
+
+```sh
+xcrun notarytool store-credentials attentionawareness-notary \
+  --apple-id "<your-apple-id-email>" \
+  --team-id "3HGP3W3TLD" \
+  --password "<app-specific-password>"
+```
+
+The app-specific password comes from appleid.apple.com → Sign-in & Security →
+App-Specific Passwords. Without the profile the script stops before it builds
+anything and prints that command. Two flags are there for checking the pipeline
+without shipping anything: `--no-notarize` skips the notary service and
+stapling, and `--no-publish` skips `gh release create` and prints the command
+instead. A dmg built either way must never be published: without notarization
+Gatekeeper stops it on every Mac but this one, and without the release the
+appcast points at a download that is not there.
+
+## Auto-update
+
+[Sparkle 2](https://sparkle-project.org) comes in as a Swift package, declared in
+`project.yml` under `packages:`. Xcode embeds `Sparkle.framework` in
+`Contents/Frameworks` and signs it with the app's identity, and the same package
+brings down `sign_update` and `generate_appcast`, so the tools always match the
+framework inside the app.
+
+The package ships the framework ad-hoc signed, and Xcode's embed step re-signs
+only the outer bundle, which would leave `Updater.app`, the two XPC services and
+`Autoupdate` ad-hoc and the notary service would refuse the app. The
+"Sign Sparkle's nested helpers" build phase in `project.yml` signs those four
+inside out, right before Xcode seals the app.
+
+`App.swift` holds one `SPUStandardUpdaterController`, built last in `init()` so
+that every hidden flag still exits without asking the site for anything.
+"Check for updates" sits in the app menu under About. The feed, the public key
+and the once-a-day schedule are `SUFeedURL`, `SUPublicEDKey`,
+`SUEnableAutomaticChecks` and `SUScheduledCheckInterval` in `project.yml`, which
+writes them into `Sources/Info.plist`. The app is not sandboxed, so hardened
+runtime is all Sparkle asks of the entitlements, and they stay an empty dict.
+
+The EdDSA private key that signs an update is
+`~/.config/attentionawareness/sparkle-ed25519.key` (mode 600), with a second copy
+in the login keychain, where `generate_keys` put it. The release script signs
+from the file, because reading the key out of the keychain opens a dialog and
+waits for a person. Neither copy is ever in the repo. Lose both and no copy of
+the app already out there will ever accept another update.
