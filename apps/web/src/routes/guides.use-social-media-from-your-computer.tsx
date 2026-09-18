@@ -54,7 +54,6 @@ const UPDATED_LABEL = '18 September 2026';
  */
 const ZIP_URL = '/extension/attentionawareness-extension-0.1.3.zip';
 const PRIVACY_URL = '/extension/privacy';
-const ISSUES_URL = 'https://github.com/mertbuilds/attentionawareness/issues';
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 /**
  * The two halves of the custom rule the options page takes. They are code
@@ -252,9 +251,6 @@ function ExtensionGuide() {
   const [privacyBefore, privacyAfter] = m
     .guide_ext_install_privacy({ privacy: LINK_SLOT })
     .split(LINK_SLOT);
-  const [issuesBefore, issuesAfter] = m
-    .guide_ext_honest_toomuch({ issues: LINK_SLOT })
-    .split(LINK_SLOT);
   // What the options page is given: the domain, then the rule, labelled the
   // way its two fields are.
   const example = [
@@ -416,21 +412,6 @@ function ExtensionGuide() {
             <h3 {...props(styles.subTitle)}>{m.guide_ext_switches_example_title()}</h3>
             <p {...props(styles.body)}>{m.guide_ext_switches_example_body()}</p>
             <pre {...props(styles.pre)}>{example}</pre>
-          </section>
-
-          <section {...props(styles.section)}>
-            <h2 {...props(styles.sectionTitle)}>{m.guide_ext_honest_title()}</h2>
-            <ul {...props(styles.bullets)}>
-              <li {...props(styles.bulletItem)}>{m.guide_ext_honest_stale()}</li>
-              <li {...props(styles.bulletItem)}>
-                {issuesBefore}
-                <a href={ISSUES_URL} rel="noreferrer" target="_blank">
-                  {m.guide_ext_honest_issues_link()}
-                </a>
-                {issuesAfter}
-              </li>
-              <li {...props(styles.bulletItem)}>{m.guide_ext_honest_bug()}</li>
-            </ul>
           </section>
         </div>
       </article>
