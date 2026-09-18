@@ -26,10 +26,8 @@ const HOME_URL = '/';
 /** The brand in prose, the way the root document spells it. */
 const SITE_NAME = 'attention awareness';
 const PAGE_URL = 'https://attentionawareness.com/guides';
-const SUPERVISE_GUIDE_URL = '/guides/supervise-iphone-without-erasing';
 const EXTENSION_GUIDE_URL = '/guides/use-social-media-from-your-computer';
 /** The day each guide below was last gone over, spelled the way a byline reads it. */
-const SUPERVISE_GUIDE_UPDATED = '18 September 2026';
 const EXTENSION_GUIDE_UPDATED = '18 September 2026';
 
 const styles = create({
@@ -150,17 +148,11 @@ const styles = create({
 });
 
 /**
- * Every guide the site has, one row each, in the order a reader meets them:
- * the phone first, then the browser that is left after it.
+ * Every guide the site has, one row each. The phone half is the Mac app's own
+ * job now, so what is left written out is the browser.
  */
 function GuidesIndex() {
   const guides = [
-    {
-      href: SUPERVISE_GUIDE_URL,
-      summary: m.guides_sup_summary(),
-      title: m.guides_sup_title(),
-      updated: SUPERVISE_GUIDE_UPDATED,
-    },
     {
       href: EXTENSION_GUIDE_URL,
       summary: m.guides_ext_summary(),

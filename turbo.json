@@ -15,8 +15,6 @@
     },
     "@attentionawareness/web#build": {
       "dependsOn": ["^build"],
-      // prebuild copies the CLI into public/, so a new CLI build must miss the cache.
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/cli/dist/supervise"],
       "outputs": ["dist/**", "src/routeTree.gen.ts", "src/paraglide/**"]
     },
     "@attentionawareness/web#typecheck": {

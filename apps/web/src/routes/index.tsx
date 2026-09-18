@@ -56,9 +56,6 @@ const HERO_MEASURE = 640;
  * it is 12px down and 32px soft, and the torn edge takes a few pixels more.
  */
 const SHEET_SHADOW_ROOM = '48px';
-/** Where each of the two steps stands in the list that numbers them. */
-const APP_STEP = 1;
-const PROFILE_STEP = 2;
 /** The places on the page that can be linked to, and the ids they use. */
 const STORY_ID = 'story';
 const HOW_ID = 'how';
@@ -68,9 +65,11 @@ const ICON_SIZE = 22;
 const REPLAY_ICON_SIZE = 14;
 /** How tall the row it stands in is, under the phone and over it alike. */
 const REPLAY_ROW_HEIGHT = 18;
-/** The same procedure by hand, for a reader who would rather type it. */
-const GUIDE_URL = '/guides/supervise-iphone-without-erasing';
-const BUILD_URL = '/build';
+/** The browser half of the same idea, and where the extension is installed from. */
+const EXTENSION_GUIDE_URL = '/guides/use-social-media-from-your-computer';
+/** Every link off this site carries utm tags, so the visit is traced to this page. */
+const STORE_URL =
+  'https://chromewebstore.google.com/detail/attention-awareness/lgcijcijcndmggjiioibfcmppndfakee?utm_source=attentionawareness.com&utm_medium=referral&utm_campaign=home';
 /** The report the average day is taken from. */
 /** The post this started from, linked out of the paragraph that tells it. */
 const STORY_URL = 'https://stopa.io/post/297';
@@ -81,6 +80,14 @@ const STORY_URL = 'https://stopa.io/post/297';
  * pieces.
  */
 const LINK_SLOT = '\u0000';
+/**
+ * The same, for a sentence with two links in it. The pair is split in one
+ * pass, so the two come back in the order the sentence puts them: a
+ * translation may move the words around them but not the links past each
+ * other.
+ */
+const SECOND_SLOT = '\u0001';
+const LINK_SLOTS = new RegExp(`[${LINK_SLOT}${SECOND_SLOT}]`);
 /** A till pads its receipt numbers. */
 const RECEIPT_DIGITS = 6;
 /** How long the receipt takes to roll back up when the reader starts over. */
@@ -431,39 +438,24 @@ const styles = create({
     maxWidth: '60ch',
     textWrap: 'pretty',
   },
-  // Four steps, one under the other, with nothing drawn around any of them:
-  // the order is what makes them steps.
-  howList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s6,
-    listStyleType: 'none',
+  // The two lines under the download: the way back out, and the browser half
+  // of the same idea. A step quieter than the sentence over the button.
+  howAside: {
+    color: colors.muted,
+    fontSize: font.sizeSm,
     margin: 0,
-    padding: 0,
   },
-  // The download stands off the sentence above it by more than the step's own
-  // line spacing, so the button reads as the step rather than as a footnote.
+  // The download stands off the sentence above it by more than the column's
+  // own line spacing, so the button reads as the offer rather than a footnote.
   howDownload: {
     marginBlockStart: spacing.s4,
   },
-  howStep: {
+  // What the app does, the download, and the two lines after it, in one
+  // column closer to itself than one section is to the next.
+  howLines: {
     display: 'flex',
     flexDirection: 'column',
-    gap: spacing.s1,
-  },
-  // The other way through the first step, a step quieter than the step itself.
-  howTerminal: {
-    color: colors.muted,
-    fontSize: font.sizeSm,
-    marginBlockEnd: 0,
-    marginBlockStart: spacing.s4,
-  },
-  howTitle: {
-    fontSize: 18,
-    fontWeight: HEADING_WEIGHT,
-    lineHeight: 1.3,
-    margin: 0,
-    textWrap: 'pretty',
+    gap: spacing.s4,
   },
   // The page's one caption: the small line that names the group under it.
   label: {
@@ -597,19 +589,6 @@ const styles = create({
     opacity: 1,
     pointerEvents: 'auto',
     visibility: 'visible',
-  },
-  // The speaker is a hint, not a headline: it only colours up on hover, and it
-  // sits in the quiet row under the way on, at the size of the text beside it.
-  stepLink: {
-    display: 'inline-block',
-    marginBlockStart: spacing.s2,
-  },
-  // A step with more than one way into it lays them side by side, and drops
-  // them under each other when the row runs out of width.
-  stepLinks: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: spacing.s6,
   },
   story: {
     display: 'flex',
@@ -1142,11 +1121,11 @@ function HomePage() {
   // it, so the words around it keep their own order in every language.
   const [storyBefore, storyAfter] = m.home_story_1({ post: LINK_SLOT }).split(LINK_SLOT);
 
-  // The terminal is the other way through the first step, offered under the
-  // download rather than beside it: most readers want the button.
-  const [terminalBefore, terminalAfter] = m
-    .home_how_app_terminal({ guide: LINK_SLOT })
-    .split(LINK_SLOT);
+  // The browser half, under the download: the guide that says what the
+  // extension does, and the store it is added from.
+  const [extensionBefore, extensionBetween, extensionAfter] = m
+    .home_how_extension({ extension: LINK_SLOT, store: SECOND_SLOT })
+    .split(LINK_SLOTS);
 
   const objections = [
     { desc: m.home_faq_supervision_desc(), term: m.home_faq_supervision_term() },
@@ -1433,37 +1412,26 @@ function HomePage() {
           </div>
         </section>
 
+        {/* The way out is one app: nothing to read, nothing to build, nothing
+        to install by hand before the button under this paragraph. */}
         <section {...props(styles.section, styles.anchor)} id={HOW_ID}>
           <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
-          <ol {...props(styles.howList)}>
-            {/* The app, and the download itself: the step is the button, so
-                there is nothing to read before taking it. */}
-            <li {...props(styles.howStep)}>
-              <h3 {...props(styles.howTitle)}>
-                {m.home_how_step({ n: APP_STEP, title: m.home_how_app_title() })}
-              </h3>
-              <p {...props(styles.howBody)}>{m.home_how_app_body()}</p>
-              <div {...props(styles.howDownload)}>
-                <MacDownload />
-              </div>
-              <p {...props(styles.howTerminal)}>
-                {terminalBefore}
-                <a href={GUIDE_URL}>{m.home_how_app_terminal_link()}</a>
-                {terminalAfter}
-              </p>
-            </li>
-            <li {...props(styles.howStep)}>
-              <h3 {...props(styles.howTitle)}>
-                {m.home_how_step({ n: PROFILE_STEP, title: m.home_how_profile_title() })}
-              </h3>
-              <p {...props(styles.howBody)}>{m.home_how_profile_body()}</p>
-              <div {...props(styles.stepLinks)}>
-                <a href={BUILD_URL} {...props(styles.stepLink)}>
-                  {m.home_how_build_link()}
-                </a>
-              </div>
-            </li>
-          </ol>
+          <div {...props(styles.howLines)}>
+            <p {...props(styles.howBody)}>{m.home_how_app_body()}</p>
+            <div {...props(styles.howDownload)}>
+              <MacDownload />
+            </div>
+            <p {...props(styles.howAside)}>{m.home_how_undo()}</p>
+            <p {...props(styles.howAside)}>
+              {extensionBefore}
+              <a href={EXTENSION_GUIDE_URL}>{m.home_how_extension_guide_link()}</a>
+              {extensionBetween}
+              <a href={STORE_URL} rel="noreferrer" target="_blank">
+                {m.home_how_extension_store_link()}
+              </a>
+              {extensionAfter}
+            </p>
+          </div>
         </section>
 
         <section {...props(styles.section)}>

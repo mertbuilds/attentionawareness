@@ -10,20 +10,27 @@ apps/
           Mostly client-only: SSR, routes, PostHog, Sentry, Paraglide i18n.
           No auth, no database. Server routes: the PostHog ingest proxy and
           `/api/sign`, which signs the profile with the Developer ID key.
+          The Mac app is the only caller of `/api/sign`.
   extension/
           MV3 browser extension (Chromium first). One content script injects
           per-site CSS from `src/rules/*.css` plus the reader's own rules from
           the options page; `storage` and `scripting`, with host access for a
           custom domain asked for once. Three Vite builds: pages, then the
           content script and the service worker as IIFEs. See its README.
+  mac/    SwiftUI app (macOS 14+, Apple Silicon), outside the pnpm workspace.
+          Backs the iPhone up over the cable, patches one flag in the backup,
+          restores it, then installs the signed profile. See its README.
 packages/
   ui/     StyleX tokens + Base UI wrappers + Storybook. Black/white, 4px radius, Suisse Intl.
           `@attentionawareness/ui/brand` holds the outlined "aa" mark both apps draw from.
   env/    Zod-validated client env schema. All env access goes through here.
   config/ Shared tsconfig base.
-cli/      `supervise`, standard-library Python, outside the pnpm workspace (pytest in cli/tests).
 e2e/      Playwright smoke spec.
 ```
+
+The product is the site, the extension and the Mac app. Nothing else: the
+Python `supervise` tool, the web profile generator and the supervision guide
+were retired on 2026-09-18 and live only in git history.
 
 ## Commands
 
@@ -89,7 +96,7 @@ Web app (`apps/web`): `pnpm --filter @attentionawareness/web dev` (:3000 standal
 
 ## Testing
 
-No automated tests yet (decision 2026-09-13: iterate on the product first). The CLI keeps its pytest suite in `cli/tests`.
+No automated tests yet on the web side (decision 2026-09-13: iterate on the product first). The Mac app keeps its XCTest suite in `apps/mac/Tests`.
 
 ## Dev workflow
 

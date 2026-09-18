@@ -109,8 +109,8 @@ rule only decides what may replace it.
 ## Local
 
 Signing is off until the secrets exist. Without them `/api/sign` answers `503`
-and the page shows "Signing is not available right now", so the generator, the
-XML view and every test keep working on a bare checkout.
+and the Mac app says signing is unavailable, so the rest of the site and every
+test keep working on a bare checkout.
 
 To sign locally, copy `apps/web/.dev.vars.example` to `apps/web/.dev.vars` and
 fill in the three values. `.dev.vars` is gitignored, and `wrangler` loads it for

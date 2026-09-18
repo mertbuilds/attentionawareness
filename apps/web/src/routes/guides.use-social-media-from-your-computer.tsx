@@ -47,12 +47,9 @@ const PUBLISHED_ON = '2026-09-18';
 const UPDATED_ON = '2026-09-18';
 /** The same day as `UPDATED_ON`, spelled the way the byline reads it aloud. */
 const UPDATED_LABEL = '18 September 2026';
-/**
- * The packed extension, served as a file. `/extension/*` is a Worker path, so
- * the zip is handed back to the asset worker by the negative rule in
- * `wrangler.jsonc`. The version is in the name: a new build is a new link.
- */
-const ZIP_URL = '/extension/attentionawareness-extension-0.1.3.zip';
+/** Every link off this site carries utm tags, so the visit is traced to this page. */
+const STORE_URL =
+  'https://chromewebstore.google.com/detail/attention-awareness/lgcijcijcndmggjiioibfcmppndfakee?utm_source=attentionawareness.com&utm_medium=referral&utm_campaign=guide';
 const PRIVACY_URL = '/extension/privacy';
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 /**
@@ -246,8 +243,8 @@ const styles = create({
 });
 
 function ExtensionGuide() {
-  const [receiptBefore, receiptAfter] = m.guide_ext_why_3({ receipt: LINK_SLOT }).split(LINK_SLOT);
-  const [zipBefore, zipAfter] = m.guide_ext_install_download({ zip: LINK_SLOT }).split(LINK_SLOT);
+  const [billBefore, billAfter] = m.guide_ext_why_3({ bill: LINK_SLOT }).split(LINK_SLOT);
+  const [storeBefore, storeAfter] = m.guide_ext_install_body({ store: LINK_SLOT }).split(LINK_SLOT);
   const [privacyBefore, privacyAfter] = m
     .guide_ext_install_privacy({ privacy: LINK_SLOT })
     .split(LINK_SLOT);
@@ -341,26 +338,22 @@ function ExtensionGuide() {
             <p {...props(styles.body)}>{m.guide_ext_why_1()}</p>
             <p {...props(styles.body)}>{m.guide_ext_why_2()}</p>
             <p {...props(styles.body)}>
-              {receiptBefore}
-              <a href={HOME_URL}>{m.guide_ext_why_receipt_link()}</a>
-              {receiptAfter}
+              {billBefore}
+              <a href={HOME_URL}>{m.guide_ext_why_bill_link()}</a>
+              {billAfter}
             </p>
           </section>
 
           <section {...props(styles.section)}>
             <h2 {...props(styles.sectionTitle)}>{m.guide_ext_install_title()}</h2>
-            <p {...props(styles.body)}>{m.guide_ext_install_body()}</p>
-            <ol {...props(styles.bullets)}>
-              <li {...props(styles.bulletItem)}>
-                {zipBefore}
-                <a href={ZIP_URL}>{m.guide_ext_install_download_link()}</a>
-                {zipAfter}
-              </li>
-              <li {...props(styles.bulletItem)}>{m.guide_ext_install_open()}</li>
-              <li {...props(styles.bulletItem)}>{m.guide_ext_install_dev()}</li>
-              <li {...props(styles.bulletItem)}>{m.guide_ext_install_load()}</li>
-              <li {...props(styles.bulletItem)}>{m.guide_ext_install_pin()}</li>
-            </ol>
+            <p {...props(styles.body)}>
+              {storeBefore}
+              <a href={STORE_URL} rel="noreferrer" target="_blank">
+                {m.guide_ext_install_store_link()}
+              </a>
+              {storeAfter}
+            </p>
+            <p {...props(styles.body)}>{m.guide_ext_install_browsers()}</p>
             <p {...props(styles.body)}>
               {privacyBefore}
               <a href={PRIVACY_URL}>{m.guide_ext_install_privacy_link()}</a>
