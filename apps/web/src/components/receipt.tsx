@@ -265,6 +265,7 @@ export function Receipt({
   print = 'printed',
   printedOn,
   refunded = false,
+  skipped = false,
   sound = false,
 }: {
   hours: number;
@@ -280,6 +281,8 @@ export function Receipt({
   print?: 'held' | 'printed' | 'printing';
   printedOn: string;
   refunded?: boolean;
+  /** Set while a print runs, the rest of the bill is handed over at once. */
+  skipped?: boolean;
   sound?: boolean;
 }) {
   function step(delta: number) {
@@ -322,6 +325,9 @@ export function Receipt({
     travel: m.home_receipt_travel_label,
   };
   const reduced = useReducedMotion();
+  // The bill is handed over whole instead of printed: asked for by a reader
+  // who wants less motion, or by one who asked for the rest of it at once.
+  const fast = reduced === true || skipped;
   const paper = useRef<HTMLDivElement>(null);
   // What the bill says, in the order the till prints it: four meta rows, the
   // column heads, the day itself, the items the day bought, and three lines
@@ -338,13 +344,17 @@ export function Receipt({
   const itemsAt = 2;
   const closeAt = itemsAt + rows.length;
   const beat = LINE_STAGGER_MS / 1000;
-  // The newest line stays a little under the middle of the screen: when it
-  // would print lower than that, the page scrolls up to meet it.
-  function keepInView(step: number) {
+  /** The printed line that carries this step, the last of them if more than one. */
+  function lineAt(step: number): HTMLElement | undefined {
     const lines = Array.from(
       paper.current?.querySelectorAll<HTMLElement>(`[data-line="${step}"]`) ?? [],
     );
-    const line = lines.at(-1);
+    return lines.at(-1);
+  }
+  // The newest line stays a little under the middle of the screen: when it
+  // would print lower than that, the page scrolls up to meet it.
+  function keepInView(step: number) {
+    const line = lineAt(step);
     if (line === undefined) {
       return;
     }
@@ -357,7 +367,7 @@ export function Receipt({
   // Every line that lands is stamped into the paper: one stamp for the head,
   // then one a beat down to the total, which takes the big block.
   useEffect(() => {
-    if (print !== 'printing' || !sound || reduced) {
+    if (print !== 'printing' || !sound || fast) {
       return;
     }
     const timers = Array.from({ length: closeAt + 1 }, (_, step) =>
@@ -375,9 +385,10 @@ export function Receipt({
         clearTimeout(timer);
       }
     };
-    // The print runs once, and the ticks with it.
+    // The print runs once, and the ticks with it. It is cut short only when
+    // the rest of the bill is asked for at once, which clears what is pending.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot print
-  }, [print]);
+  }, [fast, print]);
   // The caller is told when the bill has finished printing, so that whatever
   // it held for the print - the page's own scroll, while the lines land - is
   // handed back at the end of the last line and not before.
@@ -385,22 +396,49 @@ export function Receipt({
   useEffect(() => {
     printed.current = onPrinted;
   }, [onPrinted]);
+  // Whether this print has already said it is over: it says so once, whether
+  // the last line landed or the rest of the bill was asked for at once.
+  const closed = useRef(false);
+  function close() {
+    if (closed.current) {
+      return;
+    }
+    closed.current = true;
+    printed.current?.();
+  }
   useEffect(() => {
     if (print !== 'printing') {
+      closed.current = false;
       return;
     }
-    if (reduced) {
+    if (fast) {
       // Nothing is printing: the whole bill was handed over at once.
-      printed.current?.();
+      close();
       return;
     }
-    const timer = setTimeout(() => printed.current?.(), closeAt * LINE_STAGGER_MS + LINE_MS);
+    const timer = setTimeout(close, closeAt * LINE_STAGGER_MS + LINE_MS);
     return () => clearTimeout(timer);
     // The print runs once, and its end with it.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot print
-  }, [print]);
-  // A reader who asked for less motion is handed the whole bill at once.
-  const state = reduced ? 'printed' : print;
+  }, [fast, print]);
+  // The rest of the bill was asked for at once: it stands whole in the next
+  // frame, so the page is taken down to its foot, where a print that had run
+  // its course would have left it.
+  useEffect(() => {
+    if (!skipped) {
+      return;
+    }
+    close();
+    const frame = requestAnimationFrame(() => {
+      lineAt(closeAt)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    return () => cancelAnimationFrame(frame);
+    // The skip happens once, and the page goes with it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot skip
+  }, [skipped]);
+  // A reader who asked for less motion, or for the rest of the bill at once,
+  // is handed the whole of it.
+  const state = fast ? 'printed' : print;
   return (
     <div {...props(styles.paper)}>
       <BillFilters />

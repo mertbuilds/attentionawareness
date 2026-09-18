@@ -3,6 +3,7 @@ import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, firstThatWorks, keyframes, props } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
+import { useReducedMotion } from 'motion/react';
 import { useEffect, useRef, useState } from 'react';
 import { Restart, VolumeCross, VolumeUp } from 'reicon-react';
 import { FeedKeysHint, FeedPhone } from '../components/feed-phone.tsx';
@@ -90,6 +91,11 @@ const SLIDE_DURATION = `${SLIDE_MS}ms`;
 const SLIDE_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
 /** The blur the two screens carry while they travel. */
 const SLIDE_BLUR = '3px';
+/**
+ * How long the bill prints before the way past it is offered. A bill short
+ * enough to be over by then never shows the button at all.
+ */
+const SKIP_AFTER_MS = 400;
 
 /**
  * Which of the page's three screens the reader is on, and how it got there:
@@ -556,6 +562,42 @@ const styles = create({
     margin: 0,
     textWrap: 'balance',
   },
+  // The way past the print: the same quiet secondary control as the way back
+  // into the show, standing in the foot of the window rather than in the
+  // column, because the bill it belongs to is still moving under it.
+  skip: {
+    backgroundColor: 'transparent',
+    borderStyle: 'none',
+    borderWidth: 0,
+    color: {
+      ':hover': colors.fg,
+      default: colors.muted,
+    },
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    fontSize: 13,
+    insetBlockEnd: spacing.s6,
+    insetInlineStart: '50%',
+    lineHeight: 1,
+    opacity: 0,
+    padding: 0,
+    pointerEvents: 'none',
+    position: 'fixed',
+    transform: 'translateX(-50%)',
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: '400ms',
+    },
+    transitionProperty: 'opacity, visibility',
+    transitionTimingFunction: 'ease-in-out',
+    visibility: 'hidden',
+    zIndex: 20,
+  },
+  skipShown: {
+    opacity: 1,
+    pointerEvents: 'auto',
+    visibility: 'visible',
+  },
   // The speaker is a hint, not a headline: it only colours up on hover, and it
   // sits in the quiet row under the way on, at the size of the text beside it.
   stepLink: {
@@ -692,6 +734,18 @@ const styles = create({
 });
 
 /**
+ * Whether the key was pressed into something that is typed in: a field answers
+ * Escape itself, and the page keeps its hands off it.
+ */
+function typingIn(target: EventTarget | null): boolean {
+  const element = target as HTMLElement | null;
+  const tag = element?.tagName;
+  return (
+    element?.isContentEditable === true || tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA'
+  );
+}
+
+/**
  * Whether the show may click. Reduced motion silences the default, because a
  * click is one more thing happening at the reader; a reader who turned the
  * speaker on themselves has answered that question already.
@@ -796,6 +850,11 @@ function HomePage() {
   const [sixSevenRun, setSixSevenRun] = useState(0);
   // The date on the bill: when the page was opened, not when it was rung up.
   const [printedAt] = useState(() => new Date());
+  // Whether the reader asked for the rest of the bill at once, and whether the
+  // way to ask has been offered yet: it arrives a beat into the print, so a
+  // short bill is whole before it shows.
+  const [skipped, setSkipped] = useState(false);
+  const [skipReady, setSkipReady] = useState(false);
   const [sound, setSound] = useState(true);
   const [soundChosen, setSoundChosen] = useState(false);
   const [friendYears, setFriendYears] = useState<string | null>(null);
@@ -840,6 +899,33 @@ function HomePage() {
   // the page owns the scroll: the reader cannot pull it out from under the
   // lines, while the print keeps scrolling the newest one into view itself.
   useScrollLock(stage === 'sliding' || stage === 'printing');
+
+  // The print has been running a beat: the way past it is offered.
+  useEffect(() => {
+    if (stage !== 'printing') {
+      return;
+    }
+    const timer = setTimeout(() => setSkipReady(true), SKIP_AFTER_MS);
+    return () => clearTimeout(timer);
+  }, [stage]);
+
+  // Escape does what the button does, for a reader whose hands are already on
+  // the keyboard.
+  useEffect(() => {
+    if (stage !== 'printing') {
+      return;
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape' && !typingIn(event.target)) {
+        skipBill();
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+    // The skip is nothing but the two setters under it, so the listener is
+    // bound for the print rather than rebound for every render of it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- setters only
+  }, [stage]);
 
   // The screens have swapped: the question has the column to itself.
   useEffect(() => {
@@ -939,6 +1025,7 @@ function HomePage() {
     // The question arrives with the rail at rest: the count that follows is
     // the first this screen has had.
     restSixSeven();
+    forgetSkip();
     // Measured before the screen is taken out of the column, so it leaves
     // from exactly where the reader last saw it.
     setLeaveTop(firstScreen.current?.offsetTop ?? 0);
@@ -949,6 +1036,7 @@ function HomePage() {
   // for it.
   function showBill() {
     unlockTickSound();
+    forgetSkip();
     rememberHours(hours);
     setLeaveTop(askScreen.current?.offsetTop ?? 0);
     setSnapClose(false);
@@ -962,12 +1050,27 @@ function HomePage() {
     setStage('printed');
   }
 
+  // A print that has not started yet has nothing to skip, and nothing to
+  // offer the skip for.
+  function forgetSkip() {
+    setSkipped(false);
+    setSkipReady(false);
+  }
+
+  // The reader would rather not watch it print: the rest of the bill lands at
+  // once, and the page ends where the last line would have left it.
+  function skipBill() {
+    setSkipped(true);
+    billPrinted();
+  }
+
   // Back to the first screen, from the bill or from the question alike: the
   // remembered day is forgotten, the day itself goes back to the average, the
   // feed starts its show again, and the two screens swap back the way they
   // came.
   function reset() {
     forgetHours();
+    forgetSkip();
     setHours(HOURS_DEFAULT);
     restSixSeven();
     setPicked(false);
@@ -1020,6 +1123,10 @@ function HomePage() {
       : stage === 'returning'
         ? 'printed'
         : 'held';
+  // The way past the print is on the screen while the bill prints, and a
+  // reader who asked for less motion never had a print to sit through.
+  const reduced = useReducedMotion();
+  const skipOffered = stage === 'printing' && skipReady && reduced !== true;
   const locale = getLocale();
   // The bill's own number and date: one number per visit, the second of the
   // day the page was opened, and the date it was opened on.
@@ -1251,12 +1358,27 @@ function HomePage() {
                 onPrinted={billPrinted}
                 print={billPrint}
                 printedOn={printedOn}
+                skipped={skipped}
                 sound={tickAllowed(sound, soundChosen)}
               />
               <div {...props(styles.receiptAfter)}></div>
             </div>
           </div>
         </section>
+        {/* The way past the print. It stands in the window's foot rather than
+        in the column, and stays on the page while the bill finishes so it
+        fades out instead of blinking away. */}
+        {stage === 'printing' || stage === 'printed' ? (
+          <button
+            aria-hidden={!skipOffered}
+            onClick={skipBill}
+            tabIndex={skipOffered ? 0 : -1}
+            type="button"
+            {...props(styles.skip, skipOffered && styles.skipShown)}
+          >
+            {m.home_bill_skip()}
+          </button>
+        ) : null}
         <div
           {...props(
             styles.expand,
