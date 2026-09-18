@@ -78,8 +78,8 @@ struct ChecksStep: View {
                 title: "Find My iPhone is on",
                 detail: """
                     Open Settings, tap your name, tap Find My, and turn Find My iPhone off. \
-                    If the phone asks you to wait one hour, that is Stolen Device Protection: \
-                    wait it out, or do this at home.
+                    If the phone starts a one hour wait, that is Stolen Device Protection. \
+                    The hour cannot be skipped. When it ends, confirm on the phone to finish.
                     """
             )
         case nil:
