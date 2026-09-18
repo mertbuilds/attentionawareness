@@ -2,8 +2,8 @@ import Foundation
 
 /// Every problem the patch layer reports to the person at the keyboard.
 ///
-/// The sentences come from the Python tool in `cli/`, so the app and the
-/// command line say the same thing about the same backup. The few that name a
+/// The sentences were ported from the retired Python tool, which git history
+/// has, so the app says what it said about the same backup. The few that name a
 /// command line flag, a terminal window or a Finder step are rewritten for the
 /// app, because the app makes the backup itself.
 enum PatchError: LocalizedError {

@@ -7,7 +7,7 @@ import Foundation
 /// password unlocks the keybag there, the keybag unwraps the key of Manifest.db
 /// and the key of every file, and each file is AES-256-CBC with a zero IV.
 ///
-/// The Python tool carries its own AES, because the standard library holds
+/// The retired Python tool carried its own AES, because the standard library holds
 /// none, and it hands Manifest.db to the openssl binary, because that file can
 /// be tens of megabytes. CommonCrypto does both jobs here: one small call for a
 /// key or a small file, and a `CCCryptor` fed in chunks for Manifest.db. There

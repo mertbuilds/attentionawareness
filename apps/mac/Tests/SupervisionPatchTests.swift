@@ -228,7 +228,7 @@ final class SupervisionPatchTests: XCTestCase {
     }
 
     func testAnIntegerIsNotABoolean() throws {
-        // The Python compares with `is True`, so a plist integer is never the
+        // The retired Python tool compared with `is True`, so a plist integer is never the
         // flag. `ConfigurationSource` is an integer in every real file.
         XCTAssertNil(SupervisionPatch.boolean(BackupFixture.baseContent["ConfigurationSource"]))
         XCTAssertEqual(SupervisionPatch.boolean(BackupFixture.baseContent["AllowPairing"]), true)

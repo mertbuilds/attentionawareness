@@ -2,7 +2,8 @@
 
 Native macOS app (SwiftUI, macOS 14+) that turns the supervise procedure into
 plug in, click, wait: back up the iPhone, patch the backup, restore it, install
-the profile over USB. The Python `cli/` does the same thing by hand.
+the profile over USB. The patch logic was ported from a Python tool that did
+the same thing by hand; that tool is retired and git history has it.
 
 The window is the wizard: Connect, Checks, Back up, Patch, Restore, Profile,
 Done, one step at a time. Unsupervising walks the same steps in reverse and
@@ -71,8 +72,8 @@ AA_SITE_URL=https://attentionawareness.localhost \
 - `Sources/Profile/` is the profile the Profile step installs: `ProfileConfig`
   mirrors the type of the same name in `apps/web/src/lib/profile/types.ts`
   field for field, because it is encoded straight into the body `POST
-/api/sign` validates, and `ProfileConfig.default` is a copy of that page's
-  `mert` preset. `ProfileSigner` posts it and hands back the signed
+/api/sign` validates, and `ProfileConfig.default` is a copy of the `mert`
+  preset in `apps/web/src/lib/profile/presets.ts`. `ProfileSigner` posts it and hands back the signed
   `.mobileconfig` bytes; the signing certificate stays on the site and never
   comes near the app.
 - `Vendor/` is filled by the two scripts below and gitignored except for

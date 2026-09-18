@@ -111,7 +111,7 @@ struct SupervisionPatch {
     /// Save the untouched copy, record the new size when the file changed size,
     /// then write the file.
     ///
-    /// The Python saves the copy in the command and applies the patch after it.
+    /// The retired Python tool saved the copy in the command and applied the patch after it.
     /// Here one call does both, so no caller can write over a backup that has
     /// no untouched copy yet. The folder that holds the copy comes back.
     @discardableResult
@@ -181,8 +181,8 @@ struct SupervisionPatch {
             backup.manifestDatabaseURL,
             onto: directory.appendingPathComponent(BackupFolder.manifestDatabaseName)
         )
-        // The names are the ones the Python writes, so either tool can put back
-        // a copy the other one saved.
+        // The names are the ones the retired Python tool wrote, so a copy it
+        // saved can still be put back.
         let metadata: [String: Any] = [
             "udid": backup.udid,
             "backup_path": backup.url.path,

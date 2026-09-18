@@ -15,19 +15,12 @@
     { "pattern": "www.keepyourattention.com", "custom_domain": true },
   ],
   // Static assets answer before the Worker, so a file under public/ would shadow
-  // a route of the same path. The CLI lives at /cli/supervise for that reason;
-  // these paths stay with the Worker whatever lands in public/.
+  // a route of the same path. These paths stay with the Worker whatever lands
+  // in public/. `/mac` is deliberately not one of them: the Sparkle feed and
+  // `latest.json` are files under public/mac/, and the asset worker answers
+  // them. What it does not find falls through to the Worker's own routes.
   "assets": {
-    // The packed extension is the exception under /extension/: a zip is a file,
-    // so the negative rule hands it back to the asset worker.
-    "run_worker_first": [
-      "/supervise",
-      "/mac",
-      "/guides",
-      "/guides/*",
-      "/extension/*",
-      "!/extension/*.zip",
-    ],
+    "run_worker_first": ["/guides", "/guides/*", "/extension/*"],
   },
   // evlog ships logs itself; Workers observability would duplicate them.
   "observability": {

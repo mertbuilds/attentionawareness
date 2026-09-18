@@ -3,15 +3,11 @@ node_modules/
 
 # build output
 dist/
-# the single-file build is committed; the web build copies it into public/
-!cli/dist/
 .output/
 .vite/
 storybook-static/
 # the packed extension, rebuilt by `pnpm --filter @attentionawareness/extension zip`
 apps/extension/*.zip
-# the CLI the site serves, copied from cli/dist by the web prebuild script
-apps/web/public/cli/
 # the Mac app the site serves: the dmg is a release artifact, the two small
 # files beside it (appcast.xml, latest.json) are committed
 apps/web/public/mac/*.dmg
@@ -44,8 +40,3 @@ test-results/
 
 # os
 .DS_Store
-
-# python (cli/)
-__pycache__/
-*.py[cod]
-.venv/

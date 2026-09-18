@@ -27,7 +27,7 @@ struct Keybag {
         read(blob)
     }
 
-    /// A class key while it is being read. The Python holds one dictionary and
+    /// A class key while it is being read. The retired Python tool held one dictionary and
     /// keeps writing into it after it is registered; a struct is copied, so the
     /// finished record goes into `classKeys` when the next UUID closes it.
     private struct PendingClassKey {

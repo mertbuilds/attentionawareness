@@ -144,7 +144,7 @@ final class BackupFolder {
     }
 
     /// Where a plain copy of Manifest.db is written while it is read or
-    /// changed. The Python puts it beside the untouched copies, so it is on the
+    /// changed. The retired Python tool put it beside the untouched copies, so it is on the
     /// same volume as the backup and is cleaned up with them.
     var scratchDirectory: URL {
         SupervisionPatch.pristineRoot(forBackupRoot: url.deletingLastPathComponent())

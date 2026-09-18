@@ -8,7 +8,6 @@
     "cf-typegen": "wrangler types",
     "deploy": "pnpm build && wrangler deploy",
     "dev": "vite dev",
-    "prebuild": "mkdir -p public/cli && cp ../../cli/dist/supervise public/cli/supervise",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },
@@ -31,7 +30,6 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "reicon-react": "1.2.5",
-    "tesseract.js": "6.0.1",
     "vaul": "^1.1.2"
   },
   "devDependencies": {
