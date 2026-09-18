@@ -23,13 +23,27 @@ enum DeviceReport {
                 entry["pairingState"] = device.pairingState.rawValue
 
                 if device.pairingState == .paired {
-                    let configuration = try MCInstall(udid: udid).cloudConfiguration()
+                    let mcInstall = try MCInstall(udid: udid)
+                    let configuration = try mcInstall.cloudConfiguration()
                     var cloud: [String: Any] = [
                         "isSupervised": configuration.isSupervised,
                         "raw": configuration.raw,
                     ]
                     cloud["organizationName"] = configuration.organizationName ?? NSNull()
                     entry["cloudConfiguration"] = cloud
+                    entry["installedProfiles"] = try mcInstall.profileList().map { profile in
+                        var listed: [String: Any] = [
+                            "id": profile.id,
+                            "displayName": profile.displayName,
+                            "isActive": profile.isActive,
+                            "removalDisallowed": profile.removalDisallowed,
+                            "isOurs": profile.isOurs,
+                        ]
+                        listed["organization"] = profile.organization ?? NSNull()
+                        listed["description"] = profile.description ?? NSNull()
+                        listed["uuid"] = profile.uuid ?? NSNull()
+                        return listed
+                    }
                 }
             } catch {
                 entry["error"] = error.localizedDescription

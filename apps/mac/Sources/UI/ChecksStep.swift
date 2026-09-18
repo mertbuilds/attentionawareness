@@ -60,13 +60,6 @@ struct ChecksStep: View {
                 if model.needsPassword {
                     BackupPasswordField(model: model)
                 }
-                Text("""
-                    If the phone has Stolen Device Protection on, turn it off too. iOS may ask you \
-                    to wait one hour when you are away from a familiar place.
-                    """)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
             }
         } actions: {
             PrimaryButton(title: "Back up", enabled: model.checksPass) {
@@ -83,7 +76,11 @@ struct ChecksStep: View {
             return CheckRow(
                 result: .waiting,
                 title: "Find My iPhone is on",
-                detail: "Open Settings, tap your name, tap Find My, and turn Find My iPhone off."
+                detail: """
+                    Open Settings, tap your name, tap Find My, and turn Find My iPhone off. \
+                    If the phone asks you to wait one hour, that is Stolen Device Protection: \
+                    wait it out, or do this at home.
+                    """
             )
         case nil:
             return CheckRow(

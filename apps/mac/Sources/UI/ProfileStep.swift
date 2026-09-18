@@ -24,6 +24,11 @@ struct ProfileStep: View {
             VStack(alignment: .leading, spacing: 12) {
                 switch model.profile.stage {
                 case .ready:
+                    if let already = Self.alreadyOnThePhone(model.ourProfiles) {
+                        Text(already)
+                            .font(.callout)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                     blocked
                     settings
                 case .signing:
@@ -42,17 +47,34 @@ struct ProfileStep: View {
         } actions: {
             switch model.profile.stage {
             case .ready:
-                PrimaryButton(title: "Install profile") {
-                    model.signAndInstallProfile()
+                if model.ourProfiles.isEmpty {
+                    PrimaryButton(title: "Install profile") {
+                        model.signAndInstallProfile()
+                    }
+                    Button("Pick a file instead") {
+                        model.chooseAndInstallProfile()
+                    }
+                    .controlSize(.large)
+                    Button("Skip") {
+                        model.advance()
+                    }
+                    .controlSize(.large)
+                } else {
+                    // The phone is already covered, so moving on is the answer
+                    // for almost everyone. Skip would do the same as Continue,
+                    // so it is left out here.
+                    PrimaryButton(title: "Continue") {
+                        model.advance()
+                    }
+                    Button("Install another") {
+                        model.signAndInstallProfile()
+                    }
+                    .controlSize(.large)
+                    Button("Pick a file instead") {
+                        model.chooseAndInstallProfile()
+                    }
+                    .controlSize(.large)
                 }
-                Button("Pick a file instead") {
-                    model.chooseAndInstallProfile()
-                }
-                .controlSize(.large)
-                Button("Skip") {
-                    model.advance()
-                }
-                .controlSize(.large)
             case .signing, .installing:
                 EmptyView()
             case .installed:
@@ -69,6 +91,17 @@ struct ProfileStep: View {
         Open Settings on the iPhone, tap General, then VPN and Device Management. \
         attentionawareness is there.
         """
+
+    /// The line above the buttons when this app has already put a profile on
+    /// the phone. A second install stacks on the first: a new profile can add
+    /// to what is blocked, never loosen it.
+    private static func alreadyOnThePhone(_ profiles: [InstalledProfile]) -> String? {
+        guard !profiles.isEmpty else { return nil }
+        let names = profiles
+            .map { $0.removalDisallowed ? "\($0.displayName) (locked)" : $0.displayName }
+            .joined(separator: ", ")
+        return "Already on the phone: \(names). Installing another adds to what is already blocked."
+    }
 
     /// What the profile takes away. Two columns, so ten names stay one glance.
     private var blocked: some View {

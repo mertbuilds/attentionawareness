@@ -18,6 +18,7 @@ struct DoneStep: View {
                     CardRow(name: "Model", value: DeviceCard.model(device))
                 }
                 CardRow(name: "State", value: DeviceCard.state(model.restore.supervisedAfterwards))
+                CardRow(name: "Profiles", value: DeviceCard.profileNames(model.installedProfiles))
                 if let folder = model.backupFolder {
                     CardRow(name: "Backup", value: folder.path)
                     HStack {

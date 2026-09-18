@@ -6,6 +6,8 @@ struct DeviceCard: View {
     let device: ConnectedDevice
     /// What MCInstall said. Nil when the phone has not answered yet.
     let supervised: Bool?
+    /// The configuration profiles on the phone, in the order it lists them.
+    let profiles: [InstalledProfile]
 
     var body: some View {
         Card {
@@ -13,6 +15,7 @@ struct DeviceCard: View {
             CardRow(name: "Model", value: Self.model(device))
             CardRow(name: "iOS", value: device.iosVersion ?? "Not read yet")
             CardRow(name: "State", value: Self.state(supervised))
+            CardRow(name: "Profiles", value: Self.profileNames(profiles))
         }
     }
 
@@ -29,6 +32,20 @@ struct DeviceCard: View {
         case (.none, .none):
             return "Not read yet"
         }
+    }
+
+    /// Every profile the phone lists, one per line: the name Settings shows,
+    /// then whether this app put it there and whether it can be deleted on the
+    /// phone.
+    static func profileNames(_ profiles: [InstalledProfile]) -> String {
+        guard !profiles.isEmpty else { return "None" }
+        return profiles.map { profile in
+            let marks = [profile.isOurs ? "ours" : nil, profile.removalDisallowed ? "locked" : nil]
+                .compactMap { $0 }
+            guard !marks.isEmpty else { return profile.displayName }
+            return "\(profile.displayName) (\(marks.joined(separator: ", ")))"
+        }
+        .joined(separator: "\n")
     }
 
     /// Supervision in the two words the phone's own Settings uses.

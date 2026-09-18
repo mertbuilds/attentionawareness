@@ -50,7 +50,11 @@ struct RestoreStep: View {
             }
         case .finished:
             if let device = model.device {
-                DeviceCard(device: device, supervised: model.restore.supervisedAfterwards)
+                DeviceCard(
+                    device: device,
+                    supervised: model.restore.supervisedAfterwards,
+                    profiles: model.installedProfiles
+                )
             }
         }
     }

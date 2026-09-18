@@ -12,6 +12,30 @@ struct CloudConfiguration: Equatable {
     let raw: String
 }
 
+/// One configuration profile as the phone lists it.
+///
+/// `GetProfileList` answers with the identifiers in the order the phone keeps
+/// them, plus two dictionaries keyed by identifier: the manifest, which says
+/// whether a profile is active, and the metadata, which carries the names the
+/// phone shows in Settings.
+struct InstalledProfile: Identifiable, Equatable {
+    /// The profile identifier, which is what the phone keys everything by.
+    let id: String
+    /// The name Settings shows. The identifier stands in when a profile
+    /// carries no display name.
+    let displayName: String
+    let organization: String?
+    let description: String?
+    let isActive: Bool
+    /// True when the profile cannot be deleted on the phone.
+    let removalDisallowed: Bool
+    let uuid: String?
+
+    /// True for a profile this app put there. Every one it installs is
+    /// `com.attentionawareness.<uuid>`, so the prefix is the whole test.
+    var isOurs: Bool { id.hasPrefix("com.attentionawareness.") }
+}
+
 /// Client for `com.apple.mobile.MCInstall`, the service Apple Configurator uses
 /// to read supervision state and to push configuration profiles over the cable.
 /// Messages are plain property lists with a `RequestType` key.
@@ -74,6 +98,40 @@ final class MCInstall {
             organizationName: Plist.string(Plist.item(configuration, "OrganizationName")),
             raw: Plist.xml(configuration) ?? raw
         )
+    }
+
+    /// Reads the configuration profiles the phone has installed, in the order
+    /// it lists them.
+    func profileList() throws -> [InstalledProfile] {
+        let request = plist_new_dict()
+        plist_dict_set_item(request, "RequestType", plist_new_string("GetProfileList"))
+
+        let response = try send(request, named: "GetProfileList", timeout: 15_000)
+        defer { plist_free(response) }
+
+        // A phone with no profiles on it still acknowledges, it just leaves the
+        // lists out. Only an explicit error is a failure.
+        if let status = Plist.string(Plist.item(response, "Status")), status != "Acknowledged" {
+            throw DeviceError.requestRefused(
+                request: "GetProfileList",
+                reason: Self.errorText(response)
+            )
+        }
+        let manifest = Plist.item(response, "ProfileManifest")
+        let metadata = Plist.item(response, "ProfileMetadata")
+        return Plist.strings(Plist.item(response, "OrderedIdentifiers")).map { identifier in
+            let listed = Plist.item(manifest, identifier)
+            let payload = Plist.item(metadata, identifier)
+            return InstalledProfile(
+                id: identifier,
+                displayName: Plist.string(Plist.item(payload, "PayloadDisplayName")) ?? identifier,
+                organization: Plist.string(Plist.item(payload, "PayloadOrganization")),
+                description: Plist.string(Plist.item(listed, "Description")),
+                isActive: Plist.bool(Plist.item(listed, "IsActive")) ?? false,
+                removalDisallowed: Plist.bool(Plist.item(payload, "PayloadRemovalDisallowed")) ?? false,
+                uuid: Plist.string(Plist.item(payload, "PayloadUUID"))
+            )
+        }
     }
 
     /// Installs one configuration profile. The bytes are the `.mobileconfig`

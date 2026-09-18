@@ -23,7 +23,11 @@ enum UISmoke {
         for step in WizardStep.allCases {
             report(step.rawValue, WizardStepContent(step: step, model: model), into: folder)
         }
-        report("device-card", DeviceCard(device: sampleDevice, supervised: false), into: folder)
+        report(
+            "device-card",
+            DeviceCard(device: sampleDevice, supervised: false, profiles: sampleProfiles),
+            into: folder
+        )
         report("error", ErrorText(DeviceError.trustPending.localizedDescription), into: folder)
         report("window", ContentView(), into: folder)
         exit(0)
@@ -43,6 +47,20 @@ enum UISmoke {
         dataAvailable: 40_000_000_000,
         pairingState: .paired
     )
+
+    /// A profile of ours on that phone, so the card draws the row the way it
+    /// looks after a run.
+    private static let sampleProfiles = [
+        InstalledProfile(
+            id: "com.attentionawareness.00000000-0000-0000-0000-000000000000",
+            displayName: "attentionawareness",
+            organization: "attentionawareness",
+            description: "attentionawareness",
+            isActive: true,
+            removalDisallowed: true,
+            uuid: "00000000-0000-0000-0000-000000000000"
+        ),
+    ]
 
     private static func report(_ name: String, _ view: some View, into folder: URL?) {
         let host = NSHostingView(rootView: AnyView(view.frame(width: WizardStyle.contentWidth)))

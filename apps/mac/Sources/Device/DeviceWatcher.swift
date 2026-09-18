@@ -16,6 +16,9 @@ final class DeviceWatcher: ObservableObject {
     /// What MCInstall said about each paired phone, keyed by udid. A phone that
     /// has not been trusted yet has no entry.
     @Published private(set) var cloudConfigurations: [String: CloudConfiguration] = [:]
+    /// The configuration profiles each paired phone lists, keyed by udid, in
+    /// the order the phone gave them.
+    @Published private(set) var installedProfiles: [String: [InstalledProfile]] = [:]
     /// The last read failure, as a sentence to show the user. Nil when the last
     /// pass went through.
     @Published private(set) var lastError: String?
@@ -75,6 +78,7 @@ final class DeviceWatcher: ObservableObject {
     private func apply(_ snapshot: Snapshot) {
         devices = snapshot.devices
         cloudConfigurations = snapshot.cloudConfigurations
+        installedProfiles = snapshot.installedProfiles
         lastError = snapshot.error
     }
 
@@ -82,6 +86,7 @@ final class DeviceWatcher: ObservableObject {
     private struct Snapshot {
         var devices: [ConnectedDevice] = []
         var cloudConfigurations: [String: CloudConfiguration] = [:]
+        var installedProfiles: [String: [InstalledProfile]] = [:]
         var error: String?
     }
 
@@ -93,10 +98,13 @@ final class DeviceWatcher: ObservableObject {
                 let device = try ConnectedDevice.read(udid: udid)
                 snapshot.devices.append(device)
 
-                // Supervision only comes from MCInstall, and MCInstall needs a
-                // phone that has already trusted this Mac.
+                // Supervision and the installed profiles both come from
+                // MCInstall, which needs a phone that has already trusted this
+                // Mac. One client answers both.
                 if device.pairingState == .paired {
-                    snapshot.cloudConfigurations[udid] = try MCInstall(udid: udid).cloudConfiguration()
+                    let mcInstall = try MCInstall(udid: udid)
+                    snapshot.cloudConfigurations[udid] = try mcInstall.cloudConfiguration()
+                    snapshot.installedProfiles[udid] = try mcInstall.profileList()
                 }
             } catch DeviceError.deviceUnavailable {
                 // The phone was unplugged between the list and the read.

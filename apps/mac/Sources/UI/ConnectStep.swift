@@ -13,7 +13,11 @@ struct ConnectStep: View {
             error: model.watcher.lastError
         ) {
             if let device = model.device, device.pairingState == .paired {
-                DeviceCard(device: device, supervised: model.isSupervised)
+                DeviceCard(
+                    device: device,
+                    supervised: model.isSupervised,
+                    profiles: model.installedProfiles
+                )
             } else {
                 HStack(spacing: 10) {
                     ProgressView()

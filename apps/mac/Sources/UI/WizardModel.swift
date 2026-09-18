@@ -93,6 +93,17 @@ final class WizardModel: ObservableObject {
     /// read, which is how a phone that has not trusted this Mac reads.
     var isSupervised: Bool? { cloudConfiguration?.isSupervised }
 
+    /// The configuration profiles the chosen phone lists. Empty until it has
+    /// answered, which is also how a phone that has not trusted this Mac reads.
+    var installedProfiles: [InstalledProfile] {
+        guard let udid = device?.udid else { return [] }
+        return watcher.installedProfiles[udid] ?? []
+    }
+
+    /// The ones this app put there. The Profile step asks about these before it
+    /// offers to install another.
+    var ourProfiles: [InstalledProfile] { installedProfiles.filter(\.isOurs) }
+
     /// The password to hand to the engine and the patch. An empty field means
     /// no password at all.
     private var secret: String? { password.isEmpty ? nil : password }
@@ -472,6 +483,8 @@ final class WizardModel: ObservableObject {
                     try MCInstall(udid: udid).installProfile(data)
                 }.value
                 profile.stage = .installed
+                // The phone lists one more profile now, so read it again for
+                // the card and the summary.
                 watcher.reload()
             } catch {
                 profile.stage = .ready

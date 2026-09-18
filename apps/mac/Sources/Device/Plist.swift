@@ -38,6 +38,14 @@ enum Plist {
         return plist_dict_get_item(node, key)
     }
 
+    /// Returns the text of every string in an array node. A node that is not
+    /// an array reads as no strings at all, and so does an item in it that is
+    /// not a string.
+    static func strings(_ node: plist_t?) -> [String] {
+        guard let node, plist_get_node_type(node) == PLIST_ARRAY else { return [] }
+        return (0..<plist_array_get_size(node)).compactMap { string(plist_array_get_item(node, $0)) }
+    }
+
     /// Renders a node as an XML property list. Used to show a whole answer from
     /// the phone without picking it apart key by key.
     static func xml(_ node: plist_t?) -> String? {
