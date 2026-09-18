@@ -39,6 +39,19 @@ one asks for, so the window can be checked on a Mac whose display is asleep. Add
 a folder, `--ui-smoke /tmp/shots`, and it writes a picture of each step there as
 well.
 
+`--sign-profile <file>` asks the site to sign the profile the Profile step
+installs and writes it, so the signing side can be checked without an iPhone.
+It prints the size and whether the bytes are the DER of a signed CMS message.
+`AA_SITE_URL` points it at a dev server, and that variable is also the only
+thing that makes the app trust a certificate the system does not know, for that
+one host:
+
+```sh
+AA_SITE_URL=https://attentionawareness.localhost \
+  "build/Build/Products/Debug/attention awareness.app/Contents/MacOS/attention awareness" \
+  --sign-profile /tmp/aa.mobileconfig
+```
+
 ## Layout
 
 - `project.yml` is the source of truth. `AttentionAwareness.xcodeproj` is
@@ -55,6 +68,13 @@ well.
   the cable and re-reads them on every connect and disconnect, `Lockdown` reads
   the values the wizard checks, `MCInstall` reads supervision and installs a
   profile over USB.
+- `Sources/Profile/` is the profile the Profile step installs: `ProfileConfig`
+  mirrors the type of the same name in `apps/web/src/lib/profile/types.ts`
+  field for field, because it is encoded straight into the body `POST
+/api/sign` validates, and `ProfileConfig.default` is a copy of that page's
+  `mert` preset. `ProfileSigner` posts it and hands back the signed
+  `.mobileconfig` bytes; the signing certificate stays on the site and never
+  comes near the app.
 - `Vendor/` is filled by the two scripts below and gitignored except for
   `Vendor/include/module.modulemap`.
 - `scripts/build-libimobiledevice.sh` clones libplist, libimobiledevice-glue,

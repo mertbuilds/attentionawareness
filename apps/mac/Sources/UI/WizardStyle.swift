@@ -42,7 +42,6 @@ enum WizardStyle {
 enum SiteLink {
     static var home: URL? { url(path: "/", campaign: "footer") }
     static var help: URL? { url(path: "/supervise", campaign: "help") }
-    static var build: URL? { url(path: "/build", campaign: "profile") }
 
     private static func url(path: String, campaign: String) -> URL? {
         URL(string: "https://attentionawareness.com\(path)"

@@ -31,6 +31,11 @@ struct AttentionAwarenessApp: App {
         // without the window. Ctrl+C cancels the run.
         BackupCommandLine.runIfAsked()
 
+        // `--sign-profile <file>` asks the site to sign the profile the
+        // Profile step installs and writes it, which is how the signing side
+        // is checked without an iPhone.
+        ProfileCommandLine.runIfAsked()
+
         // `--ui-smoke` builds every step of the wizard offscreen and prints
         // the size each one asks for, so the window can be checked without a
         // display and without an iPhone.

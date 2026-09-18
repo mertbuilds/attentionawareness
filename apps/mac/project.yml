@@ -138,15 +138,16 @@ targets:
         embed: true
         codeSign: true
 
-  # The patch and backup layers are compiled into the test bundle as well as
-  # into the app, so the tests need no host application, no window and no
-  # libimobiledevice.
+  # The patch, backup and profile layers are compiled into the test bundle as
+  # well as into the app, so the tests need no host application, no window and
+  # no libimobiledevice.
   AttentionAwarenessTests:
     type: bundle.unit-test
     platform: macOS
     sources:
       - Sources/Patch
       - Sources/Backup
+      - Sources/Profile
       # The step order is the one part of the window that needs neither
       # SwiftUI nor an iPhone, so it is tested here with the rest.
       - Sources/UI/WizardStep.swift

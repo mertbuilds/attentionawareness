@@ -54,6 +54,11 @@ final class WizardModel: ObservableObject {
     @Published private(set) var patch = PatchState()
     @Published private(set) var restore = RestoreState()
     @Published private(set) var profile = ProfileState()
+    /// Trial mode: the profile can be deleted on the phone. Off, because a
+    /// profile that can be removed is one that will be.
+    @Published var allowsRemoval = false
+    /// Apple's adult-content heuristic, which costs nothing to leave on.
+    @Published var filtersAdultWebsites = true
 
     private var relays: [AnyCancellable] = []
     private var poll: Task<Void, Never>?
@@ -98,7 +103,7 @@ final class WizardModel: ObservableObject {
             || patch.isRunning
             || restore.stage == .running
             || restore.stage == .waitingForPhone
-            || profile.stage == .installing
+            || profile.isRunning
     }
 
     // MARK: - Moving between steps
@@ -137,6 +142,8 @@ final class WizardModel: ObservableObject {
         patch = PatchState()
         restore = RestoreState()
         profile = ProfileState()
+        allowsRemoval = false
+        filtersAdultWebsites = true
         direction = .supervise
         errorMessage = nil
         step = .connect
@@ -424,19 +431,59 @@ final class WizardModel: ObservableObject {
 
     enum ProfileStage: Equatable {
         case ready
+        /// The site is turning the configuration into signed bytes.
+        case signing
         case installing
         case installed
     }
 
     struct ProfileState {
         var stage: ProfileStage = .ready
-        /// The file the user picked, for the line under the button.
+        /// The file the user picked, when the profile came from one. Nil when
+        /// the app built it.
         var fileName: String?
+
+        /// True while something is on its way to the site or to the phone.
+        var isRunning: Bool { stage == .signing || stage == .installing }
     }
 
-    /// Ask for the signed `.mobileconfig` and push it over the cable.
+    /// What the Profile step installs: the feed apps and their sites, with the
+    /// two choices the step offers written over the top.
+    var profileConfig: ProfileConfig {
+        var config = ProfileConfig.default
+        config.lockRemoval = !allowsRemoval
+        config.autoFilterAdult = filtersAdultWebsites
+        return config
+    }
+
+    /// Have the site sign the profile, then push it over the cable. The
+    /// signing certificate never leaves the site, so the bytes make one round
+    /// trip and go straight to the phone; nothing is written to disk.
+    func signAndInstallProfile() {
+        guard let udid, !profile.isRunning else { return }
+        let config = profileConfig
+        errorMessage = nil
+        profile = ProfileState(stage: .signing)
+        Task {
+            do {
+                let data = try await ProfileSigner().signedProfile(for: config)
+                profile.stage = .installing
+                try await Task.detached(priority: .userInitiated) {
+                    try MCInstall(udid: udid).installProfile(data)
+                }.value
+                profile.stage = .installed
+                watcher.reload()
+            } catch {
+                profile.stage = .ready
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    /// Ask for a `.mobileconfig` built somewhere else and push it over the
+    /// cable, for a profile made on the site's build page.
     func chooseAndInstallProfile() {
-        guard let udid, profile.stage != .installing else { return }
+        guard let udid, !profile.isRunning else { return }
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
