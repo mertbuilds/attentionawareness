@@ -1036,11 +1036,10 @@ function HomePage() {
     setSkipReady(false);
   }
 
-  // The reader would rather not watch it print: the rest of the bill lands at
-  // once, and the page ends where the last line would have left it.
+  // The reader would rather not watch it print: every line still pending lands
+  // in one batch, and the bill says it is printed once that batch has landed.
   function skipBill() {
     setSkipped(true);
-    billPrinted();
   }
 
   // Back to the first screen, from the bill or from the question alike: the
@@ -1105,7 +1104,7 @@ function HomePage() {
   // The way past the print is on the screen while the bill prints, and a
   // reader who asked for less motion never had a print to sit through.
   const reduced = useReducedMotion();
-  const skipOffered = stage === 'printing' && skipReady && reduced !== true;
+  const skipOffered = stage === 'printing' && skipReady && !skipped && reduced !== true;
   const locale = getLocale();
   // The bill's own number and date: one number per visit, the second of the
   // day the page was opened, and the date it was opened on.
