@@ -62,10 +62,17 @@ struct ChecksStep: View {
                 }
             }
         } actions: {
-            PrimaryButton(title: "Back up", enabled: model.checksPass) {
-                model.startBackup()
+            PrimaryButton(title: buttonTitle, enabled: model.checksPass) {
+                model.continueFromChecks()
             }
         }
+    }
+
+    /// The button says what pressing it does. A phone whose folder is already
+    /// on this Mac gets a choice on the next step rather than an hour of
+    /// copying, so it does not promise a backup here.
+    private var buttonTitle: String {
+        model.existingBackup == .nothing ? "Back up" : "Continue"
     }
 
     private var findMyRow: CheckRow {

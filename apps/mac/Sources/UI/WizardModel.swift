@@ -94,6 +94,10 @@ final class WizardModel: ObservableObject {
         relays = [
             watcher.objectWillChange.sink { [weak self] in self?.objectWillChange.send() },
             engine.objectWillChange.sink { [weak self] in self?.objectWillChange.send() },
+            // The checks and the Back up step both ask what this Mac already
+            // holds for the phone on the cable, so a row landing in the list
+            // has to redraw them too.
+            backups.objectWillChange.sink { [weak self] in self?.objectWillChange.send() },
         ]
     }
 
@@ -106,6 +110,17 @@ final class WizardModel: ObservableObject {
         self.backupFolder = backupFolder
         step = .done
         restore = RestoreState(stage: .finished, supervisedAfterwards: true)
+    }
+
+    /// A model that has picked its iPhone and is standing on the Back up step,
+    /// with the backups this Mac holds handed in. It starts nothing and reads
+    /// no bus, so the hidden `--ui-smoke` path can draw that step the way it
+    /// looks for a phone whose backup is already here.
+    convenience init(sample watcher: DeviceWatcher, waitingOn udid: String, backups: BackupsList) {
+        self.init(watcher: watcher, backups: backups)
+        self.udid = udid
+        selectedUdid = udid
+        step = .backUp
     }
 
     // MARK: - What the phone says
@@ -150,6 +165,17 @@ final class WizardModel: ObservableObject {
     /// offers to install another.
     var ourProfiles: [InstalledProfile] { installedProfiles.filter(\.isOurs) }
 
+    /// What this Mac already holds for the iPhone this run is about: a whole
+    /// backup the Back up step offers instead of another hour on the cable, a
+    /// folder that cannot be used, or nothing at all.
+    ///
+    /// It is nothing until a phone is picked and the list has come in, so a
+    /// run that starts before the folder is read is the run this app has
+    /// always made.
+    var existingBackup: ExistingBackup.Offer {
+        ExistingBackup.offer(for: udid, in: backups.backups)
+    }
+
     /// The password to hand to the engine and the patch. An empty field means
     /// no password at all.
     private var secret: String? { password.isEmpty ? nil : password }
@@ -181,6 +207,11 @@ final class WizardModel: ObservableObject {
         // Stepping back to Connect clears `udid`, so the pick is kept here as
         // well and the same phone comes back highlighted.
         selectedUdid = device.udid
+        // The checks ask for the backup password when the backup this Mac
+        // already holds is an encrypted one, and the step after them offers
+        // that backup, so the folder is read from here rather than from the
+        // step that shows it.
+        backups.load(measuringFirst: device.udid)
         go(to: .checks)
     }
 
@@ -299,9 +330,17 @@ final class WizardModel: ObservableObject {
         return UInt64(capacity)
     }
 
-    /// True when the phone encrypts its backups, which is the only case where
-    /// the password field is shown and the password is needed.
-    var needsPassword: Bool { device?.backupEncrypted == true }
+    /// True when a password is needed to read the backup this run will work
+    /// with: the phone encrypts what it is about to write, or the backup this
+    /// Mac already holds is an encrypted one. The second case is asked for
+    /// here as well, because the patch needs the password of the folder it
+    /// opens and a phone that has since stopped encrypting does not change
+    /// what is in that folder.
+    var needsPassword: Bool {
+        if device?.backupEncrypted == true { return true }
+        if case .usable(let backup) = existingBackup { return backup.isEncrypted }
+        return false
+    }
 
     /// Every check that can be read says yes.
     var checksPass: Bool {
@@ -312,6 +351,31 @@ final class WizardModel: ObservableObject {
     }
 
     // MARK: - Back up
+
+    /// Leave the checks for the Back up step.
+    ///
+    /// A phone whose folder is already on this Mac stops there, because the
+    /// step has something to put to the reader: the backup to use, or the
+    /// reason the folder cannot be used. Every other phone starts the transfer
+    /// the moment the button is pressed, which is what it has always done.
+    func continueFromChecks() {
+        if case .nothing = existingBackup {
+            startBackup()
+        } else {
+            go(to: .backUp)
+        }
+    }
+
+    /// Take the backup this Mac already holds and go straight to the patch.
+    ///
+    /// The hour on the cable is the only thing this skips. The folder becomes
+    /// this run's backup, so the patch reads it, the restore puts it back and
+    /// the last step marks it as the one this run used.
+    func useExistingBackup(_ backup: StoredBackup) {
+        guard step == .backUp, !engine.phase.isRunning else { return }
+        backupFolder = backup.url
+        go(to: .patch)
+    }
 
     /// Make the backup. The phone decides whether it is encrypted; the
     /// password is only passed on.
@@ -324,7 +388,11 @@ final class WizardModel: ObservableObject {
                 backupFolder = try await engine.backup(
                     udid: udid,
                     into: Self.backupRoot,
-                    password: secret
+                    // The phone does the encrypting, so the password only goes
+                    // down when the phone says it encrypts its backups. The
+                    // field is also shown for an encrypted backup that is
+                    // already here, and that one is no business of the phone's.
+                    password: device?.backupEncrypted == true ? secret : nil
                 )
                 go(to: .patch)
             } catch BackupError.cancelled {

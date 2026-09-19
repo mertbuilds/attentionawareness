@@ -27,6 +27,9 @@ struct StoredBackup: Identifiable, Equatable, Sendable {
     /// False when Manifest.plist could not be read, because an unread backup
     /// gives no password prompt either.
     let isEncrypted: Bool
+    /// What Status.plist last said the iPhone got to, so `finished` on a whole
+    /// backup. Nil when the folder holds no readable Status.plist.
+    let snapshotState: String?
     /// Nil until `BackupStore.measure` walks the folder.
     var sizeInBytes: Int64?
     /// The newest untouched copy saved for this UDID, which is the one a
@@ -38,6 +41,12 @@ struct StoredBackup: Identifiable, Equatable, Sendable {
     var pristineSizeInBytes: Int64?
 
     var id: URL { url }
+
+    /// True when the iPhone finished writing the snapshot, which is the only
+    /// kind of backup worth patching and restoring. A folder the phone stopped
+    /// part way through holds files that Manifest.db does not know about, and
+    /// putting that back on a phone would take things off it.
+    var isFinished: Bool { snapshotState == BackupStatus.finishedSnapshot }
 }
 
 /// The backups the app keeps on this Mac: listing them, measuring them and
@@ -86,6 +95,11 @@ enum BackupStore {
 
     /// Read one folder. Every field that Manifest.plist does not give comes
     /// back nil rather than keeping the folder out of the list.
+    ///
+    /// Status.plist is read beside it, because Manifest.plist is no word on
+    /// whether this folder is whole: a backup that stopped part way leaves the
+    /// Manifest.plist the last finished one wrote, and only Status.plist says
+    /// how far the iPhone got this time.
     private static func read(folder: URL, pristineCopy: URL?) -> StoredBackup {
         let manifest = manifest(in: folder)
         let lockdown = manifest?["Lockdown"] as? [String: Any]
@@ -97,6 +111,7 @@ enum BackupStore {
             iosVersion: lockdown?["ProductVersion"] as? String,
             date: manifest?["Date"] as? Date,
             isEncrypted: (manifest?["IsEncrypted"] as? NSNumber)?.boolValue ?? false,
+            snapshotState: BackupStatus.read(inBackupFolder: folder)?.snapshotState,
             sizeInBytes: nil,
             pristineURL: pristineCopy,
             pristineSizeInBytes: nil

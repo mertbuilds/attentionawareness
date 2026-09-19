@@ -20,20 +20,43 @@ enum UISmoke {
             ? URL(fileURLWithPath: arguments[flag + 1], isDirectory: true)
             : nil
         let model = WizardModel()
-        // The last step is the only one that is about what a run left behind,
-        // so it is drawn from a run that is already over: a phone that came
-        // back, the backup it was restored from, and the backups this Mac is
-        // holding. Every other step is drawn from a wizard that has not
-        // started.
+        // Two steps are about what is already on this Mac rather than about a
+        // run that has not started, so each is drawn from its own model. The
+        // last one is a run that is already over: a phone that came back, the
+        // backup it was restored from, and the backups this Mac is holding.
+        // The Back up step is a run that has picked a phone whose backup is
+        // already here, which is the offer it makes instead of another hour on
+        // the cable.
         let finished = WizardModel(
             sample: sampleWatcher([sampleDevice]),
             backupFolder: sampleBackups[0].url,
             backups: BackupsList(sample: sampleBackups)
         )
+        let offered = WizardModel(
+            sample: sampleWatcher([sampleDevice]),
+            waitingOn: sampleDevice.udid,
+            backups: BackupsList(sample: sampleBackups)
+        )
+        let drawnFrom: [WizardStep: WizardModel] = [.backUp: offered, .done: finished]
         for step in WizardStep.allCases {
-            let drawnFrom = step == .done ? finished : model
-            report(step.rawValue, WizardStepContent(step: step, model: drawnFrom), into: folder)
+            report(step.rawValue, WizardStepContent(step: step, model: drawnFrom[step] ?? model), into: folder)
         }
+        // The same step for a phone this Mac holds nothing for, which is the
+        // one it has always drawn, and for a phone whose folder the iPhone
+        // never finished writing.
+        report("backUp-nothing-here", WizardStepContent(step: .backUp, model: model), into: folder)
+        report(
+            "backUp-unfinished",
+            WizardStepContent(
+                step: .backUp,
+                model: WizardModel(
+                    sample: sampleWatcher([sampleDevice]),
+                    waitingOn: sampleBackups[2].udid,
+                    backups: BackupsList(sample: sampleBackups)
+                )
+            ),
+            into: folder
+        )
         report("connect-one-phone", ConnectStep(model: sampleModel([sampleDevice])), into: folder)
         report(
             "connect-two-phones",
@@ -103,7 +126,9 @@ enum UISmoke {
 
     /// Backups on a Mac that has none: the one this run made, an older phone
     /// whose untouched copy is still beside it, and one whose folder is still
-    /// being walked, so the section draws a measured row, a copy and the wait.
+    /// being walked and which the iPhone never finished writing, so the
+    /// section draws a measured row, a copy and the wait, and the Back up step
+    /// draws both an offer and a folder it cannot offer.
     private static let sampleBackups: [StoredBackup] = [
         StoredBackup(
             url: BackupFolder.applicationSupportRoot.appendingPathComponent(sampleDevice.udid),
@@ -113,6 +138,7 @@ enum UISmoke {
             iosVersion: "26.6.2",
             date: Date(timeIntervalSince1970: 1_789_793_040),
             isEncrypted: true,
+            snapshotState: BackupStatus.finishedSnapshot,
             sizeInBytes: 67_882_442_752,
             pristineURL: nil,
             pristineSizeInBytes: nil
@@ -125,6 +151,7 @@ enum UISmoke {
             iosVersion: "26.6.2",
             date: Date(timeIntervalSince1970: 1_788_372_600),
             isEncrypted: false,
+            snapshotState: BackupStatus.finishedSnapshot,
             sizeInBytes: 41_203_889_152,
             pristineURL: SupervisionPatch.pristineRoot(forBackupRoot: BackupFolder.applicationSupportRoot)
                 .appendingPathComponent("\(sampleSecondDevice.udid)-20260902-211000"),
@@ -138,6 +165,7 @@ enum UISmoke {
             iosVersion: "26.4.1",
             date: Date(timeIntervalSince1970: 1_784_009_100),
             isEncrypted: false,
+            snapshotState: "uploading",
             sizeInBytes: nil,
             pristineURL: nil,
             pristineSizeInBytes: nil

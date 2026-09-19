@@ -19,6 +19,10 @@ final class BackupsList: ObservableObject {
     /// False for the list the smoke hands its rows to, which reads no disk
     /// and deletes nothing.
     private let readsDisk: Bool
+    /// The phone whose folder is walked before the others, because a step is
+    /// waiting on that one number. Nil walks them in the order they are
+    /// listed.
+    private var measureFirst: String?
     private var work: Task<Void, Never>?
 
     init(root: URL = BackupFolder.applicationSupportRoot) {
@@ -37,8 +41,12 @@ final class BackupsList: ObservableObject {
 
     /// Read the folder, then measure what is in it. Calling it again replaces
     /// both: a walk that is still going is cancelled first.
-    func load() {
+    ///
+    /// `measuringFirst` names the iPhone a step is waiting on, so a 63 GB walk
+    /// for some other phone does not hold up the one number on screen.
+    func load(measuringFirst udid: String? = nil) {
         guard readsDisk else { return }
+        measureFirst = udid
         work?.cancel()
         work = Task { [weak self] in
             await self?.reload()
@@ -103,12 +111,19 @@ final class BackupsList: ObservableObject {
     /// each number as it lands, so a row stops waiting on its own folder
     /// rather than on the last one in the list.
     private func measureWhatIsMissing() async {
-        for backup in backups where backup.sizeInBytes == nil {
+        for backup in measurementOrder where backup.sizeInBytes == nil {
             let measured = await BackupStore.measured(backup)
             guard !Task.isCancelled else { return }
             guard let index = backups.firstIndex(where: { $0.id == measured.id }) else { continue }
             backups[index] = measured
         }
+    }
+
+    /// The rows in the order they are walked: the one a step is waiting on
+    /// first, then the rest as they are listed.
+    private var measurementOrder: [StoredBackup] {
+        guard let measureFirst else { return backups }
+        return backups.filter { $0.udid == measureFirst } + backups.filter { $0.udid != measureFirst }
     }
 }
 

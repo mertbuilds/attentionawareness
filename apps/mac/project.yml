@@ -148,9 +148,11 @@ targets:
       - Sources/Patch
       - Sources/Backup
       - Sources/Profile
-      # The step order is the one part of the window that needs neither
-      # SwiftUI nor an iPhone, so it is tested here with the rest.
+      # The step order and what this Mac already holds for a phone are the
+      # parts of the window that need neither SwiftUI nor an iPhone, so they
+      # are tested here with the rest.
       - Sources/UI/WizardStep.swift
+      - Sources/UI/ExistingBackup.swift
       - Tests
     settings:
       base:

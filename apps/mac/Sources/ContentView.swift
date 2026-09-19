@@ -5,6 +5,12 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var model = WizardModel()
 
+    /// Whether this step offers a way back. Nothing steps back out of work
+    /// that is already running.
+    private var showsBack: Bool {
+        model.step.allowsBack && !model.isBusy
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
@@ -17,11 +23,16 @@ struct ContentView: View {
             Divider()
 
             HStack {
-                if model.step.allowsBack, !model.isBusy {
-                    Button("Back") {
-                        model.back()
-                    }
+                // The button keeps its place on every step, visible only where
+                // stepping back is safe. Laying it out either way is what keeps
+                // the bar one height from the first step to the last, at any
+                // text size, rather than a number that would have to be guessed.
+                Button("Back") {
+                    model.back()
                 }
+                .opacity(showsBack ? 1 : 0)
+                .disabled(!showsBack)
+                .accessibilityHidden(!showsBack)
                 Spacer()
                 if let url = SiteLink.home {
                     Link("attentionawareness.com", destination: url)
@@ -48,6 +59,12 @@ struct ContentView: View {
 struct WizardStepContent: View {
     let step: WizardStep
     @ObservedObject var model: WizardModel
+
+    /// Whether this step offers a way back. Nothing steps back out of work
+    /// that is already running.
+    private var showsBack: Bool {
+        model.step.allowsBack && !model.isBusy
+    }
 
     var body: some View {
         switch step {

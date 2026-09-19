@@ -502,6 +502,7 @@ final class BackupStoreTests: XCTestCase {
             iosVersion: nil,
             date: nil,
             isEncrypted: false,
+            snapshotState: nil,
             sizeInBytes: nil,
             pristineURL: nil,
             pristineSizeInBytes: nil

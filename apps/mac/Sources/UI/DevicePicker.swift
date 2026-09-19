@@ -34,8 +34,9 @@ struct DevicePicker: View {
             Image(systemName: picked ? "largecircle.fill.circle" : "circle")
                 .foregroundStyle(picked ? WizardStyle.accent : Color.secondary)
             VStack(alignment: .leading, spacing: 2) {
+                // The filled circle is what says which phone is picked. Weight
+                // stays put, so the rows do not reflow as the choice moves.
                 Text(device.name ?? "iPhone")
-                    .fontWeight(picked ? .semibold : .regular)
                 Group {
                     Text(Self.hardware(device))
                     Text(Self.state(device, cloudConfigurations[device.udid]?.isSupervised))
