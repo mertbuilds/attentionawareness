@@ -35,6 +35,10 @@ final class WizardModel: ObservableObject {
 
     let watcher: DeviceWatcher
     let engine = BackupEngine()
+    /// The backups this Mac already holds, which the last step lists. They
+    /// outlive one run, so this object only starts and stops the work; it
+    /// keeps nothing about the run itself.
+    let backups: BackupsList
 
     @Published private(set) var step: WizardStep = .connect
     @Published private(set) var direction: WizardDirection = .supervise
@@ -71,6 +75,12 @@ final class WizardModel: ObservableObject {
         self.init(watcher: DeviceWatcher())
     }
 
+    /// A model that keeps its own list of the backups on this Mac, which is
+    /// every model but the one the smoke hands its own list to.
+    convenience init(watcher: DeviceWatcher) {
+        self.init(watcher: watcher, backups: BackupsList())
+    }
+
     /// The watcher and the engine publish their own changes. Re-sending them
     /// here means every view can watch this one object and still redraw when a
     /// phone appears or a progress bar moves.
@@ -78,12 +88,24 @@ final class WizardModel: ObservableObject {
     /// The watcher is handed in rather than made here, so the hidden
     /// `--ui-smoke` path can draw the steps from a watcher holding phones that
     /// are not there.
-    init(watcher: DeviceWatcher) {
+    init(watcher: DeviceWatcher, backups: BackupsList) {
         self.watcher = watcher
+        self.backups = backups
         relays = [
             watcher.objectWillChange.sink { [weak self] in self?.objectWillChange.send() },
             engine.objectWillChange.sink { [weak self] in self?.objectWillChange.send() },
         ]
+    }
+
+    /// A model whose run is already over: the iPhone it was about, the backup
+    /// it wrote and the backups this Mac holds, all handed in. It starts
+    /// nothing and reads no bus, so the hidden `--ui-smoke` path can draw the
+    /// last step the way it looks once a phone has been restored.
+    convenience init(sample watcher: DeviceWatcher, backupFolder: URL, backups: BackupsList) {
+        self.init(watcher: watcher, backups: backups)
+        self.backupFolder = backupFolder
+        step = .done
+        restore = RestoreState(stage: .finished, supervisedAfterwards: true)
     }
 
     // MARK: - What the phone says
@@ -181,6 +203,9 @@ final class WizardModel: ObservableObject {
     /// Forget this run and ask for a phone again.
     func startOver() {
         poll?.cancel()
+        // The last step is gone, so whatever it was still measuring is work
+        // for nobody.
+        backups.cancel()
         udid = nil
         selectedUdid = nil
         password = ""

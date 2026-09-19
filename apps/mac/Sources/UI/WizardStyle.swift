@@ -22,6 +22,15 @@ enum WizardStyle {
         return formatter.string(fromByteCount: Int64(bytes))
     }
 
+    /// A day and a time the way this Mac writes them, so 19 Sep 2026 at 07:44
+    /// where the system is set to English.
+    static func date(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+
     /// A length of time in whole words, because the copy never abbreviates a
     /// unit.
     static func elapsed(_ seconds: TimeInterval) -> String {

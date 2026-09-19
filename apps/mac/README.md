@@ -69,8 +69,10 @@ AA_SITE_URL=https://attentionawareness.localhost \
   no sandbox: the app needs usbmuxd and unsandboxed file access) and the icon.
 - `Sources/UI/` is the window: `WizardStep` is the step order and nothing else,
   which is why the tests can run it; `WizardModel` holds one run of the wizard
-  and owns the device watcher and the backup engine; the rest is one file per
-  step. Errors from the three layers are shown in the step that caused them,
+  and owns the device watcher, the backup engine and the list of backups on
+  this Mac; the rest is one file per step, plus `DevicePicker` for choosing
+  between connected iPhones and `BackupsSection` for the backups the Done step
+  lists. Errors from the three layers are shown in the step that caused them,
   never in a modal alert.
 - `Sources/Device/` is the device layer: `DeviceWatcher` publishes the iPhones on
   the cable and re-reads them on every connect and disconnect, `Lockdown` reads
