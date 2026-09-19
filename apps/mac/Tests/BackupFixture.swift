@@ -67,7 +67,8 @@ enum BackupFixture {
         in root: URL,
         content: [String: Any] = baseContent,
         format: PropertyListSerialization.PropertyListFormat = .xml,
-        password: String = password
+        password: String = password,
+        writeAheadLog: Bool = false
     ) throws -> URL {
         let directory = root.appendingPathComponent(udid)
         try FileManager.default.createDirectory(
@@ -92,6 +93,9 @@ enum BackupFixture {
         try FileManager.default.createDirectory(at: scratch, withIntermediateDirectories: true)
         let plainDatabase = scratch.appendingPathComponent(BackupFolder.manifestDatabaseName)
         try writeManifestDatabase(at: plainDatabase, blob: blob)
+        if writeAheadLog {
+            try makeWriteAheadLog(at: plainDatabase)
+        }
         var databaseBytes = try Data(contentsOf: plainDatabase)
         if databaseBytes.count % 16 != 0 {
             databaseBytes += Data(repeating: 0, count: 16 - databaseBytes.count % 16)
@@ -276,6 +280,37 @@ enum BackupFixture {
             sqlite3_bind_blob(statement, 5, bytes.baseAddress, Int32(blob.count), transient)
         }
         guard sqlite3_step(statement) == SQLITE_DONE else { throw FixtureError.database("insert") }
+    }
+
+    /// Put a database into WAL mode and take the side files away, which is the
+    /// shape `idevicebackup2` leaves Manifest.db in. sqlite closes the WAL out
+    /// on the last connection, so the removals are only there for the case
+    /// where it kept them.
+    static func makeWriteAheadLog(at url: URL) throws {
+        var handle: OpaquePointer?
+        guard sqlite3_open_v2(url.path, &handle, SQLITE_OPEN_READWRITE, nil) == SQLITE_OK else {
+            sqlite3_close(handle)
+            throw FixtureError.database("open")
+        }
+        let status = sqlite3_exec(handle, "PRAGMA journal_mode=WAL", nil, nil, nil)
+        sqlite3_close(handle)
+        guard status == SQLITE_OK else { throw FixtureError.database("wal") }
+        for suffix in ["-wal", "-shm"] {
+            try? FileManager.default.removeItem(at: URL(fileURLWithPath: url.path + suffix))
+        }
+    }
+
+    /// The journal mode as the header records it, without opening the file.
+    /// Byte 18 is the write version and byte 19 the read version: 2 in WAL
+    /// mode, 1 with a rollback journal.
+    static func journalModeByte(at url: URL) throws -> UInt8 {
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+        try handle.seek(toOffset: 18)
+        guard let header = try handle.read(upToCount: 1), let byte = header.first else {
+            throw FixtureError.database("header")
+        }
+        return byte
     }
 
     // The two archives below were written by the Python plistlib, so they carry

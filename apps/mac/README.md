@@ -35,6 +35,13 @@ prints everything `Sources/Device/` reads from each connected iPhone as JSON,
 which is how the device layer is checked without the window. `--backup <udid>
 <root>` and `--restore <udid> <root>` run the backup engine from a terminal.
 
+`--patch <backup folder>` loads a backup folder, plans the change, applies it
+and checks it, printing the flag before and after and the folder the untouched
+copy went to, which is how the patch layer is checked against a real backup
+without the wizard. `--unsupervise` takes the flag off again instead of setting
+it, and `BACKUP_PASSWORD` carries the password of an encrypted backup. Nothing
+is sent to an iPhone.
+
 `--ui-smoke` builds every step of the wizard offscreen and prints the size each
 one asks for, so the window can be checked on a Mac whose display is asleep. Add
 a folder, `--ui-smoke /tmp/shots`, and it writes a picture of each step there as

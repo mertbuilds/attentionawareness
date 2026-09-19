@@ -40,13 +40,31 @@ enum ManifestDB {
         return Row(fileID: String(cString: fileID), blob: blob(statement, column: 1))
     }
 
+    /// Put a plain Manifest.db into rollback journal mode, before anything
+    /// reads it.
+    ///
+    /// `idevicebackup2` hands the database over in WAL mode and writes no
+    /// `-wal` and no `-shm` beside it. sqlite cannot use a WAL database
+    /// without a `-shm` file, and a read only connection is not allowed to
+    /// make one, so every read fails with "unable to open database file"
+    /// before it starts. Opening read write and asking for the rollback
+    /// journal writes back whatever the WAL held and leaves the file in the
+    /// shape a backup that Finder wrote already has, so the restore takes it
+    /// as it is. Only the header moves, so the length stays where it was and
+    /// an encrypted copy still holds a whole number of AES blocks.
+    static func normaliseJournal(at database: URL) throws {
+        let handle = try open(database.path, flags: SQLITE_OPEN_READWRITE, database: database)
+        defer { sqlite3_close(handle) }
+        try useRollbackJournal(on: handle)
+    }
+
     /// Write the new file size into the Files row of a plain database.
     static func updateRecordedSize(in database: URL, fileID: String, size: Int) throws {
         let handle = try open(database.path, flags: SQLITE_OPEN_READWRITE, database: database)
         defer { sqlite3_close(handle) }
         // A WAL database keeps the newest rows beside the file. This one file
         // has to hold everything, because the encrypted copy is one file.
-        try run("PRAGMA journal_mode=DELETE", on: handle)
+        try useRollbackJournal(on: handle)
 
         let updated = try recordedBlob(on: handle, fileID: fileID, size: size)
 
@@ -131,8 +149,22 @@ enum ManifestDB {
         return handle
     }
 
-    private static func run(_ sql: String, on handle: OpaquePointer?) throws {
-        guard sqlite3_exec(handle, sql, nil, nil, nil) == SQLITE_OK else { throw failure(handle) }
+    /// `PRAGMA journal_mode` answers with a row that names the mode the
+    /// database ended in, and names the mode it kept when it could not change
+    /// it, so that row is the only proof the change happened.
+    private static func useRollbackJournal(on handle: OpaquePointer?) throws {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(handle, "PRAGMA journal_mode=DELETE", -1, &statement, nil) == SQLITE_OK else {
+            throw failure(handle)
+        }
+        defer { sqlite3_finalize(statement) }
+        guard sqlite3_step(statement) == SQLITE_ROW, let mode = sqlite3_column_text(statement, 0) else {
+            throw failure(handle)
+        }
+        let answer = String(cString: mode)
+        guard answer.caseInsensitiveCompare("delete") == .orderedSame else {
+            throw PatchError.databaseFailed("the journal mode stayed \(answer)")
+        }
     }
 
     private static func blob(_ statement: OpaquePointer?, column: Int32) -> Data {

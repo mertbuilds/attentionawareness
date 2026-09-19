@@ -135,11 +135,23 @@ final class BackupFolder {
 
     /// The Files row of the supervision file. An encrypted Manifest.db is
     /// decrypted to a plain copy first, and that copy is deleted again.
+    ///
+    /// Both databases are put into rollback journal mode before they are read,
+    /// because the one `idevicebackup2` writes is in WAL mode with no side
+    /// files and no reader can open that. This app only ever opens a backup it
+    /// is about to patch, its own or the one the reader pointed at, so the
+    /// write that costs is one it is already allowed to make.
     func supervisionRow() throws -> ManifestDB.Row? {
         guard FileManager.default.fileExists(atPath: manifestDatabaseURL.path) else { return nil }
-        guard let keys else { return try ManifestDB.supervisionRow(in: manifestDatabaseURL) }
+        guard let keys else {
+            try ManifestDB.normaliseJournal(at: manifestDatabaseURL)
+            return try ManifestDB.supervisionRow(in: manifestDatabaseURL)
+        }
         let plain = try ManifestDB.decrypt(manifestDatabaseURL, key: keys.manifest, into: scratchDirectory)
         defer { ManifestDB.removePlainCopy(plain) }
+        // A decrypted database carries the journal mode it was encrypted with,
+        // so the plain copy walks into the same wall.
+        try ManifestDB.normaliseJournal(at: plain)
         return try ManifestDB.supervisionRow(in: plain)
     }
 
