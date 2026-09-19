@@ -49,11 +49,24 @@ struct DoneStep: View {
     }
 
     private var lead: String {
+        [outcome, findMyReminder].compactMap { $0 }.joined(separator: " ")
+    }
+
+    /// Whether the iPhone ended up the way the run asked for.
+    private var outcome: String {
         guard model.restore.supervisedAfterwards == model.direction.target else {
             return "The iPhone did not end up the way this run asked for."
         }
         return model.direction == .supervise
             ? "The iPhone is supervised and everything on it stayed where it was."
             : "The iPhone is no longer supervised and everything on it stayed where it was."
+    }
+
+    /// The run asked for Find My to be off so the restore would go through, and
+    /// nothing puts it back. A phone that already says it is on again is left
+    /// alone, and so is one that will not say, because the last step is no
+    /// place to argue about a value nobody can read.
+    private var findMyReminder: String? {
+        model.device?.findMyOn == false ? "Turn Find My iPhone back on in Settings." : nil
     }
 }

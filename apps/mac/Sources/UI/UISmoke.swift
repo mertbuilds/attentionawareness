@@ -57,6 +57,15 @@ enum UISmoke {
             ),
             into: folder
         )
+        // Find My is named on the checks and asked for on the restore, so both
+        // steps are drawn for a phone that says it is on and for one that says
+        // it is off. The two the loop above drew come from a Mac with nothing
+        // on the cable, which is the third answer: no answer at all.
+        for (name, findMyOn) in [("find-my-on", true), ("find-my-off", false)] {
+            let phone = WizardModel(watcher: sampleWatcher([samplePhone(findMyOn: findMyOn)]))
+            report("checks-\(name)", WizardStepContent(step: .checks, model: phone), into: folder)
+            report("restore-\(name)", WizardStepContent(step: .restore, model: phone), into: folder)
+        }
         report("connect-one-phone", ConnectStep(model: sampleModel([sampleDevice])), into: folder)
         report(
             "connect-two-phones",
@@ -87,6 +96,25 @@ enum UISmoke {
         dataAvailable: 40_000_000_000,
         pairingState: .paired
     )
+
+    /// A trusted iPhone with Find My on or off and nothing else changed between
+    /// the two, so the checks row and the restore gate can be drawn each way.
+    /// Its backups are not encrypted, which keeps the password field out of
+    /// those pictures and leaves the button saying only what Find My did to it.
+    private static func samplePhone(findMyOn: Bool) -> ConnectedDevice {
+        ConnectedDevice(
+            udid: "33333333-3333333333333333",
+            name: "iPhone",
+            productType: "iPhone15,2",
+            marketingName: "iPhone 14 Pro",
+            iosVersion: "26.6.2",
+            findMyOn: findMyOn,
+            backupEncrypted: false,
+            dataCapacity: 128_000_000_000,
+            dataAvailable: 40_000_000_000,
+            pairingState: .paired
+        )
+    }
 
     /// A second iPhone, still showing the Trust dialog, so the list draws both
     /// a phone that is ready and one that is not.

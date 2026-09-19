@@ -266,6 +266,7 @@ final class WizardModel: ObservableObject {
             runPatch()
         case .restore:
             restore = RestoreState()
+            pollWhileFindMyIsOn()
         case .profile:
             profile = ProfileState()
         case .connect, .backUp, .done:
@@ -276,14 +277,20 @@ final class WizardModel: ObservableObject {
     // MARK: - Checks
 
     /// Read the phone again every three seconds while Find My is still on, so
-    /// the tick turns green as soon as the user switches it off. The poll stops
-    /// the moment Find My reads off, or the step changes.
+    /// the tick on the checks turns green and the Restore button turns on as
+    /// soon as the user switches it off. The poll stops the moment Find My
+    /// reads off, or the step changes: `go(to:)` cancels it on every move, so
+    /// only the step that started it is ever the one waiting.
+    ///
+    /// The first read happens at once. Nothing reads the phone while the backup
+    /// copies, so by the time the restore asks, the value in hand can be an
+    /// hour old.
     private func pollWhileFindMyIsOn() {
         poll = Task { [weak self] in
+            self?.watcher.reload()
             while !Task.isCancelled {
                 try? await Task.sleep(for: Self.pollInterval)
-                guard let self, !Task.isCancelled else { return }
-                guard self.step == .checks, self.device?.findMyOn != false else { return }
+                guard let self, !Task.isCancelled, self.device?.findMyOn != false else { return }
                 self.watcher.reload()
             }
         }
@@ -343,11 +350,15 @@ final class WizardModel: ObservableObject {
     }
 
     /// Every check that can be read says yes.
+    ///
+    /// Find My is not one of them. It blocks the restore and nothing else, so
+    /// the hour of copying starts while the reader is still turning it off.
     var checksPass: Bool {
-        if device?.findMyOn == true { return false }
-        if diskSpace.passes == false { return false }
-        if needsPassword, password.isEmpty { return false }
-        return true
+        WizardGate.checksPass(
+            diskSpacePasses: diskSpace.passes,
+            needsPassword: needsPassword,
+            hasPassword: !password.isEmpty
+        )
     }
 
     // MARK: - Back up
@@ -524,9 +535,19 @@ final class WizardModel: ObservableObject {
         var supervisedAfterwards: Bool?
     }
 
+    /// Whether the phone will take the backup back. This is the one place Find
+    /// My matters: the iPhone refuses a restore while it is on.
+    var restoreGate: WizardGate.Restore {
+        WizardGate.restore(findMyOn: device?.findMyOn)
+    }
+
     /// Put the patched backup back on the phone and wait for the reboot.
     func startRestore() {
         guard let udid, let folder = backupFolder, !engine.phase.isRunning else { return }
+        guard restoreGate == .allowed else { return }
+        // The helper has the phone from here, so the Find My poll stops rather
+        // than opening a lockdown handshake of its own every three seconds.
+        poll?.cancel()
         errorMessage = nil
         restore = RestoreState(stage: .running)
         transferStartedAt = Date()

@@ -75,6 +75,9 @@ struct ChecksStep: View {
         model.existingBackup == .nothing ? "Back up" : "Continue"
     }
 
+    /// Find My has to be off for the restore and for nothing else, so the row
+    /// is work to do rather than a wall: the backup starts while it is still
+    /// on, and the hour it can cost is waited out while the copying runs.
     private var findMyRow: CheckRow {
         switch model.device?.findMyOn {
         case false:
@@ -82,11 +85,12 @@ struct ChecksStep: View {
         case true:
             return CheckRow(
                 result: .waiting,
-                title: "Find My iPhone is on",
+                title: "Find My iPhone is on, and has to be off before the restore",
+                // The title already says the restore needs it off, so the detail
+                // only has to say when to do it and how.
                 detail: """
-                    Open Settings, tap your name, tap Find My, and turn Find My iPhone off. \
-                    If the phone starts a one hour wait, that is Stolen Device Protection. \
-                    The hour cannot be skipped. When it ends, confirm on the phone to finish.
+                    The backup does not need it off, so start the backup now and turn it off while \
+                    the copying runs. \(WizardGate.turnFindMyOff)
                     """
             )
         case nil:
