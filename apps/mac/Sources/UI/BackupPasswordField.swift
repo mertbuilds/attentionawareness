@@ -9,9 +9,12 @@ struct BackupPasswordField: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Backup password")
-            SecureField("Backup password", text: $model.password)
+            // The placeholder is a row of dots, so the field needs a spoken
+            // name of its own for VoiceOver to announce anything useful.
+            SecureField("****", text: $model.password)
                 .textFieldStyle(.roundedBorder)
                 .labelsHidden()
+                .accessibilityLabel("Backup password")
             Text("The password you set for encrypted backups. It is not the phone passcode.")
                 .font(.callout)
                 .foregroundStyle(.secondary)

@@ -23,6 +23,12 @@ enum UISmoke {
         for step in WizardStep.allCases {
             report(step.rawValue, WizardStepContent(step: step, model: model), into: folder)
         }
+        report("connect-one-phone", ConnectStep(model: sampleModel([sampleDevice])), into: folder)
+        report(
+            "connect-two-phones",
+            ConnectStep(model: sampleModel([sampleDevice, sampleSecondDevice])),
+            into: folder
+        )
         report(
             "device-card",
             DeviceCard(device: sampleDevice, supervised: false, profiles: sampleProfiles),
@@ -48,6 +54,28 @@ enum UISmoke {
         pairingState: .paired
     )
 
+    /// A second iPhone, still showing the Trust dialog, so the list draws both
+    /// a phone that is ready and one that is not.
+    private static let sampleSecondDevice = ConnectedDevice(
+        udid: "11111111-1111111111111111",
+        name: "Work iPhone",
+        productType: "iPhone17,1",
+        marketingName: "iPhone 16 Pro",
+        iosVersion: "26.6.2",
+        findMyOn: nil,
+        backupEncrypted: nil,
+        dataCapacity: nil,
+        dataAvailable: nil,
+        pairingState: .trustPending
+    )
+
+    /// What MCInstall would say about the first sample phone.
+    private static let sampleConfiguration = CloudConfiguration(
+        isSupervised: false,
+        organizationName: nil,
+        raw: "<dict/>"
+    )
+
     /// A profile of ours on that phone, so the card draws the row the way it
     /// looks after a run.
     private static let sampleProfiles = [
@@ -61,6 +89,17 @@ enum UISmoke {
             uuid: "00000000-0000-0000-0000-000000000000"
         ),
     ]
+
+    /// A model whose watcher holds phones that are not there, so the Connect
+    /// step draws both the single-phone card and the list of more than one
+    /// with nothing on the cable.
+    private static func sampleModel(_ devices: [ConnectedDevice]) -> WizardModel {
+        WizardModel(watcher: DeviceWatcher(
+            sample: devices,
+            cloudConfigurations: [sampleDevice.udid: sampleConfiguration],
+            installedProfiles: [sampleDevice.udid: sampleProfiles]
+        ))
+    }
 
     private static func report(_ name: String, _ view: some View, into folder: URL?) {
         let host = NSHostingView(rootView: AnyView(view.frame(width: WizardStyle.contentWidth)))

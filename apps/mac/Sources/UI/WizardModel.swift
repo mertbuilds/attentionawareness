@@ -33,7 +33,7 @@ final class WizardModel: ObservableObject {
     /// much it holds.
     private static let assumedPhoneBytes: UInt64 = 64_000_000_000
 
-    let watcher = DeviceWatcher()
+    let watcher: DeviceWatcher
     let engine = BackupEngine()
 
     @Published private(set) var step: WizardStep = .connect
@@ -41,6 +41,9 @@ final class WizardModel: ObservableObject {
     /// The iPhone this run is about, from the moment the user picks it. Nil on
     /// the first step, where whatever is plugged in is the candidate.
     @Published private(set) var udid: String?
+    /// The row picked on the Connect step while more than one iPhone is on the
+    /// cable. It is only a preference: `udid` is what fixes the run.
+    @Published private(set) var selectedUdid: String?
     /// The password of an encrypted backup. It is the password the user set
     /// for encrypted backups, never the passcode of the phone.
     @Published var password = ""
@@ -63,10 +66,20 @@ final class WizardModel: ObservableObject {
     private var relays: [AnyCancellable] = []
     private var poll: Task<Void, Never>?
 
+    /// A model that watches the real USB bus, which is what the window uses.
+    convenience init() {
+        self.init(watcher: DeviceWatcher())
+    }
+
     /// The watcher and the engine publish their own changes. Re-sending them
     /// here means every view can watch this one object and still redraw when a
     /// phone appears or a progress bar moves.
-    init() {
+    ///
+    /// The watcher is handed in rather than made here, so the hidden
+    /// `--ui-smoke` path can draw the steps from a watcher holding phones that
+    /// are not there.
+    init(watcher: DeviceWatcher) {
+        self.watcher = watcher
         relays = [
             watcher.objectWillChange.sink { [weak self] in self?.objectWillChange.send() },
             engine.objectWillChange.sink { [weak self] in self?.objectWillChange.send() },
@@ -75,12 +88,23 @@ final class WizardModel: ObservableObject {
 
     // MARK: - What the phone says
 
-    /// The iPhone this run is about. Before the user picks one it is whatever
-    /// is on the cable; after that it is that phone and no other, so a second
-    /// phone plugged in half way through changes nothing.
+    /// Every iPhone on the cable, in the order usbmuxd lists them. The Connect
+    /// step offers a choice only while there is more than one.
+    var devices: [ConnectedDevice] { watcher.devices }
+
+    /// The iPhone this run is about. Before the user picks a direction it is
+    /// the row picked on the Connect step, which starts on the first phone on
+    /// the cable and falls back to the first one left when that phone is
+    /// unplugged. After that it is that phone and no other, so a second phone
+    /// plugged in half way through changes nothing.
     var device: ConnectedDevice? {
-        guard let udid else { return watcher.devices.first }
-        return watcher.devices.first { $0.udid == udid }
+        if let udid {
+            return watcher.devices.first { $0.udid == udid }
+        }
+        if let selectedUdid, let picked = watcher.devices.first(where: { $0.udid == selectedUdid }) {
+            return picked
+        }
+        return watcher.devices.first
     }
 
     /// What MCInstall last said about the chosen phone.
@@ -119,11 +143,22 @@ final class WizardModel: ObservableObject {
 
     // MARK: - Moving between steps
 
+    /// Pick which iPhone the run will be about, while more than one is on the
+    /// cable. It does nothing once the run has started, so no step past Connect
+    /// can change phones.
+    func select(_ device: ConnectedDevice) {
+        guard udid == nil else { return }
+        selectedUdid = device.udid
+    }
+
     /// Pick the phone on the cable and the direction, then start the checks.
     func start(_ direction: WizardDirection) {
         guard let device, device.pairingState == .paired else { return }
         self.direction = direction
         udid = device.udid
+        // Stepping back to Connect clears `udid`, so the pick is kept here as
+        // well and the same phone comes back highlighted.
+        selectedUdid = device.udid
         go(to: .checks)
     }
 
@@ -147,6 +182,7 @@ final class WizardModel: ObservableObject {
     func startOver() {
         poll?.cancel()
         udid = nil
+        selectedUdid = nil
         password = ""
         backupFolder = nil
         transferStartedAt = nil

@@ -52,6 +52,19 @@ final class DeviceWatcher: ObservableObject {
         reload()
     }
 
+    /// A watcher that watches nothing: it publishes the phones it is handed,
+    /// subscribes to no events and reads no bus. The hidden `--ui-smoke` path
+    /// uses it to draw the steps with no iPhone on the cable.
+    init(
+        sample devices: [ConnectedDevice],
+        cloudConfigurations: [String: CloudConfiguration] = [:],
+        installedProfiles: [String: [InstalledProfile]] = [:]
+    ) {
+        self.devices = devices
+        self.cloudConfigurations = cloudConfigurations
+        self.installedProfiles = installedProfiles
+    }
+
     deinit {
         // Clear the handler first, then stop delivery, then give back the
         // retain the subscription was holding. `idevice_events_unsubscribe`
