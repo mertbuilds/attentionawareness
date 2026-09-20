@@ -49,12 +49,18 @@ struct PatchStep: View {
                 PrimaryButton(title: "Try again") {
                     model.runPatch()
                 }
-            } else if model.patch.alreadyCorrect {
+            } else if hasResult {
                 PrimaryButton(title: "Continue") {
                     model.advance()
                 }
             }
         }
+    }
+
+    /// Whether the patch has something to show. Until it has, there is nothing
+    /// to continue from.
+    private var hasResult: Bool {
+        !model.patch.isRunning && (!model.patch.changes.isEmpty || model.patch.alreadyCorrect)
     }
 
     private var lead: String {

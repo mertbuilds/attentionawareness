@@ -29,7 +29,6 @@ class WizardModel: ObservableObject {
     private static let pollInterval = Duration.seconds(3)
     /// How long the patch step holds the line about what changed on screen
     /// before it moves on by itself.
-    private static let patchPause = Duration.seconds(2)
     /// What the free space check asks for when the iPhone does not say how
     /// much it holds.
     private static let assumedPhoneBytes: UInt64 = 64_000_000_000
@@ -593,14 +592,9 @@ class WizardModel: ObservableObject {
                     isRunning: false,
                     alreadyCorrect: outcome.alreadyCorrect
                 )
-                // A backup that already says the right thing is a step the
-                // user walked back into, so it waits rather than moving on by
-                // itself and walking forward again.
-                guard !outcome.alreadyCorrect else { return }
-                // Long enough to read the line about what changed.
-                try? await Task.sleep(for: Self.patchPause)
-                guard step == .patch else { return }
-                go(to: .restore)
+                // The flag is the whole point of the wizard, so the step waits
+                // here. Moving on by itself took the line about what changed
+                // off the screen before anyone could read it.
             } catch {
                 patch.isRunning = false
                 patch.status = nil
