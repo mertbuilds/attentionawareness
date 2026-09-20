@@ -45,6 +45,7 @@ struct ContentView: View {
                 Button("Back") {
                     model.back()
                 }
+                .buttonStyle(TextButton())
                 .opacity(showsBack ? 1 : 0)
                 .disabled(!showsBack)
                 .accessibilityHidden(!showsBack)

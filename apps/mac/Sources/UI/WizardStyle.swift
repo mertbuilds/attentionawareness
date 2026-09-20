@@ -118,6 +118,10 @@ struct StepLayout<Content: View, Actions: View>: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        // Every plain button on a step takes the orange. The filled one sets
+        // its own style, so it wins over this. It sits here rather than on the
+        // window so a step drawn on its own carries it too.
+        .buttonStyle(TextButton())
     }
 }
 
@@ -180,6 +184,20 @@ struct CardRow: View {
                 .multilineTextAlignment(.trailing)
         }
         .font(.callout)
+    }
+}
+
+/// A button that is only its words. A step has at most one filled button, so
+/// everything beside it would otherwise be grey system furniture. The orange
+/// is what says these are the things you can press.
+struct TextButton: ButtonStyle {
+    @Environment(\.isEnabled) private var enabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(configuration.isPressed ? WizardStyle.accentSoft : WizardStyle.accent)
+            .opacity(enabled ? 1 : 0.4)
+            .contentShape(Rectangle())
     }
 }
 
