@@ -187,6 +187,34 @@ struct CardRow: View {
     }
 }
 
+/// A field that draws its own ring. macOS rings the field that holds the
+/// keyboard in `keyboardFocusIndicatorColor`, which is a system setting no
+/// app can tint, so the system ring is left off and this one drawn instead.
+struct RingedField<Content: View>: View {
+    private static var radius: CGFloat { 6 }
+
+    let focused: Bool
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        content
+            .textFieldStyle(.plain)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(
+                Color(nsColor: .textBackgroundColor),
+                in: RoundedRectangle(cornerRadius: Self.radius)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Self.radius)
+                    .strokeBorder(
+                        focused ? WizardStyle.accent : Color(nsColor: .separatorColor),
+                        lineWidth: focused ? 2 : 1
+                    )
+            )
+    }
+}
+
 /// A button that is only its words. A step has at most one filled button, so
 /// everything beside it would otherwise be grey system furniture. The orange
 /// is what says these are the things you can press.

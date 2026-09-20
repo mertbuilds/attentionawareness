@@ -14,6 +14,8 @@ struct ProfileStep: View {
     /// The site in the add field, until it is added.
     @State private var typedSite = ""
     @State private var storefrontPickerShown = false
+    @FocusState private var searchFocused: Bool
+    @FocusState private var siteFocused: Bool
 
     var body: some View {
         StepLayout(
@@ -55,17 +57,12 @@ struct ProfileStep: View {
             switch model.profile.stage {
             case .ready:
                 if model.ourProfiles.isEmpty {
+                    // Installing is the only way on. A run that skipped the
+                    // profile would leave a supervised phone with nothing
+                    // blocked, which is the whole point walked past.
                     PrimaryButton(title: "Install profile") {
                         model.signAndInstallProfile()
                     }
-                    Button("Pick a file instead") {
-                        model.chooseAndInstallProfile()
-                    }
-                    .controlSize(.large)
-                    Button("Skip") {
-                        model.advance()
-                    }
-                    .controlSize(.large)
                 } else {
                     // The phone is already covered, so moving on is the answer
                     // for almost everyone. Skip would do the same as Continue,
@@ -75,10 +72,6 @@ struct ProfileStep: View {
                     }
                     Button("Install another") {
                         model.signAndInstallProfile()
-                    }
-                    .controlSize(.large)
-                    Button("Pick a file instead") {
-                        model.chooseAndInstallProfile()
                     }
                     .controlSize(.large)
                 }
@@ -137,7 +130,10 @@ struct ProfileStep: View {
             } label: {
                 Text(Self.storefrontLabel(model.appSearch.storefront))
             }
+            // The one button that is a label for what it opens rather than an
+            // action of its own, so it keeps the plain text colour.
             .buttonStyle(.borderless)
+            .foregroundStyle(.primary)
             .fixedSize()
             .help("The App Store country the results come from")
             // A flat menu of 175 countries is a scroll, so the list is
@@ -149,14 +145,16 @@ struct ProfileStep: View {
                 }
             }
 
-            TextField(
-                "Search apps to block",
-                text: Binding(
-                    get: { model.appSearch.term },
-                    set: { model.searchApps(for: $0) }
+            RingedField(focused: searchFocused) {
+                TextField(
+                    "Search apps to block",
+                    text: Binding(
+                        get: { model.appSearch.term },
+                        set: { model.searchApps(for: $0) }
+                    )
                 )
-            )
-            .textFieldStyle(.roundedBorder)
+                .focused($searchFocused)
+            }
 
             if !model.appSearch.term.isEmpty {
                 Button {
@@ -309,9 +307,11 @@ struct ProfileStep: View {
 
     private var addSiteField: some View {
         HStack(spacing: 8) {
-            TextField("Add a site, like reddit.com", text: $typedSite)
-                .textFieldStyle(.roundedBorder)
-                .onSubmit(addTypedSite)
+            RingedField(focused: siteFocused) {
+                TextField("Add a site, like reddit.com", text: $typedSite)
+                    .focused($siteFocused)
+                    .onSubmit(addTypedSite)
+            }
             Button("Add", action: addTypedSite)
                 .controlSize(.small)
                 .disabled(typedSite.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -454,11 +454,14 @@ struct StorefrontPicker: View {
     let choose: (String) -> Void
 
     @State private var query = ""
+    @FocusState private var queryFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            TextField("Search countries", text: $query)
-                .textFieldStyle(.roundedBorder)
+            RingedField(focused: queryFocused) {
+                TextField("Search countries", text: $query)
+                    .focused($queryFocused)
+            }
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(matches, id: \.code) { storefront in
