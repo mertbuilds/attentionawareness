@@ -102,12 +102,15 @@ struct ChecksStep: View {
         }
     }
 
+    /// What the backup will take on this Mac, and how long the copying will
+    /// take. Both are about the same backup, so they are said together.
     private var spaceRow: CheckRow {
         let space = model.diskSpace
         let needed = WizardStyle.size(space.needed)
-        let phone = space.assumed
+        let size = space.assumed
             ? "The iPhone did not say how much it holds, so this asks for \(needed)."
             : "The backup of this iPhone needs about \(needed)."
+        let phone = [size, model.backupExpectation].compactMap { $0 }.joined(separator: " ")
         switch space.passes {
         case true:
             return CheckRow(

@@ -19,7 +19,11 @@ enum UISmoke {
         let folder = arguments.count > flag + 1
             ? URL(fileURLWithPath: arguments[flag + 1], isDirectory: true)
             : nil
-        let model = WizardModel()
+        // The steps that are about a run which has not started are drawn with
+        // nothing on the cable, from a watcher that reads no bus. A real one
+        // would put whatever iPhone happens to be plugged in into the
+        // pictures, and would open a lockdown handshake to do it.
+        let model = WizardModel(watcher: DeviceWatcher(sample: []))
         // Two steps are about what is already on this Mac rather than about a
         // run that has not started, so each is drawn from its own model. The
         // last one is a run that is already over: a phone that came back, the
@@ -66,6 +70,15 @@ enum UISmoke {
             report("checks-\(name)", WizardStepContent(step: .checks, model: phone), into: folder)
             report("restore-\(name)", WizardStepContent(step: .restore, model: phone), into: folder)
         }
+        // Everything the Restore step says once the helper has the phone: the
+        // files moving with a figure for how much longer, the same thing too
+        // early to have one, every file across and the iPhone applying them,
+        // and the wait for the phone to come back. The third of these is the
+        // one that used to go on saying the files were still being written.
+        let now = Date()
+        for sample in restoreSamples(at: now) {
+            report("restore-\(sample.name)", WizardStepContent(step: .restore, model: sample.model), into: folder)
+        }
         report("connect-one-phone", ConnectStep(model: sampleModel([sampleDevice])), into: folder)
         report(
             "connect-two-phones",
@@ -81,6 +94,112 @@ enum UISmoke {
         report("window", ContentView(), into: folder)
         exit(0)
     }
+
+    /// The Restore step in each of the states the helper puts it in, drawn
+    /// from engines that are running nothing.
+    ///
+    /// `now` is the clock the whole set is built against, so the elapsed time
+    /// and the estimate agree with each other in every picture.
+    private static func restoreSamples(at now: Date) -> [(name: String, model: WizardModel)] {
+        [
+            (
+                "transferring",
+                restoring(
+                    phase: .transferring(
+                        progress: 0.42,
+                        filesDone: 29_104,
+                        filesTotal: nil,
+                        bytes: "18.4 MB / 44.1 MB"
+                    ),
+                    progress: 0.42,
+                    stage: .running,
+                    estimate: settledEstimate(endingAt: now),
+                    startedAt: now.addingTimeInterval(-720)
+                )
+            ),
+            (
+                "transferring-too-early",
+                restoring(
+                    phase: .transferring(
+                        progress: 0.01,
+                        filesDone: 412,
+                        filesTotal: nil,
+                        bytes: "2.1 MB / 9.7 MB"
+                    ),
+                    progress: 0.01,
+                    stage: .running,
+                    estimate: youngEstimate(endingAt: now),
+                    startedAt: now.addingTimeInterval(-20)
+                )
+            ),
+            (
+                "finishing",
+                restoring(
+                    phase: .finishing,
+                    progress: 1,
+                    stage: .running,
+                    estimate: settledEstimate(endingAt: now),
+                    startedAt: now.addingTimeInterval(-1_740)
+                )
+            ),
+            (
+                "waiting-for-phone",
+                restoring(
+                    phase: .finishing,
+                    progress: 1,
+                    stage: .waitingForPhone,
+                    estimate: settledEstimate(endingAt: now),
+                    startedAt: now.addingTimeInterval(-2_460)
+                )
+            ),
+        ]
+    }
+
+    /// One restore in flight: the phase and the progress the helper would be
+    /// printing, the stage the wizard would be in, and an estimate fed the
+    /// readings that put it there.
+    private static func restoring(
+        phase: BackupEngine.Phase,
+        progress: Double,
+        stage: WizardModel.RestoreStage,
+        estimate: TransferEstimate,
+        startedAt: Date
+    ) -> WizardModel {
+        WizardModel(
+            sample: sampleWatcher([samplePhone(findMyOn: false)]),
+            restoring: BackupEngine(sample: phase, progress: progress, log: sampleLog),
+            stage: stage,
+            estimate: estimate,
+            startedAt: startedAt
+        )
+    }
+
+    /// An estimate fed enough of a transfer to say a figure: twelve minutes of
+    /// copying that got a little under half way, which is about fifteen
+    /// minutes left.
+    private static func settledEstimate(endingAt end: Date) -> TransferEstimate {
+        var estimate = TransferEstimate()
+        estimate.record(progress: 0, at: end.addingTimeInterval(-720))
+        estimate.record(progress: 0.42, at: end)
+        return estimate
+    }
+
+    /// An estimate from the first seconds of a transfer, which is too early to
+    /// say anything at all.
+    private static func youngEstimate(endingAt end: Date) -> TransferEstimate {
+        var estimate = TransferEstimate()
+        estimate.record(progress: 0, at: end.addingTimeInterval(-20))
+        estimate.record(progress: 0.01, at: end)
+        return estimate
+    }
+
+    /// A few lines of the sort the helper prints, so the folded-away details
+    /// are drawn the way they look during a real transfer.
+    private static let sampleLog = [
+        "Started restore, the iPhone is waiting for the files.",
+        "Sending Library/SMS/sms.db (48.2 MB)",
+        "Sending Media/DCIM/108APPLE/IMG_8123.HEIC (3.1 MB)",
+    ]
 
     /// An iPhone that is not there, so the card and the summary can be drawn
     /// without one on the cable.

@@ -70,6 +70,18 @@ final class BackupEngine: ObservableObject {
     private var lastHelperLine: String?
     private var sawAbort = false
 
+    init() {}
+
+    /// An engine that is running nothing and never will, with the phase, the
+    /// progress and the log it should appear to have. The hidden `--ui-smoke`
+    /// path draws the two transfer steps from one of these, so a transfer in
+    /// flight can be drawn with nothing on the cable.
+    init(sample phase: Phase, progress: Double, log: [String] = []) {
+        self.phase = phase
+        self.progress = progress
+        self.log = log
+    }
+
     // MARK: - The helper
 
     /// The bundled helper. A Debug build that never ran `scripts/vendor.sh`

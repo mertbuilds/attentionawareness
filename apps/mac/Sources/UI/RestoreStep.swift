@@ -32,17 +32,37 @@ struct RestoreStep: View {
                     once the phone says Find My is off.
                     """
             }
-            return """
-                The phone restarts and restores from the backup. Keep the cable connected. \
-                This takes about as long as the backup did.
-                """
+            return [
+                "The phone restarts and restores from the backup. Keep the cable connected.",
+                model.restoreExpectation,
+            ].compactMap { $0 }.joined(separator: " ")
         case .running:
-            return "Writing the backup back to the iPhone. Keep the cable connected."
+            return running
         case .waitingForPhone:
             return "The files are back on the iPhone. It is restarting now."
         case .finished:
             return result
         }
+    }
+
+    /// What is happening while the helper has the phone.
+    ///
+    /// The engine moves to `.finishing` the moment the last of the bytes are
+    /// across, and from there the iPhone is the one working: it opens the
+    /// backup and writes it over itself, which takes longer than the copying
+    /// did and which this Mac can see none of. The step used to go on saying
+    /// the files were still being written, with the bar pinned at 100%, while
+    /// the phone said it was still restoring. This is the sentence that says
+    /// what is actually happening.
+    private var running: String {
+        guard model.engine.phase == .finishing else {
+            return "Writing the backup back to the iPhone. Keep the cable connected."
+        }
+        return """
+            Every file is on the iPhone now and the phone is applying them. This is the slow part, \
+            and it takes longer than the copying did. This Mac cannot see how far along the phone is, \
+            so watch the progress bar on the iPhone itself. Keep the cable connected.
+            """
     }
 
     @ViewBuilder

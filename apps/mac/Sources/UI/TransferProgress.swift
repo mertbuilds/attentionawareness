@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// The progress of the helper, the same on the backup step and on the restore
-/// step: a bar, the percentage, what has moved, how long it has taken, and the
-/// helper's own lines folded away underneath.
+/// step: a bar, the percentage, what has moved, how much longer it has, how
+/// long it has taken, and the helper's own lines folded away underneath.
 struct TransferProgress: View {
     @ObservedObject var model: WizardModel
 
@@ -16,7 +16,7 @@ struct TransferProgress: View {
                     .font(.title3)
                     .monospacedDigit()
                 Spacer(minLength: 12)
-                elapsed
+                clocks
             }
 
             HStack(alignment: .firstTextBaseline) {
@@ -41,16 +41,38 @@ struct TransferProgress: View {
         "\(Int((model.engine.progress * 100).rounded()))%"
     }
 
+    /// The two readouts on the right: how much longer the copying has, and how
+    /// long it has taken so far. They share one clock, because the first of
+    /// them has to be able to go away on its own once the progress stops
+    /// moving.
     @ViewBuilder
-    private var elapsed: some View {
+    private var clocks: some View {
         if let start = model.transferStartedAt {
             TimelineView(.periodic(from: start, by: 1)) { context in
-                Text(WizardStyle.elapsed(context.date.timeIntervalSince(start)))
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    if let remaining = remaining(at: context.date) {
+                        Text(remaining)
+                    }
+                    Text(WizardStyle.elapsed(context.date.timeIntervalSince(start)))
+                        .monospacedDigit()
+                }
+                .font(.callout)
+                .foregroundStyle(.secondary)
             }
         }
+    }
+
+    /// How much longer, or nothing at all.
+    ///
+    /// Nothing is shown before the estimate has settled and nothing once the
+    /// progress stops moving. Nothing is shown at `.finishing` either: the
+    /// last of the bytes are across by then and the iPhone is doing work this
+    /// Mac cannot see, so any figure here would be about the wrong thing.
+    private func remaining(at date: Date) -> String? {
+        guard model.engine.phase != .finishing,
+              case .about(let seconds) = model.estimate.reading(at: date)
+        else { return nil }
+        return TransferEstimate.remaining(seconds)
     }
 
     private var files: String? {

@@ -13,8 +13,9 @@ import UniformTypeIdentifiers
 /// install. Every move between steps goes through `go(to:)`, so a step can
 /// never start half way through.
 ///
-/// Nothing is written anywhere but the backup folder. No preference, no
-/// history, no analytics.
+/// Nothing is written anywhere but the backup folder and the two numbers
+/// `TransferRate` keeps, which are a measurement of how fast this Mac moves
+/// bytes over the cable. No history, no analytics.
 @MainActor
 final class WizardModel: ObservableObject {
     /// Where the backups go. The app writes into its own Application Support
@@ -34,7 +35,7 @@ final class WizardModel: ObservableObject {
     private static let assumedPhoneBytes: UInt64 = 64_000_000_000
 
     let watcher: DeviceWatcher
-    let engine = BackupEngine()
+    let engine: BackupEngine
     /// The backups this Mac already holds, which the last step lists. They
     /// outlive one run, so this object only starts and stops the work; it
     /// keeps nothing about the run itself.
@@ -57,6 +58,10 @@ final class WizardModel: ObservableObject {
     @Published private(set) var errorMessage: String?
     /// When the transfer on screen started, for the elapsed time.
     @Published private(set) var transferStartedAt: Date?
+    /// How much longer the transfer on screen has, as far as the progress the
+    /// helper prints can say. It is started again by every transfer, so a
+    /// second run never inherits the rate of the first.
+    @Published private(set) var estimate = TransferEstimate()
 
     @Published private(set) var patch = PatchState()
     @Published private(set) var restore = RestoreState()
@@ -81,16 +86,23 @@ final class WizardModel: ObservableObject {
         self.init(watcher: watcher, backups: BackupsList())
     }
 
+    /// A model that runs an engine of its own, which is every model but the
+    /// one the smoke draws a transfer in flight from.
+    convenience init(watcher: DeviceWatcher, backups: BackupsList) {
+        self.init(watcher: watcher, backups: backups, engine: BackupEngine())
+    }
+
     /// The watcher and the engine publish their own changes. Re-sending them
     /// here means every view can watch this one object and still redraw when a
     /// phone appears or a progress bar moves.
     ///
-    /// The watcher is handed in rather than made here, so the hidden
-    /// `--ui-smoke` path can draw the steps from a watcher holding phones that
-    /// are not there.
-    init(watcher: DeviceWatcher, backups: BackupsList) {
+    /// Both are handed in rather than made here, so the hidden `--ui-smoke`
+    /// path can draw the steps from a watcher holding phones that are not
+    /// there and from an engine that is running nothing.
+    init(watcher: DeviceWatcher, backups: BackupsList, engine: BackupEngine) {
         self.watcher = watcher
         self.backups = backups
+        self.engine = engine
         relays = [
             watcher.objectWillChange.sink { [weak self] in self?.objectWillChange.send() },
             engine.objectWillChange.sink { [weak self] in self?.objectWillChange.send() },
@@ -98,6 +110,12 @@ final class WizardModel: ObservableObject {
             // holds for the phone on the cable, so a row landing in the list
             // has to redraw them too.
             backups.objectWillChange.sink { [weak self] in self?.objectWillChange.send() },
+            // The estimate is fed from the progress itself rather than from
+            // the redraw, so a step that asks it again every second cannot
+            // watch the figure slide towards zero on its own.
+            engine.$progress.sink { [weak self] progress in
+                self?.estimate.record(progress: progress)
+            },
         ]
     }
 
@@ -121,6 +139,27 @@ final class WizardModel: ObservableObject {
         self.udid = udid
         selectedUdid = udid
         step = .backUp
+    }
+
+    /// A model standing in the middle of a restore: the engine, the stage, the
+    /// estimate and the clock all handed in, and nothing running. It reads no
+    /// bus and sends nothing to a phone, so the hidden `--ui-smoke` path can
+    /// draw each of the things the Restore step says while the helper has the
+    /// phone without one on the cable.
+    convenience init(
+        sample watcher: DeviceWatcher,
+        restoring engine: BackupEngine,
+        stage: RestoreStage,
+        estimate: TransferEstimate,
+        startedAt: Date
+    ) {
+        self.init(watcher: watcher, backups: BackupsList(sample: []), engine: engine)
+        udid = watcher.devices.first?.udid
+        selectedUdid = udid
+        step = .restore
+        restore = RestoreState(stage: stage)
+        transferStartedAt = startedAt
+        self.estimate = estimate
     }
 
     // MARK: - What the phone says
@@ -242,6 +281,7 @@ final class WizardModel: ObservableObject {
         password = ""
         backupFolder = nil
         transferStartedAt = nil
+        estimate = TransferEstimate()
         patch = PatchState()
         restore = RestoreState()
         profile = ProfileState()
@@ -313,6 +353,32 @@ final class WizardModel: ObservableObject {
             return free >= needed
         }
     }
+
+    /// What a backup of this iPhone is expected to be. It is the size of the
+    /// transfer rather than the room it wants on disk, so it carries none of
+    /// the headroom the free space check adds.
+    var backupBytes: UInt64? {
+        guard let capacity = device?.dataCapacity,
+              let available = device?.dataAvailable,
+              capacity >= available
+        else { return nil }
+        return capacity - available
+    }
+
+    /// What the restore will send, which is the folder this run is about, once
+    /// it has been walked.
+    var restoreBytes: UInt64? {
+        guard let backupFolder,
+              let size = backups.backups.first(where: { $0.url == backupFolder })?.sizeInBytes,
+              size > 0
+        else { return nil }
+        return UInt64(size)
+    }
+
+    /// How long the copying is expected to take, in the sentence the step puts
+    /// in front of the button. Nil while nothing can be said about the size.
+    var backupExpectation: String? { TransferRate.expectation(.backup, bytes: backupBytes) }
+    var restoreExpectation: String? { TransferRate.expectation(.restore, bytes: restoreBytes) }
 
     /// The free space check: the phone's used space plus a fifth, against what
     /// this Mac has left.
@@ -393,10 +459,12 @@ final class WizardModel: ObservableObject {
     func startBackup() {
         guard let udid, !engine.phase.isRunning else { return }
         go(to: .backUp)
-        transferStartedAt = Date()
+        let started = Date()
+        transferStartedAt = started
+        estimate = TransferEstimate()
         Task {
             do {
-                backupFolder = try await engine.backup(
+                let folder = try await engine.backup(
                     udid: udid,
                     into: Self.backupRoot,
                     // The phone does the encrypting, so the password only goes
@@ -405,6 +473,13 @@ final class WizardModel: ObservableObject {
                     // already here, and that one is no business of the phone's.
                     password: device?.backupEncrypted == true ? secret : nil
                 )
+                backupFolder = folder
+                // The listing in hand was made before this backup ran, so it
+                // is read again: the Restore step says how big the thing it is
+                // about to send is, and the last step lists what is on the
+                // disk now.
+                backups.load(measuringFirst: udid)
+                rememberRate(.backup, folder: folder, since: started)
                 go(to: .patch)
             } catch BackupError.cancelled {
                 // The phase already says it was cancelled, and the step offers
@@ -417,6 +492,24 @@ final class WizardModel: ObservableObject {
 
     func cancelTransfer() {
         engine.cancel()
+    }
+
+    /// Write down how fast this Mac moved the bytes, so the next run can put a
+    /// figure in front of the button rather than a range.
+    ///
+    /// The folder is walked once the transfer is over and off the main thread,
+    /// because its size is the only honest divisor and nothing on screen is
+    /// waiting for the number. A folder that cannot be measured leaves the
+    /// last measurement where it was.
+    private func rememberRate(_ kind: TransferRate.Kind, folder: URL, since started: Date) {
+        let seconds = Date().timeIntervalSince(started)
+        let root = Self.backupRoot
+        Task.detached(priority: .utility) {
+            guard let listed = (try? BackupStore.list(root: root))?.first(where: { $0.url == folder })
+            else { return }
+            guard let bytes = BackupStore.measure(listed).sizeInBytes, bytes > 0 else { return }
+            TransferRate.remember(kind, bytes: UInt64(bytes), seconds: seconds)
+        }
     }
 
     // MARK: - Patch
@@ -550,7 +643,9 @@ final class WizardModel: ObservableObject {
         poll?.cancel()
         errorMessage = nil
         restore = RestoreState(stage: .running)
-        transferStartedAt = Date()
+        let started = Date()
+        transferStartedAt = started
+        estimate = TransferEstimate()
         Task {
             do {
                 try await engine.restore(
@@ -561,6 +656,7 @@ final class WizardModel: ObservableObject {
                     settings: true,
                     reboot: true
                 )
+                rememberRate(.restore, folder: folder, since: started)
                 restore.stage = .waitingForPhone
                 await waitForPhone()
                 restore.supervisedAfterwards = isSupervised

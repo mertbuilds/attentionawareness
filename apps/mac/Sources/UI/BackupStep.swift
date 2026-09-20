@@ -25,7 +25,10 @@ struct BackupStep: View {
                 return "This Mac already holds a backup of this iPhone, \(ExistingBackup.age(of: date)). "
                     + "Use it, or copy everything off again."
             }
-            return "This copies everything on the iPhone to this Mac. Keep the cable connected."
+            return [
+                "This copies everything on the iPhone to this Mac. Keep the cable connected.",
+                model.backupExpectation,
+            ].compactMap { $0 }.joined(separator: " ")
         case .starting:
             return "Starting the backup. The iPhone takes a moment to answer."
         case .transferring:
