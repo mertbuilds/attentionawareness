@@ -5,6 +5,8 @@ import SwiftUI
 struct PatchStep: View {
     @ObservedObject var model: WizardModel
 
+    @State private var showsDetails = false
+
     var body: some View {
         StepLayout(
             position: WizardStep.patch.position(in: model.direction),
@@ -22,22 +24,40 @@ struct PatchStep: View {
                     }
                 }
 
-                if !model.patch.changes.isEmpty {
-                    Card {
-                        ForEach(model.patch.changes, id: \.self) { change in
-                            Text(Self.arrow(change))
-                                .font(.callout)
-                                .monospaced()
-                        }
-                    }
-                }
-
-                if let pristine = model.patch.pristinePath {
-                    Text("An untouched copy of the backup is at \(pristine).")
-                        .font(.caption)
+                if model.patch.pristinePath != nil {
+                    Text("The backup this iPhone made was copied first, so nothing it holds was written over.")
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
-                        .textSelection(.enabled)
+                }
+
+                // The flag names and the path are the engine talking. They are
+                // the truth of what happened and worth keeping, but nobody
+                // needs to read a property list to know the step worked.
+                if !model.patch.changes.isEmpty || model.patch.pristinePath != nil {
+                    DisclosureGroup(isExpanded: $showsDetails) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            ForEach(model.patch.changes, id: \.self) { change in
+                                Text(Self.arrow(change))
+                                    .font(.caption)
+                                    .monospaced()
+                                    .textSelection(.enabled)
+                            }
+                            if let pristine = model.patch.pristinePath {
+                                Text("Untouched copy: \(pristine)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .textSelection(.enabled)
+                            }
+                        }
+                        .padding(.top, 8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    } label: {
+                        Text("Details")
+                            .font(.callout)
+                            .contentShape(Rectangle())
+                            .onTapGesture { showsDetails.toggle() }
+                    }
                 }
 
                 if model.errorMessage != nil, model.needsPassword {
@@ -73,7 +93,9 @@ struct PatchStep: View {
         if model.patch.isRunning {
             return "Setting the supervision flag in the backup on this Mac."
         }
-        return "The backup now says what it should."
+        return model.direction == .supervise
+            ? "The backup now says this iPhone is supervised."
+            : "The backup now says this iPhone is not supervised."
     }
 
     /// The layers write their change lines with a plain arrow. The window
