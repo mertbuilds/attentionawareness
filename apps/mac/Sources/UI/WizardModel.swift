@@ -65,14 +65,22 @@ class WizardModel: ObservableObject {
     @Published private(set) var patch = PatchState()
     @Published private(set) var restore = RestoreState()
     @Published private(set) var profile = ProfileState()
-    /// Trial mode: the profile can be deleted on the phone. Off, because a
-    /// profile that can be removed is one that will be.
-    @Published var allowsRemoval = false
-    /// Apple's adult-content heuristic, which costs nothing to leave on.
-    @Published var filtersAdultWebsites = true
+    /// The profile the Profile step is building. It starts on the one this app
+    /// has always installed and the step writes over it.
+    @Published var draft = ProfileDraft.recommended
+    /// What the search field over the blocked list is showing.
+    @Published private(set) var appSearch = AppSearchState()
 
     private var relays: [AnyCancellable] = []
     private var poll: Task<Void, Never>?
+    /// The keystroke being answered right now. The next one cancels it, which
+    /// is what keeps a slow answer from landing under a newer term.
+    private var searchTask: Task<Void, Never>?
+    /// The artwork of the blocked apps, on its way in.
+    private var iconTask: Task<Void, Never>?
+    /// Bundle ids the store has already been asked about, so an app it does
+    /// not carry is asked for once rather than on every redraw.
+    private var askedForIcons = Set<String>()
 
     /// A model that watches the real USB bus, which is what the window uses.
     convenience init() {
@@ -179,6 +187,9 @@ class WizardModel: ObservableObject {
         var patch = PatchState()
         var restore = RestoreState()
         var profile = ProfileState()
+        /// What the search field over the blocked list is showing, so a step
+        /// can be drawn with rows under it.
+        var appSearch = AppSearchState()
         var errorMessage: String?
     }
 
@@ -197,6 +208,7 @@ class WizardModel: ObservableObject {
         patch = sample.patch
         restore = sample.restore
         profile = sample.profile
+        appSearch = sample.appSearch
         errorMessage = sample.errorMessage
     }
 
@@ -323,8 +335,11 @@ class WizardModel: ObservableObject {
         patch = PatchState()
         restore = RestoreState()
         profile = ProfileState()
-        allowsRemoval = false
-        filtersAdultWebsites = true
+        draft = .recommended
+        clearAppSearch()
+        iconTask?.cancel()
+        iconTask = nil
+        askedForIcons = []
         direction = .supervise
         errorMessage = nil
         step = .connect
@@ -737,13 +752,112 @@ class WizardModel: ObservableObject {
         var isRunning: Bool { stage == .signing || stage == .installing }
     }
 
-    /// What the Profile step installs: the feed apps and their sites, with the
-    /// two choices the step offers written over the top.
-    var profileConfig: ProfileConfig {
-        var config = ProfileConfig.default
-        config.lockRemoval = !allowsRemoval
-        config.autoFilterAdult = filtersAdultWebsites
-        return config
+    /// What the Profile step installs: the apps on the draft's list, the sites
+    /// they imply and whatever else the reader typed or switched.
+    var profileConfig: ProfileConfig { draft.config }
+
+    // MARK: - Searching the App Store
+
+    /// What the search field over the blocked list is showing: the term, the
+    /// rows it found, and whatever there is to say instead of rows.
+    struct AppSearchState: Equatable {
+        /// The store the results come from. An app missing from one country's
+        /// store is missing from its results, so this is the store the reader
+        /// installs from rather than the one this Mac is set to.
+        var storefront = Storefronts.current()
+        var term = ""
+        var results: [AppResult] = []
+        var isSearching = false
+        /// What went wrong, or that nothing matched. Nil while there is
+        /// nothing to say.
+        var message: String?
+    }
+
+    /// How long a keystroke waits before it is asked for, so typing a name
+    /// costs one request rather than one per letter.
+    private static let searchDelay = Duration.milliseconds(300)
+    /// What a search that found nothing says.
+    private static let noMatches = "No apps match that name."
+
+    /// Answer what is in the search field. Every call cancels the one before
+    /// it, so the rows on screen are always the ones the last term asked for.
+    func searchApps(for term: String) {
+        searchTask?.cancel()
+        appSearch.term = term
+        let query = term.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else {
+            appSearch.results = []
+            appSearch.isSearching = false
+            appSearch.message = nil
+            return
+        }
+        appSearch.isSearching = true
+        appSearch.message = nil
+        let storefront = appSearch.storefront
+        searchTask = Task {
+            do {
+                try await Task.sleep(for: Self.searchDelay)
+                let rows = ProfileDraft.offerable(
+                    try await appResults(for: query, storefront: storefront)
+                )
+                try Task.checkCancellation()
+                appSearch.results = rows
+                appSearch.isSearching = false
+                appSearch.message = rows.isEmpty ? Self.noMatches : nil
+            } catch is CancellationError {
+                // A term the reader has already typed over. The list it was
+                // going to fill is gone, and the newer search owns the field.
+            } catch {
+                appSearch.results = []
+                appSearch.isSearching = false
+                appSearch.message = error.localizedDescription
+            }
+        }
+    }
+
+    /// Search the store of another country, and ask the current term again.
+    func chooseStorefront(_ code: String) {
+        guard code != appSearch.storefront else { return }
+        appSearch.storefront = code
+        searchApps(for: appSearch.term)
+    }
+
+    /// Empty the search field and whatever it found.
+    func clearAppSearch() {
+        searchTask?.cancel()
+        searchTask = nil
+        appSearch = AppSearchState(storefront: appSearch.storefront)
+    }
+
+    /// Fill in the artwork of every blocked app the draft knows none for,
+    /// which is how the recommended list gets its icons. It is best effort: a
+    /// store that answers nothing leaves the rows drawn by their initials.
+    func loadAppIcons() {
+        let missing = draft.blockedApps
+            .map(\.bundleId)
+            .filter { draft.icons[$0] == nil && !askedForIcons.contains($0) }
+        guard !missing.isEmpty else { return }
+        askedForIcons.formUnion(missing)
+        let storefront = appSearch.storefront
+        iconTask = Task {
+            guard let found = try? await appDetails(for: missing, storefront: storefront) else {
+                return
+            }
+            for app in found where !app.iconUrl.isEmpty {
+                draft.icons[app.bundleId] = app.iconUrl
+            }
+        }
+    }
+
+    /// What the App Store answers for one term. The demo overrides it with a
+    /// canned set, so the step can be walked through with no network.
+    func appResults(for term: String, storefront: String) async throws -> [AppResult] {
+        try await AppSearch().search(term, country: storefront)
+    }
+
+    /// What the App Store knows about apps that are already on the list.
+    func appDetails(for bundleIds: [String], storefront: String) async throws -> [AppResult] {
+        try await AppSearch().lookup(bundleIds, country: storefront)
     }
 
     /// Have the site sign the profile, then push it over the cable. The

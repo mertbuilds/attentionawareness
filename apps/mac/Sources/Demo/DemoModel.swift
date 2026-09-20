@@ -46,6 +46,8 @@ final class DemoWizardModel: WizardModel {
     /// pause the real patch takes as well.
     /// How long the helper takes to stop after Cancel.
     private static let cancelPause = Duration.milliseconds(1500)
+    /// How long the store takes to answer one search.
+    private static let searchPause = Duration.milliseconds(400)
     private static let signingPause = Duration.milliseconds(1200)
     private static let installPause = Duration.milliseconds(1600)
     /// What the demo says this Mac has free. It is a fixed figure rather than
@@ -147,6 +149,7 @@ final class DemoWizardModel: WizardModel {
             patch: patch,
             restore: restore,
             profile: profile,
+            appSearch: appSearch,
             errorMessage: errorMessage
         )
     }
@@ -427,6 +430,21 @@ final class DemoWizardModel: WizardModel {
             self.show(done)
             self.conditions = self.conditions.afterProfileInstall()
         }
+    }
+
+    // MARK: - The App Store
+
+    /// The store the demo searches, which is a page of results written down
+    /// rather than Apple's. It waits the moment a request would take, so the
+    /// search field spins the way it does on a cable.
+    override func appResults(for term: String, storefront: String) async throws -> [AppResult] {
+        try await Task.sleep(for: Self.searchPause)
+        return DemoWorld.appResults(for: term)
+    }
+
+    /// The same store, asked about apps that are already on the list.
+    override func appDetails(for bundleIds: [String], storefront: String) async throws -> [AppResult] {
+        DemoWorld.appDetails(for: bundleIds)
     }
 
     // MARK: - What the demo says about this Mac

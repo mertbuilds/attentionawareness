@@ -104,6 +104,72 @@ enum DemoWorld {
         uuid: "4f1c9d6a-8f2e-4f0b-9f5c-2a6d0b3e7c11"
     )
 
+    // MARK: - The App Store
+
+    /// The store the demo answers app searches from.
+    ///
+    /// It is a written down page of results rather than Apple's, so the
+    /// Profile step can be built and walked through on a Mac with no network.
+    /// The rows cover what the step has to draw: apps the curated table names
+    /// the sites of, apps it does not, which leaves their sites to the
+    /// developer link, and one of Apple's own, which is never offered. They
+    /// carry no artwork, because the demo downloads nothing, so every row is
+    /// drawn by its initial.
+    static let storeApps: [AppResult] = [
+        app("com.zhiliaoapp.musically", "TikTok - Videos, Music & LIVE", "TikTok Ltd."),
+        app("com.google.ios.youtube", "YouTube", "Google LLC", "https://www.youtube.com"),
+        app("com.burbn.instagram", "Instagram", "Instagram, Inc."),
+        app("com.atebits.Tweetie2", "X", "X Corp."),
+        app("com.reddit.Reddit", "Reddit — Dive into anything", "Reddit, Inc."),
+        app("com.toyopagroup.picaboo", "Snapchat", "Snap, Inc."),
+        app("com.hammerandchisel.discord", "Discord - Talk, Play, Hang Out", "Discord, Inc."),
+        app("com.netflix.Netflix", "Netflix", "Netflix, Inc."),
+        app("tv.twitch", "Twitch: Live Game Streaming", "Twitch Interactive, Inc."),
+        app("com.spotify.client", "Spotify: Music and Podcasts", "Spotify", "https://www.spotify.com"),
+        app("com.duolingo.DuolingoMobile", "Duolingo - Language Lessons", "Duolingo", "https://www.duolingo.com"),
+        app("com.strava.stravaride", "Strava: Run, Bike, Hike", "Strava, Inc.", "https://www.strava.com"),
+        app("com.apple.store.Jolly", "Apple Store", "Apple"),
+    ]
+
+    /// The rows one term matches, the way a store answers: by name, or by the
+    /// developer who made it.
+    static func appResults(for term: String) -> [AppResult] {
+        let query = KnownApps.fold(term)
+        guard !query.isEmpty else { return [] }
+        return storeApps
+            .filter {
+                KnownApps.fold($0.name).contains(query)
+                    || KnownApps.fold($0.developer).contains(query)
+            }
+            .prefix(AppSearch.defaultLimit)
+            .map { $0 }
+    }
+
+    /// What the store knows about apps that are already on a list. Ids it does
+    /// not carry are simply absent, the way Apple's lookup leaves them out.
+    static func appDetails(for bundleIds: [String]) -> [AppResult] {
+        let asked = Set(bundleIds)
+        return storeApps.filter { asked.contains($0.bundleId) }
+    }
+
+    private static func app(
+        _ bundleId: String,
+        _ name: String,
+        _ developer: String,
+        _ sellerUrl: String? = nil
+    ) -> AppResult {
+        AppResult(
+            bundleId: bundleId,
+            developer: developer,
+            iconUrl: "",
+            // Apple's track id. Nothing in the window draws it, and a made up
+            // one would name a real app, so the demo carries none.
+            id: 0,
+            name: name,
+            sellerUrl: sellerUrl
+        )
+    }
+
     // MARK: - The backups
 
     /// The folders this Mac is holding. The first row is the one the run is
