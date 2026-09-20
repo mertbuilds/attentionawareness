@@ -44,7 +44,6 @@ final class DemoWizardModel: WizardModel {
     private static let keyDerivation = Duration.milliseconds(1400)
     /// How long the reader is given to read what the patch changed. It is the
     /// pause the real patch takes as well.
-    private static let patchPause = Duration.seconds(2)
     /// How long the helper takes to stop after Cancel.
     private static let cancelPause = Duration.milliseconds(1500)
     private static let signingPause = Duration.milliseconds(1200)
@@ -369,12 +368,8 @@ final class DemoWizardModel: WizardModel {
                 isRunning: false
             )
             self.show(done)
-            // Long enough to read the line about what changed, the way the
-            // real patch waits before it moves on.
-            try? await Task.sleep(for: Self.patchPause)
-            guard !Task.isCancelled, self.step == .patch else { return }
+            // The real patch waits for Continue here, so the demo does too.
             self.work = nil
-            self.advance()
         }
     }
 
