@@ -8,6 +8,12 @@ import SwiftUI
 enum WizardStyle {
     /// The accent of the site and the extension, #ff4f00.
     static let accent = Color(.sRGB, red: 1, green: 0.310, blue: 0, opacity: 1)
+
+    /// The same orange, lifted and softened, for the ring macOS draws around
+    /// whatever holds the keyboard. A ring at full strength competes with the
+    /// one button on the step that is meant to be the loudest thing on it, and
+    /// the system would otherwise draw that ring in its own blue.
+    static let accentSoft = Color(.sRGB, red: 1, green: 0.541, blue: 0.318, opacity: 1)
     /// The column the content sits in. Wider than this and a sentence is
     /// harder to read than it should be.
     static let contentWidth: CGFloat = 480

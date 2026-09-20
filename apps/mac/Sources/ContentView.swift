@@ -63,6 +63,11 @@ struct ContentView: View {
             .padding(.vertical, 12)
         }
         .background(Color(nsColor: .windowBackgroundColor))
+        // macOS rings whatever holds the keyboard in the system accent, which
+        // is blue on most Macs. The window tints itself instead, and the
+        // controls that are meant to be loud carry the full accent of their
+        // own, so only the ring takes the softer tone.
+        .tint(WizardStyle.accentSoft)
     }
 }
 

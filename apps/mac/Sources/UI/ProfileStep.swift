@@ -217,6 +217,12 @@ struct ProfileStep: View {
         }
     }
 
+    /// Two even columns, as on the website. They fall to one when the window
+    /// is too narrow to hold a name without cutting it.
+    private static let appColumns = [
+        GridItem(.adaptive(minimum: 180), spacing: 12, alignment: .leading)
+    ]
+
     /// The list itself, and the way back to the one this app recommends.
     @ViewBuilder
     private var blockedApps: some View {
@@ -227,15 +233,21 @@ struct ProfileStep: View {
                 .fixedSize(horizontal: false, vertical: true)
         } else {
             Card {
-                ForEach(model.draft.blockedApps, id: \.bundleId) { app in
-                    HStack(spacing: 10) {
-                        AppIcon(url: model.draft.icons[app.bundleId] ?? "", name: app.name)
-                        Text(app.name)
-                            .font(.callout)
-                            .lineLimit(1)
-                        Spacer(minLength: 8)
-                        RemoveButton(what: app.name) {
-                            model.draft.remove(app.bundleId)
+                // Two columns, the way the website laid them out. A blocked
+                // app is an icon and a short name, so a full width row wastes
+                // most of itself and a list of ten reads as a long scroll.
+                LazyVGrid(columns: Self.appColumns, alignment: .leading, spacing: 8) {
+                    ForEach(model.draft.blockedApps, id: \.bundleId) { app in
+                        HStack(spacing: 10) {
+                            AppIcon(url: model.draft.icons[app.bundleId] ?? "", name: app.name)
+                            Text(app.name)
+                                .font(.callout)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                            Spacer(minLength: 4)
+                            RemoveButton(what: app.name) {
+                                model.draft.remove(app.bundleId)
+                            }
                         }
                     }
                 }
