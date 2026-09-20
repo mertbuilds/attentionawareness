@@ -73,26 +73,61 @@ enum DemoWorld {
             iosVersion: "26.6.2",
             findMyOn: conditions.findMyOn,
             backupEncrypted: conditions.backupsEncrypted,
+            cloudBackupOn: conditions.cloudBackups != .off,
+            lastCloudBackup: lastCloudBackup(conditions),
             dataCapacity: 128_000_000_000,
             dataAvailable: 59_000_000_000,
             pairingState: .paired
         )
     }
 
+    /// When the demo says iCloud last finished a backup.
+    ///
+    /// It is counted back from the clock rather than written down, so the age
+    /// the checks say stays right however long after this was written the demo
+    /// is opened.
+    private static func lastCloudBackup(_ conditions: DemoConditions) -> Date? {
+        switch conditions.cloudBackups {
+        case .recent: return Date().addingTimeInterval(-2 * dayInSeconds)
+        case .old: return Date().addingTimeInterval(-24 * dayInSeconds)
+        case .off: return nil
+        }
+    }
+
+    /// What Finder's backup folder on this Mac says, as the demo says it. It
+    /// opens no folder: the answer is the switch on the bar and nothing else,
+    /// which is also the only way to see the Full Disk Access line without
+    /// taking the permission away from a real Mac.
+    static func finderBackup(_ conditions: DemoConditions) -> BackupSafetyNet.Finder {
+        switch conditions.finderBackups {
+        case .onThisMac: return .made(Date().addingTimeInterval(-5 * 60 * 60))
+        case .nothingHere: return .nothingHere
+        case .noAccess: return .refused
+        }
+    }
+
+    private static let dayInSeconds: TimeInterval = 24 * 60 * 60
+
     /// The second iPhone. It is trusted and says nothing interesting, so the
-    /// row next to it is the choice itself rather than a second problem.
-    private static let secondPhone = ConnectedDevice(
-        udid: secondUdid,
-        name: "Work iPhone",
-        productType: "iPhone15,2",
-        marketingName: "iPhone 14 Pro",
-        iosVersion: "26.5.1",
-        findMyOn: false,
-        backupEncrypted: false,
-        dataCapacity: 256_000_000_000,
-        dataAvailable: 141_000_000_000,
-        pairingState: .paired
-    )
+    /// row next to it is the choice itself rather than a second problem. Its
+    /// last iCloud backup is counted back from the clock for the same reason
+    /// the first phone's is: a run started on this one reads the same checks.
+    private static var secondPhone: ConnectedDevice {
+        ConnectedDevice(
+            udid: secondUdid,
+            name: "Work iPhone",
+            productType: "iPhone15,2",
+            marketingName: "iPhone 14 Pro",
+            iosVersion: "26.5.1",
+            findMyOn: false,
+            backupEncrypted: false,
+            cloudBackupOn: true,
+            lastCloudBackup: Date().addingTimeInterval(-dayInSeconds),
+            dataCapacity: 256_000_000_000,
+            dataAvailable: 141_000_000_000,
+            pairingState: .paired
+        )
+    }
 
     private static let ourProfile = InstalledProfile(
         id: "com.attentionawareness.4f1c9d6a-8f2e-4f0b-9f5c-2a6d0b3e7c11",

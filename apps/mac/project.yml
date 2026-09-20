@@ -155,6 +155,11 @@ targets:
       # with them, because the rule that weighs one is written against it.
       - Sources/UI/WizardStep.swift
       - Sources/UI/WizardGate.swift
+      # Whether the reader already has a backup of their own is decided here,
+      # and the whole of it is values: two answers in, one line of the checks
+      # out. Finder's own folder is the one thing it reads, and the tests
+      # point it at a folder of their own.
+      - Sources/UI/BackupSafetyNet.swift
       - Sources/UI/ProfileCheck.swift
       - Sources/Device/InstalledProfile.swift
       # The profile the Profile step builds is a value as well: the apps, the

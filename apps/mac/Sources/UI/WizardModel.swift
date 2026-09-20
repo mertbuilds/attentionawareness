@@ -58,6 +58,11 @@ class WizardModel: ObservableObject {
     /// checks say so in one line, because a folder that size going away
     /// without a word is worse than the word.
     @Published private(set) var clearedLeftoverBackup = false
+    /// What Finder's own backup folder on this Mac says about the chosen
+    /// iPhone. It starts out saying nothing and is filled in by the look the
+    /// checks start, which is the one thing in the run that Full Disk Access
+    /// buys.
+    @Published private(set) var finderBackup: BackupSafetyNet.Finder = .nothingHere
     /// Why the backup is still on this Mac after a run that should have taken
     /// it away, in the sentence that names the folder. Nil whenever there is
     /// nothing to say, which is every ordinary run: the backup is scaffolding
@@ -186,6 +191,10 @@ class WizardModel: ObservableObject {
         /// What the search field over the blocked list is showing, so a step
         /// can be drawn with rows under it.
         var appSearch = AppSearchState()
+        /// What Finder's backups on this Mac say, so the one line the checks
+        /// show about the reader's own way back can be drawn in each of its
+        /// states, the refusal included.
+        var finderBackup: BackupSafetyNet.Finder = .nothingHere
         /// The two things a step ever says about a backup, so both can be
         /// drawn: the line the checks show when a leftover was cleared, and
         /// the sentence the last step shows when one would not go.
@@ -211,6 +220,7 @@ class WizardModel: ObservableObject {
         restore = sample.restore
         profile = sample.profile
         appSearch = sample.appSearch
+        finderBackup = sample.finderBackup
         clearedLeftoverBackup = sample.clearedLeftoverBackup
         backupRemovalFailure = sample.backupRemovalFailure
         errorMessage = sample.errorMessage
@@ -336,6 +346,7 @@ class WizardModel: ObservableObject {
         password = ""
         backupFolder = nil
         restoreBytes = nil
+        finderBackup = .nothingHere
         clearedLeftoverBackup = false
         backupRemovalFailure = nil
         transferStartedAt = nil
@@ -363,6 +374,7 @@ class WizardModel: ObservableObject {
         switch step {
         case .checks:
             pollWhileFindMyIsOn()
+            lookForFinderBackup()
         case .patch:
             runPatch()
         case .restore:
@@ -396,6 +408,57 @@ class WizardModel: ObservableObject {
             }
         }
     }
+
+    // MARK: - The reader's own way back
+
+    /// What the iPhone says about its own iCloud backups.
+    var cloudBackups: BackupSafetyNet.Cloud {
+        switch device?.cloudBackupOn {
+        case true: return .on(device?.lastCloudBackup)
+        case false: return .off
+        case nil: return .unknown
+        }
+    }
+
+    /// The one line the checks show about the backup that is the reader's own
+    /// rather than this app's. It informs and never blocks: the button under
+    /// it says Back up whatever this says.
+    var safetyNet: BackupSafetyNet.Row {
+        BackupSafetyNet.row(cloud: cloudBackups, finder: finderBackup)
+    }
+
+    /// Look in Finder's own backup folder for a backup of this iPhone.
+    ///
+    /// It runs off the main thread because the answer comes from the disk, and
+    /// because macOS takes its time refusing a folder it protects. The answer
+    /// lands back here, where the checks read it.
+    func lookForFinderBackup() {
+        guard let udid = device?.udid else { return }
+        Task.detached(priority: .utility) { [weak self] in
+            let answer = BackupSafetyNet.finderBackup(of: udid)
+            await self?.looked(answer)
+        }
+    }
+
+    /// The answer, back on the main thread where the checks read it.
+    private func looked(_ answer: BackupSafetyNet.Finder) {
+        finderBackup = answer
+    }
+
+    /// Open the Full Disk Access list in System Settings.
+    ///
+    /// macOS offers no way for an app to ask for that permission. There is no
+    /// prompt and no callback: the app can only be refused, and the person has
+    /// to add it to the list by hand and then open the app again. So the most
+    /// any app can do is open the list at the right page, which is what this
+    /// is.
+    func openFullDiskAccessSettings() {
+        guard let pane = URL(string: Self.fullDiskAccessPane) else { return }
+        NSWorkspace.shared.open(pane)
+    }
+
+    private static let fullDiskAccessPane =
+        "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_AllFiles"
 
     /// How much room the backup needs on this Mac, and how much there is.
     struct DiskSpace {

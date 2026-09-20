@@ -38,6 +38,45 @@ struct DemoConditions: Equatable {
         }
     }
 
+    /// What the iPhone says about its own iCloud backups, which is the first
+    /// thing the checks tell the reader about: the way back they have that is
+    /// nothing to do with this app.
+    enum CloudBackups: String, CaseIterable, Identifiable {
+        case recent
+        case old
+        case off
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .recent: return "Recent"
+            case .old: return "Old"
+            case .off: return "Off"
+            }
+        }
+    }
+
+    /// What Finder's own backup folder on this Mac says about the same iPhone.
+    /// The third case is the one a reader cannot be prompted out of: macOS
+    /// offers no way to ask for Full Disk Access, so a refusal stands until
+    /// they grant it by hand and open the app again.
+    enum FinderBackups: String, CaseIterable, Identifiable {
+        case onThisMac
+        case nothingHere
+        case noAccess
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .onThisMac: return "On this Mac"
+            case .nothingHere: return "None"
+            case .noAccess: return "No access"
+            }
+        }
+    }
+
     /// How the next transfer or profile install ends. It is the one condition
     /// that is about what the demo does rather than about what it says is
     /// there, and it is here so the error wording can be read without a phone
@@ -63,6 +102,8 @@ struct DemoConditions: Equatable {
 
     var phones: Phones = .one
     var findMyOn = false
+    var cloudBackups: CloudBackups = .recent
+    var finderBackups: FinderBackups = .nothingHere
     /// The iPhone encrypts what it backs up, which is what makes the wizard
     /// ask for a backup password.
     var backupsEncrypted = false

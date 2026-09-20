@@ -24,6 +24,12 @@ struct ConnectedDevice: Identifiable, Equatable {
     let iosVersion: String?
     let findMyOn: Bool?
     let backupEncrypted: Bool?
+    /// Whether the iPhone backs itself up to iCloud, and when it last finished
+    /// one. Both come from the same lockdown domain as `backupEncrypted`, and
+    /// both are what the checks tell the reader about the way back they have
+    /// that is nothing to do with this app.
+    let cloudBackupOn: Bool?
+    let lastCloudBackup: Date?
     /// How much the phone holds in total, in bytes, and how much of that is
     /// still free. The difference is what a full backup has to copy. Not every
     /// iOS version answers the disk usage domain, so both can be nil.
@@ -68,6 +74,13 @@ struct ConnectedDevice: Identifiable, Equatable {
                 iosVersion: session.string(key: "ProductVersion"),
                 findMyOn: session.bool(domain: "com.apple.fmip", key: "IsAssociated"),
                 backupEncrypted: session.bool(domain: "com.apple.mobile.backup", key: "WillEncrypt"),
+                cloudBackupOn: session.bool(domain: "com.apple.mobile.backup", key: "CloudBackupEnabled"),
+                // The phone counts that one from Apple's own zero rather than
+                // from the Unix epoch, so the conversion lives beside the
+                // checks rule it feeds, where the tests can run it.
+                lastCloudBackup: session
+                    .integer(domain: "com.apple.mobile.backup", key: "LastCloudBackupDate")
+                    .map(BackupSafetyNet.date(appleSeconds:)),
                 dataCapacity: session.integer(domain: "com.apple.disk_usage", key: "TotalDataCapacity"),
                 dataAvailable: session.integer(domain: "com.apple.disk_usage", key: "TotalDataAvailable"),
                 pairingState: .paired
@@ -92,6 +105,8 @@ struct ConnectedDevice: Identifiable, Equatable {
             iosVersion: session?.string(key: "ProductVersion"),
             findMyOn: nil,
             backupEncrypted: nil,
+            cloudBackupOn: nil,
+            lastCloudBackup: nil,
             dataCapacity: nil,
             dataAvailable: nil,
             pairingState: pairingState

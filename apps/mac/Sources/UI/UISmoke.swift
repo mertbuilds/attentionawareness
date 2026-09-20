@@ -67,6 +67,13 @@ enum UISmoke {
             report("checks-\(name)", WizardStepContent(step: .checks, model: phone), into: folder)
             report("restore-\(name)", WizardStepContent(step: .restore, model: phone), into: folder)
         }
+        // The one row the checks show about the reader's own backups, in each
+        // of the things it can say: a copy on this Mac, one only iCloud has,
+        // one too old to lean on, none at all, and the refusal that keeps
+        // Finder's own out of the app's reach for good.
+        for sample in safetyNetSamples() {
+            report("checks-\(sample.name)", WizardStepContent(step: .checks, model: sample.model), into: folder)
+        }
         // Everything the Restore step says once the helper has the phone: the
         // files moving with a figure for how much longer, the same thing too
         // early to have one, every file across and the iPhone applying them,
@@ -90,6 +97,58 @@ enum UISmoke {
         report("error", ErrorText(DeviceError.trustPending.localizedDescription), into: folder)
         report("window", ContentView(), into: folder)
         exit(0)
+    }
+
+    /// The checks drawn once for each thing the line about the reader's own
+    /// backups can say. Find My is off and the backups are unencrypted in
+    /// every one of them, so the only thing that moves between the pictures is
+    /// that one row and the line under it.
+    private static func safetyNetSamples() -> [(name: String, model: WizardModel)] {
+        [
+            (
+                "backups-on-this-mac",
+                safetyNet(
+                    lastCloudBackup: Date().addingTimeInterval(-6 * dayInSeconds),
+                    finderBackup: .made(Date().addingTimeInterval(-5 * 60 * 60))
+                )
+            ),
+            (
+                "backups-recent",
+                safetyNet(lastCloudBackup: Date().addingTimeInterval(-dayInSeconds))
+            ),
+            (
+                "backups-old",
+                safetyNet(lastCloudBackup: Date().addingTimeInterval(-24 * dayInSeconds))
+            ),
+            ("backups-off", safetyNet(cloudBackupOn: false, lastCloudBackup: nil)),
+            (
+                "backups-no-full-disk-access",
+                safetyNet(
+                    lastCloudBackup: Date().addingTimeInterval(-24 * dayInSeconds),
+                    finderBackup: .refused
+                )
+            ),
+            ("backups-not-read", safetyNet(cloudBackupOn: nil, lastCloudBackup: nil)),
+        ]
+    }
+
+    /// The checks for one iPhone whose own iCloud backups read a given way,
+    /// and for one answer from Finder's folder on this Mac. It reads no
+    /// folder: the answer is handed in, which is the only way to draw the
+    /// refusal without taking Full Disk Access away from this Mac.
+    private static func safetyNet(
+        cloudBackupOn: Bool? = true,
+        lastCloudBackup: Date?,
+        finderBackup: BackupSafetyNet.Finder = .nothingHere
+    ) -> WizardModel {
+        let phone = samplePhone(
+            findMyOn: false,
+            cloudBackupOn: cloudBackupOn,
+            lastCloudBackup: lastCloudBackup
+        )
+        let model = WizardModel(watcher: sampleWatcher([phone]))
+        model.show(WizardModel.Sample(step: .checks, udid: phone.udid, finderBackup: finderBackup))
+        return model
     }
 
     /// The Restore step in each of the states the helper puts it in, drawn
@@ -208,16 +267,29 @@ enum UISmoke {
         iosVersion: "26.6.2",
         findMyOn: false,
         backupEncrypted: true,
+        cloudBackupOn: true,
+        lastCloudBackup: Date().addingTimeInterval(-dayInSeconds),
         dataCapacity: 128_000_000_000,
         dataAvailable: 40_000_000_000,
         pairingState: .paired
     )
 
+    /// One day, for the sample backup dates below. They are counted back from
+    /// the clock rather than written down, so a picture drawn years from now
+    /// still says the age this one says.
+    /// It is nonisolated because a default argument is worked out before the
+    /// call reaches the main actor this whole path lives on.
+    private nonisolated static let dayInSeconds: TimeInterval = 24 * 60 * 60
+
     /// A trusted iPhone with Find My on or off and nothing else changed between
     /// the two, so the checks row and the restore gate can be drawn each way.
     /// Its backups are not encrypted, which keeps the password field out of
     /// those pictures and leaves the button saying only what Find My did to it.
-    private static func samplePhone(findMyOn: Bool) -> ConnectedDevice {
+    private static func samplePhone(
+        findMyOn: Bool,
+        cloudBackupOn: Bool? = true,
+        lastCloudBackup: Date? = Date().addingTimeInterval(-dayInSeconds)
+    ) -> ConnectedDevice {
         ConnectedDevice(
             udid: "33333333-3333333333333333",
             name: "iPhone",
@@ -226,6 +298,8 @@ enum UISmoke {
             iosVersion: "26.6.2",
             findMyOn: findMyOn,
             backupEncrypted: false,
+            cloudBackupOn: cloudBackupOn,
+            lastCloudBackup: lastCloudBackup,
             dataCapacity: 128_000_000_000,
             dataAvailable: 40_000_000_000,
             pairingState: .paired
@@ -242,6 +316,8 @@ enum UISmoke {
         iosVersion: "26.6.2",
         findMyOn: nil,
         backupEncrypted: nil,
+        cloudBackupOn: nil,
+        lastCloudBackup: nil,
         dataCapacity: nil,
         dataAvailable: nil,
         pairingState: .trustPending

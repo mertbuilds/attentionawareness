@@ -51,10 +51,17 @@ struct ChecksStep: View {
         StepLayout(
             position: WizardStep.checks.position(in: model.direction),
             title: "Checks",
-            lead: "The restore only works if these are right. The list reads the iPhone again while you change them.",
+            lead: """
+                What to get right before an hour of copying starts. The list reads the iPhone \
+                again while you change them.
+                """,
             error: model.errorMessage
         ) {
             VStack(alignment: .leading, spacing: 14) {
+                safetyNetRow
+                if model.finderBackup == .refused {
+                    fullDiskAccessLine
+                }
                 findMyRow
                 spaceRow
                 if model.needsPassword {
@@ -79,6 +86,52 @@ struct ChecksStep: View {
             .font(.callout)
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// Whether the reader already has a backup of their own, which is the one
+    /// thing worth having before an app copies a phone. It is first because it
+    /// is what to do first, and it never blocks: the backup this app makes is
+    /// scaffolding that comes down at the end of the run, so the way back has
+    /// to be theirs, but somebody who knows that is allowed to go on.
+    private var safetyNetRow: CheckRow {
+        let row = model.safetyNet
+        return CheckRow(result: Self.result(of: row.standing), title: row.title, detail: row.detail)
+    }
+
+    private static func result(of standing: BackupSafetyNet.Row.Standing) -> CheckRow.Result {
+        switch standing {
+        case .covered: return .pass
+        case .thin: return .waiting
+        case .unknown: return .unknown
+        }
+    }
+
+    /// What Full Disk Access would buy, shown only once macOS has refused.
+    ///
+    /// There is no way to ask for that permission, so this is the whole of
+    /// what an app can do about it: say what it is for, open the list, and say
+    /// that it takes a new launch. A refusal costs the run nothing, which is
+    /// why this is a line under the row rather than a row of its own.
+    private var fullDiskAccessLine: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(
+                "Full Disk Access would let this app check whether Finder already has a backup of "
+                    + "this iPhone on this Mac. Nothing else in the run needs it, and the run goes "
+                    + "on without it."
+            )
+            .fixedSize(horizontal: false, vertical: true)
+            Button("Open Full Disk Access") {
+                model.openFullDiskAccessSettings()
+            }
+            Text(
+                "Turn the switch on for attention awareness, then quit this app and open it again. "
+                    + "The change only takes effect on a new launch."
+            )
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        .font(.callout)
+        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// Find My has to be off for the restore and for nothing else, so the row

@@ -18,6 +18,11 @@ enum DeviceReport {
                 entry["iosVersion"] = device.iosVersion ?? NSNull()
                 entry["findMyOn"] = device.findMyOn ?? NSNull()
                 entry["backupEncrypted"] = device.backupEncrypted ?? NSNull()
+                entry["cloudBackupOn"] = device.cloudBackupOn ?? NSNull()
+                // The probe is read by a person, so the last iCloud backup is
+                // printed as a date rather than as the count of seconds the
+                // phone answered with.
+                entry["lastCloudBackup"] = device.lastCloudBackup.map(stamp) ?? NSNull()
                 entry["dataCapacity"] = device.dataCapacity ?? NSNull()
                 entry["dataAvailable"] = device.dataAvailable ?? NSNull()
                 entry["pairingState"] = device.pairingState.rawValue
@@ -59,5 +64,10 @@ enum DeviceReport {
             return
         }
         print(json)
+    }
+
+    /// One date in a form that sorts and parses anywhere.
+    private static func stamp(_ date: Date) -> String {
+        ISO8601DateFormatter().string(from: date)
     }
 }

@@ -93,6 +93,26 @@ struct DemoBar: View {
                 .labelsHidden()
                 .frame(width: 150)
             }
+            field("iCloud backups") {
+                Picker("iCloud backups", selection: $model.conditions.cloudBackups) {
+                    ForEach(DemoConditions.CloudBackups.allCases) { backups in
+                        Text(backups.title).tag(backups)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 180)
+            }
+            field("Finder backups") {
+                Picker("Finder backups", selection: $model.conditions.finderBackups) {
+                    ForEach(DemoConditions.FinderBackups.allCases) { backups in
+                        Text(backups.title).tag(backups)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 230)
+            }
             field("Next job") {
                 Picker("Next job", selection: $model.conditions.outcome) {
                     ForEach(DemoConditions.Outcome.allCases) { outcome in

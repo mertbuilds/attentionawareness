@@ -70,6 +70,17 @@ final class DemoWizardModel: WizardModel {
             cloudConfigurations: DemoWorld.cloudConfigurations(conditions),
             installedProfiles: DemoWorld.installedProfiles(conditions)
         )
+        lookForFinderBackup()
+    }
+
+    /// The real model reads Finder's backup folder here, which macOS protects.
+    /// The demo reads nothing: the answer is the switch on the bar, which is
+    /// also the only way to see the Full Disk Access line without taking that
+    /// permission away from a real Mac.
+    override func lookForFinderBackup() {
+        var sample = currentSample
+        sample.finderBackup = DemoWorld.finderBackup(conditions)
+        show(sample)
     }
 
     // MARK: - Jumping between steps
@@ -107,6 +118,7 @@ final class DemoWizardModel: WizardModel {
     /// What a run standing on one step would be holding.
     private func sample(for step: WizardStep) -> Sample {
         var sample = Sample(step: step, direction: direction)
+        sample.finderBackup = DemoWorld.finderBackup(conditions)
         guard step != .connect else {
             // The first step is before the direction is chosen, and a run
             // always starts out putting supervision on.
@@ -151,6 +163,7 @@ final class DemoWizardModel: WizardModel {
             restore: restore,
             profile: profile,
             appSearch: appSearch,
+            finderBackup: finderBackup,
             clearedLeftoverBackup: clearedLeftoverBackup,
             backupRemovalFailure: backupRemovalFailure,
             errorMessage: errorMessage
