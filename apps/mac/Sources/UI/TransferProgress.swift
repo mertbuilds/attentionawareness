@@ -124,6 +124,8 @@ struct TransferLog: View {
         } label: {
             Text("Details")
                 .font(.callout)
+                .contentShape(Rectangle())
+                .onTapGesture { expanded.toggle() }
         }
     }
 }

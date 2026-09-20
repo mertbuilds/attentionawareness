@@ -13,6 +13,7 @@ struct ProfileStep: View {
     @State private var showsMoreSettings = false
     /// The site in the add field, until it is added.
     @State private var typedSite = ""
+    @State private var storefrontPickerShown = false
 
     var body: some View {
         StepLayout(
@@ -131,18 +132,22 @@ struct ProfileStep: View {
     /// The store to search and the term to search it for.
     private var searchBar: some View {
         HStack(spacing: 8) {
-            Menu {
-                ForEach(Storefronts.all, id: \.code) { storefront in
-                    Button("\(storefront.flag) \(storefront.label)") {
-                        model.chooseStorefront(storefront.code)
-                    }
-                }
+            Button {
+                storefrontPickerShown = true
             } label: {
                 Text(Self.storefrontLabel(model.appSearch.storefront))
             }
-            .menuStyle(.borderlessButton)
+            .buttonStyle(.borderless)
             .fixedSize()
             .help("The App Store country the results come from")
+            // A flat menu of 175 countries is a scroll, so the list is
+            // searchable. A country is easier to type than to hunt for.
+            .popover(isPresented: $storefrontPickerShown, arrowEdge: .bottom) {
+                StorefrontPicker(selected: model.appSearch.storefront) { code in
+                    model.chooseStorefront(code)
+                    storefrontPickerShown = false
+                }
+            }
 
             TextField(
                 "Search apps to block",
@@ -261,7 +266,11 @@ struct ProfileStep: View {
             .padding(.top, 8)
             .frame(maxWidth: .infinity, alignment: .leading)
         } label: {
+            // Only the arrow folds a DisclosureGroup on macOS. The title is
+            // the bigger target and the one people aim at.
             SectionHeading("Websites", detail: model.draft.siteSummary)
+                .contentShape(Rectangle())
+                .onTapGesture { showsSites.toggle() }
         }
     }
 
@@ -310,13 +319,17 @@ struct ProfileStep: View {
             SectionHeading("Restrictions")
             Toggle("Filter adult websites", isOn: $model.draft.autoFilterAdult)
             Toggle("Allow removal (trial mode)", isOn: $model.draft.allowsRemoval)
-            DisclosureGroup("More settings", isExpanded: $showsMoreSettings) {
+            DisclosureGroup(isExpanded: $showsMoreSettings) {
                 VStack(alignment: .leading, spacing: 8) {
                     Toggle("Keep the App Store", isOn: $model.draft.allowAppStore)
                     Toggle("Allow private tabs and clearing history", isOn: $model.draft.allowPrivateBrowsing)
                 }
                 .padding(.top, 8)
                 .frame(maxWidth: .infinity, alignment: .leading)
+            } label: {
+                Text("More settings")
+                    .contentShape(Rectangle())
+                    .onTapGesture { showsMoreSettings.toggle() }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -383,18 +396,98 @@ struct SectionHeading: View {
 /// The cross at the end of a row. It says what it takes off, because a cross
 /// on its own says nothing to a reader who cannot see the row.
 struct RemoveButton: View {
+    /// How long the question waits for an answer before it withdraws it.
+    private static let armedFor = Duration.seconds(4)
+
     let what: String
     let action: () -> Void
 
+    @State private var armed = false
+
     var body: some View {
-        Button(action: action) {
-            Image(systemName: "xmark")
-                .font(.caption)
+        Button {
+            if armed {
+                action()
+            } else {
+                armed = true
+            }
+        } label: {
+            if armed {
+                Text("Sure?")
+                    .font(.caption)
+            } else {
+                Image(systemName: "xmark")
+                    .font(.caption)
+            }
         }
         .buttonStyle(.borderless)
-        .foregroundStyle(.secondary)
-        .accessibilityLabel("Remove \(what)")
-        .help("Remove \(what)")
+        .foregroundStyle(armed ? WizardStyle.accent : Color.secondary)
+        .accessibilityLabel(armed ? "Remove \(what), tap again to confirm" : "Remove \(what)")
+        .help(armed ? "Click again to remove \(what)" : "Remove \(what)")
+        // A question left standing is a question nobody answered, so it takes
+        // itself back rather than waiting to be clicked by accident later.
+        .task(id: armed) {
+            guard armed else { return }
+            try? await Task.sleep(for: Self.armedFor)
+            guard !Task.isCancelled else { return }
+            armed = false
+        }
+    }
+}
+
+/// The App Store country to search, with a search of its own: 175 of them is
+/// a list nobody scrolls, and a country is easier to type than to hunt for.
+struct StorefrontPicker: View {
+    let selected: String
+    let choose: (String) -> Void
+
+    @State private var query = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            TextField("Search countries", text: $query)
+                .textFieldStyle(.roundedBorder)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(matches, id: \.code) { storefront in
+                        Button {
+                            choose(storefront.code)
+                        } label: {
+                            HStack(spacing: 8) {
+                                Text(storefront.flag)
+                                Text(storefront.label)
+                                Spacer(minLength: 0)
+                                if storefront.code == selected {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(WizardStyle.accent)
+                                }
+                            }
+                            .contentShape(Rectangle())
+                            .padding(.vertical, 4)
+                            .padding(.horizontal, 6)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    if matches.isEmpty {
+                        Text("No country by that name.")
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 6)
+                    }
+                }
+            }
+        }
+        .padding(12)
+        .frame(width: 260, height: 320)
+    }
+
+    /// Matches on the country name or its two letter code. The comparison is
+    /// the forgiving one, so "turkiye" finds Türkiye.
+    private var matches: [Storefront] {
+        let term = query.trimmingCharacters(in: .whitespaces)
+        guard !term.isEmpty else { return Storefronts.all }
+        return Storefronts.all.filter {
+            $0.label.localizedStandardContains(term) || $0.code.localizedStandardContains(term)
+        }
     }
 }
 
