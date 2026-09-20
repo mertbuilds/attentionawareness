@@ -10,8 +10,8 @@ import Foundation
 ///
 /// Nothing in this file opens a file, starts a process or makes a request. It
 /// is also built on sample parts, so a method missed here would still find
-/// nothing to reach: a sample watcher reads no bus, a sample engine refuses to
-/// start the helper, and a sample backups list reads and deletes nothing.
+/// nothing to reach: a sample watcher reads no bus and a sample engine refuses
+/// to start the helper.
 @MainActor
 final class DemoWizardModel: WizardModel {
     /// The hidden `--demo` flag. Without it the app builds the model it always
@@ -21,8 +21,8 @@ final class DemoWizardModel: WizardModel {
     }
 
     /// What the demo says is true. The bar writes to it, and every change goes
-    /// straight to the watcher and the backups list, so the window redraws as
-    /// the reader flips a switch.
+    /// straight to the watcher, so the window redraws as the reader flips a
+    /// switch.
     var conditions = DemoConditions() {
         willSet { objectWillChange.send() }
         didSet { applyConditions() }
@@ -56,7 +56,6 @@ final class DemoWizardModel: WizardModel {
     init() {
         super.init(
             watcher: DeviceWatcher(sample: []),
-            backups: BackupsList(sample: []),
             engine: BackupEngine(sample: .idle, progress: 0)
         )
         applyConditions()
@@ -71,7 +70,6 @@ final class DemoWizardModel: WizardModel {
             cloudConfigurations: DemoWorld.cloudConfigurations(conditions),
             installedProfiles: DemoWorld.installedProfiles(conditions)
         )
-        backups.show(DemoWorld.backups(conditions))
     }
 
     // MARK: - Jumping between steps
@@ -118,6 +116,9 @@ final class DemoWizardModel: WizardModel {
         sample.udid = DemoWorld.udid
         guard step != .checks, step != .backUp else { return sample }
         sample.backupFolder = DemoWorld.backupFolder
+        // A run that reached the patch has a measured folder behind it, so
+        // the Restore step can say how long sending it back will take.
+        sample.restoreBytes = DemoWorld.backupBytes
         switch step {
         case .profile:
             // Unsupervising leaves this step out, so landing on it is a run
@@ -143,12 +144,15 @@ final class DemoWizardModel: WizardModel {
             direction: direction,
             udid: udid,
             backupFolder: backupFolder,
+            restoreBytes: restoreBytes,
             transferStartedAt: transferStartedAt,
             estimate: estimate,
             patch: patch,
             restore: restore,
             profile: profile,
             appSearch: appSearch,
+            clearedLeftoverBackup: clearedLeftoverBackup,
+            backupRemovalFailure: backupRemovalFailure,
             errorMessage: errorMessage
         )
     }
@@ -284,10 +288,11 @@ final class DemoWizardModel: WizardModel {
             engine.show(phase: .done, progress: 1, log: engine.log)
             var sample = currentSample
             sample.backupFolder = DemoWorld.backupFolder
+            sample.restoreBytes = DemoWorld.backupBytes
             show(sample)
-            // This Mac is holding the backup now, which is what the Back up
-            // step offers the next time round.
-            conditions.holding = .whole
+            // This Mac is holding the backup now, which is what the end of the
+            // run takes away again.
+            conditions.holdingBackup = true
             advance()
         case .restore:
             // The phone is back on the cable, saying what the run asked it to
@@ -296,6 +301,9 @@ final class DemoWizardModel: WizardModel {
             var sample = currentSample
             sample.restore = RestoreState(stage: .finished, supervisedAfterwards: isSupervised)
             show(sample)
+            // Unsupervising installs no profile, so the restore is the end of
+            // that run and the backup goes here.
+            deleteBackupIfTheRunIsDone()
         }
     }
 
@@ -426,8 +434,14 @@ final class DemoWizardModel: WizardModel {
             }
             var done = self.currentSample
             done.profile.stage = .installed
+            // The real model reads the phone back here and only then counts
+            // the profile as the one the run asked for. A demo phone answers
+            // whatever the switches say, so the check is taken as passed and
+            // the backup goes, which is what the run does next.
+            done.profile.isConfirmed = true
             self.show(done)
             self.conditions = self.conditions.afterProfileInstall()
+            self.deleteBackupIfTheRunIsDone()
         }
     }
 
@@ -453,7 +467,14 @@ final class DemoWizardModel: WizardModel {
         return DiskSpace(needed: needed, free: Self.freeBytes, assumed: false)
     }
 
-    /// The real step opens Finder on the backup folder. The demo has no folder
-    /// to open, so the button does nothing.
-    override func revealBackupFolder() {}
+    /// The real model takes the folder off the disk here. The demo has no
+    /// folder and reaches nothing, so it answers from the switches: a Mac that
+    /// is holding one loses it, a Mac that is not was never holding anything,
+    /// and a demo asked for a failure says what a refused delete says.
+    override func removeBackup(of udid: String) async -> BackupRemoval {
+        guard conditions.holdingBackup else { return .nothingThere }
+        guard conditions.outcome != .fails else { return .failed(DemoWorld.removalFailure) }
+        conditions.holdingBackup = false
+        return .deleted
+    }
 }

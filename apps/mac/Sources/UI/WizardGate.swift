@@ -42,6 +42,24 @@ enum WizardGate {
         findMyOn == true ? .blockedByFindMy : .allowed
     }
 
+    /// Whether the backup has done everything it was made for, which is the
+    /// one moment it can be taken off this Mac.
+    ///
+    /// Everything short of this keeps it, because it is the only way back: an
+    /// install that failed, a profile the phone lists with the wrong settings,
+    /// a restore that never finished, a phone that never came back to say what
+    /// it is now, and a run somebody walked away from. Unsupervising installs
+    /// no profile, so there the restore is the whole run.
+    static func backupCanGo(
+        direction: WizardDirection,
+        restoreFinished: Bool,
+        supervisedAfterwards: Bool?,
+        profileConfirmed: Bool
+    ) -> Bool {
+        guard restoreFinished, supervisedAfterwards == direction.target else { return false }
+        return direction == .supervise ? profileConfirmed : true
+    }
+
     /// How Find My is turned off, in the words of both steps that ask for it.
     /// The one hour is Stolen Device Protection, which is the reason the backup
     /// no longer waits for any of this.

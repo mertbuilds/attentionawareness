@@ -12,30 +12,6 @@ struct CloudConfiguration: Equatable {
     let raw: String
 }
 
-/// One configuration profile as the phone lists it.
-///
-/// `GetProfileList` answers with the identifiers in the order the phone keeps
-/// them, plus two dictionaries keyed by identifier: the manifest, which says
-/// whether a profile is active, and the metadata, which carries the names the
-/// phone shows in Settings.
-struct InstalledProfile: Identifiable, Equatable {
-    /// The profile identifier, which is what the phone keys everything by.
-    let id: String
-    /// The name Settings shows. The identifier stands in when a profile
-    /// carries no display name.
-    let displayName: String
-    let organization: String?
-    let description: String?
-    let isActive: Bool
-    /// True when the profile cannot be deleted on the phone.
-    let removalDisallowed: Bool
-    let uuid: String?
-
-    /// True for a profile this app put there. Every one it installs is
-    /// `com.attentionawareness.<uuid>`, so the prefix is the whole test.
-    var isOurs: Bool { id.hasPrefix("com.attentionawareness.") }
-}
-
 /// Client for `com.apple.mobile.MCInstall`, the service Apple Configurator uses
 /// to read supervision state and to push configuration profiles over the cable.
 /// Messages are plain property lists with a `RequestType` key.

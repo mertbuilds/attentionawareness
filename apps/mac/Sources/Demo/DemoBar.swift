@@ -93,16 +93,6 @@ struct DemoBar: View {
                 .labelsHidden()
                 .frame(width: 150)
             }
-            field("Backup on this Mac") {
-                Picker("Backup on this Mac", selection: $model.conditions.holding) {
-                    ForEach(DemoConditions.Holding.allCases) { holding in
-                        Text(holding.title).tag(holding)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .frame(width: 200)
-            }
             field("Next job") {
                 Picker("Next job", selection: $model.conditions.outcome) {
                     ForEach(DemoConditions.Outcome.allCases) { outcome in
@@ -124,6 +114,7 @@ struct DemoBar: View {
             Toggle("Encrypted backups", isOn: $model.conditions.backupsEncrypted)
             Toggle("Already supervised", isOn: $model.conditions.supervised)
             Toggle("Profile installed", isOn: $model.conditions.profileInstalled)
+            Toggle("Backup on this Mac", isOn: $model.conditions.holdingBackup)
             Spacer(minLength: 0)
         }
         .toggleStyle(.checkbox)

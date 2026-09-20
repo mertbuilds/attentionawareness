@@ -1,7 +1,11 @@
 import SwiftUI
 
-/// Step seven. What the iPhone is now, where the backup is if it is ever
-/// needed again, and what every backup on this Mac is taking up.
+/// Step seven. What the iPhone is now, and the way back to the start.
+///
+/// It says nothing about the backup. The backup was scaffolding this app put
+/// up and took down again, and telling somebody their scaffolding is gone
+/// still leaves them thinking about scaffolding. The one exception is a folder
+/// that would not go, because then a copy of the phone really is still here.
 struct DoneStep: View {
     @ObservedObject var model: WizardModel
 
@@ -20,26 +24,14 @@ struct DoneStep: View {
                     }
                     CardRow(name: "State", value: DeviceCard.state(model.restore.supervisedAfterwards))
                     CardRow(name: "Profiles", value: DeviceCard.profileNames(model.installedProfiles))
-                    if let folder = model.backupFolder {
-                        CardRow(name: "Backup", value: folder.path)
-                        HStack {
-                            Spacer()
-                            Button("Show in Finder") {
-                                model.revealBackupFolder()
-                            }
-                        }
-                    }
                 }
 
-                BackupsSection(
-                    list: model.backups,
-                    current: model.backupFolder,
-                    // The run is only safe to take its backup away from once
-                    // the phone has it back and has said so itself. A phone
-                    // that never came back on the cable may still need it.
-                    currentIsRestored: model.restore.stage == .finished
-                        && model.restore.supervisedAfterwards != nil
-                )
+                // The path is here and nowhere else in the run, because this is
+                // the one line somebody has to act on: the folder is still on
+                // this Mac and they may want to take it off themselves.
+                if let failure = model.backupRemovalFailure {
+                    ErrorText(failure)
+                }
             }
         } actions: {
             PrimaryButton(title: "Start over") {

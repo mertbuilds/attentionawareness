@@ -58,4 +58,104 @@ final class WizardGateTests: XCTestCase {
     func testAPhoneThatWillNotSayIsNotHeldBack() {
         XCTAssertEqual(WizardGate.restore(findMyOn: nil), .allowed)
     }
+
+    // MARK: - Taking the backup away
+
+    func testASuperviseRunThatWentThroughCanLetTheBackupGo() {
+        XCTAssertTrue(
+            WizardGate.backupCanGo(
+                direction: .supervise,
+                restoreFinished: true,
+                supervisedAfterwards: true,
+                profileConfirmed: true
+            )
+        )
+    }
+
+    func testAProfileThatWasNotConfirmedKeepsTheBackup() {
+        // A failed install and a profile the phone lists with the wrong
+        // settings both land here, and both keep the only way back.
+        XCTAssertFalse(
+            WizardGate.backupCanGo(
+                direction: .supervise,
+                restoreFinished: true,
+                supervisedAfterwards: true,
+                profileConfirmed: false
+            )
+        )
+    }
+
+    func testARestoreThatDidNotFinishKeepsTheBackup() {
+        XCTAssertFalse(
+            WizardGate.backupCanGo(
+                direction: .supervise,
+                restoreFinished: false,
+                supervisedAfterwards: true,
+                profileConfirmed: true
+            )
+        )
+    }
+
+    func testAPhoneThatNeverCameBackKeepsTheBackup() {
+        XCTAssertFalse(
+            WizardGate.backupCanGo(
+                direction: .supervise,
+                restoreFinished: true,
+                supervisedAfterwards: nil,
+                profileConfirmed: true
+            )
+        )
+    }
+
+    func testAPhoneThatCameBackTheOtherWayKeepsTheBackup() {
+        XCTAssertFalse(
+            WizardGate.backupCanGo(
+                direction: .supervise,
+                restoreFinished: true,
+                supervisedAfterwards: false,
+                profileConfirmed: true
+            )
+        )
+        XCTAssertFalse(
+            WizardGate.backupCanGo(
+                direction: .unsupervise,
+                restoreFinished: true,
+                supervisedAfterwards: true,
+                profileConfirmed: true
+            )
+        )
+    }
+
+    func testUnsupervisingAsksForNoProfileBeforeTheBackupGoes() {
+        // That direction installs none, so the restore is the whole run.
+        XCTAssertTrue(
+            WizardGate.backupCanGo(
+                direction: .unsupervise,
+                restoreFinished: true,
+                supervisedAfterwards: false,
+                profileConfirmed: false
+            )
+        )
+    }
+
+    func testARunNobodyFinishedKeepsTheBackup() {
+        // Nothing happened yet, which is every step before the restore and
+        // every run somebody walked away from.
+        XCTAssertFalse(
+            WizardGate.backupCanGo(
+                direction: .supervise,
+                restoreFinished: false,
+                supervisedAfterwards: nil,
+                profileConfirmed: false
+            )
+        )
+        XCTAssertFalse(
+            WizardGate.backupCanGo(
+                direction: .unsupervise,
+                restoreFinished: false,
+                supervisedAfterwards: nil,
+                profileConfirmed: false
+            )
+        )
+    }
 }

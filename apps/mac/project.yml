@@ -148,12 +148,15 @@ targets:
       - Sources/Patch
       - Sources/Backup
       - Sources/Profile
-      # The step order, what this Mac already holds for a phone and what each
-      # step demands before it runs are the parts of the window that need
-      # neither SwiftUI nor an iPhone, so they are tested here with the rest.
+      # The step order, what each step demands before it runs and what the
+      # phone has to say about the profile before the backup can go are the
+      # parts of the window that need neither SwiftUI nor an iPhone, so they
+      # are tested here with the rest. The profile as the phone lists it comes
+      # with them, because the rule that weighs one is written against it.
       - Sources/UI/WizardStep.swift
-      - Sources/UI/ExistingBackup.swift
       - Sources/UI/WizardGate.swift
+      - Sources/UI/ProfileCheck.swift
+      - Sources/Device/InstalledProfile.swift
       # The profile the Profile step builds is a value as well: the apps, the
       # sites they imply and the four switches, with no window around it.
       - Sources/UI/ProfileDraft.swift

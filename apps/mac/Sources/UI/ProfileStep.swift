@@ -46,7 +46,15 @@ struct ProfileStep: View {
                     working("Installing on the phone")
                 case .installed:
                     Card {
-                        CheckRow(result: .pass, title: "Installed", detail: Self.whereItShows)
+                        // The phone took the bytes either way. The tick is for
+                        // the profile it listed afterwards being the one this
+                        // run asked for, and the sentence under the step says
+                        // what was wrong when it was not.
+                        CheckRow(
+                            result: model.profile.isConfirmed ? .pass : .unknown,
+                            title: "Installed",
+                            detail: Self.whereItShows
+                        )
                         if let name = model.profile.fileName {
                             CardRow(name: "Profile", value: name)
                         }

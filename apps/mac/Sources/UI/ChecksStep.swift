@@ -60,19 +60,25 @@ struct ChecksStep: View {
                 if model.needsPassword {
                     BackupPasswordField(model: model)
                 }
+                if model.clearedLeftoverBackup {
+                    leftoverLine
+                }
             }
         } actions: {
-            PrimaryButton(title: buttonTitle, enabled: model.checksPass) {
-                model.continueFromChecks()
+            PrimaryButton(title: "Back up", enabled: model.checksPass) {
+                model.startBackup()
             }
         }
     }
 
-    /// The button says what pressing it does. A phone whose folder is already
-    /// on this Mac gets a choice on the next step rather than an hour of
-    /// copying, so it does not promise a backup here.
-    private var buttonTitle: String {
-        model.existingBackup == .nothing ? "Back up" : "Continue"
+    /// A folder that size going away deserves a word. It was left behind by a
+    /// run that stopped part way, and no run ever uses one that an earlier run
+    /// made, so it was rubbish rather than a way back.
+    private var leftoverLine: some View {
+        Text("A backup left over from a run that did not finish was cleared.")
+            .font(.callout)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     /// Find My has to be off for the restore and for nothing else, so the row

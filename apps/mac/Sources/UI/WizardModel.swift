@@ -15,7 +15,9 @@ import UniformTypeIdentifiers
 ///
 /// Nothing is written anywhere but the backup folder and the two numbers
 /// `TransferRate` keeps, which are a measurement of how fast this Mac moves
-/// bytes over the cable. No history, no analytics.
+/// bytes over the cable. No history, no analytics. The backup folder is
+/// written for one run and taken away at the end of it, so a run that goes
+/// through leaves nothing of the iPhone on this Mac.
 @MainActor
 class WizardModel: ObservableObject {
     /// Where the backups go. The app writes into its own Application Support
@@ -35,10 +37,6 @@ class WizardModel: ObservableObject {
 
     let watcher: DeviceWatcher
     let engine: BackupEngine
-    /// The backups this Mac already holds, which the last step lists. They
-    /// outlive one run, so this object only starts and stops the work; it
-    /// keeps nothing about the run itself.
-    let backups: BackupsList
 
     @Published private(set) var step: WizardStep = .connect
     @Published private(set) var direction: WizardDirection = .supervise
@@ -52,6 +50,20 @@ class WizardModel: ObservableObject {
     /// for encrypted backups, never the passcode of the phone.
     @Published var password = ""
     @Published private(set) var backupFolder: URL?
+    /// What the restore will send, which is the backup this run made, once its
+    /// folder has been walked. Nil until then and on a run that skipped the
+    /// walk, and the Restore step simply says less.
+    @Published private(set) var restoreBytes: UInt64?
+    /// True when the run cleared a backup that an earlier run left behind. The
+    /// checks say so in one line, because a folder that size going away
+    /// without a word is worse than the word.
+    @Published private(set) var clearedLeftoverBackup = false
+    /// Why the backup is still on this Mac after a run that should have taken
+    /// it away, in the sentence that names the folder. Nil whenever there is
+    /// nothing to say, which is every ordinary run: the backup is scaffolding
+    /// this app puts up and takes down again, and the last step is about the
+    /// iPhone rather than about the scaffolding.
+    @Published private(set) var backupRemovalFailure: String?
     /// The sentence the step on screen shows. It always comes from a
     /// `LocalizedError` of one of the three layers, never from a modal alert.
     @Published private(set) var errorMessage: String?
@@ -73,6 +85,10 @@ class WizardModel: ObservableObject {
 
     private var relays: [AnyCancellable] = []
     private var poll: Task<Void, Never>?
+    /// The clearing of a leftover backup, while it is still running. The
+    /// backup waits on it, because the folder it is about to write into is the
+    /// folder being taken away.
+    private var clearing: Task<Void, Never>?
     /// The keystroke being answered right now. The next one cancels it, which
     /// is what keeps a slow answer from landing under a newer term.
     private var searchTask: Task<Void, Never>?
@@ -87,16 +103,10 @@ class WizardModel: ObservableObject {
         self.init(watcher: DeviceWatcher())
     }
 
-    /// A model that keeps its own list of the backups on this Mac, which is
-    /// every model but the one the smoke hands its own list to.
-    convenience init(watcher: DeviceWatcher) {
-        self.init(watcher: watcher, backups: BackupsList())
-    }
-
     /// A model that runs an engine of its own, which is every model but the
     /// one the smoke draws a transfer in flight from.
-    convenience init(watcher: DeviceWatcher, backups: BackupsList) {
-        self.init(watcher: watcher, backups: backups, engine: BackupEngine())
+    convenience init(watcher: DeviceWatcher) {
+        self.init(watcher: watcher, engine: BackupEngine())
     }
 
     /// The watcher and the engine publish their own changes. Re-sending them
@@ -106,17 +116,12 @@ class WizardModel: ObservableObject {
     /// Both are handed in rather than made here, so the hidden `--ui-smoke`
     /// path can draw the steps from a watcher holding phones that are not
     /// there and from an engine that is running nothing.
-    init(watcher: DeviceWatcher, backups: BackupsList, engine: BackupEngine) {
+    init(watcher: DeviceWatcher, engine: BackupEngine) {
         self.watcher = watcher
-        self.backups = backups
         self.engine = engine
         relays = [
             watcher.objectWillChange.sink { [weak self] in self?.objectWillChange.send() },
             engine.objectWillChange.sink { [weak self] in self?.objectWillChange.send() },
-            // The checks and the Back up step both ask what this Mac already
-            // holds for the phone on the cable, so a row landing in the list
-            // has to redraw them too.
-            backups.objectWillChange.sink { [weak self] in self?.objectWillChange.send() },
             // The estimate is fed from the progress itself rather than from
             // the redraw, so a step that asks it again every second cannot
             // watch the figure slide towards zero on its own.
@@ -126,26 +131,14 @@ class WizardModel: ObservableObject {
         ]
     }
 
-    /// A model whose run is already over: the iPhone it was about, the backup
-    /// it wrote and the backups this Mac holds, all handed in. It starts
-    /// nothing and reads no bus, so the hidden `--ui-smoke` path can draw the
-    /// last step the way it looks once a phone has been restored.
-    convenience init(sample watcher: DeviceWatcher, backupFolder: URL, backups: BackupsList) {
-        self.init(watcher: watcher, backups: backups)
-        self.backupFolder = backupFolder
+    /// A model whose run is already over: an iPhone that came back on the cable
+    /// saying it is supervised. It starts nothing and reads no bus, so the
+    /// hidden `--ui-smoke` path can draw the last step the way it looks once a
+    /// phone has been restored.
+    convenience init(finished watcher: DeviceWatcher) {
+        self.init(watcher: watcher)
         step = .done
         restore = RestoreState(stage: .finished, supervisedAfterwards: true)
-    }
-
-    /// A model that has picked its iPhone and is standing on the Back up step,
-    /// with the backups this Mac holds handed in. It starts nothing and reads
-    /// no bus, so the hidden `--ui-smoke` path can draw that step the way it
-    /// looks for a phone whose backup is already here.
-    convenience init(sample watcher: DeviceWatcher, waitingOn udid: String, backups: BackupsList) {
-        self.init(watcher: watcher, backups: backups)
-        self.udid = udid
-        selectedUdid = udid
-        step = .backUp
     }
 
     /// A model standing in the middle of a restore: the engine, the stage, the
@@ -160,7 +153,7 @@ class WizardModel: ObservableObject {
         estimate: TransferEstimate,
         startedAt: Date
     ) {
-        self.init(watcher: watcher, backups: BackupsList(sample: []), engine: engine)
+        self.init(watcher: watcher, engine: engine)
         udid = watcher.devices.first?.udid
         selectedUdid = udid
         step = .restore
@@ -182,6 +175,9 @@ class WizardModel: ObservableObject {
         var direction: WizardDirection = .supervise
         var udid: String?
         var backupFolder: URL?
+        /// What the backup on this Mac takes, so the Restore step can be drawn
+        /// with the sentence that says how long sending it back will take.
+        var restoreBytes: UInt64?
         var transferStartedAt: Date?
         var estimate = TransferEstimate()
         var patch = PatchState()
@@ -190,6 +186,11 @@ class WizardModel: ObservableObject {
         /// What the search field over the blocked list is showing, so a step
         /// can be drawn with rows under it.
         var appSearch = AppSearchState()
+        /// The two things a step ever says about a backup, so both can be
+        /// drawn: the line the checks show when a leftover was cleared, and
+        /// the sentence the last step shows when one would not go.
+        var clearedLeftoverBackup = false
+        var backupRemovalFailure: String?
         var errorMessage: String?
     }
 
@@ -203,12 +204,15 @@ class WizardModel: ObservableObject {
         udid = sample.udid
         selectedUdid = sample.udid
         backupFolder = sample.backupFolder
+        restoreBytes = sample.restoreBytes
         transferStartedAt = sample.transferStartedAt
         estimate = sample.estimate
         patch = sample.patch
         restore = sample.restore
         profile = sample.profile
         appSearch = sample.appSearch
+        clearedLeftoverBackup = sample.clearedLeftoverBackup
+        backupRemovalFailure = sample.backupRemovalFailure
         errorMessage = sample.errorMessage
     }
 
@@ -254,17 +258,6 @@ class WizardModel: ObservableObject {
     /// offers to install another.
     var ourProfiles: [InstalledProfile] { installedProfiles.filter(\.isOurs) }
 
-    /// What this Mac already holds for the iPhone this run is about: a whole
-    /// backup the Back up step offers instead of another hour on the cable, a
-    /// folder that cannot be used, or nothing at all.
-    ///
-    /// It is nothing until a phone is picked and the list has come in, so a
-    /// run that starts before the folder is read is the run this app has
-    /// always made.
-    var existingBackup: ExistingBackup.Offer {
-        ExistingBackup.offer(for: udid, in: backups.backups)
-    }
-
     /// The password to hand to the engine and the patch. An empty field means
     /// no password at all.
     private var secret: String? { password.isEmpty ? nil : password }
@@ -296,12 +289,27 @@ class WizardModel: ObservableObject {
         // Stepping back to Connect clears `udid`, so the pick is kept here as
         // well and the same phone comes back highlighted.
         selectedUdid = device.udid
-        // The checks ask for the backup password when the backup this Mac
-        // already holds is an encrypted one, and the step after them offers
-        // that backup, so the folder is read from here rather than from the
-        // step that shows it.
-        backups.load(measuringFirst: device.udid)
+        clearLeftoverBackup(of: device.udid)
         go(to: .checks)
+    }
+
+    /// Take away whatever this Mac is still holding for this iPhone.
+    ///
+    /// A backup is made for one run and deleted at the end of it, and no run
+    /// ever uses one that an earlier run made, because a backup from another
+    /// day puts the phone back to another day. So a folder still sitting here
+    /// is rubbish from a run that stopped part way, and it is rubbish the next
+    /// backup would write over anyway, since both go in the folder named after
+    /// the phone.
+    ///
+    /// A clear that fails says nothing here. The end of the run deletes the
+    /// same folder and reports there, which is where a person can do something
+    /// about it.
+    private func clearLeftoverBackup(of udid: String) {
+        clearedLeftoverBackup = false
+        clearing = Task {
+            clearedLeftoverBackup = await removeBackup(of: udid) == .deleted
+        }
     }
 
     /// Step back. The button is only offered where this changes nothing on the
@@ -323,13 +331,13 @@ class WizardModel: ObservableObject {
     /// Forget this run and ask for a phone again.
     func startOver() {
         poll?.cancel()
-        // The last step is gone, so whatever it was still measuring is work
-        // for nobody.
-        backups.cancel()
         udid = nil
         selectedUdid = nil
         password = ""
         backupFolder = nil
+        restoreBytes = nil
+        clearedLeftoverBackup = false
+        backupRemovalFailure = nil
         transferStartedAt = nil
         estimate = TransferEstimate()
         patch = PatchState()
@@ -418,16 +426,6 @@ class WizardModel: ObservableObject {
         return capacity - available
     }
 
-    /// What the restore will send, which is the folder this run is about, once
-    /// it has been walked.
-    var restoreBytes: UInt64? {
-        guard let backupFolder,
-              let size = backups.backups.first(where: { $0.url == backupFolder })?.sizeInBytes,
-              size > 0
-        else { return nil }
-        return UInt64(size)
-    }
-
     /// How long the copying is expected to take, in the sentence the step puts
     /// in front of the button. Nil while nothing can be said about the size.
     var backupExpectation: String? { TransferRate.expectation(.backup, bytes: backupBytes) }
@@ -456,17 +454,10 @@ class WizardModel: ObservableObject {
         return UInt64(capacity)
     }
 
-    /// True when a password is needed to read the backup this run will work
-    /// with: the phone encrypts what it is about to write, or the backup this
-    /// Mac already holds is an encrypted one. The second case is asked for
-    /// here as well, because the patch needs the password of the folder it
-    /// opens and a phone that has since stopped encrypting does not change
-    /// what is in that folder.
-    var needsPassword: Bool {
-        if device?.backupEncrypted == true { return true }
-        if case .usable(let backup) = existingBackup { return backup.isEncrypted }
-        return false
-    }
+    /// True when a password is needed to read the backup this run will make.
+    /// The phone decides: it encrypts what it writes, and the patch then needs
+    /// the same password to open the folder.
+    var needsPassword: Bool { device?.backupEncrypted == true }
 
     /// Every check that can be read says yes.
     ///
@@ -482,31 +473,6 @@ class WizardModel: ObservableObject {
 
     // MARK: - Back up
 
-    /// Leave the checks for the Back up step.
-    ///
-    /// A phone whose folder is already on this Mac stops there, because the
-    /// step has something to put to the reader: the backup to use, or the
-    /// reason the folder cannot be used. Every other phone starts the transfer
-    /// the moment the button is pressed, which is what it has always done.
-    func continueFromChecks() {
-        if case .nothing = existingBackup {
-            startBackup()
-        } else {
-            go(to: .backUp)
-        }
-    }
-
-    /// Take the backup this Mac already holds and go straight to the patch.
-    ///
-    /// The hour on the cable is the only thing this skips. The folder becomes
-    /// this run's backup, so the patch reads it, the restore puts it back and
-    /// the last step marks it as the one this run used.
-    func useExistingBackup(_ backup: StoredBackup) {
-        guard step == .backUp, !engine.phase.isRunning else { return }
-        backupFolder = backup.url
-        go(to: .patch)
-    }
-
     /// Make the backup. The phone decides whether it is encrypted; the
     /// password is only passed on.
     func startBackup() {
@@ -517,22 +483,19 @@ class WizardModel: ObservableObject {
         estimate = TransferEstimate()
         Task {
             do {
+                // Unlinking the 69,445 files of a leftover backup takes
+                // seconds, and the helper is about to write into that very
+                // folder, so the clearing finishes first.
+                await clearing?.value
                 let folder = try await engine.backup(
                     udid: udid,
                     into: Self.backupRoot,
                     // The phone does the encrypting, so the password only goes
-                    // down when the phone says it encrypts its backups. The
-                    // field is also shown for an encrypted backup that is
-                    // already here, and that one is no business of the phone's.
+                    // down when the phone says it encrypts its backups.
                     password: device?.backupEncrypted == true ? secret : nil
                 )
                 backupFolder = folder
-                // The listing in hand was made before this backup ran, so it
-                // is read again: the Restore step says how big the thing it is
-                // about to send is, and the last step lists what is on the
-                // disk now.
-                backups.load(measuringFirst: udid)
-                rememberRate(.backup, folder: folder, since: started)
+                measureBackup(at: folder, took: Date().timeIntervalSince(started))
                 go(to: .patch)
             } catch BackupError.cancelled {
                 // The phase already says it was cancelled, and the step offers
@@ -547,22 +510,27 @@ class WizardModel: ObservableObject {
         engine.cancel()
     }
 
-    /// Write down how fast this Mac moved the bytes, so the next run can put a
-    /// figure in front of the button rather than a range.
+    /// Walk the folder the backup landed in, and write down how fast this Mac
+    /// moved the bytes.
     ///
-    /// The folder is walked once the transfer is over and off the main thread,
-    /// because its size is the only honest divisor and nothing on screen is
-    /// waiting for the number. A folder that cannot be measured leaves the
-    /// last measurement where it was.
-    private func rememberRate(_ kind: TransferRate.Kind, folder: URL, since started: Date) {
-        let seconds = Date().timeIntervalSince(started)
-        let root = Self.backupRoot
-        Task.detached(priority: .utility) {
-            guard let listed = (try? BackupStore.list(root: root))?.first(where: { $0.url == folder })
-            else { return }
-            guard let bytes = BackupStore.measure(listed).sizeInBytes, bytes > 0 else { return }
-            TransferRate.remember(kind, bytes: UInt64(bytes), seconds: seconds)
+    /// The size of the folder is the only honest divisor for the rate, and the
+    /// Restore step needs the same number to say how much longer sending it
+    /// back will take, so one walk answers both. It runs off the main thread
+    /// because a 63 GB backup is 69,445 files, and nothing on screen is waiting
+    /// for the number. A folder that cannot be measured leaves the last
+    /// measurement where it was.
+    private func measureBackup(at folder: URL, took seconds: TimeInterval) {
+        Task.detached(priority: .utility) { [weak self] in
+            guard let bytes = BackupStore.size(of: folder), bytes > 0 else { return }
+            TransferRate.remember(.backup, bytes: bytes, seconds: seconds)
+            await self?.measured(bytes)
         }
+    }
+
+    /// The number the walk came to, back on the main thread where the Restore
+    /// step reads it.
+    private func measured(_ bytes: UInt64) {
+        restoreBytes = bytes
     }
 
     // MARK: - Patch
@@ -704,11 +672,22 @@ class WizardModel: ObservableObject {
                     settings: true,
                     reboot: true
                 )
-                rememberRate(.restore, folder: folder, since: started)
+                // The folder was walked when it was made, so the rate needs no
+                // second walk of the same 69,445 files.
+                if let bytes = restoreBytes {
+                    TransferRate.remember(
+                        .restore,
+                        bytes: bytes,
+                        seconds: Date().timeIntervalSince(started)
+                    )
+                }
                 restore.stage = .waitingForPhone
                 await waitForPhone()
                 restore.supervisedAfterwards = isSupervised
                 restore.stage = .finished
+                // Unsupervising installs no profile, so a phone that came back
+                // saying what the run asked for has finished the run.
+                deleteBackupIfTheRunIsDone()
             } catch BackupError.cancelled {
                 restore.stage = .ready
             } catch {
@@ -747,6 +726,10 @@ class WizardModel: ObservableObject {
         /// The file the user picked, when the profile came from one. Nil when
         /// the app built it.
         var fileName: String?
+        /// True once the phone has been read back and lists the profile the
+        /// run asked for: one of ours, on, and locked or removable the way the
+        /// draft said. It is what the backup delete waits for.
+        var isConfirmed = false
 
         /// True while something is on its way to the site or to the phone.
         var isRunning: Bool { stage == .signing || stage == .installing }
@@ -866,19 +849,18 @@ class WizardModel: ObservableObject {
     func signAndInstallProfile() {
         guard let udid, !profile.isRunning else { return }
         let config = profileConfig
+        // The draft is the only thing that knows whether trial mode was asked
+        // for, so what it asked for is read here and held against what the
+        // phone says afterwards.
+        let removalDisallowed = !draft.allowsRemoval
         errorMessage = nil
         profile = ProfileState(stage: .signing)
         Task {
             do {
                 let data = try await ProfileSigner().signedProfile(for: config)
                 profile.stage = .installing
-                try await Task.detached(priority: .userInitiated) {
-                    try MCInstall(udid: udid).installProfile(data)
-                }.value
-                profile.stage = .installed
-                // The phone lists one more profile now, so read it again for
-                // the card and the summary.
-                watcher.reload()
+                let listed = try await Self.install(data, on: udid)
+                finishInstall(listed, removalDisallowed: removalDisallowed)
             } catch {
                 profile.stage = .ready
                 errorMessage = error.localizedDescription
@@ -905,11 +887,12 @@ class WizardModel: ObservableObject {
         Task {
             do {
                 let data = try Data(contentsOf: url)
-                try await Task.detached(priority: .userInitiated) {
-                    try MCInstall(udid: udid).installProfile(data)
-                }.value
-                profile.stage = .installed
-                watcher.reload()
+                let listed = try await Self.install(data, on: udid)
+                // The file was built on the site rather than here, so this app
+                // never knew whether it was asked to lock the profile down and
+                // has nothing to hold the answer against. Everything else is
+                // checked the same way.
+                finishInstall(listed, removalDisallowed: nil)
             } catch {
                 profile.stage = .ready
                 errorMessage = error.localizedDescription
@@ -917,12 +900,89 @@ class WizardModel: ObservableObject {
         }
     }
 
-    // MARK: - Done
+    /// Put the signed bytes on the phone and read its profile list straight
+    /// back, both over one connection.
+    ///
+    /// The phone answering Acknowledged means it took the bytes, which is not
+    /// the same as the profile being on and saying what it was asked to say,
+    /// and that is the whole reason the list is read again here.
+    private nonisolated static func install(
+        _ data: Data,
+        on udid: String
+    ) async throws -> [InstalledProfile] {
+        try await Task.detached(priority: .userInitiated) {
+            let service = try MCInstall(udid: udid)
+            try service.installProfile(data)
+            return try service.profileList()
+        }.value
+    }
 
-    /// Show the backup folder in Finder.
-    func revealBackupFolder() {
-        guard let backupFolder else { return }
-        NSWorkspace.shared.activateFileViewerSelecting([backupFolder])
+    /// Weigh what the phone lists against what the run asked for. A profile
+    /// that comes back wrong is said in one sentence and keeps the backup;
+    /// only a confirmed one ends the run.
+    private func finishInstall(_ listed: [InstalledProfile], removalDisallowed: Bool?) {
+        profile.stage = .installed
+        if let problem = ProfileCheck.problem(with: listed, removalDisallowed: removalDisallowed) {
+            errorMessage = problem.sentence
+        } else {
+            profile.isConfirmed = true
+            deleteBackupIfTheRunIsDone()
+        }
+        // The phone lists one more profile now, so read it again for the card
+        // and the summary.
+        watcher.reload()
+    }
+
+    // MARK: - Taking the backup away
+
+    /// What one attempt to take everything this Mac holds for an iPhone came
+    /// to.
+    enum BackupRemoval: Equatable {
+        /// This Mac was holding nothing for that phone.
+        case nothingThere
+        case deleted
+        /// Why the folder is still there, in the sentence that names it.
+        case failed(String)
+    }
+
+    /// Take the backup off this Mac, once the run has done everything the
+    /// backup was made for. Nothing short of that: the gate is the whole of
+    /// the rule, and the hidden `--demo` path walks the same one.
+    ///
+    /// The whole of it goes: the folder the phone was copied into and the
+    /// untouched copy the patch saved beside it. Everything they hold is back
+    /// on the iPhone by now, so the copy on this Mac is redundant, and a whole
+    /// copy of somebody's phone is not a thing to leave lying about.
+    func deleteBackupIfTheRunIsDone() {
+        guard let udid, backupFolder != nil else { return }
+        guard WizardGate.backupCanGo(
+            direction: direction,
+            restoreFinished: restore.stage == .finished,
+            supervisedAfterwards: restore.supervisedAfterwards,
+            profileConfirmed: profile.isConfirmed
+        ) else { return }
+        Task {
+            if case .failed(let sentence) = await removeBackup(of: udid) {
+                backupRemovalFailure = sentence
+            }
+        }
+    }
+
+    /// Take everything this Mac holds for one iPhone off the disk, for good.
+    ///
+    /// It is the one thing in this class that deletes, so it is the one the
+    /// hidden `--demo` path replaces with a method that reaches no disk. The
+    /// work goes on a background task, because unlinking the 69,445 files of a
+    /// 63 GB backup is not instant.
+    func removeBackup(of udid: String) async -> BackupRemoval {
+        let root = Self.backupRoot
+        return await Task.detached(priority: .utility) {
+            do {
+                return try BackupStore.delete(udid: udid, root: root) ? .deleted : .nothingThere
+            } catch {
+                return .failed(error.localizedDescription)
+            }
+        }.value
     }
 }
 

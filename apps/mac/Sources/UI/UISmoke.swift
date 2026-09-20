@@ -24,41 +24,22 @@ enum UISmoke {
         // would put whatever iPhone happens to be plugged in into the
         // pictures, and would open a lockdown handshake to do it.
         let model = WizardModel(watcher: DeviceWatcher(sample: []))
-        // Two steps are about what is already on this Mac rather than about a
-        // run that has not started, so each is drawn from its own model. The
-        // last one is a run that is already over: a phone that came back, the
-        // backup it was restored from, and the backups this Mac is holding.
-        // The Back up step is a run that has picked a phone whose backup is
-        // already here, which is the offer it makes instead of another hour on
-        // the cable.
-        let finished = WizardModel(
-            sample: sampleWatcher([sampleDevice]),
-            backupFolder: sampleBackups[0].url,
-            backups: BackupsList(sample: sampleBackups)
-        )
-        let offered = WizardModel(
-            sample: sampleWatcher([sampleDevice]),
-            waitingOn: sampleDevice.udid,
-            backups: BackupsList(sample: sampleBackups)
-        )
-        let drawnFrom: [WizardStep: WizardModel] = [.backUp: offered, .done: finished]
+        // The last step is about a run that is already over rather than about
+        // one that has not started, so it is drawn from a model of its own: a
+        // phone that came back on the cable saying it is supervised.
+        let finished = WizardModel(finished: sampleWatcher([sampleDevice]))
+        let drawnFrom: [WizardStep: WizardModel] = [.done: finished]
         for step in WizardStep.allCases {
             report(step.rawValue, WizardStepContent(step: step, model: drawnFrom[step] ?? model), into: folder)
         }
-        // The same step for a phone this Mac holds nothing for, which is the
-        // one it has always drawn, and for a phone whose folder the iPhone
-        // never finished writing.
-        report("backUp-nothing-here", WizardStepContent(step: .backUp, model: model), into: folder)
+        // The last step again, for the one thing it ever says about the
+        // backup: a folder that would not go, which is still on this Mac.
+        report("done-backup-kept", WizardStepContent(step: .done, model: keptBackup()), into: folder)
+        // The checks with the line about a backup an earlier run left behind,
+        // which this one cleared on its way in.
         report(
-            "backUp-unfinished",
-            WizardStepContent(
-                step: .backUp,
-                model: WizardModel(
-                    sample: sampleWatcher([sampleDevice]),
-                    waitingOn: sampleBackups[2].udid,
-                    backups: BackupsList(sample: sampleBackups)
-                )
-            ),
+            "checks-leftover-cleared",
+            WizardStepContent(step: .checks, model: clearedLeftover()),
             into: folder
         )
         // The Profile step with a search under its field. The rows come from
@@ -287,53 +268,44 @@ enum UISmoke {
         ),
     ]
 
-    /// Backups on a Mac that has none: the one this run made, an older phone
-    /// whose untouched copy is still beside it, and one whose folder is still
-    /// being walked and which the iPhone never finished writing, so the
-    /// section draws a measured row, a copy and the wait, and the Back up step
-    /// draws both an offer and a folder it cannot offer.
-    private static let sampleBackups: [StoredBackup] = [
-        StoredBackup(
-            url: BackupFolder.applicationSupportRoot.appendingPathComponent(sampleDevice.udid),
-            udid: sampleDevice.udid,
-            deviceName: "iPhone",
-            productType: "iPhone15,2",
-            iosVersion: "26.6.2",
-            date: Date(timeIntervalSince1970: 1_789_793_040),
-            isEncrypted: true,
-            snapshotState: BackupStatus.finishedSnapshot,
-            sizeInBytes: 67_882_442_752,
-            pristineURL: nil,
-            pristineSizeInBytes: nil
-        ),
-        StoredBackup(
-            url: BackupFolder.applicationSupportRoot.appendingPathComponent(sampleSecondDevice.udid),
-            udid: sampleSecondDevice.udid,
-            deviceName: "Work iPhone",
-            productType: "iPhone17,1",
-            iosVersion: "26.6.2",
-            date: Date(timeIntervalSince1970: 1_788_372_600),
-            isEncrypted: false,
-            snapshotState: BackupStatus.finishedSnapshot,
-            sizeInBytes: 41_203_889_152,
-            pristineURL: SupervisionPatch.pristineRoot(forBackupRoot: BackupFolder.applicationSupportRoot)
-                .appendingPathComponent("\(sampleSecondDevice.udid)-20260902-211000"),
-            pristineSizeInBytes: 41_112_616_960
-        ),
-        StoredBackup(
-            url: BackupFolder.applicationSupportRoot.appendingPathComponent("22222222-2222222222222222"),
-            udid: "22222222-2222222222222222",
-            deviceName: "Old iPhone",
-            productType: "iPhone13,2",
-            iosVersion: "26.4.1",
-            date: Date(timeIntervalSince1970: 1_784_009_100),
-            isEncrypted: false,
-            snapshotState: "uploading",
-            sizeInBytes: nil,
-            pristineURL: nil,
-            pristineSizeInBytes: nil
-        ),
-    ]
+    /// A run that has just started for a phone this Mac was still holding a
+    /// backup of, which the checks say in one line.
+    private static func clearedLeftover() -> WizardModel {
+        let model = WizardModel(watcher: sampleWatcher([samplePhone(findMyOn: false)]))
+        model.show(
+            WizardModel.Sample(
+                step: .checks,
+                udid: samplePhone(findMyOn: false).udid,
+                clearedLeftoverBackup: true
+            )
+        )
+        return model
+    }
+
+    /// A run that is over and could not take its backup off the disk, which is
+    /// the one sentence the last step ever says about a backup.
+    private static func keptBackup() -> WizardModel {
+        let model = WizardModel(finished: sampleWatcher([sampleDevice]))
+        model.show(
+            WizardModel.Sample(
+                step: .done,
+                udid: sampleDevice.udid,
+                restore: WizardModel.RestoreState(stage: .finished, supervisedAfterwards: true),
+                backupRemovalFailure: BackupStoreError
+                    .removeFailed(
+                        BackupFolder.applicationSupportRoot.appendingPathComponent(sampleDevice.udid),
+                        SampleFailure()
+                    )
+                    .localizedDescription
+            )
+        )
+        return model
+    }
+
+    /// What macOS says when it will not take a folder away.
+    private struct SampleFailure: LocalizedError {
+        var errorDescription: String? { "The volume is read only." }
+    }
 
     /// A model whose watcher holds phones that are not there, so the Connect
     /// step draws both the single-phone card and the list of more than one

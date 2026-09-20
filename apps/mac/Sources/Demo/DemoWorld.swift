@@ -170,64 +170,20 @@ enum DemoWorld {
         )
     }
 
-    // MARK: - The backups
+    // MARK: - The backup
 
-    /// The folders this Mac is holding. The first row is the one the run is
-    /// about, when the demo says there is one; the second is an older phone,
-    /// so the last step always has a list to draw.
-    static func backups(_ conditions: DemoConditions) -> [StoredBackup] {
-        var rows: [StoredBackup] = []
-        switch conditions.holding {
-        case .nothing:
-            break
-        case .whole:
-            rows.append(
-                StoredBackup(
-                    url: backupFolder,
-                    udid: udid,
-                    deviceName: "iPhone",
-                    productType: "iPhone17,3",
-                    iosVersion: "26.6.2",
-                    date: Date(timeIntervalSinceNow: -2 * 24 * 3600),
-                    isEncrypted: conditions.backupsEncrypted,
-                    snapshotState: BackupStatus.finishedSnapshot,
-                    sizeInBytes: 67_882_442_752,
-                    pristineURL: pristineFolder,
-                    pristineSizeInBytes: 67_612_016_960
-                )
-            )
-        case .unfinished:
-            rows.append(
-                StoredBackup(
-                    url: backupFolder,
-                    udid: udid,
-                    deviceName: "iPhone",
-                    productType: "iPhone17,3",
-                    iosVersion: "26.6.2",
-                    date: Date(timeIntervalSinceNow: -3 * 3600),
-                    isEncrypted: conditions.backupsEncrypted,
-                    snapshotState: "uploading",
-                    sizeInBytes: 14_203_889_152,
-                    pristineURL: nil,
-                    pristineSizeInBytes: nil
-                )
-            )
-        }
-        rows.append(olderBackup)
-        return rows
+    /// What a run's backup measures, which is the figure a measured iPhone 16e
+    /// came to. The Restore step says how long sending it back takes from it.
+    static let backupBytes: UInt64 = 67_882_442_752
+
+    /// What the window shows when a backup will not leave the disk. It is the
+    /// sentence the real error writes, so the last step can be read the way it
+    /// looks when the delete fails, and the demo still touches no folder.
+    static var removalFailure: String {
+        BackupStoreError.removeFailed(backupFolder, RefusedByMacOS()).localizedDescription
     }
 
-    private static let olderBackup = StoredBackup(
-        url: BackupFolder.applicationSupportRoot.appendingPathComponent(secondUdid),
-        udid: secondUdid,
-        deviceName: "Work iPhone",
-        productType: "iPhone15,2",
-        iosVersion: "26.5.1",
-        date: Date(timeIntervalSince1970: 1_788_372_600),
-        isEncrypted: false,
-        snapshotState: BackupStatus.finishedSnapshot,
-        sizeInBytes: 41_203_889_152,
-        pristineURL: nil,
-        pristineSizeInBytes: nil
-    )
+    private struct RefusedByMacOS: LocalizedError {
+        var errorDescription: String? { "The volume is read only." }
+    }
 }

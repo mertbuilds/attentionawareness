@@ -170,12 +170,6 @@ final class DemoConditionsTests: XCTestCase {
         XCTAssertEqual(DemoConditions.Phones.two.count, 2)
     }
 
-    func testOnlyAWholeBackupCanBeUsed() {
-        XCTAssertTrue(DemoConditions.Holding.whole.isUsable)
-        XCTAssertFalse(DemoConditions.Holding.unfinished.isUsable)
-        XCTAssertFalse(DemoConditions.Holding.nothing.isUsable)
-    }
-
     func testOnlyAFailureOrACancellationStopsATransferPartWay() {
         XCTAssertFalse(DemoConditions.Outcome.succeeds.stopsPartWay)
         XCTAssertTrue(DemoConditions.Outcome.fails.stopsPartWay)
@@ -188,7 +182,7 @@ final class DemoConditionsTests: XCTestCase {
         XCTAssertTrue(before.afterRestore(target: true).supervised)
         XCTAssertFalse(before.afterRestore(target: false).supervised)
         // The run made a backup on the way, so this Mac is holding one now.
-        XCTAssertEqual(before.afterRestore(target: true).holding, .whole)
+        XCTAssertTrue(before.afterRestore(target: true).holdingBackup)
     }
 
     func testInstallingTheProfileLeavesItOnThePhone() {
