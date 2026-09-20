@@ -26,9 +26,13 @@ final class DeviceWatcher: ObservableObject {
     private let readQueue = DispatchQueue(label: "com.attentionawareness.mac.device-read")
     private var subscription: idevice_subscription_context_t?
     private var relay: DeviceEventRelay?
+    /// True for a watcher that was handed its phones. It reads no bus, which
+    /// is what `reload()` and `show(...)` both turn on.
+    private let isSample: Bool
 
     /// Subscribes to device events and reads whatever is already plugged in.
     init() {
+        isSample = false
         let relay = DeviceEventRelay { [weak self] in
             MainActor.assumeIsolated { self?.reload() }
         }
@@ -60,9 +64,26 @@ final class DeviceWatcher: ObservableObject {
         cloudConfigurations: [String: CloudConfiguration] = [:],
         installedProfiles: [String: [InstalledProfile]] = [:]
     ) {
+        isSample = true
         self.devices = devices
         self.cloudConfigurations = cloudConfigurations
         self.installedProfiles = installedProfiles
+    }
+
+    /// Hand a sample watcher another set of phones, so the hidden `--demo`
+    /// path can plug one in, unplug it or add a second one while the window is
+    /// open. It does nothing at all on a watcher that reads the real bus,
+    /// which is the only kind the app itself ever makes.
+    func show(
+        devices: [ConnectedDevice],
+        cloudConfigurations: [String: CloudConfiguration] = [:],
+        installedProfiles: [String: [InstalledProfile]] = [:]
+    ) {
+        guard isSample else { return }
+        self.devices = devices
+        self.cloudConfigurations = cloudConfigurations
+        self.installedProfiles = installedProfiles
+        lastError = nil
     }
 
     deinit {
@@ -79,7 +100,12 @@ final class DeviceWatcher: ObservableObject {
     }
 
     /// Reads every phone again. Safe to call from anywhere on the main actor.
+    ///
+    /// A sample watcher reads nothing: what it publishes was handed to it, and
+    /// a bus read would put whatever iPhone happens to be plugged in over the
+    /// top of it.
     func reload() {
+        guard !isSample else { return }
         readQueue.async { [weak self] in
             let snapshot = DeviceWatcher.read()
             DispatchQueue.main.async {

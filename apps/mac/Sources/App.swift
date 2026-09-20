@@ -7,6 +7,9 @@ struct AttentionAwarenessApp: App {
     /// Sparkle. The feed, the public key and the once-a-day schedule are in
     /// `Info.plist`; nothing here needs a delegate.
     private let updaterController: SPUStandardUpdaterController
+    /// The demo's own wizard, built only when `--demo` is on the command line.
+    /// Nil is the app as it ships, which is every other way of starting it.
+    private let demo: DemoWizardModel?
 
     init() {
         // `attention awareness.app/Contents/MacOS/attention awareness --devices`
@@ -46,10 +49,16 @@ struct AttentionAwarenessApp: App {
         // display and without an iPhone.
         UISmoke.runIfAsked()
 
+        // `--demo` opens the window on a wizard that reaches no iPhone, no
+        // disk and no site, with a bar under it for driving the states by
+        // hand. It is the one flag that stays and opens a window.
+        let demo = DemoWizardModel.ifAsked()
+        self.demo = demo
+
         // Last, so that every flag above leaves without ever asking the site
-        // for an update.
+        // for an update. The demo asks it for nothing either.
         updaterController = SPUStandardUpdaterController(
-            startingUpdater: true,
+            startingUpdater: demo == nil,
             updaterDelegate: nil,
             userDriverDelegate: nil
         )
@@ -57,8 +66,12 @@ struct AttentionAwarenessApp: App {
 
     var body: some Scene {
         Window("attention awareness", id: "main") {
-            ContentView()
-                .frame(minWidth: 560, minHeight: 520)
+            if let demo {
+                DemoWindow(model: demo)
+            } else {
+                ContentView()
+                    .frame(minWidth: 560, minHeight: 520)
+            }
         }
         .windowResizability(.contentMinSize)
         .commands {

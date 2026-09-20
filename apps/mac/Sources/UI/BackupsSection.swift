@@ -39,6 +39,16 @@ final class BackupsList: ObservableObject {
         self.backups = backups
     }
 
+    /// Hand a sample list another set of rows, so the hidden `--demo` path can
+    /// say this Mac holds a whole backup, a folder that cannot be used, or
+    /// nothing at all, while the window is open. It does nothing on a list
+    /// that reads the disk, which is the only kind the app itself ever makes.
+    func show(_ backups: [StoredBackup]) {
+        guard !readsDisk else { return }
+        self.backups = backups
+        errorMessage = nil
+    }
+
     /// Read the folder, then measure what is in it. Calling it again replaces
     /// both: a walk that is still going is cancelled first.
     ///

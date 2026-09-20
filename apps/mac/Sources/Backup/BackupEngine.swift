@@ -69,14 +69,34 @@ final class BackupEngine: ObservableObject {
     /// last thing it said stands in when nothing else named a reason.
     private var lastHelperLine: String?
     private var sawAbort = false
+    /// True for an engine that was handed its state. It never starts the
+    /// helper, and it is the only kind `show(...)` will move.
+    private let isSample: Bool
 
-    init() {}
+    init() {
+        isSample = false
+    }
 
     /// An engine that is running nothing and never will, with the phase, the
     /// progress and the log it should appear to have. The hidden `--ui-smoke`
     /// path draws the two transfer steps from one of these, so a transfer in
     /// flight can be drawn with nothing on the cable.
     init(sample phase: Phase, progress: Double, log: [String] = []) {
+        isSample = true
+        self.phase = phase
+        self.progress = progress
+        self.log = log
+    }
+
+    /// Put a sample engine where the caller says, without a helper and without
+    /// a cable. The hidden `--demo` path walks one of these through the phases
+    /// of a transfer, so the two transfer steps can be watched from beginning
+    /// to end with nothing plugged in.
+    ///
+    /// It does nothing at all on an engine that runs the real helper, which is
+    /// the only kind the app itself ever makes.
+    func show(phase: Phase, progress: Double, log: [String]) {
+        guard isSample else { return }
         self.phase = phase
         self.progress = progress
         self.log = log
@@ -192,6 +212,11 @@ final class BackupEngine: ObservableObject {
     }
 
     private func run(arguments: [String], folder: URL, password: String?) async throws {
+        // A sample engine is one the window was handed to draw from. It has no
+        // phone behind it, so the helper is never started from one.
+        guard !isSample else {
+            throw BackupError.failed("This engine runs nothing.")
+        }
         guard process == nil else {
             throw BackupError.failed("A backup is already running.")
         }

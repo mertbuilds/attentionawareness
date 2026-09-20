@@ -47,6 +47,24 @@ one asks for, so the window can be checked on a Mac whose display is asleep. Add
 a folder, `--ui-smoke /tmp/shots`, and it writes a picture of each step there as
 well.
 
+`--demo` opens the real window on a wizard that reaches no iPhone, no disk and
+no site, with a bar under it for driving the states by hand. Every view is the
+one that ships; only the other end of it changes. A transfer runs in about
+twenty five seconds and reads like the hour it stands for: the bar climbs, the
+estimate says how much longer, and the elapsed time counts the minutes a real
+cable would have taken. The demo bar jumps to any step and sets what the wizard
+finds when it looks: how many iPhones are on the cable, Find My on or off,
+backups encrypted or not, a phone that is already supervised, a profile already
+installed, what this Mac already holds, and whether the next transfer or install
+succeeds, fails or is cancelled.
+
+Nothing real is in reach of it. The demo is built on a watcher that reads no
+bus, an engine that refuses to start the helper and a backups list that reads
+and deletes nothing, and every method that would patch a backup, ask the site
+for a signature or send anything to a phone is replaced by one that waits a
+moment and says what the bar asked for. It writes nothing anywhere, and it is
+the one hidden flag that opens a window.
+
 `--sign-profile <file>` asks the site to sign the profile the Profile step
 installs and writes it, so the signing side can be checked without an iPhone.
 It prints the size and whether the bytes are the DER of a signed CMS message.
@@ -74,6 +92,11 @@ AA_SITE_URL=https://attentionawareness.localhost \
   between connected iPhones and `BackupsSection` for the backups the Done step
   lists. Errors from the three layers are shown in the step that caused them,
   never in a modal alert.
+- `Sources/Demo/` is the `--demo` flag and nothing else: `DemoScript` is the
+  timeline a demo transfer runs to and `DemoConditions` the switches the bar
+  writes, both plain values the tests run; `DemoWorld` makes the iPhones and
+  backups out of those switches; `DemoModel` is the wizard with every method
+  that reaches the world replaced; `DemoBar` is the bar itself.
 - `Sources/Device/` is the device layer: `DeviceWatcher` publishes the iPhones on
   the cable and re-reads them on every connect and disconnect, `Lockdown` reads
   the values the wizard checks, `MCInstall` reads supervision and installs a

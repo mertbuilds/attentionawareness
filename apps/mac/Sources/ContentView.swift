@@ -3,7 +3,22 @@ import SwiftUI
 /// The one window: one step at a time, a Back button where stepping back is
 /// safe, and the site underneath.
 struct ContentView: View {
-    @StateObject private var model = WizardModel()
+    // The model is handed in by one initialiser or the other rather than
+    // written here with a default, so the demo's window cannot build a wizard
+    // that watches the real bus on its way to the one it was given.
+    @StateObject private var model: WizardModel
+
+    /// The window as the app opens it, against the iPhones on the cable.
+    init() {
+        _model = StateObject(wrappedValue: WizardModel())
+    }
+
+    /// The window drawn from a model that was made somewhere else, which is
+    /// the hidden `--demo` path: the same views and the same wizard, against a
+    /// phone that is not there.
+    init(demo model: WizardModel) {
+        _model = StateObject(wrappedValue: model)
+    }
 
     /// Whether this step offers a way back. Nothing steps back out of work
     /// that is already running.

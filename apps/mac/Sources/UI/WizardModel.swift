@@ -17,7 +17,7 @@ import UniformTypeIdentifiers
 /// `TransferRate` keeps, which are a measurement of how fast this Mac moves
 /// bytes over the cable. No history, no analytics.
 @MainActor
-final class WizardModel: ObservableObject {
+class WizardModel: ObservableObject {
     /// Where the backups go. The app writes into its own Application Support
     /// folder, which needs no Full Disk Access, unlike the folder Finder uses.
     static var backupRoot: URL { BackupFolder.applicationSupportRoot }
@@ -160,6 +160,45 @@ final class WizardModel: ObservableObject {
         restore = RestoreState(stage: stage)
         transferStartedAt = startedAt
         self.estimate = estimate
+    }
+
+    /// One run of the wizard, frozen: the step it is on and everything the
+    /// steps before it would have set.
+    ///
+    /// It is the sample inits above, written down instead of run, so a model
+    /// that is already on screen can be put where one of them would have put
+    /// it. The hidden `--demo` path jumps between steps with it. Every field
+    /// is one the window draws: nothing here reads an iPhone, a disk or a
+    /// network, and nothing here starts any work.
+    struct Sample {
+        var step: WizardStep = .connect
+        var direction: WizardDirection = .supervise
+        var udid: String?
+        var backupFolder: URL?
+        var transferStartedAt: Date?
+        var estimate = TransferEstimate()
+        var patch = PatchState()
+        var restore = RestoreState()
+        var profile = ProfileState()
+        var errorMessage: String?
+    }
+
+    /// Put this model where a sample says. It starts nothing and sends nothing
+    /// to a phone: the step that is now on screen is drawn from the fields
+    /// handed in, and whatever the reader presses next goes through the same
+    /// wizard as ever.
+    func show(_ sample: Sample) {
+        step = sample.step
+        direction = sample.direction
+        udid = sample.udid
+        selectedUdid = sample.udid
+        backupFolder = sample.backupFolder
+        transferStartedAt = sample.transferStartedAt
+        estimate = sample.estimate
+        patch = sample.patch
+        restore = sample.restore
+        profile = sample.profile
+        errorMessage = sample.errorMessage
     }
 
     // MARK: - What the phone says
