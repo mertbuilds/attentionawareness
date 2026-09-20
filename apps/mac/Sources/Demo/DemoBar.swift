@@ -127,6 +127,7 @@ struct DemoBar: View {
             Spacer(minLength: 0)
         }
         .toggleStyle(.checkbox)
+        .tint(WizardStyle.accent)
     }
 
     /// The step picker reads the window and writes a jump, so it follows the

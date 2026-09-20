@@ -136,6 +136,9 @@ struct ProfileStep: View {
             }
             .padding(.top, 8)
             .frame(maxWidth: .infinity, alignment: .leading)
+            // A checkbox takes the system accent, which is blue on most Macs.
+            // Everything this app switches on is orange.
+            .tint(WizardStyle.accent)
         }
     }
 
