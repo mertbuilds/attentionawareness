@@ -127,24 +127,14 @@ enum BackupSafetyNet {
         }
     }
 
-    /// A date the way a person writes one, so 10 September 2026 rather than a
-    /// count of seconds.
-    static func day(_ date: Date, calendar: Calendar = .current) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = calendar.locale ?? .current
-        formatter.timeZone = calendar.timeZone
-        formatter.dateStyle = .long
-        formatter.timeStyle = .none
-        return formatter.string(from: date)
-    }
-
     private static func count(_ value: Int, _ unit: String) -> String {
         "\(value) \(unit)\(value == 1 ? "" : "s")"
     }
 
     // MARK: - The line the checks show
 
-    /// The one line the checks show about the reader's own backups.
+    /// The one line the checks show about the reader's own backups, and the
+    /// longer how-to that sits behind it in the hover help.
     struct Row: Equatable {
         /// How the line reads at a glance.
         enum Standing: Equatable {
@@ -160,9 +150,32 @@ enum BackupSafetyNet {
         }
 
         let standing: Standing
-        let title: String
-        let detail: String
+        /// The whole of what the row says on screen.
+        let line: String
+        /// What the hover help says, which is where every how-to lives.
+        let help: String
+
+        /// Whether the row shows a tick.
+        var ok: Bool { standing == .covered }
     }
+
+    /// The line and the how-to of a row that asks for a backup first. Both
+    /// places are named, because either one is a way back and the reader
+    /// picks.
+    private static let backUpFirst = "Back up iPhone first, in iCloud or Finder."
+    private static let howToBackUp = """
+        On iPhone: Settings > your name > iCloud > iCloud Backup > Back Up Now. \
+        In Finder: pick iPhone in the sidebar, then click Back Up Now.
+        """
+
+    /// The line and the how-to when nothing could be read. Full Disk Access is
+    /// named here and nowhere else: macOS offers no way for an app to ask for
+    /// it, so the most the app can do is say where the switch is.
+    private static let couldNotCheck = "Couldn't check for a backup of iPhone."
+    private static let howToBeChecked = """
+        Back up iPhone first, in iCloud or Finder. To let this app see Finder backups, give it \
+        Full Disk Access in System Settings > Privacy & Security, then reopen it.
+        """
 
     /// Where one backup of the reader's own lives, in the words each place is
     /// named by on screen.
@@ -170,32 +183,11 @@ enum BackupSafetyNet {
         case finder
         case cloud
 
-        /// The start of the sentence that says when it was made.
-        var backedItUp: String {
+        /// Which of the two the tick is about, said in the hover help.
+        var hasOne: String {
             switch self {
-            case .finder: return "Finder backed this iPhone up on this Mac"
-            case .cloud: return "iCloud backed this iPhone up"
-            }
-        }
-
-        /// The same fact said second, after the other place has been named.
-        var alsoHasOne: String {
-            switch self {
-            case .finder: return "Finder has one on this Mac from"
-            case .cloud: return "iCloud has one from"
-            }
-        }
-
-        /// How the reader makes a fresh one.
-        var howToMakeOne: String {
-            switch self {
-            case .finder:
-                return "Open Finder, pick the iPhone in the sidebar, then click Back Up Now."
-            case .cloud:
-                return """
-                    Open Settings on the iPhone, tap your name, tap iCloud, tap iCloud Backup, \
-                    then tap Back Up Now.
-                    """
+            case .finder: return "Finder has one on this Mac."
+            case .cloud: return "iCloud has one."
             }
         }
     }
@@ -221,47 +213,27 @@ enum BackupSafetyNet {
         let inTheCloud = believableDate(of: cloud, now: now).map { Own(place: .cloud, date: $0) }
 
         let best: Own
-        let other: Own?
         switch (onThisMac, inTheCloud) {
         case (.some(let here), .some(let there)):
-            let theOneOnThisMacIsNewer = here.date >= there.date
-            best = theOneOnThisMacIsNewer ? here : there
-            other = theOneOnThisMacIsNewer ? there : here
+            best = here.date >= there.date ? here : there
         case (.some(let here), nil):
             best = here
-            other = nil
         case (nil, .some(let there)):
             best = there
-            other = nil
         case (nil, nil):
             return withoutADate(cloud: cloud, finder: finder)
         }
 
-        let when = age(of: best.date, now: now, calendar: calendar)
         guard isRecent(best.date, now: now) else {
-            return Row(
-                standing: .thin,
-                title: "\(best.place.backedItUp) \(when)",
-                detail: """
-                    That was \(day(best.date, calendar: calendar)). Make a fresh one before you go \
-                    on, so the way back is your own. \(best.place.howToMakeOne) You can go on \
-                    without it.
-                    """
-            )
+            return Row(standing: .thin, line: backUpFirst, help: howToBackUp)
         }
         return Row(
             standing: .covered,
-            title: "\(best.place.backedItUp) \(when)",
-            detail: [
-                "That backup is yours, and this app neither reads it nor writes to it.",
-                other.map { "\($0.place.alsoHasOne) \(age(of: $0.date, now: now, calendar: calendar))." },
+            line: "iPhone was backed up \(age(of: best.date, now: now, calendar: calendar))",
+            help: """
+                \(best.place.hasOne) That backup is yours. The copy this app makes is deleted \
+                when the run is confirmed.
                 """
-                The copy this app makes is its own, and it is deleted as soon as the run is \
-                confirmed.
-                """,
-            ]
-            .compactMap { $0 }
-            .joined(separator: " ")
         )
     }
 
@@ -280,64 +252,22 @@ enum BackupSafetyNet {
 
     /// The line when neither place named a date this Mac can use.
     ///
-    /// That is not always the same as having nothing. A folder on this Mac
-    /// that will not date itself is not an age, but it is still a copy of the
-    /// phone, so it is said first and the iPhone's answer is only reached when
-    /// there is no folder to talk about.
+    /// A folder on this Mac that will not date itself is still a copy of the
+    /// phone, so it is answered before the iPhone is: nobody can say how old
+    /// it is, which is a different thing from having nothing at all.
     private static func withoutADate(cloud: Cloud, finder: Finder) -> Row {
+        // A folder on this Mac with no date in it, a phone that named a date
+        // that has not come yet, and a phone that would not answer at all are
+        // one thing to the reader: nobody can say whether there is a way back.
         if case .made = finder {
-            return Row(
-                standing: .unknown,
-                title: "Finder has a backup of this iPhone on this Mac, but it does not say when it was made",
-                detail: """
-                    Open Finder and pick the iPhone in the sidebar to read the date of the last \
-                    backup. Make a fresh one if it is not recent. You can go on without it.
-                    """
-            )
+            return Row(standing: .unknown, line: couldNotCheck, help: howToBeChecked)
         }
-        switch cloud {
-        case .off:
-            return Row(
-                standing: .thin,
-                title: "iCloud does not back this iPhone up",
-                detail: """
-                    Make a backup of your own before you go on, so the way back is nothing to do \
-                    with this app. Open Settings on the iPhone, tap your name, tap iCloud, tap \
-                    iCloud Backup, turn it on, then tap Back Up Now. Finder can make one on this \
-                    Mac instead. You can go on without it.
-                    """
-            )
-        case .on(.some):
-            // The date is there and it has not come yet, which only a wrong
-            // clock produces.
-            return Row(
-                standing: .unknown,
-                title: "iCloud names a backup date that has not come yet",
-                detail: """
-                    The clock on the iPhone or on this Mac is wrong, so how old the backup is \
-                    cannot be worked out. Check it on the iPhone in Settings, your name, iCloud, \
-                    iCloud Backup. You can go on without it.
-                    """
-            )
-        case .on(nil):
-            return Row(
-                standing: .unknown,
-                title: "iCloud backs this iPhone up, but the iPhone did not say when the last one was",
-                detail: """
-                    Check it on the iPhone in Settings, your name, iCloud, iCloud Backup, and make \
-                    a fresh one if the last one is not recent. You can go on without it.
-                    """
-            )
-        case .unknown:
-            return Row(
-                standing: .unknown,
-                title: "Whether this iPhone has a backup of its own could not be read",
-                detail: """
-                    Unlock the iPhone and keep the cable in. Make a backup of your own before you \
-                    go on, in iCloud or in Finder, so the way back is nothing to do with this app.
-                    """
-            )
+        // iCloud switched off is the one answer here that is not a silence. It
+        // is known, and what it says is that there is nothing to lean on.
+        if case .off = cloud {
+            return Row(standing: .thin, line: backUpFirst, help: howToBackUp)
         }
+        return Row(standing: .unknown, line: couldNotCheck, help: howToBeChecked)
     }
 
     // MARK: - Finder's own backups, which macOS protects

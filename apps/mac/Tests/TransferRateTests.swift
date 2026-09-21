@@ -76,4 +76,31 @@ final class TransferRateTests: XCTestCase {
             "This usually takes about 1 minute for a phone this size."
         )
     }
+
+    // MARK: - The line over the button
+
+    func testTheFirstRunIsGivenTheBandRatherThanAFigure() {
+        XCTAssertEqual(
+            TransferRate.howLong(.backup, bytes: Self.phoneBytes, in: defaults),
+            "This usually takes 30 to 90 minutes. Keep iPhone connected."
+        )
+    }
+
+    func testAPhoneThatWillNotSayHowMuchItHoldsIsGivenTheBandToo() {
+        TransferRate.remember(.backup, bytes: Self.phoneBytes, seconds: 3_300, in: defaults)
+
+        XCTAssertEqual(
+            TransferRate.howLong(.backup, bytes: nil, in: defaults),
+            "This usually takes 30 to 90 minutes. Keep iPhone connected."
+        )
+    }
+
+    func testAMeasuredMacSaysTheFigureItEarned() {
+        TransferRate.remember(.backup, bytes: Self.phoneBytes, seconds: 3_300, in: defaults)
+
+        XCTAssertEqual(
+            TransferRate.howLong(.backup, bytes: Self.phoneBytes, in: defaults),
+            "This takes about 55 minutes. Keep iPhone connected."
+        )
+    }
 }

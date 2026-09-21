@@ -132,6 +132,78 @@ struct ErrorText: View {
     }
 }
 
+/// One check, in one line. A tick when it is fine, an orange dot and the one
+/// thing to do when it is not. Anything longer than the line goes in the hover
+/// help, where it costs a reader with nothing to fix nothing at all.
+struct CheckLine: View {
+    let ok: Bool
+    let text: String
+    var help: String?
+
+    @ViewBuilder
+    var body: some View {
+        if let help {
+            line.help(help)
+        } else {
+            line
+        }
+    }
+
+    private var line: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Image(systemName: ok ? "checkmark.circle.fill" : "circle.fill")
+                .foregroundStyle(ok ? Color.green : Color.orange)
+            Text(text)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// One line of a checklist, with a sentence under it. A check that cannot be
+/// read shows as unknown and blocks nothing: the user is told, and the work is
+/// allowed to try.
+struct CheckRow: View {
+    enum Result {
+        case pass
+        case waiting
+        case unknown
+    }
+
+    let result: Result
+    let title: String
+    let detail: String?
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Image(systemName: symbol)
+                .foregroundStyle(tint)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                if let detail {
+                    Text(detail)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var symbol: String {
+        switch result {
+        case .pass: return "checkmark.circle.fill"
+        case .waiting: return "circle"
+        case .unknown: return "questionmark.circle"
+        }
+    }
+
+    private var tint: Color {
+        result == .pass ? .green : .secondary
+    }
+}
+
 /// A boxed group of lines, for the device card and the summary.
 struct Card<Content: View>: View {
     let content: Content

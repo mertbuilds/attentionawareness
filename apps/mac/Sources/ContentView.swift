@@ -92,7 +92,7 @@ struct WizardStepContent: View {
         case .connect:
             ConnectStep(model: model)
         case .ready:
-            ChecksStep(model: model)
+            ReadyStep(model: model)
         case .job:
             // The copy and the restore are one screen with one title, and
             // still two views: the copy until it is on this Mac, the restore

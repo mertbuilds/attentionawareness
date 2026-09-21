@@ -50,6 +50,23 @@ enum TransferRate {
         defaults.set(Double(bytes) / seconds, forKey: kind.key)
     }
 
+    /// The one line the Ready screen shows over its button.
+    ///
+    /// With a rate behind it this Mac can say a figure. Before that, and for a
+    /// phone that will not say how much it holds, the honest answer is the band
+    /// a cable of any speed lands in.
+    static func howLong(
+        _ kind: Kind,
+        bytes: UInt64?,
+        in defaults: UserDefaults = .standard
+    ) -> String {
+        guard let bytes, bytes > 0, let rate = remembered(kind, in: defaults) else {
+            return "This usually takes 30 to 90 minutes. Keep iPhone connected."
+        }
+        let measured = TransferEstimate.duration(Double(bytes) / rate)
+        return "This takes about \(measured). Keep iPhone connected."
+    }
+
     /// What to expect before the button is pressed, in one sentence, or
     /// nothing at all while the size of the transfer is unknown.
     ///

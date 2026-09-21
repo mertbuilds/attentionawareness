@@ -38,8 +38,15 @@ enum UISmoke {
         // The checks with the line about a backup an earlier run left behind,
         // which this one cleared on its way in.
         report(
-            "checks-leftover-cleared",
+            "ready-leftover-cleared",
             WizardStepContent(step: .ready, model: clearedLeftover()),
+            into: folder
+        )
+        // The checks with the password row, which only an iPhone that encrypts
+        // what it backs up ever shows.
+        report(
+            "ready-password",
+            WizardStepContent(step: .ready, model: encryptedBackups()),
             into: folder
         )
         // The Profile step with a search under its field. The rows come from
@@ -69,7 +76,7 @@ enum UISmoke {
         for (name, findMyOn) in [("find-my-on", true), ("find-my-off", false)] {
             let phone = samplePhone(findMyOn: findMyOn)
             report(
-                "checks-\(name)",
+                "ready-\(name)",
                 WizardStepContent(step: .ready, model: WizardModel(watcher: sampleWatcher([phone]))),
                 into: folder
             )
@@ -110,7 +117,7 @@ enum UISmoke {
         // one too old to lean on, none at all, and the refusal that keeps
         // Finder's own out of the app's reach for good.
         for sample in safetyNetSamples() {
-            report("checks-\(sample.name)", WizardStepContent(step: .ready, model: sample.model), into: folder)
+            report("ready-\(sample.name)", WizardStepContent(step: .ready, model: sample.model), into: folder)
         }
         // Everything the Restore step says once the helper has the phone: the
         // files moving with a figure for how much longer, the same thing too
@@ -351,12 +358,13 @@ enum UISmoke {
 
     /// A trusted iPhone with Find My on or off and nothing else changed between
     /// the two, so the checks row and the restore gate can be drawn each way.
-    /// Its backups are not encrypted, which keeps the password field out of
-    /// those pictures and leaves the button saying only what Find My did to it.
+    /// Its backups are unencrypted unless a picture asks for the password row,
+    /// which keeps that field out of the rest of them.
     private static func samplePhone(
         findMyOn: Bool,
         cloudBackupOn: Bool? = true,
-        lastCloudBackup: Date? = Date().addingTimeInterval(-dayInSeconds)
+        lastCloudBackup: Date? = Date().addingTimeInterval(-dayInSeconds),
+        backupEncrypted: Bool = false
     ) -> ConnectedDevice {
         ConnectedDevice(
             udid: "33333333-3333333333333333",
@@ -365,7 +373,7 @@ enum UISmoke {
             marketingName: "iPhone 14 Pro",
             iosVersion: "26.6.2",
             findMyOn: findMyOn,
-            backupEncrypted: false,
+            backupEncrypted: backupEncrypted,
             cloudBackupOn: cloudBackupOn,
             lastCloudBackup: lastCloudBackup,
             dataCapacity: 128_000_000_000,
@@ -423,6 +431,15 @@ enum UISmoke {
                 clearedLeftoverBackup: true
             )
         )
+        return model
+    }
+
+    /// A run whose iPhone encrypts what it backs up, which is the one thing
+    /// that puts the password row on the checks.
+    private static func encryptedBackups() -> WizardModel {
+        let phone = samplePhone(findMyOn: false, backupEncrypted: true)
+        let model = WizardModel(watcher: sampleWatcher([phone]))
+        model.show(WizardModel.Sample(step: .ready, udid: phone.udid))
         return model
     }
 

@@ -26,6 +26,11 @@ final class BackupSafetyNetTests: XCTestCase {
     private static let someUdid = "00008101-00052854210A001E"
     private static let otherUdid = "00008140-000B2C3D4E5F6071"
 
+    /// The two lines a row shows when it has no tick, written out here rather
+    /// than read off the thing under test, so the wording is pinned.
+    private static let backUpFirst = "Back up iPhone first, in iCloud or Finder."
+    private static let couldNotCheck = "Couldn't check for a backup of iPhone."
+
     /// The temporary folder the Finder fixtures live in, on the tests that
     /// make one.
     private var base: URL!
@@ -39,10 +44,10 @@ final class BackupSafetyNetTests: XCTestCase {
     func testTheLastBackupDateIsCountedFromTheFirstOfJanuary2001() {
         // What a real iPhone answered on 20 September 2026, which is
         // 10 September 2026 at 23:32 UTC and not a day in 1995.
-        let read = BackupSafetyNet.date(appleSeconds: 810_775_920)
-
-        XCTAssertEqual(read, Date(timeIntervalSince1970: 1_789_083_120))
-        XCTAssertEqual(BackupSafetyNet.day(read, calendar: Self.calendar), "September 10, 2026")
+        XCTAssertEqual(
+            BackupSafetyNet.date(appleSeconds: 810_775_920),
+            Date(timeIntervalSince1970: 1_789_083_120)
+        )
     }
 
     func testZeroSecondsIsAppleOwnZeroRatherThanTheUnixOne() {
@@ -142,26 +147,29 @@ final class BackupSafetyNetTests: XCTestCase {
     func testARecentICloudBackupSaysTheyAreCovered() {
         let row = Self.row(cloud: .on(Self.daysAgo(1)))
 
+        XCTAssertTrue(row.ok)
         XCTAssertEqual(row.standing, .covered)
-        XCTAssertEqual(row.title, "iCloud backed this iPhone up yesterday")
-        XCTAssertTrue(row.detail.contains("That backup is yours"))
+        XCTAssertEqual(row.line, "iPhone was backed up yesterday")
+        XCTAssertTrue(row.help.contains("iCloud has one."), row.help)
+        XCTAssertTrue(row.help.contains("That backup is yours."), row.help)
     }
 
-    func testAnOldICloudBackupGivesTheDateAndTheAge() {
+    func testAnOldICloudBackupAsksForAFreshOneFirst() {
         let row = Self.row(cloud: .on(Self.daysAgo(11)))
 
+        XCTAssertFalse(row.ok)
         XCTAssertEqual(row.standing, .thin)
-        XCTAssertEqual(row.title, "iCloud backed this iPhone up 11 days ago")
-        XCTAssertTrue(row.detail.contains("September 10, 2026"), row.detail)
-        XCTAssertTrue(row.detail.contains("tap iCloud Backup"), row.detail)
+        XCTAssertEqual(row.line, Self.backUpFirst)
+        XCTAssertTrue(row.help.contains("iCloud Backup > Back Up Now"), row.help)
     }
 
-    func testICloudBackupsThatAreOffSayToMakeOneAndWhereToDoIt() {
+    func testICloudBackupsThatAreOffAskForOneAndSayWhereToMakeIt() {
         let row = Self.row(cloud: .off)
 
         XCTAssertEqual(row.standing, .thin)
-        XCTAssertEqual(row.title, "iCloud does not back this iPhone up")
-        XCTAssertTrue(row.detail.contains("tap iCloud Backup, turn it on"), row.detail)
+        XCTAssertEqual(row.line, Self.backUpFirst)
+        XCTAssertTrue(row.help.contains("iCloud Backup > Back Up Now"), row.help)
+        XCTAssertTrue(row.help.contains("click Back Up Now"), row.help)
     }
 
     func testAPhoneThatNamesNoDateAtAllIsNotCalledCovered() {
@@ -170,10 +178,7 @@ final class BackupSafetyNetTests: XCTestCase {
         let row = Self.row(cloud: .on(nil))
 
         XCTAssertEqual(row.standing, .unknown)
-        XCTAssertEqual(
-            row.title,
-            "iCloud backs this iPhone up, but the iPhone did not say when the last one was"
-        )
+        XCTAssertEqual(row.line, Self.couldNotCheck)
     }
 
     func testADateThatHasNotComeYetIsCalledAWrongClockRatherThanARecentBackup() {
@@ -182,15 +187,16 @@ final class BackupSafetyNetTests: XCTestCase {
         let row = Self.row(cloud: .on(Self.now.addingTimeInterval(9 * Self.day)))
 
         XCTAssertEqual(row.standing, .unknown)
-        XCTAssertEqual(row.title, "iCloud names a backup date that has not come yet")
-        XCTAssertTrue(row.detail.contains("clock"), row.detail)
+        XCTAssertEqual(row.line, Self.couldNotCheck)
     }
 
     func testAPhoneThatWouldNotAnswerIsSaidToBeUnreadRatherThanEmpty() {
         let row = Self.row(cloud: .unknown)
 
         XCTAssertEqual(row.standing, .unknown)
-        XCTAssertEqual(row.title, "Whether this iPhone has a backup of its own could not be read")
+        XCTAssertEqual(row.line, Self.couldNotCheck)
+        // The hover help is the only place Full Disk Access is ever named.
+        XCTAssertTrue(row.help.contains("Full Disk Access"), row.help)
     }
 
     // MARK: - The line, once Finder is in it as well
@@ -199,17 +205,16 @@ final class BackupSafetyNetTests: XCTestCase {
         let row = Self.row(cloud: .on(Self.daysAgo(5)), finder: .made(Self.daysAgo(1)))
 
         XCTAssertEqual(row.standing, .covered)
-        XCTAssertEqual(row.title, "Finder backed this iPhone up on this Mac yesterday")
-        // The other one is worth a word, but only a word.
-        XCTAssertTrue(row.detail.contains("iCloud has one from 5 days ago."), row.detail)
+        XCTAssertEqual(row.line, "iPhone was backed up yesterday")
+        XCTAssertTrue(row.help.contains("Finder has one on this Mac."), row.help)
     }
 
     func testTheNewerOfTheTwoIsTheOneTheLineIsAbout() {
         let row = Self.row(cloud: .on(Self.daysAgo(1)), finder: .made(Self.daysAgo(6)))
 
         XCTAssertEqual(row.standing, .covered)
-        XCTAssertEqual(row.title, "iCloud backed this iPhone up yesterday")
-        XCTAssertTrue(row.detail.contains("Finder has one on this Mac from 6 days ago."), row.detail)
+        XCTAssertEqual(row.line, "iPhone was backed up yesterday")
+        XCTAssertTrue(row.help.contains("iCloud has one."), row.help)
     }
 
     func testATieGoesToTheCopyOnThisMac() {
@@ -217,25 +222,23 @@ final class BackupSafetyNetTests: XCTestCase {
         // can put back themselves.
         let row = Self.row(cloud: .on(Self.daysAgo(2)), finder: .made(Self.daysAgo(2)))
 
-        XCTAssertEqual(row.title, "Finder backed this iPhone up on this Mac 2 days ago")
+        XCTAssertEqual(row.line, "iPhone was backed up 2 days ago")
+        XCTAssertTrue(row.help.contains("Finder has one on this Mac."), row.help)
     }
 
-    func testAnOldBackupOnThisMacIsStillTheOneNamedWhenICloudIsOff() {
+    func testAnOldBackupOnThisMacAsksForAFreshOneToo() {
         let row = Self.row(cloud: .off, finder: .made(Self.daysAgo(40)))
 
         XCTAssertEqual(row.standing, .thin)
-        XCTAssertEqual(row.title, "Finder backed this iPhone up on this Mac 5 weeks ago")
-        XCTAssertTrue(row.detail.contains("click Back Up Now"), row.detail)
+        XCTAssertEqual(row.line, Self.backUpFirst)
+        XCTAssertTrue(row.help.contains("click Back Up Now"), row.help)
     }
 
-    func testAFolderOnThisMacThatWillNotDateItselfIsStillSaidToBeThere() {
+    func testAFolderOnThisMacThatWillNotDateItselfCannotBeChecked() {
         let row = Self.row(cloud: .off, finder: .made(nil))
 
         XCTAssertEqual(row.standing, .unknown)
-        XCTAssertEqual(
-            row.title,
-            "Finder has a backup of this iPhone on this Mac, but it does not say when it was made"
-        )
+        XCTAssertEqual(row.line, Self.couldNotCheck)
     }
 
     func testFinderRescuesAPhoneThatWouldNotAnswerAtAll() {
@@ -244,13 +247,14 @@ final class BackupSafetyNetTests: XCTestCase {
         let row = Self.row(cloud: .unknown, finder: .made(Self.daysAgo(2)))
 
         XCTAssertEqual(row.standing, .covered)
-        XCTAssertEqual(row.title, "Finder backed this iPhone up on this Mac 2 days ago")
+        XCTAssertEqual(row.line, "iPhone was backed up 2 days ago")
+        XCTAssertTrue(row.help.contains("Finder has one on this Mac."), row.help)
     }
 
     func testARefusedFolderChangesNothingTheLineSays() {
-        // The refusal is said in its own line under the row, with the button
-        // that opens the list. The row itself only ever says what is known, so
-        // it reads the same as a Mac that was read and held nothing.
+        // The refusal is said by the button beside the row, which opens the
+        // list. The row itself only ever says what is known, so it reads the
+        // same as a Mac that was read and held nothing.
         XCTAssertEqual(
             Self.row(cloud: .on(Self.daysAgo(11)), finder: .refused),
             Self.row(cloud: .on(Self.daysAgo(11)), finder: .nothingHere)
@@ -261,9 +265,10 @@ final class BackupSafetyNetTests: XCTestCase {
         )
     }
 
-    func testNothingTheLineSaysEverBlocksTheRun() {
-        // Every ending offers a way on, because the copying is the reader's
-        // decision and this is only the thing worth knowing before it.
+    func testEveryRowWithoutATickAsksForABackup() {
+        // A row with no tick is a thing to do, and the thing to do is always
+        // the same one. It is the line when the line has room for it, and the
+        // hover help when the line is spent saying nothing could be read.
         let endings: [BackupSafetyNet.Row] = [
             Self.row(cloud: .on(Self.daysAgo(11))),
             Self.row(cloud: .off),
@@ -272,7 +277,23 @@ final class BackupSafetyNetTests: XCTestCase {
             Self.row(cloud: .on(Self.now.addingTimeInterval(9 * Self.day))),
         ]
         for ending in endings {
-            XCTAssertTrue(ending.detail.contains("go on"), ending.title)
+            XCTAssertFalse(ending.ok, ending.line)
+            XCTAssertTrue("\(ending.line) \(ending.help)".contains("Back up iPhone first"), ending.line)
+        }
+    }
+
+    func testEveryLineIsOneShortSentence() {
+        let lines = [
+            Self.row(cloud: .on(Self.daysAgo(1))),
+            Self.row(cloud: .on(Self.daysAgo(11))),
+            Self.row(cloud: .off),
+            Self.row(cloud: .unknown),
+            Self.row(cloud: .unknown, finder: .made(Self.daysAgo(2))),
+        ]
+        .map(\.line)
+        for line in lines {
+            XCTAssertFalse(line.contains("\n"), line)
+            XCTAssertLessThanOrEqual(line.count, 60, line)
         }
     }
 

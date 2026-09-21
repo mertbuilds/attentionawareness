@@ -78,12 +78,11 @@ enum WizardGate {
         return direction == .supervise ? profileConfirmed : true
     }
 
-    /// How Find My is turned off, in the words of both steps that ask for it.
-    /// The one hour is Stolen Device Protection, which is the reason the backup
-    /// no longer waits for any of this.
+    /// How Find My is turned off, in the hover help of both steps that ask for
+    /// it. The one hour is Stolen Device Protection, which is the reason the
+    /// copying no longer waits for any of this.
     static let turnFindMyOff = """
-        Open Settings, tap your name, tap Find My, and turn Find My iPhone off. \
-        If the phone starts a one hour wait, that is Stolen Device Protection. \
-        The hour cannot be skipped. When it ends, confirm on the phone to finish.
+        Settings > your name > Find My > Find My iPhone. A one-hour wait is Stolen Device \
+        Protection and can't be skipped.
         """
 }
