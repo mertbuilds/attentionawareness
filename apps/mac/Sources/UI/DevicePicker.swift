@@ -28,33 +28,35 @@ struct DevicePicker: View {
 
     private func row(_ device: ConnectedDevice) -> some View {
         let picked = device.udid == selectedUdid
-        return HStack(alignment: .firstTextBaseline, spacing: 10) {
+        return HStack(alignment: .firstTextBaseline, spacing: 12) {
             Image(systemName: picked ? "largecircle.fill.circle" : "circle")
                 .foregroundStyle(picked ? WizardStyle.accent : Color.secondary)
             VStack(alignment: .leading, spacing: 2) {
-                // The filled circle is what says which phone is picked. Weight
-                // stays put, so the rows do not reflow as the choice moves.
+                // The filled circle is what says which phone is picked. The name
+                // is the hero on every row and its weight stays put, so the rows
+                // do not reflow and the choice never shows as a bolder label.
                 Text(device.name ?? "iPhone")
+                    .font(.title3)
+                    .fontWeight(.semibold)
                 Group {
                     Text(Self.hardware(device))
                     if let state = Self.state(device) {
                         Text(state)
                     }
                 }
-                .font(.callout)
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
         }
         .contentShape(Rectangle())
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
     }
 
-    /// The model and the iOS version on one line, in the same words the card
-    /// uses when the iPhone has not said what it is.
+    /// The model and the iOS version on one line, drawn from the same builder
+    /// the card uses so the row and the card read identically.
     static func hardware(_ device: ConnectedDevice) -> String {
-        guard let version = device.iosVersion else { return DeviceCard.model(device) }
-        return "\(DeviceCard.model(device)), iOS \(version)"
+        DeviceCard.hardwareLine(device)
     }
 
     /// What the iPhone needs before it can be picked, or nil when it needs

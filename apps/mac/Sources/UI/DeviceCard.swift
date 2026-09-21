@@ -20,7 +20,7 @@ struct DeviceCard: View {
                     Text(device.name ?? "iPhone")
                         .font(.title3)
                         .fontWeight(.semibold)
-                    Text(meta)
+                    Text(Self.hardwareLine(device))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -31,11 +31,12 @@ struct DeviceCard: View {
     /// The quiet line under the name: the model and the iOS version, joined
     /// with a middot. A piece the iPhone has not named yet drops out, so the
     /// line never carries a dangling separator; with neither named it reads
-    /// "Reading" on its own.
-    private var meta: String {
+    /// "Reading" on its own. The picker draws the same line from here, so the
+    /// card and the list read identically.
+    static func hardwareLine(_ device: ConnectedDevice) -> String {
         var parts: [String] = []
         if device.marketingName != nil || device.productType != nil {
-            parts.append(Self.model(device))
+            parts.append(model(device))
         }
         if let iosVersion = device.iosVersion {
             parts.append("iOS \(iosVersion)")
