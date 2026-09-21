@@ -25,21 +25,39 @@ enum WizardGate {
         return true
     }
 
+    /// Whether the patch has left a result behind: a flag it wrote, or a copy
+    /// that already said what the run asks for.
+    ///
+    /// The Restore step patches the copy on the way in rather than on a step
+    /// of its own, so this is what it waits for before it offers the button,
+    /// and what keeps a second arrival on that step from patching the same
+    /// copy again.
+    static func patched(changes: [String], alreadyCorrect: Bool, running: Bool) -> Bool {
+        guard !running else { return false }
+        return !changes.isEmpty || alreadyCorrect
+    }
+
     /// Whether the restore can send the backup to the iPhone.
     enum Restore: Equatable {
-        /// The phone says Find My is off, or it will not say at all. A phone
-        /// that will not say goes through on purpose: refusing on a value
-        /// nobody can read would leave a reader with no way forward, and a
-        /// phone that does refuse the restore says so itself, in a sentence
-        /// the step shows.
+        /// The copy carries the flag the run asked for, and the phone says
+        /// Find My is off or will not say at all. A phone that will not say
+        /// goes through on purpose: refusing on a value nobody can read would
+        /// leave a reader with no way forward, and a phone that does refuse
+        /// the restore says so itself, in a sentence the step shows.
         case allowed
         /// The phone says Find My is on, so the restore would be refused.
         case blockedByFindMy
+        /// The patch has not written the flag yet, so the copy on this Mac is
+        /// the phone as it already is and sending it back would change
+        /// nothing.
+        case notPatchedYet
     }
 
-    /// The restore waits only while the iPhone itself says Find My is on.
-    static func restore(findMyOn: Bool?) -> Restore {
-        findMyOn == true ? .blockedByFindMy : .allowed
+    /// The restore waits for the patch, and then only while the iPhone itself
+    /// says Find My is on.
+    static func restore(findMyOn: Bool?, patched: Bool) -> Restore {
+        guard patched else { return .notPatchedYet }
+        return findMyOn == true ? .blockedByFindMy : .allowed
     }
 
     /// Whether the backup has done everything it was made for, which is the

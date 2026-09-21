@@ -95,8 +95,6 @@ struct WizardStepContent: View {
             ChecksStep(model: model)
         case .backUp:
             BackupStep(model: model)
-        case .patch:
-            PatchStep(model: model)
         case .restore:
             RestoreStep(model: model)
         case .profile:

@@ -43,8 +43,6 @@ final class DemoWizardModel: WizardModel {
     /// Deriving the keys of an encrypted backup, which is the one part of the
     /// patch that takes real seconds.
     private static let keyDerivation = Duration.milliseconds(1400)
-    /// How long the reader is given to read what the patch changed. It is the
-    /// pause the real patch takes as well.
     /// How long the helper takes to stop after Cancel.
     private static let cancelPause = Duration.milliseconds(1500)
     /// How long the store takes to answer one search.
@@ -90,8 +88,8 @@ final class DemoWizardModel: WizardModel {
     ///
     /// It is the only thing the demo does that a run cannot: everything a step
     /// needs is written down rather than earned. From there every button is
-    /// the real one, so the Patch step runs its patch and the Restore step
-    /// waits for Find My exactly as it would on a cable.
+    /// the real one, so the Restore step patches the copy and waits for Find
+    /// My exactly as it would on a cable.
     func jump(to step: WizardStep) {
         stopWork()
         // A restore that was waiting for the phone had taken it off the
@@ -100,9 +98,9 @@ final class DemoWizardModel: WizardModel {
         applyConditions()
         engine.show(phase: .idle, progress: 0, log: [])
         show(sample(for: step))
-        // The Patch step is the one step whose whole content is the work it
-        // starts on the way in, so landing on it starts it.
-        if step == .patch {
+        // The Restore step patches the copy on the way in, so landing on it
+        // starts that patch.
+        if step == .restore {
             runPatch()
         }
     }
@@ -129,8 +127,8 @@ final class DemoWizardModel: WizardModel {
         sample.udid = DemoWorld.udid
         guard step != .checks, step != .backUp else { return sample }
         sample.backupFolder = DemoWorld.backupFolder
-        // A run that reached the patch has a measured folder behind it, so
-        // the Restore step can say how long sending it back will take.
+        // A run that reached the restore has a measured folder behind it, so
+        // the step can say how long sending it back will take.
         sample.restoreBytes = DemoWorld.backupBytes
         switch step {
         case .profile:
@@ -140,10 +138,10 @@ final class DemoWizardModel: WizardModel {
             sample.restore = RestoreState(stage: .finished, supervisedAfterwards: true)
         case .done:
             sample.restore = RestoreState(stage: .finished, supervisedAfterwards: direction.target)
-        case .connect, .checks, .backUp, .patch, .restore:
-            // The Patch step is left empty on purpose: it is `runPatch` that
-            // fills it, and a step that already says it is running would turn
-            // that away.
+        case .connect, .checks, .backUp, .restore:
+            // The Restore step is left empty on purpose: it is `runPatch`
+            // that fills its patch in, and a step that already says it is
+            // running would turn that away.
             break
         }
         return sample
@@ -351,7 +349,6 @@ final class DemoWizardModel: WizardModel {
         guard backupFolder != nil, !patch.isRunning else { return }
         stopWork()
         var sample = currentSample
-        sample.step = .patch
         sample.patch = PatchState(status: "Reading the copy", isRunning: true)
         sample.errorMessage = nil
         show(sample)
@@ -392,7 +389,8 @@ final class DemoWizardModel: WizardModel {
                 isRunning: false
             )
             self.show(done)
-            // The real patch waits for Continue here, so the demo does too.
+            // The real patch leaves the step showing what it wrote, over the
+            // button that sends the copy back. So does this one.
             self.work = nil
         }
     }

@@ -4,8 +4,9 @@ import XCTest
 ///
 /// Find My is the whole reason this is a type of its own: it has to be off for
 /// the restore and for nothing else, so the checks let an hour of copying start
-/// while the reader is still turning it off. These are the two rules that say
-/// so, and neither of them reads an iPhone.
+/// while the reader is still turning it off. These are the rules that say so,
+/// and the one that says when a copy is patched enough to send, and none of
+/// them reads an iPhone.
 final class WizardGateTests: XCTestCase {
     // MARK: - The checks
 
@@ -45,18 +46,57 @@ final class WizardGateTests: XCTestCase {
         )
     }
 
+    // MARK: - The patch
+
+    func testAFlagThatWasWrittenIsAPatchedCopy() {
+        XCTAssertTrue(
+            WizardGate.patched(
+                changes: ["IsSupervised: false -> true"],
+                alreadyCorrect: false,
+                running: false
+            )
+        )
+    }
+
+    func testACopyThatAlreadySaidTheRightThingCountsAsPatched() {
+        // Nothing was written, so there are no changes to show. The copy still
+        // says what the restore is about to send.
+        XCTAssertTrue(WizardGate.patched(changes: [], alreadyCorrect: true, running: false))
+    }
+
+    func testAPatchThatIsStillRunningHasNothingToShowYet() {
+        XCTAssertFalse(
+            WizardGate.patched(changes: ["IsSupervised: false -> true"], alreadyCorrect: false, running: true)
+        )
+    }
+
+    func testAPatchThatWroteNothingAndSaysNothingIsNotAPatchedCopy() {
+        // This is the arrival that runs the patch, and the one a failed patch
+        // leaves behind. Both offer to patch rather than to restore, which is
+        // what keeps the Restore step from patching the same copy twice.
+        XCTAssertFalse(WizardGate.patched(changes: [], alreadyCorrect: false, running: false))
+    }
+
     // MARK: - The restore
 
     func testTheRestoreWaitsWhileTheIPhoneSaysFindMyIsOn() {
-        XCTAssertEqual(WizardGate.restore(findMyOn: true), .blockedByFindMy)
+        XCTAssertEqual(WizardGate.restore(findMyOn: true, patched: true), .blockedByFindMy)
     }
 
     func testTheRestoreGoesAheadOnceTheIPhoneSaysFindMyIsOff() {
-        XCTAssertEqual(WizardGate.restore(findMyOn: false), .allowed)
+        XCTAssertEqual(WizardGate.restore(findMyOn: false, patched: true), .allowed)
     }
 
     func testAPhoneThatWillNotSayIsNotHeldBack() {
-        XCTAssertEqual(WizardGate.restore(findMyOn: nil), .allowed)
+        XCTAssertEqual(WizardGate.restore(findMyOn: nil, patched: true), .allowed)
+    }
+
+    func testACopyThatIsNotPatchedYetIsNeverSentWhateverFindMySays() {
+        // Sending it back would put the phone where it already is, so the
+        // button waits for the patch whichever way Find My reads.
+        for findMyOn in [true, false, nil] as [Bool?] {
+            XCTAssertEqual(WizardGate.restore(findMyOn: findMyOn, patched: false), .notPatchedYet)
+        }
     }
 
     // MARK: - Taking the backup away

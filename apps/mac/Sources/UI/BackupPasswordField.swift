@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The password of an encrypted backup. It is asked for on the checks step,
-/// and again on the patch step when the patch could not open the backup with
+/// and again on the restore step when the patch could not open the backup with
 /// what was typed the first time.
 struct BackupPasswordField: View {
     @ObservedObject var model: WizardModel

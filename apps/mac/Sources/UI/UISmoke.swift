@@ -67,10 +67,44 @@ enum UISmoke {
         // it is off. The two the loop above drew come from a Mac with nothing
         // on the cable, which is the third answer: no answer at all.
         for (name, findMyOn) in [("find-my-on", true), ("find-my-off", false)] {
-            let phone = WizardModel(watcher: sampleWatcher([samplePhone(findMyOn: findMyOn)]))
-            report("checks-\(name)", WizardStepContent(step: .checks, model: phone), into: folder)
-            report("restore-\(name)", WizardStepContent(step: .restore, model: phone), into: folder)
+            let phone = samplePhone(findMyOn: findMyOn)
+            report(
+                "checks-\(name)",
+                WizardStepContent(step: .checks, model: WizardModel(watcher: sampleWatcher([phone]))),
+                into: folder
+            )
+            report("restore-\(name)", RestoreStep(model: arriving(phone, patch: patchDone)), into: folder)
         }
+        // The Restore step patches the copy on the way in, so it says three
+        // things before the button: the patch running, the patch that would
+        // not run, and the copy patched, that last one with the change lines
+        // unfolded.
+        report(
+            "restore-patching",
+            RestoreStep(
+                model: arriving(
+                    samplePhone(findMyOn: false),
+                    patch: WizardModel.PatchState(status: "Writing the flag", isRunning: true)
+                )
+            ),
+            into: folder
+        )
+        report(
+            "restore-patch-failed",
+            RestoreStep(
+                model: arriving(
+                    sampleDevice,
+                    patch: WizardModel.PatchState(),
+                    errorMessage: PatchError.wrongPassword.localizedDescription
+                )
+            ),
+            into: folder
+        )
+        report(
+            "restore-ready",
+            RestoreStep(model: arriving(samplePhone(findMyOn: false), patch: patchDone), showsDetails: true),
+            into: folder
+        )
         // The one row the checks show about the reader's own backups, in each
         // of the things it can say: a copy on this Mac, one only iCloud has,
         // one too old to lean on, none at all, and the refusal that keeps
@@ -154,6 +188,35 @@ enum UISmoke {
         model.show(WizardModel.Sample(step: .checks, udid: phone.udid, finderBackup: finderBackup))
         return model
     }
+
+    /// The Restore step as a run arrives on it, with the patch in whatever
+    /// state the picture is about. The step patches the copy on the way in, so
+    /// everything it says before the button is drawn from one of these.
+    private static func arriving(
+        _ device: ConnectedDevice,
+        patch: WizardModel.PatchState,
+        errorMessage: String? = nil
+    ) -> WizardModel {
+        let model = WizardModel(watcher: sampleWatcher([device]))
+        model.show(
+            WizardModel.Sample(
+                step: .restore,
+                udid: device.udid,
+                patch: patch,
+                errorMessage: errorMessage
+            )
+        )
+        return model
+    }
+
+    /// A patch that has run: the two flags a supervise run writes, and where
+    /// the untouched copy of the backup went.
+    private static let patchDone = WizardModel.PatchState(
+        changes: ["IsSupervised: false -> true", "CloudConfigurationUIComplete: false -> true"],
+        pristinePath: SupervisionPatch
+            .pristineRoot(forBackupRoot: BackupFolder.applicationSupportRoot)
+            .path
+    )
 
     /// The Restore step in each of the states the helper puts it in, drawn
     /// from engines that are running nothing.

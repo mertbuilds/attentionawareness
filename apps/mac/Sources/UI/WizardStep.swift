@@ -20,13 +20,12 @@ enum WizardStep: String, CaseIterable, Equatable {
     case connect
     case checks
     case backUp
-    case patch
     case restore
     case profile
     case done
 
     /// The steps one direction shows. Unsupervising installs no profile, so it
-    /// is six steps rather than seven.
+    /// is five steps rather than six.
     static func steps(for direction: WizardDirection) -> [WizardStep] {
         allCases.filter { $0.belongs(to: direction) }
     }
@@ -50,7 +49,7 @@ enum WizardStep: String, CaseIterable, Equatable {
         return steps[index - 1]
     }
 
-    /// The small indicator over the title, as "2 of 7".
+    /// The small indicator over the title, as "2 of 6".
     func position(in direction: WizardDirection) -> String {
         let steps = Self.steps(for: direction)
         guard let index = steps.firstIndex(of: self) else { return "" }
@@ -63,7 +62,7 @@ enum WizardStep: String, CaseIterable, Equatable {
         switch self {
         case .connect, .done:
             return false
-        case .checks, .backUp, .patch, .restore, .profile:
+        case .checks, .backUp, .restore, .profile:
             return true
         }
     }
@@ -73,7 +72,6 @@ enum WizardStep: String, CaseIterable, Equatable {
         case .connect: return "Connect"
         case .checks: return "Checks"
         case .backUp: return "Copy"
-        case .patch: return "Patch"
         case .restore: return "Restore"
         case .profile: return "Profile"
         case .done: return "Done"

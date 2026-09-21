@@ -5,17 +5,17 @@ import XCTest
 final class WizardStepTests: XCTestCase {
     // MARK: - Which steps a direction shows
 
-    func testSupervisingWalksSevenSteps() {
+    func testSupervisingWalksSixSteps() {
         XCTAssertEqual(
             WizardStep.steps(for: .supervise),
-            [.connect, .checks, .backUp, .patch, .restore, .profile, .done]
+            [.connect, .checks, .backUp, .restore, .profile, .done]
         )
     }
 
     func testUnsupervisingLeavesTheProfileStepOut() {
         XCTAssertEqual(
             WizardStep.steps(for: .unsupervise),
-            [.connect, .checks, .backUp, .patch, .restore, .done]
+            [.connect, .checks, .backUp, .restore, .done]
         )
         XCTAssertFalse(WizardStep.profile.belongs(to: .unsupervise))
     }
@@ -25,8 +25,7 @@ final class WizardStepTests: XCTestCase {
     func testEveryStepLeadsToTheNextOne() {
         XCTAssertEqual(WizardStep.connect.next(in: .supervise), .checks)
         XCTAssertEqual(WizardStep.checks.next(in: .supervise), .backUp)
-        XCTAssertEqual(WizardStep.backUp.next(in: .supervise), .patch)
-        XCTAssertEqual(WizardStep.patch.next(in: .supervise), .restore)
+        XCTAssertEqual(WizardStep.backUp.next(in: .supervise), .restore)
         XCTAssertEqual(WizardStep.restore.next(in: .supervise), .profile)
         XCTAssertEqual(WizardStep.profile.next(in: .supervise), .done)
     }
@@ -59,16 +58,16 @@ final class WizardStepTests: XCTestCase {
     // MARK: - What the window shows
 
     func testThePositionCountsOnlyTheStepsTheDirectionShows() {
-        XCTAssertEqual(WizardStep.connect.position(in: .supervise), "1 of 7")
-        XCTAssertEqual(WizardStep.done.position(in: .supervise), "7 of 7")
-        XCTAssertEqual(WizardStep.connect.position(in: .unsupervise), "1 of 6")
-        XCTAssertEqual(WizardStep.done.position(in: .unsupervise), "6 of 6")
+        XCTAssertEqual(WizardStep.connect.position(in: .supervise), "1 of 6")
+        XCTAssertEqual(WizardStep.done.position(in: .supervise), "6 of 6")
+        XCTAssertEqual(WizardStep.connect.position(in: .unsupervise), "1 of 5")
+        XCTAssertEqual(WizardStep.done.position(in: .unsupervise), "5 of 5")
     }
 
     func testBackIsOfferedEverywhereExceptTheTwoEnds() {
         XCTAssertFalse(WizardStep.connect.allowsBack)
         XCTAssertFalse(WizardStep.done.allowsBack)
-        for step in [WizardStep.checks, .backUp, .patch, .restore, .profile] {
+        for step in [WizardStep.checks, .backUp, .restore, .profile] {
             XCTAssertTrue(step.allowsBack, "\(step.rawValue) should offer Back")
         }
     }

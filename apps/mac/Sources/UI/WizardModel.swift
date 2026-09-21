@@ -29,8 +29,6 @@ class WizardModel: ObservableObject {
     private static let rebootTimeout: TimeInterval = 15 * 60
     /// How often the phone is read again while a check is waiting for it.
     private static let pollInterval = Duration.seconds(3)
-    /// How long the patch step holds the line about what changed on screen
-    /// before it moves on by itself.
     /// What the free space check asks for when the iPhone does not say how
     /// much it holds.
     private static let assumedPhoneBytes: UInt64 = 64_000_000_000
@@ -375,11 +373,17 @@ class WizardModel: ObservableObject {
         case .checks:
             pollWhileFindMyIsOn()
             lookForFinderBackup()
-        case .patch:
-            runPatch()
         case .restore:
             restore = RestoreState()
             pollWhileFindMyIsOn()
+            // The copy is patched on the way in rather than on a step of its
+            // own, and it is patched once: stepping back to the copy and
+            // coming forward again arrives here with the same copy already
+            // patched, and a second patch would write nothing while taking
+            // the lines about what changed off the screen.
+            if !patch.hasResult {
+                runPatch()
+            }
         case .profile:
             profile = ProfileState()
         case .connect, .backUp, .done:
@@ -559,7 +563,7 @@ class WizardModel: ObservableObject {
                 )
                 backupFolder = folder
                 measureBackup(at: folder, took: Date().timeIntervalSince(started))
-                go(to: .patch)
+                go(to: .restore)
             } catch BackupError.cancelled {
                 // The phase already says it was cancelled, and the step offers
                 // Retry. A cancel the user asked for is not an error.
@@ -610,6 +614,12 @@ class WizardModel: ObservableObject {
         /// True when the backup already said what it should, so nothing was
         /// written.
         var alreadyCorrect = false
+
+        /// True once the patch has something to show. Until it has, the
+        /// Restore step has nothing worth sending to the phone.
+        var hasResult: Bool {
+            WizardGate.patched(changes: changes, alreadyCorrect: alreadyCorrect, running: isRunning)
+        }
     }
 
     /// Read the backup, unlock it when it is encrypted, write the flag and
@@ -638,9 +648,9 @@ class WizardModel: ObservableObject {
                     isRunning: false,
                     alreadyCorrect: outcome.alreadyCorrect
                 )
-                // The flag is the whole point of the wizard, so the step waits
-                // here. Moving on by itself took the line about what changed
-                // off the screen before anyone could read it.
+                // The flag is the whole point of the wizard, so what was
+                // written stays on the Restore step, over the button that
+                // sends it, rather than passing by on a step of its own.
             } catch {
                 patch.isRunning = false
                 patch.status = nil
@@ -707,10 +717,11 @@ class WizardModel: ObservableObject {
         var supervisedAfterwards: Bool?
     }
 
-    /// Whether the phone will take the backup back. This is the one place Find
-    /// My matters: the iPhone refuses a restore while it is on.
+    /// Whether the phone will take the backup back: the patch has to have
+    /// written the flag first, and this is the one place Find My matters,
+    /// because the iPhone refuses a restore while it is on.
     var restoreGate: WizardGate.Restore {
-        WizardGate.restore(findMyOn: device?.findMyOn)
+        WizardGate.restore(findMyOn: device?.findMyOn, patched: patch.hasResult)
     }
 
     /// Put the patched backup back on the phone and wait for the reboot.
