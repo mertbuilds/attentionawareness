@@ -5,9 +5,10 @@ plug in, click, wait: copy the iPhone, patch the copy, restore it, install
 the profile over USB. The patch logic was ported from a Python tool that did
 the same thing by hand; that tool is retired and git history has it.
 
-The window is the wizard: Connect, Checks, Copy, Restore, Profile, Done, one
-step at a time. The Restore step patches the copy on the way in. Unsupervising
-walks the same steps in reverse and leaves the profile out, so it is five.
+The window is the wizard: Connect, Ready, Supervising, Restrictions, Done, one
+screen at a time. The copy, the patch and the restore are one screen, because
+they are one wait. Unsupervising walks the same screens, leaves the
+restrictions out and mirrors the words, so it is four.
 
 ## Build
 

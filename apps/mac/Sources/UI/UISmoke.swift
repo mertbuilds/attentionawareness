@@ -39,7 +39,7 @@ enum UISmoke {
         // which this one cleared on its way in.
         report(
             "checks-leftover-cleared",
-            WizardStepContent(step: .checks, model: clearedLeftover()),
+            WizardStepContent(step: .ready, model: clearedLeftover()),
             into: folder
         )
         // The Profile step with a search under its field. The rows come from
@@ -51,7 +51,7 @@ enum UISmoke {
         let searching = WizardModel(watcher: sampleWatcher([sampleDevice]))
         searching.show(
             WizardModel.Sample(
-                step: .profile,
+                step: .restrictions,
                 udid: sampleDevice.udid,
                 appSearch: WizardModel.AppSearchState(
                     storefront: "us",
@@ -60,7 +60,7 @@ enum UISmoke {
                 )
             )
         )
-        report("profile-search", WizardStepContent(step: .profile, model: searching), into: folder)
+        report("profile-search", WizardStepContent(step: .restrictions, model: searching), into: folder)
         #endif
         // Find My is named on the checks and asked for on the restore, so both
         // steps are drawn for a phone that says it is on and for one that says
@@ -70,7 +70,7 @@ enum UISmoke {
             let phone = samplePhone(findMyOn: findMyOn)
             report(
                 "checks-\(name)",
-                WizardStepContent(step: .checks, model: WizardModel(watcher: sampleWatcher([phone]))),
+                WizardStepContent(step: .ready, model: WizardModel(watcher: sampleWatcher([phone]))),
                 into: folder
             )
             report("restore-\(name)", RestoreStep(model: arriving(phone, patch: patchDone)), into: folder)
@@ -110,7 +110,7 @@ enum UISmoke {
         // one too old to lean on, none at all, and the refusal that keeps
         // Finder's own out of the app's reach for good.
         for sample in safetyNetSamples() {
-            report("checks-\(sample.name)", WizardStepContent(step: .checks, model: sample.model), into: folder)
+            report("checks-\(sample.name)", WizardStepContent(step: .ready, model: sample.model), into: folder)
         }
         // Everything the Restore step says once the helper has the phone: the
         // files moving with a figure for how much longer, the same thing too
@@ -119,7 +119,7 @@ enum UISmoke {
         // one that used to go on saying the files were still being written.
         let now = Date()
         for sample in restoreSamples(at: now) {
-            report("restore-\(sample.name)", WizardStepContent(step: .restore, model: sample.model), into: folder)
+            report("restore-\(sample.name)", WizardStepContent(step: .job, model: sample.model), into: folder)
         }
         report("connect-one-phone", ConnectStep(model: sampleModel([sampleDevice])), into: folder)
         report(
@@ -185,7 +185,7 @@ enum UISmoke {
             lastCloudBackup: lastCloudBackup
         )
         let model = WizardModel(watcher: sampleWatcher([phone]))
-        model.show(WizardModel.Sample(step: .checks, udid: phone.udid, finderBackup: finderBackup))
+        model.show(WizardModel.Sample(step: .ready, udid: phone.udid, finderBackup: finderBackup))
         return model
     }
 
@@ -200,9 +200,10 @@ enum UISmoke {
         let model = WizardModel(watcher: sampleWatcher([device]))
         model.show(
             WizardModel.Sample(
-                step: .restore,
+                step: .job,
                 udid: device.udid,
                 patch: patch,
+                jobShowsRestore: true,
                 errorMessage: errorMessage
             )
         )
@@ -417,7 +418,7 @@ enum UISmoke {
         let model = WizardModel(watcher: sampleWatcher([samplePhone(findMyOn: false)]))
         model.show(
             WizardModel.Sample(
-                step: .checks,
+                step: .ready,
                 udid: samplePhone(findMyOn: false).udid,
                 clearedLeftoverBackup: true
             )

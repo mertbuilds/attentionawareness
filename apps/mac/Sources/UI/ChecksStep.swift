@@ -49,8 +49,7 @@ struct ChecksStep: View {
 
     var body: some View {
         StepLayout(
-            position: WizardStep.checks.position(in: model.direction),
-            title: "Checks",
+            title: WizardStep.ready.title(for: model.direction),
             lead: """
                 What to get right before an hour of copying starts. The list reads the iPhone \
                 again while you change them.

@@ -79,7 +79,9 @@ struct DemoBar: View {
         field("Step") {
             Picker("Step", selection: stepBinding) {
                 ForEach(WizardStep.allCases, id: \.self) { step in
-                    Text(step.title).tag(step)
+                    // The name of the case rather than the screen's own title,
+                    // which is a sentence and too long for a segment.
+                    Text(step.rawValue.capitalized).tag(step)
                 }
             }
             .pickerStyle(.segmented)

@@ -79,6 +79,11 @@ class WizardModel: ObservableObject {
 
     @Published private(set) var patch = PatchState()
     @Published private(set) var restore = RestoreState()
+    /// Whether the job screen is past the copy and on the restore. The two are
+    /// still two views, and the engine's own phase cannot tell them apart,
+    /// because the restore runs through the same phases the copy did. The job
+    /// phase this stands in for arrives with the job screen itself.
+    @Published private(set) var jobShowsRestore = false
     @Published private(set) var profile = ProfileState()
     /// The profile the Profile step is building. It starts on the one this app
     /// has always installed and the step writes over it.
@@ -147,7 +152,7 @@ class WizardModel: ObservableObject {
     /// A model standing in the middle of a restore: the engine, the stage, the
     /// estimate and the clock all handed in, and nothing running. It reads no
     /// bus and sends nothing to a phone, so the hidden `--ui-smoke` path can
-    /// draw each of the things the Restore step says while the helper has the
+    /// draw each of the things the restore says while the helper has the
     /// phone without one on the cable.
     convenience init(
         sample watcher: DeviceWatcher,
@@ -159,7 +164,8 @@ class WizardModel: ObservableObject {
         self.init(watcher: watcher, engine: engine)
         udid = watcher.devices.first?.udid
         selectedUdid = udid
-        step = .restore
+        step = .job
+        jobShowsRestore = true
         restore = RestoreState(stage: stage)
         transferStartedAt = startedAt
         self.estimate = estimate
@@ -185,6 +191,9 @@ class WizardModel: ObservableObject {
         var estimate = TransferEstimate()
         var patch = PatchState()
         var restore = RestoreState()
+        /// Which half of the job screen is drawn: the copy, or the restore
+        /// that follows it.
+        var jobShowsRestore = false
         var profile = ProfileState()
         /// What the search field over the blocked list is showing, so a step
         /// can be drawn with rows under it.
@@ -216,6 +225,7 @@ class WizardModel: ObservableObject {
         estimate = sample.estimate
         patch = sample.patch
         restore = sample.restore
+        jobShowsRestore = sample.jobShowsRestore
         profile = sample.profile
         appSearch = sample.appSearch
         finderBackup = sample.finderBackup
@@ -298,7 +308,7 @@ class WizardModel: ObservableObject {
         // well and the same phone comes back highlighted.
         selectedUdid = device.udid
         clearLeftoverBackup(of: device.udid)
-        go(to: .checks)
+        go(to: .ready)
     }
 
     /// Take away whatever this Mac is still holding for this iPhone.
@@ -351,6 +361,7 @@ class WizardModel: ObservableObject {
         estimate = TransferEstimate()
         patch = PatchState()
         restore = RestoreState()
+        jobShowsRestore = false
         profile = ProfileState()
         draft = .recommended
         clearAppSearch()
@@ -370,24 +381,30 @@ class WizardModel: ObservableObject {
         errorMessage = nil
         self.step = step
         switch step {
-        case .checks:
+        case .ready:
             pollWhileFindMyIsOn()
             lookForFinderBackup()
-        case .restore:
-            restore = RestoreState()
-            pollWhileFindMyIsOn()
-            // The copy is patched on the way in rather than on a step of its
-            // own, and it is patched once: stepping back to the copy and
-            // coming forward again arrives here with the same copy already
-            // patched, and a second patch would write nothing while taking
-            // the lines about what changed off the screen.
-            if !patch.hasResult {
-                runPatch()
-            }
-        case .profile:
+        case .restrictions:
             profile = ProfileState()
-        case .connect, .backUp, .done:
+        case .connect, .job, .done:
             break
+        }
+    }
+
+    /// The copy is on this Mac, so the job screen turns to the restore.
+    ///
+    /// It is the arrival the old Restore step had: the copy is patched on the
+    /// way in, and it is patched once, because a second patch would write
+    /// nothing while taking the lines about what changed off the screen. The
+    /// job's own phases take this over.
+    func showRestore() {
+        poll?.cancel()
+        errorMessage = nil
+        jobShowsRestore = true
+        restore = RestoreState()
+        pollWhileFindMyIsOn()
+        if !patch.hasResult {
+            runPatch()
         }
     }
 
@@ -544,7 +561,7 @@ class WizardModel: ObservableObject {
     /// password is only passed on.
     func startBackup() {
         guard let udid, !engine.phase.isRunning else { return }
-        go(to: .backUp)
+        go(to: .job)
         let started = Date()
         transferStartedAt = started
         estimate = TransferEstimate()
@@ -563,7 +580,7 @@ class WizardModel: ObservableObject {
                 )
                 backupFolder = folder
                 measureBackup(at: folder, took: Date().timeIntervalSince(started))
-                go(to: .restore)
+                showRestore()
             } catch BackupError.cancelled {
                 // The phase already says it was cancelled, and the step offers
                 // Retry. A cancel the user asked for is not an error.

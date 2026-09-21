@@ -11,8 +11,7 @@ struct ConnectStep: View {
 
     var body: some View {
         StepLayout(
-            position: WizardStep.connect.position(in: model.direction),
-            title: "Connect",
+            title: WizardStep.connect.title(for: model.direction),
             lead: lead,
             error: model.watcher.lastError
         ) {

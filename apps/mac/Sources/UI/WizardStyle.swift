@@ -55,10 +55,9 @@ enum SiteLink {
     }
 }
 
-/// The shape every step shares: the step number, a title, a sentence under it,
-/// the step's own content, whatever went wrong, and the buttons at the bottom.
+/// The shape every step shares: a title, a sentence under it, the step's own
+/// content, whatever went wrong, and the buttons at the bottom.
 struct StepLayout<Content: View, Actions: View>: View {
-    let position: String
     let title: String
     let lead: String?
     let error: String?
@@ -66,14 +65,12 @@ struct StepLayout<Content: View, Actions: View>: View {
     let actions: Actions
 
     init(
-        position: String,
         title: String,
         lead: String? = nil,
         error: String? = nil,
         @ViewBuilder content: () -> Content,
         @ViewBuilder actions: () -> Actions
     ) {
-        self.position = position
         self.title = title
         self.lead = lead
         self.error = error
@@ -83,14 +80,10 @@ struct StepLayout<Content: View, Actions: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(position)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(title)
-                    .font(.title2)
-                    .fontWeight(.semibold)
-            }
+            Text(title)
+                .font(.title2)
+                .fontWeight(.semibold)
+                .fixedSize(horizontal: false, vertical: true)
 
             if let lead {
                 Text(lead)

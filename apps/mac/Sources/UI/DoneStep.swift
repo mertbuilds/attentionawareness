@@ -11,8 +11,7 @@ struct DoneStep: View {
 
     var body: some View {
         StepLayout(
-            position: WizardStep.done.position(in: model.direction),
-            title: "Done",
+            title: WizardStep.done.title(for: model.direction),
             lead: lead,
             error: model.errorMessage
         ) {

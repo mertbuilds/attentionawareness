@@ -18,21 +18,22 @@ enum WizardDirection: String, Equatable {
 /// it is the part of the wizard the tests can run.
 enum WizardStep: String, CaseIterable, Equatable {
     case connect
-    case checks
-    case backUp
-    case restore
-    case profile
+    case ready
+    /// The copy, the patch and the restore, which are one piece of work for
+    /// the person waiting on them and so one screen.
+    case job
+    case restrictions
     case done
 
     /// The steps one direction shows. Unsupervising installs no profile, so it
-    /// is five steps rather than six.
+    /// is four screens rather than five.
     static func steps(for direction: WizardDirection) -> [WizardStep] {
         allCases.filter { $0.belongs(to: direction) }
     }
 
     /// False for a step the direction leaves out.
     func belongs(to direction: WizardDirection) -> Bool {
-        self != .profile || direction == .supervise
+        self != .restrictions || direction == .supervise
     }
 
     /// The step after this one, or nil at the end of the run.
@@ -49,32 +50,32 @@ enum WizardStep: String, CaseIterable, Equatable {
         return steps[index - 1]
     }
 
-    /// The small indicator over the title, as "2 of 6".
-    func position(in direction: WizardDirection) -> String {
-        let steps = Self.steps(for: direction)
-        guard let index = steps.firstIndex(of: self) else { return "" }
-        return "\(index + 1) of \(steps.count)"
-    }
-
     /// Whether stepping back from here changes nothing on the iPhone or in the
-    /// backup. A step that is running something hides the button anyway.
+    /// backup. The job has the phone from the moment it starts, so it offers
+    /// no way back at all.
     var allowsBack: Bool {
         switch self {
-        case .connect, .done:
+        case .connect, .job, .done:
             return false
-        case .checks, .backUp, .restore, .profile:
+        case .ready, .restrictions:
             return true
         }
     }
 
-    var title: String {
+    /// The heading the screen carries. Title Case, like a window title, and it
+    /// says which way the run is going wherever the two ways differ.
+    func title(for direction: WizardDirection) -> String {
         switch self {
-        case .connect: return "Connect"
-        case .checks: return "Checks"
-        case .backUp: return "Copy"
-        case .restore: return "Restore"
-        case .profile: return "Profile"
-        case .done: return "Done"
+        case .connect:
+            return "Connect iPhone to This Mac"
+        case .ready:
+            return direction == .supervise ? "Ready to Supervise" : "Ready to Unsupervise"
+        case .job:
+            return direction == .supervise ? "Supervising iPhone" : "Unsupervising iPhone"
+        case .restrictions:
+            return "Choose Restrictions"
+        case .done:
+            return direction == .supervise ? "iPhone Is Supervised" : "iPhone Is No Longer Supervised"
         }
     }
 }

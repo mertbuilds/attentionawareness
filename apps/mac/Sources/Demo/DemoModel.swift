@@ -98,11 +98,6 @@ final class DemoWizardModel: WizardModel {
         applyConditions()
         engine.show(phase: .idle, progress: 0, log: [])
         show(sample(for: step))
-        // The Restore step patches the copy on the way in, so landing on it
-        // starts that patch.
-        if step == .restore {
-            runPatch()
-        }
     }
 
     /// Forget the run and the conditions both, which is the demo's way back to
@@ -125,23 +120,25 @@ final class DemoWizardModel: WizardModel {
             return sample
         }
         sample.udid = DemoWorld.udid
-        guard step != .checks, step != .backUp else { return sample }
+        // The job screen is landed on where it starts, on the copy, so it is
+        // holding no folder yet either.
+        guard step != .ready, step != .job else { return sample }
         sample.backupFolder = DemoWorld.backupFolder
         // A run that reached the restore has a measured folder behind it, so
         // the step can say how long sending it back will take.
         sample.restoreBytes = DemoWorld.backupBytes
+        // Both of the steps left are past the job, so stepping back from
+        // them lands on the restore rather than on the copy.
+        sample.jobShowsRestore = true
         switch step {
-        case .profile:
+        case .restrictions:
             // Unsupervising leaves this step out, so landing on it is a run
             // that is putting supervision on.
             sample.direction = .supervise
             sample.restore = RestoreState(stage: .finished, supervisedAfterwards: true)
         case .done:
             sample.restore = RestoreState(stage: .finished, supervisedAfterwards: direction.target)
-        case .connect, .checks, .backUp, .restore:
-            // The Restore step is left empty on purpose: it is `runPatch`
-            // that fills its patch in, and a step that already says it is
-            // running would turn that away.
+        case .connect, .ready, .job:
             break
         }
         return sample
@@ -160,6 +157,7 @@ final class DemoWizardModel: WizardModel {
             estimate: estimate,
             patch: patch,
             restore: restore,
+            jobShowsRestore: jobShowsRestore,
             profile: profile,
             appSearch: appSearch,
             finderBackup: finderBackup,
@@ -180,7 +178,7 @@ final class DemoWizardModel: WizardModel {
     override func startBackup() {
         guard udid != nil, !engine.phase.isRunning else { return }
         stopWork()
-        var sample = self.sample(for: .backUp)
+        var sample = self.sample(for: .job)
         sample.transferStartedAt = Date()
         show(sample)
         runTransfer(.backup)
@@ -191,7 +189,8 @@ final class DemoWizardModel: WizardModel {
         guard restoreGate == .allowed else { return }
         stopWork()
         var sample = currentSample
-        sample.step = .restore
+        sample.step = .job
+        sample.jobShowsRestore = true
         sample.restore = RestoreState(stage: .running)
         sample.transferStartedAt = Date()
         sample.estimate = TransferEstimate()
@@ -305,7 +304,7 @@ final class DemoWizardModel: WizardModel {
             // This Mac is holding the backup now, which is what the end of the
             // run takes away again.
             conditions.holdingBackup = true
-            advance()
+            showRestore()
         case .restore:
             // The phone is back on the cable, saying what the run asked it to
             // say.

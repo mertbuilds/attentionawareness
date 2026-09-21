@@ -19,8 +19,7 @@ struct ProfileStep: View {
 
     var body: some View {
         StepLayout(
-            position: WizardStep.profile.position(in: model.direction),
-            title: "Profile",
+            title: WizardStep.restrictions.title(for: model.direction),
             lead: model.draft.allowsRemoval
                 ? "The profile hides the apps you pick and blocks their sites. It installs over "
                     + "the cable. In trial mode you can remove it from the phone."

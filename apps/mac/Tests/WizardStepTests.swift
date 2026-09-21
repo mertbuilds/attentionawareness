@@ -5,34 +5,33 @@ import XCTest
 final class WizardStepTests: XCTestCase {
     // MARK: - Which steps a direction shows
 
-    func testSupervisingWalksSixSteps() {
+    func testSupervisingWalksFiveScreens() {
         XCTAssertEqual(
             WizardStep.steps(for: .supervise),
-            [.connect, .checks, .backUp, .restore, .profile, .done]
+            [.connect, .ready, .job, .restrictions, .done]
         )
     }
 
-    func testUnsupervisingLeavesTheProfileStepOut() {
+    func testUnsupervisingLeavesTheRestrictionsStepOut() {
         XCTAssertEqual(
             WizardStep.steps(for: .unsupervise),
-            [.connect, .checks, .backUp, .restore, .done]
+            [.connect, .ready, .job, .done]
         )
-        XCTAssertFalse(WizardStep.profile.belongs(to: .unsupervise))
+        XCTAssertFalse(WizardStep.restrictions.belongs(to: .unsupervise))
     }
 
     // MARK: - Moving
 
     func testEveryStepLeadsToTheNextOne() {
-        XCTAssertEqual(WizardStep.connect.next(in: .supervise), .checks)
-        XCTAssertEqual(WizardStep.checks.next(in: .supervise), .backUp)
-        XCTAssertEqual(WizardStep.backUp.next(in: .supervise), .restore)
-        XCTAssertEqual(WizardStep.restore.next(in: .supervise), .profile)
-        XCTAssertEqual(WizardStep.profile.next(in: .supervise), .done)
+        XCTAssertEqual(WizardStep.connect.next(in: .supervise), .ready)
+        XCTAssertEqual(WizardStep.ready.next(in: .supervise), .job)
+        XCTAssertEqual(WizardStep.job.next(in: .supervise), .restrictions)
+        XCTAssertEqual(WizardStep.restrictions.next(in: .supervise), .done)
     }
 
-    func testUnsupervisingGoesFromTheRestoreStraightToTheEnd() {
-        XCTAssertEqual(WizardStep.restore.next(in: .unsupervise), .done)
-        XCTAssertEqual(WizardStep.done.previous(in: .unsupervise), .restore)
+    func testUnsupervisingGoesFromTheJobStraightToTheEnd() {
+        XCTAssertEqual(WizardStep.job.next(in: .unsupervise), .done)
+        XCTAssertEqual(WizardStep.done.previous(in: .unsupervise), .job)
     }
 
     func testTheRunEndsAtTheLastStepAndStartsAtTheFirst() {
@@ -41,9 +40,8 @@ final class WizardStepTests: XCTestCase {
     }
 
     func testStepsThatTheDirectionLeavesOutLeadNowhere() {
-        XCTAssertNil(WizardStep.profile.next(in: .unsupervise))
-        XCTAssertNil(WizardStep.profile.previous(in: .unsupervise))
-        XCTAssertEqual(WizardStep.profile.position(in: .unsupervise), "")
+        XCTAssertNil(WizardStep.restrictions.next(in: .unsupervise))
+        XCTAssertNil(WizardStep.restrictions.previous(in: .unsupervise))
     }
 
     func testGoingBackUndoesGoingForward() {
@@ -57,17 +55,26 @@ final class WizardStepTests: XCTestCase {
 
     // MARK: - What the window shows
 
-    func testThePositionCountsOnlyTheStepsTheDirectionShows() {
-        XCTAssertEqual(WizardStep.connect.position(in: .supervise), "1 of 6")
-        XCTAssertEqual(WizardStep.done.position(in: .supervise), "6 of 6")
-        XCTAssertEqual(WizardStep.connect.position(in: .unsupervise), "1 of 5")
-        XCTAssertEqual(WizardStep.done.position(in: .unsupervise), "5 of 5")
+    func testEveryScreenIsTitledForTheDirectionItIsGoing() {
+        XCTAssertEqual(WizardStep.connect.title(for: .supervise), "Connect iPhone to This Mac")
+        XCTAssertEqual(WizardStep.ready.title(for: .supervise), "Ready to Supervise")
+        XCTAssertEqual(WizardStep.job.title(for: .supervise), "Supervising iPhone")
+        XCTAssertEqual(WizardStep.restrictions.title(for: .supervise), "Choose Restrictions")
+        XCTAssertEqual(WizardStep.done.title(for: .supervise), "iPhone Is Supervised")
     }
 
-    func testBackIsOfferedEverywhereExceptTheTwoEnds() {
-        XCTAssertFalse(WizardStep.connect.allowsBack)
-        XCTAssertFalse(WizardStep.done.allowsBack)
-        for step in [WizardStep.checks, .backUp, .restore, .profile] {
+    func testUnsupervisingMirrorsTheTitlesThatNameTheDirection() {
+        XCTAssertEqual(WizardStep.connect.title(for: .unsupervise), "Connect iPhone to This Mac")
+        XCTAssertEqual(WizardStep.ready.title(for: .unsupervise), "Ready to Unsupervise")
+        XCTAssertEqual(WizardStep.job.title(for: .unsupervise), "Unsupervising iPhone")
+        XCTAssertEqual(WizardStep.done.title(for: .unsupervise), "iPhone Is No Longer Supervised")
+    }
+
+    func testBackIsOfferedOnlyWhereNothingHasBeenSentToThePhone() {
+        for step in [WizardStep.connect, .job, .done] {
+            XCTAssertFalse(step.allowsBack, "\(step.rawValue) should offer no Back")
+        }
+        for step in [WizardStep.ready, .restrictions] {
             XCTAssertTrue(step.allowsBack, "\(step.rawValue) should offer Back")
         }
     }

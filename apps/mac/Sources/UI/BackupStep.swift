@@ -6,8 +6,7 @@ struct BackupStep: View {
 
     var body: some View {
         StepLayout(
-            position: WizardStep.backUp.position(in: model.direction),
-            title: "Copy",
+            title: WizardStep.job.title(for: model.direction),
             lead: lead,
             error: model.errorMessage
         ) {
@@ -58,7 +57,7 @@ struct BackupStep: View {
             .controlSize(.large)
         case .done:
             PrimaryButton(title: "Continue") {
-                model.advance()
+                model.showRestore()
             }
             Button("Copy again") {
                 model.startBackup()

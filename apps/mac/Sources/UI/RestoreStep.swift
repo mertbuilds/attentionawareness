@@ -39,8 +39,7 @@ struct RestoreStep: View {
 
     var body: some View {
         StepLayout(
-            position: WizardStep.restore.position(in: model.direction),
-            title: "Restore",
+            title: WizardStep.job.title(for: model.direction),
             lead: lead,
             error: model.errorMessage
         ) {
