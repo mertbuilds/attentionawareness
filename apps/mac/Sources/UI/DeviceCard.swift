@@ -1,5 +1,40 @@
 import SwiftUI
 
+/// The iPhone glyph beside its name and its quiet meta line: the inside of the
+/// phone card, without the box.
+///
+/// The card wraps this in a `Card`; the picker wraps one per phone in a
+/// tappable box of its own. Both draw the same thing, so a phone reads as the
+/// same card whether it is the only one on the cable or one of several. The
+/// name is the one loud thing on it; the model and iOS are the quiet line
+/// under it. `extraLine`, when a phone has one, is a third quiet line under
+/// that, saying what the phone still needs before it can be picked.
+struct DeviceIdentity: View {
+    let device: ConnectedDevice
+    var extraLine: String?
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "iphone")
+                .font(.system(size: 30))
+                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(device.name ?? "iPhone")
+                    .font(.title3)
+                    .fontWeight(.semibold)
+                Group {
+                    Text(DeviceCard.hardwareLine(device))
+                    if let extraLine {
+                        Text(extraLine)
+                    }
+                }
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
 /// What the iPhone on the cable says about itself: the card the first step
 /// shows once a phone has trusted this Mac.
 ///
@@ -12,19 +47,7 @@ struct DeviceCard: View {
 
     var body: some View {
         Card {
-            HStack(spacing: 12) {
-                Image(systemName: "iphone")
-                    .font(.system(size: 30))
-                    .foregroundStyle(.secondary)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(device.name ?? "iPhone")
-                        .font(.title3)
-                        .fontWeight(.semibold)
-                    Text(Self.hardwareLine(device))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-            }
+            DeviceIdentity(device: device)
         }
     }
 
