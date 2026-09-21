@@ -40,10 +40,7 @@ struct DoneStep: View {
 
     /// The body, worked out from the three things it turns on.
     private var lines: [String] {
-        DoneCopy.lines(
-            findMyOff: model.device?.findMyOn == false,
-            matched: model.restore.supervisedAfterwards == true
-        )
+        DoneCopy.lines(matched: model.restore.supervisedAfterwards == true)
     }
 
     /// The one line this screen ever says about a leftover, with the path and what

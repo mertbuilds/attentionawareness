@@ -1,29 +1,21 @@
 import Foundation
 
-/// The body of the last screen, in one or two short sentences.
+/// The body of the last screen, in one short sentence.
 ///
-/// Two answers decide all of it: whether the iPhone came back saying what was
-/// asked of it, and whether Find My is still off. Everything else that screen
-/// knows is already in its title, so there is nothing here about the copy, the
-/// restore or the profile.
+/// One answer decides it: whether the iPhone came back saying what was asked
+/// of it. Everything else that screen knows is already in its title, so there
+/// is nothing here about the copy, the restore or the profile.
 ///
 /// Nothing here reaches an iPhone or a window, so the tests read every line of
 /// it.
 enum DoneCopy {
     /// The body, top to bottom.
-    static func lines(findMyOff: Bool, matched: Bool) -> [String] {
-        var lines = [
+    static func lines(matched: Bool) -> [String] {
+        [
             matched
                 ? "You can disconnect iPhone."
                 : "iPhone didn't report the change. Check the top of Settings.",
         ]
-        // The run asked for Find My to be turned off so the iPhone would take
-        // the copy back, and nothing turns it on again. A phone that already
-        // says it is on is left alone, and so is one that will not say.
-        if findMyOff {
-            lines.append("Turn Find My iPhone back on in Settings.")
-        }
-        return lines
     }
 
     /// What the "i" beside the title holds: where to look on the iPhone for
