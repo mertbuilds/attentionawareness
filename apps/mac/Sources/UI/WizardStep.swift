@@ -14,29 +14,41 @@ enum WizardStep: String, CaseIterable, Equatable {
     case job
     case restrictions
     case done
+    /// The Profiles screen for a phone that is already supervised: what is
+    /// installed now, and the builder to add another over the cable. It is
+    /// reached from Connect rather than walked to, so it is left out of `steps`
+    /// and has no next or previous of its own.
+    case profiles
 
-    /// The step after this one, or nil at the end of the run.
+    /// The supervise run, in the order the window walks it. `next` and
+    /// `previous` follow this list and nothing else, so no step can be skipped
+    /// by accident. `.profiles` is not one of these: it is a standalone
+    /// destination off Connect for a phone that is supervised already.
+    static let steps: [WizardStep] = [.connect, .ready, .job, .restrictions, .done]
+
+    /// The step after this one, or nil at the end of the run and for a step
+    /// that is not part of it.
     var next: WizardStep? {
-        let steps = Self.allCases
-        guard let index = steps.firstIndex(of: self), index + 1 < steps.count else { return nil }
-        return steps[index + 1]
+        guard let index = Self.steps.firstIndex(of: self), index + 1 < Self.steps.count else { return nil }
+        return Self.steps[index + 1]
     }
 
-    /// The step before this one, or nil at the start of the run.
+    /// The step before this one, or nil at the start of the run and for a step
+    /// that is not part of it.
     var previous: WizardStep? {
-        let steps = Self.allCases
-        guard let index = steps.firstIndex(of: self), index > 0 else { return nil }
-        return steps[index - 1]
+        guard let index = Self.steps.firstIndex(of: self), index > 0 else { return nil }
+        return Self.steps[index - 1]
     }
 
     /// Whether stepping back from here changes nothing on the iPhone or in the
     /// backup. The job has the iPhone from the moment it starts, so it offers
-    /// no way back at all.
+    /// no way back at all. The Profiles screen is not a run, so stepping back
+    /// from it only returns to Connect.
     var allowsBack: Bool {
         switch self {
         case .connect, .job, .done:
             return false
-        case .ready, .restrictions:
+        case .ready, .restrictions, .profiles:
             return true
         }
     }
@@ -54,6 +66,8 @@ enum WizardStep: String, CaseIterable, Equatable {
             return "Choose Restrictions"
         case .done:
             return "iPhone Is Supervised"
+        case .profiles:
+            return "Manage Restrictions"
         }
     }
 }

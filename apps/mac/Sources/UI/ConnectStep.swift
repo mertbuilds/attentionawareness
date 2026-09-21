@@ -49,7 +49,7 @@ struct ConnectStep: View {
             // phone is supervised already, so the card carries no such row.
             if model.isSupervised == true {
                 Button("Manage Restrictions") {
-                    // chunk 2 wires this to the Profiles screen
+                    model.manageRestrictions()
                 }
                 .controlSize(.large)
             } else {

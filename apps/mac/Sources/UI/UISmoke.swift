@@ -24,10 +24,12 @@ enum UISmoke {
         // would put whatever iPhone happens to be plugged in into the
         // pictures, and would open a lockdown handshake to do it.
         let model = WizardModel(watcher: DeviceWatcher(sample: []))
-        // The job screen and the last screen have no one state to be drawn in,
-        // so they are left out here and drawn once per state below. The step
-        // the loop does draw for Connect is the one with nothing on the cable.
-        for step in WizardStep.allCases where step != .job && step != .done {
+        // The job screen, the last screen and the Profiles screen have no one
+        // state to be drawn in, so they are left out here and drawn once per
+        // state below. The step the loop does draw for Connect is the one with
+        // nothing on the cable.
+        for step in WizardStep.allCases
+        where step != .job && step != .done && step != .profiles {
             report(step.rawValue, WizardStepContent(step: step, model: model), into: folder)
         }
         // The last step in each of the things it says: the plain end of a run,
@@ -57,6 +59,16 @@ enum UISmoke {
             report(
                 "restrictions-\(sample.name)",
                 WizardStepContent(step: .restrictions, model: sample.model),
+                into: folder
+            )
+        }
+        // The Profiles screen for a phone that is supervised already, in the
+        // four states it has: nothing installed yet, a profile of ours on the
+        // phone, the install running, and one that did not take.
+        for sample in profilesSamples() {
+            report(
+                "profiles-\(sample.name)",
+                WizardStepContent(step: .profiles, model: sample.model),
                 into: folder
             )
         }
@@ -203,6 +215,57 @@ enum UISmoke {
         model.show(
             WizardModel.Sample(
                 step: .restrictions,
+                udid: sampleDevice.udid,
+                profile: profile,
+                errorMessage: errorMessage
+            )
+        )
+        return model
+    }
+
+    /// The Profiles screen in the four states it has, drawn against a phone
+    /// that is supervised already.
+    private static func profilesSamples() -> [(name: String, model: WizardModel)] {
+        [
+            ("empty", profiles(WizardModel.ProfileState(), installed: [])),
+            ("has-ours", profiles(WizardModel.ProfileState(), installed: sampleProfiles)),
+            ("installing", profiles(WizardModel.ProfileState(stage: .installing), installed: sampleProfiles)),
+            (
+                "failed",
+                profiles(
+                    WizardModel.ProfileState(stage: .installed),
+                    installed: sampleProfiles,
+                    errorMessage: DeviceError
+                        .profileRejected(reason: "iPhone isn't supervised.")
+                        .localizedDescription
+                )
+            ),
+        ]
+    }
+
+    /// The Profiles screen for one profile state, against a supervised phone
+    /// that lists the given profiles.
+    private static func profiles(
+        _ profile: WizardModel.ProfileState,
+        installed: [InstalledProfile],
+        errorMessage: String? = nil
+    ) -> WizardModel {
+        let model = WizardModel(
+            watcher: DeviceWatcher(
+                sample: [sampleDevice],
+                cloudConfigurations: [
+                    sampleDevice.udid: CloudConfiguration(
+                        isSupervised: true,
+                        organizationName: "attentionawareness",
+                        raw: "<dict/>"
+                    ),
+                ],
+                installedProfiles: [sampleDevice.udid: installed]
+            )
+        )
+        model.show(
+            WizardModel.Sample(
+                step: .profiles,
                 udid: sampleDevice.udid,
                 profile: profile,
                 errorMessage: errorMessage

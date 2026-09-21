@@ -140,6 +140,22 @@ enum DemoWorld {
         uuid: "4f1c9d6a-8f2e-4f0b-9f5c-2a6d0b3e7c11"
     )
 
+    /// Another profile of ours, for the Profiles screen demo where a person
+    /// installs one more on a phone that is supervised already. Each install
+    /// mints a fresh identifier, so it carries one of its own.
+    static func anotherProfile() -> InstalledProfile {
+        let uuid = UUID().uuidString.lowercased()
+        return InstalledProfile(
+            id: "com.attentionawareness.\(uuid)",
+            displayName: "attentionawareness",
+            organization: "attentionawareness",
+            description: "attentionawareness",
+            isActive: true,
+            removalDisallowed: true,
+            uuid: uuid
+        )
+    }
+
     // MARK: - The App Store
 
     /// The store the demo answers app searches from.

@@ -32,6 +32,10 @@ final class DemoWizardModel: WizardModel {
     /// The transfer, patch or install running right now. A jump cancels it, so
     /// two of them can never run at once.
     private var work: Task<Void, Never>?
+    /// Profiles the demo has installed from the Profiles screen this session,
+    /// on top of whatever the conditions say the phone already lists. Reset
+    /// clears them.
+    private var addedProfiles: [InstalledProfile] = []
     /// True between Cancel and the helper stopping, so a second press does not
     /// start a second wait.
     private var cancelling = false
@@ -76,10 +80,14 @@ final class DemoWizardModel: WizardModel {
 
     /// Hand the conditions to the parts of the wizard that read the world.
     private func applyConditions() {
+        var profiles = DemoWorld.installedProfiles(conditions)
+        if !addedProfiles.isEmpty {
+            profiles[DemoWorld.udid, default: []].append(contentsOf: addedProfiles)
+        }
         watcher.show(
             devices: DemoWorld.devices(conditions),
             cloudConfigurations: DemoWorld.cloudConfigurations(conditions),
-            installedProfiles: DemoWorld.installedProfiles(conditions)
+            installedProfiles: profiles
         )
         lookForFinderBackup()
     }
@@ -121,6 +129,7 @@ final class DemoWizardModel: WizardModel {
     /// a window that has just been opened.
     func reset() {
         stopWork()
+        addedProfiles = []
         conditions = DemoConditions()
         engine.show(phase: .idle, progress: 0, log: [])
         startOver()
@@ -133,8 +142,9 @@ final class DemoWizardModel: WizardModel {
         guard step != .connect else { return sample }
         sample.udid = DemoWorld.udid
         // The job screen is landed on where it starts, on the copy, so it is
-        // holding no folder yet either.
-        guard step != .ready, step != .job else { return sample }
+        // holding no folder yet either. The Profiles screen is not a run, so it
+        // holds no folder either: it needs only the phone it manages.
+        guard step != .ready, step != .job, step != .profiles else { return sample }
         sample.backupFolder = DemoWorld.backupFolder
         // A run that reached the restore has a measured folder behind it, so
         // the step can say how long sending it back will take.
@@ -142,7 +152,7 @@ final class DemoWizardModel: WizardModel {
         switch step {
         case .restrictions, .done:
             sample.restore = RestoreState(stage: .finished, supervisedAfterwards: true)
-        case .connect, .ready, .job:
+        case .connect, .ready, .job, .profiles:
             break
         }
         return sample
@@ -418,11 +428,51 @@ final class DemoWizardModel: WizardModel {
         install(ProfileState(stage: .signing))
     }
 
-    /// The real step opens a file panel here. The demo takes the file as read,
-    /// because a panel is macOS, not this app.
-    override func chooseAndInstallProfile() {
+    /// The real model reads the phone again here. The demo's world already
+    /// holds the list, so there is nothing to read: the override keeps a sample
+    /// watcher's ignored bus read from doing anything and re-applies the world.
+    override func refreshInstalledProfiles() {
+        applyConditions()
+    }
+
+    /// Install another profile on a phone that is supervised already, from the
+    /// Profiles screen. The demo signs and installs nothing: it waits the beat
+    /// each step takes, then adds a fresh profile to the phone's list and stays
+    /// on the screen, the way the real one does.
+    override func installMoreProfile() {
         guard udid != nil, !profile.isRunning else { return }
-        install(ProfileState(stage: .installing, fileName: "attentionawareness.mobileconfig"))
+        stopWork()
+        var sample = currentSample
+        sample.profile = ProfileState(stage: .signing)
+        sample.errorMessage = nil
+        show(sample)
+        let fails = conditions.outcome == .fails
+        work = Task { [weak self] in
+            try? await Task.sleep(for: Self.signingPause)
+            guard let self, !Task.isCancelled else { return }
+            var installing = self.currentSample
+            installing.profile.stage = .installing
+            self.show(installing)
+            try? await Task.sleep(for: Self.installPause)
+            guard !Task.isCancelled else { return }
+            self.work = nil
+            guard !fails else {
+                var failed = self.currentSample
+                failed.profile = ProfileState(stage: .ready)
+                failed.errorMessage = DeviceError
+                    .profileRejected(reason: "The iPhone is not supervised.")
+                    .localizedDescription
+                self.show(failed)
+                return
+            }
+            // Each install mints a fresh identifier, so the demo adds one more
+            // profile to the phone and reads the grown list back.
+            self.addedProfiles.append(DemoWorld.anotherProfile())
+            self.applyConditions()
+            var done = self.currentSample
+            done.profile = ProfileState()
+            self.show(done)
+        }
     }
 
     private func install(_ state: ProfileState) {

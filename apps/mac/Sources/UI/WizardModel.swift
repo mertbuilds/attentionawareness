@@ -1,7 +1,6 @@
 import AppKit
 import Combine
 import Foundation
-import UniformTypeIdentifiers
 
 /// Everything one run of the wizard knows: which step is on screen, which
 /// iPhone it is about, where the backup went, the backup password and whatever
@@ -279,6 +278,15 @@ class WizardModel: ObservableObject {
     /// offers to install another.
     var ourProfiles: [InstalledProfile] { installedProfiles.filter(\.isOurs) }
 
+    /// Read the phone's profile list again, which is what the Profiles screen
+    /// shows. It reuses the one read path there is: the watcher asks MCInstall
+    /// for the list and parses it into `InstalledProfile`, and the screen reads
+    /// what it publishes. The hidden `--demo` path overrides it, because a
+    /// sample watcher reads no bus.
+    func refreshInstalledProfiles() {
+        watcher.reload()
+    }
+
     /// The password to hand to the engine and the patch. An empty field means
     /// no password at all.
     private var secret: String? { password.isEmpty ? nil : password }
@@ -335,11 +343,32 @@ class WizardModel: ObservableObject {
     /// Step back. The button is only offered where this changes nothing on the
     /// iPhone and nothing in the backup.
     func back() {
+        // The Profiles screen is a standalone destination off Connect rather
+        // than a step of the run, so stepping back from it goes to Connect.
+        if step == .profiles { return closeProfiles() }
         guard let previous = step.previous else { return }
         if previous == .connect {
             udid = nil
         }
         go(to: previous)
+    }
+
+    /// Open the Profiles screen for a phone that is already supervised. It
+    /// fixes the run on that phone the way `start()` does, so installing
+    /// another profile has a udid to send it to.
+    func manageRestrictions() {
+        guard let device, device.pairingState == .paired else { return }
+        udid = device.udid
+        selectedUdid = device.udid
+        go(to: .profiles)
+    }
+
+    /// Leave the Profiles screen for Connect. There is nothing on the iPhone to
+    /// undo: the screen is a destination, not a step, so this only puts the
+    /// window back on the first screen with the phone still highlighted.
+    func closeProfiles() {
+        udid = nil
+        go(to: .connect)
     }
 
     /// Move on to whatever comes after the step on screen.
@@ -394,6 +423,9 @@ class WizardModel: ObservableObject {
             lookForFinderBackup()
         case .restrictions:
             profile = ProfileState()
+        case .profiles:
+            profile = ProfileState()
+            refreshInstalledProfiles()
         case .connect, .job, .done:
             break
         }
@@ -1083,7 +1115,25 @@ class WizardModel: ObservableObject {
     /// Have the site sign the profile, then push it over the cable. The
     /// signing certificate never leaves the site, so the bytes make one round
     /// trip and go straight to the iPhone; nothing is written to disk.
+    ///
+    /// This is the Restrictions step of a run: a confirmed install ends the
+    /// run and the window moves to the last screen by itself.
     func signAndInstallProfile() {
+        installTheDraft(advancing: true)
+    }
+
+    /// Install another profile on a phone that is already supervised, from the
+    /// Profiles screen. Same as `signAndInstallProfile()` but there is no run
+    /// to end: a confirmed install reads the list back and leaves the screen up
+    /// for another one.
+    func installMoreProfile() {
+        installTheDraft(advancing: false)
+    }
+
+    /// The install both share: have the site sign the draft, push it over the
+    /// cable and read the phone's list back. Whether a confirmed install ends
+    /// the run is the one thing that differs, which `advancing` carries.
+    private func installTheDraft(advancing: Bool) {
         guard let udid, !profile.isRunning else { return }
         let config = profileConfig
         // The draft is the only thing that knows whether trial mode was asked
@@ -1097,39 +1147,7 @@ class WizardModel: ObservableObject {
                 let data = try await ProfileSigner().signedProfile(for: config)
                 profile.stage = .installing
                 let listed = try await Self.install(data, on: udid)
-                finishInstall(listed, removalDisallowed: removalDisallowed)
-            } catch {
-                profile.stage = .ready
-                errorMessage = error.localizedDescription
-            }
-        }
-    }
-
-    /// Ask for a `.mobileconfig` built somewhere else and push it over the
-    /// cable, for a profile made on the site's build page.
-    func chooseAndInstallProfile() {
-        guard let udid, !profile.isRunning else { return }
-        let panel = NSOpenPanel()
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
-        if let type = UTType(filenameExtension: "mobileconfig") {
-            panel.allowedContentTypes = [type]
-        }
-        panel.prompt = "Install"
-        panel.message = "Pick the configuration profile you saved from attentionawareness.com."
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-
-        errorMessage = nil
-        profile = ProfileState(stage: .installing, fileName: url.lastPathComponent)
-        Task {
-            do {
-                let data = try Data(contentsOf: url)
-                let listed = try await Self.install(data, on: udid)
-                // The file was built on the site rather than here, so the app
-                // never knew whether it was asked to lock the profile down and
-                // has nothing to hold the answer against. Everything else is
-                // checked the same way.
-                finishInstall(listed, removalDisallowed: nil)
+                finishInstall(listed, removalDisallowed: removalDisallowed, advancing: advancing)
             } catch {
                 profile.stage = .ready
                 errorMessage = error.localizedDescription
@@ -1156,25 +1174,30 @@ class WizardModel: ObservableObject {
 
     /// Weigh what the iPhone lists against what the run asked for. A profile
     /// that comes back wrong is said in one sentence and keeps the backup;
-    /// only a confirmed one ends the run.
+    /// only a confirmed one is treated as installed.
     ///
-    /// A confirmed one also ends the step: there is nothing left to press, so
-    /// the last screen comes up by itself.
-    private func finishInstall(_ listed: [InstalledProfile], removalDisallowed: Bool?) {
+    /// On the Restrictions step of a run (`advancing`) a confirmed install ends
+    /// the run: there is nothing left to press, so the last screen comes up by
+    /// itself. On the Profiles screen there is no run to end, so a confirmed
+    /// install reads the list back and leaves the builder up for another.
+    private func finishInstall(_ listed: [InstalledProfile], removalDisallowed: Bool?, advancing: Bool) {
         profile.stage = .installed
-        let problem = ProfileCheck.problem(with: listed, removalDisallowed: removalDisallowed)
-        if let problem {
+        if let problem = ProfileCheck.problem(with: listed, removalDisallowed: removalDisallowed) {
             errorMessage = problem.sentence
-        } else {
-            profile.isConfirmed = true
-            deleteBackupIfTheRunIsDone()
+            // The iPhone lists one more profile now, so read it again for the
+            // card and the summary.
+            refreshInstalledProfiles()
+            return
         }
-        // The iPhone lists one more profile now, so read it again for the card
-        // and the summary.
-        watcher.reload()
-        if problem == nil {
-            advance()
+        guard advancing else {
+            profile = ProfileState()
+            refreshInstalledProfiles()
+            return
         }
+        profile.isConfirmed = true
+        deleteBackupIfTheRunIsDone()
+        refreshInstalledProfiles()
+        advance()
     }
 
     /// Put the summary back after an install that did not take, which is what

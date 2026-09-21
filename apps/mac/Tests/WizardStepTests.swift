@@ -7,9 +7,21 @@ final class WizardStepTests: XCTestCase {
 
     func testTheRunWalksFiveScreens() {
         XCTAssertEqual(
-            WizardStep.allCases,
+            WizardStep.steps,
             [.connect, .ready, .job, .restrictions, .done]
         )
+    }
+
+    func testProfilesIsAStandaloneDestinationOffTheRun() {
+        // The Profiles screen is reached from Connect for a phone that is
+        // supervised already, so it is not one of the run's steps and has no
+        // next or previous of its own. Stepping back from it returns to
+        // Connect, so it offers Back.
+        XCTAssertEqual(WizardStep.profiles.title, "Manage Restrictions")
+        XCTAssertFalse(WizardStep.steps.contains(.profiles))
+        XCTAssertNil(WizardStep.profiles.next)
+        XCTAssertNil(WizardStep.profiles.previous)
+        XCTAssertTrue(WizardStep.profiles.allowsBack)
     }
 
     // MARK: - Moving

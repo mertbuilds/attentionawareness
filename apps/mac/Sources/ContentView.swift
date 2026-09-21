@@ -99,6 +99,8 @@ struct WizardStepContent: View {
             RestrictionsStep(model: model)
         case .done:
             DoneStep(model: model)
+        case .profiles:
+            ProfilesStep(model: model)
         }
     }
 }
