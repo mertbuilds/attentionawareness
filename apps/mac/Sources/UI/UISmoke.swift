@@ -61,26 +61,6 @@ enum UISmoke {
                 into: folder
             )
         }
-        // Everything Customize opens, with a search under its field. The rows
-        // come from the demo's own canned store, so the list, the artwork it
-        // falls back to and the Add buttons are drawn without asking Apple
-        // anything. That store is compiled out of a Release build, so this one
-        // picture is drawn by a debug build alone.
-        #if DEBUG
-        let searching = WizardModel(watcher: sampleWatcher([sampleDevice]))
-        searching.show(
-            WizardModel.Sample(
-                step: .restrictions,
-                udid: sampleDevice.udid,
-                appSearch: WizardModel.AppSearchState(
-                    storefront: "us",
-                    term: "in",
-                    results: DemoWorld.appResults(for: "in")
-                )
-            )
-        )
-        report("restrictions-builder", RestrictionsBuilder(model: searching), into: folder)
-        #endif
         // Find My is named on the checks, so they are drawn for a phone that
         // says it is on and for one that says it is off. The one the loop
         // above drew comes from a Mac with nothing on the cable, which is the

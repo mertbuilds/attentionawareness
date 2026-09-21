@@ -1,25 +1,21 @@
 import SwiftUI
 
 /// The one screen after the iPhone is supervised: what the profile will
-/// restrict, in one card, and the button that puts it there.
+/// restrict, and the button that puts it there.
 ///
 /// A supervised iPhone takes the profile without asking and an unsupervised
 /// one refuses it, which is why this screen comes last. Everything that can be
-/// changed about the profile is behind Customize: the profile as it comes is
-/// the answer for almost everyone, and the card is what they read instead.
+/// changed about the profile is on the screen, and the card under it reads
+/// back whatever it was left at, because the profile as it comes is the answer
+/// for almost everyone.
 struct RestrictionsStep: View {
     @ObservedObject var model: WizardModel
-    /// True while the builder is open over this screen.
-    @State private var customizing = false
 
     var body: some View {
         StepLayout(title: title) {
             content
         } actions: {
             actions
-        }
-        .sheet(isPresented: $customizing) {
-            builder
         }
     }
 
@@ -43,11 +39,20 @@ struct RestrictionsStep: View {
         } else if model.profile.isRunning {
             installing
         } else {
-            summary
+            ready
         }
     }
 
     // MARK: - What the profile does
+
+    /// The builder, and under it the card that reads back whatever it was left
+    /// at. The window scrolls, so a long list of apps costs the card nothing.
+    private var ready: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            RestrictionsBuilder(model: model)
+            summary
+        }
+    }
 
     /// The whole profile in one card, one line each, with the names and the
     /// longer answers in the hover help.
@@ -123,31 +128,6 @@ struct RestrictionsStep: View {
             PrimaryButton(title: "Install") {
                 model.signAndInstallProfile()
             }
-            Button("Customize") {
-                customizing = true
-            }
-            .controlSize(.large)
         }
-    }
-
-    /// Everything the card folds away, over the screen rather than on it.
-    private var builder: some View {
-        NavigationStack {
-            ScrollView {
-                RestrictionsBuilder(model: model)
-                    .frame(maxWidth: WizardStyle.contentWidth, alignment: .leading)
-                    .padding(20)
-                    .frame(maxWidth: .infinity)
-            }
-            .navigationTitle("Customize Restrictions")
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") {
-                        customizing = false
-                    }
-                }
-            }
-        }
-        .frame(width: 560, height: 620)
     }
 }
