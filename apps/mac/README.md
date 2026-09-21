@@ -69,6 +69,10 @@ can still reach is System Settings, when the Full Disk Access button on the
 checks is pressed, which is left alone so that button can be read the way it
 works. It writes nothing either.
 
+The demo is a debug build alone. `Sources/Demo/` is wrapped in `#if DEBUG`,
+along with the flag that builds it, the window it opens and the Demo menu, so a
+Release build carries none of it.
+
 `--sign-profile <file>` asks the site to sign the profile the Profile step
 installs and writes it, so the signing side can be checked without an iPhone.
 It prints the size and whether the bytes are the DER of a signed CMS message.
@@ -106,11 +110,12 @@ AA_SITE_URL=https://attentionawareness.localhost \
   would let the app look at, open the list, and say that it only takes effect
   on a new launch. A refusal costs the run nothing: the iCloud answer is there
   either way and every button works the same.
-- `Sources/Demo/` is the `--demo` flag and nothing else: `DemoScript` is the
-  timeline a demo transfer runs to and `DemoConditions` the switches the bar
-  writes, both plain values the tests run; `DemoWorld` makes the iPhones and
-  backups out of those switches; `DemoModel` is the wizard with every method
-  that reaches the world replaced; `DemoBar` is the bar itself.
+- `Sources/Demo/` is the `--demo` flag and nothing else, and every file of it
+  is behind `#if DEBUG`: `DemoScript` is the timeline a demo transfer runs to
+  and `DemoConditions` the switches the bar writes, both plain values the tests
+  run; `DemoWorld` makes the iPhones and backups out of those switches;
+  `DemoModel` is the wizard with every method that reaches the world replaced;
+  `DemoBar` is the bar itself.
 - `Sources/Device/` is the device layer: `DeviceWatcher` publishes the iPhones on
   the cable and re-reads them on every connect and disconnect, `Lockdown` reads
   the values the wizard checks, `MCInstall` reads supervision and installs a

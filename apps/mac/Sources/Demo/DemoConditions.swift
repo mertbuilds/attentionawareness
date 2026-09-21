@@ -1,3 +1,4 @@
+#if DEBUG
 import Foundation
 
 /// What the demo pretends is true about the world.
@@ -135,3 +136,4 @@ struct DemoConditions: Equatable {
         return next
     }
 }
+#endif

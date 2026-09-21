@@ -1,3 +1,4 @@
+#if DEBUG
 import Foundation
 
 /// The iPhones, profiles and backups the demo says are there.
@@ -222,3 +223,4 @@ enum DemoWorld {
         var errorDescription: String? { "The volume is read only." }
     }
 }
+#endif

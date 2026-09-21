@@ -1,3 +1,4 @@
+#if DEBUG
 import Foundation
 
 /// The wizard, run against an iPhone that is not there.
@@ -491,3 +492,4 @@ final class DemoWizardModel: WizardModel {
         return .deleted
     }
 }
+#endif

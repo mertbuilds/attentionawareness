@@ -7,9 +7,17 @@ struct AttentionAwarenessApp: App {
     /// Sparkle. The feed, the public key and the once-a-day schedule are in
     /// `Info.plist`; nothing here needs a delegate.
     private let updaterController: SPUStandardUpdaterController
+    #if DEBUG
     /// The demo's own wizard, built only when `--demo` is on the command line.
     /// Nil is the app as it ships, which is every other way of starting it.
+    /// `Sources/Demo` is compiled into debug builds alone, so a Release build
+    /// has no flag, no window and no menu for it.
     private let demo: DemoWizardModel?
+    /// Whether the demo bar sits under the wizard. The Demo menu's ⌘⇧D takes
+    /// it out and brings it back, so the window can be shown as the product
+    /// alone. It means nothing outside demo mode.
+    @State private var demoBarShown = true
+    #endif
 
     init() {
         // `attention awareness.app/Contents/MacOS/attention awareness --devices`
@@ -51,14 +59,20 @@ struct AttentionAwarenessApp: App {
 
         // `--demo` opens the window on a wizard that reaches no iPhone, no
         // disk and no site, with a bar under it for driving the states by
-        // hand. It is the one flag that stays and opens a window.
+        // hand. It is the one flag that stays and opens a window, and the one
+        // a Release build does not have at all.
+        #if DEBUG
         let demo = DemoWizardModel.ifAsked()
         self.demo = demo
+        let startUpdater = demo == nil
+        #else
+        let startUpdater = true
+        #endif
 
         // Last, so that every flag above leaves without ever asking the site
         // for an update. The demo asks it for nothing either.
         updaterController = SPUStandardUpdaterController(
-            startingUpdater: demo == nil,
+            startingUpdater: startUpdater,
             updaterDelegate: nil,
             userDriverDelegate: nil
         )
@@ -66,12 +80,17 @@ struct AttentionAwarenessApp: App {
 
     var body: some Scene {
         Window("attention awareness", id: "main") {
+            #if DEBUG
             if let demo {
-                DemoWindow(model: demo)
+                DemoWindow(model: demo, barShown: demoBarShown)
             } else {
                 ContentView()
                     .frame(minWidth: 560, minHeight: 520)
             }
+            #else
+            ContentView()
+                .frame(minWidth: 560, minHeight: 520)
+            #endif
         }
         .windowResizability(.contentMinSize)
         .commands {
@@ -83,6 +102,18 @@ struct AttentionAwarenessApp: App {
                     Link("attention awareness help", destination: url)
                 }
             }
+            // Demo mode only, in a debug build only. The app as it ships has
+            // no Demo menu.
+            #if DEBUG
+            if demo != nil {
+                CommandMenu("Demo") {
+                    Button(demoBarShown ? "Hide demo bar" : "Show demo bar") {
+                        demoBarShown.toggle()
+                    }
+                    .keyboardShortcut("d", modifiers: [.command, .shift])
+                }
+            }
+            #endif
         }
     }
 }

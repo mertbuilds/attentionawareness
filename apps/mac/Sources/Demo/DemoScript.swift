@@ -1,3 +1,4 @@
+#if DEBUG
 import Foundation
 
 /// One demo transfer, written out beat by beat.
@@ -269,3 +270,4 @@ struct DemoScript: Equatable {
         Line(at: 20.5, line: "The helper finished."),
     ]
 }
+#endif

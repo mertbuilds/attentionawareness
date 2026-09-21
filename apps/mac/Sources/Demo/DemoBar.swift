@@ -1,23 +1,31 @@
+#if DEBUG
 import SwiftUI
 
 /// The window in demo mode: the wizard exactly as it ships, with the demo's
 /// own bar under it.
 ///
 /// The bar is the only thing on screen that is not the product. It is always
-/// labelled, and it is only ever built behind the hidden `--demo` flag.
+/// labelled, and it is only ever built behind the hidden `--demo` flag. ⌘⇧D
+/// leaves it out, which shrinks the window to the wizard alone.
 struct DemoWindow: View {
     @StateObject private var model: DemoWizardModel
+    /// Whether to build the bar at all. False takes it out of the layout
+    /// rather than hiding it in place, so the window loses its height.
+    private let barShown: Bool
 
-    init(model: DemoWizardModel) {
+    init(model: DemoWizardModel, barShown: Bool) {
         _model = StateObject(wrappedValue: model)
+        self.barShown = barShown
     }
 
     var body: some View {
         VStack(spacing: 0) {
             ContentView(demo: model)
                 .frame(minWidth: 760, minHeight: 520)
-            Divider()
-            DemoBar(model: model)
+            if barShown {
+                Divider()
+                DemoBar(model: model)
+            }
         }
     }
 }
@@ -160,3 +168,4 @@ struct DemoBar: View {
         }
     }
 }
+#endif
