@@ -62,8 +62,8 @@ struct DemoBar: View {
                 .background(WizardStyle.accent, in: Capsule())
             Text(
                 "Nothing here touches an iPhone. "
-                    + "A transfer runs in about twenty five seconds, and one second of it "
-                    + "stands for about two minutes on the cable."
+                    + "The whole job runs in about half a minute, and one second of it "
+                    + "stands for a few minutes on the cable."
             )
             .foregroundStyle(.secondary)
             Spacer(minLength: 12)

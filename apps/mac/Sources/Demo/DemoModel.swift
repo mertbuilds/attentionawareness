@@ -35,11 +35,23 @@ final class DemoWizardModel: WizardModel {
     /// True between Cancel and the helper stopping, so a second press does not
     /// start a second wait.
     private var cancelling = false
+    /// True once this job has refused a backup password, so Try Again gets
+    /// through rather than meeting the same wall.
+    private var refusedThePassword = false
 
     /// How often a running transfer redraws.
     private static let tick = Duration.milliseconds(100)
+    /// How long the copy takes on the clock, and the restore after it. The
+    /// script keeps its own length and is read faster than it was written, so
+    /// the whole job runs in about half a minute while the elapsed time, the
+    /// estimate and the lines under the bar stay the ones a real run shows.
+    private static let copySeconds: TimeInterval = 10
+    private static let restoreSeconds: TimeInterval = 14
+    /// The restart, and the question the wizard asks once the phone is back.
+    private static let restartPause = Duration.seconds(3)
+    private static let confirmPause = Duration.seconds(2)
     /// How long each line of the patch stays on screen.
-    private static let patchStep = Duration.milliseconds(800)
+    private static let patchStep = Duration.milliseconds(650)
     /// Deriving the keys of an encrypted backup, which is the one part of the
     /// patch that takes real seconds.
     private static let keyDerivation = Duration.milliseconds(1400)
@@ -88,8 +100,8 @@ final class DemoWizardModel: WizardModel {
     ///
     /// It is the only thing the demo does that a run cannot: everything a step
     /// needs is written down rather than earned. From there every button is
-    /// the real one, so the Restore step patches the copy and waits for Find
-    /// My exactly as it would on a cable.
+    /// the real one, and the job walks its own phases and waits for Find My
+    /// exactly as it would on a cable.
     func jump(to step: WizardStep) {
         stopWork()
         // A restore that was waiting for the phone had taken it off the
@@ -98,6 +110,11 @@ final class DemoWizardModel: WizardModel {
         applyConditions()
         engine.show(phase: .idle, progress: 0, log: [])
         show(sample(for: step))
+        // The job is the one screen there is no standing on: it is an hour of
+        // work with a bar over it, so landing there starts that work.
+        if step == .job {
+            startJob()
+        }
     }
 
     /// Forget the run and the conditions both, which is the demo's way back to
@@ -127,9 +144,6 @@ final class DemoWizardModel: WizardModel {
         // A run that reached the restore has a measured folder behind it, so
         // the step can say how long sending it back will take.
         sample.restoreBytes = DemoWorld.backupBytes
-        // Both of the steps left are past the job, so stepping back from
-        // them lands on the restore rather than on the copy.
-        sample.jobShowsRestore = true
         switch step {
         case .restrictions:
             // Unsupervising leaves this step out, so landing on it is a run
@@ -157,7 +171,7 @@ final class DemoWizardModel: WizardModel {
             estimate: estimate,
             patch: patch,
             restore: restore,
-            jobShowsRestore: jobShowsRestore,
+            job: job,
             profile: profile,
             appSearch: appSearch,
             finderBackup: finderBackup,
@@ -170,80 +184,193 @@ final class DemoWizardModel: WizardModel {
     private func stopWork() {
         work?.cancel()
         work = nil
+        stopJob()
         cancelling = false
     }
 
-    // MARK: - The transfers
+    // MARK: - The job
 
-    override func startBackup() {
-        guard udid != nil, !engine.phase.isRunning else { return }
-        stopWork()
-        var sample = self.sample(for: .job)
-        sample.transferStartedAt = Date()
-        show(sample)
-        runTransfer(.backup)
+    /// The wizard's own job, with one thing of the demo's in front of it: a
+    /// password the demo refused once is let through on the next attempt, and
+    /// a new job forgets that it ever refused one.
+    override func startJob() {
+        refusedThePassword = false
+        super.startJob()
     }
 
-    override func startRestore() {
-        guard udid != nil, backupFolder != nil, !engine.phase.isRunning else { return }
-        guard restoreGate == .allowed else { return }
-        stopWork()
+    /// How the next demo transfer ends.
+    ///
+    /// A run whose iPhone encrypts its backups puts its failure on the
+    /// password instead of on the cable, because the password is the only
+    /// thing about an encrypted copy that can be wrong. Both transfers have to
+    /// go through for that screen to be reached at all.
+    private var transferOutcome: DemoConditions.Outcome {
+        guard conditions.outcome == .fails, conditions.backupsEncrypted else {
+            return conditions.outcome
+        }
+        return .succeeds
+    }
+
+    /// The real model runs the helper here. The demo runs the script instead,
+    /// and leaves this Mac holding a copy at the end of it.
+    override func copyTheIPhone() async throws {
         var sample = currentSample
-        sample.step = .job
-        sample.jobShowsRestore = true
+        sample.backupFolder = nil
+        sample.restoreBytes = nil
+        sample.patch = PatchState()
+        sample.restore = RestoreState()
+        sample.transferStartedAt = Date()
+        sample.estimate = TransferEstimate()
+        show(sample)
+        try await runTransfer(.backup, in: Self.copySeconds)
+        engine.show(phase: .done, progress: 1, log: engine.log)
+        var done = currentSample
+        done.backupFolder = DemoWorld.backupFolder
+        done.restoreBytes = DemoWorld.backupBytes
+        show(done)
+        // This Mac is holding the copy now, which is what the end of the run
+        // takes away again.
+        conditions.holdingBackup = true
+    }
+
+    /// The real model writes the flag into the copy on this Mac. The demo
+    /// writes nothing and says the same lines at the same pace. It is also
+    /// where a copy the demo was asked to refuse ends the job, because an
+    /// encrypted copy is the only one a password can be wrong about.
+    override func markTheCopy() async throws {
+        var sample = currentSample
+        sample.patch = PatchState(status: "Reading the copy", isRunning: true)
+        show(sample)
+        try await Task.sleep(for: Self.patchStep)
+        if conditions.backupsEncrypted {
+            patchStatus("Deriving the backup keys, up to ten seconds")
+            try await Task.sleep(for: Self.keyDerivation)
+            // The demo holds no right password to weigh one against, so it
+            // refuses the first attempt and lets the next through, which is
+            // the shape of getting it wrong and then typing the right one.
+            if conditions.outcome == .fails, !refusedThePassword {
+                refusedThePassword = true
+                var refused = currentSample
+                refused.patch = PatchState()
+                show(refused)
+                throw PatchError.wrongPassword
+            }
+        }
+        // The copy says what the phone says, so a phone that is already where
+        // the run wants it leaves the patch with nothing to write.
+        guard conditions.supervised != direction.target else {
+            var nothingToDo = currentSample
+            nothingToDo.patch = PatchState(isRunning: false, alreadyCorrect: true)
+            return show(nothingToDo)
+        }
+        patchStatus("Writing the flag")
+        try await Task.sleep(for: Self.patchStep)
+        patchStatus("Checking")
+        try await Task.sleep(for: Self.patchStep)
+        var done = currentSample
+        done.patch = PatchState(
+            changes: direction.target
+                ? ["IsSupervised: false -> true", "CloudConfigurationUIComplete: false -> true"]
+                : ["IsSupervised: true -> false"],
+            pristinePath: DemoWorld.pristineFolder.path,
+            isRunning: false
+        )
+        show(done)
+    }
+
+    /// The real model sends the copy over the cable. The demo runs the restore
+    /// script, which ends with the phone leaving the cable to restart.
+    override func sendTheCopyBack() async throws {
+        var sample = currentSample
         sample.restore = RestoreState(stage: .running)
         sample.transferStartedAt = Date()
         sample.estimate = TransferEstimate()
-        sample.errorMessage = nil
         show(sample)
-        runTransfer(.restore)
+        try await runTransfer(.restore, in: Self.restoreSeconds)
     }
 
+    /// The real model reads the bus until the phone is back. The demo has no
+    /// bus: the phone went off the cable when the restore rebooted it, and it
+    /// comes back here saying what the run asked it to say.
+    override func waitForPhone(until deadline: Date?) async -> Bool {
+        do {
+            try await Task.sleep(for: Self.restartPause)
+        } catch {
+            return false
+        }
+        conditions = conditions.afterRestore(target: direction.target)
+        return true
+    }
+
+    /// The real model asks the phone every five seconds for three minutes. A
+    /// demo phone answers whatever the switches say, so this waits the beat
+    /// the question takes and then reads them.
+    override func confirmWhatTheIPhoneIs() async -> Bool {
+        do {
+            try await Task.sleep(for: Self.confirmPause)
+        } catch {
+            return false
+        }
+        return isSupervised == direction.target
+    }
+
+    /// The real model tells the helper to stop, and the helper takes a moment
+    /// over it. Nothing here has a helper, so the moment is a pause the
+    /// transfer loop below keeps.
     override func cancelTransfer() {
         guard engine.phase.isRunning, !cancelling else { return }
         cancelling = true
-        work?.cancel()
         engine.show(
             phase: engine.phase,
             progress: engine.progress,
             log: engine.log + ["Cancelling. The iPhone is told to stop, which takes a moment."]
         )
-        work = Task { [weak self] in
-            try? await Task.sleep(for: Self.cancelPause)
-            guard let self, !Task.isCancelled else { return }
-            self.work = nil
-            self.cancelling = false
-            self.engine.show(
-                phase: .cancelled,
-                progress: self.engine.progress,
-                log: self.engine.log + ["The helper stopped."]
-            )
-            var sample = self.currentSample
-            if sample.restore.stage == .running {
-                sample.restore.stage = .ready
-            }
-            self.show(sample)
-        }
     }
 
-    /// Walk one demo transfer from the first beat to the last.
-    private func runTransfer(_ kind: DemoScript.Kind) {
-        let script = DemoScript(kind: kind, outcome: conditions.outcome)
+    /// Walk one demo transfer from the first beat to the last, in the seconds
+    /// a demo is worth rather than the hour the script is written at.
+    ///
+    /// It throws what the helper would have thrown, so the wizard's own job
+    /// lands on the same screen a real failure lands on.
+    private func runTransfer(_ kind: DemoScript.Kind, in seconds: TimeInterval) async throws {
+        let script = DemoScript(kind: kind, outcome: transferOutcome)
+        let scale = script.duration / seconds
         let started = Date()
-        work = Task { [weak self] in
-            while !Task.isCancelled {
-                guard let self else { return }
-                let elapsed = Date().timeIntervalSince(started)
-                let beat = script.beat(at: elapsed)
-                self.draw(beat, lines: script.lines(at: elapsed))
-                switch beat.stage {
-                case .stopped:
-                    return self.stop(script)
-                case .finished:
-                    return self.finish(kind)
-                case .starting, .transferring, .finishing, .waitingForPhone:
-                    try? await Task.sleep(for: Self.tick)
+        while true {
+            if cancelling {
+                try await Task.sleep(for: Self.cancelPause)
+                cancelling = false
+                engine.show(
+                    phase: .cancelled,
+                    progress: engine.progress,
+                    log: engine.log + ["The helper stopped."]
+                )
+                throw BackupError.cancelled
+            }
+            let elapsed = Date().timeIntervalSince(started) * scale
+            let beat = script.beat(at: elapsed)
+            draw(beat, lines: script.lines(at: elapsed))
+            switch beat.stage {
+            case .finished, .waitingForPhone:
+                // A restore ends where the phone leaves the cable. The wizard
+                // waits for it to come back on a phase of its own.
+                return
+            case .stopped:
+                guard script.outcome == .fails else {
+                    // A cancellation is the demo pressing its own button, so
+                    // it goes through the pause a real one goes through.
+                    cancelTransfer()
+                    continue
                 }
+                let sentence = DemoScript.failureSentence
+                engine.show(
+                    phase: .failed(sentence),
+                    progress: engine.progress,
+                    log: script.lines(at: script.duration)
+                )
+                throw BackupError.failed(sentence)
+            case .starting, .transferring, .finishing:
+                try await Task.sleep(for: Self.tick)
             }
         }
     }
@@ -270,7 +397,7 @@ final class DemoWizardModel: WizardModel {
         case .waitingForPhone:
             engine.show(phase: .done, progress: 1, log: lines)
             // The restore reboots the phone, so it goes off the cable here and
-            // comes back when the run ends.
+            // comes back when the wizard waits for it.
             if !watcher.devices.isEmpty {
                 watcher.show(devices: [])
             }
@@ -280,7 +407,7 @@ final class DemoWizardModel: WizardModel {
         // The engine's progress feeds the model's own estimate off the real
         // clock, so the reading the window shows is written afterwards: it is
         // the one a transfer of this length would be holding, and it is what
-        // makes twenty seconds read like the hour they stand for.
+        // makes ten seconds read like the hour they stand for.
         let now = Date()
         var sample = currentSample
         sample.transferStartedAt = now.addingTimeInterval(-beat.elapsed)
@@ -289,109 +416,6 @@ final class DemoWizardModel: WizardModel {
             sample.restore.stage = .waitingForPhone
         }
         show(sample)
-    }
-
-    /// A transfer that ran to the end.
-    private func finish(_ kind: DemoScript.Kind) {
-        work = nil
-        switch kind {
-        case .backup:
-            engine.show(phase: .done, progress: 1, log: engine.log)
-            var sample = currentSample
-            sample.backupFolder = DemoWorld.backupFolder
-            sample.restoreBytes = DemoWorld.backupBytes
-            show(sample)
-            // This Mac is holding the backup now, which is what the end of the
-            // run takes away again.
-            conditions.holdingBackup = true
-            showRestore()
-        case .restore:
-            // The phone is back on the cable, saying what the run asked it to
-            // say.
-            conditions = conditions.afterRestore(target: direction.target)
-            var sample = currentSample
-            sample.restore = RestoreState(stage: .finished, supervisedAfterwards: isSupervised)
-            show(sample)
-            // Unsupervising installs no profile, so the restore is the end of
-            // that run and the backup goes here.
-            deleteBackupIfTheRunIsDone()
-        }
-    }
-
-    /// A transfer the demo was asked to stop part way.
-    private func stop(_ script: DemoScript) {
-        work = nil
-        switch script.outcome {
-        case .succeeds:
-            return
-        case .fails:
-            let sentence = DemoScript.failureSentence
-            engine.show(
-                phase: .failed(sentence),
-                progress: engine.progress,
-                log: script.lines(at: script.duration)
-            )
-            var sample = currentSample
-            sample.errorMessage = sentence
-            if sample.restore.stage == .running {
-                sample.restore.stage = .ready
-            }
-            show(sample)
-        case .cancelled:
-            cancelTransfer()
-        }
-    }
-
-    // MARK: - The patch
-
-    override func runPatch() {
-        guard backupFolder != nil, !patch.isRunning else { return }
-        stopWork()
-        var sample = currentSample
-        sample.patch = PatchState(status: "Reading the copy", isRunning: true)
-        sample.errorMessage = nil
-        show(sample)
-
-        let encrypted = conditions.backupsEncrypted
-        // The backup says what the phone says, so a phone that is already
-        // where the run wants it leaves the patch with nothing to write.
-        let alreadyCorrect = conditions.supervised == direction.target
-        let changes = direction.target
-            ? ["IsSupervised: false -> true", "CloudConfigurationUIComplete: false -> true"]
-            : ["IsSupervised: true -> false"]
-        work = Task { [weak self] in
-            try? await Task.sleep(for: Self.patchStep)
-            guard let self, !Task.isCancelled else { return }
-            if encrypted {
-                self.patchStatus("Deriving the backup keys, up to ten seconds")
-                try? await Task.sleep(for: Self.keyDerivation)
-                guard !Task.isCancelled else { return }
-            }
-            guard !alreadyCorrect else {
-                self.work = nil
-                var done = self.currentSample
-                done.patch = PatchState(isRunning: false, alreadyCorrect: true)
-                self.show(done)
-                return
-            }
-            self.patchStatus("Writing the flag")
-            try? await Task.sleep(for: Self.patchStep)
-            guard !Task.isCancelled else { return }
-            self.patchStatus("Checking")
-            try? await Task.sleep(for: Self.patchStep)
-            guard !Task.isCancelled else { return }
-
-            var done = self.currentSample
-            done.patch = PatchState(
-                changes: changes,
-                pristinePath: DemoWorld.pristineFolder.path,
-                isRunning: false
-            )
-            self.show(done)
-            // The real patch leaves the step showing what it wrote, over the
-            // button that sends the copy back. So does this one.
-            self.work = nil
-        }
     }
 
     private func patchStatus(_ line: String) {

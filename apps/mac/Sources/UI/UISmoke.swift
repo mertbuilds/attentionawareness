@@ -29,7 +29,9 @@ enum UISmoke {
         // phone that came back on the cable saying it is supervised.
         let finished = WizardModel(finished: sampleWatcher([sampleDevice]))
         let drawnFrom: [WizardStep: WizardModel] = [.done: finished]
-        for step in WizardStep.allCases {
+        // The job screen has no one state to be drawn in, so it is left out
+        // here and drawn once per phase below.
+        for step in WizardStep.allCases where step != .job {
             report(step.rawValue, WizardStepContent(step: step, model: drawnFrom[step] ?? model), into: folder)
         }
         // The last step again, for the one thing it ever says about the
@@ -69,10 +71,10 @@ enum UISmoke {
         )
         report("profile-search", WizardStepContent(step: .restrictions, model: searching), into: folder)
         #endif
-        // Find My is named on the checks and asked for on the restore, so both
-        // steps are drawn for a phone that says it is on and for one that says
-        // it is off. The two the loop above drew come from a Mac with nothing
-        // on the cable, which is the third answer: no answer at all.
+        // Find My is named on the checks, so they are drawn for a phone that
+        // says it is on and for one that says it is off. The one the loop
+        // above drew comes from a Mac with nothing on the cable, which is the
+        // third answer: no answer at all.
         for (name, findMyOn) in [("find-my-on", true), ("find-my-off", false)] {
             let phone = samplePhone(findMyOn: findMyOn)
             report(
@@ -80,38 +82,7 @@ enum UISmoke {
                 WizardStepContent(step: .ready, model: WizardModel(watcher: sampleWatcher([phone]))),
                 into: folder
             )
-            report("restore-\(name)", RestoreStep(model: arriving(phone, patch: patchDone)), into: folder)
         }
-        // The Restore step patches the copy on the way in, so it says three
-        // things before the button: the patch running, the patch that would
-        // not run, and the copy patched, that last one with the change lines
-        // unfolded.
-        report(
-            "restore-patching",
-            RestoreStep(
-                model: arriving(
-                    samplePhone(findMyOn: false),
-                    patch: WizardModel.PatchState(status: "Writing the flag", isRunning: true)
-                )
-            ),
-            into: folder
-        )
-        report(
-            "restore-patch-failed",
-            RestoreStep(
-                model: arriving(
-                    sampleDevice,
-                    patch: WizardModel.PatchState(),
-                    errorMessage: PatchError.wrongPassword.localizedDescription
-                )
-            ),
-            into: folder
-        )
-        report(
-            "restore-ready",
-            RestoreStep(model: arriving(samplePhone(findMyOn: false), patch: patchDone), showsDetails: true),
-            into: folder
-        )
         // The one row the checks show about the reader's own backups, in each
         // of the things it can say: a copy on this Mac, one only iCloud has,
         // one too old to lean on, none at all, and the refusal that keeps
@@ -119,14 +90,11 @@ enum UISmoke {
         for sample in safetyNetSamples() {
             report("ready-\(sample.name)", WizardStepContent(step: .ready, model: sample.model), into: folder)
         }
-        // Everything the Restore step says once the helper has the phone: the
-        // files moving with a figure for how much longer, the same thing too
-        // early to have one, every file across and the iPhone applying them,
-        // and the wait for the phone to come back. The third of these is the
-        // one that used to go on saying the files were still being written.
+        // Every phase of the one long job, which is one bar and one line in
+        // each of them, and the three ends it can come to.
         let now = Date()
-        for sample in restoreSamples(at: now) {
-            report("restore-\(sample.name)", WizardStepContent(step: .job, model: sample.model), into: folder)
+        for sample in jobSamples(at: now) {
+            report("job-\(sample.name)", WizardStepContent(step: .job, model: sample.model), into: folder)
         }
         report("connect-one-phone", ConnectStep(model: sampleModel([sampleDevice])), into: folder)
         report(
@@ -196,46 +164,17 @@ enum UISmoke {
         return model
     }
 
-    /// The Restore step as a run arrives on it, with the patch in whatever
-    /// state the picture is about. The step patches the copy on the way in, so
-    /// everything it says before the button is drawn from one of these.
-    private static func arriving(
-        _ device: ConnectedDevice,
-        patch: WizardModel.PatchState,
-        errorMessage: String? = nil
-    ) -> WizardModel {
-        let model = WizardModel(watcher: sampleWatcher([device]))
-        model.show(
-            WizardModel.Sample(
-                step: .job,
-                udid: device.udid,
-                patch: patch,
-                jobShowsRestore: true,
-                errorMessage: errorMessage
-            )
-        )
-        return model
-    }
-
-    /// A patch that has run: the two flags a supervise run writes, and where
-    /// the untouched copy of the backup went.
-    private static let patchDone = WizardModel.PatchState(
-        changes: ["IsSupervised: false -> true", "CloudConfigurationUIComplete: false -> true"],
-        pristinePath: SupervisionPatch
-            .pristineRoot(forBackupRoot: BackupFolder.applicationSupportRoot)
-            .path
-    )
-
-    /// The Restore step in each of the states the helper puts it in, drawn
-    /// from engines that are running nothing.
+    /// The job screen in every phase it has, drawn from engines that are
+    /// running nothing and phones that are not there.
     ///
     /// `now` is the clock the whole set is built against, so the elapsed time
     /// and the estimate agree with each other in every picture.
-    private static func restoreSamples(at now: Date) -> [(name: String, model: WizardModel)] {
+    private static func jobSamples(at now: Date) -> [(name: String, model: WizardModel)] {
         [
             (
-                "transferring",
-                restoring(
+                "copying",
+                moving(
+                    .copying,
                     phase: .transferring(
                         progress: 0.42,
                         filesDone: 29_104,
@@ -243,14 +182,15 @@ enum UISmoke {
                         bytes: "18.4 MB / 44.1 MB"
                     ),
                     progress: 0.42,
-                    stage: .running,
                     estimate: settledEstimate(endingAt: now),
                     startedAt: now.addingTimeInterval(-720)
                 )
             ),
             (
-                "transferring-too-early",
-                restoring(
+                // The same copying, too early in the run for a figure.
+                "copying-early",
+                moving(
+                    .copying,
                     phase: .transferring(
                         progress: 0.01,
                         filesDone: 412,
@@ -258,51 +198,100 @@ enum UISmoke {
                         bytes: "2.1 MB / 9.7 MB"
                     ),
                     progress: 0.01,
-                    stage: .running,
                     estimate: youngEstimate(endingAt: now),
                     startedAt: now.addingTimeInterval(-20)
                 )
             ),
+            ("preparing", waiting(.preparing, on: samplePhone(findMyOn: false))),
+            ("waiting-find-my", waiting(.waitingForFindMy, on: samplePhone(findMyOn: true))),
             (
+                "restoring",
+                moving(
+                    .restoring,
+                    phase: .transferring(
+                        progress: 0.66,
+                        filesDone: 45_800,
+                        filesTotal: nil,
+                        bytes: "9.2 MB / 128.6 MB"
+                    ),
+                    progress: 0.66,
+                    estimate: settledEstimate(endingAt: now),
+                    startedAt: now.addingTimeInterval(-1_020)
+                )
+            ),
+            (
+                // Every file is across and the iPhone is the one working, which
+                // the screen reads off the helper rather than off the wizard.
                 "finishing",
-                restoring(
+                moving(
+                    .restoring,
                     phase: .finishing,
                     progress: 1,
-                    stage: .running,
                     estimate: settledEstimate(endingAt: now),
                     startedAt: now.addingTimeInterval(-1_740)
                 )
             ),
+            ("restarting", waiting(.restarting, on: samplePhone(findMyOn: false))),
+            ("check-on-iphone", waiting(.checkOnIPhone, on: samplePhone(findMyOn: false))),
+            ("phone-gone", waiting(.phoneGone, on: samplePhone(findMyOn: false))),
             (
-                "waiting-for-phone",
-                restoring(
-                    phase: .finishing,
-                    progress: 1,
-                    stage: .waitingForPhone,
-                    estimate: settledEstimate(endingAt: now),
-                    startedAt: now.addingTimeInterval(-2_460)
+                "failed-copy",
+                waiting(
+                    .failed(failure(BackupError.failed(DemoFailure.cableCameOut), in: .copying)),
+                    on: samplePhone(findMyOn: false)
+                )
+            ),
+            (
+                "failed-password",
+                waiting(
+                    .failed(failure(PatchError.wrongPassword, in: .preparing)),
+                    on: samplePhone(findMyOn: false, backupEncrypted: true)
                 )
             ),
         ]
     }
 
-    /// One restore in flight: the phase and the progress the helper would be
-    /// printing, the stage the wizard would be in, and an estimate fed the
-    /// readings that put it there.
-    private static func restoring(
+    /// The two sentences one failure shows, written the way the job writes
+    /// them rather than by hand, so the pictures are of the mapping itself.
+    private static func failure(_ error: Error, in piece: JobFailure.Piece) -> JobFailure {
+        JobFailure.from(error, in: piece)
+            ?? JobFailure(title: "", fix: "", raw: "", retry: .copy)
+    }
+
+    /// What the helper prints when the cable comes out, which is the failure a
+    /// reader is most likely to meet.
+    private enum DemoFailure {
+        static let cableCameOut = BackupError.sentence(
+            lastError: "ERROR: No device found, is it plugged in?",
+            exitCode: 1
+        )
+    }
+
+    /// One transfer in flight: the phase of the job, the phase and progress
+    /// the helper would be printing, and an estimate fed the readings that put
+    /// it there.
+    private static func moving(
+        _ job: JobPhase,
         phase: BackupEngine.Phase,
         progress: Double,
-        stage: WizardModel.RestoreStage,
         estimate: TransferEstimate,
         startedAt: Date
     ) -> WizardModel {
         WizardModel(
             sample: sampleWatcher([samplePhone(findMyOn: false)]),
-            restoring: BackupEngine(sample: phase, progress: progress, log: sampleLog),
-            stage: stage,
+            running: BackupEngine(sample: phase, progress: progress, log: sampleLog),
+            job: job,
             estimate: estimate,
             startedAt: startedAt
         )
+    }
+
+    /// One phase with no transfer under it: the bar has nothing to measure, or
+    /// there is no bar at all.
+    private static func waiting(_ job: JobPhase, on phone: ConnectedDevice) -> WizardModel {
+        let model = WizardModel(watcher: sampleWatcher([phone]))
+        model.show(WizardModel.Sample(step: .job, udid: phone.udid, job: job))
+        return model
     }
 
     /// An estimate fed enough of a transfer to say a figure: twelve minutes of

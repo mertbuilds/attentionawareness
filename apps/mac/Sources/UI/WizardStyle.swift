@@ -28,18 +28,35 @@ enum WizardStyle {
         return formatter.string(fromByteCount: Int64(bytes))
     }
 
-    /// A length of time in whole words, because the copy never abbreviates a
-    /// unit.
-    static func elapsed(_ seconds: TimeInterval) -> String {
-        let whole = max(0, Int(seconds))
-        let minutes = whole / 60
-        let remainder = whole % 60
-        guard minutes > 0 else { return count(remainder, "second") }
-        return "\(count(minutes, "minute")) \(count(remainder, "second"))"
-    }
+}
 
-    private static func count(_ value: Int, _ unit: String) -> String {
-        "\(value) \(unit)\(value == 1 ? "" : "s")"
+/// A small "i" holding one more sentence than the screen has room for.
+///
+/// It is the slot the films go in: where one exists it will play here, and
+/// until then the button holds the words. Hover help carries the one-line
+/// fixes; this is for the places where somebody has to look at their phone and
+/// a picture of it would settle the question.
+struct InfoButton: View {
+    let text: String
+
+    @State private var shown = false
+
+    var body: some View {
+        Button {
+            shown = true
+        } label: {
+            Image(systemName: "info.circle")
+                .foregroundStyle(WizardStyle.accent)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("More")
+        .popover(isPresented: $shown) {
+            Text(text)
+                .font(.callout)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(width: 260, alignment: .leading)
+                .padding(14)
+        }
     }
 }
 

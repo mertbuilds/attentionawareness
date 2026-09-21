@@ -29,6 +29,12 @@ class WizardModel: ObservableObject {
     private static let rebootTimeout: TimeInterval = 15 * 60
     /// How often the phone is read again while a check is waiting for it.
     private static let pollInterval = Duration.seconds(3)
+    /// How long the phone is given to say what it is now, once it is back on
+    /// the cable. A phone that has just restored takes a minute or two to
+    /// settle before it answers MCInstall with the truth.
+    private static let confirmTimeout: TimeInterval = 3 * 60
+    /// How often it is asked while that runs.
+    private static let confirmInterval = Duration.seconds(5)
     /// What the free space check asks for when the iPhone does not say how
     /// much it holds.
     private static let assumedPhoneBytes: UInt64 = 64_000_000_000
@@ -79,11 +85,9 @@ class WizardModel: ObservableObject {
 
     @Published private(set) var patch = PatchState()
     @Published private(set) var restore = RestoreState()
-    /// Whether the job screen is past the copy and on the restore. The two are
-    /// still two views, and the engine's own phase cannot tell them apart,
-    /// because the restore runs through the same phases the copy did. The job
-    /// phase this stands in for arrives with the job screen itself.
-    @Published private(set) var jobShowsRestore = false
+    /// Where the one long job has got to, or nil while no job is running. It
+    /// is the whole of what the job screen draws.
+    @Published private(set) var job: JobPhase?
     @Published private(set) var profile = ProfileState()
     /// The profile the Profile step is building. It starts on the one this app
     /// has always installed and the step writes over it.
@@ -93,6 +97,10 @@ class WizardModel: ObservableObject {
 
     private var relays: [AnyCancellable] = []
     private var poll: Task<Void, Never>?
+    /// The job, from the first byte of the copy to the phone saying what it is
+    /// now. Every move off the job screen cancels it, so two of them can never
+    /// run at once.
+    private var jobTask: Task<Void, Never>?
     /// The clearing of a leftover backup, while it is still running. The
     /// backup waits on it, because the folder it is about to write into is the
     /// folder being taken away.
@@ -149,15 +157,15 @@ class WizardModel: ObservableObject {
         restore = RestoreState(stage: .finished, supervisedAfterwards: true)
     }
 
-    /// A model standing in the middle of a restore: the engine, the stage, the
+    /// A model standing in the middle of the job: the engine, the phase, the
     /// estimate and the clock all handed in, and nothing running. It reads no
     /// bus and sends nothing to a phone, so the hidden `--ui-smoke` path can
-    /// draw each of the things the restore says while the helper has the
-    /// phone without one on the cable.
+    /// draw each of the things the job says while the helper has the phone
+    /// without one on the cable.
     convenience init(
         sample watcher: DeviceWatcher,
-        restoring engine: BackupEngine,
-        stage: RestoreStage,
+        running engine: BackupEngine,
+        job: JobPhase,
         estimate: TransferEstimate,
         startedAt: Date
     ) {
@@ -165,8 +173,7 @@ class WizardModel: ObservableObject {
         udid = watcher.devices.first?.udid
         selectedUdid = udid
         step = .job
-        jobShowsRestore = true
-        restore = RestoreState(stage: stage)
+        self.job = job
         transferStartedAt = startedAt
         self.estimate = estimate
     }
@@ -191,9 +198,8 @@ class WizardModel: ObservableObject {
         var estimate = TransferEstimate()
         var patch = PatchState()
         var restore = RestoreState()
-        /// Which half of the job screen is drawn: the copy, or the restore
-        /// that follows it.
-        var jobShowsRestore = false
+        /// Where the job screen is, so each of its phases can be drawn.
+        var job: JobPhase?
         var profile = ProfileState()
         /// What the search field over the blocked list is showing, so a step
         /// can be drawn with rows under it.
@@ -225,7 +231,7 @@ class WizardModel: ObservableObject {
         estimate = sample.estimate
         patch = sample.patch
         restore = sample.restore
-        jobShowsRestore = sample.jobShowsRestore
+        job = sample.job
         profile = sample.profile
         appSearch = sample.appSearch
         finderBackup = sample.finderBackup
@@ -349,6 +355,7 @@ class WizardModel: ObservableObject {
     /// Forget this run and ask for a phone again.
     func startOver() {
         poll?.cancel()
+        stopJob()
         udid = nil
         selectedUdid = nil
         password = ""
@@ -361,7 +368,7 @@ class WizardModel: ObservableObject {
         estimate = TransferEstimate()
         patch = PatchState()
         restore = RestoreState()
-        jobShowsRestore = false
+        job = nil
         profile = ProfileState()
         draft = .recommended
         clearAppSearch()
@@ -379,6 +386,12 @@ class WizardModel: ObservableObject {
     private func go(to step: WizardStep) {
         poll?.cancel()
         errorMessage = nil
+        // Every way off the job screen ends the job, whether the work went
+        // through or somebody walked away from it.
+        if step != .job {
+            stopJob()
+            job = nil
+        }
         self.step = step
         switch step {
         case .ready:
@@ -391,21 +404,11 @@ class WizardModel: ObservableObject {
         }
     }
 
-    /// The copy is on this Mac, so the job screen turns to the restore.
-    ///
-    /// It is the arrival the old Restore step had: the copy is patched on the
-    /// way in, and it is patched once, because a second patch would write
-    /// nothing while taking the lines about what changed off the screen. The
-    /// job's own phases take this over.
-    func showRestore() {
-        poll?.cancel()
-        errorMessage = nil
-        jobShowsRestore = true
-        restore = RestoreState()
-        pollWhileFindMyIsOn()
-        if !patch.hasResult {
-            runPatch()
-        }
+    /// Drop the job without saying anything about it. It is the demo's way out
+    /// of a step it is jumping off as well as the wizard's own.
+    func stopJob() {
+        jobTask?.cancel()
+        jobTask = nil
     }
 
     // MARK: - Checks
@@ -555,43 +558,188 @@ class WizardModel: ObservableObject {
         )
     }
 
-    // MARK: - Back up
+    // MARK: - The job
 
-    /// Make the backup. The phone decides whether it is encrypted; the
-    /// password is only passed on.
-    func startBackup() {
-        guard let udid, !engine.phase.isRunning else { return }
+    /// The phase the screen draws, which is `job` with one thing folded in.
+    ///
+    /// The helper moves to `.finishing` the moment the last byte is across,
+    /// and from there the iPhone is the one working: it closes the snapshot,
+    /// or it writes the backup over itself. This Mac can see none of that, so
+    /// the bar stops claiming a figure and the line says whose work it is.
+    var jobPhase: JobPhase? {
+        guard let job, job == .copying || job == .restoring else { return job }
+        return engine.phase == .finishing ? .finishing : job
+    }
+
+    /// How much longer the copying has, in the words the line shows. Nil while
+    /// the figure has not settled, and nil in every other phase: the copying
+    /// is the only piece of the job this Mac can measure.
+    var estimateText: String? {
+        guard jobPhase?.showsEstimate == true,
+              case .about(let seconds) = estimate.reading()
+        else { return nil }
+        return "About \(TransferEstimate.duration(seconds)) remaining"
+    }
+
+    /// Run the whole job: the copy, the flag, the wait for Find My, the
+    /// restore, the restart and the question at the end.
+    ///
+    /// Nothing is asked of anybody between any two of them, which is the whole
+    /// point of the screen. They pressed Supervise, and the next thing they
+    /// are asked for is the restrictions.
+    func startJob() {
+        guard udid != nil else { return }
         go(to: .job)
-        let started = Date()
-        transferStartedAt = started
-        estimate = TransferEstimate()
-        Task {
-            do {
-                // Unlinking the 69,445 files of a leftover backup takes
-                // seconds, and the helper is about to write into that very
-                // folder, so the clearing finishes first.
-                await clearing?.value
-                let folder = try await engine.backup(
-                    udid: udid,
-                    into: Self.backupRoot,
-                    // The phone does the encrypting, so the password only goes
-                    // down when the phone says it encrypts its backups.
-                    password: device?.backupEncrypted == true ? secret : nil
-                )
-                backupFolder = folder
-                measureBackup(at: folder, took: Date().timeIntervalSince(started))
-                showRestore()
-            } catch BackupError.cancelled {
-                // The phase already says it was cancelled, and the step offers
-                // Retry. A cancel the user asked for is not an error.
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-        }
+        runJob(from: .copy)
+    }
+
+    /// Run the job again from the piece Try Again offers.
+    func retryJob(from piece: JobFailure.Retry) {
+        guard step == .job else { return }
+        runJob(from: piece)
+    }
+
+    /// Stop the job. While the helper has the phone it is asked to stop first
+    /// and the job lands back on Ready when it does. Everywhere else there is
+    /// nothing to ask and the run goes back at once.
+    func cancelJob() {
+        guard !engine.phase.isRunning else { return cancelTransfer() }
+        stopJob()
+        go(to: .ready)
     }
 
     func cancelTransfer() {
         engine.cancel()
+    }
+
+    private func runJob(from piece: JobFailure.Retry) {
+        stopJob()
+        poll?.cancel()
+        errorMessage = nil
+        // The first phase is written here rather than in the task, so no frame
+        // is ever drawn with the phase the last attempt ended on.
+        switch piece {
+        case .copy: job = .copying
+        case .patch: job = .preparing
+        case .restore: job = .restoring
+        }
+        jobTask = Task { [weak self] in
+            await self?.walkTheJob(from: piece)
+        }
+    }
+
+    /// The order of the job, which is the order of the screen.
+    private func walkTheJob(from piece: JobFailure.Retry) async {
+        if piece == .copy {
+            job = .copying
+            do {
+                try await copyTheIPhone()
+            } catch {
+                return fail(error, in: .copying)
+            }
+        }
+        if piece != .restore {
+            job = .preparing
+            do {
+                try await markTheCopy()
+            } catch {
+                return fail(error, in: .preparing)
+            }
+        }
+        await waitUntilFindMyIsOff()
+        guard !Task.isCancelled else { return }
+        job = .restoring
+        do {
+            try await sendTheCopyBack()
+        } catch {
+            return fail(error, in: .restoring)
+        }
+        job = .restarting
+        if await waitForPhone(until: Date().addingTimeInterval(Self.rebootTimeout)) == false {
+            // A phone that is still booting is not a phone that is gone, so
+            // the screen says what to do and the reading goes on underneath.
+            job = .phoneGone
+            guard await waitForPhone(until: nil) else { return }
+            job = .restarting
+        }
+        job = .confirming
+        let answered = await confirmWhatTheIPhoneIs()
+        guard !Task.isCancelled else { return }
+        restore.stage = .finished
+        restore.supervisedAfterwards = isSupervised
+        // Unsupervising installs no profile, so a phone that came back saying
+        // what the run asked for has finished the run and the copy can go. The
+        // gate is the whole of that rule.
+        deleteBackupIfTheRunIsDone()
+        guard answered else {
+            job = .checkOnIPhone
+            return
+        }
+        job = .done
+        advance()
+    }
+
+    /// What a piece of the job that went wrong leaves on screen.
+    private func fail(_ error: Error, in piece: JobFailure.Piece) {
+        // A task that was cancelled was cancelled by something that has
+        // already moved the run, so there is nothing to say and nowhere to go.
+        if error is CancellationError { return }
+        guard let failure = JobFailure.from(error, in: piece, missingSpace: missingSpace) else {
+            // A stop somebody asked for is not a failure. The copy stays where
+            // it is, which is the rule for every run that did not go through.
+            return cancelJob()
+        }
+        job = .failed(failure)
+    }
+
+    /// How much room this Mac is short, in the words a person says. Nil while
+    /// the free space reads fine or will not read at all.
+    private var missingSpace: String? {
+        let space = diskSpace
+        guard space.passes == false, let free = space.free else { return nil }
+        return WizardStyle.size(space.needed - free)
+    }
+
+    /// Copy the iPhone onto this Mac. The phone decides whether what it writes
+    /// is encrypted; the password is only passed on.
+    ///
+    /// The demo replaces it with a scripted transfer that reaches no phone.
+    func copyTheIPhone() async throws {
+        guard let udid else { return }
+        patch = PatchState()
+        restore = RestoreState()
+        backupFolder = nil
+        let started = Date()
+        transferStartedAt = started
+        estimate = TransferEstimate()
+        // Unlinking the 69,445 files of a leftover backup takes seconds, and
+        // the helper is about to write into that very folder, so the clearing
+        // finishes first.
+        await clearing?.value
+        let folder = try await engine.backup(
+            udid: udid,
+            into: Self.backupRoot,
+            // The phone does the encrypting, so the password only goes down
+            // when the phone says it encrypts its backups.
+            password: device?.backupEncrypted == true ? secret : nil
+        )
+        backupFolder = folder
+        measureBackup(at: folder, took: Date().timeIntervalSince(started))
+    }
+
+    /// Hold the job while the iPhone still says Find My is on.
+    ///
+    /// It is the one thing the restore cannot go round: Apple refuses a
+    /// restore to a phone with Find My on. The hour of copying ran while
+    /// somebody was turning it off, which is why the wait is here and not in
+    /// front of the button.
+    private func waitUntilFindMyIsOff() async {
+        watcher.reload()
+        while !Task.isCancelled, restoreGate == .blockedByFindMy {
+            job = .waitingForFindMy
+            try? await Task.sleep(for: Self.pollInterval)
+            watcher.reload()
+        }
     }
 
     /// Walk the folder the backup landed in, and write down how fast this Mac
@@ -639,40 +787,35 @@ class WizardModel: ObservableObject {
         }
     }
 
-    /// Read the backup, unlock it when it is encrypted, write the flag and
-    /// check it. All of it off the main thread: deriving the keys of an
-    /// encrypted backup takes seconds.
-    func runPatch() {
-        guard let folder = backupFolder, !patch.isRunning else { return }
+    /// Read the copy, unlock it when it is encrypted, write the flag and check
+    /// it. All of it off the main thread: deriving the keys of an encrypted
+    /// backup takes seconds.
+    ///
+    /// The demo replaces it with a scripted one that opens no folder.
+    func markTheCopy() async throws {
+        guard let folder = backupFolder else { return }
         patch = PatchState(status: "Reading the copy", isRunning: true)
-        errorMessage = nil
         let password = secret ?? ""
         let target = direction.target
-        Task {
-            do {
-                let outcome = try await Self.applyPatch(
-                    folder: folder,
-                    password: password,
-                    target: target,
-                    status: { [weak self] line in
-                        Task { @MainActor in self?.patch.status = line }
-                    }
-                )
-                patch = PatchState(
-                    status: nil,
-                    changes: outcome.changes,
-                    pristinePath: outcome.pristinePath,
-                    isRunning: false,
-                    alreadyCorrect: outcome.alreadyCorrect
-                )
-                // The flag is the whole point of the wizard, so what was
-                // written stays on the Restore step, over the button that
-                // sends it, rather than passing by on a step of its own.
-            } catch {
-                patch.isRunning = false
-                patch.status = nil
-                errorMessage = error.localizedDescription
-            }
+        do {
+            let outcome = try await Self.applyPatch(
+                folder: folder,
+                password: password,
+                target: target,
+                status: { [weak self] line in
+                    Task { @MainActor in self?.patch.status = line }
+                }
+            )
+            patch = PatchState(
+                status: nil,
+                changes: outcome.changes,
+                pristinePath: outcome.pristinePath,
+                isRunning: false,
+                alreadyCorrect: outcome.alreadyCorrect
+            )
+        } catch {
+            patch = PatchState()
+            throw error
         }
     }
 
@@ -716,10 +859,13 @@ class WizardModel: ObservableObject {
 
     // MARK: - Restore
 
-    /// How far the restore has got. The phone reboots half way through, so the
-    /// step waits for it to come back before it says anything about the result.
+    /// How far the restore has got.
+    ///
+    /// The job screen draws none of this: it has a phase of its own. This is
+    /// what the delete rule and the last step read, which is why it outlives
+    /// the screen that used to show it.
     enum RestoreStage: Equatable {
-        /// The explanation, before anything is sent to the phone.
+        /// Nothing has been sent to the phone.
         case ready
         case running
         /// The files are back on the phone and it is restarting.
@@ -741,65 +887,74 @@ class WizardModel: ObservableObject {
         WizardGate.restore(findMyOn: device?.findMyOn, patched: patch.hasResult)
     }
 
-    /// Put the patched backup back on the phone and wait for the reboot.
-    func startRestore() {
-        guard let udid, let folder = backupFolder, !engine.phase.isRunning else { return }
-        guard restoreGate == .allowed else { return }
+    /// Put the copy back on the phone and let it reboot into it.
+    ///
+    /// The demo replaces it with a scripted transfer that reaches no phone.
+    func sendTheCopyBack() async throws {
+        guard let udid, let folder = backupFolder else { return }
         // The helper has the phone from here, so the Find My poll stops rather
         // than opening a lockdown handshake of its own every three seconds.
         poll?.cancel()
-        errorMessage = nil
         restore = RestoreState(stage: .running)
         let started = Date()
         transferStartedAt = started
         estimate = TransferEstimate()
-        Task {
-            do {
-                try await engine.restore(
-                    udid: udid,
-                    from: folder,
-                    password: secret,
-                    system: true,
-                    settings: true,
-                    reboot: true
-                )
-                // The folder was walked when it was made, so the rate needs no
-                // second walk of the same 69,445 files.
-                if let bytes = restoreBytes {
-                    TransferRate.remember(
-                        .restore,
-                        bytes: bytes,
-                        seconds: Date().timeIntervalSince(started)
-                    )
-                }
-                restore.stage = .waitingForPhone
-                await waitForPhone()
-                restore.supervisedAfterwards = isSupervised
-                restore.stage = .finished
-                // Unsupervising installs no profile, so a phone that came back
-                // saying what the run asked for has finished the run.
-                deleteBackupIfTheRunIsDone()
-            } catch BackupError.cancelled {
-                restore.stage = .ready
-            } catch {
-                restore.stage = .ready
-                errorMessage = error.localizedDescription
-            }
+        do {
+            try await engine.restore(
+                udid: udid,
+                from: folder,
+                password: secret,
+                system: true,
+                settings: true,
+                reboot: true
+            )
+        } catch {
+            restore.stage = .ready
+            throw error
         }
+        // The folder was walked when it was made, so the rate needs no second
+        // walk of the same 69,445 files.
+        if let bytes = restoreBytes {
+            TransferRate.remember(.restore, bytes: bytes, seconds: Date().timeIntervalSince(started))
+        }
+        restore.stage = .waitingForPhone
     }
 
-    /// Read the bus until the phone is back and has answered MCInstall again.
-    /// A phone that never comes back leaves the supervision state unknown,
-    /// which the step says in as many words.
-    private func waitForPhone() async {
-        let deadline = Date().addingTimeInterval(Self.rebootTimeout)
-        while Date() < deadline {
+    /// Read the bus until the phone is back and has answered MCInstall again,
+    /// or until `deadline`. True when it came back. A nil deadline waits for
+    /// as long as the job is left running, which is what the screen offers
+    /// once the quarter of an hour is up.
+    ///
+    /// The demo replaces it with a pause and a phone that comes back.
+    func waitForPhone(until deadline: Date?) async -> Bool {
+        while !Task.isCancelled {
+            if let deadline, Date() >= deadline { return false }
             try? await Task.sleep(for: Self.pollInterval)
             watcher.reload()
             if device?.pairingState == .paired, cloudConfiguration != nil {
-                return
+                return true
             }
         }
+        return false
+    }
+
+    /// Ask the iPhone what it is now, every five seconds for three minutes,
+    /// and stop at the first answer that is the one the run asked for.
+    ///
+    /// A phone that has just restored answers MCInstall before it has settled,
+    /// and the answer before it settles is the phone as it was. So this asks
+    /// again rather than believing the first thing it hears.
+    ///
+    /// The demo replaces it with a pause and the switches on its bar.
+    func confirmWhatTheIPhoneIs() async -> Bool {
+        let deadline = Date().addingTimeInterval(Self.confirmTimeout)
+        while !Task.isCancelled {
+            watcher.reload()
+            try? await Task.sleep(for: Self.confirmInterval)
+            if isSupervised == direction.target { return true }
+            if Date() >= deadline { return false }
+        }
+        return false
     }
 
     // MARK: - Profile

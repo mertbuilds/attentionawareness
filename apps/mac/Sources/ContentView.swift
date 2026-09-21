@@ -94,14 +94,7 @@ struct WizardStepContent: View {
         case .ready:
             ReadyStep(model: model)
         case .job:
-            // The copy and the restore are one screen with one title, and
-            // still two views: the copy until it is on this Mac, the restore
-            // from then on. One view of their own takes both over.
-            if model.jobShowsRestore {
-                RestoreStep(model: model)
-            } else {
-                BackupStep(model: model)
-            }
+            JobStep(model: model)
         case .restrictions:
             ProfileStep(model: model)
         case .done:

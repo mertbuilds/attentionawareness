@@ -29,7 +29,7 @@ struct ReadyStep: View {
             }
         } actions: {
             PrimaryButton(title: verb, enabled: model.checksPass) {
-                model.startBackup()
+                model.startJob()
             }
         }
     }
