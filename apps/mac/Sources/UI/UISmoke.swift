@@ -119,6 +119,7 @@ enum UISmoke {
             into: folder
         )
         report("device-card", DeviceCard(device: sampleDevice), into: folder)
+        report("device-card-reading", DeviceCard(device: sampleReadingDevice), into: folder)
         report("error", ErrorText(DeviceError.trustPending.localizedDescription), into: folder)
         report("window", ContentView(), into: folder)
         exit(0)
@@ -497,6 +498,23 @@ enum UISmoke {
         lastCloudBackup: Date().addingTimeInterval(-dayInSeconds),
         dataCapacity: 128_000_000_000,
         dataAvailable: 40_000_000_000,
+        pairingState: .paired
+    )
+
+    /// A trusted iPhone that has said its name but not yet its model or iOS,
+    /// so the card draws the quiet meta line in its "Reading" fallback.
+    private static let sampleReadingDevice = ConnectedDevice(
+        udid: "44444444-4444444444444444",
+        name: "Mert's iPhone",
+        productType: nil,
+        marketingName: nil,
+        iosVersion: nil,
+        findMyOn: false,
+        backupEncrypted: nil,
+        cloudBackupOn: nil,
+        lastCloudBackup: nil,
+        dataCapacity: nil,
+        dataAvailable: nil,
         pairingState: .paired
     )
 
