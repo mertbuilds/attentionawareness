@@ -91,11 +91,20 @@ enum UISmoke {
         for sample in connectSamples() {
             report("connect-\(sample.name)", ConnectStep(model: sample.model), into: folder)
         }
-        // What an "i" opens. No film ships yet, so this is the words alone,
-        // which is what every popover in the app shows today.
+        // What an "i" opens, in both the things it can be: the words alone,
+        // which is every popover but one, and the one that carries the
+        // screenshot of the top of Settings above them.
         report(
             "info-popover-text",
-            InfoPopoverContent(text: DoneCopy.note(direction: .supervise)),
+            InfoPopoverContent(text: DoneCopy.note(direction: .unsupervise)),
+            into: folder
+        )
+        report(
+            "info-popover-image",
+            InfoPopoverContent(
+                text: DoneCopy.note(direction: .supervise),
+                image: InfoImage.checking(.supervise)
+            ),
             into: folder
         )
         report("device-card", DeviceCard(device: sampleDevice), into: folder)

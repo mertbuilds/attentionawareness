@@ -38,7 +38,7 @@ struct JobStep: View {
                     body(
                         sentence,
                         note: phase.note(direction: model.direction),
-                        video: phase.noteVideo(direction: model.direction)
+                        image: phase.noteImage(direction: model.direction)
                     )
                 }
                 // The one failure somebody answers by typing. The field is the
@@ -95,12 +95,12 @@ struct JobStep: View {
 
     /// The sentence a phase that came to an end shows, with the "i" beside it
     /// wherever there is more behind it than the line.
-    private func body(_ text: String, note: String?, video: String?) -> some View {
+    private func body(_ text: String, note: String?, image: String?) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(text)
                 .fixedSize(horizontal: false, vertical: true)
             if let note {
-                InfoButton(text: note, video: video)
+                InfoButton(text: note, image: image)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

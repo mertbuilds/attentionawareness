@@ -14,7 +14,7 @@ struct DoneStep: View {
         StepLayout(
             title: WizardStep.done.title(for: model.direction),
             note: DoneCopy.note(direction: model.direction),
-            noteVideo: InfoVideo.checking(model.direction),
+            noteImage: InfoImage.checking(model.direction),
             error: model.errorMessage
         ) {
             VStack(alignment: .leading, spacing: 12) {

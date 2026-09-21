@@ -132,13 +132,13 @@ enum JobPhase: Equatable {
         }
     }
 
-    /// The film that "i" plays, by name. Only the one question a film settles
-    /// has one: what the top of Settings looks like once the run is over. A
-    /// failure has nothing to film.
-    func noteVideo(direction: WizardDirection) -> String? {
+    /// The picture that "i" shows, by name. Only the one question a picture
+    /// settles has one: what the top of Settings looks like once the run is
+    /// over. A failure has nothing to show.
+    func noteImage(direction: WizardDirection) -> String? {
         switch self {
         case .checkOnIPhone:
-            return InfoVideo.checking(direction)
+            return InfoImage.checking(direction)
         case .copying, .preparing, .waitingForFindMy, .restoring, .finishing,
              .restarting, .confirming, .done, .phoneGone, .failed:
             return nil
