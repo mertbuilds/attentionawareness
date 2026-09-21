@@ -59,7 +59,7 @@ enum DemoWorld {
     }
 
     /// The configuration profiles each phone lists. Only ours is ever there,
-    /// because that is the one the Profile step asks about.
+    /// because that is the one the Restrictions screen asks about.
     static func installedProfiles(_ conditions: DemoConditions) -> [String: [InstalledProfile]] {
         guard conditions.profileInstalled else { return [udid: []] }
         return [udid: [ourProfile]]
@@ -145,7 +145,7 @@ enum DemoWorld {
     /// The store the demo answers app searches from.
     ///
     /// It is a written down page of results rather than Apple's, so the
-    /// Profile step can be built and walked through on a Mac with no network.
+    /// Restrictions screen can be built and walked through on a Mac with no network.
     /// The rows cover what the step has to draw: apps the curated table names
     /// the sites of, apps it does not, which leaves their sites to the
     /// developer link, and one of Apple's own, which is never offered. They
@@ -209,7 +209,7 @@ enum DemoWorld {
     // MARK: - The backup
 
     /// What a run's backup measures, which is the figure a measured iPhone 16e
-    /// came to. The Restore step says how long sending it back takes from it.
+    /// came to. The job screen says how long sending it back takes from it.
     static let backupBytes: UInt64 = 67_882_442_752
 
     /// What the window shows when a backup will not leave the disk. It is the

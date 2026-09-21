@@ -1,7 +1,7 @@
 import Foundation
 
 /// One line of the website list: the url the filter will carry, the app that
-/// brought it, and whether that app named it or this app guessed.
+/// brought it, and whether that app named it or the app guessed.
 struct DraftSite: Equatable, Identifiable {
     /// The url as the profile writes it, which is also what makes a row
     /// unique.
@@ -23,7 +23,7 @@ struct DraftSite: Equatable, Identifiable {
     }
 }
 
-/// What the Profile step is building: the apps the profile hides, the sites
+/// What the Restrictions screen is building: the apps the profile hides, the sites
 /// its filter carries, and the four switches it writes.
 ///
 /// It is a value and it reaches nothing, so the step hands it around and the
@@ -43,12 +43,12 @@ struct ProfileDraft: Equatable {
     var allowAppStore: Bool
     var allowPrivateBrowsing: Bool
     var autoFilterAdult: Bool
-    /// Trial mode: the profile can be deleted on the phone.
+    /// Trial mode: the profile can be deleted on the iPhone.
     var allowsRemoval: Bool
 }
 
 extension ProfileDraft {
-    /// What the step starts on, which is the profile this app has always
+    /// What the step starts on, which is the profile the app has always
     /// installed: the feed apps, their sites and the two locks.
     static let recommended = ProfileDraft(
         blockedApps: ProfileConfig.default.blockedApps,
@@ -191,7 +191,7 @@ extension ProfileDraft {
 
     /// Whether an App Store row is something a profile can hide. Apple's own
     /// apps are not: `blockedAppBundleIDs` leaves them alone, Safari is the
-    /// web filter's job, and the phone has to keep answering calls.
+    /// web filter's job, and the iPhone has to keep answering calls.
     static func canBlock(_ result: AppResult) -> Bool {
         !result.bundleId.lowercased().hasPrefix("com.apple.")
             && KnownApps.known(AppSearch.shortName(result.name))?.system != true

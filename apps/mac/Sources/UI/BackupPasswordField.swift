@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// The password of an encrypted backup. It is asked for on the Ready step, and
-/// again on the restore step when the patch could not open the backup with what
-/// was typed the first time.
+/// The password of an encrypted backup. It is asked for on the Ready screen,
+/// and again on the job screen when the patch could not open the backup with
+/// what was typed the first time.
 ///
 /// It is one row like the checks around it: the label, the field, and the one
 /// thing people get wrong in the hover help.

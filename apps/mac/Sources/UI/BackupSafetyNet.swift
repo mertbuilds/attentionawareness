@@ -1,9 +1,9 @@
 import Foundation
 
-/// Whether the person at the keyboard already has a copy of this iPhone that
-/// has nothing to do with this app.
+/// Whether the person at the keyboard already has a copy of the iPhone that
+/// has nothing to do with the app.
 ///
-/// The backup this app makes is scaffolding. It goes up for one run and comes
+/// The backup the app makes is scaffolding. It goes up for one run and comes
 /// down the moment the run is confirmed, so it is gone by the time anyone
 /// would want it back. That is the right shape for a tool that promises to
 /// leave nothing behind, and it means the real way back has to be the reader's
@@ -32,7 +32,7 @@ enum BackupSafetyNet {
         /// The iPhone would not say, which is how a phone that has not been
         /// trusted yet reads.
         case unknown
-        /// iCloud does not back this iPhone up.
+        /// iCloud does not back the iPhone up.
         case off
         /// It does, and this is when it last finished one. The date is nil for
         /// a phone that names none, which is a phone that has never managed a
@@ -46,7 +46,7 @@ enum BackupSafetyNet {
         /// permission, so this is the answer until the reader grants Full Disk
         /// Access by hand and opens the app again.
         case refused
-        /// The folder was read and holds no finished backup of this iPhone.
+        /// The folder was read and holds no finished backup of the iPhone.
         case nothingHere
         /// It holds one, made when it says. The date is nil when the folder is
         /// there but will not say when it was written.
@@ -83,7 +83,7 @@ enum BackupSafetyNet {
     /// Being wrong is not symmetrical either way, which is why the line is
     /// drawn strictly rather than generously. Calling a good backup old costs
     /// the reader a glance at Settings. Calling a stale one recent costs them
-    /// everything the phone has gained since.
+    /// everything the iPhone has gained since.
     static let staysRecent: TimeInterval = 7 * 24 * 60 * 60
 
     /// How far ahead of this Mac an iPhone may be before its date stops being
@@ -173,7 +173,7 @@ enum BackupSafetyNet {
     /// it, so the most the app can do is say where the switch is.
     private static let couldNotCheck = "Couldn't check for a backup of iPhone."
     private static let howToBeChecked = """
-        Back up iPhone first, in iCloud or Finder. To let this app see Finder backups, give it \
+        Back up iPhone first, in iCloud or Finder. To let the app see Finder backups, give it \
         Full Disk Access in System Settings > Privacy & Security, then reopen it.
         """
 
@@ -231,7 +231,7 @@ enum BackupSafetyNet {
             standing: .covered,
             line: "iPhone was backed up \(age(of: best.date, now: now, calendar: calendar))",
             help: """
-                \(best.place.hasOne) That backup is yours. The copy this app makes is deleted \
+                \(best.place.hasOne) That backup is yours. The copy the app makes is deleted \
                 when the run is confirmed.
                 """
         )

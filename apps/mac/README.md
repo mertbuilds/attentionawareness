@@ -67,15 +67,15 @@ for a signature or send anything to a phone is replaced by one that waits a
 moment and says what the bar asked for. It writes nothing anywhere, and it is
 the one hidden flag that opens a window. The one thing outside the window it
 can still reach is System Settings, when the Full Disk Access button on the
-checks is pressed, which is left alone so that button can be read the way it
+Ready screen is pressed, which is left alone so that button can be read the way it
 works. It writes nothing either.
 
 The demo is a debug build alone. `Sources/Demo/` is wrapped in `#if DEBUG`,
 along with the flag that builds it, the window it opens and the Demo menu, so a
 Release build carries none of it.
 
-`--sign-profile <file>` asks the site to sign the profile the Profile step
-installs and writes it, so the signing side can be checked without an iPhone.
+`--sign-profile <file>` asks the site to sign the profile the Restrictions
+screen installs and writes it, so the signing side can be checked without an iPhone.
 It prints the size and whether the bytes are the DER of a signed CMS message.
 `AA_SITE_URL` points it at a dev server, and that variable is also the only
 thing that makes the app trust a certificate the system does not know, for that
@@ -100,14 +100,14 @@ AA_SITE_URL=https://attentionawareness.localhost \
   iCloud backups and from Finder's own folder on this Mac, and is values for
   the same reason; `WizardModel` holds one run of the wizard and owns the
   device watcher, the backup engine and the list of backups on this Mac; the
-  rest is one file per step, plus `DevicePicker` for choosing between connected
-  iPhones and `BackupsSection` for the backups the Done step lists. Errors from
+  rest is one file per screen, plus `DevicePicker` for choosing between
+  connected iPhones. Errors from
   the three layers are shown in the step that caused them, never in a modal
   alert.
 - Finder's backup folder is the one thing in the app that wants Full Disk
   Access, and the backup this app makes needs none of it: that one goes under
   Application Support, which macOS does not protect. macOS also offers no way
-  for an app to ask for the permission, so the checks say in one line what it
+  for an app to ask for the permission, so the Ready screen says in one line what it
   would let the app look at, open the list, and say that it only takes effect
   on a new launch. A refusal costs the run nothing: the iCloud answer is there
   either way and every button works the same.
@@ -121,7 +121,7 @@ AA_SITE_URL=https://attentionawareness.localhost \
   the cable and re-reads them on every connect and disconnect, `Lockdown` reads
   the values the wizard checks, `MCInstall` reads supervision and installs a
   profile over USB.
-- `Sources/Profile/` is the profile the Profile step installs: `ProfileConfig`
+- `Sources/Profile/` is the profile the Restrictions screen installs: `ProfileConfig`
   mirrors the type of the same name in `apps/web/src/lib/profile/types.ts`
   field for field, because it is encoded straight into the body `POST
 /api/sign` validates, and `ProfileConfig.default` is a copy of the `mert`
@@ -231,7 +231,7 @@ inside out, right before Xcode seals the app.
 
 `App.swift` holds one `SPUStandardUpdaterController`, built last in `init()` so
 that every hidden flag still exits without asking the site for anything.
-"Check for updates" sits in the app menu under About. The feed, the public key
+"Check for Updates" sits in the app menu under About. The feed, the public key
 and the once-a-day schedule are `SUFeedURL`, `SUPublicEDKey`,
 `SUEnableAutomaticChecks` and `SUScheduledCheckInterval` in `project.yml`, which
 writes them into `Sources/Info.plist`. The app is not sandboxed, so hardened

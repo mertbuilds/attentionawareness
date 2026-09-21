@@ -55,7 +55,7 @@ enum PatchError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unreadableManifest(let url):
-            return "There is no readable Manifest.plist in \(url.path), so this folder is not a backup."
+            return "There is no readable Manifest.plist in \(url.path), so this folder isn't a backup."
         case .noAccessToBackupFolder(let url):
             return """
                 macOS blocked access to the backup folder at \(url.path).
@@ -65,20 +65,20 @@ enum PatchError: LocalizedError {
         case .noBackupFolder(let url):
             return "There is no backup folder at \(url.path)."
         case .blockLengthNotAes:
-            return "An encrypted file in this backup has a length that AES cannot hold."
+            return "An encrypted file in this backup has a length that AES can't hold."
         case .oldKeybag:
             return """
-                This backup holds an older keybag that this tool cannot open.
+                This backup holds an older keybag that the app can't open.
                 Make a new backup, then try again.
                 """
         case .wrongPassword:
             return """
                 Wrong backup password.
-                This is the password of the encrypted backup. It is not the passcode of the iPhone.
+                This is the password set for encrypted backups, not the iPhone passcode.
                 """
         case .noKeybag:
             return """
-                This encrypted backup holds no keybag, so this tool cannot open it.
+                This encrypted backup holds no keybag, so the app can't open it.
                 Make a new backup, then try again.
                 """
         case .noClassKey(let protectionClass):
@@ -86,7 +86,7 @@ enum PatchError: LocalizedError {
         case .noSupervisionFile:
             return """
                 This backup holds no supervision file.
-                Make a full backup of the iPhone, then try again.
+                Make a full backup of iPhone, then try again.
                 """
         case .supervisionFileMissing(let url):
             return """
@@ -103,13 +103,13 @@ enum PatchError: LocalizedError {
             return "The supervision row vanished from Manifest.db."
         case .manifestLengthNotAes(let size):
             return """
-                The rewritten Manifest.db holds \(size) bytes, a length that AES cannot hold.
+                The rewritten Manifest.db holds \(size) bytes, a length that AES can't hold.
                 Nothing was written. Make a new backup, then try again.
                 """
         case .cryptoFailed(let status):
-            return "The backup could not be encrypted or decrypted. CommonCrypto reported error \(status)."
+            return "The backup couldn't be encrypted or decrypted. CommonCrypto reported error \(status)."
         case .databaseFailed(let message):
-            return "Manifest.db could not be read or written. sqlite reported: \(message)"
+            return "Manifest.db couldn't be read or written. sqlite reported: \(message)"
         case .noPristineCopy(let udid, let root):
             return "There is no saved copy for UDID \(udid) in \(root.path)."
         case .unreadablePristineMetadata(let url):

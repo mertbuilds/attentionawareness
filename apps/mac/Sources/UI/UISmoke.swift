@@ -31,7 +31,7 @@ enum UISmoke {
             report(step.rawValue, WizardStepContent(step: step, model: model), into: folder)
         }
         // The last step in each of the things it says: the plain end of a run,
-        // the reminder a phone whose Find My is still off gets, the phone that
+        // the reminder a phone whose Find My is still off gets, the iPhone that
         // never said what it is now, a copy this Mac would not let go of, and
         // the other direction.
         for sample in doneSamples() {
@@ -163,7 +163,7 @@ enum UISmoke {
         ]
     }
 
-    /// A run that is over: the phone back on the cable, whatever it said about
+    /// A run that is over: the iPhone back on the cable, whatever it said about
     /// itself when it got there, and whatever this Mac could not take away
     /// after it.
     private static func done(
@@ -194,7 +194,7 @@ enum UISmoke {
     /// nothing on the cable.
     private static func restrictionsSamples() -> [(name: String, model: WizardModel)] {
         [
-            // A phone this app has already put a profile on, which is the one
+            // A phone the app has already put a profile on, which is the one
             // line the card ever grows.
             ("already-installed", restrictions(WizardModel.ProfileState())),
             // Signing and installing are one wait, so one picture covers both.
@@ -204,7 +204,7 @@ enum UISmoke {
                 restrictions(
                     WizardModel.ProfileState(stage: .installed),
                     errorMessage: DeviceError
-                        .profileRejected(reason: "The iPhone is not supervised.")
+                        .profileRejected(reason: "iPhone isn't supervised.")
                         .localizedDescription
                 )
             ),

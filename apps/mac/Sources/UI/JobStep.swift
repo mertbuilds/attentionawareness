@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The screen that holds the whole job: copying the iPhone onto this Mac,
-/// writing the flag into the copy, sending it back, and waiting for the phone
+/// writing the flag into the copy, sending it back, and waiting for the iPhone
 /// to say what it is now.
 ///
 /// One bar and one line. While the job runs there is nothing to decide and

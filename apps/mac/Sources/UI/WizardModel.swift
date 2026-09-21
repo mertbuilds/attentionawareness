@@ -24,12 +24,12 @@ class WizardModel: ObservableObject {
     /// folder, which needs no Full Disk Access, unlike the folder Finder uses.
     static var backupRoot: URL { BackupFolder.applicationSupportRoot }
 
-    /// How long the phone is given to come back on the cable after the restore
+    /// How long the iPhone is given to come back on the cable after the restore
     /// reboots it.
     private static let rebootTimeout: TimeInterval = 15 * 60
-    /// How often the phone is read again while a check is waiting for it.
+    /// How often the iPhone is read again while a check is waiting for it.
     private static let pollInterval = Duration.seconds(3)
-    /// How long the phone is given to say what it is now, once it is back on
+    /// How long the iPhone is given to say what it is now, once it is back on
     /// the cable. A phone that has just restored takes a minute or two to
     /// settle before it answers MCInstall with the truth.
     private static let confirmTimeout: TimeInterval = 3 * 60
@@ -51,12 +51,12 @@ class WizardModel: ObservableObject {
     /// cable. It is only a preference: `udid` is what fixes the run.
     @Published private(set) var selectedUdid: String?
     /// The password of an encrypted backup. It is the password the user set
-    /// for encrypted backups, never the passcode of the phone.
+    /// for encrypted backups, never the passcode of the iPhone.
     @Published var password = ""
     @Published private(set) var backupFolder: URL?
     /// What the restore will send, which is the backup this run made, once its
     /// folder has been walked. Nil until then and on a run that skipped the
-    /// walk, and the Restore step simply says less.
+    /// walk, and the job screen simply says less.
     @Published private(set) var restoreBytes: UInt64?
     /// True when the run cleared a backup that an earlier run left behind. The
     /// checks say so in one line, because a folder that size going away
@@ -70,7 +70,7 @@ class WizardModel: ObservableObject {
     /// Why the backup is still on this Mac after a run that should have taken
     /// it away, in the sentence that names the folder. Nil whenever there is
     /// nothing to say, which is every ordinary run: the backup is scaffolding
-    /// this app puts up and takes down again, and the last step is about the
+    /// the app puts up and takes down again, and the last step is about the
     /// iPhone rather than about the scaffolding.
     @Published private(set) var backupRemovalFailure: String?
     /// The sentence the step on screen shows. It always comes from a
@@ -89,7 +89,7 @@ class WizardModel: ObservableObject {
     /// is the whole of what the job screen draws.
     @Published private(set) var job: JobPhase?
     @Published private(set) var profile = ProfileState()
-    /// The profile the Profile step is building. It starts on the one this app
+    /// The profile the Restrictions screen is building. It starts on the one the app
     /// has always installed and the step writes over it.
     @Published var draft = ProfileDraft.recommended
     /// What the search field over the blocked list is showing.
@@ -97,7 +97,7 @@ class WizardModel: ObservableObject {
 
     private var relays: [AnyCancellable] = []
     private var poll: Task<Void, Never>?
-    /// The job, from the first byte of the copy to the phone saying what it is
+    /// The job, from the first byte of the copy to the iPhone saying what it is
     /// now. Every move off the job screen cancels it, so two of them can never
     /// run at once.
     private var jobTask: Task<Void, Never>?
@@ -160,7 +160,7 @@ class WizardModel: ObservableObject {
     /// A model standing in the middle of the job: the engine, the phase, the
     /// estimate and the clock all handed in, and nothing running. It reads no
     /// bus and sends nothing to a phone, so the hidden `--ui-smoke` path can
-    /// draw each of the things the job says while the helper has the phone
+    /// draw each of the things the job says while the helper has the iPhone
     /// without one on the cable.
     convenience init(
         sample watcher: DeviceWatcher,
@@ -191,7 +191,7 @@ class WizardModel: ObservableObject {
         var direction: WizardDirection = .supervise
         var udid: String?
         var backupFolder: URL?
-        /// What the backup on this Mac takes, so the Restore step can be drawn
+        /// What the backup on this Mac takes, so the job screen can be drawn
         /// with the sentence that says how long sending it back will take.
         var restoreBytes: UInt64?
         var transferStartedAt: Date?
@@ -240,7 +240,7 @@ class WizardModel: ObservableObject {
         errorMessage = sample.errorMessage
     }
 
-    // MARK: - What the phone says
+    // MARK: - What the iPhone says
 
     /// Every iPhone on the cable, in the order usbmuxd lists them. The Connect
     /// step offers a choice only while there is more than one.
@@ -267,7 +267,7 @@ class WizardModel: ObservableObject {
         return watcher.cloudConfigurations[udid]
     }
 
-    /// True while the phone says it is supervised. Nil while it has not been
+    /// True while the iPhone says it is supervised. Nil while it has not been
     /// read, which is how a phone that has not trusted this Mac reads.
     var isSupervised: Bool? { cloudConfiguration?.isSupervised }
 
@@ -278,7 +278,7 @@ class WizardModel: ObservableObject {
         return watcher.installedProfiles[udid] ?? []
     }
 
-    /// The ones this app put there. The Profile step asks about these before it
+    /// The ones the app put there. The Restrictions screen asks about these before it
     /// offers to install another.
     var ourProfiles: [InstalledProfile] { installedProfiles.filter(\.isOurs) }
 
@@ -305,7 +305,7 @@ class WizardModel: ObservableObject {
         selectedUdid = device.udid
     }
 
-    /// Pick the phone on the cable and the direction, then start the checks.
+    /// Pick the iPhone on the cable and the direction, then start the checks.
     func start(_ direction: WizardDirection) {
         guard let device, device.pairingState == .paired else { return }
         self.direction = direction
@@ -317,14 +317,14 @@ class WizardModel: ObservableObject {
         go(to: .ready)
     }
 
-    /// Take away whatever this Mac is still holding for this iPhone.
+    /// Take away whatever this Mac is still holding for the iPhone.
     ///
     /// A backup is made for one run and deleted at the end of it, and no run
     /// ever uses one that an earlier run made, because a backup from another
-    /// day puts the phone back to another day. So a folder still sitting here
+    /// day puts the iPhone back to another day. So a folder still sitting here
     /// is rubbish from a run that stopped part way, and it is rubbish the next
     /// backup would write over anyway, since both go in the folder named after
-    /// the phone.
+    /// the iPhone.
     ///
     /// A clear that fails says nothing here. The end of the run deletes the
     /// same folder and reports there, which is where a person can do something
@@ -413,13 +413,13 @@ class WizardModel: ObservableObject {
 
     // MARK: - Checks
 
-    /// Read the phone again every three seconds while Find My is still on, so
+    /// Read the iPhone again every three seconds while Find My is still on, so
     /// the tick on the checks turns green and the Restore button turns on as
     /// soon as the user switches it off. The poll stops the moment Find My
     /// reads off, or the step changes: `go(to:)` cancels it on every move, so
     /// only the step that started it is ever the one waiting.
     ///
-    /// The first read happens at once. Nothing reads the phone while the backup
+    /// The first read happens at once. Nothing reads the iPhone while the backup
     /// copies, so by the time the restore asks, the value in hand can be an
     /// hour old.
     private func pollWhileFindMyIsOn() {
@@ -445,13 +445,13 @@ class WizardModel: ObservableObject {
     }
 
     /// The one line the checks show about the backup that is the reader's own
-    /// rather than this app's. It informs and never blocks: the button under
+    /// rather than the app's. It informs and never blocks: the button under
     /// it says Back up whatever this says.
     var safetyNet: BackupSafetyNet.Row {
         BackupSafetyNet.row(cloud: cloudBackups, finder: finderBackup)
     }
 
-    /// Look in Finder's own backup folder for a backup of this iPhone.
+    /// Look in Finder's own backup folder for a backup of the iPhone.
     ///
     /// It runs off the main thread because the answer comes from the disk, and
     /// because macOS takes its time refusing a folder it protects. The answer
@@ -491,7 +491,7 @@ class WizardModel: ObservableObject {
         /// What this Mac has, or nil when the volume did not answer.
         let free: UInt64?
         /// True when the iPhone did not say how much it holds, so `needed` is
-        /// the flat assumption rather than a number from the phone.
+        /// the flat assumption rather than a number from the iPhone.
         let assumed: Bool
 
         /// Nil when the free space could not be read, so the check neither
@@ -502,7 +502,7 @@ class WizardModel: ObservableObject {
         }
     }
 
-    /// What a backup of this iPhone is expected to be. It is the size of the
+    /// What a backup of the iPhone is expected to be. It is the size of the
     /// transfer rather than the room it wants on disk, so it carries none of
     /// the headroom the free space check adds.
     var backupBytes: UInt64? {
@@ -518,7 +518,7 @@ class WizardModel: ObservableObject {
     var backupExpectation: String? { TransferRate.expectation(.backup, bytes: backupBytes) }
     var restoreExpectation: String? { TransferRate.expectation(.restore, bytes: restoreBytes) }
 
-    /// The free space check: the phone's used space plus a fifth, against what
+    /// The free space check: the iPhone's used space plus a fifth, against what
     /// this Mac has left.
     var diskSpace: DiskSpace {
         var needed = Self.assumedPhoneBytes
@@ -542,7 +542,7 @@ class WizardModel: ObservableObject {
     }
 
     /// True when a password is needed to read the backup this run will make.
-    /// The phone decides: it encrypts what it writes, and the patch then needs
+    /// The iPhone decides: it encrypts what it writes, and the patch then needs
     /// the same password to open the folder.
     var needsPassword: Bool { device?.backupEncrypted == true }
 
@@ -599,7 +599,7 @@ class WizardModel: ObservableObject {
         runJob(from: piece)
     }
 
-    /// Stop the job. While the helper has the phone it is asked to stop first
+    /// Stop the job. While the helper has the iPhone it is asked to stop first
     /// and the job lands back on Ready when it does. Everywhere else there is
     /// nothing to ask and the run goes back at once.
     func cancelJob() {
@@ -700,7 +700,7 @@ class WizardModel: ObservableObject {
         return WizardStyle.size(space.needed - free)
     }
 
-    /// Copy the iPhone onto this Mac. The phone decides whether what it writes
+    /// Copy the iPhone onto this Mac. The iPhone decides whether what it writes
     /// is encrypted; the password is only passed on.
     ///
     /// The demo replaces it with a scripted transfer that reaches no phone.
@@ -719,8 +719,8 @@ class WizardModel: ObservableObject {
         let folder = try await engine.backup(
             udid: udid,
             into: Self.backupRoot,
-            // The phone does the encrypting, so the password only goes down
-            // when the phone says it encrypts its backups.
+            // The iPhone does the encrypting, so the password only goes down
+            // when the iPhone says it encrypts its backups.
             password: device?.backupEncrypted == true ? secret : nil
         )
         backupFolder = folder
@@ -746,7 +746,7 @@ class WizardModel: ObservableObject {
     /// moved the bytes.
     ///
     /// The size of the folder is the only honest divisor for the rate, and the
-    /// Restore step needs the same number to say how much longer sending it
+    /// The job screen needs the same number to say how much longer sending it
     /// back will take, so one walk answers both. It runs off the main thread
     /// because a 63 GB backup is 69,445 files, and nothing on screen is waiting
     /// for the number. A folder that cannot be measured leaves the last
@@ -781,7 +781,7 @@ class WizardModel: ObservableObject {
         var alreadyCorrect = false
 
         /// True once the patch has something to show. Until it has, the
-        /// Restore step has nothing worth sending to the phone.
+        /// job screen has nothing worth sending to the iPhone.
         var hasResult: Bool {
             WizardGate.patched(changes: changes, alreadyCorrect: alreadyCorrect, running: isRunning)
         }
@@ -865,34 +865,34 @@ class WizardModel: ObservableObject {
     /// what the delete rule and the last step read, which is why it outlives
     /// the screen that used to show it.
     enum RestoreStage: Equatable {
-        /// Nothing has been sent to the phone.
+        /// Nothing has been sent to the iPhone.
         case ready
         case running
-        /// The files are back on the phone and it is restarting.
+        /// The files are back on the iPhone and it is restarting.
         case waitingForPhone
         case finished
     }
 
     struct RestoreState {
         var stage: RestoreStage = .ready
-        /// What the phone said about itself after it came back. Nil when it
+        /// What the iPhone said about itself after it came back. Nil when it
         /// never came back.
         var supervisedAfterwards: Bool?
     }
 
-    /// Whether the phone will take the backup back: the patch has to have
+    /// Whether the iPhone will take the backup back: the patch has to have
     /// written the flag first, and this is the one place Find My matters,
     /// because the iPhone refuses a restore while it is on.
     var restoreGate: WizardGate.Restore {
         WizardGate.restore(findMyOn: device?.findMyOn, patched: patch.hasResult)
     }
 
-    /// Put the copy back on the phone and let it reboot into it.
+    /// Put the copy back on the iPhone and let it reboot into it.
     ///
     /// The demo replaces it with a scripted transfer that reaches no phone.
     func sendTheCopyBack() async throws {
         guard let udid, let folder = backupFolder else { return }
-        // The helper has the phone from here, so the Find My poll stops rather
+        // The helper has the iPhone from here, so the Find My poll stops rather
         // than opening a lockdown handshake of its own every three seconds.
         poll?.cancel()
         restore = RestoreState(stage: .running)
@@ -920,7 +920,7 @@ class WizardModel: ObservableObject {
         restore.stage = .waitingForPhone
     }
 
-    /// Read the bus until the phone is back and has answered MCInstall again,
+    /// Read the bus until the iPhone is back and has answered MCInstall again,
     /// or until `deadline`. True when it came back. A nil deadline waits for
     /// as long as the job is left running, which is what the screen offers
     /// once the quarter of an hour is up.
@@ -942,7 +942,7 @@ class WizardModel: ObservableObject {
     /// and stop at the first answer that is the one the run asked for.
     ///
     /// A phone that has just restored answers MCInstall before it has settled,
-    /// and the answer before it settles is the phone as it was. So this asks
+    /// and the answer before it settles is the iPhone as it was. So this asks
     /// again rather than believing the first thing it hears.
     ///
     /// The demo replaces it with a pause and the switches on its bar.
@@ -972,16 +972,16 @@ class WizardModel: ObservableObject {
         /// The file the user picked, when the profile came from one. Nil when
         /// the app built it.
         var fileName: String?
-        /// True once the phone has been read back and lists the profile the
+        /// True once the iPhone has been read back and lists the profile the
         /// run asked for: one of ours, on, and locked or removable the way the
         /// draft said. It is what the backup delete waits for.
         var isConfirmed = false
 
-        /// True while something is on its way to the site or to the phone.
+        /// True while something is on its way to the site or to the iPhone.
         var isRunning: Bool { stage == .signing || stage == .installing }
     }
 
-    /// What the Profile step installs: the apps on the draft's list, the sites
+    /// What the Restrictions screen installs: the apps on the draft's list, the sites
     /// they imply and whatever else the reader typed or switched.
     var profileConfig: ProfileConfig { draft.config }
 
@@ -1091,7 +1091,7 @@ class WizardModel: ObservableObject {
 
     /// Have the site sign the profile, then push it over the cable. The
     /// signing certificate never leaves the site, so the bytes make one round
-    /// trip and go straight to the phone; nothing is written to disk.
+    /// trip and go straight to the iPhone; nothing is written to disk.
     func signAndInstallProfile() {
         guard let udid, !profile.isRunning else { return }
         let config = profileConfig
@@ -1134,7 +1134,7 @@ class WizardModel: ObservableObject {
             do {
                 let data = try Data(contentsOf: url)
                 let listed = try await Self.install(data, on: udid)
-                // The file was built on the site rather than here, so this app
+                // The file was built on the site rather than here, so the app
                 // never knew whether it was asked to lock the profile down and
                 // has nothing to hold the answer against. Everything else is
                 // checked the same way.
@@ -1146,10 +1146,10 @@ class WizardModel: ObservableObject {
         }
     }
 
-    /// Put the signed bytes on the phone and read its profile list straight
+    /// Put the signed bytes on the iPhone and read its profile list straight
     /// back, both over one connection.
     ///
-    /// The phone answering Acknowledged means it took the bytes, which is not
+    /// The iPhone answering Acknowledged means it took the bytes, which is not
     /// the same as the profile being on and saying what it was asked to say,
     /// and that is the whole reason the list is read again here.
     private nonisolated static func install(
@@ -1163,7 +1163,7 @@ class WizardModel: ObservableObject {
         }.value
     }
 
-    /// Weigh what the phone lists against what the run asked for. A profile
+    /// Weigh what the iPhone lists against what the run asked for. A profile
     /// that comes back wrong is said in one sentence and keeps the backup;
     /// only a confirmed one ends the run.
     ///
@@ -1178,7 +1178,7 @@ class WizardModel: ObservableObject {
             profile.isConfirmed = true
             deleteBackupIfTheRunIsDone()
         }
-        // The phone lists one more profile now, so read it again for the card
+        // The iPhone lists one more profile now, so read it again for the card
         // and the summary.
         watcher.reload()
         if problem == nil {
@@ -1210,7 +1210,7 @@ class WizardModel: ObservableObject {
     /// backup was made for. Nothing short of that: the gate is the whole of
     /// the rule, and the hidden `--demo` path walks the same one.
     ///
-    /// The whole of it goes: the folder the phone was copied into and the
+    /// The whole of it goes: the folder the iPhone was copied into and the
     /// untouched copy the patch saved beside it. Everything they hold is back
     /// on the iPhone by now, so the copy on this Mac is redundant, and a whole
     /// copy of somebody's phone is not a thing to leave lying about.

@@ -51,7 +51,7 @@ enum WizardStep: String, CaseIterable, Equatable {
     }
 
     /// Whether stepping back from here changes nothing on the iPhone or in the
-    /// backup. The job has the phone from the moment it starts, so it offers
+    /// backup. The job has the iPhone from the moment it starts, so it offers
     /// no way back at all.
     var allowsBack: Bool {
         switch self {

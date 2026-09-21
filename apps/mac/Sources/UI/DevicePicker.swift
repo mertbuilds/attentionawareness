@@ -51,19 +51,19 @@ struct DevicePicker: View {
     }
 
     /// The model and the iOS version on one line, in the same words the card
-    /// uses when the phone has not said what it is.
+    /// uses when the iPhone has not said what it is.
     static func hardware(_ device: ConnectedDevice) -> String {
         guard let version = device.iosVersion else { return DeviceCard.model(device) }
         return "\(DeviceCard.model(device)), iOS \(version)"
     }
 
-    /// What this phone needs before it can be picked, or nil when it needs
+    /// What the iPhone needs before it can be picked, or nil when it needs
     /// nothing. A row says nothing about supervision: that is what the button
     /// under the list says, once a phone is chosen.
     static func state(_ device: ConnectedDevice) -> String? {
         switch device.pairingState {
         case .trustPending:
-            return "Tap Trust on this iPhone"
+            return "Tap Trust on it"
         case .untrusted:
             return "Unplug it and plug it back in"
         case .paired:

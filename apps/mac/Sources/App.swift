@@ -48,8 +48,8 @@ struct AttentionAwarenessApp: App {
         PatchCommandLine.runIfAsked()
 
         // `--sign-profile <file>` asks the site to sign the profile the
-        // Profile step installs and writes it, which is how the signing side
-        // is checked without an iPhone.
+        // Restrictions screen installs and writes it, which is how the signing
+        // side is checked without an iPhone.
         ProfileCommandLine.runIfAsked()
 
         // `--ui-smoke` builds every step of the wizard offscreen and prints
@@ -99,7 +99,7 @@ struct AttentionAwarenessApp: App {
             }
             CommandGroup(replacing: .help) {
                 if let url = SiteLink.help {
-                    Link("attention awareness help", destination: url)
+                    Link("attention awareness Help", destination: url)
                 }
             }
             // Demo mode only, in a debug build only. The app as it ships has
@@ -107,7 +107,7 @@ struct AttentionAwarenessApp: App {
             #if DEBUG
             if demo != nil {
                 CommandMenu("Demo") {
-                    Button(demoBarShown ? "Hide demo bar" : "Show demo bar") {
+                    Button(demoBarShown ? "Hide Demo Bar" : "Show Demo Bar") {
                         demoBarShown.toggle()
                     }
                     .keyboardShortcut("d", modifiers: [.command, .shift])
@@ -125,7 +125,7 @@ private struct CheckForUpdatesButton: View {
     @State private var canCheck = false
 
     var body: some View {
-        Button("Check for updates") {
+        Button("Check for Updates") {
             updater.checkForUpdates()
         }
         .disabled(!canCheck)

@@ -3,7 +3,7 @@ import SwiftUI
 /// What the iPhone on the cable says about itself: the card the first step
 /// shows once a phone has trusted this Mac.
 ///
-/// Three rows, and nothing the run is about to change. Whether the phone is
+/// Three rows, and nothing the run is about to change. Whether the iPhone is
 /// supervised already is said by the button under the card, not by a row.
 struct DeviceCard: View {
     let device: ConnectedDevice
@@ -17,7 +17,7 @@ struct DeviceCard: View {
     }
 
     /// The marketing name with the model identifier after it, and whichever
-    /// one of the two the phone gave when it only gave one.
+    /// one of the two the iPhone gave when it only gave one.
     static func model(_ device: ConnectedDevice) -> String {
         switch (device.marketingName, device.productType) {
         case (.some(let marketing), .some(let product)):

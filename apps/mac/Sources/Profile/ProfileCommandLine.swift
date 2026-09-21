@@ -2,7 +2,7 @@ import Foundation
 
 /// The hidden `--sign-profile <file>` command line path.
 ///
-/// It asks the site to sign the profile the Profile step installs and writes
+/// It asks the site to sign the profile the Restrictions screen installs and writes
 /// the answer, which is how the signing side is checked from a terminal
 /// without an iPhone:
 ///

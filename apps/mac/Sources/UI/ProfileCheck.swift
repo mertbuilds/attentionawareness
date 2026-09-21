@@ -2,49 +2,49 @@ import Foundation
 
 /// What the iPhone has to say about the profile before a run counts as done.
 ///
-/// The install service answers Acknowledged once the phone has taken the
-/// bytes, which is not the same as the profile being on the phone and saying
-/// what it was asked to say. So the phone is read again afterwards and its
+/// The install service answers Acknowledged once the iPhone has taken the
+/// bytes, which is not the same as the profile being on the iPhone and saying
+/// what it was asked to say. So the iPhone is read again afterwards and its
 /// answer comes through here. It is the last thing between a run and the
 /// delete that takes the backup away, which is why it is written as a value:
 /// nothing here reaches an iPhone, so the tests run all of it.
 enum ProfileCheck {
-    /// Why the profiles the phone lists are not the one the run asked for.
+    /// Why the profiles the iPhone lists are not the one the run asked for.
     enum Problem: Equatable {
-        /// The phone lists no profile of ours at all.
+        /// The iPhone lists no profile of ours at all.
         case notThere
-        /// One of ours is listed and the phone has not turned it on.
+        /// One of ours is listed and the iPhone has not turned it on.
         case notActive
-        /// It is on, and it can be removed on the phone where the run asked for
+        /// It is on, and it can be removed on the iPhone where the run asked for
         /// one that cannot, or the other way round. The flag is what the run
         /// asked for.
         case wrongRemovalSetting(asked: Bool)
 
-        /// What the step shows: what the phone said, and then the part that
+        /// What the step shows: what the iPhone said, and then the part that
         /// matters most to the person reading it.
         var sentence: String { "\(whatThePhoneSaid) The copy was kept." }
 
         private var whatThePhoneSaid: String {
             switch self {
             case .notThere:
-                return "The iPhone took the profile and then listed none of ours."
+                return "iPhone took the profile and then didn't list it."
             case .notActive:
-                return "The iPhone lists the profile and has not turned it on."
+                return "iPhone lists the profile and hasn't turned it on."
             case .wrongRemovalSetting(let asked):
                 return asked
-                    ? "The profile on the iPhone can be removed there, and this run asked for one that cannot."
-                    : "The profile on the iPhone cannot be removed there, and this run asked for one that can."
+                    ? "The profile on iPhone can be removed there, and this run asked for one that can't."
+                    : "The profile on iPhone can't be removed there, and this run asked for one that can."
             }
         }
     }
 
-    /// Whether the phone lists the profile the run asked for: one of ours, on,
+    /// Whether the iPhone lists the profile the run asked for: one of ours, on,
     /// and locked or removable the way it was asked for. Nil means it does,
     /// which is the only outcome the backup delete waits for.
     ///
     /// `removalDisallowed` is what the run asked for: true for a profile that
-    /// cannot be taken off the phone, false for trial mode, and nil for a
-    /// profile that was built somewhere else, where this app never knew what
+    /// cannot be taken off the iPhone, false for trial mode, and nil for a
+    /// profile that was built somewhere else, where the app never knew what
     /// was asked for and so has nothing to hold the answer against.
     ///
     /// Several profiles of ours can be on one phone, because every install

@@ -21,7 +21,7 @@ struct ReadyStep: View {
                     BackupPasswordField(model: model)
                 }
                 if model.clearedLeftoverBackup {
-                    CheckLine(ok: true, text: "A copy from an unfinished run was cleared.")
+                    CheckLine(ok: true, text: "Leftover from an unfinished run was cleared.")
                 }
                 Text(TransferRate.howLong(.backup, bytes: model.backupBytes))
                     .foregroundStyle(.secondary)
@@ -80,7 +80,7 @@ struct ReadyStep: View {
 
     /// Whether the reader already has a backup of their own, which is the one
     /// thing worth having before an app copies a phone. It never blocks: the
-    /// copy this app makes comes down at the end of the run, so the way back
+    /// copy the app makes comes down at the end of the run, so the way back
     /// has to be theirs, but somebody who knows that is allowed to go on.
     ///
     /// The button beside it is the whole of what an app can do about Full Disk

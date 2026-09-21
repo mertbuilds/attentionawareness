@@ -3,7 +3,7 @@ import Foundation
 /// Where the one long job has got to.
 ///
 /// Copying the iPhone onto this Mac, writing the flag into the copy and
-/// sending it all back are three pieces of work to this app and one wait to
+/// sending it all back are three pieces of work to the app and one wait to
 /// the person watching. So they are one screen: one bar, and one line under it
 /// saying which piece is running. This is that line, and the three ends the
 /// job can come to.
@@ -15,7 +15,7 @@ enum JobPhase: Equatable {
     /// The flag going into the copy on this Mac, which takes seconds.
     case preparing
     /// The iPhone refuses a restore while Find My is on, so the job holds here
-    /// until the phone says it is off. The copying ran while somebody was
+    /// until the iPhone says it is off. The copying ran while somebody was
     /// turning it off, which is why this wait costs nothing but itself.
     case waitingForFindMy
     case restoring
@@ -28,7 +28,7 @@ enum JobPhase: Equatable {
     case confirming
     /// It said what the run asked for.
     case done
-    /// It never said it, so somebody is asked to look at the phone itself.
+    /// It never said it, so somebody is asked to look at the iPhone itself.
     case checkOnIPhone
     /// It never came back on the cable.
     case phoneGone

@@ -5,7 +5,7 @@ import SwiftUI
 ///
 /// With one phone there is nothing to choose, so it is the plain card. With
 /// more than one it is a list of every phone on the cable, and the row the
-/// user picks is the phone the whole run is about.
+/// user picks is the iPhone the whole run is about.
 struct ConnectStep: View {
     @ObservedObject var model: WizardModel
 

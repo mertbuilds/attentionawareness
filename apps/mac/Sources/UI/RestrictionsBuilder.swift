@@ -149,7 +149,7 @@ struct RestrictionsBuilder: View {
         GridItem(.adaptive(minimum: 180), spacing: 12, alignment: .leading)
     ]
 
-    /// The list itself, and the way back to the one this app recommends.
+    /// The list itself, and the way back to the one the app recommends.
     @ViewBuilder
     private var blockedApps: some View {
         if model.draft.blockedApps.isEmpty {
@@ -180,7 +180,7 @@ struct RestrictionsBuilder: View {
             }
         }
         if !model.draft.isRecommended {
-            Button("Reset to recommended") {
+            Button("Reset to Recommended") {
                 model.draft.resetLists()
             }
             .buttonStyle(.link)
@@ -274,7 +274,7 @@ struct RestrictionsBuilder: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         // A checkbox takes the system accent, which is blue on most Macs.
-        // Everything this app switches on is orange.
+        // Everything the app switches on is orange.
         .tint(WizardStyle.accent)
     }
 

@@ -73,7 +73,7 @@ final class WizardGateTests: XCTestCase {
     func testAPatchThatWroteNothingAndSaysNothingIsNotAPatchedCopy() {
         // This is the arrival that runs the patch, and the one a failed patch
         // leaves behind. Both offer to patch rather than to restore, which is
-        // what keeps the Restore step from patching the same copy twice.
+        // what keeps the job from patching the same copy twice.
         XCTAssertFalse(WizardGate.patched(changes: [], alreadyCorrect: false, running: false))
     }
 

@@ -26,7 +26,7 @@ struct InfoPopoverContent: View {
 
 /// A screen recording of an iPhone, playing itself.
 ///
-/// Portrait, the shape of the phone it was taken on, muted, and it starts
+/// Portrait, the shape of the iPhone it was taken on, muted, and it starts
 /// again as soon as it ends. There is nothing to press: the answer is a few
 /// seconds long and the other hand is holding a phone. The slot is the same
 /// size whatever the recording is, and the player fits the film inside it.

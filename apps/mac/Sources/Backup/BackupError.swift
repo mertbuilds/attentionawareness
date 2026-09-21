@@ -12,7 +12,7 @@ enum BackupError: LocalizedError, Equatable {
     case helperFailedToStart(path: String, reason: String)
     /// The folder handed to `restore` holds no backup.
     case noBackupFolder(path: String)
-    /// The user pressed Cancel and the helper stopped.
+    /// Cancel was pressed and the helper stopped.
     case cancelled
     /// The helper stopped with an error. The sentence is already written for
     /// the window by `BackupError.sentence(lastError:exitCode:)`.
@@ -26,7 +26,7 @@ enum BackupError: LocalizedError, Equatable {
                 Run scripts/vendor.sh, then build the app again.
                 """
         case .helperFailedToStart(let path, let reason):
-            return "The backup helper at \(path) did not start. macOS reported: \(reason)"
+            return "The backup helper at \(path) didn't start. macOS reported: \(reason)"
         case .noBackupFolder(let path):
             return "There is no copy at \(path)."
         case .cancelled:
@@ -55,24 +55,24 @@ enum BackupError: LocalizedError, Equatable {
 
     private static let noDevice = """
         No iPhone answered on the cable.
-        Plug the phone in, unlock it, then try again.
+        Plug iPhone in, unlock it, then try again.
         """
     private static let trustPending =
-        "The iPhone has not trusted this Mac yet. Unlock the phone and tap Trust."
+        "iPhone hasn't trusted this Mac yet. Unlock it and tap Trust."
     private static let trustDenied =
-        "The iPhone refused to trust this Mac. Unplug it, plug it back in and tap Trust."
+        "iPhone refused to trust this Mac. Unplug it, plug it back in and tap Trust."
     private static let findMyOn = """
-        Find My iPhone is still on, so the iPhone refuses the restore.
+        Find My iPhone is still on, so iPhone refuses the restore.
         Open Settings, tap your name, tap Find My, and turn Find My iPhone off.
         """
     private static let wrongPassword = """
         Wrong backup password.
-        This is the password of the encrypted backup. It is not the passcode of the iPhone.
+        This is the password set for encrypted backups, not the iPhone passcode.
         """
 
     /// `ERROR: Could not connect to lockdownd, error code -19`. This is the
     /// one failure the helper reports as a number, and the number is the
-    /// difference between a phone that is waiting for a tap and a phone that
+    /// difference between an iPhone that is waiting for a tap and one that
     /// said no. The values are `lockdownd_error_t`.
     private static func lockdownSentence(_ said: String) -> String? {
         guard let marker = said.range(of: "could not connect to lockdownd, error code ") else {
@@ -90,7 +90,7 @@ enum BackupError: LocalizedError, Equatable {
         case -37:
             return findMyOn
         default:
-            return "The Mac could not talk to the iPhone. Lockdown reported error \(code)."
+            return "This Mac couldn't reach iPhone. Lockdown reported error \(code)."
         }
     }
 
@@ -122,15 +122,15 @@ enum BackupError: LocalizedError, Equatable {
         ),
         Rule(
             needles: ["timeout while locking"],
-            sentence: "The iPhone is busy with another sync. Close Finder, then try again."
+            sentence: "iPhone is busy with another sync. Close Finder, then try again."
         ),
         Rule(
             needles: ["could not start service"],
-            sentence: "The iPhone did not start the backup service. Unlock the phone, then try again."
+            sentence: "iPhone didn't start the backup service. Unlock iPhone, then try again."
         ),
         Rule(
             needles: ["device refused to start"],
-            sentence: "The iPhone refused to start the copy. Unlock the phone, then try again."
+            sentence: "iPhone refused to start the copy. Unlock iPhone, then try again."
         ),
         Rule(
             needles: ["backup directory", "does not exist"],

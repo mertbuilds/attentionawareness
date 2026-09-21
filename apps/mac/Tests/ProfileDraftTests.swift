@@ -1,6 +1,6 @@
 import XCTest
 
-/// The profile the Profile step builds.
+/// The profile the Restrictions screen builds.
 ///
 /// It is the step without its window: the apps a reader picks, the sites those
 /// apps imply, the ones the reader types, and what all of it turns into on the

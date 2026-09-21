@@ -186,7 +186,7 @@ struct CheckLine: View {
     private var line: some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
             Image(systemName: ok ? "checkmark.circle.fill" : "circle.fill")
-                .foregroundStyle(ok ? Color.green : Color.orange)
+                .foregroundStyle(ok ? Color.green : WizardStyle.accent)
             Text(text)
                 .fixedSize(horizontal: false, vertical: true)
         }

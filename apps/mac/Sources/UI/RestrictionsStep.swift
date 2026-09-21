@@ -28,7 +28,7 @@ struct RestrictionsStep: View {
     private var title: String {
         failure == nil
             ? WizardStep.restrictions.title(for: model.direction)
-            : "Profile Didn't Install"
+            : "Restrictions Didn't Install"
     }
 
     /// What the signer or the iPhone said, once something has gone wrong. Nil
@@ -70,7 +70,7 @@ struct RestrictionsStep: View {
         }
     }
 
-    /// The line under the card when this app has already put a profile on the
+    /// The line under the card when the app has already put a profile on the
     /// iPhone. A second install stacks on the first: a new profile can add to
     /// what is blocked, never loosen it.
     private static func alreadyOnIPhone(_ profiles: [InstalledProfile]) -> String? {

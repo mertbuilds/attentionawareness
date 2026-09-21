@@ -28,8 +28,8 @@ enum WizardGate {
     /// Whether the patch has left a result behind: a flag it wrote, or a copy
     /// that already said what the run asks for.
     ///
-    /// The Restore step patches the copy on the way in rather than on a step
-    /// of its own, so this is what it waits for before it offers the button,
+    /// The job patches the copy on the way in rather than on a screen of
+    /// its own, so this is what it waits for before it offers the button,
     /// and what keeps a second arrival on that step from patching the same
     /// copy again.
     static func patched(changes: [String], alreadyCorrect: Bool, running: Bool) -> Bool {
@@ -39,16 +39,16 @@ enum WizardGate {
 
     /// Whether the restore can send the backup to the iPhone.
     enum Restore: Equatable {
-        /// The copy carries the flag the run asked for, and the phone says
+        /// The copy carries the flag the run asked for, and the iPhone says
         /// Find My is off or will not say at all. A phone that will not say
         /// goes through on purpose: refusing on a value nobody can read would
         /// leave a reader with no way forward, and a phone that does refuse
         /// the restore says so itself, in a sentence the step shows.
         case allowed
-        /// The phone says Find My is on, so the restore would be refused.
+        /// The iPhone says Find My is on, so the restore would be refused.
         case blockedByFindMy
         /// The patch has not written the flag yet, so the copy on this Mac is
-        /// the phone as it already is and sending it back would change
+        /// the iPhone as it already is and sending it back would change
         /// nothing.
         case notPatchedYet
     }
@@ -64,7 +64,7 @@ enum WizardGate {
     /// one moment it can be taken off this Mac.
     ///
     /// Everything short of this keeps it, because it is the only way back: an
-    /// install that failed, a profile the phone lists with the wrong settings,
+    /// install that failed, a profile the iPhone lists with the wrong settings,
     /// a restore that never finished, a phone that never came back to say what
     /// it is now, and a run somebody walked away from. Unsupervising installs
     /// no profile, so there the restore is the whole run.

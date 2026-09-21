@@ -141,7 +141,7 @@ final class ProfileCheckTests: XCTestCase {
         )
         XCTAssertTrue(
             ProfileCheck.Problem.wrongRemovalSetting(asked: false).sentence
-                .contains("cannot be removed there")
+                .contains("can't be removed there")
         )
     }
 

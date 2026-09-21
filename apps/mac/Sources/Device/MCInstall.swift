@@ -148,10 +148,10 @@ final class MCInstall {
         return response
     }
 
-    /// Pulls a readable sentence out of the `ErrorChain` the phone sends back
+    /// Pulls a readable sentence out of the `ErrorChain` the iPhone sends back
     /// when it refuses something.
     private static func errorText(_ response: plist_t) -> String {
-        let fallback = "It did not say why."
+        let fallback = "It didn't say why."
         guard let chain = Plist.item(response, "ErrorChain"),
               plist_get_node_type(chain) == PLIST_ARRAY,
               plist_array_get_size(chain) > 0,
