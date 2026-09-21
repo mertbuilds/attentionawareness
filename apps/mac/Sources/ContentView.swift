@@ -96,7 +96,7 @@ struct WizardStepContent: View {
         case .job:
             JobStep(model: model)
         case .restrictions:
-            ProfileStep(model: model)
+            RestrictionsStep(model: model)
         case .done:
             DoneStep(model: model)
         }

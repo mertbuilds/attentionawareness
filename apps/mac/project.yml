@@ -167,9 +167,11 @@ targets:
       - Sources/UI/BackupSafetyNet.swift
       - Sources/UI/ProfileCheck.swift
       - Sources/Device/InstalledProfile.swift
-      # The profile the Profile step builds is a value as well: the apps, the
-      # sites they imply and the four switches, with no window around it.
+      # The profile the Restrictions screen builds is a value as well: the
+      # apps, the sites they imply and the four switches, with no window
+      # around it, and the card that reads all of it back in six lines.
       - Sources/UI/ProfileDraft.swift
+      - Sources/UI/RestrictionsSummary.swift
       # The demo's clock and its switches are plain values as well, so the
       # timeline a demo transfer runs to is tested with the rest.
       - Sources/Demo/DemoScript.swift

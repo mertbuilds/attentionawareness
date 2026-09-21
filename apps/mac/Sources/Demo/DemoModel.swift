@@ -477,6 +477,9 @@ final class DemoWizardModel: WizardModel {
             self.show(done)
             self.conditions = self.conditions.afterProfileInstall()
             self.deleteBackupIfTheRunIsDone()
+            // A confirmed install leaves nothing to press, so the last screen
+            // comes up by itself here as it does on a real run.
+            self.advance()
         }
     }
 

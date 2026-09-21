@@ -124,33 +124,6 @@ extension ProfileDraft {
         return count == 0 ? "no sites" : Self.count(count, "site")
     }
 
-    /// What the profile will do, in the order the step reads it out. It is the
-    /// last thing on screen before the profile goes on the phone.
-    var preview: [String] {
-        var lines = ["\(Self.count(blockedApps.count, "app")) hidden from the home screen"]
-        let siteCount = sites.count
-        lines.append(
-            siteCount == 0
-                ? "No website filter"
-                : "\(Self.count(siteCount, "website")) blocked in Safari"
-        )
-        if autoFilterAdult, siteCount > 0 {
-            lines.append("Adult websites filtered as well")
-        }
-        if !allowAppStore {
-            lines.append("No App Store, so no app updates either")
-        }
-        if !allowPrivateBrowsing {
-            lines.append("No private tabs, and history cannot be cleared")
-        }
-        lines.append(
-            allowsRemoval
-                ? "Removable on the phone, because trial mode is on"
-                : "Cannot be removed from the phone"
-        )
-        return lines
-    }
-
     /// Whether an app is already on the list.
     func blocks(_ bundleId: String) -> Bool {
         blockedApps.contains { $0.bundleId == bundleId }

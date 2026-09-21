@@ -1166,9 +1166,13 @@ class WizardModel: ObservableObject {
     /// Weigh what the phone lists against what the run asked for. A profile
     /// that comes back wrong is said in one sentence and keeps the backup;
     /// only a confirmed one ends the run.
+    ///
+    /// A confirmed one also ends the step: there is nothing left to press, so
+    /// the last screen comes up by itself.
     private func finishInstall(_ listed: [InstalledProfile], removalDisallowed: Bool?) {
         profile.stage = .installed
-        if let problem = ProfileCheck.problem(with: listed, removalDisallowed: removalDisallowed) {
+        let problem = ProfileCheck.problem(with: listed, removalDisallowed: removalDisallowed)
+        if let problem {
             errorMessage = problem.sentence
         } else {
             profile.isConfirmed = true
@@ -1177,6 +1181,17 @@ class WizardModel: ObservableObject {
         // The phone lists one more profile now, so read it again for the card
         // and the summary.
         watcher.reload()
+        if problem == nil {
+            advance()
+        }
+    }
+
+    /// Put the summary back after an install that did not take, which is what
+    /// Cancel does on that screen. The draft is left alone, so pressing
+    /// Install again sends the same profile.
+    func forgetProfileFailure() {
+        profile = ProfileState()
+        errorMessage = nil
     }
 
     // MARK: - Taking the backup away

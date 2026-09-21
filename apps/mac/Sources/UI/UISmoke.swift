@@ -51,11 +51,21 @@ enum UISmoke {
             WizardStepContent(step: .ready, model: encryptedBackups()),
             into: folder
         )
-        // The Profile step with a search under its field. The rows come from
-        // the demo's own canned store, so the list, the artwork it falls back
-        // to and the Add buttons are drawn without asking Apple anything. That
-        // store is compiled out of a Release build, so this one picture is
-        // drawn by a debug build alone.
+        // The Restrictions screen in the three states the loop above cannot
+        // draw: a profile of ours already on the iPhone, the install running,
+        // and one that did not take.
+        for sample in restrictionsSamples() {
+            report(
+                "restrictions-\(sample.name)",
+                WizardStepContent(step: .restrictions, model: sample.model),
+                into: folder
+            )
+        }
+        // Everything Customize opens, with a search under its field. The rows
+        // come from the demo's own canned store, so the list, the artwork it
+        // falls back to and the Add buttons are drawn without asking Apple
+        // anything. That store is compiled out of a Release build, so this one
+        // picture is drawn by a debug build alone.
         #if DEBUG
         let searching = WizardModel(watcher: sampleWatcher([sampleDevice]))
         searching.show(
@@ -69,7 +79,7 @@ enum UISmoke {
                 )
             )
         )
-        report("profile-search", WizardStepContent(step: .restrictions, model: searching), into: folder)
+        report("restrictions-builder", RestrictionsBuilder(model: searching), into: folder)
         #endif
         // Find My is named on the checks, so they are drawn for a phone that
         // says it is on and for one that says it is off. The one the loop
@@ -110,6 +120,46 @@ enum UISmoke {
         report("error", ErrorText(DeviceError.trustPending.localizedDescription), into: folder)
         report("window", ContentView(), into: folder)
         exit(0)
+    }
+
+    /// The Restrictions screen in the states a run reaches after the card is
+    /// on screen. The one the loop draws is the card itself, on a Mac with
+    /// nothing on the cable.
+    private static func restrictionsSamples() -> [(name: String, model: WizardModel)] {
+        [
+            // A phone this app has already put a profile on, which is the one
+            // line the card ever grows.
+            ("already-installed", restrictions(WizardModel.ProfileState())),
+            // Signing and installing are one wait, so one picture covers both.
+            ("installing", restrictions(WizardModel.ProfileState(stage: .installing))),
+            (
+                "failed",
+                restrictions(
+                    WizardModel.ProfileState(stage: .installed),
+                    errorMessage: DeviceError
+                        .profileRejected(reason: "The iPhone is not supervised.")
+                        .localizedDescription
+                )
+            ),
+        ]
+    }
+
+    /// The Restrictions screen for one profile state, against a phone that
+    /// already carries a profile of ours.
+    private static func restrictions(
+        _ profile: WizardModel.ProfileState,
+        errorMessage: String? = nil
+    ) -> WizardModel {
+        let model = WizardModel(watcher: sampleWatcher([sampleDevice]))
+        model.show(
+            WizardModel.Sample(
+                step: .restrictions,
+                udid: sampleDevice.udid,
+                profile: profile,
+                errorMessage: errorMessage
+            )
+        )
+        return model
     }
 
     /// The checks drawn once for each thing the line about the reader's own

@@ -208,29 +208,6 @@ final class ProfileDraftTests: XCTestCase {
         XCTAssertEqual(draft.siteSummary, "2 sites")
     }
 
-    func testThePreviewSaysWhatTheProfileWillDo() {
-        var draft = draft(apps: [BlockedApp(bundleId: "com.reddit.Reddit", name: "Reddit")])
-        draft.autoFilterAdult = true
-        draft.allowsRemoval = false
-        let preview = draft.preview
-        XCTAssertEqual(preview.first, "1 app hidden from the home screen")
-        XCTAssertTrue(preview.contains("3 websites blocked in Safari"))
-        XCTAssertTrue(preview.contains("Adult websites filtered as well"))
-        XCTAssertTrue(preview.contains("Cannot be removed from the phone"))
-    }
-
-    func testThePreviewSaysWhenTheProfileCanBeRemoved() {
-        var draft = ProfileDraft.recommended
-        draft.allowsRemoval = true
-        XCTAssertTrue(draft.preview.contains("Removable on the phone, because trial mode is on"))
-    }
-
-    func testThePreviewSaysWhenThereIsNoFilterAtAll() {
-        let draft = draft(apps: [])
-        XCTAssertTrue(draft.preview.contains("No website filter"))
-        XCTAssertFalse(draft.preview.contains("Adult websites filtered as well"))
-    }
-
     // MARK: - Starting over
 
     func testResettingPutsTheListsBackAndLeavesTheSwitchesAlone() {

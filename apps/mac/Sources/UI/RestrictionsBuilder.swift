@@ -1,11 +1,12 @@
 import SwiftUI
 
-/// Step six, in the supervise direction only. The reader builds the profile
-/// here: the apps it hides, the sites its filter carries and the four
-/// switches. The site signs it, and it goes onto the phone over the cable. A
-/// supervised phone takes it without asking; an unsupervised one refuses it,
-/// which is why this step comes last.
-struct ProfileStep: View {
+/// Everything the summary card folds away: the apps the profile hides, the
+/// sites its filter carries and the four switches.
+///
+/// It opens over the Restrictions screen rather than on it, because the
+/// profile as it comes is the answer for almost everyone and a reader who
+/// wants no part of this list should never have to scroll past it.
+struct RestrictionsBuilder: View {
     @ObservedObject var model: WizardModel
     /// The site list and the last two settings are folded away: the profile as
     /// it comes is the answer for almost everyone.
@@ -18,101 +19,21 @@ struct ProfileStep: View {
     @FocusState private var siteFocused: Bool
 
     var body: some View {
-        StepLayout(
-            title: WizardStep.restrictions.title(for: model.direction),
-            lead: model.draft.allowsRemoval
-                ? "The profile hides the apps you pick and blocks their sites. It installs over "
-                    + "the cable. In trial mode you can remove it from the phone."
-                : "The profile hides the apps you pick and blocks their sites. It installs over "
-                    + "the cable and cannot be removed from the phone.",
-            error: model.errorMessage
-        ) {
-            VStack(alignment: .leading, spacing: 16) {
-                switch model.profile.stage {
-                case .ready:
-                    if let already = Self.alreadyOnThePhone(model.ourProfiles) {
-                        Text(already)
-                            .font(.callout)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    apps
-                    sites
-                    restrictions
-                    preview
-                case .signing:
-                    working("Signing the profile")
-                case .installing:
-                    working("Installing on the phone")
-                case .installed:
-                    Card {
-                        // The phone took the bytes either way. The tick is for
-                        // the profile it listed afterwards being the one this
-                        // run asked for, and the sentence under the step says
-                        // what was wrong when it was not.
-                        CheckRow(
-                            result: model.profile.isConfirmed ? .pass : .unknown,
-                            title: "Installed",
-                            detail: Self.whereItShows
-                        )
-                        if let name = model.profile.fileName {
-                            CardRow(name: "Profile", value: name)
-                        }
-                    }
-                }
-            }
-        } actions: {
-            switch model.profile.stage {
-            case .ready:
-                if model.ourProfiles.isEmpty {
-                    // Installing is the only way on. A run that skipped the
-                    // profile would leave a supervised phone with nothing
-                    // blocked, which is the whole point walked past.
-                    PrimaryButton(title: "Install profile") {
-                        model.signAndInstallProfile()
-                    }
-                } else {
-                    // The phone is already covered, so moving on is the answer
-                    // for almost everyone. Skip would do the same as Continue,
-                    // so it is left out here.
-                    PrimaryButton(title: "Continue") {
-                        model.advance()
-                    }
-                    Button("Install another") {
-                        model.signAndInstallProfile()
-                    }
-                    .controlSize(.large)
-                }
-            case .signing, .installing:
-                EmptyView()
-            case .installed:
-                PrimaryButton(title: "Continue") {
-                    model.advance()
-                }
-            }
+        VStack(alignment: .leading, spacing: 16) {
+            apps
+            sites
+            restrictions
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        // The same orange every other button in the window takes. It is set
+        // here rather than inherited, because this view is drawn inside a
+        // sheet, which is not under the step that opened it.
+        .buttonStyle(TextButton())
         // The recommended apps carry no artwork, so the store is asked for
-        // theirs once, when the step comes up.
+        // theirs once, when the builder comes up.
         .task {
             model.loadAppIcons()
         }
-    }
-
-    /// Where iOS puts an installed profile, which is not where most people
-    /// look for it.
-    private static let whereItShows = """
-        Open Settings on the iPhone, tap General, then VPN and Device Management. \
-        attentionawareness is there.
-        """
-
-    /// The line above the buttons when this app has already put a profile on
-    /// the phone. A second install stacks on the first: a new profile can add
-    /// to what is blocked, never loosen it.
-    private static func alreadyOnThePhone(_ profiles: [InstalledProfile]) -> String? {
-        guard !profiles.isEmpty else { return nil }
-        let names = profiles
-            .map { $0.removalDisallowed ? "\($0.displayName) (locked)" : $0.displayName }
-            .joined(separator: ", ")
-        return "Already on the phone: \(names). Installing another adds to what is already blocked."
     }
 
     // MARK: - The apps
@@ -357,22 +278,6 @@ struct ProfileStep: View {
         .tint(WizardStyle.accent)
     }
 
-    // MARK: - What it will do
-
-    /// The profile in a few lines, read out before it goes on the phone.
-    private var preview: some View {
-        Card {
-            Text("What this profile does")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-            ForEach(model.draft.preview, id: \.self) { line in
-                Text(line)
-                    .font(.callout)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
     /// One storefront as the menu names it, which is the flag and the country.
     private static func storefrontLabel(_ code: String) -> String {
         "\(Storefronts.flag(for: code)) \(Storefronts.label(for: code))"
@@ -388,7 +293,7 @@ struct ProfileStep: View {
     }
 }
 
-/// The name of one part of the step, with whatever it counts beside it.
+/// The name of one part of the builder, with whatever it counts beside it.
 struct SectionHeading: View {
     let title: String
     /// Whatever the part counts, or nothing where it counts nothing.
