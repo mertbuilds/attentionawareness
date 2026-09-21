@@ -142,3 +142,55 @@ enum JobPhase: Equatable {
         }
     }
 }
+
+/// What the copy line adds after "Copying iPhone to this Mac": a time for how
+/// much longer the copy has, from the first second.
+///
+/// Three sources, in the order they earn a figure. Once the live estimate has
+/// read a rate off the copy itself, that is the truth and it is used. Before
+/// then the line still says a time: the rate this Mac wrote down last run
+/// divided into the size this copy is expected to be, the same maths the Ready
+/// screen shows. A first-ever run has no rate to divide by, so it says the
+/// range a copy of any size lands in rather than a number it hasn't earned. A
+/// copy whose progress has stalled says nothing, and the phase line stands on
+/// its own.
+///
+/// Nothing here touches the iPhone, the disk or the window, which is why it is
+/// the part of the copy line the tests can run.
+enum JobEstimateLine {
+    /// What a first run says, with no rate to divide by. It mirrors the Ready
+    /// screen's first-run line, without the number the copy hasn't earned yet.
+    static let firstRun = "Usually 30 to 90 minutes"
+
+    /// The words for the copy line, or nil where the copy has nothing to say
+    /// and the phase line stands alone.
+    ///
+    /// - `live` is the estimate read off the copy in flight.
+    /// - `rememberedRate` is what this Mac last measured, in bytes per second.
+    /// - `expectedBytes` is the size this copy is expected to be, which is the
+    ///   size the Ready screen shows.
+    static func text(
+        live: TransferEstimate.Reading,
+        rememberedRate: Double?,
+        expectedBytes: Int64?
+    ) -> String? {
+        switch live {
+        case .about(let seconds):
+            return remaining(seconds)
+        case .tooEarly:
+            guard let rememberedRate, rememberedRate > 0,
+                  let expectedBytes, expectedBytes > 0
+            else { return firstRun }
+            return remaining(Double(expectedBytes) / rememberedRate)
+        case .working:
+            return nil
+        }
+    }
+
+    /// The one wording the seeded figure and the live one share, so a run reads
+    /// the same from the first second as it does once the rate has settled. It
+    /// reuses `TransferEstimate`'s own rounding rather than inventing a second.
+    private static func remaining(_ seconds: TimeInterval) -> String {
+        "About \(TransferEstimate.duration(seconds)) remaining"
+    }
+}

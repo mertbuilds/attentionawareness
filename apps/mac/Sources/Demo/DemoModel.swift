@@ -532,6 +532,13 @@ final class DemoWizardModel: WizardModel {
 
     // MARK: - What the demo says about this Mac
 
+    /// The rate a real run reads from the defaults, answered from a figure
+    /// instead, so the copy line shows a time from the first second without a
+    /// prior run behind it. It stands for what this Mac would have measured, so
+    /// the seeded figure lands near the live estimate the demo transfer settles
+    /// to.
+    override var rememberedCopyRate: Double? { DemoWorld.copyRate }
+
     /// The free space check, answered from a figure rather than from the
     /// volume, so the checks read the same on a full Mac and an empty one.
     override var diskSpace: DiskSpace {

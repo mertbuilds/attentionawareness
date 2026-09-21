@@ -207,6 +207,12 @@ enum DemoWorld {
     /// came to. The job screen says how long sending it back takes from it.
     static let backupBytes: UInt64 = 67_882_442_752
 
+    /// The copy rate a real run reads from the defaults, stood in for so the
+    /// demo's copy line shows a time from the first second. It is set so the
+    /// seeded figure lands near where the demo copy's live estimate settles,
+    /// which is the copying the script stands for, about forty minutes.
+    static let copyRate: Double = 27_500_000
+
     /// What the window shows when a backup will not leave the disk. It is the
     /// sentence the real error writes, so the last step can be read the way it
     /// looks when the delete fails, and the demo still touches no folder.

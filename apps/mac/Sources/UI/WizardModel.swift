@@ -598,15 +598,26 @@ class WizardModel: ObservableObject {
         return engine.phase == .finishing ? .finishing : job
     }
 
-    /// How much longer the copying has, in the words the line shows. Nil while
-    /// the figure has not settled, and nil in every other phase: the copying
-    /// is the only piece of the job this Mac can measure.
+    /// How much longer the copying has, in the words the line shows. The copy
+    /// line carries a time from the first second: the live estimate once it has
+    /// read a rate off the copy, and before then the rate this Mac wrote down
+    /// last run, or a plain range on a first-ever run. Nil in every other phase,
+    /// because the copying is the only piece of the job this Mac can measure.
     var estimateText: String? {
-        guard jobPhase?.showsEstimate == true,
-              case .about(let seconds) = estimate.reading()
-        else { return nil }
-        return "About \(TransferEstimate.duration(seconds)) remaining"
+        guard jobPhase?.showsEstimate == true else { return nil }
+        return JobEstimateLine.text(
+            live: estimate.reading(),
+            rememberedRate: rememberedCopyRate,
+            expectedBytes: backupBytes.map { Int64($0) }
+        )
     }
+
+    /// What this Mac last measured for a copy, in bytes per second, or nil
+    /// until it has finished one. It seeds the copy line's figure while the
+    /// live estimate is still too early to give one of its own. The hidden
+    /// `--demo` path overrides it, so its copy line shows a figure from the
+    /// first second.
+    var rememberedCopyRate: Double? { TransferRate.remembered(.backup) }
 
     /// Run the whole job: the copy, the flag, the wait for Find My, the
     /// restore, the restart and the question at the end.
