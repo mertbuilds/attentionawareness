@@ -16,18 +16,11 @@ struct DeviceCard: View {
         }
     }
 
-    /// The marketing name with the model identifier after it, and whichever
-    /// one of the two the iPhone gave when it only gave one.
+    /// The marketing name, and the model identifier in its place when the
+    /// iPhone gave no marketing name. The identifier is what `--probe` prints
+    /// for a reader who needs it; the card names the phone the way its owner
+    /// does.
     static func model(_ device: ConnectedDevice) -> String {
-        switch (device.marketingName, device.productType) {
-        case (.some(let marketing), .some(let product)):
-            return "\(marketing) (\(product))"
-        case (.some(let marketing), .none):
-            return marketing
-        case (.none, .some(let product)):
-            return product
-        case (.none, .none):
-            return "Reading"
-        }
+        device.marketingName ?? device.productType ?? "Reading"
     }
 }

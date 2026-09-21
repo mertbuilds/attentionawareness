@@ -167,27 +167,6 @@ enum DemoWorld {
         app("com.apple.store.Jolly", "Apple Store", "Apple"),
     ]
 
-    /// The rows one term matches, the way a store answers: by name, or by the
-    /// developer who made it.
-    static func appResults(for term: String) -> [AppResult] {
-        let query = KnownApps.fold(term)
-        guard !query.isEmpty else { return [] }
-        return storeApps
-            .filter {
-                KnownApps.fold($0.name).contains(query)
-                    || KnownApps.fold($0.developer).contains(query)
-            }
-            .prefix(AppSearch.defaultLimit)
-            .map { $0 }
-    }
-
-    /// What the store knows about apps that are already on a list. Ids it does
-    /// not carry are simply absent, the way Apple's lookup leaves them out.
-    static func appDetails(for bundleIds: [String]) -> [AppResult] {
-        let asked = Set(bundleIds)
-        return storeApps.filter { asked.contains($0.bundleId) }
-    }
-
     private static func app(
         _ bundleId: String,
         _ name: String,

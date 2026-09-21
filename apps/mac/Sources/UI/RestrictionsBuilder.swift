@@ -3,9 +3,9 @@ import SwiftUI
 /// Everything the summary card folds away: the apps the profile hides, the
 /// sites its filter carries and the four switches.
 ///
-/// It opens over the Restrictions screen rather than on it, because the
-/// profile as it comes is the answer for almost everyone and a reader who
-/// wants no part of this list should never have to scroll past it.
+/// It is drawn on the Restrictions screen itself, above the card that reads
+/// back whatever it was left at. What a reader usually wants no part of is
+/// folded away rather than left to scroll past.
 struct RestrictionsBuilder: View {
     @ObservedObject var model: WizardModel
     /// The site list and the last two settings are folded away: the profile as
@@ -25,10 +25,6 @@ struct RestrictionsBuilder: View {
             restrictions
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        // The same orange every other button in the window takes. It is set
-        // here rather than inherited, because this view is drawn inside a
-        // sheet, which is not under the step that opened it.
-        .buttonStyle(TextButton())
         // The recommended apps carry no artwork, so the store is asked for
         // theirs once, when the builder comes up.
         .task {
