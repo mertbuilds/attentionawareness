@@ -180,7 +180,6 @@ final class DemoConditionsTests: XCTestCase {
         let before = DemoConditions()
 
         XCTAssertTrue(before.afterRestore(target: true).supervised)
-        XCTAssertFalse(before.afterRestore(target: false).supervised)
         // The run made a backup on the way, so this Mac is holding one now.
         XCTAssertTrue(before.afterRestore(target: true).holdingBackup)
     }

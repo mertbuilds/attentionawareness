@@ -8,14 +8,10 @@ import Foundation
 ///
 /// Nothing here opens a window, so the tests read it.
 enum InfoImage {
-    /// What the picture beside a claim about the iPhone is called, each way a
-    /// run can go. Only a run that supervises has one, because the line it
-    /// settles is the one Settings grows: what the top of Settings says once
-    /// the run is over. Undoing supervision takes that line away again, and a
-    /// picture of a screen with nothing on it settles nothing.
-    static func checking(_ direction: WizardDirection) -> String? {
-        direction == .supervise ? "check-supervised" : nil
-    }
+    /// What the picture beside a claim about the iPhone is called. It settles
+    /// the one line Settings grows: what the top of Settings says once the run
+    /// is over.
+    static var checking: String { "check-supervised" }
 
     /// The file of that name in the bundle, `.png` first and `.jpg` after it,
     /// or nil where nobody has taken one. The nil is the whole of the

@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Step one. Wait for an iPhone on the cable, show what it is, and let the
-/// user choose which way this run goes.
+/// Step one. Wait for an iPhone on the cable, show what it is, and start the
+/// run.
 ///
 /// With one phone there is nothing to choose, so it is the plain card. With
 /// more than one it is a list of every phone on the cable, and the row the
@@ -11,7 +11,7 @@ struct ConnectStep: View {
 
     var body: some View {
         StepLayout(
-            title: WizardStep.connect.title(for: model.direction),
+            title: WizardStep.connect.title,
             lead: lead,
             error: model.watcher.lastError
         ) {
@@ -48,13 +48,13 @@ struct ConnectStep: View {
             // Which button shows is the only thing that says whether the
             // phone is supervised already, so the card carries no such row.
             if model.isSupervised == true {
-                Button("Unsupervise iPhone") {
-                    model.start(.unsupervise)
+                Button("Manage Restrictions") {
+                    // chunk 2 wires this to the Profiles screen
                 }
                 .controlSize(.large)
             } else {
                 PrimaryButton(title: "Continue") {
-                    model.start(.supervise)
+                    model.start()
                 }
             }
         }

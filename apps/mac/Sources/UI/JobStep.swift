@@ -22,8 +22,8 @@ struct JobStep: View {
     /// A phase that came to an end carries a heading of its own. Everything
     /// else runs under the screen's.
     private var title: String {
-        model.jobPhase?.headline(direction: model.direction)
-            ?? WizardStep.job.title(for: model.direction)
+        model.jobPhase?.headline
+            ?? WizardStep.job.title
     }
 
     @ViewBuilder
@@ -34,11 +34,11 @@ struct JobStep: View {
                     bar(phase)
                     line(phase)
                 }
-                if let sentence = phase.body(direction: model.direction) {
+                if let sentence = phase.body {
                     body(
                         sentence,
-                        note: phase.note(direction: model.direction),
-                        image: phase.noteImage(direction: model.direction)
+                        note: phase.note,
+                        image: phase.noteImage
                     )
                 }
                 // The one failure somebody answers by typing. The field is the
@@ -81,7 +81,7 @@ struct JobStep: View {
     }
 
     private func phaseText(_ phase: JobPhase) -> String? {
-        guard let text = phase.line(direction: model.direction) else { return nil }
+        guard let text = phase.line else { return nil }
         guard phase.showsEstimate, let estimate = model.estimateText else { return text }
         return "\(text) · \(estimate)"
     }

@@ -10,7 +10,7 @@ struct ReadyStep: View {
 
     var body: some View {
         StepLayout(
-            title: WizardStep.ready.title(for: model.direction),
+            title: WizardStep.ready.title,
             error: model.errorMessage
         ) {
             VStack(alignment: .leading, spacing: 12) {
@@ -35,9 +35,7 @@ struct ReadyStep: View {
     }
 
     /// What the run is called, which the button says and nothing else does.
-    private var verb: String {
-        model.direction == .supervise ? "Supervise" : "Unsupervise"
-    }
+    private var verb: String { "Supervise" }
 
     /// Find My has to be off for the restore and for nothing else, so the row
     /// is work to do rather than a wall: the job starts while it is still on

@@ -1,6 +1,6 @@
 import XCTest
 
-/// The patch against a synthetic plain backup, in both directions.
+/// The patch against a synthetic plain backup.
 final class SupervisionPatchTests: XCTestCase {
     private var root: URL!
 
@@ -62,7 +62,7 @@ final class SupervisionPatchTests: XCTestCase {
         let original = try Data(contentsOf: try backup.contentURL)
         let manifestBefore = try Data(contentsOf: backup.manifestDatabaseURL)
 
-        let plan = try SupervisionPatch.plan(backup: backup, target: true)
+        let plan = try SupervisionPatch.plan(backup: backup)
         XCTAssertEqual(plan.format, .xml)
         XCTAssertGreaterThan(plan.padding, 0)
         XCTAssertNil(plan.newRecordedSize)
@@ -71,7 +71,7 @@ final class SupervisionPatchTests: XCTestCase {
 
         let patch = SupervisionPatch(backup: backup)
         let pristine = try patch.apply(plan)
-        XCTAssertEqual(try patch.verify(target: true), backup.recordedSize)
+        XCTAssertEqual(try patch.verify(), backup.recordedSize)
 
         let patched = try PropertyListSerialization.propertyList(
             from: try backup.readContent(),
@@ -100,7 +100,7 @@ final class SupervisionPatchTests: XCTestCase {
         let manifestBefore = try Data(contentsOf: backup.manifestDatabaseURL)
 
         let patch = SupervisionPatch(backup: backup)
-        try patch.apply(try SupervisionPatch.plan(backup: backup, target: true))
+        try patch.apply(try SupervisionPatch.plan(backup: backup))
         XCTAssertNotEqual(try Data(contentsOf: try backup.contentURL), original)
 
         try patch.restorePristine()
@@ -121,7 +121,7 @@ final class SupervisionPatchTests: XCTestCase {
         content["CloudConfigurationUIComplete"] = true
         let data = try PropertyListSerialization.data(fromPropertyList: content, format: .xml, options: 0)
 
-        let plan = try SupervisionPatch.plan(original: data, recordedSize: data.count, target: true)
+        let plan = try SupervisionPatch.plan(original: data, recordedSize: data.count)
         XCTAssertTrue(plan.isEmpty)
         XCTAssertNil(plan.newRecordedSize)
         XCTAssertEqual(plan.newBytes, data)
@@ -136,7 +136,7 @@ final class SupervisionPatchTests: XCTestCase {
         let backup = try BackupFolder.load(at: directory)
         XCTAssertNil(backup.isSupervised)
 
-        let plan = try SupervisionPatch.plan(backup: backup, target: true)
+        let plan = try SupervisionPatch.plan(backup: backup)
         XCTAssertEqual(plan.format, .binary)
         XCTAssertEqual(plan.padding, 0)
         XCTAssertEqual(plan.changes.first, "IsSupervised: missing -> true")
@@ -145,7 +145,7 @@ final class SupervisionPatchTests: XCTestCase {
 
         let patch = SupervisionPatch(backup: backup)
         try patch.apply(plan)
-        XCTAssertEqual(try patch.verify(target: true), newRecordedSize)
+        XCTAssertEqual(try patch.verify(), newRecordedSize)
 
         let row = try XCTUnwrap(try backup.supervisionRow())
         XCTAssertEqual(try MBFileBlob.readSize(row.blob), newRecordedSize)
@@ -160,7 +160,7 @@ final class SupervisionPatchTests: XCTestCase {
         let original = try Data(contentsOf: try backup.contentURL)
 
         let patch = SupervisionPatch(backup: backup)
-        try patch.apply(try SupervisionPatch.plan(backup: backup, target: true))
+        try patch.apply(try SupervisionPatch.plan(backup: backup))
         try patch.restorePristine()
 
         XCTAssertEqual(try Data(contentsOf: try backup.contentURL), original)
@@ -168,49 +168,18 @@ final class SupervisionPatchTests: XCTestCase {
         XCTAssertEqual(try MBFileBlob.readSize(row.blob), original.count)
     }
 
-    // The other direction
-
-    func testUnsuperviseSetsTheFlagBack() throws {
-        var content = BackupFixture.baseContent
-        content["IsSupervised"] = true
-        content["CloudConfigurationUIComplete"] = true
-        let directory = try BackupFixture.makeBackup(in: root, content: content)
-        let backup = try BackupFolder.load(at: directory)
-        XCTAssertEqual(backup.isSupervised, true)
-
-        let plan = try SupervisionPatch.plan(backup: backup, target: false)
-        XCTAssertEqual(plan.changes, ["IsSupervised: true -> false"])
-        // `<false/>` is one byte longer than `<true/>`, so this one does move
-        // the recorded size.
-        let newRecordedSize = try XCTUnwrap(plan.newRecordedSize)
-        XCTAssertEqual(newRecordedSize, try XCTUnwrap(backup.recordedSize) + 1)
-
-        let patch = SupervisionPatch(backup: backup)
-        try patch.apply(plan)
-        XCTAssertEqual(try patch.verify(target: false), newRecordedSize)
-        XCTAssertEqual(try backup.supervisionState(), false)
-
-        let patched = try PropertyListSerialization.propertyList(
-            from: try backup.readContent(),
-            options: [],
-            format: nil
-        ) as? [String: Any]
-        // Supervising sets this flag; taking supervision off leaves it alone.
-        XCTAssertEqual(SupervisionPatch.boolean(patched?["CloudConfigurationUIComplete"]), true)
-    }
-
     func testVerificationCatchesASizeThatDoesNotMatch() throws {
         let directory = try BackupFixture.makeBackup(in: root)
         let backup = try BackupFolder.load(at: directory)
         let patch = SupervisionPatch(backup: backup)
-        try patch.apply(try SupervisionPatch.plan(backup: backup, target: true))
+        try patch.apply(try SupervisionPatch.plan(backup: backup))
 
         // Append a byte behind the tool's back. The file and Manifest.db no
         // longer agree, which is what verification is there to find.
         var content = try Data(contentsOf: try backup.contentURL)
         content.append(0x0a)
         try content.write(to: try backup.contentURL)
-        XCTAssertThrowsError(try patch.verify(target: true)) { error in
+        XCTAssertThrowsError(try patch.verify()) { error in
             guard case PatchError.verificationSize = error else {
                 return XCTFail("expected a size mismatch, got \(error)")
             }
@@ -220,7 +189,7 @@ final class SupervisionPatchTests: XCTestCase {
     func testVerificationCatchesAFlagThatDidNotMove() throws {
         let directory = try BackupFixture.makeBackup(in: root)
         let backup = try BackupFolder.load(at: directory)
-        XCTAssertThrowsError(try SupervisionPatch(backup: backup).verify(target: true)) { error in
+        XCTAssertThrowsError(try SupervisionPatch(backup: backup).verify()) { error in
             guard case PatchError.verificationFlag = error else {
                 return XCTFail("expected a flag mismatch, got \(error)")
             }

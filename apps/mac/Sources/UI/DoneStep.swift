@@ -12,9 +12,9 @@ struct DoneStep: View {
 
     var body: some View {
         StepLayout(
-            title: WizardStep.done.title(for: model.direction),
-            note: DoneCopy.note(direction: model.direction),
-            noteImage: InfoImage.checking(model.direction),
+            title: WizardStep.done.title,
+            note: DoneCopy.note,
+            noteImage: InfoImage.checking,
             error: model.errorMessage
         ) {
             VStack(alignment: .leading, spacing: 12) {
@@ -41,9 +41,8 @@ struct DoneStep: View {
     /// The body, worked out from the three things it turns on.
     private var lines: [String] {
         DoneCopy.lines(
-            direction: model.direction,
             findMyOff: model.device?.findMyOn == false,
-            matched: model.restore.supervisedAfterwards == model.direction.target
+            matched: model.restore.supervisedAfterwards == true
         )
     }
 

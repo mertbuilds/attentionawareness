@@ -63,9 +63,8 @@ enum JobPhase: Equatable {
     var showsEstimate: Bool { self == .copying }
 
     /// The one line under the bar, or nil where the screen says something else
-    /// instead. Both directions read the same: the words are about the work,
-    /// not about which way the flag is going.
-    func line(direction: WizardDirection) -> String? {
+    /// instead. The words are about the work.
+    var line: String? {
         switch self {
         case .copying:
             return "Copying iPhone to this Mac"
@@ -86,7 +85,7 @@ enum JobPhase: Equatable {
 
     /// The heading this phase carries in place of the screen's own, or nil
     /// where the screen keeps its title and its bar.
-    func headline(direction: WizardDirection) -> String? {
+    var headline: String? {
         switch self {
         case .checkOnIPhone:
             return "Check on iPhone"
@@ -101,12 +100,10 @@ enum JobPhase: Equatable {
     }
 
     /// The sentence under that heading.
-    func body(direction: WizardDirection) -> String? {
+    var body: String? {
         switch self {
         case .checkOnIPhone:
-            return direction == .supervise
-                ? "Look for 'This iPhone is supervised' at the top of Settings."
-                : "Make sure 'This iPhone is supervised' is gone from the top of Settings."
+            return "Look for 'This iPhone is supervised' at the top of Settings."
         case .phoneGone:
             return "Unlock iPhone and keep the cable in."
         case .failed(let failure):
@@ -120,10 +117,10 @@ enum JobPhase: Equatable {
     /// What the "i" beside that sentence holds: the same words again where a
     /// film of them is coming, and the layer's own words where a failure left
     /// some. Nil takes the button off the screen.
-    func note(direction: WizardDirection) -> String? {
+    var note: String? {
         switch self {
         case .checkOnIPhone:
-            return body(direction: direction)
+            return body
         case .failed(let failure):
             return failure.raw.isEmpty ? nil : failure.raw
         case .copying, .preparing, .waitingForFindMy, .restoring, .finishing,
@@ -135,10 +132,10 @@ enum JobPhase: Equatable {
     /// The picture that "i" shows, by name. Only the one question a picture
     /// settles has one: what the top of Settings looks like once the run is
     /// over. A failure has nothing to show.
-    func noteImage(direction: WizardDirection) -> String? {
+    var noteImage: String? {
         switch self {
         case .checkOnIPhone:
-            return InfoImage.checking(direction)
+            return InfoImage.checking
         case .copying, .preparing, .waitingForFindMy, .restoring, .finishing,
              .restarting, .confirming, .done, .phoneGone, .failed:
             return nil

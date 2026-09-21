@@ -11,47 +11,31 @@ final class DoneCopyTests: XCTestCase {
 
     func testARunThatWentThroughSaysTheOneThingLeftToDo() {
         XCTAssertEqual(
-            DoneCopy.lines(direction: .supervise, findMyOff: false, matched: true),
+            DoneCopy.lines(findMyOff: false, matched: true),
             ["You can disconnect iPhone."]
         )
     }
 
     func testAPhoneWhoseFindMyIsStillOffIsAskedForItBack() {
         XCTAssertEqual(
-            DoneCopy.lines(direction: .supervise, findMyOff: true, matched: true),
+            DoneCopy.lines(findMyOff: true, matched: true),
             ["You can disconnect iPhone.", "Turn Find My iPhone back on in Settings."]
         )
     }
 
     func testAPhoneThatNeverSaidWhatItIsSendsTheReaderToSettings() {
         XCTAssertEqual(
-            DoneCopy.lines(direction: .supervise, findMyOff: false, matched: false),
+            DoneCopy.lines(findMyOff: false, matched: false),
             ["iPhone didn't report the change. Check the top of Settings."]
         )
-    }
-
-    func testUndoingARunReadsTheSameLines() {
-        for findMyOff in [true, false] {
-            for matched in [true, false] {
-                XCTAssertEqual(
-                    DoneCopy.lines(direction: .unsupervise, findMyOff: findMyOff, matched: matched),
-                    DoneCopy.lines(direction: .supervise, findMyOff: findMyOff, matched: matched),
-                    "the title already says which way the run went"
-                )
-            }
-        }
     }
 
     // MARK: - The note behind the title
 
     func testTheNoteSaysWhereToLookForWhatTheTitleClaims() {
         XCTAssertEqual(
-            DoneCopy.note(direction: .supervise),
+            DoneCopy.note,
             "Settings shows 'This iPhone is supervised' at the top."
-        )
-        XCTAssertEqual(
-            DoneCopy.note(direction: .unsupervise),
-            "That line is gone from the top of Settings."
         )
     }
 }

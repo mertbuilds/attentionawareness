@@ -42,9 +42,9 @@ struct AttentionAwarenessApp: App {
         // without the window. Ctrl+C cancels the run.
         BackupCommandLine.runIfAsked()
 
-        // `--patch <backup folder> [--unsupervise]` loads a backup folder,
-        // plans the change, applies it and checks it, printing every step. It
-        // is how `Patch/` is checked against a real backup without the window.
+        // `--patch <backup folder>` loads a backup folder, plans the change,
+        // applies it and checks it, printing every step. It is how `Patch/` is
+        // checked against a real backup without the window.
         PatchCommandLine.runIfAsked()
 
         // `--sign-profile <file>` asks the site to sign the profile the

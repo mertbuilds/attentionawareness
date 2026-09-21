@@ -48,12 +48,12 @@ final class JournalModeTests: XCTestCase {
         )
 
         let backup = try BackupFolder.load(at: directory)
-        let plan = try SupervisionPatch.plan(backup: backup, target: true)
+        let plan = try SupervisionPatch.plan(backup: backup)
         let newRecordedSize = try XCTUnwrap(plan.newRecordedSize)
 
         let patch = SupervisionPatch(backup: backup)
         let pristine = try patch.apply(plan)
-        XCTAssertEqual(try patch.verify(target: true), newRecordedSize)
+        XCTAssertEqual(try patch.verify(), newRecordedSize)
         XCTAssertEqual(try backup.supervisionState(), true)
         XCTAssertTrue(FileManager.default.fileExists(
             atPath: pristine.appendingPathComponent(BackupFolder.manifestDatabaseName).path
@@ -126,12 +126,12 @@ final class JournalModeTests: XCTestCase {
         let backup = try BackupFolder.load(at: directory)
         try backup.unlock(password: BackupFixture.password)
 
-        let plan = try SupervisionPatch.plan(backup: backup, target: true)
+        let plan = try SupervisionPatch.plan(backup: backup)
         let newRecordedSize = try XCTUnwrap(plan.newRecordedSize)
 
         let patch = SupervisionPatch(backup: backup)
         try patch.apply(plan)
-        XCTAssertEqual(try patch.verify(target: true), newRecordedSize)
+        XCTAssertEqual(try patch.verify(), newRecordedSize)
         XCTAssertEqual(try backup.supervisionState(), true)
         // The rewritten database is encrypted again, so it still has to be a
         // whole number of AES blocks.

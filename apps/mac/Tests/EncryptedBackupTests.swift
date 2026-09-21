@@ -65,14 +65,14 @@ final class EncryptedBackupTests: XCTestCase {
         let original = try Data(contentsOf: try backup.contentURL)
         let manifestBefore = try Data(contentsOf: backup.manifestDatabaseURL)
 
-        let plan = try SupervisionPatch.plan(backup: backup, target: true)
+        let plan = try SupervisionPatch.plan(backup: backup)
         XCTAssertEqual(plan.format, .xml)
         XCTAssertGreaterThan(plan.padding, 0)
         XCTAssertNil(plan.newRecordedSize)
 
         let patch = SupervisionPatch(backup: backup)
         try patch.apply(plan)
-        XCTAssertEqual(try patch.verify(target: true), backup.recordedSize)
+        XCTAssertEqual(try patch.verify(), backup.recordedSize)
         XCTAssertEqual(try backup.supervisionState(), true)
         // The file on disk stays encrypted and stays a whole number of blocks.
         let patched = try Data(contentsOf: try backup.contentURL)
@@ -93,12 +93,12 @@ final class EncryptedBackupTests: XCTestCase {
         try backup.unlock(password: BackupFixture.password)
         let manifestBefore = try Data(contentsOf: backup.manifestDatabaseURL)
 
-        let plan = try SupervisionPatch.plan(backup: backup, target: true)
+        let plan = try SupervisionPatch.plan(backup: backup)
         let newRecordedSize = try XCTUnwrap(plan.newRecordedSize)
 
         let patch = SupervisionPatch(backup: backup)
         try patch.apply(plan)
-        XCTAssertEqual(try patch.verify(target: true), newRecordedSize)
+        XCTAssertEqual(try patch.verify(), newRecordedSize)
 
         let manifestAfter = try Data(contentsOf: backup.manifestDatabaseURL)
         XCTAssertNotEqual(manifestAfter, manifestBefore)

@@ -32,8 +32,7 @@ enum UISmoke {
         }
         // The last step in each of the things it says: the plain end of a run,
         // the reminder a phone whose Find My is still off gets, the iPhone that
-        // never said what it is now, a copy this Mac would not let go of, and
-        // the other direction.
+        // never said what it is now, and a copy this Mac would not let go of.
         for sample in doneSamples() {
             report(sample.name, WizardStepContent(step: .done, model: sample.model), into: folder)
         }
@@ -96,14 +95,14 @@ enum UISmoke {
         // screenshot of the top of Settings above them.
         report(
             "info-popover-text",
-            InfoPopoverContent(text: DoneCopy.note(direction: .unsupervise)),
+            InfoPopoverContent(text: DoneCopy.note),
             into: folder
         )
         report(
             "info-popover-image",
             InfoPopoverContent(
-                text: DoneCopy.note(direction: .supervise),
-                image: InfoImage.checking(.supervise)
+                text: DoneCopy.note,
+                image: InfoImage.checking
             ),
             into: folder
         )
@@ -145,10 +144,6 @@ enum UISmoke {
                         .localizedDescription
                 )
             ),
-            (
-                "done-unsupervised",
-                done(findMyOn: true, direction: .unsupervise, supervisedAfterwards: false)
-            ),
         ]
     }
 
@@ -157,7 +152,6 @@ enum UISmoke {
     /// after it.
     private static func done(
         findMyOn: Bool,
-        direction: WizardDirection = .supervise,
         supervisedAfterwards: Bool = true,
         backupRemovalFailure: String? = nil
     ) -> WizardModel {
@@ -166,7 +160,6 @@ enum UISmoke {
         model.show(
             WizardModel.Sample(
                 step: .done,
-                direction: direction,
                 udid: phone.udid,
                 restore: WizardModel.RestoreState(
                     stage: .finished,
@@ -519,7 +512,7 @@ enum UISmoke {
     )
 
     /// The first screen for a phone that is supervised already, which is the
-    /// one state that offers to undo a run rather than start one.
+    /// one state that offers to manage restrictions rather than start a run.
     private static func supervisedModel() -> WizardModel {
         WizardModel(
             watcher: DeviceWatcher(

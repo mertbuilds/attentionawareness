@@ -128,14 +128,9 @@ final class DemoWizardModel: WizardModel {
 
     /// What a run standing on one step would be holding.
     private func sample(for step: WizardStep) -> Sample {
-        var sample = Sample(step: step, direction: direction)
+        var sample = Sample(step: step)
         sample.finderBackup = DemoWorld.finderBackup(conditions)
-        guard step != .connect else {
-            // The first step is before the direction is chosen, and a run
-            // always starts out putting supervision on.
-            sample.direction = .supervise
-            return sample
-        }
+        guard step != .connect else { return sample }
         sample.udid = DemoWorld.udid
         // The job screen is landed on where it starts, on the copy, so it is
         // holding no folder yet either.
@@ -145,13 +140,8 @@ final class DemoWizardModel: WizardModel {
         // the step can say how long sending it back will take.
         sample.restoreBytes = DemoWorld.backupBytes
         switch step {
-        case .restrictions:
-            // Unsupervising leaves this step out, so landing on it is a run
-            // that is putting supervision on.
-            sample.direction = .supervise
+        case .restrictions, .done:
             sample.restore = RestoreState(stage: .finished, supervisedAfterwards: true)
-        case .done:
-            sample.restore = RestoreState(stage: .finished, supervisedAfterwards: direction.target)
         case .connect, .ready, .job:
             break
         }
@@ -163,7 +153,6 @@ final class DemoWizardModel: WizardModel {
     private var currentSample: Sample {
         Sample(
             step: step,
-            direction: direction,
             udid: udid,
             backupFolder: backupFolder,
             restoreBytes: restoreBytes,
@@ -256,9 +245,9 @@ final class DemoWizardModel: WizardModel {
                 throw PatchError.wrongPassword
             }
         }
-        // The copy says what the phone says, so a phone that is already where
-        // the run wants it leaves the patch with nothing to write.
-        guard conditions.supervised != direction.target else {
+        // The copy says what the phone says, so a phone that is already
+        // supervised leaves the patch with nothing to write.
+        guard !conditions.supervised else {
             var nothingToDo = currentSample
             nothingToDo.patch = PatchState(isRunning: false, alreadyCorrect: true)
             return show(nothingToDo)
@@ -269,9 +258,7 @@ final class DemoWizardModel: WizardModel {
         try await Task.sleep(for: Self.patchStep)
         var done = currentSample
         done.patch = PatchState(
-            changes: direction.target
-                ? ["IsSupervised: false -> true", "CloudConfigurationUIComplete: false -> true"]
-                : ["IsSupervised: true -> false"],
+            changes: ["IsSupervised: false -> true", "CloudConfigurationUIComplete: false -> true"],
             pristinePath: DemoWorld.pristineFolder.path,
             isRunning: false
         )
@@ -298,7 +285,7 @@ final class DemoWizardModel: WizardModel {
         } catch {
             return false
         }
-        conditions = conditions.afterRestore(target: direction.target)
+        conditions = conditions.afterRestore(target: true)
         return true
     }
 
@@ -311,7 +298,7 @@ final class DemoWizardModel: WizardModel {
         } catch {
             return false
         }
-        return isSupervised == direction.target
+        return isSupervised == true
     }
 
     /// The real model tells the helper to stop, and the helper takes a moment

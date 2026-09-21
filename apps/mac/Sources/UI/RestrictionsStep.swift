@@ -23,7 +23,7 @@ struct RestrictionsStep: View {
     /// job screen's failures do.
     private var title: String {
         failure == nil
-            ? WizardStep.restrictions.title(for: model.direction)
+            ? WizardStep.restrictions.title
             : "Restrictions Didn't Install"
     }
 

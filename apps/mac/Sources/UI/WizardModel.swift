@@ -43,7 +43,6 @@ class WizardModel: ObservableObject {
     let engine: BackupEngine
 
     @Published private(set) var step: WizardStep = .connect
-    @Published private(set) var direction: WizardDirection = .supervise
     /// The iPhone this run is about, from the moment the user picks it. Nil on
     /// the first step, where whatever is plugged in is the candidate.
     @Published private(set) var udid: String?
@@ -188,7 +187,6 @@ class WizardModel: ObservableObject {
     /// network, and nothing here starts any work.
     struct Sample {
         var step: WizardStep = .connect
-        var direction: WizardDirection = .supervise
         var udid: String?
         var backupFolder: URL?
         /// What the backup on this Mac takes, so the job screen can be drawn
@@ -222,7 +220,6 @@ class WizardModel: ObservableObject {
     /// wizard as ever.
     func show(_ sample: Sample) {
         step = sample.step
-        direction = sample.direction
         udid = sample.udid
         selectedUdid = sample.udid
         backupFolder = sample.backupFolder
@@ -305,10 +302,9 @@ class WizardModel: ObservableObject {
         selectedUdid = device.udid
     }
 
-    /// Pick the iPhone on the cable and the direction, then start the checks.
-    func start(_ direction: WizardDirection) {
+    /// Pick the iPhone on the cable, then start the checks.
+    func start() {
         guard let device, device.pairingState == .paired else { return }
-        self.direction = direction
         udid = device.udid
         // Stepping back to Connect clears `udid`, so the pick is kept here as
         // well and the same phone comes back highlighted.
@@ -339,7 +335,7 @@ class WizardModel: ObservableObject {
     /// Step back. The button is only offered where this changes nothing on the
     /// iPhone and nothing in the backup.
     func back() {
-        guard let previous = step.previous(in: direction) else { return }
+        guard let previous = step.previous else { return }
         if previous == .connect {
             udid = nil
         }
@@ -348,7 +344,7 @@ class WizardModel: ObservableObject {
 
     /// Move on to whatever comes after the step on screen.
     func advance() {
-        guard let next = step.next(in: direction) else { return }
+        guard let next = step.next else { return }
         go(to: next)
     }
 
@@ -375,7 +371,6 @@ class WizardModel: ObservableObject {
         iconTask?.cancel()
         iconTask = nil
         askedForIcons = []
-        direction = .supervise
         errorMessage = nil
         step = .connect
         watcher.reload()
@@ -667,9 +662,8 @@ class WizardModel: ObservableObject {
         guard !Task.isCancelled else { return }
         restore.stage = .finished
         restore.supervisedAfterwards = isSupervised
-        // Unsupervising installs no profile, so a phone that came back saying
-        // what the run asked for has finished the run and the copy can go. The
-        // gate is the whole of that rule.
+        // The profile is still to come, so the gate keeps the copy until the
+        // Restrictions step confirms one. The gate is the whole of that rule.
         deleteBackupIfTheRunIsDone()
         guard answered else {
             job = .checkOnIPhone
@@ -796,12 +790,10 @@ class WizardModel: ObservableObject {
         guard let folder = backupFolder else { return }
         patch = PatchState(status: "Reading the copy", isRunning: true)
         let password = secret ?? ""
-        let target = direction.target
         do {
             let outcome = try await Self.applyPatch(
                 folder: folder,
                 password: password,
-                target: target,
                 status: { [weak self] line in
                     Task { @MainActor in self?.patch.status = line }
                 }
@@ -831,7 +823,6 @@ class WizardModel: ObservableObject {
     private nonisolated static func applyPatch(
         folder: URL,
         password: String,
-        target: Bool,
         status: @escaping @Sendable (String) -> Void
     ) async throws -> PatchOutcome {
         try await Task.detached(priority: .userInitiated) {
@@ -840,7 +831,7 @@ class WizardModel: ObservableObject {
                 status("Deriving the backup keys, up to ten seconds")
                 try backup.unlock(password: password)
             }
-            let plan = try SupervisionPatch.plan(backup: backup, target: target)
+            let plan = try SupervisionPatch.plan(backup: backup)
             guard !plan.isEmpty else {
                 return PatchOutcome(changes: [], pristinePath: nil, alreadyCorrect: true)
             }
@@ -848,7 +839,7 @@ class WizardModel: ObservableObject {
             let patch = SupervisionPatch(backup: backup)
             let pristine = try patch.apply(plan)
             status("Checking")
-            try patch.verify(target: target)
+            try patch.verify()
             return PatchOutcome(
                 changes: plan.changes,
                 pristinePath: pristine.path,
@@ -951,7 +942,7 @@ class WizardModel: ObservableObject {
         while !Task.isCancelled {
             watcher.reload()
             try? await Task.sleep(for: Self.confirmInterval)
-            if isSupervised == direction.target { return true }
+            if isSupervised == true { return true }
             if Date() >= deadline { return false }
         }
         return false
@@ -1217,7 +1208,6 @@ class WizardModel: ObservableObject {
     func deleteBackupIfTheRunIsDone() {
         guard let udid, backupFolder != nil else { return }
         guard WizardGate.backupCanGo(
-            direction: direction,
             restoreFinished: restore.stage == .finished,
             supervisedAfterwards: restore.supervisedAfterwards,
             profileConfirmed: profile.isConfirmed

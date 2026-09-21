@@ -21,23 +21,13 @@ final class JobPhaseTests: XCTestCase {
         ]
 
         for (phase, line) in lines {
-            XCTAssertEqual(phase.line(direction: .supervise), line)
-        }
-    }
-
-    func testUnsupervisingReadsTheSameLines() {
-        for phase in running {
-            XCTAssertEqual(
-                phase.line(direction: .unsupervise),
-                phase.line(direction: .supervise),
-                "\(phase) should read the same either way"
-            )
+            XCTAssertEqual(phase.line, line)
         }
     }
 
     func testAPhaseThatCameToAnEndSaysNothingUnderABar() {
         for phase in ended {
-            XCTAssertNil(phase.line(direction: .supervise))
+            XCTAssertNil(phase.line)
         }
     }
 
@@ -77,29 +67,25 @@ final class JobPhaseTests: XCTestCase {
     // MARK: - The three ends
 
     func testAPhoneThatNeverSaidItAsksForALookAtTheSettingsScreen() {
-        XCTAssertEqual(JobPhase.checkOnIPhone.headline(direction: .supervise), "Check on iPhone")
+        XCTAssertEqual(JobPhase.checkOnIPhone.headline, "Check on iPhone")
         XCTAssertEqual(
-            JobPhase.checkOnIPhone.body(direction: .supervise),
+            JobPhase.checkOnIPhone.body,
             "Look for 'This iPhone is supervised' at the top of Settings."
-        )
-        XCTAssertEqual(
-            JobPhase.checkOnIPhone.body(direction: .unsupervise),
-            "Make sure 'This iPhone is supervised' is gone from the top of Settings."
         )
         // The "i" holds the same words until a film of them goes in behind it.
         XCTAssertEqual(
-            JobPhase.checkOnIPhone.note(direction: .supervise),
-            JobPhase.checkOnIPhone.body(direction: .supervise)
+            JobPhase.checkOnIPhone.note,
+            JobPhase.checkOnIPhone.body
         )
     }
 
     func testAPhoneThatNeverCameBackSaysSoAndWhatToDo() {
-        XCTAssertEqual(JobPhase.phoneGone.headline(direction: .supervise), "iPhone Didn't Reconnect")
+        XCTAssertEqual(JobPhase.phoneGone.headline, "iPhone Didn't Reconnect")
         XCTAssertEqual(
-            JobPhase.phoneGone.body(direction: .supervise),
+            JobPhase.phoneGone.body,
             "Unlock iPhone and keep the cable in."
         )
-        XCTAssertNil(JobPhase.phoneGone.note(direction: .supervise))
+        XCTAssertNil(JobPhase.phoneGone.note)
     }
 
     func testAFailureIsItsOwnTwoSentencesWithTheLayersWordsBehindIt() {
@@ -111,26 +97,26 @@ final class JobPhaseTests: XCTestCase {
         )
         let phase = JobPhase.failed(failure)
 
-        XCTAssertEqual(phase.headline(direction: .supervise), failure.title)
-        XCTAssertEqual(phase.body(direction: .supervise), failure.fix)
-        XCTAssertEqual(phase.note(direction: .supervise), failure.raw)
+        XCTAssertEqual(phase.headline, failure.title)
+        XCTAssertEqual(phase.body, failure.fix)
+        XCTAssertEqual(phase.note, failure.raw)
     }
 
     func testAFailureThatLeftNoWordsBehindShowsNoButtonForThem() {
         let quiet = JobFailure(title: "Copy Didn't Finish", fix: "Try again.", raw: "", retry: .copy)
 
-        XCTAssertNil(JobPhase.failed(quiet).note(direction: .supervise))
+        XCTAssertNil(JobPhase.failed(quiet).note)
     }
 
     func testAPhaseStillRunningCarriesNoHeadlineOfItsOwn() {
         for phase in running {
-            XCTAssertNil(phase.headline(direction: .supervise), "\(phase) keeps the screen's title")
-            XCTAssertNil(phase.body(direction: .supervise))
+            XCTAssertNil(phase.headline, "\(phase) keeps the screen's title")
+            XCTAssertNil(phase.body)
         }
         // The job ends on `done` and the wizard moves on by itself, so that
         // phase says nothing either.
-        XCTAssertNil(JobPhase.done.headline(direction: .supervise))
-        XCTAssertNil(JobPhase.done.body(direction: .supervise))
+        XCTAssertNil(JobPhase.done.headline)
+        XCTAssertNil(JobPhase.done.body)
     }
 
     // MARK: - The two halves of the enum

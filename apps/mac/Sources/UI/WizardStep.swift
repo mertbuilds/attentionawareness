@@ -1,15 +1,5 @@
 import Foundation
 
-/// Which way a run is going. Both ways walk the same steps: the patch writes
-/// the opposite flag, and only the supervise direction ends with a profile.
-enum WizardDirection: String, Equatable {
-    case supervise
-    case unsupervise
-
-    /// What `IsSupervised` has to say in the backup once the patch is done.
-    var target: Bool { self == .supervise }
-}
-
 /// One screen of the wizard.
 ///
 /// The order is fixed and `next` and `previous` are the only way through it,
@@ -25,27 +15,16 @@ enum WizardStep: String, CaseIterable, Equatable {
     case restrictions
     case done
 
-    /// The steps one direction shows. Unsupervising installs no profile, so it
-    /// is four screens rather than five.
-    static func steps(for direction: WizardDirection) -> [WizardStep] {
-        allCases.filter { $0.belongs(to: direction) }
-    }
-
-    /// False for a step the direction leaves out.
-    func belongs(to direction: WizardDirection) -> Bool {
-        self != .restrictions || direction == .supervise
-    }
-
     /// The step after this one, or nil at the end of the run.
-    func next(in direction: WizardDirection) -> WizardStep? {
-        let steps = Self.steps(for: direction)
+    var next: WizardStep? {
+        let steps = Self.allCases
         guard let index = steps.firstIndex(of: self), index + 1 < steps.count else { return nil }
         return steps[index + 1]
     }
 
     /// The step before this one, or nil at the start of the run.
-    func previous(in direction: WizardDirection) -> WizardStep? {
-        let steps = Self.steps(for: direction)
+    var previous: WizardStep? {
+        let steps = Self.allCases
         guard let index = steps.firstIndex(of: self), index > 0 else { return nil }
         return steps[index - 1]
     }
@@ -62,20 +41,19 @@ enum WizardStep: String, CaseIterable, Equatable {
         }
     }
 
-    /// The heading the screen carries. Title Case, like a window title, and it
-    /// says which way the run is going wherever the two ways differ.
-    func title(for direction: WizardDirection) -> String {
+    /// The heading the screen carries. Title Case, like a window title.
+    var title: String {
         switch self {
         case .connect:
             return "Connect iPhone to This Mac"
         case .ready:
-            return direction == .supervise ? "Ready to Supervise" : "Ready to Unsupervise"
+            return "Ready to Supervise"
         case .job:
-            return direction == .supervise ? "Supervising iPhone" : "Unsupervising iPhone"
+            return "Supervising iPhone"
         case .restrictions:
             return "Choose Restrictions"
         case .done:
-            return direction == .supervise ? "iPhone Is Supervised" : "iPhone Is No Longer Supervised"
+            return "iPhone Is Supervised"
         }
     }
 }

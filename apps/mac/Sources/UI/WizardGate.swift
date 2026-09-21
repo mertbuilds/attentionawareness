@@ -66,16 +66,14 @@ enum WizardGate {
     /// Everything short of this keeps it, because it is the only way back: an
     /// install that failed, a profile the iPhone lists with the wrong settings,
     /// a restore that never finished, a phone that never came back to say what
-    /// it is now, and a run somebody walked away from. Unsupervising installs
-    /// no profile, so there the restore is the whole run.
+    /// it is now, and a run somebody walked away from.
     static func backupCanGo(
-        direction: WizardDirection,
         restoreFinished: Bool,
         supervisedAfterwards: Bool?,
         profileConfirmed: Bool
     ) -> Bool {
-        guard restoreFinished, supervisedAfterwards == direction.target else { return false }
-        return direction == .supervise ? profileConfirmed : true
+        guard restoreFinished, supervisedAfterwards == true else { return false }
+        return profileConfirmed
     }
 
     /// How Find My is turned off, in the hover help of both steps that ask for

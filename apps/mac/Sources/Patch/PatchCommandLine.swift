@@ -1,6 +1,6 @@
 import Foundation
 
-/// The hidden `--patch <backup folder> [--unsupervise]` command line path.
+/// The hidden `--patch <backup folder>` command line path.
 ///
 /// It loads a backup folder, plans the change, applies it and checks it, and
 /// prints every step, which is how the patch layer is checked against a real
@@ -11,16 +11,14 @@ import Foundation
 ///   --patch ~/Library/Application\ Support/attention\ awareness/Backups/<udid>
 /// ```
 ///
-/// `--unsupervise` takes the flag off again instead of setting it. The backup
-/// password, when the backup is encrypted, comes from the `BACKUP_PASSWORD`
-/// environment variable, so it stays out of the shell history and out of `ps`.
-/// Nothing is sent to an iPhone.
+/// The backup password, when the backup is encrypted, comes from the
+/// `BACKUP_PASSWORD` environment variable, so it stays out of the shell history
+/// and out of `ps`. Nothing is sent to an iPhone.
 enum PatchCommandLine {
     static let flag = "--patch"
-    static let unsuperviseFlag = "--unsupervise"
 
     static let usage = """
-        usage: attention awareness --patch <backup folder> [--unsupervise]
+        usage: attention awareness --patch <backup folder>
         The backup password, if the backup is encrypted, comes from BACKUP_PASSWORD.
         """
 
@@ -35,13 +33,10 @@ enum PatchCommandLine {
         // stdout is a pipe as often as it is a terminal, and a pipe holds every
         // line back until the buffer fills.
         setvbuf(stdout, nil, _IOLBF, 0)
-        exit(run(
-            at: URL(fileURLWithPath: arguments[index + 1]),
-            target: !arguments.contains(unsuperviseFlag)
-        ))
+        exit(run(at: URL(fileURLWithPath: arguments[index + 1])))
     }
 
-    private static func run(at url: URL, target: Bool) -> Int32 {
+    private static func run(at url: URL) -> Int32 {
         do {
             let backup = try BackupFolder.load(at: url)
             print("\(backup.deviceName), iOS \(backup.iosVersion), \(backup.isEncrypted ? "encrypted" : "plain")")
@@ -55,9 +50,9 @@ enum PatchCommandLine {
             }
             print("IsSupervised before: \(SupervisionPatch.label(backup.isSupervised))")
 
-            let plan = try SupervisionPatch.plan(backup: backup, target: target)
+            let plan = try SupervisionPatch.plan(backup: backup)
             guard !plan.isEmpty else {
-                print("Nothing to change. The backup already says \(target ? "true" : "false").")
+                print("Nothing to change. The backup already says true.")
                 return 0
             }
             for change in plan.changes {
@@ -67,7 +62,7 @@ enum PatchCommandLine {
             let patch = SupervisionPatch(backup: backup)
             let pristine = try patch.apply(plan)
             print("The untouched copy is at \(pristine.path)")
-            let size = try patch.verify(target: target)
+            let size = try patch.verify()
             print("IsSupervised after: \(SupervisionPatch.label(try backup.supervisionState())), \(size) bytes")
             return 0
         } catch {
