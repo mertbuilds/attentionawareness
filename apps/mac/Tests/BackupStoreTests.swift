@@ -187,7 +187,7 @@ final class BackupStoreTests: XCTestCase {
             // The path is in the sentence because somebody has to go and look.
             XCTAssertEqual(
                 (error as? LocalizedError)?.errorDescription,
-                "The backup at \(folder.path) could not be deleted, so it is still on this Mac. "
+                "The copy at \(folder.path) could not be deleted, so it is still on this Mac. "
                     + "macOS reported: The volume is read only."
             )
         }

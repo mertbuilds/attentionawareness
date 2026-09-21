@@ -72,7 +72,7 @@ enum WizardStep: String, CaseIterable, Equatable {
         switch self {
         case .connect: return "Connect"
         case .checks: return "Checks"
-        case .backUp: return "Back up"
+        case .backUp: return "Copy"
         case .patch: return "Patch"
         case .restore: return "Restore"
         case .profile: return "Profile"

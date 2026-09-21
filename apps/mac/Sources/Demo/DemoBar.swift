@@ -142,7 +142,7 @@ struct DemoBar: View {
             Toggle("Encrypted backups", isOn: $model.conditions.backupsEncrypted)
             Toggle("Already supervised", isOn: $model.conditions.supervised)
             Toggle("Profile installed", isOn: $model.conditions.profileInstalled)
-            Toggle("Backup on this Mac", isOn: $model.conditions.holdingBackup)
+            Toggle("Copy on this Mac", isOn: $model.conditions.holdingBackup)
             Spacer(minLength: 0)
         }
         .toggleStyle(.checkbox)

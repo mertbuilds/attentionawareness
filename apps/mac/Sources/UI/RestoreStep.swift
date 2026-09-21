@@ -33,7 +33,7 @@ struct RestoreStep: View {
                     """
             }
             return [
-                "The phone restarts and restores from the backup. Keep the cable connected.",
+                "The phone restarts and restores from the copy. Keep the cable connected.",
                 model.restoreExpectation,
             ].compactMap { $0 }.joined(separator: " ")
         case .running:
@@ -56,7 +56,7 @@ struct RestoreStep: View {
     /// what is actually happening.
     private var running: String {
         guard model.engine.phase == .finishing else {
-            return "Writing the backup back to the iPhone. Keep the cable connected."
+            return "Writing the copy back to the iPhone. Keep the cable connected."
         }
         return """
             Every file is on the iPhone now and the phone is applying them. This is the slow part, \

@@ -28,9 +28,9 @@ enum BackupError: LocalizedError, Equatable {
         case .helperFailedToStart(let path, let reason):
             return "The backup helper at \(path) did not start. macOS reported: \(reason)"
         case .noBackupFolder(let path):
-            return "There is no backup at \(path)."
+            return "There is no copy at \(path)."
         case .cancelled:
-            return "The backup was cancelled."
+            return "The copy was cancelled."
         case .failed(let sentence):
             return sentence
         }
@@ -113,12 +113,12 @@ enum BackupError: LocalizedError, Equatable {
         Rule(needles: ["find my", "fmip"], sentence: findMyOn),
         Rule(
             needles: ["a backup password is required"],
-            sentence: "This backup is encrypted. Give the backup password, then try again."
+            sentence: "This copy is encrypted. Give the backup password, then try again."
         ),
         Rule(needles: ["password"], sentence: wrongPassword),
         Rule(
             needles: ["no space left", "not enough space", "enough free space", "disk full"],
-            sentence: "There is not enough free space for this backup. Make room on the disk, then try again."
+            sentence: "There is not enough free space for this copy. Make room on the disk, then try again."
         ),
         Rule(
             needles: ["timeout while locking"],
@@ -130,11 +130,11 @@ enum BackupError: LocalizedError, Equatable {
         ),
         Rule(
             needles: ["device refused to start"],
-            sentence: "The iPhone refused to start the backup. Unlock the phone, then try again."
+            sentence: "The iPhone refused to start the copy. Unlock the phone, then try again."
         ),
         Rule(
             needles: ["backup directory", "does not exist"],
-            sentence: "The backup folder is missing. Make a new backup, then try again."
+            sentence: "The copy is missing. Make a new copy, then try again."
         ),
     ]
 }

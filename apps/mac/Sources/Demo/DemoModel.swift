@@ -352,7 +352,7 @@ final class DemoWizardModel: WizardModel {
         stopWork()
         var sample = currentSample
         sample.step = .patch
-        sample.patch = PatchState(status: "Reading the backup", isRunning: true)
+        sample.patch = PatchState(status: "Reading the copy", isRunning: true)
         sample.errorMessage = nil
         show(sample)
 

@@ -1,11 +1,11 @@
 # attention awareness for Mac
 
 Native macOS app (SwiftUI, macOS 14+) that turns the supervise procedure into
-plug in, click, wait: back up the iPhone, patch the backup, restore it, install
+plug in, click, wait: copy the iPhone, patch the copy, restore it, install
 the profile over USB. The patch logic was ported from a Python tool that did
 the same thing by hand; that tool is retired and git history has it.
 
-The window is the wizard: Connect, Checks, Back up, Patch, Restore, Profile,
+The window is the wizard: Connect, Checks, Copy, Patch, Restore, Profile,
 Done, one step at a time. Unsupervising walks the same steps in reverse and
 leaves the profile out, so it is six.
 

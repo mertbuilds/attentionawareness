@@ -7,7 +7,7 @@ struct BackupStep: View {
     var body: some View {
         StepLayout(
             position: WizardStep.backUp.position(in: model.direction),
-            title: "Back up",
+            title: "Copy",
             lead: lead,
             error: model.errorMessage
         ) {
@@ -25,17 +25,17 @@ struct BackupStep: View {
                 model.backupExpectation,
             ].compactMap { $0 }.joined(separator: " ")
         case .starting:
-            return "Starting the backup. The iPhone takes a moment to answer."
+            return "Starting the copy. The iPhone takes a moment to answer."
         case .transferring:
             return "Copying the iPhone to this Mac. Keep the cable connected."
         case .finishing:
             return "The iPhone is closing the snapshot. This is the slow part."
         case .done:
-            return "The backup is on this Mac."
+            return "The copy is on this Mac."
         case .cancelled:
-            return "The backup was cancelled. Nothing on the iPhone changed."
+            return "The copy was cancelled. Nothing on the iPhone changed."
         case .failed:
-            return "The backup stopped."
+            return "The copy stopped."
         }
     }
 
@@ -60,7 +60,7 @@ struct BackupStep: View {
             PrimaryButton(title: "Continue") {
                 model.advance()
             }
-            Button("Back up again") {
+            Button("Copy again") {
                 model.startBackup()
             }
             .controlSize(.large)
@@ -69,7 +69,7 @@ struct BackupStep: View {
                 model.startBackup()
             }
         case .idle:
-            PrimaryButton(title: "Back up") {
+            PrimaryButton(title: "Copy") {
                 model.startBackup()
             }
         }

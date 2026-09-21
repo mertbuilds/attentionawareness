@@ -253,10 +253,10 @@ enum BackupSafetyNet {
             standing: .covered,
             title: "\(best.place.backedItUp) \(when)",
             detail: [
-                "That copy is yours, and this app neither reads it nor writes to it.",
+                "That backup is yours, and this app neither reads it nor writes to it.",
                 other.map { "\($0.place.alsoHasOne) \(age(of: $0.date, now: now, calendar: calendar))." },
                 """
-                The backup this app makes is its own, and it is deleted as soon as the run is \
+                The copy this app makes is its own, and it is deleted as soon as the run is \
                 confirmed.
                 """,
             ]

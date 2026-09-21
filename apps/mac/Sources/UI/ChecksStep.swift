@@ -72,7 +72,7 @@ struct ChecksStep: View {
                 }
             }
         } actions: {
-            PrimaryButton(title: "Back up", enabled: model.checksPass) {
+            PrimaryButton(title: "Copy", enabled: model.checksPass) {
                 model.startBackup()
             }
         }
@@ -82,7 +82,7 @@ struct ChecksStep: View {
     /// run that stopped part way, and no run ever uses one that an earlier run
     /// made, so it was rubbish rather than a way back.
     private var leftoverLine: some View {
-        Text("A backup left over from a run that did not finish was cleared.")
+        Text("A copy left over from a run that did not finish was cleared.")
             .font(.callout)
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
@@ -148,7 +148,7 @@ struct ChecksStep: View {
                 // The title already says the restore needs it off, so the detail
                 // only has to say when to do it and how.
                 detail: """
-                    The backup does not need it off, so start the backup now and turn it off while \
+                    The copy does not need it off, so start the copy now and turn it off while \
                     the copying runs. \(WizardGate.turnFindMyOff)
                     """
             )
@@ -168,7 +168,7 @@ struct ChecksStep: View {
         let needed = WizardStyle.size(space.needed)
         let size = space.assumed
             ? "The iPhone did not say how much it holds, so this asks for \(needed)."
-            : "The backup of this iPhone needs about \(needed)."
+            : "The copy of this iPhone needs about \(needed)."
         let phone = [size, model.backupExpectation].compactMap { $0 }.joined(separator: " ")
         switch space.passes {
         case true:

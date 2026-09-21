@@ -124,7 +124,7 @@ final class ProfileCheckTests: XCTestCase {
 
         for problem in problems {
             XCTAssertTrue(
-                problem.sentence.hasSuffix("The backup was kept."),
+                problem.sentence.hasSuffix("The copy was kept."),
                 "\(problem) says: \(problem.sentence)"
             )
         }

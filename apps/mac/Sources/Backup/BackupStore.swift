@@ -197,7 +197,7 @@ enum BackupStoreError: LocalizedError {
                 """
         case .removeFailed(let url, let error):
             return """
-                The backup at \(url.path) could not be deleted, so it is still on this Mac. \
+                The copy at \(url.path) could not be deleted, so it is still on this Mac. \
                 macOS reported: \(error.localizedDescription)
                 """
         }

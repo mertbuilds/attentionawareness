@@ -617,7 +617,7 @@ class WizardModel: ObservableObject {
     /// encrypted backup takes seconds.
     func runPatch() {
         guard let folder = backupFolder, !patch.isRunning else { return }
-        patch = PatchState(status: "Reading the backup", isRunning: true)
+        patch = PatchState(status: "Reading the copy", isRunning: true)
         errorMessage = nil
         let password = secret ?? ""
         let target = direction.target

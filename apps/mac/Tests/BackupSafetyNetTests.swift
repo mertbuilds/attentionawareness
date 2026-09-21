@@ -144,7 +144,7 @@ final class BackupSafetyNetTests: XCTestCase {
 
         XCTAssertEqual(row.standing, .covered)
         XCTAssertEqual(row.title, "iCloud backed this iPhone up yesterday")
-        XCTAssertTrue(row.detail.contains("That copy is yours"))
+        XCTAssertTrue(row.detail.contains("That backup is yours"))
     }
 
     func testAnOldICloudBackupGivesTheDateAndTheAge() {

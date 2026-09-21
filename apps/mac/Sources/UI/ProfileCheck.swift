@@ -22,7 +22,7 @@ enum ProfileCheck {
 
         /// What the step shows: what the phone said, and then the part that
         /// matters most to the person reading it.
-        var sentence: String { "\(whatThePhoneSaid) The backup was kept." }
+        var sentence: String { "\(whatThePhoneSaid) The copy was kept." }
 
         private var whatThePhoneSaid: String {
             switch self {
