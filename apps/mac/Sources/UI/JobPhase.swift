@@ -131,4 +131,17 @@ enum JobPhase: Equatable {
             return nil
         }
     }
+
+    /// The film that "i" plays, by name. Only the one question a film settles
+    /// has one: what the top of Settings looks like once the run is over. A
+    /// failure has nothing to film.
+    func noteVideo(direction: WizardDirection) -> String? {
+        switch self {
+        case .checkOnIPhone:
+            return InfoVideo.checking(direction)
+        case .copying, .preparing, .waitingForFindMy, .restoring, .finishing,
+             .restarting, .confirming, .done, .phoneGone, .failed:
+            return nil
+        }
+    }
 }

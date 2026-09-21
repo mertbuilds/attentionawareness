@@ -32,12 +32,14 @@ enum WizardStyle {
 
 /// A small "i" holding one more sentence than the screen has room for.
 ///
-/// It is the slot the films go in: where one exists it will play here, and
-/// until then the button holds the words. Hover help carries the one-line
-/// fixes; this is for the places where somebody has to look at their phone and
-/// a picture of it would settle the question.
+/// It is the slot the films go in: name one and it plays here once somebody
+/// has recorded it, and until then the button holds the words alone. Hover
+/// help carries the one-line fixes; this is for the places where somebody has
+/// to look at their phone and a picture of it would settle the question.
 struct InfoButton: View {
     let text: String
+    /// The recording to play above the words, by name. See `InfoVideo`.
+    var video: String?
 
     @State private var shown = false
 
@@ -46,16 +48,13 @@ struct InfoButton: View {
             shown = true
         } label: {
             Image(systemName: "info.circle")
-                .foregroundStyle(WizardStyle.accent)
+                .foregroundStyle(.secondary)
         }
         .buttonStyle(.plain)
+        .help("More")
         .accessibilityLabel("More")
-        .popover(isPresented: $shown) {
-            Text(text)
-                .font(.callout)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(width: 260, alignment: .leading)
-                .padding(14)
+        .popover(isPresented: $shown, arrowEdge: .bottom) {
+            InfoPopoverContent(text: text, video: video)
         }
     }
 }
@@ -84,6 +83,8 @@ struct StepLayout<Content: View, Actions: View>: View {
     /// the iPhone somebody may want to see for themselves. Nil takes the
     /// button off the screen, which is every step but the last.
     let note: String?
+    /// The recording that "i" plays above those words, by name.
+    let noteVideo: String?
     let error: String?
     let content: Content
     let actions: Actions
@@ -92,6 +93,7 @@ struct StepLayout<Content: View, Actions: View>: View {
         title: String,
         lead: String? = nil,
         note: String? = nil,
+        noteVideo: String? = nil,
         error: String? = nil,
         @ViewBuilder content: () -> Content,
         @ViewBuilder actions: () -> Actions
@@ -99,6 +101,7 @@ struct StepLayout<Content: View, Actions: View>: View {
         self.title = title
         self.lead = lead
         self.note = note
+        self.noteVideo = noteVideo
         self.error = error
         self.content = content()
         self.actions = actions()
@@ -112,7 +115,7 @@ struct StepLayout<Content: View, Actions: View>: View {
                     .fontWeight(.semibold)
                     .fixedSize(horizontal: false, vertical: true)
                 if let note {
-                    InfoButton(text: note)
+                    InfoButton(text: note, video: noteVideo)
                 }
             }
 

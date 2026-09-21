@@ -111,6 +111,13 @@ enum UISmoke {
         for sample in connectSamples() {
             report("connect-\(sample.name)", ConnectStep(model: sample.model), into: folder)
         }
+        // What an "i" opens. No film ships yet, so this is the words alone,
+        // which is what every popover in the app shows today.
+        report(
+            "info-popover-text",
+            InfoPopoverContent(text: DoneCopy.note(direction: .supervise)),
+            into: folder
+        )
         report("device-card", DeviceCard(device: sampleDevice), into: folder)
         report("error", ErrorText(DeviceError.trustPending.localizedDescription), into: folder)
         report("window", ContentView(), into: folder)

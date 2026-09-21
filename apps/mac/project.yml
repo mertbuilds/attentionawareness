@@ -43,6 +43,10 @@ targets:
     platform: macOS
     sources:
       - Sources
+      # The films the "i" popovers play, carried as a folder rather than file
+      # by file, so a new recording is a file drop and no project change.
+      - path: Resources/Videos
+        type: folder
       # The bundled backup helper runs as its own process out of
       # Contents/Helpers, signed on copy like the embedded dylibs.
       - path: Vendor/bin/idevicebackup2
@@ -115,6 +119,10 @@ targets:
     # Vendored by scripts/vendor.sh, linked from Vendor/lib and embedded in
     # Contents/Frameworks so nothing resolves through Homebrew at run time.
     dependencies:
+      # The "i" popovers play their films with AVKit's SwiftUI player. Only
+      # the SwiftUI half of AVKit is linked for us, so without this the player
+      # view's superclass is missing and the app stops the moment one opens.
+      - sdk: AVKit.framework
       - package: Sparkle
       - framework: Vendor/lib/libimobiledevice-1.0.6.dylib
         embed: true
@@ -163,6 +171,9 @@ targets:
       # The body of the last screen is a value as well: three answers in, one
       # or two sentences out.
       - Sources/UI/DoneCopy.swift
+      # Where the app looks for the films the "i" popovers play, and what a
+      # recording has to be called for it to be found, are values too.
+      - Sources/UI/InfoVideo.swift
       # Whether the reader already has a backup of their own is decided here,
       # and the whole of it is values: two answers in, one line of the checks
       # out. Finder's own folder is the one thing it reads, and the tests

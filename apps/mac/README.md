@@ -128,6 +128,14 @@ AA_SITE_URL=https://attentionawareness.localhost \
   preset in `apps/web/src/lib/profile/presets.ts`. `ProfileSigner` posts it and hands back the signed
   `.mobileconfig` bytes; the signing certificate stays on the site and never
   comes near the app.
+- `Resources/Videos/` holds the screen recordings the "i" popovers play. The
+  folder is a folder reference in `project.yml`, so it is copied into the app
+  whole and a new recording is a file drop and a rebuild, with no project or
+  code change. Two names are looked for: `check-supervised.mp4` on the last
+  screen and on the "Check on iPhone" end of the job, and
+  `check-unsupervised.mp4` in the same two places when a run is undoing
+  supervision. `.mov` works as well, and until a file of that name is there the
+  popover is its words alone.
 - `Vendor/` is filled by the two scripts below and gitignored except for
   `Vendor/include/module.modulemap`.
 - `scripts/build-libimobiledevice.sh` clones libplist, libimobiledevice-glue,

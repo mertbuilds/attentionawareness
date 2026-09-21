@@ -35,7 +35,11 @@ struct JobStep: View {
                     line(phase)
                 }
                 if let sentence = phase.body(direction: model.direction) {
-                    body(sentence, note: phase.note(direction: model.direction))
+                    body(
+                        sentence,
+                        note: phase.note(direction: model.direction),
+                        video: phase.noteVideo(direction: model.direction)
+                    )
                 }
                 // The one failure somebody answers by typing. The field is the
                 // same row the checks show, so the password is corrected where
@@ -91,12 +95,12 @@ struct JobStep: View {
 
     /// The sentence a phase that came to an end shows, with the "i" beside it
     /// wherever there is more behind it than the line.
-    private func body(_ text: String, note: String?) -> some View {
+    private func body(_ text: String, note: String?, video: String?) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(text)
                 .fixedSize(horizontal: false, vertical: true)
             if let note {
-                InfoButton(text: note)
+                InfoButton(text: note, video: video)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
