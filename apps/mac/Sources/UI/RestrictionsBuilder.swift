@@ -18,6 +18,11 @@ struct RestrictionsBuilder: View {
     @FocusState private var searchFocused: Bool
     @FocusState private var siteFocused: Bool
 
+    init(model: WizardModel, sitesExpanded: Bool = false) {
+        _model = ObservedObject(wrappedValue: model)
+        _showsSites = State(initialValue: sitesExpanded)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             apps
@@ -196,6 +201,9 @@ struct RestrictionsBuilder: View {
                     siteRow(site)
                 }
                 addSiteField
+                if !model.draft.permittedSites.isEmpty {
+                    keptOpenSites
+                }
             }
             .padding(.top, 8)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -246,6 +254,31 @@ struct RestrictionsBuilder: View {
         if model.draft.addSite(typedSite) {
             typedSite = ""
         }
+    }
+
+    /// The holes the filter keeps open so sign-in still resolves. They are the
+    /// profile's own and the reader does not edit them, so they read as a quiet
+    /// list under the blocked sites, marked open rather than crossed off.
+    private var keptOpenSites: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Kept open for sign-in")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            ForEach(model.draft.permittedSites, id: \.self) { host in
+                HStack(spacing: 8) {
+                    Image(systemName: "lock.open")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(host)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Spacer(minLength: 8)
+                }
+            }
+        }
+        .padding(.top, 4)
     }
 
     // MARK: - The restrictions

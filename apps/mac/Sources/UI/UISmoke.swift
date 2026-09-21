@@ -62,6 +62,15 @@ enum UISmoke {
                 into: folder
             )
         }
+        // The website list is folded away in the app, so the loop above never
+        // draws it open. This one draws the builder with it open, where the
+        // sites the filter blocks and the holes it keeps open for sign-in are
+        // both on screen.
+        report(
+            "restrictions-sites",
+            RestrictionsBuilder(model: sampleModel([sampleDevice]), sitesExpanded: true),
+            into: folder
+        )
         // The Profiles screen for a phone that is supervised already, in the
         // four states it has: nothing installed yet, a profile of ours on the
         // phone, the install running, and one that did not take.

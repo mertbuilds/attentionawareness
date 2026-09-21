@@ -93,6 +93,13 @@ extension ProfileDraft {
         return rows
     }
 
+    /// The holes the filter keeps open so sign-in still resolves, by host, for
+    /// the screen to show. They are display only: `config` writes them from
+    /// `permittedUrls`, and the reader does not edit them.
+    var permittedSites: [String] {
+        Self.permittedUrls.map { DraftSite(url: $0, app: nil, guessed: false).host }
+    }
+
     /// The profile the site is asked to sign.
     var config: ProfileConfig {
         var config = ProfileConfig.default

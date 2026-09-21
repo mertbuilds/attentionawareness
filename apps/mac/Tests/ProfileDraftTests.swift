@@ -197,6 +197,10 @@ final class ProfileDraftTests: XCTestCase {
         XCTAssertEqual(ProfileDraft.permittedUrls, permitted)
     }
 
+    func testThePermittedSitesAreTheKeptOpenHostsWithoutTheirScheme() {
+        XCTAssertTrue(ProfileDraft.recommended.permittedSites.contains("accounts.youtube.com"))
+    }
+
     // MARK: - What the step reads out
 
     func testTheSiteCountIsWrittenInWholeWords() {
