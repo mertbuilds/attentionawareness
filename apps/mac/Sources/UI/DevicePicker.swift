@@ -5,14 +5,12 @@ import SwiftUI
 /// The Connect step shows it only when more than one phone is plugged in. With
 /// a single phone there is nothing to choose, so that case stays the plain
 /// card. A phone that has not trusted this Mac is listed like any other, with
-/// its own state line, so the reader can tell which one needs the Trust tap.
+/// its own line saying so, which is the only thing a row ever says beyond the
+/// name and the model.
 struct DevicePicker: View {
     let devices: [ConnectedDevice]
     /// The udid of the row that is picked right now.
     let selectedUdid: String?
-    /// What MCInstall said about each phone, keyed by udid. A phone that has
-    /// not been trusted yet has no entry.
-    let cloudConfigurations: [String: CloudConfiguration]
     let pick: (ConnectedDevice) -> Void
 
     var body: some View {
@@ -39,7 +37,9 @@ struct DevicePicker: View {
                 Text(device.name ?? "iPhone")
                 Group {
                     Text(Self.hardware(device))
-                    Text(Self.state(device, cloudConfigurations[device.udid]?.isSupervised))
+                    if let state = Self.state(device) {
+                        Text(state)
+                    }
                 }
                 .font(.callout)
                 .foregroundStyle(.secondary)
@@ -57,16 +57,17 @@ struct DevicePicker: View {
         return "\(DeviceCard.model(device)), iOS \(version)"
     }
 
-    /// Where this phone stands, in one line. A phone that has not trusted this
-    /// Mac says so here rather than dropping off the list.
-    static func state(_ device: ConnectedDevice, _ supervised: Bool?) -> String {
+    /// What this phone needs before it can be picked, or nil when it needs
+    /// nothing. A row says nothing about supervision: that is what the button
+    /// under the list says, once a phone is chosen.
+    static func state(_ device: ConnectedDevice) -> String? {
         switch device.pairingState {
         case .trustPending:
             return "Tap Trust on this iPhone"
         case .untrusted:
-            return "Not trusted, unplug it and plug it back in"
+            return "Unplug it and plug it back in"
         case .paired:
-            return DeviceCard.state(supervised)
+            return nil
         }
     }
 }

@@ -24,19 +24,19 @@ enum UISmoke {
         // would put whatever iPhone happens to be plugged in into the
         // pictures, and would open a lockdown handshake to do it.
         let model = WizardModel(watcher: DeviceWatcher(sample: []))
-        // The last step is about a run that is already over rather than about
-        // one that has not started, so it is drawn from a model of its own: a
-        // phone that came back on the cable saying it is supervised.
-        let finished = WizardModel(finished: sampleWatcher([sampleDevice]))
-        let drawnFrom: [WizardStep: WizardModel] = [.done: finished]
-        // The job screen has no one state to be drawn in, so it is left out
-        // here and drawn once per phase below.
-        for step in WizardStep.allCases where step != .job {
-            report(step.rawValue, WizardStepContent(step: step, model: drawnFrom[step] ?? model), into: folder)
+        // The job screen and the last screen have no one state to be drawn in,
+        // so they are left out here and drawn once per state below. The step
+        // the loop does draw for Connect is the one with nothing on the cable.
+        for step in WizardStep.allCases where step != .job && step != .done {
+            report(step.rawValue, WizardStepContent(step: step, model: model), into: folder)
         }
-        // The last step again, for the one thing it ever says about the
-        // backup: a folder that would not go, which is still on this Mac.
-        report("done-backup-kept", WizardStepContent(step: .done, model: keptBackup()), into: folder)
+        // The last step in each of the things it says: the plain end of a run,
+        // the reminder a phone whose Find My is still off gets, the phone that
+        // never said what it is now, a copy this Mac would not let go of, and
+        // the other direction.
+        for sample in doneSamples() {
+            report(sample.name, WizardStepContent(step: .done, model: sample.model), into: folder)
+        }
         // The checks with the line about a backup an earlier run left behind,
         // which this one cleared on its way in.
         report(
@@ -106,20 +106,80 @@ enum UISmoke {
         for sample in jobSamples(at: now) {
             report("job-\(sample.name)", WizardStepContent(step: .job, model: sample.model), into: folder)
         }
-        report("connect-one-phone", ConnectStep(model: sampleModel([sampleDevice])), into: folder)
-        report(
-            "connect-two-phones",
-            ConnectStep(model: sampleModel([sampleDevice, sampleSecondDevice])),
-            into: folder
-        )
-        report(
-            "device-card",
-            DeviceCard(device: sampleDevice, supervised: false, profiles: sampleProfiles),
-            into: folder
-        )
+        // The first screen in each of the things it says. The one with nothing
+        // on the cable is the one the loop above drew.
+        for sample in connectSamples() {
+            report("connect-\(sample.name)", ConnectStep(model: sample.model), into: folder)
+        }
+        report("device-card", DeviceCard(device: sampleDevice), into: folder)
         report("error", ErrorText(DeviceError.trustPending.localizedDescription), into: folder)
         report("window", ContentView(), into: folder)
         exit(0)
+    }
+
+    /// The first screen in each of the things it says. Nothing on the cable is
+    /// the state the loop above draws, so it is not here: what is here is a
+    /// phone that has not trusted this Mac yet, one that refused, one that is
+    /// ready, one that is supervised already, and two at once.
+    private static func connectSamples() -> [(name: String, model: WizardModel)] {
+        [
+            ("trust-pending", sampleModel([sampleSecondDevice])),
+            ("untrusted", sampleModel([sampleUntrustedDevice])),
+            ("one-phone", sampleModel([sampleDevice])),
+            ("supervised", supervisedModel()),
+            ("two-phones", sampleModel([sampleDevice, sampleSecondDevice])),
+        ]
+    }
+
+    /// The last screen in each of the things it says.
+    private static func doneSamples() -> [(name: String, model: WizardModel)] {
+        [
+            ("done", done(findMyOn: true)),
+            ("done-find-my-off", done(findMyOn: false)),
+            ("done-mismatch", done(findMyOn: true, supervisedAfterwards: false)),
+            (
+                "done-leftover",
+                done(
+                    findMyOn: true,
+                    backupRemovalFailure: BackupStoreError
+                        .removeFailed(
+                            BackupFolder.applicationSupportRoot.appendingPathComponent(sampleDevice.udid),
+                            SampleFailure()
+                        )
+                        .localizedDescription
+                )
+            ),
+            (
+                "done-unsupervised",
+                done(findMyOn: true, direction: .unsupervise, supervisedAfterwards: false)
+            ),
+        ]
+    }
+
+    /// A run that is over: the phone back on the cable, whatever it said about
+    /// itself when it got there, and whatever this Mac could not take away
+    /// after it.
+    private static func done(
+        findMyOn: Bool,
+        direction: WizardDirection = .supervise,
+        supervisedAfterwards: Bool = true,
+        backupRemovalFailure: String? = nil
+    ) -> WizardModel {
+        let phone = samplePhone(findMyOn: findMyOn)
+        let model = WizardModel(finished: sampleWatcher([phone]))
+        model.show(
+            WizardModel.Sample(
+                step: .done,
+                direction: direction,
+                udid: phone.udid,
+                restore: WizardModel.RestoreState(
+                    stage: .finished,
+                    supervisedAfterwards: supervisedAfterwards
+                ),
+                backupRemovalFailure: backupRemovalFailure
+            )
+        )
+        return model
     }
 
     /// The Restrictions screen in the states a run reaches after the card is
@@ -438,12 +498,47 @@ enum UISmoke {
         pairingState: .trustPending
     )
 
+    /// An iPhone that answered the Trust dialog with Don't Trust, which is the
+    /// one state the first screen asks somebody to unplug a cable over.
+    private static let sampleUntrustedDevice = ConnectedDevice(
+        udid: "22222222-2222222222222222",
+        name: "iPhone",
+        productType: "iPhone15,2",
+        marketingName: "iPhone 14 Pro",
+        iosVersion: nil,
+        findMyOn: nil,
+        backupEncrypted: nil,
+        cloudBackupOn: nil,
+        lastCloudBackup: nil,
+        dataCapacity: nil,
+        dataAvailable: nil,
+        pairingState: .untrusted
+    )
+
     /// What MCInstall would say about the first sample phone.
     private static let sampleConfiguration = CloudConfiguration(
         isSupervised: false,
         organizationName: nil,
         raw: "<dict/>"
     )
+
+    /// The first screen for a phone that is supervised already, which is the
+    /// one state that offers to undo a run rather than start one.
+    private static func supervisedModel() -> WizardModel {
+        WizardModel(
+            watcher: DeviceWatcher(
+                sample: [sampleDevice],
+                cloudConfigurations: [
+                    sampleDevice.udid: CloudConfiguration(
+                        isSupervised: true,
+                        organizationName: "attentionawareness",
+                        raw: "<dict/>"
+                    ),
+                ],
+                installedProfiles: [sampleDevice.udid: sampleProfiles]
+            )
+        )
+    }
 
     /// A profile of ours on that phone, so the card draws the row the way it
     /// looks after a run.
@@ -479,26 +574,6 @@ enum UISmoke {
         let phone = samplePhone(findMyOn: false, backupEncrypted: true)
         let model = WizardModel(watcher: sampleWatcher([phone]))
         model.show(WizardModel.Sample(step: .ready, udid: phone.udid))
-        return model
-    }
-
-    /// A run that is over and could not take its backup off the disk, which is
-    /// the one sentence the last step ever says about a backup.
-    private static func keptBackup() -> WizardModel {
-        let model = WizardModel(finished: sampleWatcher([sampleDevice]))
-        model.show(
-            WizardModel.Sample(
-                step: .done,
-                udid: sampleDevice.udid,
-                restore: WizardModel.RestoreState(stage: .finished, supervisedAfterwards: true),
-                backupRemovalFailure: BackupStoreError
-                    .removeFailed(
-                        BackupFolder.applicationSupportRoot.appendingPathComponent(sampleDevice.udid),
-                        SampleFailure()
-                    )
-                    .localizedDescription
-            )
-        )
         return model
     }
 

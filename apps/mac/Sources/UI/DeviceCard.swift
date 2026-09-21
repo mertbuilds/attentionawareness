@@ -1,21 +1,18 @@
 import SwiftUI
 
-/// What the iPhone on the cable says about itself: the card the first step and
-/// the last step both show.
+/// What the iPhone on the cable says about itself: the card the first step
+/// shows once a phone has trusted this Mac.
+///
+/// Three rows, and nothing the run is about to change. Whether the phone is
+/// supervised already is said by the button under the card, not by a row.
 struct DeviceCard: View {
     let device: ConnectedDevice
-    /// What MCInstall said. Nil when the phone has not answered yet.
-    let supervised: Bool?
-    /// The configuration profiles on the phone, in the order it lists them.
-    let profiles: [InstalledProfile]
 
     var body: some View {
         Card {
             CardRow(name: "Name", value: device.name ?? "iPhone")
             CardRow(name: "Model", value: Self.model(device))
-            CardRow(name: "iOS", value: device.iosVersion ?? "Not read yet")
-            CardRow(name: "State", value: Self.state(supervised))
-            CardRow(name: "Profiles", value: Self.profileNames(profiles))
+            CardRow(name: "iOS", value: device.iosVersion ?? "Reading")
         }
     }
 
@@ -30,30 +27,7 @@ struct DeviceCard: View {
         case (.none, .some(let product)):
             return product
         case (.none, .none):
-            return "Not read yet"
-        }
-    }
-
-    /// Every profile the phone lists, one per line: the name Settings shows,
-    /// then whether this app put it there and whether it can be deleted on the
-    /// phone.
-    static func profileNames(_ profiles: [InstalledProfile]) -> String {
-        guard !profiles.isEmpty else { return "None" }
-        return profiles.map { profile in
-            let marks = [profile.isOurs ? "ours" : nil, profile.removalDisallowed ? "locked" : nil]
-                .compactMap { $0 }
-            guard !marks.isEmpty else { return profile.displayName }
-            return "\(profile.displayName) (\(marks.joined(separator: ", ")))"
-        }
-        .joined(separator: "\n")
-    }
-
-    /// Supervision in the two words the phone's own Settings uses.
-    static func state(_ supervised: Bool?) -> String {
-        switch supervised {
-        case true: return "Supervised"
-        case false: return "Not supervised"
-        case nil: return "Not read yet"
+            return "Reading"
         }
     }
 }

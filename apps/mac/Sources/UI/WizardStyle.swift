@@ -65,6 +65,9 @@ struct InfoButton: View {
 enum SiteLink {
     static var home: URL? { url(path: "/", campaign: "footer") }
     static var help: URL? { url(path: "/", campaign: "help") }
+    /// The share line on the last step, which is the one place the app asks
+    /// for anything.
+    static var done: URL? { url(path: "/", campaign: "done") }
 
     private static func url(path: String, campaign: String) -> URL? {
         URL(string: "https://attentionawareness.com\(path)"
@@ -77,6 +80,10 @@ enum SiteLink {
 struct StepLayout<Content: View, Actions: View>: View {
     let title: String
     let lead: String?
+    /// What the "i" beside the title holds, where the title is a claim about
+    /// the iPhone somebody may want to see for themselves. Nil takes the
+    /// button off the screen, which is every step but the last.
+    let note: String?
     let error: String?
     let content: Content
     let actions: Actions
@@ -84,12 +91,14 @@ struct StepLayout<Content: View, Actions: View>: View {
     init(
         title: String,
         lead: String? = nil,
+        note: String? = nil,
         error: String? = nil,
         @ViewBuilder content: () -> Content,
         @ViewBuilder actions: () -> Actions
     ) {
         self.title = title
         self.lead = lead
+        self.note = note
         self.error = error
         self.content = content()
         self.actions = actions()
@@ -97,10 +106,15 @@ struct StepLayout<Content: View, Actions: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(title)
-                .font(.title2)
-                .fontWeight(.semibold)
-                .fixedSize(horizontal: false, vertical: true)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(title)
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let note {
+                    InfoButton(text: note)
+                }
+            }
 
             if let lead {
                 Text(lead)

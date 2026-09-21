@@ -15,38 +15,46 @@ struct ConnectStep: View {
             lead: lead,
             error: model.watcher.lastError
         ) {
-            if model.devices.count > 1 {
-                DevicePicker(
-                    devices: model.devices,
-                    selectedUdid: model.device?.udid,
-                    cloudConfigurations: model.watcher.cloudConfigurations,
-                    pick: { model.select($0) }
-                )
-            } else if let device = model.device, device.pairingState == .paired {
-                DeviceCard(
-                    device: device,
-                    supervised: model.isSupervised,
-                    profiles: model.installedProfiles
-                )
-            } else {
-                HStack(spacing: 10) {
-                    ProgressView()
-                        .controlSize(.small)
-                    Text("Looking for an iPhone on the cable.")
-                        .foregroundStyle(.secondary)
-                }
-            }
+            content
         } actions: {
-            if let device = model.device, device.pairingState == .paired {
-                if model.isSupervised == true {
-                    Button("Unsupervise this iPhone") {
-                        model.start(.unsupervise)
-                    }
-                    .controlSize(.large)
-                } else {
-                    PrimaryButton(title: "Supervise this iPhone") {
-                        model.start(.supervise)
-                    }
+            actions
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if model.devices.count > 1 {
+            DevicePicker(
+                devices: model.devices,
+                selectedUdid: model.device?.udid,
+                pick: { model.select($0) }
+            )
+        } else if let device = model.device {
+            if device.pairingState == .paired {
+                DeviceCard(device: device)
+            }
+        } else {
+            // Nothing is plugged in and the app is watching for one. A
+            // spinner says that on its own: naming what it is waiting for
+            // would repeat the line above it.
+            ProgressView()
+                .controlSize(.small)
+        }
+    }
+
+    @ViewBuilder
+    private var actions: some View {
+        if let device = model.device, device.pairingState == .paired {
+            // Which button shows is the only thing that says whether the
+            // phone is supervised already, so the card carries no such row.
+            if model.isSupervised == true {
+                Button("Unsupervise iPhone") {
+                    model.start(.unsupervise)
+                }
+                .controlSize(.large)
+            } else {
+                PrimaryButton(title: "Continue") {
+                    model.start(.supervise)
                 }
             }
         }
@@ -54,21 +62,22 @@ struct ConnectStep: View {
 
     /// The sentence under the title says what to do next. With more than one
     /// phone on the cable it asks for a choice; with one it changes with how
-    /// far that phone has got with trusting this Mac.
-    private var lead: String {
+    /// far that phone has got with trusting this Mac. A phone that is trusted
+    /// needs no sentence at all: the card under it is the answer.
+    private var lead: String? {
         if model.devices.count > 1 {
-            return "More than one iPhone is connected. Pick the one to work on."
+            return "Choose the iPhone to supervise."
         }
         guard let device = model.device else {
-            return "Plug in your iPhone with a cable."
+            return "Use a USB cable. Unlock iPhone and tap Trust if asked."
         }
         switch device.pairingState {
         case .trustPending:
-            return "Tap Trust on the phone, then enter its passcode."
+            return "Tap Trust on iPhone, then enter its passcode."
         case .untrusted:
-            return "Unplug the iPhone, plug it back in, and tap Trust."
+            return "Unplug iPhone, plug it back in, then tap Trust."
         case .paired:
-            return "This is the iPhone this run is about."
+            return nil
         }
     }
 }

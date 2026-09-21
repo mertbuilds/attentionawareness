@@ -160,6 +160,9 @@ targets:
       # figure, and what each layer's own wording turns into.
       - Sources/UI/JobPhase.swift
       - Sources/UI/JobFailure.swift
+      # The body of the last screen is a value as well: three answers in, one
+      # or two sentences out.
+      - Sources/UI/DoneCopy.swift
       # Whether the reader already has a backup of their own is decided here,
       # and the whole of it is values: two answers in, one line of the checks
       # out. Finder's own folder is the one thing it reads, and the tests
