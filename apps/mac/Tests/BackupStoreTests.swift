@@ -1,4 +1,5 @@
-import XCTest
+import Foundation
+import Testing
 
 /// Measuring a backup folder, and taking one off the disk for good.
 ///
@@ -6,18 +7,18 @@ import XCTest
 /// and Info.plist with a few files of content, one folder that a run stopped
 /// part way through and left unreadable, and the folder that holds the
 /// untouched copies.
-final class BackupStoreTests: XCTestCase {
+final class BackupStoreTests {
     /// The two live beside each other, so a folder outside the backups folder
     /// is always somewhere the store must refuse.
-    private var base: URL!
-    private var root: URL!
+    private let base: URL
+    private let root: URL
 
     private static let udid = "00008140-0006284A3CA2801C"
     private static let otherUdid = "00008140-000B2C3D4E5F6071"
     private static let made = Date(timeIntervalSince1970: 1_789_300_000)
     private static let contentFileBytes = 4096
 
-    override func setUpWithError() throws {
+    init() throws {
         // The system temporary directory sits under /var, which is a symlink
         // to /private/var. Resolving it once here keeps every URL built from it
         // comparable with the ones the store works with, including after a
@@ -29,68 +30,65 @@ final class BackupStoreTests: XCTestCase {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
     }
 
-    override func tearDownWithError() throws {
+    deinit {
         try? FileManager.default.removeItem(at: base)
     }
 
     // MARK: - Measuring
 
-    func testTheSizeAddsUpTheFilesInTheFolder() throws {
+    @Test func theSizeAddsUpTheFilesInTheFolder() throws {
         let folder = try makeBackup(udid: Self.udid, contentFiles: 3)
 
-        let bytes = try XCTUnwrap(BackupStore.size(of: folder))
+        let bytes = try #require(BackupStore.size(of: folder))
 
         let written = UInt64(3 * Self.contentFileBytes)
         // The walk asks for the room each file takes rather than the length of
         // its contents, so the number is the written bytes rounded up a block
         // at a time, over the three content files and the two plists.
-        XCTAssertGreaterThanOrEqual(bytes, written)
-        XCTAssertLessThan(bytes, written + UInt64(5 * 65_536))
+        #expect(bytes >= written)
+        #expect(bytes < written + UInt64(5 * 65_536))
     }
 
-    func testABiggerFolderMeasuresBigger() throws {
+    @Test func aBiggerFolderMeasuresBigger() throws {
         let big = try makeBackup(udid: Self.udid, contentFiles: 12)
         let small = try makeBackup(udid: Self.otherUdid, contentFiles: 3)
 
-        XCTAssertGreaterThan(
-            try XCTUnwrap(BackupStore.size(of: big)),
-            try XCTUnwrap(BackupStore.size(of: small))
-        )
+        #expect(try #require(BackupStore.size(of: big)) > #require(BackupStore.size(of: small)))
     }
 
-    func testAFolderWithNothingReadableInItIsStillMeasured() throws {
+    @Test func aFolderWithNothingReadableInItIsStillMeasured() throws {
         let folder = try makeHalfWrittenBackup(udid: Self.udid)
 
-        XCTAssertGreaterThan(try XCTUnwrap(BackupStore.size(of: folder)), 0)
+        #expect(try #require(BackupStore.size(of: folder)) > 0)
     }
 
-    func testACancelledWalkGivesNoNumberAtAll() throws {
+    @Test func aCancelledWalkGivesNoNumberAtAll() throws {
         let folder = try makeBackup(udid: Self.udid)
 
         // Half a number is worse than none.
-        XCTAssertNil(BackupStore.size(of: folder, isCancelled: { true }))
+        #expect(BackupStore.size(of: folder, isCancelled: { true }) == nil)
     }
 
-    func testAFolderThatIsNotThereMeasuresNothing() {
-        XCTAssertEqual(BackupStore.size(of: root.appendingPathComponent("nowhere")), 0)
+    @Test func aFolderThatIsNotThereMeasuresNothing() {
+        #expect(BackupStore.size(of: root.appendingPathComponent("nowhere")) == 0)
     }
 
     // MARK: - Deleting
 
-    func testDeletingTakesTheFolderAndLeavesEveryOtherPhoneWhereItIs() throws {
+    @Test func deletingTakesTheFolderAndLeavesEveryOtherPhoneWhereItIs() throws {
         let folder = try makeBackup(udid: Self.udid)
         let otherPhone = try makeBackup(udid: Self.otherUdid)
         let removals = Removals(in: base)
 
         let took = try BackupStore.delete(udid: Self.udid, root: root, remove: removals.action)
 
-        XCTAssertTrue(took)
-        XCTAssertEqual(removals.taken.map(resolved), [folder].map(resolved))
-        XCTAssertFalse(FileManager.default.fileExists(atPath: folder.path))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: otherPhone.path))
+        #expect(took)
+        #expect(removals.taken.map(resolved) == [folder].map(resolved))
+        #expect(FileManager.default.fileExists(atPath: folder.path) == false)
+        #expect(FileManager.default.fileExists(atPath: otherPhone.path))
     }
 
-    func testEverySavedCopyOfThatPhoneGoesWithIt() throws {
+    @Test func everySavedCopyOfThatPhoneGoesWithIt() throws {
         let folder = try makeBackup(udid: Self.udid)
         try makeBackup(udid: Self.otherUdid)
         let older = try makePristineCopy(udid: Self.udid, stamp: "20260917-101500")
@@ -102,96 +100,96 @@ final class BackupStoreTests: XCTestCase {
 
         // Every copy of this phone goes, because the backup they are a way
         // back to is gone. The other phone's copy stays.
-        XCTAssertEqual(removals.taken.map(resolved), [folder, older, newer].map(resolved))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: otherPhone.path))
+        #expect(removals.taken.map(resolved) == [folder, older, newer].map(resolved))
+        #expect(FileManager.default.fileExists(atPath: otherPhone.path))
     }
 
-    func testAFolderARunLeftHalfWrittenIsTakenAsWell() throws {
+    @Test func aFolderARunLeftHalfWrittenIsTakenAsWell() throws {
         // It holds no readable Manifest.plist, which is how a backup that
         // stopped part way looks, and it is the same 63 GB as a whole one.
         let folder = try makeHalfWrittenBackup(udid: Self.udid)
         let removals = Removals(in: base)
 
-        XCTAssertTrue(try BackupStore.delete(udid: Self.udid, root: root, remove: removals.action))
-        XCTAssertFalse(FileManager.default.fileExists(atPath: folder.path))
+        #expect(try BackupStore.delete(udid: Self.udid, root: root, remove: removals.action))
+        #expect(FileManager.default.fileExists(atPath: folder.path) == false)
     }
 
-    func testAPhoneThisMacHoldsNothingForTakesNothing() throws {
+    @Test func aPhoneThisMacHoldsNothingForTakesNothing() throws {
         try makeBackup(udid: Self.otherUdid)
         let removals = Removals(in: base)
 
-        XCTAssertFalse(try BackupStore.delete(udid: Self.udid, root: root, remove: removals.action))
-        XCTAssertEqual(removals.taken, [])
+        #expect(try BackupStore.delete(udid: Self.udid, root: root, remove: removals.action) == false)
+        #expect(removals.taken == [])
     }
 
-    func testTheSavedCopiesGoEvenWhenTheBackupItselfIsAlreadyGone() throws {
+    @Test func theSavedCopiesGoEvenWhenTheBackupItselfIsAlreadyGone() throws {
         let copy = try makePristineCopy(udid: Self.udid, stamp: "20260918-090000")
         let removals = Removals(in: base)
 
-        XCTAssertTrue(try BackupStore.delete(udid: Self.udid, root: root, remove: removals.action))
-        XCTAssertFalse(FileManager.default.fileExists(atPath: copy.path))
+        #expect(try BackupStore.delete(udid: Self.udid, root: root, remove: removals.action))
+        #expect(FileManager.default.fileExists(atPath: copy.path) == false)
     }
 
     // MARK: - What is never deleted
 
-    func testANameThatMeansSomewhereElseIsRefused() throws {
+    @Test func aNameThatMeansSomewhereElseIsRefused() throws {
         let removals = Removals(in: base)
         let outside = try makeBackup(udid: Self.udid)
 
         for name in ["", ".", "..", "../Backups", "\(Self.udid)/3d"] {
-            XCTAssertThrowsError(
+            let error = try #require(throws: BackupStoreError.self) {
                 try BackupStore.delete(udid: name, root: root, remove: removals.action)
-            ) { error in
-                guard case BackupStoreError.outsideBackupsFolder = error else {
-                    return XCTFail("expected outsideBackupsFolder for \(name), got \(error)")
-                }
+            }
+            guard case .outsideBackupsFolder = error else {
+                Issue.record("expected outsideBackupsFolder for \(name), got \(error)")
+                continue
             }
         }
-        XCTAssertEqual(removals.taken, [])
-        XCTAssertTrue(FileManager.default.fileExists(atPath: outside.path))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: base.path))
+        #expect(removals.taken == [])
+        #expect(FileManager.default.fileExists(atPath: outside.path))
+        #expect(FileManager.default.fileExists(atPath: base.path))
     }
 
-    func testTheFolderOfSavedCopiesIsRefused() throws {
+    @Test func theFolderOfSavedCopiesIsRefused() throws {
         let pristine = SupervisionPatch.pristineRoot(forBackupRoot: root)
         try makePristineCopy(udid: Self.udid, stamp: "20260918-090000")
         let removals = Removals(in: base)
 
-        XCTAssertThrowsError(
+        let error = try #require(throws: BackupStoreError.self) {
             try BackupStore.delete(
                 udid: SupervisionPatch.pristineDirectoryName,
                 root: root,
                 remove: removals.action
             )
-        ) { error in
-            guard case BackupStoreError.outsideBackupsFolder = error else {
-                return XCTFail("expected outsideBackupsFolder, got \(error)")
-            }
         }
-        XCTAssertEqual(removals.taken, [])
-        XCTAssertTrue(FileManager.default.fileExists(atPath: pristine.path))
+        guard case .outsideBackupsFolder = error else {
+            Issue.record("expected outsideBackupsFolder, got \(error)")
+            return
+        }
+        #expect(removals.taken == [])
+        #expect(FileManager.default.fileExists(atPath: pristine.path))
     }
 
-    func testARefusedDeleteIsReportedInOneSentenceThatNamesTheFolder() throws {
+    @Test func aRefusedDeleteIsReportedInOneSentenceThatNamesTheFolder() throws {
         struct Refused: LocalizedError {
             var errorDescription: String? { "The volume is read only." }
         }
         let folder = try makeBackup(udid: Self.udid)
 
-        XCTAssertThrowsError(
+        let error = try #require(throws: BackupStoreError.self) {
             try BackupStore.delete(udid: Self.udid, root: root, remove: { _ in throw Refused() })
-        ) { error in
-            guard case BackupStoreError.removeFailed = error else {
-                return XCTFail("expected removeFailed, got \(error)")
-            }
-            // The path is in the sentence because somebody has to go and look.
-            XCTAssertEqual(
-                (error as? LocalizedError)?.errorDescription,
-                "The copy at \(folder.path) could not be deleted, so it is still on this Mac. "
-                    + "macOS reported: The volume is read only."
-            )
         }
-        XCTAssertTrue(FileManager.default.fileExists(atPath: folder.path))
+        guard case .removeFailed = error else {
+            Issue.record("expected removeFailed, got \(error)")
+            return
+        }
+        // The path is in the sentence because somebody has to go and look.
+        #expect(
+            (error as? LocalizedError)?.errorDescription
+                == "The copy at \(folder.path) could not be deleted, so it is still on this Mac. "
+                    + "macOS reported: The volume is read only."
+        )
+        #expect(FileManager.default.fileExists(atPath: folder.path))
     }
 
     // MARK: - The default
@@ -200,15 +198,15 @@ final class BackupStoreTests: XCTestCase {
     /// app runs with, which has to take the folder off the disk rather than
     /// move it to the Trash: the Trash would hold on to all 63 GB of somebody's
     /// iPhone until they emptied it.
-    func testTheDefaultTakesTheFolderOffTheDiskRatherThanToTheTrash() throws {
+    @Test func theDefaultTakesTheFolderOffTheDiskRatherThanToTheTrash() throws {
         let folder = try makeBackup(udid: Self.udid)
         let copy = try makePristineCopy(udid: Self.udid, stamp: "20260918-090000")
 
         try BackupStore.delete(udid: Self.udid, root: root)
 
-        XCTAssertFalse(FileManager.default.fileExists(atPath: folder.path))
-        XCTAssertFalse(FileManager.default.fileExists(atPath: copy.path))
-        XCTAssertEqual(try namesInTrash(startingWith: Self.udid), [])
+        #expect(FileManager.default.fileExists(atPath: folder.path) == false)
+        #expect(FileManager.default.fileExists(atPath: copy.path) == false)
+        #expect(try namesInTrash(startingWith: Self.udid) == [])
     }
 
     // MARK: - Helpers

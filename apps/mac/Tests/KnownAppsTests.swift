@@ -1,118 +1,119 @@
-import XCTest
+import Foundation
+import Testing
 
 /// The apps this app can name without asking Apple.
 ///
 /// The table is what keeps a reader's blocked list spelled the way the default
 /// profile spells it, and the folding is what makes a name typed by hand match
 /// it. Nothing here reaches the network.
-final class KnownAppsTests: XCTestCase {
+struct KnownAppsTests {
     // MARK: - One name as a lookup key
 
-    func testFoldingDropsTheCase() {
-        XCTAssertEqual(KnownApps.fold("TikTok"), "tiktok")
-        XCTAssertEqual(KnownApps.fold("TIKTOK"), "tiktok")
+    @Test func foldingDropsTheCase() {
+        #expect(KnownApps.fold("TikTok") == "tiktok")
+        #expect(KnownApps.fold("TIKTOK") == "tiktok")
     }
 
-    func testFoldingDropsEverythingThatIsNotALetterOrADigit() {
-        XCTAssertEqual(KnownApps.fold("Tik Tok"), "tiktok")
-        XCTAssertEqual(KnownApps.fold("Tik-Tok"), "tiktok")
-        XCTAssertEqual(KnownApps.fold(" tik.tok! "), "tiktok")
-        XCTAssertEqual(KnownApps.fold("AT&T"), "att")
+    @Test func foldingDropsEverythingThatIsNotALetterOrADigit() {
+        #expect(KnownApps.fold("Tik Tok") == "tiktok")
+        #expect(KnownApps.fold("Tik-Tok") == "tiktok")
+        #expect(KnownApps.fold(" tik.tok! ") == "tiktok")
+        #expect(KnownApps.fold("AT&T") == "att")
     }
 
-    func testFoldingDropsDiacritics() {
-        XCTAssertEqual(KnownApps.fold("Gösteri"), "gosteri")
-        XCTAssertEqual(KnownApps.fold("Café"), "cafe")
+    @Test func foldingDropsDiacritics() {
+        #expect(KnownApps.fold("Gösteri") == "gosteri")
+        #expect(KnownApps.fold("Café") == "cafe")
     }
 
-    func testFoldingKeepsDigits() {
-        XCTAssertEqual(KnownApps.fold("9GAG"), "9gag")
-        XCTAssertEqual(KnownApps.fold("Threads 2"), "threads2")
+    @Test func foldingKeepsDigits() {
+        #expect(KnownApps.fold("9GAG") == "9gag")
+        #expect(KnownApps.fold("Threads 2") == "threads2")
     }
 
-    func testANameOfNothingButPunctuationFoldsToNothing() {
-        XCTAssertEqual(KnownApps.fold(""), "")
-        XCTAssertEqual(KnownApps.fold("  -  "), "")
+    @Test func aNameOfNothingButPunctuationFoldsToNothing() {
+        #expect(KnownApps.fold("") == "")
+        #expect(KnownApps.fold("  -  ") == "")
     }
 
     // MARK: - What the table knows
 
-    func testAStoreAppIsFoundHoweverItsNameIsTyped() {
+    @Test func aStoreAppIsFoundHoweverItsNameIsTyped() {
         for typed in ["TikTok", "tiktok", "Tik Tok", " TIK-TOK "] {
-            XCTAssertEqual(
-                KnownApps.known(typed),
-                KnownApp(bundleId: "com.zhiliaoapp.musically", name: "TikTok", system: false),
+            #expect(
+                KnownApps.known(typed)
+                    == KnownApp(bundleId: "com.zhiliaoapp.musically", name: "TikTok", system: false),
                 "\(typed) was not read as TikTok"
             )
         }
     }
 
-    func testTheTableNamesAnAppTheWayTheProfileNamesIt() {
-        XCTAssertEqual(KnownApps.known("youtube")?.name, "YouTube")
-        XCTAssertEqual(KnownApps.known("linkedin")?.name, "LinkedIn")
+    @Test func theTableNamesAnAppTheWayTheProfileNamesIt() {
+        #expect(KnownApps.known("youtube")?.name == "YouTube")
+        #expect(KnownApps.known("linkedin")?.name == "LinkedIn")
     }
 
-    func testApplesOwnAppsCarryNoBundleIdBecauseNothingHidesThem() {
-        XCTAssertEqual(
-            KnownApps.known("safari"),
-            KnownApp(bundleId: nil, name: "Safari", system: true)
+    @Test func applesOwnAppsCarryNoBundleIdBecauseNothingHidesThem() {
+        #expect(
+            KnownApps.known("safari")
+                == KnownApp(bundleId: nil, name: "Safari", system: true)
         )
-        XCTAssertEqual(KnownApps.known("Messages")?.system, true)
-        XCTAssertNil(KnownApps.known("Messages")?.bundleId)
+        #expect(KnownApps.known("Messages")?.system == true)
+        #expect(KnownApps.known("Messages")?.bundleId == nil)
     }
 
-    func testANameTheTableHasNeverHeardOfIsNothing() {
-        XCTAssertNil(KnownApps.known("Duolingo"))
-        XCTAssertNil(KnownApps.known(""))
+    @Test func aNameTheTableHasNeverHeardOfIsNothing() {
+        #expect(KnownApps.known("Duolingo") == nil)
+        #expect(KnownApps.known("") == nil)
     }
 
-    func testBothOfTwittersNamesReachTheSameApp() {
-        XCTAssertEqual(KnownApps.known("X")?.bundleId, "com.atebits.Tweetie2")
-        XCTAssertEqual(KnownApps.known("Twitter")?.bundleId, "com.atebits.Tweetie2")
+    @Test func bothOfTwittersNamesReachTheSameApp() {
+        #expect(KnownApps.known("X")?.bundleId == "com.atebits.Tweetie2")
+        #expect(KnownApps.known("Twitter")?.bundleId == "com.atebits.Tweetie2")
     }
 
     // MARK: - What a scan leaves unticked
 
-    func testTheAppsADayNeedsAreNotTickedForTheReader() {
-        XCTAssertTrue(KnownApps.keepByDefault("WhatsApp"))
-        XCTAssertTrue(KnownApps.keepByDefault("messages"))
-        XCTAssertTrue(KnownApps.keepByDefault(" tele gram "))
+    @Test func theAppsADayNeedsAreNotTickedForTheReader() {
+        #expect(KnownApps.keepByDefault("WhatsApp"))
+        #expect(KnownApps.keepByDefault("messages"))
+        #expect(KnownApps.keepByDefault(" tele gram "))
     }
 
-    func testAFeedAppIsNotOneADayNeeds() {
-        XCTAssertFalse(KnownApps.keepByDefault("TikTok"))
-        XCTAssertFalse(KnownApps.keepByDefault("Duolingo"))
+    @Test func aFeedAppIsNotOneADayNeeds() {
+        #expect(KnownApps.keepByDefault("TikTok") == false)
+        #expect(KnownApps.keepByDefault("Duolingo") == false)
     }
 
     // MARK: - The table itself
 
-    func testTheTableListsTheStoreAppsFirstAndApplesOwnAfterThem() {
-        XCTAssertEqual(KnownApps.names.count, KnownApps.storeApps.count + KnownApps.systemApps.count)
-        XCTAssertEqual(KnownApps.names.first, "Discord")
-        XCTAssertEqual(Array(KnownApps.names.suffix(KnownApps.systemApps.count)), KnownApps.systemApps)
+    @Test func theTableListsTheStoreAppsFirstAndApplesOwnAfterThem() {
+        #expect(KnownApps.names.count == KnownApps.storeApps.count + KnownApps.systemApps.count)
+        #expect(KnownApps.names.first == "Discord")
+        #expect(Array(KnownApps.names.suffix(KnownApps.systemApps.count)) == KnownApps.systemApps)
     }
 
-    func testNoAppIsNamedTwice() {
-        XCTAssertEqual(Set(KnownApps.names).count, KnownApps.names.count)
-        XCTAssertEqual(Set(KnownApps.names.map(KnownApps.fold)).count, KnownApps.names.count)
+    @Test func noAppIsNamedTwice() {
+        #expect(Set(KnownApps.names).count == KnownApps.names.count)
+        #expect(Set(KnownApps.names.map(KnownApps.fold)).count == KnownApps.names.count)
     }
 
-    func testEveryNameInTheTableFindsItselfInIt() {
+    @Test func everyNameInTheTableFindsItselfInIt() {
         for name in KnownApps.names {
-            XCTAssertEqual(KnownApps.known(name)?.name, name, "\(name) does not find itself")
+            #expect(KnownApps.known(name)?.name == name, "\(name) does not find itself")
         }
     }
 
-    func testEveryAppTheDefaultProfileBlocksIsInTheTable() {
+    @Test func everyAppTheDefaultProfileBlocksIsInTheTable() {
         let ids = Set(KnownApps.storeApps.map(\.value))
         for app in ProfileConfig.default.blockedApps {
-            XCTAssertTrue(ids.contains(app.bundleId), "\(app.name) is not in the table")
+            #expect(ids.contains(app.bundleId), "\(app.name) is not in the table")
         }
     }
 
-    func testEveryAppTheTableKeepsByDefaultIsAnAppItNames() {
+    @Test func everyAppTheTableKeepsByDefaultIsAnAppItNames() {
         for name in KnownApps.keepApps {
-            XCTAssertNotNil(KnownApps.known(name), "\(name) is kept but not named")
+            #expect(KnownApps.known(name) != nil, "\(name) is kept but not named")
         }
     }
 }

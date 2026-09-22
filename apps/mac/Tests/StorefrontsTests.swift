@@ -1,103 +1,104 @@
-import XCTest
+import Foundation
+import Testing
 
 /// The country the App Store is asked about.
 ///
 /// Results are storefront-scoped, so the wrong store means an app the reader
 /// has installed simply is not in the list. Nothing here reaches Apple: the
 /// table, the names and the flags are all local.
-final class StorefrontsTests: XCTestCase {
+struct StorefrontsTests {
     // MARK: - The table
 
-    func testEveryCodeIsTwoLowercaseLetters() {
+    @Test func everyCodeIsTwoLowercaseLetters() {
         for code in Storefronts.codes {
-            XCTAssertEqual(code.count, 2, "\(code) is not a two letter code")
-            XCTAssertEqual(code, code.lowercased(), "\(code) is not lowercase")
+            #expect(code.count == 2, "\(code) is not a two letter code")
+            #expect(code == code.lowercased(), "\(code) is not lowercase")
         }
     }
 
-    func testNoStoreIsListedTwice() {
-        XCTAssertEqual(Set(Storefronts.codes).count, Storefronts.codes.count)
+    @Test func noStoreIsListedTwice() {
+        #expect(Set(Storefronts.codes).count == Storefronts.codes.count)
     }
 
-    func testTheFallbackStoreIsOneOfTheStores() {
-        XCTAssertTrue(Storefronts.codes.contains(Storefronts.fallback))
+    @Test func theFallbackStoreIsOneOfTheStores() {
+        #expect(Storefronts.codes.contains(Storefronts.fallback))
     }
 
-    func testThePickerListsEveryStoreNamedAndFlagged() {
-        XCTAssertEqual(Storefronts.all.count, Storefronts.codes.count)
+    @Test func thePickerListsEveryStoreNamedAndFlagged() {
+        #expect(Storefronts.all.count == Storefronts.codes.count)
         for storefront in Storefronts.all {
-            XCTAssertFalse(storefront.label.isEmpty, "\(storefront.code) has no name")
-            XCTAssertFalse(storefront.flag.isEmpty, "\(storefront.code) has no flag")
+            #expect(storefront.label.isEmpty == false, "\(storefront.code) has no name")
+            #expect(storefront.flag.isEmpty == false, "\(storefront.code) has no flag")
         }
     }
 
-    func testThePickerListsTheStoresInTheOrderAReaderScansThem() {
+    @Test func thePickerListsTheStoresInTheOrderAReaderScansThem() {
         // Sorted by the English name, not by the code, so the list reads the
         // way a reader looks for a country.
         let english = Locale(identifier: "en")
         for (left, right) in zip(Storefronts.all, Storefronts.all.dropFirst()) {
-            XCTAssertNotEqual(
-                left.label.compare(right.label, options: [], range: nil, locale: english),
-                .orderedDescending,
+            #expect(
+                left.label.compare(right.label, options: [], range: nil, locale: english)
+                    != .orderedDescending,
                 "\(left.label) should not come after \(right.label)"
             )
         }
-        XCTAssertEqual(Storefronts.all.first?.label, "Afghanistan")
-        XCTAssertEqual(Storefronts.all.last?.label, "Zimbabwe")
+        #expect(Storefronts.all.first?.label == "Afghanistan")
+        #expect(Storefronts.all.last?.label == "Zimbabwe")
     }
 
     // MARK: - What a store is called
 
-    func testAStoreIsNamedInEnglishWhateverTheMacIsSetTo() {
-        XCTAssertEqual(Storefronts.label(for: "de"), "Germany")
-        XCTAssertEqual(Storefronts.label(for: "gb"), "United Kingdom")
-        XCTAssertEqual(Storefronts.label(for: "us"), "United States")
+    @Test func aStoreIsNamedInEnglishWhateverTheMacIsSetTo() {
+        #expect(Storefronts.label(for: "de") == "Germany")
+        #expect(Storefronts.label(for: "gb") == "United Kingdom")
+        #expect(Storefronts.label(for: "us") == "United States")
     }
 
-    func testACodeTheSystemCannotNameIsNamedHere() {
-        XCTAssertEqual(Storefronts.label(for: "xk"), "Kosovo")
+    @Test func aCodeTheSystemCannotNameIsNamedHere() {
+        #expect(Storefronts.label(for: "xk") == "Kosovo")
     }
 
-    func testACodeThatNamesNoCountryIsItsOwnLabel() {
-        XCTAssertEqual(Storefronts.label(for: "abc"), "ABC")
-        XCTAssertEqual(Storefronts.label(for: ""), "")
+    @Test func aCodeThatNamesNoCountryIsItsOwnLabel() {
+        #expect(Storefronts.label(for: "abc") == "ABC")
+        #expect(Storefronts.label(for: "") == "")
     }
 
-    func testACodeIsNamedWhateverCaseAndSpacingItArrivesIn() {
-        XCTAssertEqual(Storefronts.label(for: " DE "), "Germany")
-        XCTAssertEqual(Storefronts.label(for: "XK"), "Kosovo")
+    @Test func aCodeIsNamedWhateverCaseAndSpacingItArrivesIn() {
+        #expect(Storefronts.label(for: " DE ") == "Germany")
+        #expect(Storefronts.label(for: "XK") == "Kosovo")
     }
 
     // MARK: - The flag
 
-    func testATwoLetterCodeIsItsFlag() {
-        XCTAssertEqual(Storefronts.flag(for: "tr"), "🇹🇷")
-        XCTAssertEqual(Storefronts.flag(for: "US"), "🇺🇸")
-        XCTAssertEqual(Storefronts.flag(for: " de "), "🇩🇪")
+    @Test func aTwoLetterCodeIsItsFlag() {
+        #expect(Storefronts.flag(for: "tr") == "🇹🇷")
+        #expect(Storefronts.flag(for: "US") == "🇺🇸")
+        #expect(Storefronts.flag(for: " de ") == "🇩🇪")
     }
 
-    func testAnythingThatIsNotTwoLettersNamesNoCountrySoItGetsNoFlag() {
-        XCTAssertEqual(Storefronts.flag(for: ""), "")
-        XCTAssertEqual(Storefronts.flag(for: "t"), "")
-        XCTAssertEqual(Storefronts.flag(for: "abc"), "")
-        XCTAssertEqual(Storefronts.flag(for: "12"), "")
-        XCTAssertEqual(Storefronts.flag(for: "t r"), "")
+    @Test func anythingThatIsNotTwoLettersNamesNoCountrySoItGetsNoFlag() {
+        #expect(Storefronts.flag(for: "") == "")
+        #expect(Storefronts.flag(for: "t") == "")
+        #expect(Storefronts.flag(for: "abc") == "")
+        #expect(Storefronts.flag(for: "12") == "")
+        #expect(Storefronts.flag(for: "t r") == "")
     }
 
-    func testAStorefrontCarriesTheFlagOfItsOwnCode() {
-        XCTAssertEqual(Storefront(code: "tr", label: "Türkiye").flag, "🇹🇷")
+    @Test func aStorefrontCarriesTheFlagOfItsOwnCode() {
+        #expect(Storefront(code: "tr", label: "Türkiye").flag == "🇹🇷")
     }
 
     // MARK: - The store searched first
 
-    func testTheStoreComesFromTheRegionOfTheLocale() {
-        XCTAssertEqual(Storefronts.current(Locale(identifier: "tr-TR")), "tr")
-        XCTAssertEqual(Storefronts.current(Locale(identifier: "en-US")), "us")
-        XCTAssertEqual(Storefronts.current(Locale(identifier: "de_DE")), "de")
+    @Test func theStoreComesFromTheRegionOfTheLocale() {
+        #expect(Storefronts.current(Locale(identifier: "tr-TR")) == "tr")
+        #expect(Storefronts.current(Locale(identifier: "en-US")) == "us")
+        #expect(Storefronts.current(Locale(identifier: "de_DE")) == "de")
     }
 
-    func testALocaleThatNamesNoRegionFallsBackToTheUsStore() {
-        XCTAssertEqual(Storefronts.current(Locale(identifier: "en")), Storefronts.fallback)
-        XCTAssertEqual(Storefronts.current(Locale(identifier: "")), Storefronts.fallback)
+    @Test func aLocaleThatNamesNoRegionFallsBackToTheUsStore() {
+        #expect(Storefronts.current(Locale(identifier: "en")) == Storefronts.fallback)
+        #expect(Storefronts.current(Locale(identifier: "")) == Storefronts.fallback)
     }
 }

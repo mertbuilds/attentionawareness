@@ -1,4 +1,5 @@
-import XCTest
+import Foundation
+import Testing
 
 /// Asking Apple for apps, without asking Apple.
 ///
@@ -7,244 +8,243 @@ import XCTest
 /// Apple's unauthenticated requests. What is checked is the two things that
 /// can drift: the url the endpoints are asked with, and what one of their rows
 /// turns into.
-final class AppSearchTests: XCTestCase {
-    private var search = AppSearch()
+@Suite(.serialized)
+final class AppSearchTests {
+    private let search: AppSearch
 
-    override func setUp() {
-        super.setUp()
+    init() {
         StubURLProtocol.reset()
         search = AppSearch(session: StubURLProtocol.session())
     }
 
-    override func tearDown() {
+    deinit {
         StubURLProtocol.reset()
-        super.tearDown()
     }
 
     // MARK: - The name an app is known by
 
-    func testATaglineAfterADashIsNotPartOfTheName() {
-        XCTAssertEqual(AppSearch.shortName("TikTok - Videos, Music & LIVE"), "TikTok")
+    @Test func aTaglineAfterADashIsNotPartOfTheName() {
+        #expect(AppSearch.shortName("TikTok - Videos, Music & LIVE") == "TikTok")
     }
 
-    func testEverySeparatorTheAppStoreUsesCutsTheTagline() {
-        XCTAssertEqual(AppSearch.shortName("Threads – Instagram's text app"), "Threads")
-        XCTAssertEqual(AppSearch.shortName("Reddit — Dive into anything"), "Reddit")
-        XCTAssertEqual(AppSearch.shortName("Notion: notes, docs, tasks"), "Notion")
-        XCTAssertEqual(AppSearch.shortName("Pinterest | Ideas"), "Pinterest")
-        XCTAssertEqual(AppSearch.shortName("Kick · Live streaming"), "Kick")
+    @Test func everySeparatorTheAppStoreUsesCutsTheTagline() {
+        #expect(AppSearch.shortName("Threads – Instagram's text app") == "Threads")
+        #expect(AppSearch.shortName("Reddit — Dive into anything") == "Reddit")
+        #expect(AppSearch.shortName("Notion: notes, docs, tasks") == "Notion")
+        #expect(AppSearch.shortName("Pinterest | Ideas") == "Pinterest")
+        #expect(AppSearch.shortName("Kick · Live streaming") == "Kick")
     }
 
-    func testANameWithNoTaglineIsLeftAlone() {
-        XCTAssertEqual(AppSearch.shortName("Instagram"), "Instagram")
-        XCTAssertEqual(AppSearch.shortName("X"), "X")
+    @Test func aNameWithNoTaglineIsLeftAlone() {
+        #expect(AppSearch.shortName("Instagram") == "Instagram")
+        #expect(AppSearch.shortName("X") == "X")
     }
 
-    func testTheEarliestSeparatorIsTheOneThatCuts() {
-        XCTAssertEqual(AppSearch.shortName("Foo: bar - baz"), "Foo")
-        XCTAssertEqual(AppSearch.shortName("Foo - bar: baz"), "Foo")
+    @Test func theEarliestSeparatorIsTheOneThatCuts() {
+        #expect(AppSearch.shortName("Foo: bar - baz") == "Foo")
+        #expect(AppSearch.shortName("Foo - bar: baz") == "Foo")
     }
 
-    func testANameThatStartsOnASeparatorIsNeverCutToNothing() {
-        XCTAssertEqual(AppSearch.shortName(": Foo"), ": Foo")
-        XCTAssertEqual(AppSearch.shortName("| Foo"), "| Foo")
+    @Test func aNameThatStartsOnASeparatorIsNeverCutToNothing() {
+        #expect(AppSearch.shortName(": Foo") == ": Foo")
+        #expect(AppSearch.shortName("| Foo") == "| Foo")
     }
 
-    func testTheNameComesBackTrimmed() {
-        XCTAssertEqual(AppSearch.shortName("  Instagram  "), "Instagram")
-        XCTAssertEqual(AppSearch.shortName("  TikTok  -  Videos "), "TikTok")
+    @Test func theNameComesBackTrimmed() {
+        #expect(AppSearch.shortName("  Instagram  ") == "Instagram")
+        #expect(AppSearch.shortName("  TikTok  -  Videos ") == "TikTok")
     }
 
     // MARK: - How many results one search asks for
 
-    func testTheLimitStaysWithinWhatAListCanShow() {
-        XCTAssertEqual(AppSearch.clamped(AppSearch.defaultLimit), 10)
-        XCTAssertEqual(AppSearch.clamped(0), 1)
-        XCTAssertEqual(AppSearch.clamped(-5), 1)
-        XCTAssertEqual(AppSearch.clamped(100), AppSearch.maxLimit)
-        XCTAssertEqual(AppSearch.clamped(7), 7)
+    @Test func theLimitStaysWithinWhatAListCanShow() {
+        #expect(AppSearch.clamped(AppSearch.defaultLimit) == 10)
+        #expect(AppSearch.clamped(0) == 1)
+        #expect(AppSearch.clamped(-5) == 1)
+        #expect(AppSearch.clamped(100) == AppSearch.maxLimit)
+        #expect(AppSearch.clamped(7) == 7)
     }
 
     // MARK: - The url the search is asked with
 
-    func testTheSearchNamesTheTermTheStoreTheEntityAndTheLimit() async throws {
+    @Test func theSearchNamesTheTermTheStoreTheEntityAndTheLimit() async throws {
         StubURLProtocol.answerWith(Self.oneApp)
         _ = try await search.search("tiktok", country: "tr", limit: 5)
-        let query = try XCTUnwrap(StubURLProtocol.lastQuery())
-        XCTAssertEqual(StubURLProtocol.lastRequest()?.url?.path, "/search")
-        XCTAssertEqual(query["term"], "tiktok")
-        XCTAssertEqual(query["country"], "tr")
-        XCTAssertEqual(query["entity"], "software")
-        XCTAssertEqual(query["limit"], "5")
+        let query = try #require(StubURLProtocol.lastQuery())
+        #expect(StubURLProtocol.lastRequest()?.url?.path == "/search")
+        #expect(query["term"] == "tiktok")
+        #expect(query["country"] == "tr")
+        #expect(query["entity"] == "software")
+        #expect(query["limit"] == "5")
     }
 
-    func testTheSearchAsksTheMacsOwnStoreWhenNoneIsNamed() async throws {
+    @Test func theSearchAsksTheMacsOwnStoreWhenNoneIsNamed() async throws {
         StubURLProtocol.answerWith(Self.oneApp)
         _ = try await search.search("tiktok")
-        XCTAssertEqual(StubURLProtocol.lastQuery()?["country"], Storefronts.current())
-        XCTAssertEqual(StubURLProtocol.lastQuery()?["limit"], String(AppSearch.defaultLimit))
+        #expect(StubURLProtocol.lastQuery()?["country"] == Storefronts.current())
+        #expect(StubURLProtocol.lastQuery()?["limit"] == String(AppSearch.defaultLimit))
     }
 
-    func testALimitTheCallerOverreachesWithIsCappedInTheUrl() async throws {
+    @Test func aLimitTheCallerOverreachesWithIsCappedInTheUrl() async throws {
         StubURLProtocol.answerWith(Self.oneApp)
         _ = try await search.search("tiktok", country: "us", limit: 500)
-        XCTAssertEqual(StubURLProtocol.lastQuery()?["limit"], String(AppSearch.maxLimit))
+        #expect(StubURLProtocol.lastQuery()?["limit"] == String(AppSearch.maxLimit))
     }
 
-    func testAPlusInTheTermIsSearchedForRatherThanReadAsASpace() async throws {
+    @Test func aPlusInTheTermIsSearchedForRatherThanReadAsASpace() async throws {
         StubURLProtocol.answerWith(Self.oneApp)
         _ = try await search.search("c++", country: "us")
-        XCTAssertEqual(StubURLProtocol.lastRequest()?.url?.query, "term=c%2B%2B&country=us&entity=software&limit=10")
-        XCTAssertEqual(StubURLProtocol.lastQuery()?["term"], "c++")
+        #expect(StubURLProtocol.lastRequest()?.url?.query == "term=c%2B%2B&country=us&entity=software&limit=10")
+        #expect(StubURLProtocol.lastQuery()?["term"] == "c++")
     }
 
-    func testAnEmptyTermAsksNothingAtAll() async throws {
+    @Test func anEmptyTermAsksNothingAtAll() async throws {
         let results = try await search.search("   ", country: "us")
-        XCTAssertEqual(results, [])
-        XCTAssertEqual(StubURLProtocol.requests.count, 0)
+        #expect(results == [])
+        #expect(StubURLProtocol.requests.count == 0)
     }
 
     // MARK: - The url the lookup is asked with
 
-    func testTheLookupPutsEveryIdInOneParameter() async throws {
+    @Test func theLookupPutsEveryIdInOneParameter() async throws {
         StubURLProtocol.answerWith(Self.oneApp)
         _ = try await search.lookup(["com.reddit.Reddit", "com.burbn.instagram"], country: "us")
-        let query = try XCTUnwrap(StubURLProtocol.lastQuery())
-        XCTAssertEqual(StubURLProtocol.lastRequest()?.url?.path, "/lookup")
-        XCTAssertEqual(query["bundleId"], "com.reddit.Reddit,com.burbn.instagram")
-        XCTAssertEqual(query["country"], "us")
-        XCTAssertEqual(query["entity"], "software")
+        let query = try #require(StubURLProtocol.lastQuery())
+        #expect(StubURLProtocol.lastRequest()?.url?.path == "/lookup")
+        #expect(query["bundleId"] == "com.reddit.Reddit,com.burbn.instagram")
+        #expect(query["country"] == "us")
+        #expect(query["entity"] == "software")
     }
 
-    func testBlankIdsAreDroppedAndTheRestAreStillAskedFor() async throws {
+    @Test func blankIdsAreDroppedAndTheRestAreStillAskedFor() async throws {
         StubURLProtocol.answerWith(Self.oneApp)
         _ = try await search.lookup(["", "  ", " com.reddit.Reddit "], country: "us")
-        XCTAssertEqual(StubURLProtocol.lastQuery()?["bundleId"], "com.reddit.Reddit")
+        #expect(StubURLProtocol.lastQuery()?["bundleId"] == "com.reddit.Reddit")
     }
 
-    func testAnEmptyIdListAsksNothingAtAll() async throws {
+    @Test func anEmptyIdListAsksNothingAtAll() async throws {
         let none = try await search.lookup([], country: "us")
         let blanks = try await search.lookup(["", " "], country: "us")
-        XCTAssertEqual(none, [])
-        XCTAssertEqual(blanks, [])
-        XCTAssertEqual(StubURLProtocol.requests.count, 0)
+        #expect(none == [])
+        #expect(blanks == [])
+        #expect(StubURLProtocol.requests.count == 0)
     }
 
     // MARK: - What a row turns into
 
-    func testARowBecomesTheAppItNames() async throws {
+    @Test func aRowBecomesTheAppItNames() async throws {
         StubURLProtocol.answerWith(Self.oneApp)
         let results = try await search.search("tiktok", country: "us")
-        XCTAssertEqual(
-            results,
-            [
-                AppResult(
-                    bundleId: "com.zhiliaoapp.musically",
-                    developer: "TikTok Ltd.",
-                    iconUrl: "https://example.com/100x100bb.jpg",
-                    id: 835_599_320,
-                    name: "TikTok - Videos, Music & LIVE",
-                    sellerUrl: "http://www.tiktok.com"
-                ),
-            ]
+        #expect(
+            results
+                == [
+                    AppResult(
+                        bundleId: "com.zhiliaoapp.musically",
+                        developer: "TikTok Ltd.",
+                        iconUrl: "https://example.com/100x100bb.jpg",
+                        id: 835_599_320,
+                        name: "TikTok - Videos, Music & LIVE",
+                        sellerUrl: "http://www.tiktok.com"
+                    ),
+                ]
         )
     }
 
-    func testARowWithNoBundleIdIdentifiesNoAppSoItIsDropped() async throws {
+    @Test func aRowWithNoBundleIdIdentifiesNoAppSoItIsDropped() async throws {
         StubURLProtocol.answerWith(
             #"{"resultCount":2,"results":[{"trackName":"Nothing"},{"bundleId":"tv.twitch","trackName":"Twitch"}]}"#
         )
         let results = try await search.search("twitch", country: "us")
-        XCTAssertEqual(results.map(\.bundleId), ["tv.twitch"])
+        #expect(results.map(\.bundleId) == ["tv.twitch"])
     }
 
-    func testTheSmallerArtworkStandsInWhenTheLargerOneIsMissing() async throws {
+    @Test func theSmallerArtworkStandsInWhenTheLargerOneIsMissing() async throws {
         StubURLProtocol.answerWith(
             #"{"results":[{"bundleId":"tv.twitch","artworkUrl60":"https://example.com/60.jpg"}]}"#
         )
         let results = try await search.search("twitch", country: "us")
-        XCTAssertEqual(results.first?.iconUrl, "https://example.com/60.jpg")
+        #expect(results.first?.iconUrl == "https://example.com/60.jpg")
     }
 
-    func testARowThatCarriesNothingButAnIdStillBecomesAnApp() async throws {
+    @Test func aRowThatCarriesNothingButAnIdStillBecomesAnApp() async throws {
         StubURLProtocol.answerWith(#"{"results":[{"bundleId":"tv.twitch"}]}"#)
         let results = try await search.search("twitch", country: "us")
-        XCTAssertEqual(
-            results,
-            [AppResult(bundleId: "tv.twitch", developer: "", iconUrl: "", id: 0, name: "", sellerUrl: nil)]
+        #expect(
+            results
+                == [AppResult(bundleId: "tv.twitch", developer: "", iconUrl: "", id: 0, name: "", sellerUrl: nil)]
         )
     }
 
-    func testAnAnswerWithNoResultsAtAllIsAnEmptyList() async throws {
+    @Test func anAnswerWithNoResultsAtAllIsAnEmptyList() async throws {
         StubURLProtocol.answerWith(#"{"resultCount":0}"#)
         let results = try await search.search("nothing at all", country: "us")
-        XCTAssertEqual(results, [])
+        #expect(results == [])
     }
 
     // MARK: - What goes wrong
 
-    func testARefusalCarriesItsStatusSoARateLimitCanBeToldFromAnOutage() async {
+    @Test func aRefusalCarriesItsStatusSoARateLimitCanBeToldFromAnOutage() async {
         StubURLProtocol.answerWith("", status: 403)
         do {
             _ = try await search.search("tiktok", country: "us")
-            XCTFail("A refused search should throw.")
+            Issue.record("A refused search should throw.")
         } catch {
-            XCTAssertEqual(error as? AppSearchError, .status(403))
+            #expect((error as? AppSearchError) == .status(403))
         }
     }
 
-    func testAnOutageIsToldApartFromARefusal() async {
+    @Test func anOutageIsToldApartFromARefusal() async {
         StubURLProtocol.answerWith("", status: 503)
         do {
             _ = try await search.search("tiktok", country: "us")
-            XCTFail("A failed search should throw.")
+            Issue.record("A failed search should throw.")
         } catch {
-            XCTAssertEqual(error as? AppSearchError, .status(503))
+            #expect((error as? AppSearchError) == .status(503))
         }
     }
 
-    func testARequestThatNeverArrivesIsOffline() async {
+    @Test func aRequestThatNeverArrivesIsOffline() async {
         StubURLProtocol.failWith(URLError(.notConnectedToInternet))
         do {
             _ = try await search.search("tiktok", country: "us")
-            XCTFail("A search that never arrived should throw.")
+            Issue.record("A search that never arrived should throw.")
         } catch {
-            XCTAssertEqual(error as? AppSearchError, .offline)
+            #expect((error as? AppSearchError) == .offline)
         }
     }
 
-    func testAnAnswerThatIsNotAListOfAppsIsMalformed() async {
+    @Test func anAnswerThatIsNotAListOfAppsIsMalformed() async {
         StubURLProtocol.answerWith("<html>not json</html>")
         do {
             _ = try await search.search("tiktok", country: "us")
-            XCTFail("An unreadable answer should throw.")
+            Issue.record("An unreadable answer should throw.")
         } catch {
-            XCTAssertEqual(error as? AppSearchError, .malformed)
+            #expect((error as? AppSearchError) == .malformed)
         }
     }
 
-    func testASearchTheCallerWalkedAwayFromIsNotAnOutage() async {
+    @Test func aSearchTheCallerWalkedAwayFromIsNotAnOutage() async {
         StubURLProtocol.failWith(URLError(.cancelled))
         do {
             _ = try await search.search("tiktok", country: "us")
-            XCTFail("A cancelled search should throw.")
+            Issue.record("A cancelled search should throw.")
         } catch {
-            XCTAssertTrue(error is CancellationError)
+            #expect(error is CancellationError)
         }
     }
 
-    func testEveryFailureSaysWhatItIsInASentence() {
-        XCTAssertEqual(
-            AppSearchError.offline.localizedDescription,
-            "This Mac could not reach the App Store. Check the internet connection and try again."
+    @Test func everyFailureSaysWhatItIsInASentence() {
+        #expect(
+            AppSearchError.offline.localizedDescription
+                == "This Mac could not reach the App Store. Check the internet connection and try again."
         )
-        XCTAssertEqual(
-            AppSearchError.status(429).localizedDescription,
-            "The App Store answered 429 rather than a list of apps. Try again in a moment."
+        #expect(
+            AppSearchError.status(429).localizedDescription
+                == "The App Store answered 429 rather than a list of apps. Try again in a moment."
         )
-        XCTAssertEqual(
-            AppSearchError.malformed.localizedDescription,
-            "The App Store answered a list this app could not read."
+        #expect(
+            AppSearchError.malformed.localizedDescription
+                == "The App Store answered a list this app could not read."
         )
     }
 

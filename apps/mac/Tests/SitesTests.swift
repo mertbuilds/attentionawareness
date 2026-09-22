@@ -1,4 +1,5 @@
-import XCTest
+import Foundation
+import Testing
 
 /// The sites a blocked app implies.
 ///
@@ -7,176 +8,174 @@ import XCTest
 /// halves of that: the curated table, which carries the domains Apple's single
 /// developer website cannot, and the tidying that turns whatever Apple answers
 /// into a url iOS will match on.
-final class SitesTests: XCTestCase {
+struct SitesTests {
     // MARK: - The shape a url takes in a profile
 
-    func testABareDomainGetsAScheme() {
-        XCTAssertEqual(Sites.normalize("reddit.com"), "https://reddit.com")
+    @Test func aBareDomainGetsAScheme() {
+        #expect(Sites.normalize("reddit.com") == "https://reddit.com")
     }
 
-    func testASchemeAlreadyThereIsLeftAlone() {
-        XCTAssertEqual(Sites.normalize("http://reddit.com"), "http://reddit.com")
-        XCTAssertEqual(Sites.normalize("HTTPS://reddit.com"), "HTTPS://reddit.com")
-        XCTAssertEqual(Sites.normalize("x-y+z.1://reddit.com"), "x-y+z.1://reddit.com")
+    @Test func aSchemeAlreadyThereIsLeftAlone() {
+        #expect(Sites.normalize("http://reddit.com") == "http://reddit.com")
+        #expect(Sites.normalize("HTTPS://reddit.com") == "HTTPS://reddit.com")
+        #expect(Sites.normalize("x-y+z.1://reddit.com") == "x-y+z.1://reddit.com")
     }
 
-    func testSomethingThatOnlyLooksLikeASchemeStillGetsOne() {
-        XCTAssertEqual(Sites.normalize("1abc://reddit.com"), "https://1abc://reddit.com")
-        XCTAssertEqual(Sites.normalize("://reddit.com"), "https://://reddit.com")
+    @Test func somethingThatOnlyLooksLikeASchemeStillGetsOne() {
+        #expect(Sites.normalize("1abc://reddit.com") == "https://1abc://reddit.com")
+        #expect(Sites.normalize("://reddit.com") == "https://://reddit.com")
     }
 
-    func testATrailingSlashComesOff() {
-        XCTAssertEqual(Sites.normalize("https://reddit.com/"), "https://reddit.com")
-        XCTAssertEqual(Sites.normalize("reddit.com/"), "https://reddit.com")
+    @Test func aTrailingSlashComesOff() {
+        #expect(Sites.normalize("https://reddit.com/") == "https://reddit.com")
+        #expect(Sites.normalize("reddit.com/") == "https://reddit.com")
     }
 
-    func testAUrlComesBackTrimmed() {
-        XCTAssertEqual(Sites.normalize("  reddit.com  "), "https://reddit.com")
+    @Test func aUrlComesBackTrimmed() {
+        #expect(Sites.normalize("  reddit.com  ") == "https://reddit.com")
     }
 
-    func testNothingNormalizesToNothing() {
-        XCTAssertEqual(Sites.normalize(""), "")
-        XCTAssertEqual(Sites.normalize("   "), "")
+    @Test func nothingNormalizesToNothing() {
+        #expect(Sites.normalize("") == "")
+        #expect(Sites.normalize("   ") == "")
     }
 
     // MARK: - The host behind a developer website
 
-    func testADeveloperPageIsTheSiteItSitsOn() {
-        XCTAssertEqual(
-            Sites.host(fromSellerUrl: "https://www.reddit.com/mobile/download"),
-            "reddit.com"
+    @Test func aDeveloperPageIsTheSiteItSitsOn() {
+        #expect(
+            Sites.host(fromSellerUrl: "https://www.reddit.com/mobile/download")
+                == "reddit.com"
         )
-        XCTAssertEqual(Sites.host(fromSellerUrl: "http://instagram.com/"), "instagram.com")
-        XCTAssertEqual(Sites.host(fromSellerUrl: "instagram.com"), "instagram.com")
+        #expect(Sites.host(fromSellerUrl: "http://instagram.com/") == "instagram.com")
+        #expect(Sites.host(fromSellerUrl: "instagram.com") == "instagram.com")
     }
 
-    func testThePrefixesThatServeTheSameSiteComeOff() {
-        XCTAssertEqual(Sites.host(fromSellerUrl: "https://www.tiktok.com"), "tiktok.com")
-        XCTAssertEqual(Sites.host(fromSellerUrl: "https://m.facebook.com"), "facebook.com")
-        XCTAssertEqual(Sites.host(fromSellerUrl: "https://mobile.twitter.com"), "twitter.com")
+    @Test func thePrefixesThatServeTheSameSiteComeOff() {
+        #expect(Sites.host(fromSellerUrl: "https://www.tiktok.com") == "tiktok.com")
+        #expect(Sites.host(fromSellerUrl: "https://m.facebook.com") == "facebook.com")
+        #expect(Sites.host(fromSellerUrl: "https://mobile.twitter.com") == "twitter.com")
     }
 
-    func testOnlyTheFirstPrefixComesOff() {
-        XCTAssertEqual(Sites.host(fromSellerUrl: "https://www.m.example.com"), "m.example.com")
+    @Test func onlyTheFirstPrefixComesOff() {
+        #expect(Sites.host(fromSellerUrl: "https://www.m.example.com") == "m.example.com")
     }
 
-    func testAHostComesBackLowercaseWithoutItsPortOrItsUser() {
-        XCTAssertEqual(Sites.host(fromSellerUrl: "https://WWW.Example.COM"), "example.com")
-        XCTAssertEqual(Sites.host(fromSellerUrl: "https://example.com:8080/x"), "example.com")
-        XCTAssertEqual(Sites.host(fromSellerUrl: "https://user@example.com/x"), "example.com")
+    @Test func aHostComesBackLowercaseWithoutItsPortOrItsUser() {
+        #expect(Sites.host(fromSellerUrl: "https://WWW.Example.COM") == "example.com")
+        #expect(Sites.host(fromSellerUrl: "https://example.com:8080/x") == "example.com")
+        #expect(Sites.host(fromSellerUrl: "https://user@example.com/x") == "example.com")
     }
 
-    func testAHyphenInsideALabelIsAFineHost() {
-        XCTAssertEqual(Sites.host(fromSellerUrl: "https://my-site.co.uk/x"), "my-site.co.uk")
+    @Test func aHyphenInsideALabelIsAFineHost() {
+        #expect(Sites.host(fromSellerUrl: "https://my-site.co.uk/x") == "my-site.co.uk")
     }
 
-    func testAValueThatNamesNoPublicSiteBlocksNothing() {
-        XCTAssertNil(Sites.host(fromSellerUrl: nil))
-        XCTAssertNil(Sites.host(fromSellerUrl: ""))
-        XCTAssertNil(Sites.host(fromSellerUrl: "   "))
-        XCTAssertNil(Sites.host(fromSellerUrl: "https://not a url"))
-        XCTAssertNil(Sites.host(fromSellerUrl: "https://"))
+    @Test func aValueThatNamesNoPublicSiteBlocksNothing() {
+        #expect(Sites.host(fromSellerUrl: nil) == nil)
+        #expect(Sites.host(fromSellerUrl: "") == nil)
+        #expect(Sites.host(fromSellerUrl: "   ") == nil)
+        #expect(Sites.host(fromSellerUrl: "https://not a url") == nil)
+        #expect(Sites.host(fromSellerUrl: "https://") == nil)
     }
 
-    func testASiteOnThePhoneItselfIsNotASiteToBlock() {
-        XCTAssertNil(Sites.host(fromSellerUrl: "http://localhost:3000"))
-        XCTAssertNil(Sites.host(fromSellerUrl: "https://intranet"))
+    @Test func aSiteOnThePhoneItselfIsNotASiteToBlock() {
+        #expect(Sites.host(fromSellerUrl: "http://localhost:3000") == nil)
+        #expect(Sites.host(fromSellerUrl: "https://intranet") == nil)
     }
 
-    func testABareAddressNamesAMachineRatherThanASite() {
-        XCTAssertNil(Sites.host(fromSellerUrl: "http://127.0.0.1"))
-        XCTAssertNil(Sites.host(fromSellerUrl: "http://192.168.1.1/setup"))
+    @Test func aBareAddressNamesAMachineRatherThanASite() {
+        #expect(Sites.host(fromSellerUrl: "http://127.0.0.1") == nil)
+        #expect(Sites.host(fromSellerUrl: "http://192.168.1.1/setup") == nil)
     }
 
-    func testAMalformedHostIsNotASiteToBlock() {
-        XCTAssertNil(Sites.host(fromSellerUrl: "https://example.com."))
-        XCTAssertNil(Sites.host(fromSellerUrl: "https://-example.com"))
-        XCTAssertNil(Sites.host(fromSellerUrl: "https://example-.com"))
+    @Test func aMalformedHostIsNotASiteToBlock() {
+        #expect(Sites.host(fromSellerUrl: "https://example.com.") == nil)
+        #expect(Sites.host(fromSellerUrl: "https://-example.com") == nil)
+        #expect(Sites.host(fromSellerUrl: "https://example-.com") == nil)
     }
 
     // MARK: - What one app implies
 
-    func testACuratedAppCarriesEverySiteApplesOneUrlCannot() {
+    @Test func aCuratedAppCarriesEverySiteApplesOneUrlCannot() {
         let sites = Sites.sites(forApp: "com.atebits.Tweetie2", sellerUrl: "https://x.com")
-        XCTAssertEqual(sites.source, .curated)
-        XCTAssertEqual(sites.sites, ["https://x.com", "https://twitter.com", "https://t.co"])
+        #expect(sites.source == .curated)
+        #expect(sites.sites == ["https://x.com", "https://twitter.com", "https://t.co"])
     }
 
-    func testAnAppWithNoCuratedEntryFallsBackToItsDeveloperWebsite() {
+    @Test func anAppWithNoCuratedEntryFallsBackToItsDeveloperWebsite() {
         let sites = Sites.sites(
             forApp: "com.example.notcurated",
             sellerUrl: "https://www.example.com/app"
         )
-        XCTAssertEqual(sites.source, .seller)
-        XCTAssertEqual(sites.sites, ["https://example.com"])
+        #expect(sites.source == .seller)
+        #expect(sites.sites == ["https://example.com"])
     }
 
-    func testAnAppWithNeitherImpliesNoSiteAtAll() {
+    @Test func anAppWithNeitherImpliesNoSiteAtAll() {
         let sites = Sites.sites(forApp: "com.example.notcurated")
-        XCTAssertEqual(sites.source, SiteSource.none)
-        XCTAssertEqual(sites.sites, [])
-        XCTAssertEqual(Sites.sites(forApp: "com.example.notcurated", sellerUrl: "localhost").sites, [])
+        #expect(sites.source == SiteSource.none)
+        #expect(sites.sites == [])
+        #expect(Sites.sites(forApp: "com.example.notcurated", sellerUrl: "localhost").sites == [])
     }
 
     // MARK: - What a whole blocked list implies
 
-    func testTheSitesFollowTheOrderTheAppsWerePickedIn() {
+    @Test func theSitesFollowTheOrderTheAppsWerePickedIn() {
         let sites = Sites.sites(forApps: [
             BlockedApp(bundleId: "com.burbn.instagram", name: "Instagram"),
             BlockedApp(bundleId: "tv.twitch", name: "Twitch"),
         ])
-        XCTAssertEqual(sites, ["https://instagram.com", "https://twitch.tv"])
+        #expect(sites == ["https://instagram.com", "https://twitch.tv"])
     }
 
-    func testASiteTwoAppsShareIsListedOnce() {
+    @Test func aSiteTwoAppsShareIsListedOnce() {
         let sites = Sites.sites(forApps: [
             BlockedApp(bundleId: "com.atebits.Tweetie2", name: "X"),
             BlockedApp(bundleId: "com.example.one", name: "One", sellerUrl: "https://www.x.com"),
         ])
-        XCTAssertEqual(sites, ["https://x.com", "https://twitter.com", "https://t.co"])
+        #expect(sites == ["https://x.com", "https://twitter.com", "https://t.co"])
     }
 
-    func testEverySiteIsWrittenTheWayTheProfileWritesIt() {
+    @Test func everySiteIsWrittenTheWayTheProfileWritesIt() {
         let sites = Sites.sites(forApps: [
             BlockedApp(bundleId: "com.example.one", name: "One", sellerUrl: "www.example.com/app/"),
         ])
-        XCTAssertEqual(sites, ["https://example.com"])
+        #expect(sites == ["https://example.com"])
     }
 
-    func testAnAppThatImpliesNothingAddsNothing() {
-        XCTAssertEqual(Sites.sites(forApps: []), [])
-        XCTAssertEqual(
-            Sites.sites(forApps: [BlockedApp(bundleId: "com.example.one", name: "One")]),
-            []
+    @Test func anAppThatImpliesNothingAddsNothing() {
+        #expect(Sites.sites(forApps: []) == [])
+        #expect(
+            Sites.sites(forApps: [BlockedApp(bundleId: "com.example.one", name: "One")]) == []
         )
     }
 
     // MARK: - The curated table
 
-    func testEveryCuratedUrlIsAlreadyInTheShapeAProfileWantsIt() {
+    @Test func everyCuratedUrlIsAlreadyInTheShapeAProfileWantsIt() {
         // The profile normalizes before it writes the filter. A curated url
         // that needs normalizing is a drift, and it would reach iOS as an
         // entry the filter quietly ignores.
         for (bundleId, sites) in Sites.curated {
-            XCTAssertFalse(sites.isEmpty, "\(bundleId) names no site")
+            #expect(sites.isEmpty == false, "\(bundleId) names no site")
             for site in sites {
-                XCTAssertEqual(Sites.normalize(site), site, "\(site) is not normalized")
-                XCTAssertTrue(site.hasPrefix("https://"), "\(site) is not https")
+                #expect(Sites.normalize(site) == site, "\(site) is not normalized")
+                #expect(site.hasPrefix("https://"), "\(site) is not https")
             }
         }
     }
 
-    func testNoCuratedAppNamesTheSameSiteTwice() {
+    @Test func noCuratedAppNamesTheSameSiteTwice() {
         for (bundleId, sites) in Sites.curated {
-            XCTAssertEqual(Set(sites).count, sites.count, "\(bundleId) names a site twice")
+            #expect(Set(sites).count == sites.count, "\(bundleId) names a site twice")
         }
     }
 
-    func testEveryAppTheDefaultProfileBlocksCarriesItsOwnSites() {
+    @Test func everyAppTheDefaultProfileBlocksCarriesItsOwnSites() {
         for app in ProfileConfig.default.blockedApps {
-            XCTAssertEqual(
-                Sites.sites(forApp: app.bundleId).source,
-                .curated,
+            #expect(
+                Sites.sites(forApp: app.bundleId).source == .curated,
                 "\(app.name) has no curated sites"
             )
         }
