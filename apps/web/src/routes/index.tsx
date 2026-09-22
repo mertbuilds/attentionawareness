@@ -1128,17 +1128,11 @@ function HomePage() {
 
   const objections = [
     { desc: m.home_faq_supervision_desc(), term: m.home_faq_supervision_term() },
-    { desc: m.home_faq_see_desc(), term: m.home_faq_see_term() },
-    { desc: m.home_faq_erase_desc(), term: m.home_faq_erase_term() },
     { desc: m.home_faq_data_desc(), term: m.home_faq_data_term() },
+    { desc: m.home_faq_see_desc(), term: m.home_faq_see_term() },
     { desc: m.home_faq_undo_desc(), term: m.home_faq_undo_term() },
-    { desc: m.home_faq_change_desc(), term: m.home_faq_change_term() },
-    { desc: m.home_faq_updates_desc(), term: m.home_faq_updates_term() },
-    { desc: m.home_faq_keep_desc(), term: m.home_faq_keep_term() },
-    { desc: m.home_faq_apple_desc(), term: m.home_faq_apple_term() },
     { desc: m.home_faq_mac_desc(), term: m.home_faq_mac_term() },
-    { desc: m.home_faq_android_desc(), term: m.home_faq_android_term() },
-    { desc: m.home_faq_windows_desc(), term: m.home_faq_windows_term() },
+    { desc: m.home_faq_other_platforms_desc(), term: m.home_faq_other_platforms_term() },
     { desc: m.home_faq_who_desc(), term: m.home_faq_who_term() },
   ];
 
