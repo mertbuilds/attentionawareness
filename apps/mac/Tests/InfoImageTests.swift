@@ -1,4 +1,5 @@
-import XCTest
+import Foundation
+import Testing
 
 /// The lookup behind the picture slot in the "i" popovers.
 ///
@@ -7,12 +8,12 @@ import XCTest
 /// all, which is what leaves the popover its words. The name of the supervised
 /// check goes with it, because it is what a screenshot has to be called for the
 /// app to find it.
-final class InfoImageTests: XCTestCase {
-    func testANameNobodyTookFindsNothing() {
-        XCTAssertNil(InfoImage.url(named: "no-such-screenshot"))
+struct InfoImageTests {
+    @Test func aNameNobodyTookFindsNothing() {
+        #expect(InfoImage.url(named: "no-such-screenshot") == nil)
     }
 
-    func testTheSupervisedCheckHasAPictureName() {
-        XCTAssertEqual(InfoImage.checking, "check-supervised")
+    @Test func theSupervisedCheckHasAPictureName() {
+        #expect(InfoImage.checking == "check-supervised")
     }
 }

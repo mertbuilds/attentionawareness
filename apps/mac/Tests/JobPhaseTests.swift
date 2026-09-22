@@ -1,4 +1,5 @@
-import XCTest
+import Foundation
+import Testing
 
 /// The one line the job screen shows, phase by phase.
 ///
@@ -6,10 +7,10 @@ import XCTest
 /// a table of its own: which words each phase carries, which of them let the
 /// bar say how far along it is, and which of them carry a figure for how much
 /// longer. None of it reads an iPhone or builds a view.
-final class JobPhaseTests: XCTestCase {
+struct JobPhaseTests {
     // MARK: - The line under the bar
 
-    func testEveryPhaseThatRunsSaysWhatIsHappening() {
+    @Test func everyPhaseThatRunsSaysWhatIsHappening() {
         let lines: [(JobPhase, String)] = [
             (.copying, "Copying iPhone to this Mac"),
             (.preparing, "Preparing"),
@@ -21,74 +22,67 @@ final class JobPhaseTests: XCTestCase {
         ]
 
         for (phase, line) in lines {
-            XCTAssertEqual(phase.line, line)
+            #expect(phase.line == line)
         }
     }
 
-    func testAPhaseThatCameToAnEndSaysNothingUnderABar() {
+    @Test func aPhaseThatCameToAnEndSaysNothingUnderABar() {
         for phase in ended {
-            XCTAssertNil(phase.line)
+            #expect(phase.line == nil)
         }
     }
 
     // MARK: - The bar
 
-    func testOnlyTheTwoTransfersSayHowFarAlongTheyAre() {
-        XCTAssertTrue(JobPhase.copying.isDeterminate)
-        XCTAssertTrue(JobPhase.restoring.isDeterminate)
+    @Test func onlyTheTwoTransfersSayHowFarAlongTheyAre() {
+        #expect(JobPhase.copying.isDeterminate)
+        #expect(JobPhase.restoring.isDeterminate)
 
         for phase in [JobPhase.preparing, .waitingForFindMy, .finishing, .restarting, .confirming] {
-            XCTAssertFalse(phase.isDeterminate, "\(phase) has nothing to measure")
+            #expect(phase.isDeterminate == false, "\(phase) has nothing to measure")
         }
         for phase in ended {
-            XCTAssertFalse(phase.isDeterminate)
+            #expect(phase.isDeterminate == false)
         }
     }
 
-    func testTheBarIsOnScreenForEveryPhaseThatRunsAndNoOther() {
+    @Test func theBarIsOnScreenForEveryPhaseThatRunsAndNoOther() {
         for phase in running {
-            XCTAssertTrue(phase.isRunning, "\(phase) should still be working")
+            #expect(phase.isRunning, "\(phase) should still be working")
         }
         for phase in ended {
-            XCTAssertFalse(phase.isRunning, "\(phase) should be over")
+            #expect(phase.isRunning == false, "\(phase) should be over")
         }
     }
 
     // MARK: - The figure
 
-    func testOnlyTheCopyingCarriesAFigureForHowMuchLonger() {
-        XCTAssertTrue(JobPhase.copying.showsEstimate)
+    @Test func onlyTheCopyingCarriesAFigureForHowMuchLonger() {
+        #expect(JobPhase.copying.showsEstimate)
 
         for phase in running where phase != .copying {
-            XCTAssertFalse(phase.showsEstimate, "\(phase) is not this Mac's work to measure")
+            #expect(phase.showsEstimate == false, "\(phase) is not this Mac's work to measure")
         }
     }
 
     // MARK: - The three ends
 
-    func testAPhoneThatNeverSaidItAsksForALookAtTheSettingsScreen() {
-        XCTAssertEqual(JobPhase.checkOnIPhone.headline, "Check on iPhone")
-        XCTAssertEqual(
-            JobPhase.checkOnIPhone.body,
-            "Look for 'This iPhone is supervised' at the top of Settings."
+    @Test func aPhoneThatNeverSaidItAsksForALookAtTheSettingsScreen() {
+        #expect(JobPhase.checkOnIPhone.headline == "Check on iPhone")
+        #expect(
+            JobPhase.checkOnIPhone.body == "Look for 'This iPhone is supervised' at the top of Settings."
         )
         // The "i" holds the same words until a film of them goes in behind it.
-        XCTAssertEqual(
-            JobPhase.checkOnIPhone.note,
-            JobPhase.checkOnIPhone.body
-        )
+        #expect(JobPhase.checkOnIPhone.note == JobPhase.checkOnIPhone.body)
     }
 
-    func testAPhoneThatNeverCameBackSaysSoAndWhatToDo() {
-        XCTAssertEqual(JobPhase.phoneGone.headline, "iPhone Didn't Reconnect")
-        XCTAssertEqual(
-            JobPhase.phoneGone.body,
-            "Unlock iPhone and keep the cable in."
-        )
-        XCTAssertNil(JobPhase.phoneGone.note)
+    @Test func aPhoneThatNeverCameBackSaysSoAndWhatToDo() {
+        #expect(JobPhase.phoneGone.headline == "iPhone Didn't Reconnect")
+        #expect(JobPhase.phoneGone.body == "Unlock iPhone and keep the cable in.")
+        #expect(JobPhase.phoneGone.note == nil)
     }
 
-    func testAFailureIsItsOwnTwoSentencesWithTheLayersWordsBehindIt() {
+    @Test func aFailureIsItsOwnTwoSentencesWithTheLayersWordsBehindIt() {
         let failure = JobFailure(
             title: "Copy Didn't Finish",
             fix: "Reconnect iPhone, then try again.",
@@ -97,26 +91,26 @@ final class JobPhaseTests: XCTestCase {
         )
         let phase = JobPhase.failed(failure)
 
-        XCTAssertEqual(phase.headline, failure.title)
-        XCTAssertEqual(phase.body, failure.fix)
-        XCTAssertEqual(phase.note, failure.raw)
+        #expect(phase.headline == failure.title)
+        #expect(phase.body == failure.fix)
+        #expect(phase.note == failure.raw)
     }
 
-    func testAFailureThatLeftNoWordsBehindShowsNoButtonForThem() {
+    @Test func aFailureThatLeftNoWordsBehindShowsNoButtonForThem() {
         let quiet = JobFailure(title: "Copy Didn't Finish", fix: "Try again.", raw: "", retry: .copy)
 
-        XCTAssertNil(JobPhase.failed(quiet).note)
+        #expect(JobPhase.failed(quiet).note == nil)
     }
 
-    func testAPhaseStillRunningCarriesNoHeadlineOfItsOwn() {
+    @Test func aPhaseStillRunningCarriesNoHeadlineOfItsOwn() {
         for phase in running {
-            XCTAssertNil(phase.headline, "\(phase) keeps the screen's title")
-            XCTAssertNil(phase.body)
+            #expect(phase.headline == nil, "\(phase) keeps the screen's title")
+            #expect(phase.body == nil)
         }
         // The job ends on `done` and the wizard moves on by itself, so that
         // phase says nothing either.
-        XCTAssertNil(JobPhase.done.headline)
-        XCTAssertNil(JobPhase.done.body)
+        #expect(JobPhase.done.headline == nil)
+        #expect(JobPhase.done.body == nil)
     }
 
     // MARK: - The two halves of the enum

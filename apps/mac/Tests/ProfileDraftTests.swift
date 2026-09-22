@@ -1,4 +1,5 @@
-import XCTest
+import Foundation
+import Testing
 
 /// The profile the Restrictions screen builds.
 ///
@@ -6,36 +7,35 @@ import XCTest
 /// apps imply, the ones the reader types, and what all of it turns into on the
 /// way to the signer. What is checked here is the parts that decide what ends
 /// up on the phone.
-final class ProfileDraftTests: XCTestCase {
+struct ProfileDraftTests {
     // MARK: - What the step starts on
 
-    func testTheRecommendedDraftIsTheProfileTheAppHasAlwaysInstalled() {
+    @Test func theRecommendedDraftIsTheProfileTheAppHasAlwaysInstalled() {
         let draft = ProfileDraft.recommended
-        XCTAssertEqual(draft.blockedApps, ProfileConfig.default.blockedApps)
-        XCTAssertEqual(draft.allowAppStore, ProfileConfig.default.allowAppStore)
-        XCTAssertEqual(draft.allowPrivateBrowsing, ProfileConfig.default.allowPrivateBrowsing)
-        XCTAssertEqual(draft.autoFilterAdult, ProfileConfig.default.autoFilterAdult)
-        XCTAssertEqual(draft.config.lockRemoval, ProfileConfig.default.lockRemoval)
-        XCTAssertTrue(draft.isRecommended)
+        #expect(draft.blockedApps == ProfileConfig.default.blockedApps)
+        #expect(draft.allowAppStore == ProfileConfig.default.allowAppStore)
+        #expect(draft.allowPrivateBrowsing == ProfileConfig.default.allowPrivateBrowsing)
+        #expect(draft.autoFilterAdult == ProfileConfig.default.autoFilterAdult)
+        #expect(draft.config.lockRemoval == ProfileConfig.default.lockRemoval)
+        #expect(draft.isRecommended)
     }
 
-    func testTheRecommendedSitesAreTheOnesItsAppsImply() {
-        XCTAssertEqual(
-            ProfileDraft.recommended.sites.map(\.url),
-            Sites.sites(forApps: ProfileConfig.default.blockedApps)
+    @Test func theRecommendedSitesAreTheOnesItsAppsImply() {
+        #expect(
+            ProfileDraft.recommended.sites.map(\.url) == Sites.sites(forApps: ProfileConfig.default.blockedApps)
         )
     }
 
     // MARK: - Where a site came from
 
-    func testASiteTheTableNamesIsNotAGuess() {
+    @Test func aSiteTheTableNamesIsNotAGuess() {
         let draft = draft(apps: [BlockedApp(bundleId: "com.reddit.Reddit", name: "Reddit")])
         let reddit = draft.sites.first { $0.url == "https://reddit.com" }
-        XCTAssertEqual(reddit?.app, "Reddit")
-        XCTAssertEqual(reddit?.guessed, false)
+        #expect(reddit?.app == "Reddit")
+        #expect(reddit?.guessed == false)
     }
 
-    func testASiteFromTheDeveloperLinkIsMarkedAsAGuess() {
+    @Test func aSiteFromTheDeveloperLinkIsMarkedAsAGuess() {
         let draft = draft(apps: [
             BlockedApp(
                 bundleId: "com.duolingo.DuolingoMobile",
@@ -43,46 +43,46 @@ final class ProfileDraftTests: XCTestCase {
                 sellerUrl: "https://www.duolingo.com"
             ),
         ])
-        XCTAssertEqual(draft.sites.map(\.url), ["https://duolingo.com"])
-        XCTAssertEqual(draft.sites.first?.guessed, true)
+        #expect(draft.sites.map(\.url) == ["https://duolingo.com"])
+        #expect(draft.sites.first?.guessed == true)
     }
 
-    func testAnAppWithNoTableEntryAndNoDeveloperLinkImpliesNoSites() {
+    @Test func anAppWithNoTableEntryAndNoDeveloperLinkImpliesNoSites() {
         let draft = draft(apps: [BlockedApp(bundleId: "com.example.game", name: "Game")])
-        XCTAssertTrue(draft.sites.isEmpty)
+        #expect(draft.sites.isEmpty)
     }
 
-    func testTheHostIsTheUrlWithoutItsScheme() {
-        XCTAssertEqual(DraftSite(url: "https://reddit.com", app: nil, guessed: false).host, "reddit.com")
-        XCTAssertEqual(DraftSite(url: "reddit.com", app: nil, guessed: false).host, "reddit.com")
+    @Test func theHostIsTheUrlWithoutItsScheme() {
+        #expect(DraftSite(url: "https://reddit.com", app: nil, guessed: false).host == "reddit.com")
+        #expect(DraftSite(url: "reddit.com", app: nil, guessed: false).host == "reddit.com")
     }
 
     // MARK: - Picking apps
 
-    func testAddingAnAppKeepsItsShortNameAndItsDeveloperLink() {
+    @Test func addingAnAppKeepsItsShortNameAndItsDeveloperLink() {
         var draft = draft(apps: [])
         draft.add(
             result("com.spotify.client", "Spotify: Music and Podcasts", sellerUrl: "https://www.spotify.com")
         )
-        XCTAssertEqual(draft.blockedApps.map(\.name), ["Spotify"])
-        XCTAssertEqual(draft.blockedApps.first?.sellerUrl, "https://www.spotify.com")
-        XCTAssertEqual(draft.sites.map(\.url), ["https://spotify.com"])
+        #expect(draft.blockedApps.map(\.name) == ["Spotify"])
+        #expect(draft.blockedApps.first?.sellerUrl == "https://www.spotify.com")
+        #expect(draft.sites.map(\.url) == ["https://spotify.com"])
     }
 
-    func testAddingAnAppRemembersItsArtwork() {
+    @Test func addingAnAppRemembersItsArtwork() {
         var draft = draft(apps: [])
         draft.add(result("com.reddit.Reddit", "Reddit", iconUrl: "https://example.com/reddit.png"))
-        XCTAssertEqual(draft.icons["com.reddit.Reddit"], "https://example.com/reddit.png")
+        #expect(draft.icons["com.reddit.Reddit"] == "https://example.com/reddit.png")
     }
 
-    func testAnAppAlreadyOnTheListIsNotAddedTwice() {
+    @Test func anAppAlreadyOnTheListIsNotAddedTwice() {
         var draft = ProfileDraft.recommended
         let before = draft.blockedApps.count
         draft.add(result("com.reddit.Reddit", "Reddit"))
-        XCTAssertEqual(draft.blockedApps.count, before)
+        #expect(draft.blockedApps.count == before)
     }
 
-    func testApplesOwnAppsAreNeverOffered() {
+    @Test func applesOwnAppsAreNeverOffered() {
         let rows = [
             result("com.apple.store.Jolly", "Apple Store"),
             result("com.apple.MobileSMS", "Messages"),
@@ -91,181 +91,188 @@ final class ProfileDraftTests: XCTestCase {
             result("com.example.safari", "Safari"),
             result("com.reddit.Reddit", "Reddit"),
         ]
-        XCTAssertEqual(ProfileDraft.offerable(rows).map(\.bundleId), ["com.reddit.Reddit"])
+        #expect(ProfileDraft.offerable(rows).map(\.bundleId) == ["com.reddit.Reddit"])
     }
 
-    func testAnAppleAppIsNotAddedEvenWhenItIsAskedFor() {
+    @Test func anAppleAppIsNotAddedEvenWhenItIsAskedFor() {
         var draft = draft(apps: [])
         draft.add(result("com.apple.store.Jolly", "Apple Store"))
-        XCTAssertTrue(draft.blockedApps.isEmpty)
+        #expect(draft.blockedApps.isEmpty)
     }
 
-    func testRemovingAnAppTakesItsSitesWithIt() {
+    @Test func removingAnAppTakesItsSitesWithIt() {
         var draft = draft(apps: [
             BlockedApp(bundleId: "com.reddit.Reddit", name: "Reddit"),
             BlockedApp(bundleId: "com.burbn.instagram", name: "Instagram"),
         ])
         draft.remove("com.reddit.Reddit")
-        XCTAssertEqual(draft.blockedApps.map(\.name), ["Instagram"])
-        XCTAssertEqual(draft.sites.map(\.url), ["https://instagram.com"])
+        #expect(draft.blockedApps.map(\.name) == ["Instagram"])
+        #expect(draft.sites.map(\.url) == ["https://instagram.com"])
     }
 
     // MARK: - Typing sites
 
-    func testATypedSiteGetsASchemeAndGoesAfterTheDerivedOnes() {
+    @Test func aTypedSiteGetsASchemeAndGoesAfterTheDerivedOnes() {
         var draft = draft(apps: [BlockedApp(bundleId: "com.burbn.instagram", name: "Instagram")])
-        XCTAssertTrue(draft.addSite("news.ycombinator.com"))
-        XCTAssertEqual(
-            draft.sites.map(\.url),
-            ["https://instagram.com", "https://news.ycombinator.com"]
+        let added = draft.addSite("news.ycombinator.com")
+        #expect(added)
+        #expect(
+            draft.sites.map(\.url) == ["https://instagram.com", "https://news.ycombinator.com"]
         )
-        XCTAssertNil(draft.sites.last?.app)
+        #expect(draft.sites.last?.app == nil)
     }
 
-    func testNothingTypedAddsNothing() {
+    @Test func nothingTypedAddsNothing() {
         var draft = draft(apps: [])
-        XCTAssertFalse(draft.addSite("   "))
-        XCTAssertTrue(draft.sites.isEmpty)
+        let added = draft.addSite("   ")
+        #expect(added == false)
+        #expect(draft.sites.isEmpty)
     }
 
-    func testASiteAnAppAlreadyImpliesIsNotListedTwice() {
+    @Test func aSiteAnAppAlreadyImpliesIsNotListedTwice() {
         var draft = draft(apps: [BlockedApp(bundleId: "com.reddit.Reddit", name: "Reddit")])
-        XCTAssertTrue(draft.addSite("reddit.com"))
-        XCTAssertEqual(draft.sites.filter { $0.url == "https://reddit.com" }.count, 1)
+        let added = draft.addSite("reddit.com")
+        #expect(added)
+        #expect(draft.sites.filter { $0.url == "https://reddit.com" }.count == 1)
     }
 
-    func testASiteTakenOffStaysOffWhileItsAppIsBlocked() {
+    @Test func aSiteTakenOffStaysOffWhileItsAppIsBlocked() {
         var draft = draft(apps: [BlockedApp(bundleId: "com.reddit.Reddit", name: "Reddit")])
         draft.removeSite("https://reddit.com")
-        XCTAssertFalse(draft.sites.contains { $0.url == "https://reddit.com" })
+        #expect(draft.sites.contains { $0.url == "https://reddit.com" } == false)
         // The app's other sites are untouched.
-        XCTAssertTrue(draft.sites.contains { $0.url == "https://redd.it" })
+        #expect(draft.sites.contains { $0.url == "https://redd.it" })
     }
 
-    func testTypingBackASiteThatWasTakenOffBringsItBackOnce() {
+    @Test func typingBackASiteThatWasTakenOffBringsItBackOnce() {
         var draft = draft(apps: [BlockedApp(bundleId: "com.reddit.Reddit", name: "Reddit")])
         draft.removeSite("https://reddit.com")
-        XCTAssertTrue(draft.addSite("reddit.com"))
-        XCTAssertEqual(draft.sites.filter { $0.url == "https://reddit.com" }.count, 1)
+        let added = draft.addSite("reddit.com")
+        #expect(added)
+        #expect(draft.sites.filter { $0.url == "https://reddit.com" }.count == 1)
     }
 
-    func testTakingOffATypedSiteForgetsIt() {
+    @Test func takingOffATypedSiteForgetsIt() {
         var draft = draft(apps: [])
         draft.addSite("news.ycombinator.com")
         draft.removeSite("https://news.ycombinator.com")
-        XCTAssertTrue(draft.sites.isEmpty)
-        XCTAssertTrue(draft.typedSites.isEmpty)
-        XCTAssertTrue(draft.droppedSites.isEmpty)
+        #expect(draft.sites.isEmpty)
+        #expect(draft.typedSites.isEmpty)
+        #expect(draft.droppedSites.isEmpty)
     }
 
     // MARK: - What gets signed
 
-    func testTheConfigCarriesTheAppsTheSitesAndTheSwitches() {
+    @Test func theConfigCarriesTheAppsTheSitesAndTheSwitches() {
         var draft = draft(apps: [BlockedApp(bundleId: "com.reddit.Reddit", name: "Reddit")])
         draft.allowsRemoval = true
         draft.autoFilterAdult = false
         draft.allowAppStore = false
         draft.allowPrivateBrowsing = false
         let config = draft.config
-        XCTAssertEqual(config.blockedApps.map(\.bundleId), ["com.reddit.Reddit"])
-        XCTAssertFalse(config.lockRemoval)
-        XCTAssertFalse(config.autoFilterAdult)
-        XCTAssertFalse(config.allowAppStore)
-        XCTAssertFalse(config.allowPrivateBrowsing)
+        #expect(config.blockedApps.map(\.bundleId) == ["com.reddit.Reddit"])
+        #expect(config.lockRemoval == false)
+        #expect(config.autoFilterAdult == false)
+        #expect(config.allowAppStore == false)
+        #expect(config.allowPrivateBrowsing == false)
         guard case .deny(let denied, let permitted) = config.webFilter else {
-            return XCTFail("The filter should be a deny list.")
+            Issue.record("The filter should be a deny list.")
+            return
         }
-        XCTAssertEqual(denied, draft.sites.map(\.url))
-        XCTAssertEqual(permitted, ProfileDraft.permittedUrls)
+        #expect(denied == draft.sites.map(\.url))
+        #expect(permitted == ProfileDraft.permittedUrls)
     }
 
-    func testTrialModeOffIsAProfileThatCannotBeRemoved() {
+    @Test func trialModeOffIsAProfileThatCannotBeRemoved() {
         var draft = ProfileDraft.recommended
         draft.allowsRemoval = false
-        XCTAssertTrue(draft.config.lockRemoval)
+        #expect(draft.config.lockRemoval)
     }
 
-    func testAFilterWithNothingInItIsLeftOut() {
+    @Test func aFilterWithNothingInItIsLeftOut() {
         let draft = draft(apps: [])
-        XCTAssertEqual(draft.config.webFilter, .off)
+        #expect(draft.config.webFilter == .off)
     }
 
-    func testThePermittedUrlsAreTheDefaultProfilesOwn() {
+    @Test func thePermittedUrlsAreTheDefaultProfilesOwn() {
         guard case .deny(_, let permitted) = ProfileConfig.default.webFilter else {
-            return XCTFail("The default profile should carry a deny list.")
+            Issue.record("The default profile should carry a deny list.")
+            return
         }
-        XCTAssertEqual(ProfileDraft.permittedUrls, permitted)
+        #expect(ProfileDraft.permittedUrls == permitted)
     }
 
-    func testThePermittedSitesAreTheKeptOpenHostsWithoutTheirScheme() {
-        XCTAssertTrue(
+    @Test func thePermittedSitesAreTheKeptOpenHostsWithoutTheirScheme() {
+        #expect(
             ProfileDraft.recommended.permittedSites.contains { $0.host == "accounts.youtube.com" }
         )
     }
 
     // MARK: - Keeping sites open for sign-in
 
-    func testAddingAnExceptionPutsItInTheConfigsPermittedUrls() {
+    @Test func addingAnExceptionPutsItInTheConfigsPermittedUrls() {
         var draft = draft(apps: [BlockedApp(bundleId: "com.reddit.Reddit", name: "Reddit")])
-        XCTAssertTrue(draft.addException("accounts.google.com"))
+        let added = draft.addException("accounts.google.com")
+        #expect(added)
         guard case .deny(_, let permitted) = draft.config.webFilter else {
-            return XCTFail("The filter should be a deny list.")
+            Issue.record("The filter should be a deny list.")
+            return
         }
-        XCTAssertTrue(permitted.contains("https://accounts.google.com"))
+        #expect(permitted.contains("https://accounts.google.com"))
         // The default hole is still there beside the typed one.
-        XCTAssertTrue(permitted.contains("https://accounts.youtube.com"))
+        #expect(permitted.contains("https://accounts.youtube.com"))
     }
 
-    func testRemovingTheDefaultExceptionDropsItFromTheConfig() {
+    @Test func removingTheDefaultExceptionDropsItFromTheConfig() {
         var draft = draft(apps: [BlockedApp(bundleId: "com.reddit.Reddit", name: "Reddit")])
         draft.removeException("https://accounts.youtube.com")
-        XCTAssertFalse(draft.permittedSites.contains { $0.url == "https://accounts.youtube.com" })
+        #expect(draft.permittedSites.contains { $0.url == "https://accounts.youtube.com" } == false)
         guard case .deny(_, let permitted) = draft.config.webFilter else {
-            return XCTFail("The filter should be a deny list.")
+            Issue.record("The filter should be a deny list.")
+            return
         }
-        XCTAssertFalse(permitted.contains("https://accounts.youtube.com"))
+        #expect(permitted.contains("https://accounts.youtube.com") == false)
     }
 
-    func testResettingPutsTheKeptOpenListBack() {
+    @Test func resettingPutsTheKeptOpenListBack() {
         var draft = draft(apps: [BlockedApp(bundleId: "com.reddit.Reddit", name: "Reddit")])
         draft.removeException("https://accounts.youtube.com")
         draft.addException("accounts.google.com")
         draft.resetLists()
-        XCTAssertEqual(
-            draft.permittedSites.map(\.url),
-            ProfileDraft.recommended.permittedSites.map(\.url)
+        #expect(
+            draft.permittedSites.map(\.url) == ProfileDraft.recommended.permittedSites.map(\.url)
         )
     }
 
-    func testEditingTheKeptOpenListIsNotRecommended() {
+    @Test func editingTheKeptOpenListIsNotRecommended() {
         var draft = ProfileDraft.recommended
         draft.addException("accounts.google.com")
-        XCTAssertFalse(draft.isRecommended)
+        #expect(draft.isRecommended == false)
     }
 
     // MARK: - What the step reads out
 
-    func testTheSiteCountIsWrittenInWholeWords() {
+    @Test func theSiteCountIsWrittenInWholeWords() {
         var draft = draft(apps: [])
-        XCTAssertEqual(draft.siteSummary, "no sites")
+        #expect(draft.siteSummary == "no sites")
         draft.addSite("reddit.com")
-        XCTAssertEqual(draft.siteSummary, "1 site")
+        #expect(draft.siteSummary == "1 site")
         draft.addSite("news.ycombinator.com")
-        XCTAssertEqual(draft.siteSummary, "2 sites")
+        #expect(draft.siteSummary == "2 sites")
     }
 
     // MARK: - Starting over
 
-    func testResettingPutsTheListsBackAndLeavesTheSwitchesAlone() {
+    @Test func resettingPutsTheListsBackAndLeavesTheSwitchesAlone() {
         var draft = ProfileDraft.recommended
         draft.remove("com.reddit.Reddit")
         draft.addSite("news.ycombinator.com")
         draft.allowsRemoval = true
-        XCTAssertFalse(draft.isRecommended)
+        #expect(draft.isRecommended == false)
         draft.resetLists()
-        XCTAssertTrue(draft.isRecommended)
-        XCTAssertEqual(draft.sites.map(\.url), ProfileDraft.recommended.sites.map(\.url))
-        XCTAssertTrue(draft.allowsRemoval)
+        #expect(draft.isRecommended)
+        #expect(draft.sites.map(\.url) == ProfileDraft.recommended.sites.map(\.url))
+        #expect(draft.allowsRemoval)
     }
 
     // MARK: - Helpers

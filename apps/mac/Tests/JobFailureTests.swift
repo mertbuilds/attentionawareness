@@ -1,4 +1,5 @@
-import XCTest
+import Foundation
+import Testing
 
 /// What each layer's own wording turns into on the job screen.
 ///
@@ -6,97 +7,96 @@ import XCTest
 /// unread: a helper exit code, a lockdown number and a sentence about a keybag
 /// all come out as a headline somebody can act on and one thing to do. These
 /// are the rows of that table, and none of them touches an iPhone.
-final class JobFailureTests: XCTestCase {
+struct JobFailureTests {
     // MARK: - A stop somebody asked for
 
-    func testACancelledCopyIsNoFailureAtAll() {
-        XCTAssertNil(JobFailure.from(BackupError.cancelled, in: .copying))
-        XCTAssertNil(JobFailure.from(BackupError.cancelled, in: .restoring))
+    @Test func aCancelledCopyIsNoFailureAtAll() {
+        #expect(JobFailure.from(BackupError.cancelled, in: .copying) == nil)
+        #expect(JobFailure.from(BackupError.cancelled, in: .restoring) == nil)
     }
 
-    func testATaskThatWasCancelledIsNoFailureEither() {
-        XCTAssertNil(JobFailure.from(CancellationError(), in: .copying))
+    @Test func aTaskThatWasCancelledIsNoFailureEither() {
+        #expect(JobFailure.from(CancellationError(), in: .copying) == nil)
     }
 
     // MARK: - The transfers
 
-    func testACopyThatStoppedAsksForTheCableBack() {
+    @Test func aCopyThatStoppedAsksForTheCableBack() {
         let failure = JobFailure.from(helperStopped, in: .copying)
 
-        XCTAssertEqual(failure?.title, "Copy Didn't Finish")
-        XCTAssertEqual(failure?.fix, "Reconnect iPhone, then try again.")
-        XCTAssertEqual(failure?.retry, .copy)
+        #expect(failure?.title == "Copy Didn't Finish")
+        #expect(failure?.fix == "Reconnect iPhone, then try again.")
+        #expect(failure?.retry == .copy)
     }
 
-    func testARestoreThatStoppedIsNamedAsTheRestore() {
+    @Test func aRestoreThatStoppedIsNamedAsTheRestore() {
         let failure = JobFailure.from(helperStopped, in: .restoring)
 
-        XCTAssertEqual(failure?.title, "Restore Didn't Finish")
-        XCTAssertEqual(failure?.fix, "Reconnect iPhone, then try again.")
+        #expect(failure?.title == "Restore Didn't Finish")
+        #expect(failure?.fix == "Reconnect iPhone, then try again.")
         // The copy on this Mac is still patched, so Try Again sends it again
         // rather than spending another hour making a new one.
-        XCTAssertEqual(failure?.retry, .restore)
+        #expect(failure?.retry == .restore)
     }
 
-    func testAFlagThatWouldNotGoInIsStillTheCopysFailure() {
+    @Test func aFlagThatWouldNotGoInIsStillTheCopysFailure() {
         let failure = JobFailure.from(PatchError.noSupervisionFile, in: .preparing)
 
-        XCTAssertEqual(failure?.title, "Copy Didn't Finish")
-        XCTAssertEqual(failure?.retry, .copy)
+        #expect(failure?.title == "Copy Didn't Finish")
+        #expect(failure?.retry == .copy)
     }
 
     // MARK: - The password
 
-    func testAPatchThatCouldNotOpenTheCopyAsksForThePassword() {
+    @Test func aPatchThatCouldNotOpenTheCopyAsksForThePassword() {
         let failure = JobFailure.from(PatchError.wrongPassword, in: .preparing)
 
-        XCTAssertEqual(failure?.title, "Wrong Backup Password")
-        XCTAssertEqual(failure?.fix, "Enter the password set for encrypted backups.")
+        #expect(failure?.title == "Wrong Backup Password")
+        #expect(failure?.fix == "Enter the password set for encrypted backups.")
         // The flag is written again once the right password is typed, and the
         // screen shows the field to type it in.
-        XCTAssertEqual(failure?.retry, .patch)
-        XCTAssertEqual(failure?.needsPassword, true)
+        #expect(failure?.retry == .patch)
+        #expect(failure?.needsPassword == true)
     }
 
-    func testAHelperThatRefusedThePasswordSaysTheSameThing() {
+    @Test func aHelperThatRefusedThePasswordSaysTheSameThing() {
         let refused = BackupError.failed(
             BackupError.sentence(lastError: "ERROR: Invalid password", exitCode: 1)
         )
 
-        XCTAssertEqual(JobFailure.from(refused, in: .restoring)?.title, "Wrong Backup Password")
+        #expect(JobFailure.from(refused, in: .restoring)?.title == "Wrong Backup Password")
     }
 
-    func testEveryOtherFailureLeavesThePasswordFieldOffTheScreen() {
-        XCTAssertEqual(JobFailure.from(helperStopped, in: .copying)?.needsPassword, false)
+    @Test func everyOtherFailureLeavesThePasswordFieldOffTheScreen() {
+        #expect(JobFailure.from(helperStopped, in: .copying)?.needsPassword == false)
     }
 
     // MARK: - The disk
 
-    func testAFullDiskSaysHowMuchToFreeWhenTheChecksMeasuredIt() {
+    @Test func aFullDiskSaysHowMuchToFreeWhenTheChecksMeasuredIt() {
         let failure = JobFailure.from(noSpace, in: .copying, missingSpace: "12 GB")
 
-        XCTAssertEqual(failure?.title, "Not Enough Space on This Mac")
-        XCTAssertEqual(failure?.fix, "Free up about 12 GB, then try again.")
-        XCTAssertEqual(failure?.retry, .copy)
+        #expect(failure?.title == "Not Enough Space on This Mac")
+        #expect(failure?.fix == "Free up about 12 GB, then try again.")
+        #expect(failure?.retry == .copy)
     }
 
-    func testAFullDiskThatCouldNotBeMeasuredStillSaysWhatToDo() {
-        XCTAssertEqual(
-            JobFailure.from(noSpace, in: .copying)?.fix,
-            "Free up space on this Mac, then try again."
+    @Test func aFullDiskThatCouldNotBeMeasuredStillSaysWhatToDo() {
+        #expect(
+            JobFailure.from(noSpace, in: .copying)?.fix == "Free up space on this Mac, then try again."
         )
     }
 
-    func testADiskThatFilledDuringTheRestoreIsStillAboutTheDisk() {
-        XCTAssertEqual(JobFailure.from(noSpace, in: .restoring)?.title, "Not Enough Space on This Mac")
+    @Test func aDiskThatFilledDuringTheRestoreIsStillAboutTheDisk() {
+        #expect(JobFailure.from(noSpace, in: .restoring)?.title == "Not Enough Space on This Mac")
     }
 
     // MARK: - What the layer said
 
-    func testTheLayersOwnWordsAreKeptForTheButtonBehindTheFix() {
+    @Test func theLayersOwnWordsAreKeptForTheButtonBehindTheFix() {
         let failure = JobFailure.from(PatchError.wrongPassword, in: .preparing)
 
-        XCTAssertEqual(failure?.raw, PatchError.wrongPassword.localizedDescription)
+        #expect(failure?.raw == PatchError.wrongPassword.localizedDescription)
     }
 
     // MARK: - The failures the rows are written from

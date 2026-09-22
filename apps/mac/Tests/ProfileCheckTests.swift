@@ -1,4 +1,5 @@
-import XCTest
+import Foundation
+import Testing
 
 /// What the iPhone has to say about the profile before the run counts as done.
 ///
@@ -7,31 +8,31 @@ import XCTest
 /// between a run and the delete that takes the backup away, which is why every
 /// way of failing it has a test of its own: each one keeps a whole copy of
 /// somebody's iPhone on the Mac.
-final class ProfileCheckTests: XCTestCase {
+struct ProfileCheckTests {
     // MARK: - The profile the run asked for
 
-    func testAProfileOfOursThatIsOnAndLockedIsTheOneALockedRunAskedFor() {
-        XCTAssertNil(
-            ProfileCheck.problem(with: [ours(isActive: true, removalDisallowed: true)], removalDisallowed: true)
+    @Test func aProfileOfOursThatIsOnAndLockedIsTheOneALockedRunAskedFor() {
+        #expect(
+            ProfileCheck.problem(with: [ours(isActive: true, removalDisallowed: true)], removalDisallowed: true) == nil
         )
     }
 
-    func testAProfileThatCanBeRemovedIsTheOneATrialRunAskedFor() {
-        XCTAssertNil(
-            ProfileCheck.problem(with: [ours(isActive: true, removalDisallowed: false)], removalDisallowed: false)
+    @Test func aProfileThatCanBeRemovedIsTheOneATrialRunAskedFor() {
+        #expect(
+            ProfileCheck.problem(with: [ours(isActive: true, removalDisallowed: false)], removalDisallowed: false) == nil
         )
     }
 
-    func testAnotherProfileOnThePhoneChangesNothing() {
+    @Test func anotherProfileOnThePhoneChangesNothing() {
         let profiles = [
             somebodyElses,
             ours(isActive: true, removalDisallowed: true),
         ]
 
-        XCTAssertNil(ProfileCheck.problem(with: profiles, removalDisallowed: true))
+        #expect(ProfileCheck.problem(with: profiles, removalDisallowed: true) == nil)
     }
 
-    func testOneOfOursThatIsOffIsAnsweredForByOneThatIsOn() {
+    @Test func oneOfOursThatIsOffIsAnsweredForByOneThatIsOn() {
         // Every install stacks on the one before it, so an older profile of
         // ours the phone has turned off says nothing about this run.
         let profiles = [
@@ -39,82 +40,77 @@ final class ProfileCheckTests: XCTestCase {
             ours(isActive: true, removalDisallowed: true),
         ]
 
-        XCTAssertNil(ProfileCheck.problem(with: profiles, removalDisallowed: true))
+        #expect(ProfileCheck.problem(with: profiles, removalDisallowed: true) == nil)
     }
 
     // MARK: - Everything that keeps the backup
 
-    func testAPhoneThatListsNoProfileOfOursHasNotTakenIt() {
-        XCTAssertEqual(ProfileCheck.problem(with: [], removalDisallowed: true), .notThere)
-        XCTAssertEqual(ProfileCheck.problem(with: [somebodyElses], removalDisallowed: true), .notThere)
+    @Test func aPhoneThatListsNoProfileOfOursHasNotTakenIt() {
+        #expect(ProfileCheck.problem(with: [], removalDisallowed: true) == .notThere)
+        #expect(ProfileCheck.problem(with: [somebodyElses], removalDisallowed: true) == .notThere)
     }
 
-    func testAProfileThePhoneHasNotTurnedOnIsNotInstalled() {
-        XCTAssertEqual(
+    @Test func aProfileThePhoneHasNotTurnedOnIsNotInstalled() {
+        #expect(
             ProfileCheck.problem(
                 with: [ours(isActive: false, removalDisallowed: true)],
                 removalDisallowed: true
-            ),
-            .notActive
+            ) == .notActive
         )
     }
 
-    func testAProfileThatCanBeRemovedIsNotWhatALockedRunAskedFor() {
-        XCTAssertEqual(
+    @Test func aProfileThatCanBeRemovedIsNotWhatALockedRunAskedFor() {
+        #expect(
             ProfileCheck.problem(
                 with: [ours(isActive: true, removalDisallowed: false)],
                 removalDisallowed: true
-            ),
-            .wrongRemovalSetting(asked: true)
+            ) == .wrongRemovalSetting(asked: true)
         )
     }
 
-    func testAProfileThatCannotBeRemovedIsNotWhatATrialRunAskedFor() {
-        XCTAssertEqual(
+    @Test func aProfileThatCannotBeRemovedIsNotWhatATrialRunAskedFor() {
+        #expect(
             ProfileCheck.problem(
                 with: [ours(isActive: true, removalDisallowed: true)],
                 removalDisallowed: false
-            ),
-            .wrongRemovalSetting(asked: false)
+            ) == .wrongRemovalSetting(asked: false)
         )
     }
 
-    func testAnInactiveProfileIsNamedBeforeItsSettingIs() {
+    @Test func anInactiveProfileIsNamedBeforeItsSettingIs() {
         // The phone not turning it on is the bigger thing to say, and the
         // setting of a profile that is off answers for nothing.
-        XCTAssertEqual(
+        #expect(
             ProfileCheck.problem(
                 with: [ours(isActive: false, removalDisallowed: false)],
                 removalDisallowed: true
-            ),
-            .notActive
+            ) == .notActive
         )
     }
 
     // MARK: - A profile built somewhere else
 
-    func testAProfileFromAFileIsCheckedOnEverythingButItsRemovalSetting() {
+    @Test func aProfileFromAFileIsCheckedOnEverythingButItsRemovalSetting() {
         // The site built it, so this app never knew what was asked for and has
         // nothing to hold the answer against.
-        XCTAssertNil(
-            ProfileCheck.problem(with: [ours(isActive: true, removalDisallowed: false)], removalDisallowed: nil)
+        #expect(
+            ProfileCheck.problem(with: [ours(isActive: true, removalDisallowed: false)], removalDisallowed: nil) == nil
         )
-        XCTAssertNil(
-            ProfileCheck.problem(with: [ours(isActive: true, removalDisallowed: true)], removalDisallowed: nil)
+        #expect(
+            ProfileCheck.problem(with: [ours(isActive: true, removalDisallowed: true)], removalDisallowed: nil) == nil
         )
-        XCTAssertEqual(ProfileCheck.problem(with: [], removalDisallowed: nil), .notThere)
-        XCTAssertEqual(
+        #expect(ProfileCheck.problem(with: [], removalDisallowed: nil) == .notThere)
+        #expect(
             ProfileCheck.problem(
                 with: [ours(isActive: false, removalDisallowed: true)],
                 removalDisallowed: nil
-            ),
-            .notActive
+            ) == .notActive
         )
     }
 
     // MARK: - What each one says
 
-    func testEveryProblemEndsBySayingTheBackupWasKept() {
+    @Test func everyProblemEndsBySayingTheBackupWasKept() {
         let problems: [ProfileCheck.Problem] = [
             .notThere,
             .notActive,
@@ -123,23 +119,23 @@ final class ProfileCheckTests: XCTestCase {
         ]
 
         for problem in problems {
-            XCTAssertTrue(
+            #expect(
                 problem.sentence.hasSuffix("The copy was kept."),
                 "\(problem) says: \(problem.sentence)"
             )
         }
     }
 
-    func testTheTwoRemovalSentencesSayOppositeThings() {
-        XCTAssertNotEqual(
-            ProfileCheck.Problem.wrongRemovalSetting(asked: true).sentence,
-            ProfileCheck.Problem.wrongRemovalSetting(asked: false).sentence
+    @Test func theTwoRemovalSentencesSayOppositeThings() {
+        #expect(
+            ProfileCheck.Problem.wrongRemovalSetting(asked: true).sentence
+                != ProfileCheck.Problem.wrongRemovalSetting(asked: false).sentence
         )
-        XCTAssertTrue(
+        #expect(
             ProfileCheck.Problem.wrongRemovalSetting(asked: true).sentence
                 .contains("can be removed there")
         )
-        XCTAssertTrue(
+        #expect(
             ProfileCheck.Problem.wrongRemovalSetting(asked: false).sentence
                 .contains("can't be removed there")
         )

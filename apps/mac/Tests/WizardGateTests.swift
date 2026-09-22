@@ -1,4 +1,5 @@
-import XCTest
+import Foundation
+import Testing
 
 /// What each step demands before it runs.
 ///
@@ -7,49 +8,49 @@ import XCTest
 /// while the reader is still turning it off. These are the rules that say so,
 /// and the one that says when a copy is patched enough to send, and none of
 /// them reads an iPhone.
-final class WizardGateTests: XCTestCase {
+struct WizardGateTests {
     // MARK: - The checks
 
-    func testTheChecksPassWhenTheDiskIsBigEnoughAndNoPasswordIsNeeded() {
-        XCTAssertTrue(
+    @Test func theChecksPassWhenTheDiskIsBigEnoughAndNoPasswordIsNeeded() {
+        #expect(
             WizardGate.checksPass(diskSpacePasses: true, needsPassword: false, hasPassword: false)
         )
     }
 
-    func testADiskThatIsTooSmallStopsTheRun() {
-        XCTAssertFalse(
-            WizardGate.checksPass(diskSpacePasses: false, needsPassword: false, hasPassword: false)
+    @Test func aDiskThatIsTooSmallStopsTheRun() {
+        #expect(
+            WizardGate.checksPass(diskSpacePasses: false, needsPassword: false, hasPassword: false) == false
         )
     }
 
-    func testFreeSpaceThatCouldNotBeReadBlocksNothing() {
-        XCTAssertTrue(
+    @Test func freeSpaceThatCouldNotBeReadBlocksNothing() {
+        #expect(
             WizardGate.checksPass(diskSpacePasses: nil, needsPassword: false, hasPassword: false)
         )
     }
 
-    func testAPasswordThatIsNeededAndMissingStopsTheRun() {
-        XCTAssertFalse(
-            WizardGate.checksPass(diskSpacePasses: true, needsPassword: true, hasPassword: false)
+    @Test func aPasswordThatIsNeededAndMissingStopsTheRun() {
+        #expect(
+            WizardGate.checksPass(diskSpacePasses: true, needsPassword: true, hasPassword: false) == false
         )
     }
 
-    func testAPasswordThatIsNeededAndTypedLetsTheRunGo() {
-        XCTAssertTrue(
+    @Test func aPasswordThatIsNeededAndTypedLetsTheRunGo() {
+        #expect(
             WizardGate.checksPass(diskSpacePasses: true, needsPassword: true, hasPassword: true)
         )
     }
 
-    func testADiskThatIsTooSmallStopsTheRunEvenWithThePasswordIn() {
-        XCTAssertFalse(
-            WizardGate.checksPass(diskSpacePasses: false, needsPassword: true, hasPassword: true)
+    @Test func aDiskThatIsTooSmallStopsTheRunEvenWithThePasswordIn() {
+        #expect(
+            WizardGate.checksPass(diskSpacePasses: false, needsPassword: true, hasPassword: true) == false
         )
     }
 
     // MARK: - The patch
 
-    func testAFlagThatWasWrittenIsAPatchedCopy() {
-        XCTAssertTrue(
+    @Test func aFlagThatWasWrittenIsAPatchedCopy() {
+        #expect(
             WizardGate.patched(
                 changes: ["IsSupervised: false -> true"],
                 alreadyCorrect: false,
@@ -58,51 +59,51 @@ final class WizardGateTests: XCTestCase {
         )
     }
 
-    func testACopyThatAlreadySaidTheRightThingCountsAsPatched() {
+    @Test func aCopyThatAlreadySaidTheRightThingCountsAsPatched() {
         // Nothing was written, so there are no changes to show. The copy still
         // says what the restore is about to send.
-        XCTAssertTrue(WizardGate.patched(changes: [], alreadyCorrect: true, running: false))
+        #expect(WizardGate.patched(changes: [], alreadyCorrect: true, running: false))
     }
 
-    func testAPatchThatIsStillRunningHasNothingToShowYet() {
-        XCTAssertFalse(
-            WizardGate.patched(changes: ["IsSupervised: false -> true"], alreadyCorrect: false, running: true)
+    @Test func aPatchThatIsStillRunningHasNothingToShowYet() {
+        #expect(
+            WizardGate.patched(changes: ["IsSupervised: false -> true"], alreadyCorrect: false, running: true) == false
         )
     }
 
-    func testAPatchThatWroteNothingAndSaysNothingIsNotAPatchedCopy() {
+    @Test func aPatchThatWroteNothingAndSaysNothingIsNotAPatchedCopy() {
         // This is the arrival that runs the patch, and the one a failed patch
         // leaves behind. Both offer to patch rather than to restore, which is
         // what keeps the job from patching the same copy twice.
-        XCTAssertFalse(WizardGate.patched(changes: [], alreadyCorrect: false, running: false))
+        #expect(WizardGate.patched(changes: [], alreadyCorrect: false, running: false) == false)
     }
 
     // MARK: - The restore
 
-    func testTheRestoreWaitsWhileTheIPhoneSaysFindMyIsOn() {
-        XCTAssertEqual(WizardGate.restore(findMyOn: true, patched: true), .blockedByFindMy)
+    @Test func theRestoreWaitsWhileTheIPhoneSaysFindMyIsOn() {
+        #expect(WizardGate.restore(findMyOn: true, patched: true) == .blockedByFindMy)
     }
 
-    func testTheRestoreGoesAheadOnceTheIPhoneSaysFindMyIsOff() {
-        XCTAssertEqual(WizardGate.restore(findMyOn: false, patched: true), .allowed)
+    @Test func theRestoreGoesAheadOnceTheIPhoneSaysFindMyIsOff() {
+        #expect(WizardGate.restore(findMyOn: false, patched: true) == .allowed)
     }
 
-    func testAPhoneThatWillNotSayIsNotHeldBack() {
-        XCTAssertEqual(WizardGate.restore(findMyOn: nil, patched: true), .allowed)
+    @Test func aPhoneThatWillNotSayIsNotHeldBack() {
+        #expect(WizardGate.restore(findMyOn: nil, patched: true) == .allowed)
     }
 
-    func testACopyThatIsNotPatchedYetIsNeverSentWhateverFindMySays() {
+    @Test func aCopyThatIsNotPatchedYetIsNeverSentWhateverFindMySays() {
         // Sending it back would put the phone where it already is, so the
         // button waits for the patch whichever way Find My reads.
         for findMyOn in [true, false, nil] as [Bool?] {
-            XCTAssertEqual(WizardGate.restore(findMyOn: findMyOn, patched: false), .notPatchedYet)
+            #expect(WizardGate.restore(findMyOn: findMyOn, patched: false) == .notPatchedYet)
         }
     }
 
     // MARK: - Taking the backup away
 
-    func testARunThatWentThroughCanLetTheBackupGo() {
-        XCTAssertTrue(
+    @Test func aRunThatWentThroughCanLetTheBackupGo() {
+        #expect(
             WizardGate.backupCanGo(
                 restoreFinished: true,
                 supervisedAfterwards: true,
@@ -111,57 +112,57 @@ final class WizardGateTests: XCTestCase {
         )
     }
 
-    func testAProfileThatWasNotConfirmedKeepsTheBackup() {
+    @Test func aProfileThatWasNotConfirmedKeepsTheBackup() {
         // A failed install and a profile the phone lists with the wrong
         // settings both land here, and both keep the only way back.
-        XCTAssertFalse(
+        #expect(
             WizardGate.backupCanGo(
                 restoreFinished: true,
                 supervisedAfterwards: true,
                 profileConfirmed: false
-            )
+            ) == false
         )
     }
 
-    func testARestoreThatDidNotFinishKeepsTheBackup() {
-        XCTAssertFalse(
+    @Test func aRestoreThatDidNotFinishKeepsTheBackup() {
+        #expect(
             WizardGate.backupCanGo(
                 restoreFinished: false,
                 supervisedAfterwards: true,
                 profileConfirmed: true
-            )
+            ) == false
         )
     }
 
-    func testAPhoneThatNeverCameBackKeepsTheBackup() {
-        XCTAssertFalse(
+    @Test func aPhoneThatNeverCameBackKeepsTheBackup() {
+        #expect(
             WizardGate.backupCanGo(
                 restoreFinished: true,
                 supervisedAfterwards: nil,
                 profileConfirmed: true
-            )
+            ) == false
         )
     }
 
-    func testAPhoneThatCameBackUnsupervisedKeepsTheBackup() {
-        XCTAssertFalse(
+    @Test func aPhoneThatCameBackUnsupervisedKeepsTheBackup() {
+        #expect(
             WizardGate.backupCanGo(
                 restoreFinished: true,
                 supervisedAfterwards: false,
                 profileConfirmed: true
-            )
+            ) == false
         )
     }
 
-    func testARunNobodyFinishedKeepsTheBackup() {
+    @Test func aRunNobodyFinishedKeepsTheBackup() {
         // Nothing happened yet, which is every step before the restore and
         // every run somebody walked away from.
-        XCTAssertFalse(
+        #expect(
             WizardGate.backupCanGo(
                 restoreFinished: false,
                 supervisedAfterwards: nil,
                 profileConfirmed: false
-            )
+            ) == false
         )
     }
 }
