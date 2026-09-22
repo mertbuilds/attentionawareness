@@ -66,7 +66,12 @@ struct ContentView: View {
                         .focusable(false)
                 }
             }
-            .padding(.horizontal, 20)
+            // The bar rides in the same centred column the step content does,
+            // with the same 28pt inset, so Back lines up with the title's left
+            // edge and the site link with the content's right, at every width.
+            .frame(maxWidth: WizardStyle.contentWidth, alignment: .leading)
+            .padding(.horizontal, 28)
+            .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
         }
         .background(Color(nsColor: .windowBackgroundColor))
