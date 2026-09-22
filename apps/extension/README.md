@@ -1,9 +1,9 @@
 # @attentionawareness/extension
 
 The browser extension. It removes the surfaces that farm attention: the "For
-you" tab on X, every Shorts shelf on YouTube, Reels and Explore on Instagram,
-all of TikTok. Nothing else goes. Feeds you chose, messages, notifications and
-profiles stay where they are.
+you" tab on X, every Shorts shelf on YouTube, Reels and Explore on Instagram.
+Nothing else goes. Feeds you chose, messages, notifications and profiles stay
+where they are.
 
 Chromium (MV3) first, because that is what Brave is. Nothing here is
 Chromium-only, so Firefox stays possible.
@@ -159,5 +159,5 @@ populated signed out and is one of the surfaces the Shorts shelf comes off.
 ## Test
 
 No automated tests yet. After a build, load `dist` unpacked and walk YouTube,
-X, Instagram and TikTok by hand, then add a custom rule for a new domain and
+X and Instagram by hand, then add a custom rule for a new domain and
 accept the host prompt.

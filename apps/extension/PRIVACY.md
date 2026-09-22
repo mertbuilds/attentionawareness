@@ -29,7 +29,7 @@ applied to the domain you named. It stays on your machine.
 
 ## Permissions
 
-Host access to x.com, twitter.com, youtube.com, instagram.com and tiktok.com is
+Host access to x.com, twitter.com, youtube.com and instagram.com is
 what lets the stylesheet reach those pages. A rule for any other domain asks
 for that one domain as you add it, and the extension registers its content
 script only on the domains you granted.

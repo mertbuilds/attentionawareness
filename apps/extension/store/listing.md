@@ -14,15 +14,15 @@ attention awareness
 
 ### Summary
 
-Max 132 characters. This one is 119.
+Max 132 characters. This one is 111.
 
 ```
-Hides the feeds that farm your attention on X, YouTube, Instagram and TikTok, plus any site you write your own CSS for.
+Hides the feeds that farm your attention on X, YouTube and Instagram, plus any site you write your own CSS for.
 ```
 
 ### Description
 
-Plain text, max 16,000 characters. This one is 1,308.
+Plain text, max 16,000 characters. This one is 1,290.
 
 ```
 attention awareness removes the surfaces built to hold you, and leaves the rest of the site alone.
@@ -32,7 +32,6 @@ What goes
 X: the "For you" tab on the home timeline, and trends in the sidebar.
 YouTube: every Shorts surface, which is the shelves on home, subscriptions, search and watch, the guide entries, the channel tab and the /shorts/ player itself, plus the Playables shelf.
 Instagram: Reels, the Explore grid, the "Suggested for you" blocks and the "For you" tab on the home feed.
-TikTok: all of it.
 
 What stays
 
@@ -44,7 +43,7 @@ One master switch turns everything off at once, and one switch per site under it
 
 Your own CSS
 
-The options page takes a domain and a block of CSS and applies it on top of the built-in rules. A domain covers its subdomains, so reddit.com takes old.reddit.com. A domain outside the four above asks for that one site as you add the rule, and for nothing else.
+The options page takes a domain and a block of CSS and applies it on top of the built-in rules. A domain covers its subdomains, so reddit.com takes old.reddit.com. A domain outside the three above asks for that one site as you add the rule, and for nothing else.
 
 No accounts. No tracking. No analytics. No servers: your settings live in the browser's own extension storage, and nothing ever leaves the machine.
 
@@ -70,7 +69,7 @@ English
 ### Single purpose description
 
 ```
-attention awareness hides the attention farming feeds on X, YouTube, Instagram and TikTok, and on any other site the user writes a rule for, by injecting CSS into those pages.
+attention awareness hides the attention farming feeds on X, YouTube and Instagram, and on any other site the user writes a rule for, by injecting CSS into those pages.
 ```
 
 ### Permission justifications
@@ -84,10 +83,10 @@ The extension stores the user's own settings: the master switch, one switch per 
 `scripting`
 
 ```
-Custom rules are for domains that are not known when the extension is packaged, so its content script cannot be declared for them in the manifest. When the user adds a rule for a new domain and grants access to it, the service worker calls chrome.scripting.registerContentScripts to register that same content script on that domain, and unregisters it when the rule is removed. The four built-in sites are declared statically and are skipped here.
+Custom rules are for domains that are not known when the extension is packaged, so its content script cannot be declared for them in the manifest. When the user adds a rule for a new domain and grants access to it, the service worker calls chrome.scripting.registerContentScripts to register that same content script on that domain, and unregisters it when the rule is removed. The three built-in sites are declared statically and are skipped here.
 ```
 
-Host permissions: `*://x.com/*`, `*://twitter.com/*`, `*://*.youtube.com/*`, `*://*.instagram.com/*`, `*://*.tiktok.com/*`
+Host permissions: `*://x.com/*`, `*://twitter.com/*`, `*://*.youtube.com/*`, `*://*.instagram.com/*`
 
 ```
 These are the sites the extension ships rules for, and the whole of what it does is inject a stylesheet into them at document_start so the feed is never painted. The content script reads the user's settings, picks the CSS for the host and appends one style element; it does not read page content, does not touch form input, and makes no network request. twitter.com is listed because it still serves X's timeline.
