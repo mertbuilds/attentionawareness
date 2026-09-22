@@ -159,7 +159,7 @@ async function optionsShot(context: BrowserContext): Promise<void> {
     EXAMPLE_RULES,
   );
   await options.reload();
-  await options.getByRole('textbox', { name: strings.cssLabel }).last().waitFor();
+  await options.getByRole('textbox', { name: strings.cssFieldLabel }).last().waitFor();
   await options.evaluate(async () => {
     await document.fonts.ready;
   });

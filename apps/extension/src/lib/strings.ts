@@ -12,7 +12,6 @@ export const strings = {
   copyPrompt: 'Copy a prompt for your AI',
   copyPromptDone: 'Copied',
   cssFieldLabel: 'Your CSS',
-  cssLabel: 'CSS',
   customCss: 'Custom CSS',
   customIntro:
     "Your own rules. One block per site, applied on top of the built-in ones. If you don't write CSS, copy a prompt for your AI and paste back what it gives you.",

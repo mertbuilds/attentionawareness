@@ -3,6 +3,7 @@ import { Options } from './components/options.tsx';
 import '@attentionawareness/ui/fonts.css';
 import '@attentionawareness/ui/theme.css';
 import './page.css';
+import './css-editor.css';
 
 const container = document.getElementById('root');
 if (container === null) {
