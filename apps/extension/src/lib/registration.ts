@@ -4,8 +4,8 @@ import type { Settings } from './storage.ts';
 
 /**
  * The domains a custom rule needs a content script registered for: every
- * enabled rule's, deduped and in a fixed order, minus the four the manifest
- * already covers. Those four are static matches; registering them a second
+ * enabled rule's, deduped and in a fixed order, minus the three the manifest
+ * already covers. Those three are static matches; registering them a second
  * time would inject the script twice into the same page.
  */
 export function customDomains(settings: Settings): Array<string> {

@@ -10,7 +10,7 @@ import { getSettings } from './lib/storage.ts';
 const REGISTRATION_ID = 'aa-custom';
 
 /**
- * The service worker exists for this one call. The four sites are static
+ * The service worker exists for this one call. The three sites are static
  * matches in the manifest; a custom rule for anything else needs the content
  * script registered for its origin, and only a worker can do that.
  */
