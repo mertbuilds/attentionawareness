@@ -20,12 +20,9 @@ export const strings = {
   domainPlaceholder: 'reddit.com',
   enabledLabel: 'Rule on',
   master: 'Feeds hidden',
-  off: 'Off',
-  on: 'On',
   remove: 'Remove',
-  removeConfirm: 'Remove?',
+  removeConfirm: 'Sure?',
   saved: 'Saved',
-  siteLabel: 'Site',
   website: 'attentionawareness.com',
 } as const;
 
