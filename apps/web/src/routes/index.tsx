@@ -65,8 +65,6 @@ const ICON_SIZE = 22;
 const REPLAY_ICON_SIZE = 14;
 /** How tall the row it stands in is, under the phone and over it alike. */
 const REPLAY_ROW_HEIGHT = 18;
-/** The browser half of the same idea, and where the extension is installed from. */
-const EXTENSION_GUIDE_URL = '/guides/use-social-media-from-your-computer';
 /** Every link off this site carries utm tags, so the visit is traced to this page. */
 const STORE_URL =
   'https://chromewebstore.google.com/detail/attention-awareness/lgcijcijcndmggjiioibfcmppndfakee?utm_source=attentionawareness.com&utm_medium=referral&utm_campaign=home';
@@ -80,14 +78,6 @@ const STORY_URL = 'https://stopa.io/post/297';
  * pieces.
  */
 const LINK_SLOT = '\u0000';
-/**
- * The same, for a sentence with two links in it. The pair is split in one
- * pass, so the two come back in the order the sentence puts them: a
- * translation may move the words around them but not the links past each
- * other.
- */
-const SECOND_SLOT = '\u0001';
-const LINK_SLOTS = new RegExp(`[${LINK_SLOT}${SECOND_SLOT}]`);
 /** A till pads its receipt numbers. */
 const RECEIPT_DIGITS = 6;
 /** How long the receipt takes to roll back up when the reader starts over. */
@@ -1120,11 +1110,11 @@ function HomePage() {
   // it, so the words around it keep their own order in every language.
   const [storyBefore, storyAfter] = m.home_story_1({ post: LINK_SLOT }).split(LINK_SLOT);
 
-  // The browser half, under the download: the guide that says what the
-  // extension does, and the store it is added from.
-  const [extensionBefore, extensionBetween, extensionAfter] = m
-    .home_how_extension({ extension: LINK_SLOT, store: SECOND_SLOT })
-    .split(LINK_SLOTS);
+  // The browser half, in its own section: the extension, in the middle of the
+  // sentence, and the store it is added from.
+  const [computerBefore, computerAfter] = m
+    .home_computer_body({ extension: LINK_SLOT })
+    .split(LINK_SLOT);
 
   const objections = [
     { desc: m.home_faq_supervision_desc(), term: m.home_faq_supervision_term() },
@@ -1415,16 +1405,20 @@ function HomePage() {
               <MacDownload />
             </div>
             <p {...props(styles.howAside)}>{m.home_how_undo()}</p>
-            <p {...props(styles.howAside)}>
-              {extensionBefore}
-              <a href={EXTENSION_GUIDE_URL}>{m.home_how_extension_guide_link()}</a>
-              {extensionBetween}
-              <a href={STORE_URL} rel="noreferrer" target="_blank">
-                {m.home_how_extension_store_link()}
-              </a>
-              {extensionAfter}
-            </p>
           </div>
+        </section>
+
+        {/* The browser half of the same idea, on its own so the way out reads
+        as one app and the computer as one more place the feeds are shut off. */}
+        <section {...props(styles.section)}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_computer_title()}</h2>
+          <p {...props(styles.sectionBody)}>
+            {computerBefore}
+            <a href={STORE_URL} rel="noreferrer" target="_blank">
+              {m.home_computer_link()}
+            </a>
+            {computerAfter}
+          </p>
         </section>
 
         <section {...props(styles.section)}>
