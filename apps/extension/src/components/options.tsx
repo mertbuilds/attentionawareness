@@ -13,7 +13,7 @@ const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 const SAVE_DEBOUNCE_MS = 300;
 /** How long "Saved" stays up after a write. */
 const SAVED_MS = 2000;
-/** How long the prompt button reads "Copied" after a copy. */
+/** How long the prompt button's flash stays up: "Copied", or the empty-site hint. */
 const COPIED_MS = 2000;
 /** How long an armed Remove waits for its second click before standing down. */
 const REMOVE_CONFIRM_MS = 3000;
@@ -23,6 +23,40 @@ const INDENT = '  ';
 const CSS_ROWS = 6;
 
 const styles = create({
+  // The one strong way to grow the list: a dashed, full-width button, neutral
+  // rather than accent, so the page keeps a single chromatic note (the on
+  // switch) instead of two competing for the eye.
+  add: {
+    alignItems: 'center',
+    backgroundColor: {
+      ':hover': 'var(--secondary)',
+      default: 'transparent',
+    },
+    borderColor: {
+      ':hover': colors.fg,
+      default: colors.border,
+    },
+    borderRadius: radius.base,
+    borderStyle: 'dashed',
+    borderWidth: '1px',
+    color: colors.fg,
+    cursor: 'pointer',
+    display: 'flex',
+    fontFamily: 'inherit',
+    fontSize: font.sizeSm,
+    fontWeight: font.weightMedium,
+    justifyContent: 'center',
+    outlineColor: colors.fg,
+    outlineOffset: 2,
+    outlineStyle: {
+      ':focus-visible': 'solid',
+      default: 'none',
+    },
+    outlineWidth: 2,
+    paddingBlock: spacing.s3,
+    paddingInline: spacing.s4,
+    width: '100%',
+  },
   brand: {
     alignItems: 'center',
     display: 'flex',
@@ -32,18 +66,57 @@ const styles = create({
     fontSize: 15,
     fontWeight: font.weightMedium,
   },
-  // The prompt button sits under the CSS field, not stretched across it, and
-  // dims to say a domain has to come first.
+  // A field's small, quiet label. The name is secondary; the value is not.
+  caption: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: font.weightMedium,
+  },
+  // The card one rule lives in. `--secondary` is the design system's raised
+  // surface (theme.css keeps its light and dark values in step), one step off
+  // the page so two rules never blur into one.
+  card: {
+    backgroundColor: 'var(--secondary)',
+    borderColor: colors.border,
+    borderRadius: radius.base,
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s3,
+    padding: spacing.s4,
+  },
+  // A real secondary button now, not a caption: outlined, on the page's base
+  // surface so it lifts off the card, and always live (see the empty-site hint).
   copyButton: {
+    backgroundColor: colors.bg,
+    borderColor: {
+      ':hover': colors.fg,
+      default: colors.border,
+    },
+    borderRadius: radius.base,
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    color: colors.fg,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    fontSize: 12,
+    fontWeight: font.weightMedium,
+    outlineColor: colors.fg,
+    outlineOffset: 1,
+    outlineStyle: {
+      ':focus-visible': 'solid',
+      default: 'none',
+    },
+    outlineWidth: 2,
+    paddingBlock: spacing.s1,
+    paddingInline: spacing.s2,
+  },
+  copyRow: {
+    alignItems: 'center',
     alignSelf: 'flex-start',
-    cursor: {
-      ':disabled': 'default',
-      default: 'pointer',
-    },
-    opacity: {
-      ':disabled': 0.5,
-      default: 1,
-    },
+    display: 'flex',
+    gap: spacing.s2,
   },
   css: {
     backgroundColor: colors.bg,
@@ -67,18 +140,19 @@ const styles = create({
     resize: 'vertical',
     width: '100%',
   },
+  // The card's identity, and its most prominent value: base surface so it lifts
+  // off the card, and a step up in size and weight from the mono elsewhere.
   domain: {
-    backgroundColor: 'transparent',
+    backgroundColor: colors.bg,
     borderColor: colors.border,
     borderRadius: radius.base,
     borderStyle: 'solid',
     borderWidth: '1px',
     boxSizing: 'border-box',
     color: colors.fg,
-    flexGrow: 1,
     fontFamily: MONOSPACE,
-    fontSize: 13,
-    minWidth: 0,
+    fontSize: font.sizeSm,
+    fontWeight: font.weightMedium,
     outlineColor: colors.fg,
     outlineOffset: 1,
     outlineStyle: {
@@ -87,29 +161,46 @@ const styles = create({
     },
     outlineWidth: 2,
     padding: spacing.s2,
+    width: '100%',
   },
+  // Sits with the field it is about, in the error tone, not a stray grey line
+  // at the foot of the card.
   error: {
-    color: colors.muted,
+    color: colors.error,
     fontSize: 12,
   },
-  footer: {
-    alignItems: 'center',
+  field: {
     display: 'flex',
-    gap: spacing.s3,
+    flexDirection: 'column',
+    gap: spacing.s2,
+  },
+  footer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s2,
   },
   header: {
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s3,
   },
+  // The hint the copy button shows on an empty site: a nudge to fill the field,
+  // not an error, so it stays muted.
+  hint: {
+    color: colors.muted,
+    fontSize: 12,
+  },
   intro: {
     color: colors.muted,
     fontSize: font.sizeSm,
     margin: 0,
   },
-  muted: {
-    color: colors.muted,
-    fontSize: 12,
+  // The top of the card: the site label on the left, the on switch and the
+  // muted Remove pushed to the right.
+  metaRow: {
+    alignItems: 'center',
+    display: 'flex',
+    gap: spacing.s3,
   },
   page: {
     boxSizing: 'border-box',
@@ -120,8 +211,8 @@ const styles = create({
     maxWidth: 640,
     padding: spacing.s8,
   },
-  // A button that does not want the row: the word, muted, underlined only
-  // under the pointer that is about to take it.
+  // Remove: a muted secondary that does not want the row. A screaming control
+  // for a routine deletion is the wrong hierarchy; the word, grey, is enough.
   quiet: {
     backgroundColor: 'transparent',
     borderStyle: 'none',
@@ -152,16 +243,6 @@ const styles = create({
     color: colors.fg,
     textDecorationLine: 'underline',
   },
-  rule: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s2,
-  },
-  ruleHead: {
-    alignItems: 'center',
-    display: 'flex',
-    gap: spacing.s3,
-  },
   rules: {
     display: 'flex',
     flexDirection: 'column',
@@ -170,9 +251,23 @@ const styles = create({
     margin: 0,
     padding: 0,
   },
-  // Named for the screen reader, and for nobody else: the domain field is its
-  // own placeholder, and a visible label per row would be three more words on
-  // a page that is a list of two.
+  saved: {
+    alignSelf: 'center',
+    color: colors.muted,
+    fontSize: 12,
+  },
+  // The card's identity label: small, uppercase, secondary, sat above the
+  // prominent value. `marginRight: auto` pushes the switch and Remove right.
+  siteLabel: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: font.weightMedium,
+    letterSpacing: '0.04em',
+    marginRight: 'auto',
+    textTransform: 'uppercase',
+  },
+  // Named for the screen reader, and for nobody else: the switch's own name is
+  // the domain, read from here, so the visible on/off word can stay decorative.
   srOnly: {
     clipPath: 'inset(50%)',
     height: '1px',
@@ -181,10 +276,19 @@ const styles = create({
     whiteSpace: 'nowrap',
     width: '1px',
   },
+  stateLabel: {
+    color: colors.muted,
+    fontSize: 12,
+  },
   title: {
     fontSize: font.sizeLg,
     fontWeight: font.weightMedium,
     margin: 0,
+  },
+  toggleGroup: {
+    alignItems: 'center',
+    display: 'flex',
+    gap: spacing.s2,
   },
 });
 
@@ -367,11 +471,11 @@ export function Options() {
             apply([...latest.current, { css: '', domain: '', enabled: true, id: newRuleId() }])
           }
           type="button"
-          {...props(styles.quiet)}
+          {...props(styles.add)}
         >
           {strings.add}
         </button>
-        {saves > 0 ? <span {...props(styles.muted)}>{strings.saved}</span> : null}
+        {saves > 0 ? <span {...props(styles.saved)}>{strings.saved}</span> : null}
       </div>
     </div>
   );
@@ -398,27 +502,58 @@ function Rule({
   rule: CustomRule;
 }) {
   const switchLabel = useId();
-  const [copied, setCopied] = useState(false);
+  const errorId = useId();
+  // Idle, or one of two flashes on the prompt button: the copy landed, or the
+  // site is still empty and the button taught rather than copied.
+  const [flash, setFlash] = useState<'copied' | 'hint' | null>(null);
 
-  // "Copied" is a flash, not a mode: it stands down on its own a couple of
-  // seconds after the copy, the way "Saved" does on the page.
+  // A flash is a flash, not a mode: it stands down on its own a couple of
+  // seconds later, the way "Saved" does on the page.
   useEffect(() => {
-    if (!copied) {
+    if (flash === null) {
       return;
     }
-    const revert = setTimeout(() => setCopied(false), COPIED_MS);
+    const revert = setTimeout(() => setFlash(null), COPIED_MS);
     return () => clearTimeout(revert);
-  }, [copied]);
+  }, [flash]);
 
+  // Always live: an empty site does not grey the button out, it points at the
+  // field that has to come first.
   function copy(): void {
+    if (rule.domain.trim() === '') {
+      setFlash('hint');
+      return;
+    }
     void navigator.clipboard.writeText(sentences.promptTemplate(rule.domain));
-    setCopied(true);
+    setFlash('copied');
   }
 
   return (
-    <li {...props(styles.rule)}>
-      <div {...props(styles.ruleHead)}>
+    <li {...props(styles.card)}>
+      <div {...props(styles.metaRow)}>
+        <span {...props(styles.siteLabel)}>{strings.siteLabel}</span>
+        <div {...props(styles.toggleGroup)}>
+          <span aria-hidden="true" {...props(styles.stateLabel)}>
+            {rule.enabled ? strings.on : strings.off}
+          </span>
+          <span id={switchLabel} {...props(styles.srOnly)}>
+            {rule.domain === '' ? strings.enabledLabel : rule.domain}
+          </span>
+          <Switch checked={rule.enabled} labelledBy={switchLabel} onChange={onToggle} />
+        </div>
+        <button
+          onClick={onRemove}
+          type="button"
+          {...props(styles.quiet, armed && styles.quietArmed)}
+        >
+          {armed ? strings.removeConfirm : strings.remove}
+        </button>
+      </div>
+
+      <div {...props(styles.field)}>
         <input
+          aria-describedby={error === undefined ? undefined : errorId}
+          aria-invalid={error === undefined ? undefined : true}
           aria-label={strings.domainLabel}
           onBlur={(event) => onDomainCommit(event.target.value)}
           onChange={(event) => onDomainChange(event.target.value)}
@@ -433,53 +568,46 @@ function Rule({
           value={rule.domain}
           {...props(styles.domain)}
         />
-        <span id={switchLabel} {...props(styles.srOnly)}>
-          {rule.domain === '' ? strings.enabledLabel : rule.domain}
-        </span>
-        <Switch checked={rule.enabled} labelledBy={switchLabel} onChange={onToggle} />
-        <button
-          onClick={onRemove}
-          type="button"
-          {...props(styles.quiet, armed && styles.quietArmed)}
-        >
-          {armed ? strings.removeConfirm : strings.remove}
-        </button>
+        {error === undefined ? null : (
+          <p id={errorId} {...props(styles.error)}>
+            {error}
+          </p>
+        )}
       </div>
 
-      <textarea
-        aria-label={strings.cssLabel}
-        onChange={(event) => onCssChange(event.target.value)}
-        onKeyDown={(event) => {
-          // Tab is indentation in a CSS block, not the way out of one. Shift
-          // and Tab still leaves, which is the keyboard's escape hatch.
-          if (event.key !== 'Tab' || event.shiftKey) {
-            return;
-          }
-          event.preventDefault();
-          const field = event.currentTarget;
-          const { selectionEnd, selectionStart, value } = field;
-          const next = value.slice(0, selectionStart) + INDENT + value.slice(selectionEnd);
-          const caret = selectionStart + INDENT.length;
-          field.value = next;
-          field.setSelectionRange(caret, caret);
-          onCssChange(next);
-        }}
-        rows={CSS_ROWS}
-        spellCheck={false}
-        value={rule.css}
-        {...props(styles.css)}
-      />
+      <div {...props(styles.field)}>
+        <span {...props(styles.caption)}>{strings.cssFieldLabel}</span>
+        <textarea
+          aria-label={strings.cssLabel}
+          onChange={(event) => onCssChange(event.target.value)}
+          onKeyDown={(event) => {
+            // Tab is indentation in a CSS block, not the way out of one. Shift
+            // and Tab still leaves, which is the keyboard's escape hatch.
+            if (event.key !== 'Tab' || event.shiftKey) {
+              return;
+            }
+            event.preventDefault();
+            const field = event.currentTarget;
+            const { selectionEnd, selectionStart, value } = field;
+            const next = value.slice(0, selectionStart) + INDENT + value.slice(selectionEnd);
+            const caret = selectionStart + INDENT.length;
+            field.value = next;
+            field.setSelectionRange(caret, caret);
+            onCssChange(next);
+          }}
+          rows={CSS_ROWS}
+          spellCheck={false}
+          value={rule.css}
+          {...props(styles.css)}
+        />
 
-      <button
-        disabled={rule.domain.trim() === ''}
-        onClick={copy}
-        type="button"
-        {...props(styles.quiet, styles.copyButton)}
-      >
-        {copied ? strings.copyPromptDone : strings.copyPrompt}
-      </button>
-
-      {error === undefined ? null : <p {...props(styles.error)}>{error}</p>}
+        <div {...props(styles.copyRow)}>
+          <button onClick={copy} type="button" {...props(styles.copyButton)}>
+            {flash === 'copied' ? strings.copyPromptDone : strings.copyPrompt}
+          </button>
+          {flash === 'hint' ? <span {...props(styles.hint)}>{strings.copyHint}</span> : null}
+        </div>
+      </div>
     </li>
   );
 }
