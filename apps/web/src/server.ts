@@ -1,6 +1,7 @@
 import handler from '@tanstack/react-start/server-entry';
 import { initWorkersLogger } from 'evlog/workers';
 import { canonicalRedirect } from './lib/canonical.ts';
+import { removedPathRedirect } from './lib/redirects.ts';
 import { setSigningSecrets } from './lib/signing-secrets.ts';
 import { paraglideMiddleware } from './paraglide/server.js';
 
@@ -50,6 +51,7 @@ export default {
     try {
       const response =
         canonicalRedirect(url) ??
+        removedPathRedirect(url) ??
         (await paraglideMiddleware(request, () => handler.fetch(request)));
       log.set({ status: response.status });
       return response;
