@@ -1,12 +1,37 @@
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
-import { useEffect, useId, useRef, useState } from 'react';
+import Prism from 'prismjs';
+import { type CSSProperties, type ReactElement, useEffect, useId, useRef, useState } from 'react';
+import EditorImport from 'react-simple-code-editor';
 import { normalizeDomain, originPatterns } from '../lib/domain.ts';
 import { siteFor } from '../lib/sites.ts';
 import { getSettings, newRuleId, setSettings, type CustomRule } from '../lib/storage.ts';
 import { sentences, strings } from '../lib/strings.ts';
 import { BrandMark } from './brand-mark.tsx';
 import { Switch } from './switch.tsx';
+// The CSS grammar only: registers `Prism.languages.css`, nothing more of Prism's
+// languages ships. The token colours live in `../css-editor.css`.
+import 'prismjs/components/prism-css';
+
+/** The subset of the editor's props this page passes. */
+type EditorProps = {
+  highlight: (value: string) => string;
+  insertSpaces?: boolean;
+  onValueChange: (value: string) => void;
+  padding?: number;
+  preClassName?: string;
+  style?: CSSProperties;
+  tabSize?: number;
+  textareaId?: string;
+  value: string;
+};
+
+/**
+ * react-simple-code-editor ships CommonJS whose `export default` does not survive
+ * nodenext's interop as a component type, though the bundler resolves it right at
+ * runtime. Re-type the default to the props this page uses.
+ */
+const Editor = EditorImport as unknown as (props: EditorProps) => ReactElement;
 
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 /** How long the page sits on an edit before writing it. */
@@ -17,10 +42,30 @@ const SAVED_MS = 2000;
 const COPIED_MS = 2000;
 /** How long an armed Remove waits for its second click before standing down. */
 const REMOVE_CONFIRM_MS = 3000;
-/** What Tab puts in the textarea instead of leaving it. */
-const INDENT = '  ';
-/** Rows the CSS field opens at. It grows by hand from there. */
-const CSS_ROWS = 6;
+/** Spaces the editor inserts for a Tab. */
+const TAB_SIZE = 2;
+
+/**
+ * The editor's own type shares its font with both of its layers by inheritance,
+ * so it goes on the container the library owns rather than through StyleX. The
+ * min-height opens it at roughly six lines; it grows from there.
+ */
+const EDITOR_STYLE: CSSProperties = {
+  fontFamily: MONOSPACE,
+  fontSize: 13,
+  lineHeight: 1.5,
+  minHeight: 132,
+};
+
+/** The CSS painted behind the textarea. Falls back to plain text if the grammar
+ * somehow did not register, rather than throwing on every keystroke. */
+function highlightCss(code: string): string {
+  const grammar = Prism.languages['css'];
+  if (grammar === undefined) {
+    return code.replaceAll('&', '&amp;').replaceAll('<', '&lt;');
+  }
+  return Prism.highlight(code, grammar, 'css');
+}
 
 const styles = create({
   brand: {
@@ -40,7 +85,10 @@ const styles = create({
     display: 'flex',
     gap: spacing.s2,
   },
-  css: {
+  // Wraps the code editor: the border and the ground the library's transparent
+  // layers sit on, and the focus ring, since the focus lands on the textarea
+  // inside.
+  editorWrap: {
     backgroundColor: colors.bg,
     borderColor: colors.border,
     borderRadius: radius.base,
@@ -48,18 +96,14 @@ const styles = create({
     borderWidth: '1px',
     boxSizing: 'border-box',
     color: colors.fg,
-    fontFamily: MONOSPACE,
-    fontSize: 13,
-    lineHeight: 1.5,
     outlineColor: colors.fg,
     outlineOffset: 1,
     outlineStyle: {
-      ':focus-visible': 'solid',
+      ':focus-within': 'solid',
       default: 'none',
     },
     outlineWidth: 2,
-    padding: spacing.s2,
-    resize: 'vertical',
+    overflow: 'hidden',
     width: '100%',
   },
   // The rule's identity. It fills the row so the switch sits at its start and
@@ -398,6 +442,7 @@ function Rule({
 }) {
   const switchLabel = useId();
   const errorId = useId();
+  const cssId = useId();
   // Idle, or one of two flashes on the prompt button: the copy landed, or the
   // site is still empty and the button taught rather than copied.
   const [flash, setFlash] = useState<'copied' | 'hint' | null>(null);
@@ -462,30 +507,22 @@ function Rule({
         </p>
       )}
 
-      <span {...props(styles.muted)}>{strings.cssFieldLabel}</span>
-      <textarea
-        aria-label={strings.cssLabel}
-        onChange={(event) => onCssChange(event.target.value)}
-        onKeyDown={(event) => {
-          // Tab is indentation in a CSS block, not the way out of one. Shift
-          // and Tab still leaves, which is the keyboard's escape hatch.
-          if (event.key !== 'Tab' || event.shiftKey) {
-            return;
-          }
-          event.preventDefault();
-          const field = event.currentTarget;
-          const { selectionEnd, selectionStart, value } = field;
-          const next = value.slice(0, selectionStart) + INDENT + value.slice(selectionEnd);
-          const caret = selectionStart + INDENT.length;
-          field.value = next;
-          field.setSelectionRange(caret, caret);
-          onCssChange(next);
-        }}
-        rows={CSS_ROWS}
-        spellCheck={false}
-        value={rule.css}
-        {...props(styles.css)}
-      />
+      <label htmlFor={cssId} {...props(styles.muted)}>
+        {strings.cssFieldLabel}
+      </label>
+      <div {...props(styles.editorWrap)}>
+        <Editor
+          highlight={highlightCss}
+          insertSpaces
+          onValueChange={onCssChange}
+          padding={8}
+          preClassName="language-css"
+          style={EDITOR_STYLE}
+          tabSize={TAB_SIZE}
+          textareaId={cssId}
+          value={rule.css}
+        />
+      </div>
 
       <div {...props(styles.copyRow)}>
         <button onClick={copy} type="button" {...props(styles.quiet)}>

@@ -1,0 +1,72 @@
+/*
+ * Syntax colours for the Custom CSS editor. react-simple-code-editor paints a
+ * `language-css` <pre> behind the transparent textarea, and Prism wraps each
+ * piece of the code in a `.token`. The background stays transparent so the page
+ * theme shows through; only the hues are set here, per theme, the way theme.css
+ * does it: :root holds light, and the dark values are written twice, once
+ * behind the system preference (skipped when light is forced) and once behind
+ * the forced attribute.
+ */
+:root {
+  --aa-css-comment: #6b7280;
+  --aa-css-selector: #0b69c7;
+  --aa-css-property: #7c3aed;
+  --aa-css-value: #0a7d33;
+  --aa-css-atrule: #b45309;
+  --aa-css-important: #ff4f00;
+  --aa-css-punctuation: #6b7280;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --aa-css-comment: #8a8a8a;
+    --aa-css-selector: #6cb6ff;
+    --aa-css-property: #c9a3ff;
+    --aa-css-value: #7ee787;
+    --aa-css-atrule: #ffab70;
+    --aa-css-important: #ff7a45;
+    --aa-css-punctuation: #9aa0a6;
+  }
+}
+
+:root[data-theme='dark'] {
+  --aa-css-comment: #8a8a8a;
+  --aa-css-selector: #6cb6ff;
+  --aa-css-property: #c9a3ff;
+  --aa-css-value: #7ee787;
+  --aa-css-atrule: #ffab70;
+  --aa-css-important: #ff7a45;
+  --aa-css-punctuation: #9aa0a6;
+}
+
+.language-css .token.comment {
+  color: var(--aa-css-comment);
+  font-style: italic;
+}
+
+.language-css .token.selector {
+  color: var(--aa-css-selector);
+}
+
+.language-css .token.property {
+  color: var(--aa-css-property);
+}
+
+.language-css .token.string,
+.language-css .token.url {
+  color: var(--aa-css-value);
+}
+
+.language-css .token.function,
+.language-css .token.atrule {
+  color: var(--aa-css-atrule);
+}
+
+.language-css .token.important {
+  color: var(--aa-css-important);
+  font-weight: 600;
+}
+
+.language-css .token.punctuation {
+  color: var(--aa-css-punctuation);
+}
