@@ -65,10 +65,19 @@ enum UISmoke {
         // The website list is folded away in the app, so the loop above never
         // draws it open. This one draws the builder with it open, where the
         // sites the filter blocks and the holes it keeps open for sign-in are
-        // both on screen.
+        // both editable rows on screen.
         report(
             "restrictions-sites",
             RestrictionsBuilder(model: sampleModel([sampleDevice]), sitesExpanded: true),
+            into: folder
+        )
+        // The same list once the reader has kept another site open, which is
+        // the default hole and the typed one both marked open.
+        let customException = sampleModel([sampleDevice])
+        customException.draft.addException("accounts.google.com")
+        report(
+            "restrictions-sites-custom-exception",
+            RestrictionsBuilder(model: customException, sitesExpanded: true),
             into: folder
         )
         // The Profiles screen for a phone that is supervised already, in the

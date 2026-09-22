@@ -37,6 +37,13 @@ struct ProfileDraft: Equatable {
     /// Derived sites the reader took off the list, by url, so one that was
     /// turned down does not come back on the next keystroke.
     var droppedSites: [String]
+    /// Sites the reader typed to keep open for sign-in. They are kept apart
+    /// from the default holes so an edit adds to them rather than replacing
+    /// them.
+    var typedExceptions: [String]
+    /// Default holes the reader took off the kept-open list, by url, so one
+    /// that was turned down does not come back on the next keystroke.
+    var droppedExceptions: [String]
     /// The artwork of the apps on the list, by bundle id. The profile carries
     /// none of it: a row this knows no icon for is drawn by its initial.
     var icons: [String: String]
@@ -54,6 +61,8 @@ extension ProfileDraft {
         blockedApps: ProfileConfig.default.blockedApps,
         typedSites: [],
         droppedSites: [],
+        typedExceptions: [],
+        droppedExceptions: [],
         icons: [:],
         allowAppStore: ProfileConfig.default.allowAppStore,
         allowPrivateBrowsing: ProfileConfig.default.allowPrivateBrowsing,
@@ -93,11 +102,27 @@ extension ProfileDraft {
         return rows
     }
 
-    /// The holes the filter keeps open so sign-in still resolves, by host, for
-    /// the screen to show. They are display only: `config` writes them from
-    /// `permittedUrls`, and the reader does not edit them.
-    var permittedSites: [String] {
-        Self.permittedUrls.map { DraftSite(url: $0, app: nil, guessed: false).host }
+    /// The holes the filter keeps open so sign-in still resolves: the default
+    /// ones, in the order the profile lists them, then the ones the reader
+    /// typed. A hole taken off the list is left out and no url is listed twice.
+    /// It reads the same as `sites`, so a row carries its host and its url.
+    var permittedSites: [DraftSite] {
+        let dropped = Set(droppedExceptions)
+        var seen = Set<String>()
+        var rows: [DraftSite] = []
+        for url in Self.permittedUrls {
+            let normalized = Sites.normalize(url)
+            guard !normalized.isEmpty, !dropped.contains(normalized), seen.insert(normalized).inserted else {
+                continue
+            }
+            rows.append(DraftSite(url: normalized, app: nil, guessed: false))
+        }
+        for typed in typedExceptions {
+            let url = Sites.normalize(typed)
+            guard !url.isEmpty, seen.insert(url).inserted else { continue }
+            rows.append(DraftSite(url: url, app: nil, guessed: false))
+        }
+        return rows
     }
 
     /// The profile the site is asked to sign.
@@ -109,11 +134,14 @@ extension ProfileDraft {
         config.autoFilterAdult = autoFilterAdult
         config.lockRemoval = !allowsRemoval
         let urls = sites.map(\.url)
+        // The kept-open holes are the reader's now, so the filter carries the
+        // list as it stands and an edit reaches the signed profile.
+        let permitted = permittedSites.map(\.url)
         // A filter with nothing in it filters nothing, so the payload is left
         // out rather than written empty.
         config.webFilter = urls.isEmpty
             ? .off
-            : .deny(deniedUrls: urls, permittedUrls: Self.permittedUrls)
+            : .deny(deniedUrls: urls, permittedUrls: permitted)
         return config
     }
 
@@ -123,11 +151,19 @@ extension ProfileDraft {
         blockedApps == Self.recommended.blockedApps
             && typedSites.isEmpty
             && droppedSites.isEmpty
+            && typedExceptions.isEmpty
+            && droppedExceptions.isEmpty
     }
 
     /// How many sites the filter carries, as the heading says it.
     var siteSummary: String {
         let count = sites.count
+        return count == 0 ? "no sites" : Self.count(count, "site")
+    }
+
+    /// How many holes the filter keeps open, as the heading says it.
+    var permittedSummary: String {
+        let count = permittedSites.count
         return count == 0 ? "no sites" : Self.count(count, "site")
     }
 
@@ -188,12 +224,41 @@ extension ProfileDraft {
         droppedSites.append(normalized)
     }
 
+    /// Put a hole the reader typed on the kept-open list. It answers whether
+    /// the list carries it now, which is when the field empties itself.
+    @discardableResult
+    mutating func addException(_ typed: String) -> Bool {
+        let url = Sites.normalize(typed)
+        guard !url.isEmpty else { return false }
+        // A hole that was taken off and typed back is the row it was, not a
+        // second one beside it.
+        droppedExceptions.removeAll { $0 == url }
+        guard !permittedSites.contains(where: { $0.url == url }) else { return true }
+        typedExceptions.append(url)
+        return true
+    }
+
+    /// Take one hole off the kept-open list. A typed hole is forgotten; a
+    /// default one is remembered as turned down, so the others stay open.
+    mutating func removeException(_ url: String) {
+        let normalized = Sites.normalize(url)
+        typedExceptions.removeAll { Sites.normalize($0) == normalized }
+        guard permittedSites.contains(where: { $0.url == normalized }),
+            !droppedExceptions.contains(normalized)
+        else {
+            return
+        }
+        droppedExceptions.append(normalized)
+    }
+
     /// Put the recommended lists back, and nothing else: the switches are the
     /// reader's own and are left where they are.
     mutating func resetLists() {
         blockedApps = Self.recommended.blockedApps
         typedSites = []
         droppedSites = []
+        typedExceptions = []
+        droppedExceptions = []
     }
 
     /// Whether an App Store row is something a profile can hide. Apple's own

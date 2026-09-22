@@ -14,9 +14,12 @@ struct RestrictionsBuilder: View {
     @State private var showsMoreSettings = false
     /// The site in the add field, until it is added.
     @State private var typedSite = ""
+    /// The hole in the kept-open add field, until it is added.
+    @State private var typedException = ""
     @State private var storefrontPickerShown = false
     @FocusState private var searchFocused: Bool
     @FocusState private var siteFocused: Bool
+    @FocusState private var exceptionFocused: Bool
 
     init(model: WizardModel, sitesExpanded: Bool = false) {
         _model = ObservedObject(wrappedValue: model)
@@ -201,9 +204,7 @@ struct RestrictionsBuilder: View {
                     siteRow(site)
                 }
                 addSiteField
-                if !model.draft.permittedSites.isEmpty {
-                    keptOpenSites
-                }
+                keptOpenSites
             }
             .padding(.top, 8)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -256,29 +257,55 @@ struct RestrictionsBuilder: View {
         }
     }
 
-    /// The holes the filter keeps open so sign-in still resolves. They are the
-    /// profile's own and the reader does not edit them, so they read as a quiet
-    /// list under the blocked sites, marked open rather than crossed off.
+    /// The holes the filter keeps open so sign-in still resolves. They edit the
+    /// same way the blocked sites do: a row to take one off, a field to add
+    /// one. The open padlock marks them as let through rather than crossed off.
     private var keptOpenSites: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Kept open for sign-in")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            ForEach(model.draft.permittedSites, id: \.self) { host in
-                HStack(spacing: 8) {
-                    Image(systemName: "lock.open")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(host)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    Spacer(minLength: 8)
-                }
+            ForEach(model.draft.permittedSites) { exception in
+                exceptionRow(exception)
             }
+            addExceptionField
         }
         .padding(.top, 4)
+    }
+
+    private func exceptionRow(_ site: DraftSite) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "lock.open")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(site.host)
+                .font(.callout)
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Spacer(minLength: 8)
+            RemoveButton(what: site.host) {
+                model.draft.removeException(site.url)
+            }
+        }
+    }
+
+    private var addExceptionField: some View {
+        HStack(spacing: 8) {
+            RingedField(focused: exceptionFocused) {
+                TextField("Add a site to keep open, like accounts.google.com", text: $typedException)
+                    .focused($exceptionFocused)
+                    .onSubmit(addTypedException)
+            }
+            Button("Add", action: addTypedException)
+                .controlSize(.small)
+                .disabled(typedException.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        }
+    }
+
+    private func addTypedException() {
+        if model.draft.addException(typedException) {
+            typedException = ""
+        }
     }
 
     // MARK: - The restrictions

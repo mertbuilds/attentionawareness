@@ -198,7 +198,49 @@ final class ProfileDraftTests: XCTestCase {
     }
 
     func testThePermittedSitesAreTheKeptOpenHostsWithoutTheirScheme() {
-        XCTAssertTrue(ProfileDraft.recommended.permittedSites.contains("accounts.youtube.com"))
+        XCTAssertTrue(
+            ProfileDraft.recommended.permittedSites.contains { $0.host == "accounts.youtube.com" }
+        )
+    }
+
+    // MARK: - Keeping sites open for sign-in
+
+    func testAddingAnExceptionPutsItInTheConfigsPermittedUrls() {
+        var draft = draft(apps: [BlockedApp(bundleId: "com.reddit.Reddit", name: "Reddit")])
+        XCTAssertTrue(draft.addException("accounts.google.com"))
+        guard case .deny(_, let permitted) = draft.config.webFilter else {
+            return XCTFail("The filter should be a deny list.")
+        }
+        XCTAssertTrue(permitted.contains("https://accounts.google.com"))
+        // The default hole is still there beside the typed one.
+        XCTAssertTrue(permitted.contains("https://accounts.youtube.com"))
+    }
+
+    func testRemovingTheDefaultExceptionDropsItFromTheConfig() {
+        var draft = draft(apps: [BlockedApp(bundleId: "com.reddit.Reddit", name: "Reddit")])
+        draft.removeException("https://accounts.youtube.com")
+        XCTAssertFalse(draft.permittedSites.contains { $0.url == "https://accounts.youtube.com" })
+        guard case .deny(_, let permitted) = draft.config.webFilter else {
+            return XCTFail("The filter should be a deny list.")
+        }
+        XCTAssertFalse(permitted.contains("https://accounts.youtube.com"))
+    }
+
+    func testResettingPutsTheKeptOpenListBack() {
+        var draft = draft(apps: [BlockedApp(bundleId: "com.reddit.Reddit", name: "Reddit")])
+        draft.removeException("https://accounts.youtube.com")
+        draft.addException("accounts.google.com")
+        draft.resetLists()
+        XCTAssertEqual(
+            draft.permittedSites.map(\.url),
+            ProfileDraft.recommended.permittedSites.map(\.url)
+        )
+    }
+
+    func testEditingTheKeptOpenListIsNotRecommended() {
+        var draft = ProfileDraft.recommended
+        draft.addException("accounts.google.com")
+        XCTAssertFalse(draft.isRecommended)
     }
 
     // MARK: - What the step reads out
