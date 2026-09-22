@@ -13,6 +13,8 @@
     { "pattern": "www.attentionawareness.com", "custom_domain": true },
     { "pattern": "keepyourattention.com", "custom_domain": true },
     { "pattern": "www.keepyourattention.com", "custom_domain": true },
+    { "pattern": "dikkatfarkindaligi.com", "custom_domain": true },
+    { "pattern": "www.dikkatfarkindaligi.com", "custom_domain": true },
   ],
   // Static assets answer before the Worker, so a file under public/ would shadow
   // a route of the same path. These paths stay with the Worker whatever lands
