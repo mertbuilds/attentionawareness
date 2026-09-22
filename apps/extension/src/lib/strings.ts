@@ -5,11 +5,13 @@ import type { SiteId } from './sites.ts';
  * is not wired here, and one file is all a second language would need.
  */
 export const strings = {
-  add: 'Add rule',
+  add: 'Add a site',
   badDomain: 'That is not a domain.',
   brand: 'attention awareness',
+  copyHint: 'Enter a site first',
   copyPrompt: 'Copy a prompt for your AI',
   copyPromptDone: 'Copied',
+  cssFieldLabel: 'Your CSS',
   cssLabel: 'CSS',
   customCss: 'Custom CSS',
   customIntro:
@@ -18,9 +20,12 @@ export const strings = {
   domainPlaceholder: 'reddit.com',
   enabledLabel: 'Rule on',
   master: 'Feeds hidden',
+  off: 'Off',
+  on: 'On',
   remove: 'Remove',
   removeConfirm: 'Remove?',
   saved: 'Saved',
+  siteLabel: 'Site',
   website: 'attentionawareness.com',
 } as const;
 
