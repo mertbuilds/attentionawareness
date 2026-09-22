@@ -102,7 +102,7 @@ async function popupShot(context: BrowserContext): Promise<void> {
   await compose(context, {
     caption: 'One switch. The feeds are gone.',
     frame,
-    subtitle: 'X · YouTube · Instagram · TikTok',
+    subtitle: 'X · YouTube · Instagram',
     to: 'shot-1-popup.png',
     width: POPUP_WIDTH,
   });
