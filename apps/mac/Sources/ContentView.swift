@@ -8,6 +8,12 @@ struct ContentView: View {
     // that watches the real bus on its way to the one it was given.
     @StateObject private var model: WizardModel
 
+    // Where the keyboard rests when the window opens. Without it macOS makes
+    // the loud button the first responder the moment a step appears and rings
+    // it before a key is pressed. Focus lands on this instead, and the ring is
+    // held off only here, so every real control keeps its own.
+    @FocusState private var resting: Bool
+
     /// The window as the app opens it, against the iPhones on the cable.
     init() {
         _model = StateObject(wrappedValue: WizardModel())
@@ -69,6 +75,18 @@ struct ContentView: View {
         // controls that are meant to be loud carry the full accent of their
         // own, so only the ring takes the softer tone.
         .tint(WizardStyle.accentSoft)
+        // A ringless place for the keyboard to sit when the window opens, so no
+        // button starts focused. Tab moves from here into the buttons, where
+        // the ring belongs. `.userInitiated` is what makes this win over the
+        // loud button, which the system would otherwise focus first.
+        .background {
+            Color.clear
+                .focusable()
+                .focused($resting)
+                .focusEffectDisabled()
+                .accessibilityHidden(true)
+        }
+        .defaultFocus($resting, true, priority: .userInitiated)
     }
 }
 
