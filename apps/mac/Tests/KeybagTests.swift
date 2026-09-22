@@ -1,72 +1,77 @@
-import XCTest
+import Foundation
+import Testing
 
 /// The keybag parser against a blob built record by record, in the shape iOS
 /// writes it.
-final class KeybagTests: XCTestCase {
+struct KeybagTests {
     private let classKeys = [
         BackupFixture.fileClass: Data(repeating: 0x31, count: 32),
         BackupFixture.manifestClass: Data(repeating: 0x42, count: 32),
     ]
 
-    func testTheHeaderStopsAtTheFirstClassKey() throws {
+    @Test func theHeaderStopsAtTheFirstClassKey() throws {
         let keybag = Keybag(blob: try BackupFixture.keybag(password: BackupFixture.password, classKeys: classKeys))
 
-        XCTAssertEqual(keybag.attributes["UUID"], Data(repeating: 0x55, count: 16))
-        XCTAssertEqual(keybag.number("VERS"), 4)
-        XCTAssertEqual(keybag.number("ITER"), BackupFixture.rounds)
-        XCTAssertEqual(keybag.number("DPIC"), BackupFixture.rounds)
-        XCTAssertEqual(keybag.attributes["SALT"]?.count, 20)
-        XCTAssertEqual(keybag.attributes["DPSL"]?.count, 20)
+        #expect(keybag.attributes["UUID"] == Data(repeating: 0x55, count: 16))
+        #expect(keybag.number("VERS") == 4)
+        #expect(keybag.number("ITER") == BackupFixture.rounds)
+        #expect(keybag.number("DPIC") == BackupFixture.rounds)
+        #expect(keybag.attributes["SALT"]?.count == 20)
+        #expect(keybag.attributes["DPSL"]?.count == 20)
         // The header holds `WRAP` too. The class keys must not overwrite it.
-        XCTAssertEqual(keybag.number("WRAP"), 0)
+        #expect(keybag.number("WRAP") == 0)
     }
 
-    func testEveryClassKeyIsReadWhole() throws {
+    @Test func everyClassKeyIsReadWhole() throws {
         let keybag = Keybag(blob: try BackupFixture.keybag(password: BackupFixture.password, classKeys: classKeys))
 
-        XCTAssertEqual(Set(keybag.classKeys.keys), Set(classKeys.keys))
+        #expect(Set(keybag.classKeys.keys) == Set(classKeys.keys))
         for protectionClass in classKeys.keys {
-            let entry = try XCTUnwrap(keybag.classKeys[protectionClass])
-            XCTAssertEqual(entry.protectionClass, protectionClass)
-            XCTAssertEqual(entry.wrap, Keybag.wrapPasscode)
-            XCTAssertEqual(entry.wrappedKey?.count, 40)
-            XCTAssertNil(entry.key)
+            let entry = try #require(keybag.classKeys[protectionClass])
+            #expect(entry.protectionClass == protectionClass)
+            #expect(entry.wrap == Keybag.wrapPasscode)
+            #expect(entry.wrappedKey?.count == 40)
+            #expect(entry.key == nil)
         }
     }
 
-    func testUnlockUnwrapsEveryPasscodeWrappedKey() throws {
+    @Test func unlockUnwrapsEveryPasscodeWrappedKey() throws {
         var keybag = Keybag(blob: try BackupFixture.keybag(password: BackupFixture.password, classKeys: classKeys))
         try keybag.unlock(password: BackupFixture.password)
 
         for (protectionClass, key) in classKeys {
-            XCTAssertEqual(keybag.classKeys[protectionClass]?.key, key)
+            #expect(keybag.classKeys[protectionClass]?.key == key)
         }
 
         // A file key wrapped with a class key comes back out of the keybag.
         let fileKey = Data(repeating: 0x5a, count: 32)
         let wrapped = try BackupFixture.wrapKey(classKeys[BackupFixture.fileClass]!, fileKey)
-        XCTAssertEqual(try keybag.unwrapForClass(BackupFixture.fileClass, wrapped: wrapped), fileKey)
+        #expect(try keybag.unwrapForClass(BackupFixture.fileClass, wrapped: wrapped) == fileKey)
     }
 
-    func testTheWrongPasswordStopsTheUnlock() throws {
+    @Test func theWrongPasswordStopsTheUnlock() throws {
         var keybag = Keybag(blob: try BackupFixture.keybag(password: BackupFixture.password, classKeys: classKeys))
-        XCTAssertThrowsError(try keybag.unlock(password: BackupFixture.otherPassword)) { error in
-            guard case PatchError.wrongPassword = error else {
-                return XCTFail("expected the wrong password, got \(error)")
-            }
+        let error = try #require(throws: PatchError.self) {
+            try keybag.unlock(password: BackupFixture.otherPassword)
+        }
+        guard case .wrongPassword = error else {
+            Issue.record("expected the wrong password, got \(error)")
+            return
         }
     }
 
-    func testAnEmptyPasswordIsTheWrongPassword() throws {
+    @Test func anEmptyPasswordIsTheWrongPassword() throws {
         var keybag = Keybag(blob: try BackupFixture.keybag(password: BackupFixture.password, classKeys: classKeys))
-        XCTAssertThrowsError(try keybag.unlock(password: "")) { error in
-            guard case PatchError.wrongPassword = error else {
-                return XCTFail("expected the wrong password, got \(error)")
-            }
+        let error = try #require(throws: PatchError.self) {
+            try keybag.unlock(password: "")
+        }
+        guard case .wrongPassword = error else {
+            Issue.record("expected the wrong password, got \(error)")
+            return
         }
     }
 
-    func testAKeybagWithoutTheSecondStageIsRefused() throws {
+    @Test func aKeybagWithoutTheSecondStageIsRefused() throws {
         // An older keybag carries no `DPSL` and no `DPIC`, so the password
         // cannot be turned into keys at all.
         var blob = Data()
@@ -76,25 +81,29 @@ final class KeybagTests: XCTestCase {
         blob += BackupFixture.record("ITER", UInt32(BackupFixture.rounds))
 
         var keybag = Keybag(blob: blob)
-        XCTAssertThrowsError(try keybag.unlock(password: BackupFixture.password)) { error in
-            guard case PatchError.oldKeybag = error else {
-                return XCTFail("expected an old keybag, got \(error)")
-            }
+        let error = try #require(throws: PatchError.self) {
+            try keybag.unlock(password: BackupFixture.password)
+        }
+        guard case .oldKeybag = error else {
+            Issue.record("expected an old keybag, got \(error)")
+            return
         }
     }
 
-    func testAClassThatIsNotInTheKeybagIsNamed() throws {
+    @Test func aClassThatIsNotInTheKeybagIsNamed() throws {
         var keybag = Keybag(blob: try BackupFixture.keybag(password: BackupFixture.password, classKeys: classKeys))
         try keybag.unlock(password: BackupFixture.password)
-        XCTAssertThrowsError(try keybag.unwrapForClass(11, wrapped: Data(repeating: 0, count: 40))) { error in
-            guard case PatchError.noClassKey(let protectionClass) = error else {
-                return XCTFail("expected a missing class key, got \(error)")
-            }
-            XCTAssertEqual(protectionClass, 11)
+        let error = try #require(throws: PatchError.self) {
+            try keybag.unwrapForClass(11, wrapped: Data(repeating: 0, count: 40))
         }
+        guard case .noClassKey(let protectionClass) = error else {
+            Issue.record("expected a missing class key, got \(error)")
+            return
+        }
+        #expect(protectionClass == 11)
     }
 
-    func testBackupKeysUnwrapTheManifestKey() throws {
+    @Test func backupKeysUnwrapTheManifestKey() throws {
         let manifestKey = Data(repeating: 0x6b, count: 32)
         var manifest = try BackupFixture.manifestDictionary(udid: BackupFixture.udid, encrypted: true)
         manifest["BackupKeyBag"] = try BackupFixture.keybag(password: BackupFixture.password, classKeys: classKeys)
@@ -102,16 +111,18 @@ final class KeybagTests: XCTestCase {
             + (try BackupFixture.wrapKey(classKeys[BackupFixture.manifestClass]!, manifestKey))
 
         let keys = try BackupKeys.unlock(manifest: manifest, password: BackupFixture.password)
-        XCTAssertEqual(keys.manifest, manifestKey)
-        XCTAssertNil(keys.file)
+        #expect(keys.manifest == manifestKey)
+        #expect(keys.file == nil)
     }
 
-    func testABackupWithoutAKeybagIsRefused() throws {
+    @Test func aBackupWithoutAKeybagIsRefused() throws {
         let manifest = try BackupFixture.manifestDictionary(udid: BackupFixture.udid, encrypted: true)
-        XCTAssertThrowsError(try BackupKeys.unlock(manifest: manifest, password: BackupFixture.password)) { error in
-            guard case PatchError.noKeybag = error else {
-                return XCTFail("expected a missing keybag, got \(error)")
-            }
+        let error = try #require(throws: PatchError.self) {
+            try BackupKeys.unlock(manifest: manifest, password: BackupFixture.password)
+        }
+        guard case .noKeybag = error else {
+            Issue.record("expected a missing keybag, got \(error)")
+            return
         }
     }
 }
