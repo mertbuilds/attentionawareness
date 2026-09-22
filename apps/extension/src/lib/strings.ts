@@ -23,7 +23,7 @@ export const strings = {
 
 /** The lines that need a number or a name in them. */
 export const sentences = {
-  /** How the popup says there is more than the four sites in play. */
+  /** How the popup says there is more than the three sites in play. */
   customCount: (count: number) => (count === 1 ? '1 custom rule' : `${count} custom rules`),
   /** The browser asked, the reader said no, and the rule stays off. */
   denied: (domain: string) => `Brave did not grant access to ${domain}`,
@@ -32,13 +32,9 @@ export const sentences = {
 /** Each site's name, and the one line of what goes with it. */
 export const siteStrings: Readonly<Record<SiteId, { hides: string; name: string }>> = {
   instagram: { hides: 'Reels, Explore grid, suggestions', name: 'Instagram' },
-  tiktok: { hides: 'Everything', name: 'TikTok' },
   x: { hides: 'For you tab, trends', name: 'X' },
   youtube: { hides: 'Shorts everywhere', name: 'YouTube' },
 };
 
-/**
- * The order the popup lists them in: loudest first, and TikTok last because
- * its row is the one that says everything.
- */
-export const SITE_ORDER: ReadonlyArray<SiteId> = ['x', 'youtube', 'instagram', 'tiktok'];
+/** The order the popup lists them in: loudest first. */
+export const SITE_ORDER: ReadonlyArray<SiteId> = ['x', 'youtube', 'instagram'];

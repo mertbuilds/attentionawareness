@@ -10,7 +10,7 @@ const NOTE_ID = 'aa-note';
 /** The path the rules read, kept in step with `location.pathname`. */
 const PATH_ATTRIBUTE = 'data-aa-path';
 /**
- * All four sites are single page apps: the path changes with no load, and no
+ * All three sites are single page apps: the path changes with no load, and no
  * event fires for a `pushState` the page makes itself. A content script cannot
  * hear one either, because it runs in an isolated world, where patching
  * `history` patches a copy the page never calls. `popstate` covers the back
@@ -19,7 +19,6 @@ const PATH_ATTRIBUTE = 'data-aa-path';
  */
 const PATH_POLL_MS = 500;
 
-const TIKTOK_NOTE = 'TikTok is off.';
 const SHORTS_NOTE = 'Shorts is off.';
 const NOTE_BRAND = 'attention awareness';
 
@@ -38,7 +37,7 @@ let injected = false;
  */
 apply(defaultSettings);
 
-// A host reached through a custom rule is none of the four, so there is no
+// A host reached through a custom rule is none of the three, so there is no
 // path for a rule to key on and no surface to leave a note in place of. The
 // script injects the reader's CSS and touches nothing else on the page.
 if (site !== null) {
@@ -81,9 +80,6 @@ function syncPath(): void {
 function noteText(): string | null {
   if (!injected) {
     return null;
-  }
-  if (site === 'tiktok') {
-    return TIKTOK_NOTE;
   }
   if (site === 'youtube' && location.pathname.startsWith('/shorts')) {
     return SHORTS_NOTE;

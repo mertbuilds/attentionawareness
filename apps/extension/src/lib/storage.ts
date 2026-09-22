@@ -31,7 +31,7 @@ export type Settings = {
 export const defaultSettings: Settings = {
   custom: [],
   enabled: true,
-  sites: { instagram: true, tiktok: true, x: true, youtube: true },
+  sites: { instagram: true, x: true, youtube: true },
 };
 
 /**

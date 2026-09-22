@@ -1,7 +1,7 @@
 import { matchesDomain } from './css.ts';
 
 /** The sites the extension ships rules for. */
-export type SiteId = 'instagram' | 'tiktok' | 'x' | 'youtube';
+export type SiteId = 'instagram' | 'x' | 'youtube';
 
 /**
  * One registrable domain each, subdomains included. `twitter.com` is X: the
@@ -9,7 +9,6 @@ export type SiteId = 'instagram' | 'tiktok' | 'x' | 'youtube';
  */
 const SITE_DOMAINS: ReadonlyArray<readonly [string, SiteId]> = [
   ['instagram.com', 'instagram'],
-  ['tiktok.com', 'tiktok'],
   ['twitter.com', 'x'],
   ['x.com', 'x'],
   ['youtube.com', 'youtube'],

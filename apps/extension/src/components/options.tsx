@@ -175,7 +175,7 @@ const styles = create({
 
 /**
  * The options page: the reader's own CSS, one block per site. Every edit is
- * debounced into `chrome.storage.sync`, and a domain outside the four sites
+ * debounced into `chrome.storage.sync`, and a domain outside the three sites
  * the manifest covers asks for that host the moment it is committed, because
  * a permission can only be asked for inside the gesture that asked for it.
  */
@@ -266,7 +266,7 @@ export function Options() {
 
   /**
    * Asks for the host, straight out of the click or blur that got here. The
-   * four sites the manifest already covers are skipped; everything else is a
+   * three sites the manifest already covers are skipped; everything else is a
    * prompt the reader can refuse, and a refused rule is left off rather than
    * left on and silently doing nothing.
    */
