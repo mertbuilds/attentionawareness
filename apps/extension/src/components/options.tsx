@@ -13,6 +13,8 @@ const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 const SAVE_DEBOUNCE_MS = 300;
 /** How long "Saved" stays up after a write. */
 const SAVED_MS = 2000;
+/** How long the prompt button reads "Copied" after a copy. */
+const COPIED_MS = 2000;
 /** How long an armed Remove waits for its second click before standing down. */
 const REMOVE_CONFIRM_MS = 3000;
 /** What Tab puts in the textarea instead of leaving it. */
@@ -29,6 +31,19 @@ const styles = create({
   brandName: {
     fontSize: 15,
     fontWeight: font.weightMedium,
+  },
+  // The prompt button sits under the CSS field, not stretched across it, and
+  // dims to say a domain has to come first.
+  copyButton: {
+    alignSelf: 'flex-start',
+    cursor: {
+      ':disabled': 'default',
+      default: 'pointer',
+    },
+    opacity: {
+      ':disabled': 0.5,
+      default: 1,
+    },
   },
   css: {
     backgroundColor: colors.bg,
@@ -383,6 +398,22 @@ function Rule({
   rule: CustomRule;
 }) {
   const switchLabel = useId();
+  const [copied, setCopied] = useState(false);
+
+  // "Copied" is a flash, not a mode: it stands down on its own a couple of
+  // seconds after the copy, the way "Saved" does on the page.
+  useEffect(() => {
+    if (!copied) {
+      return;
+    }
+    const revert = setTimeout(() => setCopied(false), COPIED_MS);
+    return () => clearTimeout(revert);
+  }, [copied]);
+
+  function copy(): void {
+    void navigator.clipboard.writeText(sentences.promptTemplate(rule.domain));
+    setCopied(true);
+  }
 
   return (
     <li {...props(styles.rule)}>
@@ -438,6 +469,15 @@ function Rule({
         value={rule.css}
         {...props(styles.css)}
       />
+
+      <button
+        disabled={rule.domain.trim() === ''}
+        onClick={copy}
+        type="button"
+        {...props(styles.quiet, styles.copyButton)}
+      >
+        {copied ? strings.copyPromptDone : strings.copyPrompt}
+      </button>
 
       {error === undefined ? null : <p {...props(styles.error)}>{error}</p>}
     </li>
