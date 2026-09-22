@@ -8,9 +8,12 @@ export const strings = {
   add: 'Add rule',
   badDomain: 'That is not a domain.',
   brand: 'attention awareness',
+  copyPrompt: 'Copy a prompt for your AI',
+  copyPromptDone: 'Copied',
   cssLabel: 'CSS',
   customCss: 'Custom CSS',
-  customIntro: 'Your own rules. One block per site, applied on top of the built-in ones.',
+  customIntro:
+    "Your own rules. One block per site, applied on top of the built-in ones. If you don't write CSS, copy a prompt for your AI and paste back what it gives you.",
   domainLabel: 'Domain',
   domainPlaceholder: 'reddit.com',
   enabledLabel: 'Rule on',
@@ -27,6 +30,20 @@ export const sentences = {
   customCount: (count: number) => (count === 1 ? '1 custom rule' : `${count} custom rules`),
   /** The browser asked, the reader said no, and the rule stays off. */
   denied: (domain: string) => `Brave did not grant access to ${domain}`,
+  /** The brief the reader hands their own AI to get CSS back for a domain. */
+  promptTemplate: (domain: string) =>
+    `I use a browser extension that hides distracting feeds with CSS. Help me write a CSS rule for ${domain}.
+
+Goal: hide the endless feed, recommendations, autoplay, and "for you" surfaces that pull me in. Keep the parts I open on purpose: search, messages, notifications, my profile, settings, and any single page or video I go to directly.
+
+Rules for your answer:
+- Output only CSS. No explanation, no code fences.
+- Use display: none !important on the distracting containers.
+- Target stable selectors: element roles, aria- attributes, data-testid, ids. Avoid hashed or random class names, they change.
+- Prefer a few precise selectors over one broad one, so the useful parts survive.
+- If the layout is ambiguous, ask me one or two short questions first (for example, keep the sidebar, keep Shorts), then give the CSS.
+
+The domain is ${domain}.`,
 };
 
 /** Each site's name, and the one line of what goes with it. */
