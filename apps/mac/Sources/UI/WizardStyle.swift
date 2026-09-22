@@ -261,17 +261,59 @@ struct RingedField<Content: View>: View {
     }
 }
 
+/// The ring macOS draws around whatever holds the keyboard, in the same soft
+/// orange the fields use, in place of the system blue. The system effect is
+/// turned off so only this one shows, and the ring sits just outside the fill
+/// the way the blue one did. It shows only while the view is focused and
+/// enabled, so a disabled button never rings.
+private struct AccentFocusRing<S: InsettableShape>: ViewModifier {
+    let shape: S
+    @Environment(\.isEnabled) private var enabled
+    @FocusState private var focused: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .focused($focused)
+            .focusEffectDisabled()
+            .overlay {
+                if focused && enabled {
+                    shape
+                        .strokeBorder(WizardStyle.accentSoft, lineWidth: 3)
+                        .padding(-3)
+                }
+            }
+    }
+}
+
+private extension View {
+    /// Draw our own focus ring in `shape` and leave the system's off.
+    func accentFocusRing(_ shape: some InsettableShape) -> some View {
+        modifier(AccentFocusRing(shape: shape))
+    }
+}
+
 /// A button that is only its words. A step has at most one filled button, so
 /// everything beside it would otherwise be grey system furniture. The orange
 /// is what says these are the things you can press.
 struct TextButton: ButtonStyle {
-    @Environment(\.isEnabled) private var enabled
-
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .foregroundStyle(configuration.isPressed ? WizardStyle.accentSoft : WizardStyle.accent)
-            .opacity(enabled ? 1 : 0.4)
-            .contentShape(Rectangle())
+        RingedLabel(configuration: configuration)
+    }
+
+    /// A `ButtonStyle` cannot hold the focus state a ring needs, so the label
+    /// is its own view. It draws the same orange ring the filled button does,
+    /// in the rounded-rect shape a text button rings in.
+    struct RingedLabel: View {
+        let configuration: ButtonStyleConfiguration
+        @Environment(\.isEnabled) private var enabled
+
+        var body: some View {
+            configuration.label
+                .foregroundStyle(configuration.isPressed ? WizardStyle.accentSoft : WizardStyle.accent)
+                .opacity(enabled ? 1 : 0.4)
+                .contentShape(Rectangle())
+                .accentFocusRing(RoundedRectangle(cornerRadius: 6))
+        }
     }
 }
 
@@ -286,6 +328,7 @@ struct PrimaryButton: View {
             .buttonStyle(.borderedProminent)
             .tint(WizardStyle.accent)
             .controlSize(.large)
+            .accentFocusRing(Capsule())
             .disabled(!enabled)
     }
 }
