@@ -504,17 +504,60 @@ final class BackupEngine: ObservableObject {
     // MARK: - The log
 
     private func append(_ line: String) {
-        log.append(redacted(line))
+        let clean = redacted(line)
+        log.append(clean)
         if log.count > Self.logLimit {
             log.removeFirst(log.count - Self.logLimit)
         }
+        persist(clean)
     }
 
     /// The backup password is passed to the helper on its command line, so it
-    /// never reaches the log with its own letters.
+    /// never reaches the log, on screen or on disk, with its own letters.
     private func redacted(_ line: String) -> String {
         guard let secret, !secret.isEmpty else { return line }
-        return line.replacingOccurrences(of: secret, with: "(password)")
+        return line.replacingOccurrences(of: secret, with: "****")
+    }
+
+    // MARK: - The debug log on disk
+
+    /// Where the on-disk debug log lives: beside the backups, under the app's
+    /// own Application Support folder.
+    static var logFileURL: URL {
+        BackupFolder.applicationSupportRoot
+            .deletingLastPathComponent()
+            .appendingPathComponent("Logs", isDirectory: true)
+            .appendingPathComponent("backup.log")
+    }
+
+    /// Writes to the log file are serialized here and kept off the main actor,
+    /// so a run is never held up by the disk.
+    private static let logQueue = DispatchQueue(label: "com.attentionawareness.mac.backup-log")
+
+    /// Append one already-redacted line to the on-disk debug log, with the time
+    /// in front, so a run that failed leaves a trace after the window is gone.
+    ///
+    /// The password is never here: the caller hands in the redacted line. It is
+    /// best effort in every way. A sample engine writes nothing, and any failure
+    /// to write is swallowed, because a debug log must never break or slow a run.
+    private func persist(_ redactedLine: String) {
+        guard !isSample else { return }
+        let stamped = ISO8601DateFormatter().string(from: Date()) + " " + redactedLine + "\n"
+        let file = Self.logFileURL
+        Self.logQueue.async {
+            guard let data = stamped.data(using: .utf8) else { return }
+            try? FileManager.default.createDirectory(
+                at: file.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            if let handle = try? FileHandle(forWritingTo: file) {
+                defer { try? handle.close() }
+                _ = try? handle.seekToEnd()
+                try? handle.write(contentsOf: data)
+            } else {
+                try? data.write(to: file, options: .atomic)
+            }
+        }
     }
 }
 

@@ -435,7 +435,7 @@ enum UISmoke {
                 )
             ),
             ("restarting", waiting(.restarting, on: samplePhone(findMyOn: false))),
-            ("check-on-iphone", waiting(.checkOnIPhone, on: samplePhone(findMyOn: false))),
+            ("check-on-iphone", waiting(.checkOnIPhone(reportedSupervised: true), on: samplePhone(findMyOn: false))),
             ("phone-gone", waiting(.phoneGone, on: samplePhone(findMyOn: false))),
             (
                 "failed-copy",

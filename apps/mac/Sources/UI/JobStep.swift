@@ -112,7 +112,7 @@ struct JobStep: View {
             if phase.isRunning {
                 cancel
             } else if case .checkOnIPhone = phase {
-                PrimaryButton(title: "Continue") {
+                PrimaryButton(title: "It's Supervised") {
                     model.advance()
                 }
                 tryAgain(from: .restore)

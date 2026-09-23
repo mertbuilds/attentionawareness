@@ -36,8 +36,10 @@ enum JobPhase: Equatable {
     case confirming
     /// It said what the run asked for.
     case done
-    /// It never said it, so somebody is asked to look at the iPhone itself.
-    case checkOnIPhone
+    /// The confirm-supervision gate, always shown before the restrictions are
+    /// installed. `reportedSupervised` is what the Mac's read said, which tunes
+    /// the wording but never skips the step.
+    case checkOnIPhone(reportedSupervised: Bool)
     /// It never came back on the cable.
     case phoneGone
     case failed(JobFailure)
@@ -99,10 +101,8 @@ enum JobPhase: Equatable {
     /// where the screen keeps its title and its bar.
     var headline: String? {
         switch self {
-        case .encrypting, .connecting:
+        case .encrypting, .connecting, .checkOnIPhone:
             return "Check iPhone"
-        case .checkOnIPhone:
-            return "Check on iPhone"
         case .phoneGone:
             return "iPhone Didn't Reconnect"
         case .failed(let failure):
@@ -120,8 +120,10 @@ enum JobPhase: Equatable {
             return "Enter the passcode on iPhone to turn on encryption. The prompt can take a few seconds to appear. Keep the cable connected."
         case .connecting:
             return "If iPhone asks, tap Trust This Computer and enter the passcode. Keep it unlocked and the cable connected."
-        case .checkOnIPhone:
-            return "Look for 'This iPhone is supervised' at the top of Settings."
+        case .checkOnIPhone(let reportedSupervised):
+            let look =
+                "Unlock iPhone and look at the top of Settings. It should say 'This iPhone is supervised.' Then continue to install the restrictions."
+            return reportedSupervised ? "iPhone reports it's supervised. " + look : look
         case .phoneGone:
             return "Unlock iPhone and keep the cable in."
         case .failed(let failure):

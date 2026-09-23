@@ -102,13 +102,24 @@ struct JobPhaseTests {
 
     // MARK: - The three ends
 
-    @Test func aPhoneThatNeverSaidItAsksForALookAtTheSettingsScreen() {
-        #expect(JobPhase.checkOnIPhone.headline == "Check on iPhone")
+    @Test func theConfirmSupervisionGateAsksForALookBeforeTheRestrictions() {
+        let look =
+            "Unlock iPhone and look at the top of Settings. It should say 'This iPhone is supervised.' Then continue to install the restrictions."
+        // The gate always carries the same headline, and the plain look when
+        // the Mac's read did not come back supervised.
+        #expect(JobPhase.checkOnIPhone(reportedSupervised: false).headline == "Check iPhone")
+        #expect(JobPhase.checkOnIPhone(reportedSupervised: false).body == look)
+        // A read that did come back supervised prepends one reassuring line but
+        // still asks for the look.
         #expect(
-            JobPhase.checkOnIPhone.body == "Look for 'This iPhone is supervised' at the top of Settings."
+            JobPhase.checkOnIPhone(reportedSupervised: true).body
+                == "iPhone reports it's supervised. " + look
         )
         // The "i" holds the same words until a film of them goes in behind it.
-        #expect(JobPhase.checkOnIPhone.note == JobPhase.checkOnIPhone.body)
+        #expect(
+            JobPhase.checkOnIPhone(reportedSupervised: false).note
+                == JobPhase.checkOnIPhone(reportedSupervised: false).body
+        )
     }
 
     @Test func aPhoneThatNeverCameBackSaysSoAndWhatToDo() {
@@ -160,7 +171,7 @@ struct JobPhaseTests {
 
     private let ended: [JobPhase] = [
         .done,
-        .checkOnIPhone,
+        .checkOnIPhone(reportedSupervised: false),
         .phoneGone,
         .failed(JobFailure(title: "Copy Didn't Finish", fix: "Try again.", raw: "", retry: .copy)),
     ]

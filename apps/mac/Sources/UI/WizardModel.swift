@@ -34,6 +34,11 @@ class WizardModel: ObservableObject {
     private static let confirmTimeout: TimeInterval = 3 * 60
     /// How often it is asked while that runs.
     private static let confirmInterval = Duration.seconds(5)
+    /// How long the iPhone is given to register the new backup password after
+    /// encryption is turned on, before the copy starts anyway.
+    private static let encryptionSettleTimeout: TimeInterval = 30
+    /// How often the encryption flag is read while that runs.
+    private static let encryptionSettleInterval = Duration.seconds(2)
     /// What the free space check asks for when the iPhone does not say how
     /// much it holds.
     private static let assumedPhoneBytes: UInt64 = 64_000_000_000
@@ -715,19 +720,19 @@ class WizardModel: ObservableObject {
             job = .restarting
         }
         job = .confirming
-        let answered = await confirmWhatTheIPhoneIs()
+        // The Mac's read after a reboot is unreliable, so it no longer decides
+        // the run. It settles the phone and tunes the wording, and the person
+        // is always shown the confirm-supervision gate before the restrictions
+        // are installed.
+        let reportedSupervised = await confirmWhatTheIPhoneIs()
         guard !Task.isCancelled else { return }
         restore.stage = .finished
         restore.supervisedAfterwards = isSupervised
         // The profile is still to come, so the gate keeps the copy until the
         // Restrictions step confirms one. The gate is the whole of that rule.
         deleteBackupIfTheRunIsDone()
-        guard answered else {
-            job = .checkOnIPhone
-            return
-        }
-        job = .done
-        advance()
+        // Their tap on "It's Supervised" is what advances to Restrictions.
+        job = .checkOnIPhone(reportedSupervised: reportedSupervised)
     }
 
     /// What a piece of the job that went wrong leaves on screen.
@@ -778,6 +783,11 @@ class WizardModel: ObservableObject {
         if device?.backupEncrypted == false {
             job = .encrypting
             try await engine.enableEncryption(udid: udid, password: password, root: Self.backupRoot)
+            // A freshly-erased phone takes a moment to register the new backup
+            // password after encryption is turned on. A copy started in that
+            // gap is rejected as a "wrong password" the phone does not mean, so
+            // wait until it confirms encryption is on before the copy starts.
+            await waitUntilEncryptionIsOn()
         }
         // Opening the backup service makes the iPhone ask to trust this Mac and
         // for its passcode, before a single byte moves. The screen says to look
@@ -791,6 +801,25 @@ class WizardModel: ObservableObject {
         )
         backupFolder = folder
         measureBackup(at: folder, took: Date().timeIntervalSince(started))
+    }
+
+    /// Hold the copy until the iPhone confirms encryption is on.
+    ///
+    /// Encryption was just turned on, and a freshly-erased phone takes a moment
+    /// to register the new backup password. A copy started in that gap is
+    /// rejected with a "wrong password" the phone does not really mean, so this
+    /// reads the same `WillEncrypt` flag `device.backupEncrypted` comes from,
+    /// every couple of seconds, until it says yes or the timeout is up. It never
+    /// fails: a copy started after the timeout surfaces a real password error if
+    /// there is one.
+    private func waitUntilEncryptionIsOn() async {
+        let deadline = Date().addingTimeInterval(Self.encryptionSettleTimeout)
+        while !Task.isCancelled {
+            watcher.reload()
+            try? await Task.sleep(for: Self.encryptionSettleInterval)
+            if device?.backupEncrypted == true { return }
+            if Date() >= deadline { return }
+        }
     }
 
     /// Hold the job while the iPhone still says Find My is on.
