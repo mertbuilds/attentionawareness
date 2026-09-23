@@ -11,8 +11,9 @@ struct JobPhaseTests {
     // MARK: - The line under the bar
 
     @Test func everyPhaseThatRunsSaysWhatIsHappening() {
-        // Encrypting is the one running phase that speaks through a headline
-        // and a body instead of this line; it has a test of its own below.
+        // Encrypting and connecting are the running phases that speak through
+        // a headline and a body instead of this line; each has a test of its
+        // own below.
         let lines: [(JobPhase, String)] = [
             (.copying, "Copying iPhone to this Mac"),
             (.preparing, "Preparing"),
@@ -49,13 +50,30 @@ struct JobPhaseTests {
         #expect(JobPhase.encrypting.isDeterminate == false)
     }
 
+    @Test func openingTheBackupServiceSendsThePersonToTheirPhone() {
+        #expect(JobPhase.connecting.headline == "Check iPhone")
+        #expect(
+            JobPhase.connecting.body
+                == "If iPhone asks, tap Trust This Computer and enter the passcode. Keep it unlocked and the cable connected."
+        )
+        // The headline and the body carry the message, so the plain line
+        // steps aside the way it does on the phases that came to an end.
+        #expect(JobPhase.connecting.line == nil)
+        #expect(JobPhase.connecting.note == nil)
+        // It is still working, under a bar that cannot say how far along it is,
+        // and carries no figure for how much longer.
+        #expect(JobPhase.connecting.isRunning)
+        #expect(JobPhase.connecting.isDeterminate == false)
+        #expect(JobPhase.connecting.showsEstimate == false)
+    }
+
     // MARK: - The bar
 
     @Test func onlyTheTwoTransfersSayHowFarAlongTheyAre() {
         #expect(JobPhase.copying.isDeterminate)
         #expect(JobPhase.restoring.isDeterminate)
 
-        for phase in [JobPhase.encrypting, .preparing, .waitingForFindMy, .finishing, .restarting, .confirming] {
+        for phase in [JobPhase.encrypting, .connecting, .preparing, .waitingForFindMy, .finishing, .restarting, .confirming] {
             #expect(phase.isDeterminate == false, "\(phase) has nothing to measure")
         }
         for phase in ended {
@@ -120,9 +138,10 @@ struct JobPhaseTests {
     }
 
     @Test func aPhaseStillRunningCarriesNoHeadlineOfItsOwn() {
-        // Encrypting is the one running phase that carries its own headline,
-        // so it stands apart here and is checked in its own test.
-        for phase in running where phase != .encrypting {
+        // Encrypting and connecting are the running phases that carry their own
+        // headline, so they stand apart here and are each checked in their own
+        // test.
+        for phase in running where phase != .encrypting && phase != .connecting {
             #expect(phase.headline == nil, "\(phase) keeps the screen's title")
             #expect(phase.body == nil)
         }
@@ -135,8 +154,8 @@ struct JobPhaseTests {
     // MARK: - The two halves of the enum
 
     private let running: [JobPhase] = [
-        .encrypting, .copying, .preparing, .waitingForFindMy, .restoring, .finishing, .restarting,
-        .confirming,
+        .encrypting, .connecting, .copying, .preparing, .waitingForFindMy, .restoring, .finishing,
+        .restarting, .confirming,
     ]
 
     private let ended: [JobPhase] = [

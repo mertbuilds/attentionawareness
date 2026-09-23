@@ -15,6 +15,10 @@ enum JobPhase: Equatable {
     /// when it did not already encrypt its backups. It takes seconds, and the
     /// iPhone may ask for its passcode to confirm.
     case encrypting
+    /// The copy is opening the backup service on the iPhone, before any bytes
+    /// move. The iPhone asks to trust this Mac and for its passcode, so the
+    /// person is sent to look at the phone until the transfer begins.
+    case connecting
     case copying
     /// The flag going into the copy on this Mac, which takes seconds.
     case preparing
@@ -42,8 +46,8 @@ enum JobPhase: Equatable {
     /// and Cancel is the only button.
     var isRunning: Bool {
         switch self {
-        case .encrypting, .copying, .preparing, .waitingForFindMy, .restoring, .finishing,
-             .restarting, .confirming:
+        case .encrypting, .connecting, .copying, .preparing, .waitingForFindMy, .restoring,
+             .finishing, .restarting, .confirming:
             return true
         case .done, .checkOnIPhone, .phoneGone, .failed:
             return false
@@ -57,8 +61,8 @@ enum JobPhase: Equatable {
         switch self {
         case .copying, .restoring:
             return true
-        case .encrypting, .preparing, .waitingForFindMy, .finishing, .restarting, .confirming,
-             .done, .checkOnIPhone, .phoneGone, .failed:
+        case .encrypting, .connecting, .preparing, .waitingForFindMy, .finishing, .restarting,
+             .confirming, .done, .checkOnIPhone, .phoneGone, .failed:
             return false
         }
     }
@@ -83,9 +87,10 @@ enum JobPhase: Equatable {
             return "Finishing on iPhone"
         case .restarting, .confirming:
             return "iPhone is restarting"
-        // Encrypting sends the person to their phone, so it carries a headline
-        // and a body in place of a line the way the ended phases do.
-        case .encrypting, .done, .checkOnIPhone, .phoneGone, .failed:
+        // Encrypting and connecting send the person to their phone, so they
+        // carry a headline and a body in place of a line the way the ended
+        // phases do.
+        case .encrypting, .connecting, .done, .checkOnIPhone, .phoneGone, .failed:
             return nil
         }
     }
@@ -94,7 +99,7 @@ enum JobPhase: Equatable {
     /// where the screen keeps its title and its bar.
     var headline: String? {
         switch self {
-        case .encrypting:
+        case .encrypting, .connecting:
             return "Check iPhone"
         case .checkOnIPhone:
             return "Check on iPhone"
@@ -113,6 +118,8 @@ enum JobPhase: Equatable {
         switch self {
         case .encrypting:
             return "Enter the passcode on iPhone to turn on encryption. The prompt can take a few seconds to appear. Keep the cable connected."
+        case .connecting:
+            return "If iPhone asks, tap Trust This Computer and enter the passcode. Keep it unlocked and the cable connected."
         case .checkOnIPhone:
             return "Look for 'This iPhone is supervised' at the top of Settings."
         case .phoneGone:
@@ -134,8 +141,8 @@ enum JobPhase: Equatable {
             return body
         case .failed(let failure):
             return failure.raw.isEmpty ? nil : failure.raw
-        case .encrypting, .copying, .preparing, .waitingForFindMy, .restoring, .finishing,
-             .restarting, .confirming, .done, .phoneGone:
+        case .encrypting, .connecting, .copying, .preparing, .waitingForFindMy, .restoring,
+             .finishing, .restarting, .confirming, .done, .phoneGone:
             return nil
         }
     }
@@ -147,8 +154,8 @@ enum JobPhase: Equatable {
         switch self {
         case .checkOnIPhone:
             return InfoImage.checking
-        case .encrypting, .copying, .preparing, .waitingForFindMy, .restoring, .finishing,
-             .restarting, .confirming, .done, .phoneGone, .failed:
+        case .encrypting, .connecting, .copying, .preparing, .waitingForFindMy, .restoring,
+             .finishing, .restarting, .confirming, .done, .phoneGone, .failed:
             return nil
         }
     }

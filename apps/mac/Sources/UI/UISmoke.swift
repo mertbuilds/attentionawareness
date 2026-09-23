@@ -370,6 +370,10 @@ enum UISmoke {
             // The first phase when the iPhone did not already encrypt its
             // backups: the person is sent to their phone to enter the passcode.
             ("encrypting", waiting(.encrypting, on: samplePhone(findMyOn: false))),
+            // The copy is opening the backup service: the iPhone asks to trust
+            // this Mac and for its passcode, so the person is sent to the phone
+            // until the first bytes move.
+            ("connecting", waiting(.connecting, on: samplePhone(findMyOn: false))),
             (
                 "copying",
                 moving(

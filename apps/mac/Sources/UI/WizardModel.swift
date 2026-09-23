@@ -146,7 +146,14 @@ class WizardModel: ObservableObject {
             // the redraw, so a step that asks it again every second cannot
             // watch the figure slide towards zero on its own.
             engine.$progress.sink { [weak self] progress in
-                self?.estimate.record(progress: progress)
+                guard let self else { return }
+                self.estimate.record(progress: progress)
+                // The first bytes across mean the iPhone has trusted this Mac
+                // and the copy is moving, so the wait that sent the person to
+                // their phone gives way to the transfer it was covering.
+                if progress > 0, self.job == .connecting {
+                    self.job = .copying
+                }
             },
         ]
     }
@@ -771,8 +778,12 @@ class WizardModel: ObservableObject {
         if device?.backupEncrypted == false {
             job = .encrypting
             try await engine.enableEncryption(udid: udid, password: password, root: Self.backupRoot)
-            job = .copying
         }
+        // Opening the backup service makes the iPhone ask to trust this Mac and
+        // for its passcode, before a single byte moves. The screen says to look
+        // at the phone until the copy starts, which the first progress turns
+        // into `.copying`.
+        job = .connecting
         let folder = try await engine.backup(
             udid: udid,
             into: Self.backupRoot,
