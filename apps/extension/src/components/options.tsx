@@ -1,3 +1,4 @@
+import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import Prism from 'prismjs';
@@ -102,7 +103,7 @@ const styles = create({
     borderWidth: '1px',
     boxSizing: 'border-box',
     color: colors.fg,
-    outlineColor: colors.fg,
+    outlineColor: accent.soft,
     outlineOffset: 1,
     outlineStyle: {
       ':focus-within': 'solid',
@@ -126,7 +127,7 @@ const styles = create({
     fontFamily: MONOSPACE,
     fontSize: 13,
     minWidth: 0,
-    outlineColor: colors.fg,
+    outlineColor: accent.soft,
     outlineOffset: 1,
     outlineStyle: {
       ':focus-visible': 'solid',
@@ -177,7 +178,7 @@ const styles = create({
     cursor: 'pointer',
     fontFamily: 'inherit',
     fontSize: 12,
-    outlineColor: colors.fg,
+    outlineColor: accent.soft,
     outlineOffset: 2,
     outlineStyle: {
       ':focus-visible': 'solid',
