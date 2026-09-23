@@ -419,8 +419,7 @@ class WizardModel: ObservableObject {
         self.step = step
         switch step {
         case .ready:
-            pollWhileFindMyIsOn()
-            lookForFinderBackup()
+            refreshReadyChecks()
         case .restrictions:
             profile = ProfileState()
         case .profiles:
@@ -440,22 +439,27 @@ class WizardModel: ObservableObject {
 
     // MARK: - Checks
 
-    /// Read the iPhone again every three seconds while Find My is still on, so
-    /// the tick on the checks turns green and the Restore button turns on as
-    /// soon as the user switches it off. The poll stops the moment Find My
-    /// reads off, or the step changes: `go(to:)` cancels it on every move, so
-    /// only the step that started it is ever the one waiting.
+    /// Keep the Ready screen's checks fresh for as long as the wizard sits on
+    /// it. Every three seconds it reads the iPhone again (`watcher.reload()`,
+    /// which refreshes Find My, the iCloud backup date and the rest) and
+    /// re-reads Finder's own backup folder, so a backup made in Finder or on
+    /// the phone while the reader waits here is seen without walking away and
+    /// back. The tick on the checks turns green and the Restore button turns on
+    /// the moment Find My reads off, the same as before.
     ///
-    /// The first read happens at once. Nothing reads the iPhone while the backup
-    /// copies, so by the time the restore asks, the value in hand can be an
-    /// hour old.
-    private func pollWhileFindMyIsOn() {
+    /// The first read happens at once, so the screen is not blank for three
+    /// seconds. The loop runs the whole time the step is `.ready`, not just
+    /// while Find My is on: `go(to:)` cancels it on every move, so only the
+    /// step that started it is ever the one waiting.
+    private func refreshReadyChecks() {
         poll = Task { [weak self] in
             self?.watcher.reload()
+            self?.lookForFinderBackup()
             while !Task.isCancelled {
                 try? await Task.sleep(for: Self.pollInterval)
-                guard let self, !Task.isCancelled, self.device?.findMyOn != false else { return }
+                guard let self, !Task.isCancelled else { return }
                 self.watcher.reload()
+                self.lookForFinderBackup()
             }
         }
     }
