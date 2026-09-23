@@ -352,6 +352,9 @@ enum UISmoke {
     /// and the estimate agree with each other in every picture.
     private static func jobSamples(at now: Date) -> [(name: String, model: WizardModel)] {
         [
+            // The first phase when the iPhone did not already encrypt its
+            // backups: the person is sent to their phone to enter the passcode.
+            ("encrypting", waiting(.encrypting, on: samplePhone(findMyOn: false))),
             (
                 "copying",
                 moving(

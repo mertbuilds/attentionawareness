@@ -71,8 +71,6 @@ enum JobPhase: Equatable {
     /// instead. The words are about the work.
     var line: String? {
         switch self {
-        case .encrypting:
-            return "Turning on encryption"
         case .copying:
             return "Copying iPhone to this Mac"
         case .preparing:
@@ -85,7 +83,9 @@ enum JobPhase: Equatable {
             return "Finishing on iPhone"
         case .restarting, .confirming:
             return "iPhone is restarting"
-        case .done, .checkOnIPhone, .phoneGone, .failed:
+        // Encrypting sends the person to their phone, so it carries a headline
+        // and a body in place of a line the way the ended phases do.
+        case .encrypting, .done, .checkOnIPhone, .phoneGone, .failed:
             return nil
         }
     }
@@ -94,13 +94,15 @@ enum JobPhase: Equatable {
     /// where the screen keeps its title and its bar.
     var headline: String? {
         switch self {
+        case .encrypting:
+            return "Check iPhone"
         case .checkOnIPhone:
             return "Check on iPhone"
         case .phoneGone:
             return "iPhone Didn't Reconnect"
         case .failed(let failure):
             return failure.title
-        case .encrypting, .copying, .preparing, .waitingForFindMy, .restoring, .finishing,
+        case .copying, .preparing, .waitingForFindMy, .restoring, .finishing,
              .restarting, .confirming, .done:
             return nil
         }
@@ -109,13 +111,15 @@ enum JobPhase: Equatable {
     /// The sentence under that heading.
     var body: String? {
         switch self {
+        case .encrypting:
+            return "Enter the passcode on iPhone to turn on encryption. The prompt can take a few seconds to appear. Keep the cable connected."
         case .checkOnIPhone:
             return "Look for 'This iPhone is supervised' at the top of Settings."
         case .phoneGone:
             return "Unlock iPhone and keep the cable in."
         case .failed(let failure):
             return failure.fix
-        case .encrypting, .copying, .preparing, .waitingForFindMy, .restoring, .finishing,
+        case .copying, .preparing, .waitingForFindMy, .restoring, .finishing,
              .restarting, .confirming, .done:
             return nil
         }

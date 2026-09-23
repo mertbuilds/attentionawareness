@@ -11,8 +11,9 @@ struct JobPhaseTests {
     // MARK: - The line under the bar
 
     @Test func everyPhaseThatRunsSaysWhatIsHappening() {
+        // Encrypting is the one running phase that speaks through a headline
+        // and a body instead of this line; it has a test of its own below.
         let lines: [(JobPhase, String)] = [
-            (.encrypting, "Turning on encryption"),
             (.copying, "Copying iPhone to this Mac"),
             (.preparing, "Preparing"),
             (.waitingForFindMy, "Waiting for Find My iPhone to be turned off"),
@@ -31,6 +32,21 @@ struct JobPhaseTests {
         for phase in ended {
             #expect(phase.line == nil)
         }
+    }
+
+    @Test func turningOnEncryptionSendsThePersonToTheirPhone() {
+        #expect(JobPhase.encrypting.headline == "Check iPhone")
+        #expect(
+            JobPhase.encrypting.body
+                == "Enter the passcode on iPhone to turn on encryption. The prompt can take a few seconds to appear. Keep the cable connected."
+        )
+        // The headline and the body carry the message, so the plain line
+        // steps aside the way it does on the phases that came to an end.
+        #expect(JobPhase.encrypting.line == nil)
+        #expect(JobPhase.encrypting.note == nil)
+        // It is still working, under a bar that cannot say how far along it is.
+        #expect(JobPhase.encrypting.isRunning)
+        #expect(JobPhase.encrypting.isDeterminate == false)
     }
 
     // MARK: - The bar
@@ -104,7 +120,9 @@ struct JobPhaseTests {
     }
 
     @Test func aPhaseStillRunningCarriesNoHeadlineOfItsOwn() {
-        for phase in running {
+        // Encrypting is the one running phase that carries its own headline,
+        // so it stands apart here and is checked in its own test.
+        for phase in running where phase != .encrypting {
             #expect(phase.headline == nil, "\(phase) keeps the screen's title")
             #expect(phase.body == nil)
         }
