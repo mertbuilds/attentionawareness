@@ -145,7 +145,19 @@ final class LockdownSession {
         guard status == LOCKDOWN_E_SUCCESS, let client else {
             idevice_free(device)
             switch status {
-            case LOCKDOWN_E_PAIRING_DIALOG_RESPONSE_PENDING, LOCKDOWN_E_PASSWORD_PROTECTED:
+            // Still pairing / not trusted yet. During a first pairing, while
+            // the Trust dialog is up and the passcode is being entered, the
+            // phone has not written the pairing record, so the handshake
+            // reports one of these transient states rather than success. Treat
+            // them all as "keep waiting" so the UI shows the calm waiting step
+            // and the watcher polls until pairing completes.
+            case LOCKDOWN_E_PAIRING_DIALOG_RESPONSE_PENDING,
+                 LOCKDOWN_E_PASSWORD_PROTECTED,
+                 LOCKDOWN_E_INVALID_HOST_ID,
+                 LOCKDOWN_E_INVALID_CONF,
+                 LOCKDOWN_E_MUX_ERROR,
+                 LOCKDOWN_E_SSL_ERROR,
+                 LOCKDOWN_E_NO_RUNNING_SESSION:
                 throw DeviceError.trustPending
             case LOCKDOWN_E_USER_DENIED_PAIRING:
                 throw DeviceError.trustDenied

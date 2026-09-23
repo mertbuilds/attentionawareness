@@ -139,11 +139,20 @@ final class DeviceWatcher: ObservableObject {
 
                 // Supervision and the installed profiles both come from
                 // MCInstall, which needs a phone that has already trusted this
-                // Mac. One client answers both.
+                // Mac. One client answers both. This read is best-effort: right
+                // after trust completes MCInstall can still fail for a poll or
+                // two, so a failure here only skips supervision for this pass
+                // (leaving those entries unset) and never marks the device in
+                // error. The device still shows as paired and the next poll
+                // fills supervision in.
                 if device.pairingState == .paired {
-                    let mcInstall = try MCInstall(udid: udid)
-                    snapshot.cloudConfigurations[udid] = try mcInstall.cloudConfiguration()
-                    snapshot.installedProfiles[udid] = try mcInstall.profileList()
+                    do {
+                        let mcInstall = try MCInstall(udid: udid)
+                        snapshot.cloudConfigurations[udid] = try mcInstall.cloudConfiguration()
+                        snapshot.installedProfiles[udid] = try mcInstall.profileList()
+                    } catch {
+                        continue
+                    }
                 }
             } catch DeviceError.deviceUnavailable {
                 // The phone was unplugged between the list and the read.
