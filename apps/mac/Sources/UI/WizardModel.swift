@@ -772,17 +772,30 @@ class WizardModel: ObservableObject {
         // the helper is about to write into that very folder, so the clearing
         // finishes first.
         await clearing?.value
-        // The copy is always encrypted. When the iPhone does not encrypt its
-        // backups yet, turn encryption on with the person's password first;
-        // when it already does, that password is the one they set and the copy
-        // uses it straight away. A phone whose flag will not read is treated
-        // like one that already encrypts: the copy tries the password as is.
-        // Encryption is only ever turned on, never off, so the person keeps a
-        // phone that encrypts with a password they know.
+        // The copy is always encrypted. Turn encryption on unless the iPhone
+        // already confirms it is on. Straight after pairing the WillEncrypt flag
+        // can still read nil, and a nil is not a "yes", so read the phone once
+        // more before deciding and enable encryption whenever the flag is not a
+        // confirmed yes. Encryption is only ever turned on, never off, so the
+        // person keeps a phone that encrypts with a password they know.
         let password = secret ?? ""
-        if device?.backupEncrypted == false {
+        watcher.reload()
+        try? await Task.sleep(for: Self.encryptionSettleInterval)
+        if device?.backupEncrypted != true {
             job = .encrypting
-            try await engine.enableEncryption(udid: udid, password: password, root: Self.backupRoot)
+            do {
+                try await engine.enableEncryption(udid: udid, password: password, root: Self.backupRoot)
+            } catch {
+                // Turning encryption on can fail because it is already on with
+                // the person's own password, which is the nil case resolving to
+                // a phone that already encrypts. Read the phone once more: if it
+                // is encrypted, take the entered password as that password and
+                // copy with it. A phone that is still not encrypted is a genuine
+                // failure and is surfaced.
+                watcher.reload()
+                try? await Task.sleep(for: Self.encryptionSettleInterval)
+                guard device?.backupEncrypted == true else { throw error }
+            }
             // A freshly-erased phone takes a moment to register the new backup
             // password after encryption is turned on. A copy started in that
             // gap is rejected as a "wrong password" the phone does not mean, so
@@ -991,11 +1004,18 @@ class WizardModel: ObservableObject {
         let started = Date()
         transferStartedAt = started
         estimate = TransferEstimate()
+        // The restore carries the password only when the copy is really
+        // encrypted. Reading the flag off the backup itself is the safety net:
+        // even if encryption did not take and the copy came out unencrypted, a
+        // restore with a password over it would be refused with a keybag error
+        // that reads as a wrong backup password, so an unencrypted copy goes
+        // back without one.
+        let backupEncrypted = await Self.backupIsEncrypted(at: folder)
         do {
             try await engine.restore(
                 udid: udid,
                 from: folder,
-                password: secret,
+                password: WizardGate.restorePassword(secret: secret, backupEncrypted: backupEncrypted),
                 system: true,
                 settings: true,
                 reboot: true
@@ -1010,6 +1030,17 @@ class WizardModel: ObservableObject {
             TransferRate.remember(.restore, bytes: bytes, seconds: Date().timeIntervalSince(started))
         }
         restore.stage = .waitingForPhone
+    }
+
+    /// Whether the backup in `folder` is an encrypted one, read from its
+    /// Manifest.plist through the same `BackupFolder` reader the patch uses. It
+    /// runs off the main thread because it opens the folder, and answers true
+    /// when the read fails: the copy this run makes is encrypted, and a folder
+    /// that will not open fails the restore whichever way this reads.
+    private nonisolated static func backupIsEncrypted(at folder: URL) async -> Bool {
+        await Task.detached(priority: .userInitiated) {
+            (try? BackupFolder.load(at: folder))?.isEncrypted ?? true
+        }.value
     }
 
     /// Read the bus until the iPhone is back and has answered MCInstall again,

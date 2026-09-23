@@ -85,6 +85,20 @@ struct WizardGateTests {
         }
     }
 
+    // MARK: - The restore password
+
+    @Test func anEncryptedCopyIsSentBackWithThePassword() {
+        #expect(WizardGate.restorePassword(secret: "hunter2", backupEncrypted: true) == "hunter2")
+    }
+
+    @Test func anUnencryptedCopyIsSentBackWithoutAPassword() {
+        // A copy where encryption did not take carries no keybag, and a restore
+        // with a password over it is refused with a keybag error that reads as a
+        // wrong backup password. So the password is dropped and it goes back
+        // without one.
+        #expect(WizardGate.restorePassword(secret: "hunter2", backupEncrypted: false) == nil)
+    }
+
     // MARK: - Taking the backup away
 
     @Test func aRunThatWentThroughCanLetTheBackupGo() {

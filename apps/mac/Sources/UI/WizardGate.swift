@@ -60,6 +60,17 @@ enum WizardGate {
         return findMyOn == true ? .blockedByFindMy : .allowed
     }
 
+    /// The password the restore hands the engine, from whether the copy on this
+    /// Mac is really encrypted.
+    ///
+    /// An encrypted copy needs it, but an unencrypted one must never be given
+    /// one: the iPhone answers a restore-with-password over a backup that
+    /// carries no keybag with an error that reads as a wrong backup password. So
+    /// a copy where encryption did not take still goes back, without a password.
+    static func restorePassword(secret: String?, backupEncrypted: Bool) -> String? {
+        backupEncrypted ? secret : nil
+    }
+
     /// Whether the backup has done everything it was made for, which is the
     /// one moment it can be taken off this Mac.
     ///
