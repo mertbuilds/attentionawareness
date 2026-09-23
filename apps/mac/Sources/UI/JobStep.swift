@@ -35,11 +35,17 @@ struct JobStep: View {
                     line(phase)
                 }
                 if let sentence = phase.body {
-                    body(
-                        sentence,
-                        note: phase.note,
-                        image: phase.noteImage
-                    )
+                    // The confirm-supervision screen carries the picture of the
+                    // top of Settings inline below, so its sentence needs no
+                    // "i". Every other ended phase keeps its note behind one.
+                    if case .checkOnIPhone = phase {
+                        body(sentence, note: nil)
+                    } else {
+                        body(sentence, note: phase.note)
+                    }
+                }
+                if case .checkOnIPhone = phase {
+                    reference
                 }
                 // The one failure somebody answers by typing. The field is the
                 // same row the checks show, so the password is corrected where
@@ -95,15 +101,31 @@ struct JobStep: View {
 
     /// The sentence a phase that came to an end shows, with the "i" beside it
     /// wherever there is more behind it than the line.
-    private func body(_ text: String, note: String?, image: String?) -> some View {
+    private func body(_ text: String, note: String?) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(text)
                 .fixedSize(horizontal: false, vertical: true)
             if let note {
-                InfoButton(text: note, image: image)
+                InfoButton(text: note)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// The picture of the top of Settings, shown inline on the confirm screen so
+    /// somebody can hold it beside the phone in their hand. It loads the same
+    /// bundled screenshot the "i" popovers use, at the width they show it, and
+    /// where nobody has dropped one in the bundle it shows nothing at all.
+    @ViewBuilder
+    private var reference: some View {
+        if let url = InfoImage.url(named: InfoImage.checking),
+           let picture = NSImage(contentsOf: url) {
+            Image(nsImage: picture)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 280)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
     }
 
     @ViewBuilder

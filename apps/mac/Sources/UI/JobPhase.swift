@@ -134,9 +134,10 @@ enum JobPhase: Equatable {
         }
     }
 
-    /// What the "i" beside that sentence holds: the same words again where a
-    /// film of them is coming, and the layer's own words where a failure left
-    /// some. Nil takes the button off the screen.
+    /// What the "i" beside that sentence holds: the same words again on the
+    /// confirm screen, and the layer's own words where a failure left some. The
+    /// confirm screen shows its picture inline rather than behind an "i", so
+    /// the job screen drops the button there. Nil takes it off everywhere else.
     var note: String? {
         switch self {
         case .checkOnIPhone:
@@ -145,19 +146,6 @@ enum JobPhase: Equatable {
             return failure.raw.isEmpty ? nil : failure.raw
         case .encrypting, .connecting, .copying, .preparing, .waitingForFindMy, .restoring,
              .finishing, .restarting, .confirming, .done, .phoneGone:
-            return nil
-        }
-    }
-
-    /// The picture that "i" shows, by name. Only the one question a picture
-    /// settles has one: what the top of Settings looks like once the run is
-    /// over. A failure has nothing to show.
-    var noteImage: String? {
-        switch self {
-        case .checkOnIPhone:
-            return InfoImage.checking
-        case .encrypting, .connecting, .copying, .preparing, .waitingForFindMy, .restoring,
-             .finishing, .restarting, .confirming, .done, .phoneGone, .failed:
             return nil
         }
     }
