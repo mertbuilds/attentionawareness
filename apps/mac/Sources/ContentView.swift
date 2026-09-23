@@ -52,6 +52,11 @@ struct ContentView: View {
                     model.back()
                 }
                 .buttonStyle(TextButton())
+                // The style hangs its ring on the label, which never holds the
+                // keyboard the button does, so macOS rings the button in its own
+                // blue instead. The ring is drawn here on the button itself, the
+                // way the primary button carries its own.
+                .accentFocusRing(RoundedRectangle(cornerRadius: 6))
                 .opacity(showsBack ? 1 : 0)
                 .disabled(!showsBack)
                 .accessibilityHidden(!showsBack)

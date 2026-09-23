@@ -285,7 +285,7 @@ private struct AccentFocusRing<S: InsettableShape>: ViewModifier {
     }
 }
 
-private extension View {
+extension View {
     /// Draw our own focus ring in `shape` and leave the system's off.
     func accentFocusRing(_ shape: some InsettableShape) -> some View {
         modifier(AccentFocusRing(shape: shape))

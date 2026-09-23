@@ -14,7 +14,10 @@ struct BackupPasswordField: View {
     @FocusState private var focused: Bool
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
+        // The label sits above its own full-width field, so the input reads as
+        // a block of its own rather than one more of the one-line checks it sits
+        // among.
+        VStack(alignment: .leading, spacing: 6) {
             Text("Backup password")
                 .help(help)
             // The placeholder is a row of dots, so the field needs a spoken
