@@ -59,6 +59,41 @@ struct InfoButton: View {
     }
 }
 
+/// The words the "Finish on iPhone" guide shows on the Restrictions step and
+/// the Profiles screen both.
+///
+/// The profile is not real MDM, so `InstallProfile` only downloads it over the
+/// cable: the person turns it on in Settings by hand. These tell them how, and
+/// when a check comes back short, what is left to do. They live here so the two
+/// screens that show the guide read from one place.
+enum ProfileGuideCopy {
+    /// The how-to, shown the moment the profile is downloaded and kept on
+    /// screen behind every retry.
+    static let steps =
+        "The profile is on iPhone. To turn it on: open Settings, tap Profile "
+        + "Downloaded near the top, tap Install at the top right, then enter the "
+        + "passcode. Keep iPhone unlocked."
+
+    /// The line above the steps once a check has come back short, or nil the
+    /// first time through, where the steps say it all.
+    static func reason(for guide: WizardModel.Guide) -> String? {
+        switch guide {
+        case .downloaded:
+            return nil
+        case .locked:
+            return "Unlock iPhone, then check again."
+        case .notInstalled:
+            return "Not installed yet. Finish it in Settings, then check again."
+        }
+    }
+
+    /// What the button that runs the check says: the first time it owns up to
+    /// finishing, and after a short check it is a plain retry.
+    static func confirmTitle(for guide: WizardModel.Guide) -> String {
+        guide == .downloaded ? "I've Installed It" : "Check Again"
+    }
+}
+
 /// Links from the app to the site. Every one of them carries its own campaign,
 /// which is the house rule for links between our own sites.
 enum SiteLink {

@@ -111,6 +111,12 @@ class WizardModel: ObservableObject {
     /// Bundle ids the store has already been asked about, so an app it does
     /// not carry is asked for once rather than on every redraw.
     private var askedForIcons = Set<String>()
+    /// What the draft asked of the profile that is now downloaded on the
+    /// iPhone, held from the download until the person triggers the confirm
+    /// check after finishing in Settings. Nil while nothing waits to be
+    /// confirmed, and nil for a profile built somewhere else, where the app
+    /// never knew what was asked for.
+    private var pendingRemovalDisallowed: Bool?
 
     /// A model that watches the real USB bus, which is what the window uses.
     convenience init() {
@@ -395,6 +401,7 @@ class WizardModel: ObservableObject {
         restore = RestoreState()
         job = nil
         profile = ProfileState()
+        pendingRemovalDisallowed = nil
         draft = .recommended
         clearAppSearch()
         iconTask?.cancel()
@@ -1008,8 +1015,27 @@ class WizardModel: ObservableObject {
         case ready
         /// The site is turning the configuration into signed bytes.
         case signing
-        case installing
-        case installed
+        /// The signed bytes are going over the cable, which puts the profile on
+        /// the iPhone as a download rather than as something installed.
+        case sending
+        /// On the iPhone as a downloaded profile now: the person turns it on in
+        /// Settings and then confirms. `Guide` is which words the screen shows.
+        case guide(Guide)
+        /// Reading the iPhone's profile list back to confirm the install, which
+        /// needs the iPhone unlocked.
+        case checking
+    }
+
+    /// Which words the "Finish on iPhone" guide shows, one for each thing the
+    /// person needs to hear after the profile is downloaded.
+    enum Guide: Equatable {
+        /// Just downloaded: the whole how-to.
+        case downloaded
+        /// The confirm read saw nothing, so the iPhone is likely locked or
+        /// still settling.
+        case locked
+        /// The read worked and the iPhone has not turned the profile on yet.
+        case notInstalled
     }
 
     struct ProfileState {
@@ -1022,8 +1048,10 @@ class WizardModel: ObservableObject {
         /// draft said. It is what the backup delete waits for.
         var isConfirmed = false
 
-        /// True while something is on its way to the site or to the iPhone.
-        var isRunning: Bool { stage == .signing || stage == .installing }
+        /// True while something is on its way to the site or the iPhone, or
+        /// while the iPhone is being read back. The guide waits on the person,
+        /// so it is not one of these.
+        var isRunning: Bool { stage == .signing || stage == .sending || stage == .checking }
     }
 
     /// What the Restrictions screen installs: the apps on the draft's list, the sites
@@ -1134,42 +1162,53 @@ class WizardModel: ObservableObject {
         try await AppSearch().lookup(bundleIds, country: storefront)
     }
 
-    /// Have the site sign the profile, then push it over the cable. The
-    /// signing certificate never leaves the site, so the bytes make one round
-    /// trip and go straight to the iPhone; nothing is written to disk.
+    /// Sign the draft and put it on the iPhone as a downloaded profile. This is
+    /// the Restrictions step of a run: the confirm check that the person
+    /// triggers next ends the run once the iPhone lists it.
     ///
-    /// This is the Restrictions step of a run: a confirmed install ends the
-    /// run and the window moves to the last screen by itself.
+    /// The download is the whole of what this Mac can do here. The profile is
+    /// not real MDM, so `InstallProfile` only puts it on the iPhone as a
+    /// download; the person turns it on in Settings. So a good send is treated
+    /// as downloaded, not installed, and the guide asks them to finish it.
     func signAndInstallProfile() {
-        installTheDraft(advancing: true)
+        downloadProfile()
     }
 
-    /// Install another profile on a phone that is already supervised, from the
-    /// Profiles screen. Same as `signAndInstallProfile()` but there is no run
-    /// to end: a confirmed install reads the list back and leaves the screen up
-    /// for another one.
+    /// Put another profile on a phone that is already supervised, from the
+    /// Profiles screen. The same download as the run, but the confirm check
+    /// that follows reads the list back and leaves the screen up for another
+    /// rather than ending a run.
     func installMoreProfile() {
-        installTheDraft(advancing: false)
+        downloadProfile()
     }
 
-    /// The install both share: have the site sign the draft, push it over the
-    /// cable and read the phone's list back. Whether a confirmed install ends
-    /// the run is the one thing that differs, which `advancing` carries.
-    private func installTheDraft(advancing: Bool) {
+    /// Have the site sign the draft and send it over the cable, which downloads
+    /// it onto the iPhone. The signing certificate never leaves the site, so
+    /// the bytes make one round trip and go straight to the iPhone; nothing is
+    /// written to disk.
+    ///
+    /// It only ever runs from the Install button, never from a redraw. A good
+    /// send moves to the guide, which asks the person to turn the profile on in
+    /// Settings; it does not read the iPhone back, because that read needs the
+    /// iPhone unlocked and the profile is not on yet. Only a real send failure
+    /// is a hard failure.
+    private func downloadProfile() {
         guard let udid, !profile.isRunning else { return }
         let config = profileConfig
         // The draft is the only thing that knows whether trial mode was asked
-        // for, so what it asked for is read here and held against what the
-        // phone says afterwards.
-        let removalDisallowed = !draft.allowsRemoval
+        // for. What it asked for is held here and weighed against what the
+        // iPhone lists when the person confirms.
+        pendingRemovalDisallowed = !draft.allowsRemoval
         errorMessage = nil
         profile = ProfileState(stage: .signing)
         Task {
             do {
                 let data = try await ProfileSigner().signedProfile(for: config)
-                profile.stage = .installing
-                let listed = try await Self.install(data, on: udid)
-                finishInstall(listed, removalDisallowed: removalDisallowed, advancing: advancing)
+                profile.stage = .sending
+                try await Self.send(data, on: udid)
+                // On the iPhone as a download now, not installed: the person
+                // turns it on in Settings and then confirms.
+                profile.stage = .guide(.downloaded)
             } catch {
                 profile.stage = .ready
                 errorMessage = error.localizedDescription
@@ -1177,40 +1216,59 @@ class WizardModel: ObservableObject {
         }
     }
 
-    /// Put the signed bytes on the iPhone and read its profile list straight
-    /// back, both over one connection.
-    ///
-    /// The iPhone answering Acknowledged means it took the bytes, which is not
-    /// the same as the profile being on and saying what it was asked to say,
-    /// and that is the whole reason the list is read again here.
-    private nonisolated static func install(
-        _ data: Data,
-        on udid: String
-    ) async throws -> [InstalledProfile] {
+    /// Put the signed bytes on the iPhone over one connection. The iPhone
+    /// answering Acknowledged means it took the bytes as a download, which is
+    /// not the same as the profile being on: that is the person's to finish in
+    /// Settings, and `confirmProfileInstalled` is what reads it back.
+    private nonisolated static func send(_ data: Data, on udid: String) async throws {
         try await Task.detached(priority: .userInitiated) {
-            let service = try MCInstall(udid: udid)
-            try service.installProfile(data)
-            return try service.profileList()
+            try MCInstall(udid: udid).installProfile(data)
         }.value
     }
 
-    /// Weigh what the iPhone lists against what the run asked for. A profile
-    /// that comes back wrong is said in one sentence and keeps the backup;
-    /// only a confirmed one is treated as installed.
+    /// Read the iPhone back once the person says they finished the install in
+    /// Settings, and act on what it lists. It only reads: the profile is never
+    /// sent again here.
     ///
-    /// On the Restrictions step of a run (`advancing`) a confirmed install ends
-    /// the run: there is nothing left to press, so the last screen comes up by
-    /// itself. On the Profiles screen there is no run to end, so a confirmed
-    /// install reads the list back and leaves the builder up for another.
-    private func finishInstall(_ listed: [InstalledProfile], removalDisallowed: Bool?, advancing: Bool) {
-        profile.stage = .installed
-        if let problem = ProfileCheck.problem(with: listed, removalDisallowed: removalDisallowed) {
-            errorMessage = problem.sentence
-            // The iPhone lists one more profile now, so read it again for the
-            // card and the summary.
-            refreshInstalledProfiles()
-            return
+    /// The read needs the iPhone unlocked. A read that saw nothing is not a
+    /// failure but a nudge to unlock and try again, and an iPhone that answered
+    /// without the profile is a nudge to finish it in Settings. Only a
+    /// confirmed one moves the run on and lets the backup go.
+    func confirmProfileInstalled() {
+        guard let udid, case .guide = profile.stage else { return }
+        let asked = pendingRemovalDisallowed
+        let advancing = step == .restrictions
+        errorMessage = nil
+        profile.stage = .checking
+        Task {
+            let read = await readInstalledProfiles(udid: udid)
+            switch ProfileCheck.confirmation(read: read, removalDisallowed: asked) {
+            case .installed:
+                profileConfirmed(advancing: advancing)
+            case .notInstalled:
+                profile.stage = .guide(.notInstalled)
+                refreshInstalledProfiles()
+            case .locked:
+                profile.stage = .guide(.locked)
+            }
         }
+    }
+
+    /// The iPhone's profile list, or nil when the read threw, which a locked
+    /// iPhone does. It reaches the iPhone, so the hidden `--demo` path overrides
+    /// it to answer from its own world.
+    func readInstalledProfiles(udid: String) async -> [InstalledProfile]? {
+        await Task.detached(priority: .userInitiated) {
+            try? MCInstall(udid: udid).profileList()
+        }.value
+    }
+
+    /// What a confirmed install does. On the Restrictions step of a run
+    /// (`advancing`) there is nothing left to press, so the backup goes and the
+    /// last screen comes up by itself. On the Profiles screen there is no run to
+    /// end, so the list is read again and the builder is left up for another.
+    private func profileConfirmed(advancing: Bool) {
+        pendingRemovalDisallowed = nil
         guard advancing else {
             profile = ProfileState()
             refreshInstalledProfiles()
@@ -1222,7 +1280,7 @@ class WizardModel: ObservableObject {
         advance()
     }
 
-    /// Put the summary back after an install that did not take, which is what
+    /// Put the summary back after a download that did not take, which is what
     /// Cancel does on that screen. The draft is left alone, so pressing
     /// Install again sends the same profile.
     func forgetProfileFailure() {

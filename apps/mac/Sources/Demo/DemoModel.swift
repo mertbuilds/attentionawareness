@@ -423,9 +423,17 @@ final class DemoWizardModel: WizardModel {
 
     // MARK: - The profile
 
+    /// The real model has the site sign the draft and sends it over the cable.
+    /// The demo signs and sends nothing, and lands on the same guide.
     override func signAndInstallProfile() {
-        guard udid != nil, !profile.isRunning else { return }
-        install(ProfileState(stage: .signing))
+        demoDownload()
+    }
+
+    /// Put another profile on a phone that is supervised already, from the
+    /// Profiles screen. Same demo download as the run: the confirm check that
+    /// follows reads the grown list back and stays on the screen.
+    override func installMoreProfile() {
+        demoDownload()
     }
 
     /// The real model reads the phone again here. The demo's world already
@@ -435,11 +443,19 @@ final class DemoWizardModel: WizardModel {
         applyConditions()
     }
 
-    /// Install another profile on a phone that is supervised already, from the
-    /// Profiles screen. The demo signs and installs nothing: it waits the beat
-    /// each step takes, then adds a fresh profile to the phone's list and stays
-    /// on the screen, the way the real one does.
-    override func installMoreProfile() {
+    /// The real model reads the phone's profile list over the cable when the
+    /// person confirms. The demo has no cable: it answers from its own world,
+    /// which the download below has already grown to hold the profile.
+    override func readInstalledProfiles(udid: String) async -> [InstalledProfile]? {
+        installedProfiles
+    }
+
+    /// Sign, send and land on the guide, in the beats each takes. A demo asked
+    /// for a failure fails on the send, where an iPhone that refuses the bytes
+    /// leaves its sentence. Otherwise the profile is added to the world so the
+    /// confirm check the person triggers next finds it: the Profiles screen
+    /// stacks a fresh one, the run marks its own on.
+    private func demoDownload() {
         guard udid != nil, !profile.isRunning else { return }
         stopWork()
         var sample = currentSample
@@ -447,12 +463,13 @@ final class DemoWizardModel: WizardModel {
         sample.errorMessage = nil
         show(sample)
         let fails = conditions.outcome == .fails
+        let managing = step == .profiles
         work = Task { [weak self] in
             try? await Task.sleep(for: Self.signingPause)
             guard let self, !Task.isCancelled else { return }
-            var installing = self.currentSample
-            installing.profile.stage = .installing
-            self.show(installing)
+            var sending = self.currentSample
+            sending.profile.stage = .sending
+            self.show(sending)
             try? await Task.sleep(for: Self.installPause)
             guard !Task.isCancelled else { return }
             self.work = nil
@@ -465,58 +482,17 @@ final class DemoWizardModel: WizardModel {
                 self.show(failed)
                 return
             }
-            // Each install mints a fresh identifier, so the demo adds one more
-            // profile to the phone and reads the grown list back.
-            self.addedProfiles.append(DemoWorld.anotherProfile())
-            self.applyConditions()
-            var done = self.currentSample
-            done.profile = ProfileState()
-            self.show(done)
-        }
-    }
-
-    private func install(_ state: ProfileState) {
-        stopWork()
-        var sample = currentSample
-        sample.profile = state
-        sample.errorMessage = nil
-        show(sample)
-        // A demo that was asked for a failure fails here too, so the sentence
-        // an iPhone that refuses a profile leaves behind can be read.
-        let fails = conditions.outcome == .fails
-        work = Task { [weak self] in
-            if state.stage == .signing {
-                try? await Task.sleep(for: Self.signingPause)
-                guard let self, !Task.isCancelled else { return }
-                var next = self.currentSample
-                next.profile.stage = .installing
-                self.show(next)
+            // The bytes are on the demo phone now, as a download waiting to be
+            // turned on. The world is grown so the confirm check finds it.
+            if managing {
+                self.addedProfiles.append(DemoWorld.anotherProfile())
+                self.applyConditions()
+            } else {
+                self.conditions = self.conditions.afterProfileInstall()
             }
-            try? await Task.sleep(for: Self.installPause)
-            guard let self, !Task.isCancelled else { return }
-            self.work = nil
-            guard !fails else {
-                var failed = self.currentSample
-                failed.profile = ProfileState(stage: .ready, fileName: state.fileName)
-                failed.errorMessage = DeviceError
-                    .profileRejected(reason: "The iPhone is not supervised.")
-                    .localizedDescription
-                self.show(failed)
-                return
-            }
-            var done = self.currentSample
-            done.profile.stage = .installed
-            // The real model reads the phone back here and only then counts
-            // the profile as the one the run asked for. A demo phone answers
-            // whatever the switches say, so the check is taken as passed and
-            // the backup goes, which is what the run does next.
-            done.profile.isConfirmed = true
-            self.show(done)
-            self.conditions = self.conditions.afterProfileInstall()
-            self.deleteBackupIfTheRunIsDone()
-            // A confirmed install leaves nothing to press, so the last screen
-            // comes up by itself here as it does on a real run.
-            self.advance()
+            var guide = self.currentSample
+            guide.profile = ProfileState(stage: .guide(.downloaded))
+            self.show(guide)
         }
     }
 

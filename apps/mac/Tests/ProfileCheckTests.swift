@@ -108,6 +108,65 @@ struct ProfileCheckTests {
         )
     }
 
+    // MARK: - The confirm read after a download
+
+    @Test func aReadThatThrewIsAReasonToUnlockNotAFailure() {
+        // A locked iPhone fails the read, which the confirm check takes as nil.
+        #expect(ProfileCheck.confirmation(read: nil, removalDisallowed: true) == .locked)
+    }
+
+    @Test func anIPhoneThatAnsweredWithNothingReadsAsLocked() {
+        // An empty answer is what a locked or still-settling iPhone gives, so
+        // it is a retry rather than a phone that has not taken the profile.
+        #expect(ProfileCheck.confirmation(read: [], removalDisallowed: true) == .locked)
+    }
+
+    @Test func theProfileTheRunAskedForReadsAsInstalled() {
+        #expect(
+            ProfileCheck.confirmation(
+                read: [ours(isActive: true, removalDisallowed: true)],
+                removalDisallowed: true
+            ) == .installed
+        )
+    }
+
+    @Test func anIPhoneThatListsOthersButNotOursReadsAsNotInstalled() {
+        // A non-empty answer means the iPhone spoke, so a missing profile of
+        // ours is finished-in-Settings work, not a locked iPhone.
+        #expect(
+            ProfileCheck.confirmation(read: [somebodyElses], removalDisallowed: true) == .notInstalled
+        )
+    }
+
+    @Test func aProfileTheIPhoneHasNotTurnedOnReadsAsNotInstalled() {
+        #expect(
+            ProfileCheck.confirmation(
+                read: [ours(isActive: false, removalDisallowed: true)],
+                removalDisallowed: true
+            ) == .notInstalled
+        )
+    }
+
+    @Test func theWrongRemovalSettingReadsAsNotInstalled() {
+        #expect(
+            ProfileCheck.confirmation(
+                read: [ours(isActive: true, removalDisallowed: false)],
+                removalDisallowed: true
+            ) == .notInstalled
+        )
+    }
+
+    @Test func aProfileBuiltElsewhereIsNotWeighedOnItsRemovalSetting() {
+        // The site built it, so nothing was asked for, and an active profile of
+        // ours is confirmed whichever way it can be removed.
+        #expect(
+            ProfileCheck.confirmation(
+                read: [ours(isActive: true, removalDisallowed: false)],
+                removalDisallowed: nil
+            ) == .installed
+        )
+    }
+
     // MARK: - What each one says
 
     @Test func everyProblemEndsBySayingTheBackupWasKept() {

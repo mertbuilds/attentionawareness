@@ -23,12 +23,13 @@ struct ProfilesStep: View {
         }
     }
 
-    /// An install that did not take carries a heading of its own, the way the
-    /// Restrictions step does.
+    /// A send that did not take carries a heading of its own, the way the
+    /// Restrictions step does, and the downloaded profile carries the one that
+    /// sends the person to their iPhone to finish it.
     private var title: String {
-        failure == nil
-            ? WizardStep.profiles.title
-            : "Restrictions Didn't Install"
+        if failure != nil { return "Restrictions Didn't Install" }
+        if case .guide = model.profile.stage { return "Finish on iPhone" }
+        return WizardStep.profiles.title
     }
 
     /// What the signer or the iPhone said, once something has gone wrong. Nil
@@ -39,8 +40,10 @@ struct ProfilesStep: View {
     private var content: some View {
         if let failure {
             didNotInstall(failure)
+        } else if case .guide(let prompt) = model.profile.stage {
+            guide(prompt)
         } else if model.profile.isRunning {
-            installing
+            working
         } else {
             ready
         }
@@ -125,16 +128,37 @@ struct ProfilesStep: View {
 
     // MARK: - Putting it there
 
-    /// Signing and installing are one wait for the person watching, so they are
-    /// one bar and one line.
-    private var installing: some View {
+    /// Signing, sending and reading the iPhone back are one wait for the person
+    /// watching, so they are one bar and one line. The line names which of them
+    /// is running, because the read comes after they have gone to their iPhone.
+    private var working: some View {
         VStack(alignment: .leading, spacing: 12) {
             ProgressView()
                 .progressViewStyle(.linear)
                 .tint(WizardStyle.accent)
-            Text("Installing on iPhone")
+            Text(model.profile.stage == .checking ? "Checking iPhone" : "Sending to iPhone")
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    /// The profile is on the iPhone as a download now, so this says how to turn
+    /// it on and, when a check comes back short, what is left to do. The film of
+    /// it goes behind the "i", where a name nobody has taken yet leaves the
+    /// words alone.
+    private func guide(_ prompt: WizardModel.Guide) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if let reason = ProfileGuideCopy.reason(for: prompt) {
+                Text(reason)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(ProfileGuideCopy.steps)
+                    .fixedSize(horizontal: false, vertical: true)
+                InfoButton(text: ProfileGuideCopy.steps, image: InfoImage.installProfile)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -158,6 +182,16 @@ struct ProfilesStep: View {
             }
             Button("Cancel") {
                 model.forgetProfileFailure()
+            }
+            .controlSize(.large)
+        } else if case .guide(let prompt) = model.profile.stage {
+            // The check reads the iPhone back, which needs it unlocked. Install
+            // Again re-sends the download when it needs re-sending.
+            PrimaryButton(title: ProfileGuideCopy.confirmTitle(for: prompt)) {
+                model.confirmProfileInstalled()
+            }
+            Button("Install Again") {
+                model.installMoreProfile()
             }
             .controlSize(.large)
         } else if !model.profile.isRunning {

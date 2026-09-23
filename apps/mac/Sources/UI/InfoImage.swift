@@ -13,6 +13,11 @@ enum InfoImage {
     /// is over.
     static var checking: String { "check-supervised" }
 
+    /// What the film of turning the downloaded profile on is called. It goes
+    /// beside the "Finish on iPhone" steps, and until somebody drops one in the
+    /// bundle under this name the popover shows the words alone.
+    static var installProfile: String { "install-profile" }
+
     /// The file of that name in the bundle, `.png` first and `.jpg` after it,
     /// or nil where nobody has taken one. The nil is the whole of the
     /// handling: a popover with no picture shows its words and says nothing

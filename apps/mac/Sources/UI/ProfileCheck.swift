@@ -65,4 +65,29 @@ enum ProfileCheck {
         }
         return nil
     }
+
+    /// What the confirm read after a download comes to. Because the profile is
+    /// downloaded and then turned on by the person, the read happens when they
+    /// say they are done, and it needs the iPhone unlocked.
+    enum Confirmation: Equatable {
+        /// The iPhone lists the profile the run asked for.
+        case installed
+        /// The iPhone answered, but the profile it asked for is not on it and
+        /// correct yet, so the person has more to do in Settings.
+        case notInstalled
+        /// The read saw nothing, so the iPhone is likely locked or still
+        /// settling. It is a retry, not a failure.
+        case locked
+    }
+
+    /// Weigh one confirm read. A read that threw comes in as nil; an iPhone
+    /// that answered with nothing comes in empty. Both read as `locked`,
+    /// because the list needs the iPhone unlocked and a locked one answers with
+    /// nothing. A non-empty answer is weighed by `problem(with:removalDisallowed:)`,
+    /// so an iPhone that lists other profiles but not ours reads as
+    /// `notInstalled` rather than as locked.
+    static func confirmation(read: [InstalledProfile]?, removalDisallowed: Bool?) -> Confirmation {
+        guard let read, !read.isEmpty else { return .locked }
+        return problem(with: read, removalDisallowed: removalDisallowed) == nil ? .installed : .notInstalled
+    }
 }

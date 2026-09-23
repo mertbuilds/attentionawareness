@@ -210,12 +210,21 @@ enum UISmoke {
             // A phone the app has already put a profile on, which is the one
             // line the card ever grows.
             ("already-installed", restrictions(WizardModel.ProfileState())),
-            // Signing and installing are one wait, so one picture covers both.
-            ("installing", restrictions(WizardModel.ProfileState(stage: .installing))),
+            // Signing and sending are one wait, so one picture covers both.
+            ("sending", restrictions(WizardModel.ProfileState(stage: .sending))),
+            // Reading the iPhone back after the person says they finished.
+            ("checking", restrictions(WizardModel.ProfileState(stage: .checking))),
+            // The profile is on the iPhone as a download now: finish it in
+            // Settings, then confirm.
+            ("finish", restrictions(WizardModel.ProfileState(stage: .guide(.downloaded)))),
+            // The confirm read saw nothing, so the iPhone is likely locked.
+            ("unlock", restrictions(WizardModel.ProfileState(stage: .guide(.locked)))),
+            // The read worked and the profile is not turned on yet.
+            ("not-installed", restrictions(WizardModel.ProfileState(stage: .guide(.notInstalled)))),
             (
                 "failed",
                 restrictions(
-                    WizardModel.ProfileState(stage: .installed),
+                    WizardModel.ProfileState(stage: .ready),
                     errorMessage: DeviceError
                         .profileRejected(reason: "iPhone isn't supervised.")
                         .localizedDescription
@@ -248,11 +257,17 @@ enum UISmoke {
         [
             ("empty", profiles(WizardModel.ProfileState(), installed: [])),
             ("has-ours", profiles(WizardModel.ProfileState(), installed: sampleProfiles)),
-            ("installing", profiles(WizardModel.ProfileState(stage: .installing), installed: sampleProfiles)),
+            ("sending", profiles(WizardModel.ProfileState(stage: .sending), installed: sampleProfiles)),
+            ("checking", profiles(WizardModel.ProfileState(stage: .checking), installed: sampleProfiles)),
+            // The profile is downloaded on the phone: finish it in Settings,
+            // then confirm.
+            ("finish", profiles(WizardModel.ProfileState(stage: .guide(.downloaded)), installed: sampleProfiles)),
+            // The confirm read saw nothing, so the iPhone is likely locked.
+            ("unlock", profiles(WizardModel.ProfileState(stage: .guide(.locked)), installed: sampleProfiles)),
             (
                 "failed",
                 profiles(
-                    WizardModel.ProfileState(stage: .installed),
+                    WizardModel.ProfileState(stage: .ready),
                     installed: sampleProfiles,
                     errorMessage: DeviceError
                         .profileRejected(reason: "iPhone isn't supervised.")
