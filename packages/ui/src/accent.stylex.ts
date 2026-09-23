@@ -8,4 +8,8 @@ import { defineConsts } from '@stylexjs/stylex';
  */
 export const accent = defineConsts({
   base: '#ff4f00',
+  // The base lifted and softened, for the ring around whatever holds keyboard
+  // focus. Full strength there would fight the one control on the row that is
+  // meant to be the loudest. Matches the Mac app's focus ring.
+  soft: '#ff8a51',
 });
