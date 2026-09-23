@@ -27,11 +27,17 @@ type EditorProps = {
 };
 
 /**
- * react-simple-code-editor ships CommonJS whose `export default` does not survive
- * nodenext's interop as a component type, though the bundler resolves it right at
- * runtime. Re-type the default to the props this page uses.
+ * react-simple-code-editor ships CommonJS that the bundler resolves to a wrapper
+ * object `{ default: Editor }`, not the component itself, so rendering the bare
+ * import blanks the page. Unwrap the nested `default` at runtime, and re-type it
+ * to the props this page uses.
  */
-const Editor = EditorImport as unknown as (props: EditorProps) => ReactElement;
+const editorModule = EditorImport as unknown as {
+  default?: (props: EditorProps) => ReactElement;
+};
+const Editor = (editorModule.default ?? EditorImport) as unknown as (
+  props: EditorProps,
+) => ReactElement;
 
 const MONOSPACE = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 /** How long the page sits on an edit before writing it. */
