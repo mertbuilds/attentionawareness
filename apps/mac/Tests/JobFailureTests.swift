@@ -52,11 +52,26 @@ struct JobFailureTests {
         let failure = JobFailure.from(PatchError.wrongPassword, in: .preparing)
 
         #expect(failure?.title == "Wrong Backup Password")
-        #expect(failure?.fix == "Enter the password set for encrypted backups.")
+        #expect(failure?.fix == "Enter the password you set for encrypted backups.")
         // The flag is written again once the right password is typed, and the
         // screen shows the field to type it in.
         #expect(failure?.retry == .patch)
         #expect(failure?.needsPassword == true)
+    }
+
+    // MARK: - Turning encryption on
+
+    @Test func aFailureToTurnEncryptionOnIsItsOwnHeadline() {
+        let failure = JobFailure.from(
+            BackupError.encryptionFailed("The iPhone would not turn encryption on."),
+            in: .copying
+        )
+
+        #expect(failure?.title == "Couldn't Turn On Encryption")
+        #expect(failure?.fix == "Unlock iPhone and try again.")
+        // Try Again makes the copy again, which turns encryption on first.
+        #expect(failure?.retry == .copy)
+        #expect(failure?.raw == "The iPhone would not turn encryption on.")
     }
 
     @Test func aHelperThatRefusedThePasswordSaysTheSameThing() {

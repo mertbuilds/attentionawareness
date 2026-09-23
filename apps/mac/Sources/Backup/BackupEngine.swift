@@ -11,9 +11,11 @@ import Foundation
 /// on a timer as a second source of truth, because the helper can be quiet for
 /// minutes while the phone writes its snapshot.
 ///
-/// The engine never turns backup encryption on or off and never changes the
-/// backup password. The phone decides whether a backup is encrypted, and the
-/// caller passes the password down when it is.
+/// The engine turns backup encryption on, with a password the person chose,
+/// only when the iPhone does not encrypt its backups yet. It never turns
+/// encryption off and never changes an existing password. The phone does the
+/// encrypting, and the caller passes the password down for the copy and the
+/// restore.
 @MainActor
 final class BackupEngine: ObservableObject {
     /// Where the helper has got to.
@@ -125,12 +127,45 @@ final class BackupEngine: ObservableObject {
 
     // MARK: - Backup and restore
 
+    /// The helper's own argument list for turning encryption on. It is a pure
+    /// function so the shape of the command can be checked without a phone. The
+    /// helper's parser wants a trailing directory and then ignores it for the
+    /// `encryption` command, so the backup root stands in for it.
+    nonisolated static func encryptionArguments(udid: String, password: String, root: URL) -> [String] {
+        ["-u", udid, "encryption", "on", password, root.path]
+    }
+
+    /// Turn on backup encryption for one iPhone, with the password the person
+    /// chose. It runs the bundled helper's `encryption on <password>` and reads
+    /// success or failure off it the same way the copy does.
+    ///
+    /// The iPhone can ask for its passcode on screen to confirm the change. A
+    /// helper that comes back saying it could not enable encryption, or that
+    /// the iPhone must be unlocked, is surfaced as an error rather than a
+    /// crash. Encryption is only ever turned on from here, never off.
+    func enableEncryption(udid: String, password: String, root: URL) async throws {
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let folder = root.appendingPathComponent(udid)
+        do {
+            try await run(
+                arguments: Self.encryptionArguments(udid: udid, password: password, root: root),
+                folder: folder,
+                password: password
+            )
+        } catch BackupError.failed(let sentence) {
+            // The helper stopped with a reason. It is worded for the window
+            // already; the flow turns it into "Couldn't Turn On Encryption".
+            throw BackupError.encryptionFailed(sentence)
+        }
+    }
+
     /// Make a full backup of one iPhone under `root` and hand back the folder
     /// it landed in, which is `root/<udid>`.
     ///
-    /// Pass a password only when the phone says it encrypts its backups
-    /// (`com.apple.mobile.backup/WillEncrypt`). The phone does the encrypting
-    /// either way: the flag is never changed from here.
+    /// The copy is always an encrypted one now, so a password comes down with
+    /// every call. The phone does the encrypting; this method never changes the
+    /// `com.apple.mobile.backup/WillEncrypt` flag, which `enableEncryption`
+    /// turns on beforehand when the phone did not already encrypt its backups.
     @discardableResult
     func backup(udid: String, into root: URL, password: String?) async throws -> URL {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

@@ -12,6 +12,7 @@ struct JobPhaseTests {
 
     @Test func everyPhaseThatRunsSaysWhatIsHappening() {
         let lines: [(JobPhase, String)] = [
+            (.encrypting, "Turning on encryption"),
             (.copying, "Copying iPhone to this Mac"),
             (.preparing, "Preparing"),
             (.waitingForFindMy, "Waiting for Find My iPhone to be turned off"),
@@ -38,7 +39,7 @@ struct JobPhaseTests {
         #expect(JobPhase.copying.isDeterminate)
         #expect(JobPhase.restoring.isDeterminate)
 
-        for phase in [JobPhase.preparing, .waitingForFindMy, .finishing, .restarting, .confirming] {
+        for phase in [JobPhase.encrypting, .preparing, .waitingForFindMy, .finishing, .restarting, .confirming] {
             #expect(phase.isDeterminate == false, "\(phase) has nothing to measure")
         }
         for phase in ended {
@@ -116,7 +117,8 @@ struct JobPhaseTests {
     // MARK: - The two halves of the enum
 
     private let running: [JobPhase] = [
-        .copying, .preparing, .waitingForFindMy, .restoring, .finishing, .restarting, .confirming,
+        .encrypting, .copying, .preparing, .waitingForFindMy, .restoring, .finishing, .restarting,
+        .confirming,
     ]
 
     private let ended: [JobPhase] = [

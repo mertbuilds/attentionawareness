@@ -16,13 +16,13 @@ enum WizardGate {
     /// Whether the checks let the run move on to the backup.
     ///
     /// Find My is left out on purpose: the copying does not care about it. A
-    /// check that could not be read blocks nothing either, so the only ways
-    /// through this are a disk that answered and answered too small, and a
-    /// password that is needed and not typed yet.
-    static func checksPass(diskSpacePasses: Bool?, needsPassword: Bool, hasPassword: Bool) -> Bool {
+    /// check that could not be read blocks nothing either. The copy is always
+    /// encrypted, so a password is always required: the only ways through this
+    /// are a disk that answered and answered too small, and a password that has
+    /// not been typed yet.
+    static func checksPass(diskSpacePasses: Bool?, hasPassword: Bool) -> Bool {
         if diskSpacePasses == false { return false }
-        if needsPassword, !hasPassword { return false }
-        return true
+        return hasPassword
     }
 
     /// Whether the patch has left a result behind: a flag it wrote, or a copy

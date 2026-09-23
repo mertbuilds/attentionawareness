@@ -568,19 +568,15 @@ class WizardModel: ObservableObject {
         return UInt64(capacity)
     }
 
-    /// True when a password is needed to read the backup this run will make.
-    /// The iPhone decides: it encrypts what it writes, and the patch then needs
-    /// the same password to open the folder.
-    var needsPassword: Bool { device?.backupEncrypted == true }
-
     /// Every check that can be read says yes.
     ///
-    /// Find My is not one of them. It blocks the restore and nothing else, so
-    /// the hour of copying starts while the reader is still turning it off.
+    /// The copy is always encrypted now, so a password is always required: the
+    /// button stays off until one is typed. Find My is not one of the checks.
+    /// It blocks the restore and nothing else, so the hour of copying starts
+    /// while the reader is still turning it off.
     var checksPass: Bool {
         WizardGate.checksPass(
             diskSpacePasses: diskSpace.passes,
-            needsPassword: needsPassword,
             hasPassword: !password.isEmpty
         )
     }
@@ -737,8 +733,8 @@ class WizardModel: ObservableObject {
         return WizardStyle.size(space.needed - free)
     }
 
-    /// Copy the iPhone onto this Mac. The iPhone decides whether what it writes
-    /// is encrypted; the password is only passed on.
+    /// Copy the iPhone onto this Mac. The copy is always an encrypted one, with
+    /// the password the person set on the Ready screen.
     ///
     /// The demo replaces it with a scripted transfer that reaches no phone.
     func copyTheIPhone() async throws {
@@ -753,12 +749,23 @@ class WizardModel: ObservableObject {
         // the helper is about to write into that very folder, so the clearing
         // finishes first.
         await clearing?.value
+        // The copy is always encrypted. When the iPhone does not encrypt its
+        // backups yet, turn encryption on with the person's password first;
+        // when it already does, that password is the one they set and the copy
+        // uses it straight away. A phone whose flag will not read is treated
+        // like one that already encrypts: the copy tries the password as is.
+        // Encryption is only ever turned on, never off, so the person keeps a
+        // phone that encrypts with a password they know.
+        let password = secret ?? ""
+        if device?.backupEncrypted == false {
+            job = .encrypting
+            try await engine.enableEncryption(udid: udid, password: password, root: Self.backupRoot)
+            job = .copying
+        }
         let folder = try await engine.backup(
             udid: udid,
             into: Self.backupRoot,
-            // The iPhone does the encrypting, so the password only goes down
-            // when the iPhone says it encrypts its backups.
-            password: device?.backupEncrypted == true ? secret : nil
+            password: password
         )
         backupFolder = folder
         measureBackup(at: folder, took: Date().timeIntervalSince(started))

@@ -55,12 +55,23 @@ struct JobFailure: Equatable {
     static func from(_ error: Error, in piece: Piece, missingSpace: String? = nil) -> JobFailure? {
         if error is CancellationError { return nil }
         if let backup = error as? BackupError, backup == .cancelled { return nil }
+        // Turning encryption on is its own step before the copy, so its failure
+        // is its own headline. The iPhone can refuse until it is unlocked and
+        // the passcode is entered, which is the one thing to do about it.
+        if let backup = error as? BackupError, case .encryptionFailed(let sentence) = backup {
+            return JobFailure(
+                title: "Couldn't Turn On Encryption",
+                fix: "Unlock iPhone and try again.",
+                raw: sentence,
+                retry: .copy
+            )
+        }
         let raw = error.localizedDescription
         let said = raw.lowercased()
         if said.contains("backup password") {
             return JobFailure(
                 title: "Wrong Backup Password",
-                fix: "Enter the password set for encrypted backups.",
+                fix: "Enter the password you set for encrypted backups.",
                 raw: raw,
                 retry: .patch
             )

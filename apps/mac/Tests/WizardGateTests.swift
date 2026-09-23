@@ -11,40 +11,25 @@ import Testing
 struct WizardGateTests {
     // MARK: - The checks
 
-    @Test func theChecksPassWhenTheDiskIsBigEnoughAndNoPasswordIsNeeded() {
-        #expect(
-            WizardGate.checksPass(diskSpacePasses: true, needsPassword: false, hasPassword: false)
-        )
+    @Test func theChecksPassWhenTheDiskIsBigEnoughAndAPasswordIsTyped() {
+        #expect(WizardGate.checksPass(diskSpacePasses: true, hasPassword: true))
     }
 
     @Test func aDiskThatIsTooSmallStopsTheRun() {
-        #expect(
-            WizardGate.checksPass(diskSpacePasses: false, needsPassword: false, hasPassword: false) == false
-        )
+        #expect(WizardGate.checksPass(diskSpacePasses: false, hasPassword: true) == false)
     }
 
-    @Test func freeSpaceThatCouldNotBeReadBlocksNothing() {
-        #expect(
-            WizardGate.checksPass(diskSpacePasses: nil, needsPassword: false, hasPassword: false)
-        )
+    @Test func freeSpaceThatCouldNotBeReadBlocksNothingOnItsOwn() {
+        #expect(WizardGate.checksPass(diskSpacePasses: nil, hasPassword: true))
     }
 
-    @Test func aPasswordThatIsNeededAndMissingStopsTheRun() {
-        #expect(
-            WizardGate.checksPass(diskSpacePasses: true, needsPassword: true, hasPassword: false) == false
-        )
+    @Test func aMissingPasswordStopsTheRun() {
+        // The copy is always encrypted now, so a password is always required.
+        #expect(WizardGate.checksPass(diskSpacePasses: true, hasPassword: false) == false)
     }
 
-    @Test func aPasswordThatIsNeededAndTypedLetsTheRunGo() {
-        #expect(
-            WizardGate.checksPass(diskSpacePasses: true, needsPassword: true, hasPassword: true)
-        )
-    }
-
-    @Test func aDiskThatIsTooSmallStopsTheRunEvenWithThePasswordIn() {
-        #expect(
-            WizardGate.checksPass(diskSpacePasses: false, needsPassword: true, hasPassword: true) == false
-        )
+    @Test func aMissingPasswordStopsTheRunEvenWhenTheDiskWouldNotRead() {
+        #expect(WizardGate.checksPass(diskSpacePasses: nil, hasPassword: false) == false)
     }
 
     // MARK: - The patch

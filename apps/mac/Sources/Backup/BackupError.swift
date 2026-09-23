@@ -17,6 +17,10 @@ enum BackupError: LocalizedError, Equatable {
     /// The helper stopped with an error. The sentence is already written for
     /// the window by `BackupError.sentence(lastError:exitCode:)`.
     case failed(String)
+    /// Turning encryption on did not take. The sentence is what the helper
+    /// said, already worded for the window; the job turns it into its own
+    /// headline about encryption.
+    case encryptionFailed(String)
 
     var errorDescription: String? {
         switch self {
@@ -32,6 +36,8 @@ enum BackupError: LocalizedError, Equatable {
         case .cancelled:
             return "The copy was cancelled."
         case .failed(let sentence):
+            return sentence
+        case .encryptionFailed(let sentence):
             return sentence
         }
     }

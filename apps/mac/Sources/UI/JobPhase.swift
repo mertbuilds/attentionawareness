@@ -11,6 +11,10 @@ import Foundation
 /// Nothing here touches the iPhone, the backup or the window, which is why it
 /// is a part of the job the tests can run.
 enum JobPhase: Equatable {
+    /// Turning backup encryption on before the copy, which the iPhone does
+    /// when it did not already encrypt its backups. It takes seconds, and the
+    /// iPhone may ask for its passcode to confirm.
+    case encrypting
     case copying
     /// The flag going into the copy on this Mac, which takes seconds.
     case preparing
@@ -38,7 +42,8 @@ enum JobPhase: Equatable {
     /// and Cancel is the only button.
     var isRunning: Bool {
         switch self {
-        case .copying, .preparing, .waitingForFindMy, .restoring, .finishing, .restarting, .confirming:
+        case .encrypting, .copying, .preparing, .waitingForFindMy, .restoring, .finishing,
+             .restarting, .confirming:
             return true
         case .done, .checkOnIPhone, .phoneGone, .failed:
             return false
@@ -52,7 +57,7 @@ enum JobPhase: Equatable {
         switch self {
         case .copying, .restoring:
             return true
-        case .preparing, .waitingForFindMy, .finishing, .restarting, .confirming,
+        case .encrypting, .preparing, .waitingForFindMy, .finishing, .restarting, .confirming,
              .done, .checkOnIPhone, .phoneGone, .failed:
             return false
         }
@@ -66,6 +71,8 @@ enum JobPhase: Equatable {
     /// instead. The words are about the work.
     var line: String? {
         switch self {
+        case .encrypting:
+            return "Turning on encryption"
         case .copying:
             return "Copying iPhone to this Mac"
         case .preparing:
@@ -93,7 +100,7 @@ enum JobPhase: Equatable {
             return "iPhone Didn't Reconnect"
         case .failed(let failure):
             return failure.title
-        case .copying, .preparing, .waitingForFindMy, .restoring, .finishing,
+        case .encrypting, .copying, .preparing, .waitingForFindMy, .restoring, .finishing,
              .restarting, .confirming, .done:
             return nil
         }
@@ -108,7 +115,7 @@ enum JobPhase: Equatable {
             return "Unlock iPhone and keep the cable in."
         case .failed(let failure):
             return failure.fix
-        case .copying, .preparing, .waitingForFindMy, .restoring, .finishing,
+        case .encrypting, .copying, .preparing, .waitingForFindMy, .restoring, .finishing,
              .restarting, .confirming, .done:
             return nil
         }
@@ -123,7 +130,7 @@ enum JobPhase: Equatable {
             return body
         case .failed(let failure):
             return failure.raw.isEmpty ? nil : failure.raw
-        case .copying, .preparing, .waitingForFindMy, .restoring, .finishing,
+        case .encrypting, .copying, .preparing, .waitingForFindMy, .restoring, .finishing,
              .restarting, .confirming, .done, .phoneGone:
             return nil
         }
@@ -136,7 +143,7 @@ enum JobPhase: Equatable {
         switch self {
         case .checkOnIPhone:
             return InfoImage.checking
-        case .copying, .preparing, .waitingForFindMy, .restoring, .finishing,
+        case .encrypting, .copying, .preparing, .waitingForFindMy, .restoring, .finishing,
              .restarting, .confirming, .done, .phoneGone, .failed:
             return nil
         }

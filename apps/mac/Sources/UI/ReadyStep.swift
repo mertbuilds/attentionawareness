@@ -17,9 +17,7 @@ struct ReadyStep: View {
                 findMyRow
                 spaceRow
                 backupRow
-                if model.needsPassword {
-                    BackupPasswordField(model: model)
-                }
+                BackupPasswordField(model: model)
                 if model.clearedLeftoverBackup {
                     CheckLine(ok: true, text: "Leftover from an unfinished run was cleared.")
                 }
