@@ -1,0 +1,29 @@
+/*
+ * Keyboard-only focus rings for the two text controls on the Custom CSS page.
+ * The Add / Remove / prompt buttons ring on keyboard focus through StyleX's
+ * `:focus-visible`, which a button ignores on a mouse click. The domain input
+ * and the CSS editor cannot lean on that: browsers force `:focus-visible` on a
+ * text field even under the pointer, and the editor's ring rode on
+ * `:focus-within`, which matches any focus. So their rings live here, gated on
+ * keyboard mode.
+ *
+ * `options.tsx` sets `data-pointer-focus` on <html> after a pointer press and
+ * removes it on the next key press, so `html:not([data-pointer-focus])` is
+ * keyboard mode. The colour, width and offset match the StyleX `accent.soft`
+ * ring these rules replace.
+ */
+
+/* Kill the native text-field ring so a mouse click shows nothing. */
+.aa-domain-input:focus {
+  outline: none;
+}
+
+html:not([data-pointer-focus]) .aa-domain-input:focus {
+  outline: 2px solid #ff8a51;
+  outline-offset: 1px;
+}
+
+html:not([data-pointer-focus]) .aa-editor-wrap:has(:focus) {
+  outline: 2px solid #ff8a51;
+  outline-offset: 1px;
+}

@@ -93,8 +93,8 @@ const styles = create({
     gap: spacing.s2,
   },
   // Wraps the code editor: the border and the ground the library's transparent
-  // layers sit on, and the focus ring, since the focus lands on the textarea
-  // inside.
+  // layers sit on. Its keyboard-focus ring lives in `../focus.css`, gated so a
+  // mouse click on the editor does not ring.
   editorWrap: {
     backgroundColor: colors.bg,
     borderColor: colors.border,
@@ -103,13 +103,6 @@ const styles = create({
     borderWidth: '1px',
     boxSizing: 'border-box',
     color: colors.fg,
-    outlineColor: accent.soft,
-    outlineOffset: 1,
-    outlineStyle: {
-      ':focus-within': 'solid',
-      default: 'none',
-    },
-    outlineWidth: 2,
     overflow: 'hidden',
     width: '100%',
   },
@@ -127,13 +120,6 @@ const styles = create({
     fontFamily: MONOSPACE,
     fontSize: 13,
     minWidth: 0,
-    outlineColor: accent.soft,
-    outlineOffset: 1,
-    outlineStyle: {
-      ':focus-visible': 'solid',
-      default: 'none',
-    },
-    outlineWidth: 2,
     padding: spacing.s2,
   },
   // Sits with the field it is about, in the error tone, not a stray line at the
@@ -272,6 +258,26 @@ export function Options() {
       if (timer.current !== null) {
         clearTimeout(timer.current);
       }
+    };
+  }, []);
+
+  // Focus modality. The two text controls' rings (in `../focus.css`) show only
+  // in keyboard mode: a pointer press marks <html>, so a mouse click leaves the
+  // rings off, and the next key press clears the mark so Tab and assistive
+  // focus ring again.
+  useEffect(() => {
+    const root = document.documentElement;
+    function onPointerDown() {
+      root.dataset.pointerFocus = '';
+    }
+    function onKeyDown() {
+      root.removeAttribute('data-pointer-focus');
+    }
+    document.addEventListener('pointerdown', onPointerDown, true);
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, true);
+      document.removeEventListener('keydown', onKeyDown, true);
     };
   }, []);
 
@@ -450,6 +456,11 @@ function Rule({
   const switchLabel = useId();
   const errorId = useId();
   const cssId = useId();
+  // Marker classes for `../focus.css`: it rings these two on keyboard focus
+  // only, which StyleX cannot express because the gate is an ancestor
+  // attribute on <html>.
+  const domainProps = props(styles.domain);
+  const editorWrapProps = props(styles.editorWrap);
   // Idle, or one of two flashes on the prompt button: the copy landed, or the
   // site is still empty and the button taught rather than copied.
   const [flash, setFlash] = useState<'copied' | 'hint' | null>(null);
@@ -497,7 +508,8 @@ function Rule({
           placeholder={strings.domainPlaceholder}
           spellCheck={false}
           value={rule.domain}
-          {...props(styles.domain)}
+          {...domainProps}
+          className={`aa-domain-input ${domainProps.className ?? ''}`}
         />
         <button
           onClick={onRemove}
@@ -517,7 +529,7 @@ function Rule({
       <label htmlFor={cssId} {...props(styles.muted)}>
         {strings.cssFieldLabel}
       </label>
-      <div {...props(styles.editorWrap)}>
+      <div {...editorWrapProps} className={`aa-editor-wrap ${editorWrapProps.className ?? ''}`}>
         <Editor
           highlight={highlightCss}
           insertSpaces
