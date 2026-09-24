@@ -84,11 +84,18 @@ const styles = create({
     fontSize: 15,
     fontWeight: font.weightMedium,
   },
-  // The prompt button and its hint sit together, under the CSS field, without
-  // stretching across the row.
+  // The bottom row of a rule: the prompt button on the left, Remove on the far
+  // right, so a destructive tap is nowhere near the domain field or the toggle.
+  actionRow: {
+    alignItems: 'center',
+    display: 'flex',
+    gap: spacing.s3,
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  // The prompt button and its hint sit together, on the left of the action row.
   copyRow: {
     alignItems: 'center',
-    alignSelf: 'flex-start',
     display: 'flex',
     gap: spacing.s2,
   },
@@ -511,13 +518,6 @@ function Rule({
           {...domainProps}
           className={`aa-domain-input ${domainProps.className ?? ''}`}
         />
-        <button
-          onClick={onRemove}
-          type="button"
-          {...props(styles.quiet, armed && styles.quietArmed)}
-        >
-          {armed ? strings.removeConfirm : strings.remove}
-        </button>
       </div>
 
       {error === undefined ? null : (
@@ -543,11 +543,20 @@ function Rule({
         />
       </div>
 
-      <div {...props(styles.copyRow)}>
-        <button onClick={copy} type="button" {...props(styles.quiet)}>
-          {flash === 'copied' ? strings.copyPromptDone : strings.copyPrompt}
+      <div {...props(styles.actionRow)}>
+        <div {...props(styles.copyRow)}>
+          <button onClick={copy} type="button" {...props(styles.quiet)}>
+            {flash === 'copied' ? strings.copyPromptDone : strings.copyPrompt}
+          </button>
+          {flash === 'hint' ? <span {...props(styles.muted)}>{strings.copyHint}</span> : null}
+        </div>
+        <button
+          onClick={onRemove}
+          type="button"
+          {...props(styles.quiet, armed && styles.quietArmed)}
+        >
+          {armed ? strings.removeConfirm : strings.remove}
         </button>
-        {flash === 'hint' ? <span {...props(styles.muted)}>{strings.copyHint}</span> : null}
       </div>
     </li>
   );
