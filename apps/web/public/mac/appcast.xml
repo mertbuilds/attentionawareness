@@ -1,0 +1,19 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>attention awareness</title>
+        <item>
+            <title>0.1.0</title>
+            <pubDate>Thu, 24 Sep 2026 17:41:21 +0300</pubDate>
+            <sparkle:version>1</sparkle:version>
+            <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description sparkle:format="markdown"><![CDATA[attention awareness 0.1.0 for Mac, build 1.
+
+Download the dmg, drag the app to Applications and open it.
+]]></description>
+            <enclosure url="https://github.com/mertbuilds/attentionawareness/releases/download/mac-v0.1.0/attention-awareness-0.1.0.dmg" length="5302468" type="application/octet-stream" sparkle:edSignature="VJrw0xNtbavbvtlY2PAIOa9kaaMePMjQ81tcdtAHotdxlZ4iR+VyzRVE7bNNSS6NYBYIyikA3CTIJ0gn+snjDw=="/>
+        </item>
+    </channel>
+</rss>
