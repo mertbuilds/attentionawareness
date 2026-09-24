@@ -188,7 +188,6 @@
   "gen_footer_not_apple": "A {builder} awareness project. Not affiliated with Apple.",
   "mac_download_cta": "Download for Mac",
   "mac_download_unreleased": "Not released yet",
-  "mac_download_build": "Version {version}, {size} MB",
   "ext_privacy_head_title": "Extension privacy",
   "ext_privacy_title": "Browser extension privacy",
   "ext_privacy_lead": "The attention awareness extension hides feeds with CSS. It collects nothing.",
