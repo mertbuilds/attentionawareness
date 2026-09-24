@@ -24,7 +24,12 @@ format = "UDZO"
 filesystem = "HFS+"
 size = None
 
-window_rect = ((180, 100), (680, 460))
+# WindowBounds counts the window chrome inside the height, and the background is
+# drawn in the content area below it. On current macOS the install window keeps
+# its title bar, toolbar and status bar (about 92pt total) even with the flags
+# below, so the window is sized content + 92. The art is 680x540, taller than any
+# content region, so it fills to the edges with no white gap whichever chrome shows.
+window_rect = ((180, 100), (680, 552))
 icon_size = 120
 text_size = 12
 
