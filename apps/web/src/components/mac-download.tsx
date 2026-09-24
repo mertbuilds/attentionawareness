@@ -21,6 +21,7 @@ const styles = create({
   appleMark: {
     fill: 'currentColor',
     height: '1em',
+    transform: 'translateY(-1px)',
     width: '1em',
   },
   // Icon and label as one row, centered against each other.
@@ -36,9 +37,11 @@ const styles = create({
     flexDirection: 'column',
     gap: spacing.s3,
   },
-  // The label text, its box hugged to the glyphs so it reads level with the icon.
+  // The label text. Its line box carries descender room the caps-only label
+  // never uses, so it is nudged down to sit optically centered in the button.
   label: {
     lineHeight: 1,
+    transform: 'translateY(1px)',
   },
 });
 
