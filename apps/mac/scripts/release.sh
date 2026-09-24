@@ -148,21 +148,28 @@ RELEASE_ZIP="$BUILD_DIR/attention-awareness-$VERSION-$BUILD.zip"
 echo "==> create release zip"
 /usr/bin/ditto -c -k --keepParent "$APP" "$RELEASE_ZIP"
 
-# Plain drag-to-Applications dmg via hdiutil. caffeinagent uses dmgbuild for a
-# custom background; swap this out once there is background art to place.
+# Custom drag-to-Applications dmg via dmgbuild, using the background art in
+# scripts/. dmgbuild writes the icon layout and background straight into the
+# volume's .DS_Store (no Finder/AppleScript dance), so the install window looks
+# right even on a build host that has not granted Automation permissions.
 echo "==> build dmg (drag-to-applications)"
 RELEASE_DMG="$BUILD_DIR/attention-awareness-$VERSION.dmg"
-DMG_STAGE="$BUILD_DIR/dmg"
-rm -rf "$DMG_STAGE" "$RELEASE_DMG"
-mkdir -p "$DMG_STAGE"
-cp -R "$APP" "$DMG_STAGE/"
-ln -s /Applications "$DMG_STAGE/Applications"
-hdiutil create \
-  -volname "$APP_NAME" \
-  -srcfolder "$DMG_STAGE" \
-  -ov \
-  -format UDZO \
-  "$RELEASE_DMG" > /dev/null
+DMGBUILD="${DMGBUILD:-$(command -v dmgbuild || ls "$HOME"/Library/Python/*/bin/dmgbuild 2>/dev/null | sort -V | tail -1)}"
+
+# Stage the notarized app into a dist copy so dmgbuild reads a clean bundle
+# named exactly the volume name. cp -R keeps the signature and stapled ticket.
+DIST_APP="$BUILD_DIR/dmg/${APP_NAME}.app"
+rm -rf "$DIST_APP"
+mkdir -p "$(dirname "$DIST_APP")"
+cp -R "$APP" "$DIST_APP"
+
+rm -f "$RELEASE_DMG"
+DMG_APP_PATH="$(pwd)/$DIST_APP" \
+DMG_BACKGROUND="$(pwd)/scripts/dmg-background.png" \
+  "$DMGBUILD" \
+  -s scripts/dmg-settings.py \
+  "$APP_NAME" \
+  "$RELEASE_DMG"
 
 echo "==> sign dmg"
 codesign --sign "Developer ID Application: Mert Duzgun (${TEAM_ID})" --timestamp "$RELEASE_DMG"
