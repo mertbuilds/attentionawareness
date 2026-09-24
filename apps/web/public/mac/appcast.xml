@@ -4,7 +4,7 @@
         <title>attention awareness</title>
         <item>
             <title>0.1.0</title>
-            <pubDate>Thu, 24 Sep 2026 17:41:21 +0300</pubDate>
+            <pubDate>Thu, 24 Sep 2026 17:58:59 +0300</pubDate>
             <sparkle:version>1</sparkle:version>
             <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
@@ -13,7 +13,7 @@
 
 Download the dmg, drag the app to Applications and open it.
 ]]></description>
-            <enclosure url="https://github.com/mertbuilds/attentionawareness/releases/download/mac-v0.1.0/attention-awareness-0.1.0.dmg" length="5302468" type="application/octet-stream" sparkle:edSignature="VJrw0xNtbavbvtlY2PAIOa9kaaMePMjQ81tcdtAHotdxlZ4iR+VyzRVE7bNNSS6NYBYIyikA3CTIJ0gn+snjDw=="/>
+            <enclosure url="https://github.com/mertbuilds/attentionawareness/releases/download/mac-v0.1.0/attention-awareness-0.1.0.dmg" length="5322720" type="application/octet-stream" sparkle:edSignature="Fok0MA6ZRmfihOyTdmCTLdw4RKWfmQA3wovWEwDilhQUK9fRPOEyhEW2Wxm5hvW74E+2Io0rLtdet2ln8B1VAg=="/>
         </item>
     </channel>
 </rss>
