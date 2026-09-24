@@ -7,12 +7,12 @@ files = [app]
 symlinks = {"Applications": "/Applications"}
 
 # App icon on the left, Applications on the right, both centered vertically in
-# the 400px window so the background art's headline sits above them. The DMG's
+# the 460px window so the background art's headline sits above them. The DMG's
 # own bookkeeping files are pushed far off canvas so users with "show hidden
 # files" enabled never see them in the install window.
 icon_locations = {
-    appname: (175, 270),
-    "Applications": (425, 270),
+    appname: (210, 320),
+    "Applications": (470, 320),
     ".background.tiff": (5000, 5000),
     ".DS_Store": (5000, 5000),
     ".fseventsd": (5000, 5000),
@@ -24,8 +24,8 @@ format = "UDZO"
 filesystem = "HFS+"
 size = None
 
-window_rect = ((200, 120), (600, 400))
-icon_size = 100
+window_rect = ((180, 100), (680, 460))
+icon_size = 120
 text_size = 12
 
 # dmgbuild picks up dmg-background@2x.png automatically when it sits beside this.
