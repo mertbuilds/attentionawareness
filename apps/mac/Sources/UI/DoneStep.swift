@@ -31,13 +31,14 @@ struct DoneStep: View {
 
                 extensionPromo
 
-                share
-
                 closing
             }
         } actions: {
-            PrimaryButton(title: "Done") {
-                model.startOver()
+            VStack(alignment: .leading, spacing: 12) {
+                PrimaryButton(title: "Done") {
+                    model.startOver()
+                }
+                share
             }
         }
     }

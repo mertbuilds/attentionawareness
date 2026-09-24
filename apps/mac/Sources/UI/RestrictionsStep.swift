@@ -114,12 +114,9 @@ struct RestrictionsStep: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(ProfileGuideCopy.steps)
-                    .fixedSize(horizontal: false, vertical: true)
-                InfoButton(text: ProfileGuideCopy.steps, image: InfoImage.installProfile)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            Text(ProfileGuideCopy.steps)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
