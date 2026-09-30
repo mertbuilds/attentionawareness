@@ -90,12 +90,13 @@ const PRELOAD_REACH = 2;
 const PHONE_WIDTH = 71.6;
 const PHONE_HEIGHT = 146.6;
 /**
- * How tall the mock stands beside the words on a wide screen, on a wide but
- * short one, and under the words on a narrow one.
+ * How tall the mock stands beside the words on a wide screen, and on a wide
+ * but short one. Under the words on a narrow one it takes the room it is
+ * given: as tall as that is, unless that would make it wider than it is.
  */
 const PHONE_TALL = 430;
 const PHONE_TALL_SHORT = 300;
-const PHONE_TALL_NARROW = 360;
+const PHONE_TALL_NARROW = `min(100cqh, 100cqw * ${PHONE_HEIGHT} / ${PHONE_WIDTH})`;
 /** Until the screen is measured, a video is this tall. */
 const SCREEN_FALLBACK = PHONE_TALL - 17;
 /**

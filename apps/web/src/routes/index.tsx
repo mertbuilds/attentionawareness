@@ -209,19 +209,42 @@ const styles = create({
       '@media (min-width: 768px)': 'minmax(0, 1fr) auto',
       default: 'minmax(0, 1fr)',
     },
+    // On a narrow screen the words take what they need and the feed takes
+    // every row of the first screen they leave.
+    gridTemplateRows: {
+      '@media (min-width: 768px)': 'none',
+      default: 'auto minmax(0, 1fr)',
+    },
     justifyItems: {
       '@media (min-width: 768px)': 'start',
       default: 'center',
     },
     maxWidth: 760,
     // On a wide screen the hero is the first screen, less the air above it
-    // and the gap under it, so the question starts at the fold.
+    // and the gap under it, so the question starts at the fold. On a narrow
+    // one it is the whole first screen, less the air above it, so nothing of
+    // the question shows until the reader scrolls.
     minHeight: {
+      '@media (min-width: 640px) and (max-width: 767px)': firstThatWorks(
+        `calc(100dvh - ${wip.height} - ${SECTION_GAP})`,
+        `calc(100svh - ${wip.height} - ${SECTION_GAP})`,
+        `calc(100vh - ${wip.height} - ${SECTION_GAP})`,
+      ),
       '@media (min-width: 768px)': firstThatWorks(
         `calc(100svh - ${wip.height} - 2 * ${SECTION_GAP})`,
         `calc(100vh - ${wip.height} - 2 * ${SECTION_GAP})`,
       ),
-      default: 0,
+      default: firstThatWorks(
+        `calc(100dvh - ${wip.height} - ${spacing.s6})`,
+        `calc(100svh - ${wip.height} - ${spacing.s6})`,
+        `calc(100vh - ${wip.height} - ${spacing.s6})`,
+      ),
+    },
+    // A little air under the feed on a narrow screen, so the phone stands
+    // clear of the fold instead of on it.
+    paddingBlockEnd: {
+      '@media (min-width: 768px)': 0,
+      default: spacing.s6,
     },
     // On a phone the page's own air is too little to clear the brand bar.
     paddingBlockStart: {
@@ -241,6 +264,20 @@ const styles = create({
       '@media (min-width: 768px)': 'flex-start',
       default: 'center',
     },
+  },
+  // The room the feed stands in under the words on a narrow screen. The phone
+  // is sized by it, so all of it is above the fold. On a wide screen it is no
+  // box at all, and the phone stands in the hero's grid on its own.
+  heroFeed: {
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    containerType: 'size',
+    display: {
+      '@media (min-width: 768px)': 'contents',
+      default: 'flex',
+    },
+    justifyContent: 'center',
+    justifySelf: 'stretch',
   },
   // The words the claim turns on: orange, like the figures on the bill.
   heroMark: {
@@ -874,7 +911,9 @@ function HomePage() {
             </a>
           </div>
         </div>
-        <FeedPhone />
+        <div {...props(styles.heroFeed)}>
+          <FeedPhone />
+        </div>
       </header>
 
       <div {...props(styles.content)}>
