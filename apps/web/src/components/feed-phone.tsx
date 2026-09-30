@@ -78,6 +78,12 @@ const HOLD_MS = 1500;
 /** How long one swipe takes, and the curve it travels on. */
 const SWIPE_MS = 260;
 const SWIPE_EASE = 'cubic-bezier(0.2, 0.8, 0.2, 1)';
+/**
+ * A drag need not carry the feed half way: this much of a screen, or a flick
+ * this fast, in pixels a millisecond, moves it on a clip. Less springs back.
+ */
+const DRAG_FRACTION = 0.12;
+const FLICK_SPEED = 0.35;
 /** Clips in the feed: one per clip shot for it, 01 through 11. After 11 comes 01. */
 const CLIP_COUNT = 11;
 /**
@@ -234,16 +240,23 @@ const styles = create({
   },
   // The screen inside the bezel. Its corner is concentric with the body's:
   // the outer radius less the band and the bezel, 18 minus 1.3 minus 2.7.
+  // It is the one part of the phone that takes a hand, so a finger on it
+  // drags the feed rather than the page.
   screen: {
     borderRadius: '14cqw',
+    cursor: 'grab',
     height: '100%',
     overflow: 'hidden',
     position: 'relative',
+    touchAction: 'none',
     width: '100%',
   },
+  screenHeld: {
+    cursor: 'grabbing',
+  },
   // The box the phone is sized in: the shape of an iPhone 15 Pro, 71.6 by
-  // 146.6. It is a picture, so it takes no hand: a page scrolled over it
-  // scrolls on.
+  // 146.6. Only its screen takes a hand: a page scrolled over the band and
+  // the bezel scrolls on.
   shell: {
     aspectRatio: `${PHONE_WIDTH} / ${PHONE_HEIGHT}`,
     containerType: 'inline-size',
@@ -519,11 +532,11 @@ function Video({
 
 /**
  * The feed the page opens on: a phone that scrolls itself, one clip every
- * beat and round again after the last, the way a feed never ends. It is a
- * picture that takes no hand and makes no sound, but while most of it is in
- * the window the arrow keys move it a clip at a time, and a line in the corner
- * says so. It runs only while it is on screen in a tab in front, and for a
- * reader who asked for less motion it is one still frame that the keys cut.
+ * beat and round again after the last, the way a feed never ends. It makes no
+ * sound. A hand on its screen drags it a clip at a time, and while most of it
+ * is in the window the arrow keys do too, and a line in the corner says so. It
+ * runs only while it is on screen in a tab in front, and for a reader who
+ * asked for less motion it is one still frame that a hand or a key cuts.
  */
 export function FeedPhone() {
   // How many swipes the feed has made, less the ones back up it, so it goes
@@ -535,12 +548,20 @@ export function FeedPhone() {
   const [onScreen, setOnScreen] = useState(false);
   // At least half the phone is in the window: the arrow keys are the feed's.
   const [seen, setSeen] = useState(false);
+  // A hand is on the screen: the feed follows it and holds its beat.
+  const [held, setHeld] = useState(false);
   const reduced = useReducedMotion();
   const tabShown = useSyncExternalStore(subscribeVisibility, tabVisible, tabVisibleOnServer);
   const shell = useRef<HTMLDivElement>(null);
   const screen = useRef<HTMLDivElement>(null);
   const track = useRef<HTMLDivElement>(null);
   const swiped = useRef(step);
+  // Where the hand took the screen, where it last was and when, and how fast
+  // it was going then.
+  const grab = useRef({ at: 0, from: 0, speed: 0, y: 0 });
+  // How far the hand had pulled the track when it let go past a clip, so the
+  // swipe it starts runs on from there rather than from a whole screen away.
+  const released = useRef(0);
   const running = onScreen && tabShown && reduced !== true;
   // The clip before the one on screen always stands loaded above it, the last
   // one above the first, so a swipe up has somewhere to go as much as a swipe
@@ -582,15 +603,16 @@ export function FeedPhone() {
     return () => observer.disconnect();
   }, []);
 
-  // One swipe a beat after the last one, for as long as the feed runs. A step
-  // by hand starts the beat again, so the feed never jumps right after it.
+  // One swipe a beat after the last one, for as long as the feed runs and no
+  // hand is on it. A step by hand, or a hand let go, starts the beat again, so
+  // the feed never jumps right after it.
   useEffect(() => {
-    if (!running) {
+    if (!running || held) {
       return;
     }
     const timer = setTimeout(() => setStep((at) => at + 1), HOLD_MS);
     return () => clearTimeout(timer);
-  }, [running, step]);
+  }, [held, running, step]);
 
   // Down is the next clip and up the one before, from anywhere on the page
   // while the phone is in view, unless the key is being typed with or is
@@ -632,12 +654,14 @@ export function FeedPhone() {
       return;
     }
     swiped.current = step;
+    const pull = released.current;
+    released.current = 0;
     if (reduced === true) {
       return;
     }
     track.current?.animate(
       [
-        { transform: `translateY(${-(from - first) * screenHeight}px)` },
+        { transform: `translateY(${-(from - first) * screenHeight + pull}px)` },
         { transform: `translateY(${-offset}px)` },
       ],
       { duration: SWIPE_MS, easing: SWIPE_EASE },
@@ -645,6 +669,77 @@ export function FeedPhone() {
     // A swipe starts when the step moves and at no other time.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the step is the swipe
   }, [step]);
+
+  // How far the hand has pulled the track from where the clip stands: never
+  // past the clip above it or the one under it, which are all there is.
+  function pulled(): number {
+    const hand = grab.current;
+    return Math.max(-screenHeight, Math.min(screenHeight, hand.y - hand.from));
+  }
+
+  function onPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (event.button !== 0) {
+      return;
+    }
+    event.currentTarget.setPointerCapture(event.pointerId);
+    // A swipe still travelling lands at once, so the hand takes the clip
+    // where it stands.
+    for (const animation of track.current?.getAnimations() ?? []) {
+      animation.finish();
+    }
+    grab.current = { at: event.timeStamp, from: event.clientY, speed: 0, y: event.clientY };
+    setHeld(true);
+  }
+
+  // The clip follows the finger, a pixel for a pixel.
+  function onPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    if (!held) {
+      return;
+    }
+    const hand = grab.current;
+    hand.speed = (event.clientY - hand.y) / Math.max(1, event.timeStamp - hand.at);
+    hand.at = event.timeStamp;
+    hand.y = event.clientY;
+    if (track.current !== null) {
+      track.current.style.transform = `translateY(${-offset + pulled()}px)`;
+    }
+  }
+
+  // Let go: past a small part of a screen, or on a flick, the feed goes on a
+  // clip the way the hand went, up for the next and down for the one before.
+  // Short of that the clip springs back.
+  function onPointerUp() {
+    if (!held) {
+      return;
+    }
+    setHeld(false);
+    const pull = pulled();
+    const { speed } = grab.current;
+    const element = track.current;
+    if (element !== null) {
+      element.style.transform = `translateY(${-offset}px)`;
+    }
+    const by =
+      Math.abs(pull) >= screenHeight * DRAG_FRACTION
+        ? -Math.sign(pull)
+        : Math.abs(speed) >= FLICK_SPEED
+          ? -Math.sign(speed)
+          : 0;
+    if (by !== 0) {
+      released.current = pull;
+      setStep((at) => at + by);
+      return;
+    }
+    if (reduced !== true && pull !== 0) {
+      element?.animate(
+        [
+          { transform: `translateY(${-offset + pull}px)` },
+          { transform: `translateY(${-offset}px)` },
+        ],
+        { duration: SWIPE_MS, easing: SWIPE_EASE },
+      );
+    }
+  }
 
   return (
     <>
@@ -655,7 +750,14 @@ export function FeedPhone() {
         <span {...props(styles.sideKey, styles.sideKeyPower)} />
         <div aria-hidden="true" {...props(styles.phone)}>
           <div {...props(styles.bezel)}>
-            <div ref={screen} {...props(styles.screen)}>
+            <div
+              onPointerCancel={onPointerUp}
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              ref={screen}
+              {...props(styles.screen, held && styles.screenHeld)}
+            >
               <div
                 ref={track}
                 style={{ transform: `translateY(${-offset}px)` }}
