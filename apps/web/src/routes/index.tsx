@@ -11,12 +11,7 @@ import { FeedPhone } from '../components/feed-phone.tsx';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { MacDownload } from '../components/mac-download.tsx';
 import { Receipt } from '../components/receipt.tsx';
-import {
-  clampHours,
-  HOURS_DEFAULT,
-  HourReadout,
-  HourSlider,
-} from '../components/screen-time-gate.tsx';
+import { clampHours, HOURS_DEFAULT, HourSlider } from '../components/screen-time-gate.tsx';
 import { AverageNote, ScreenTimeMark } from '../components/screen-time-help.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { Tip } from '../components/tip.tsx';
@@ -84,14 +79,15 @@ const RECEIPT_DIGITS = 6;
  */
 const SKIP_AFTER_MS = 400;
 /**
- * How much of the dial has to be on screen for its own show to run: the rail
- * counts six, seven, six only where the reader can see it do so.
+ * How far into the window the bill has to come before it prints: its top past
+ * the line the print keeps its newest line on, so the first lines land where
+ * the reader is looking.
  */
-const DIAL_SEEN = 0.75;
+const BILL_SEEN_MARGIN = '0px 0px -40% 0px';
 /** The sound icon, top right across from the name. */
 const ICON_SIZE = 22;
 
-/** How far along the bill is: not asked for yet, printing, or standing whole. */
+/** How far along the bill is: not seen yet, printing, or standing whole. */
 type Print = 'held' | 'printed' | 'printing';
 
 /**
@@ -170,6 +166,21 @@ const styles = create({
     marginInlineStart: 'auto',
     padding: 0,
   },
+  // Act one: the rail and the bill it prices, one centred column in the
+  // measure of the first screen.
+  bill: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: {
+      '@media (min-width: 640px)': spacing.s8,
+      default: spacing.s6,
+    },
+    maxWidth: HERO_MEASURE,
+    textAlign: 'center',
+    width: '100%',
+  },
   content: {
     display: 'flex',
     flexDirection: 'column',
@@ -221,9 +232,9 @@ const styles = create({
     },
     maxWidth: 760,
     // On a wide screen the hero is the first screen, less the air above it
-    // and the gap under it, so the question starts at the fold. On a narrow
-    // one it is the whole first screen, less the air above it, so nothing of
-    // the question shows until the reader scrolls.
+    // and the gap under it, so the bill starts at the fold. On a narrow one
+    // it is the whole first screen, less the air above it, so nothing of the
+    // bill shows until the reader scrolls.
     minHeight: {
       '@media (min-width: 640px) and (max-width: 767px)': firstThatWorks(
         `calc(100dvh - ${wip.height} - ${SECTION_GAP})`,
@@ -254,17 +265,6 @@ const styles = create({
     rowGap: spacing.s8,
     width: '100%',
   },
-  // What the reader does next: the bill, or straight past it.
-  heroActions: {
-    alignItems: 'center',
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: spacing.s4,
-    justifyContent: {
-      '@media (min-width: 768px)': 'flex-start',
-      default: 'center',
-    },
-  },
   // The room the feed stands in under the words on a narrow screen. The phone
   // is sized by it, so all of it is above the fold. On a wide screen it is no
   // box at all, and the phone stands in the hero's grid on its own.
@@ -290,18 +290,6 @@ const styles = create({
     margin: 0,
     maxWidth: '46ch',
     textWrap: 'pretty',
-  },
-  // The way past the bill, for a reader who has seen enough of it already.
-  heroSecondary: {
-    color: {
-      ':hover': colors.fg,
-      default: colors.muted,
-    },
-    fontSize: font.sizeSm,
-    textDecorationLine: {
-      ':hover': 'underline',
-      default: 'none',
-    },
   },
   // The words of the first screen: left of the feed on a wide screen, centred
   // over it on a narrow one.
@@ -334,29 +322,20 @@ const styles = create({
     },
     textWrap: 'balance',
   },
-  // The question the bill is priced against: one column, centred, with the
-  // bill under it in the same measure.
-  hours: {
-    alignItems: 'center',
-    alignSelf: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: {
-      '@media (min-width: 640px)': spacing.s8,
-      default: spacing.s6,
-    },
-    maxWidth: HERO_MEASURE,
-    textAlign: 'center',
-    width: '100%',
-  },
-  // The rail and the figure it reads, as one thing: the figure is the rail's
-  // own readout, so nothing comes between them.
+  // The average the bill opens at, the way off it, and the rail that takes
+  // it, as one block over the bill.
   hoursDial: {
     alignItems: 'center',
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s2,
     width: '100%',
+  },
+  hoursHint: {
+    fontSize: font.sizeMd,
+    lineHeight: 1.5,
+    margin: 0,
+    textWrap: 'pretty',
   },
   page: {
     alignItems: 'center',
@@ -389,14 +368,6 @@ const styles = create({
     flexDirection: 'column',
     overflow: 'clip',
     overflowClipMargin: SHEET_SHADOW_ROOM,
-    width: '100%',
-  },
-  receiptWrap: {
-    alignItems: 'center',
-    alignSelf: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    maxWidth: HERO_MEASURE,
     width: '100%',
   },
   section: {
@@ -663,17 +634,10 @@ function HeroTitle() {
 
 function HomePage() {
   const [hours, setHours] = useState(HOURS_DEFAULT);
-  // The bill is off the page until it is asked for, then prints its lines,
-  // then stands whole.
+  // The bill stands blank until it is first seen, then prints its lines, then
+  // stands whole.
   const [print, setPrint] = useState<Print>('held');
-  // The rail is counting six, seven, six on its own: the readout puts its
-  // hands out, and the count keeps them starting from rest at each one.
-  const [sixSeven, setSixSeven] = useState(false);
-  const [sixSevenRun, setSixSevenRun] = useState(0);
-  // Whether the rail is on screen: it only shows itself where it is seen.
-  const [dialSeen, setDialSeen] = useState(false);
-  const dial = useRef<HTMLDivElement>(null);
-  const billSection = useRef<HTMLElement>(null);
+  const billSheet = useRef<HTMLDivElement>(null);
   const storySection = useRef<HTMLElement>(null);
   // The date on the bill: when the page was opened, not when it was rung up.
   const [printedAt] = useState(() => new Date());
@@ -687,15 +651,15 @@ function HomePage() {
   const [soundOn, setSoundOn] = useState(true);
   const [soundChosen, setSoundChosen] = useState(false);
   const billed = print !== 'held';
+  // A reader who asked for less motion never had a print to sit through.
+  const reduced = useReducedMotion();
 
   /* oxlint-disable react/set-state-in-effect -- one-shot read of browser-only state */
   useEffect(() => {
     const shared = decodeShare(globalThis.location.search);
     if (shared.hours !== undefined) {
-      // A friend already answered the question, so the page opens on their
-      // number, printed.
+      // A friend's link carries their day, so the bill is priced at it.
       setHours(shared.hours);
-      setPrint('printed');
       setFriendYears(formatYears(shared.hours));
     }
   }, []);
@@ -733,20 +697,28 @@ function HomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- setters only
   }, [print]);
 
-  // Watches the rail: its show runs while it is on screen and stops when it
-  // is scrolled away.
+  // The bill prints the first time it comes into view. One met from below,
+  // its head already scrolled past, is handed over whole rather than printed
+  // out of sight, and so is every bill for a reader who asked for less motion.
   useEffect(() => {
-    const element = dial.current;
-    if (element === null) {
+    const element = billSheet.current;
+    if (element === null || print !== 'held') {
       return;
     }
     const observer = new IntersectionObserver(
-      ([entry]) => setDialSeen((entry?.intersectionRatio ?? 0) >= DIAL_SEEN),
-      { threshold: DIAL_SEEN },
+      ([entry]) => {
+        if (entry?.isIntersecting !== true) {
+          return;
+        }
+        observer.disconnect();
+        const passed = entry.boundingClientRect.top < 0;
+        setPrint(passed || reduced === true ? 'printed' : 'printing');
+      },
+      { rootMargin: BILL_SEEN_MARGIN },
     );
     observer.observe(element);
     return () => observer.disconnect();
-  }, []);
+  }, [print, reduced]);
 
   // iOS Safari opens an audio device inside a gesture and nowhere else, so the
   // first gesture it accepts anywhere on the page opens one. Once that works
@@ -773,18 +745,6 @@ function HomePage() {
   // bill is priced against it from here.
   function setDay(value: number) {
     setHours(clampHours(value));
-  }
-
-  // The question is answered: the bill prints for the day they set. A bill
-  // already standing is only brought into view.
-  function showBill() {
-    if (billed) {
-      billSection.current?.scrollIntoView({ block: 'start' });
-      return;
-    }
-    // iOS opens an audio device inside a gesture and nowhere else.
-    unlockTickSound();
-    setPrint('printing');
   }
 
   // The last line has landed: the bill stands whole, and the page has its
@@ -820,10 +780,8 @@ function HomePage() {
   }
 
   const wholeHours = clampHours(hours);
-  // The way past the print is on the screen while the bill prints, and a
-  // reader who asked for less motion never had a print to sit through.
-  const reduced = useReducedMotion();
   const sound = tickAllowed(soundOn, soundChosen);
+  // The way past the print is on the screen while the bill prints.
   const skipOffered = print === 'printing' && skipReady && !skipped && reduced !== true;
   const locale = getLocale();
   // The bill's own number and date: one number per visit, the second of the
@@ -896,20 +854,15 @@ function HomePage() {
           </button>
         </div>
       )}
-      {/* The first screen: the claim, what the site is, and the two ways on,
-      beside a feed that never stops. */}
+      {/* The first screen: the claim, what the site is, and the way on, beside
+      a feed that never stops. */}
       <header {...props(styles.hero)}>
         <div {...props(styles.heroText)}>
           <h1 {...props(styles.heroTitle)}>
             <HeroTitle />
           </h1>
           <p {...props(styles.heroProduct)}>{m.home_hero_product()}</p>
-          <div {...props(styles.heroActions)}>
-            <Button render={<a href={`#${COST_ID}`} />}>{m.home_hero_cta()}</Button>
-            <a href={`#${WAY_OUT_ID}`} {...props(styles.heroSecondary)}>
-              {m.home_hero_secondary()}
-            </a>
-          </div>
+          <Button render={<a href={`#${COST_ID}`} />}>{m.home_hero_cta()}</Button>
         </div>
         <div {...props(styles.heroFeed)}>
           <FeedPhone />
@@ -917,42 +870,19 @@ function HomePage() {
       </header>
 
       <div {...props(styles.content)}>
-        {/* Act one, the problem: the reader's own day, what it adds up to, and
-        what it looks like on real phones. */}
-        <section {...props(styles.hours, styles.anchor)} id={COST_ID}>
-          <h2 {...props(styles.heroTitle)}>
-            {m.home_gate_question()}
-            <ScreenTimeMark />
-          </h2>
-          <AverageNote />
-          <div ref={dial} {...props(styles.hoursDial)}>
-            <HourReadout hours={wholeHours} sixSeven={sixSeven} sixSevenRun={sixSevenRun} />
-            <HourSlider
-              // The rail shows itself only while it is seen, and only until
-              // the reader has asked for a bill: after that it is theirs.
-              arrived={dialSeen && !billed}
-              onChange={setDay}
-              onSixSeven={(showing) => {
-                setSixSeven(showing);
-                if (showing) {
-                  setSixSevenRun((count) => count + 1);
-                }
-              }}
-              sound={sound}
-              value={wholeHours}
-            />
+        {/* Act one, the problem: what an average day adds up to, repriced live
+        as the reader drags it to their own, and what it looks like on real
+        phones. The bill prints the first time it is seen. */}
+        <section id={COST_ID} {...props(styles.bill, styles.anchor)}>
+          <div {...props(styles.hoursDial)}>
+            <AverageNote />
+            <p {...props(styles.hoursHint)}>
+              {m.home_gate_drag()}
+              <ScreenTimeMark />
+            </p>
+            <HourSlider onChange={setDay} sound={sound} value={wholeHours} />
           </div>
-          <Button onClick={showBill}>{m.home_gate_show()}</Button>
-        </section>
-
-        {/* The bill: off the page until it is asked for, then printed line by
-        line and priced live against the day. */}
-        <section
-          aria-live="polite"
-          ref={billSection}
-          {...props(styles.receiptWrap, styles.anchor, !billed && styles.gone)}
-        >
-          <div {...props(styles.receiptSlot)}>
+          <div aria-live="polite" ref={billSheet} {...props(styles.receiptSlot)}>
             <Receipt
               hours={wholeHours}
               number={receiptNo}
