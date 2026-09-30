@@ -22,14 +22,11 @@ const styles = create({
     cursor: 'pointer',
     display: 'inline-flex',
     flexShrink: 0,
-    height: 16,
+    height: 20,
     justifyContent: 'center',
     padding: 0,
-    // Centred on the cap height of the line it follows, which sits a touch
-    // above the box's own middle in a shouted receipt.
-    transform: 'translateY(-1px)',
     verticalAlign: 'middle',
-    width: 16,
+    width: 20,
   },
   // A book-face italic i, the way a printed note marks one.
   glyph: {

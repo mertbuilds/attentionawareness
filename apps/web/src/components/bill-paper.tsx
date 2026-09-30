@@ -197,9 +197,8 @@ function PaperSurface({ theme }: { theme: PaperTheme }) {
 
 /**
  * The dies every sheet on the page shares, drawn at nothing and pointed at by
- * id. They belong to the bill, which is the first paper on the page and the
- * only thing a scrap of it can open from, so the bill renders them once and
- * everything else refers to them.
+ * id. The story renders them once, and every scrap a tip opens on refers to
+ * them.
  *
  * `bill-edge` cuts the paper: low fractal noise pushed through a displacement
  * map, so the outline wanders a few pixels the way a torn edge does. It is put

@@ -1,6 +1,5 @@
 /** Hours in a day a person is awake. The other eight are sleep. */
 export const WAKING_HOURS = 16;
-const MONTHS_PER_YEAR = 12;
 const DAYS_PER_YEAR = 365;
 /** The screen hours are an estimate, so they are shown to the nearest hundred. */
 const HOURS_ROUNDING = 100;
@@ -27,10 +26,11 @@ const HOURS_PER_EARTH_WALK = 8000;
 export const HORIZON_YEARS = 20;
 
 /**
- * The day every page falls back to: what a US adult spends on the phone
- * itself. A link that carries no day of its own is read against it.
+ * The day the page is priced at. The typical internet user is online 6 hours
+ * 40 minutes a day (DataReportal, Digital 2024); the page counts only the
+ * whole hours, so every figure it derives is on the low side.
  */
-export const AVERAGE_DAY = { hours: 4, minutes: 5 };
+export const AVERAGE_HOURS = 6;
 
 /** One thing the hours would have bought: what it is, and how many. */
 export type HeroMetric = { amount: number; key: string };
@@ -48,15 +48,6 @@ export function screenYears(hoursPerDay: number): number {
 export function formatYears(hoursPerDay: number): string {
   const text = screenYears(hoursPerDay).toFixed(1);
   return text.endsWith('.0') ? text.slice(0, -2) : text;
-}
-
-/** The same span split into whole years and the months left over. */
-export function yearsAndMonths(hoursPerDay: number): { months: number; years: number } {
-  const totalMonths = Math.round(screenYears(hoursPerDay) * MONTHS_PER_YEAR);
-  return {
-    months: totalMonths % MONTHS_PER_YEAR,
-    years: Math.floor(totalMonths / MONTHS_PER_YEAR),
-  };
 }
 
 /** The same span counted in waking hours, rounded to the nearest hundred. */

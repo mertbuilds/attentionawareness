@@ -3,23 +3,13 @@ import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, palette, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, firstThatWorks, props } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
-import { useReducedMotion } from 'motion/react';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { VolumeCross, VolumeUp } from 'reicon-react';
+import { CostStory } from '../components/cost-story.tsx';
 import { FeedPhone } from '../components/feed-phone.tsx';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { MacDownload } from '../components/mac-download.tsx';
-import { Receipt } from '../components/receipt.tsx';
-import { clampHours, HOURS_DEFAULT, HourSlider } from '../components/screen-time-gate.tsx';
-import { AverageNote, ScreenTimeMark } from '../components/screen-time-help.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
-import { Tip } from '../components/tip.tsx';
-import { formatYears } from '../lib/attention-math.ts';
-import { useScrollLock } from '../lib/scroll-lock.ts';
-import { decodeShare } from '../lib/share.ts';
-import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
-import { typingIn } from '../lib/typing-in.ts';
 import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
@@ -47,11 +37,6 @@ const SECTION_GAP = '96px';
  * takes, which is less, because these are read rather than scanned.
  */
 const HERO_MEASURE = 640;
-/**
- * How far past its slot the bill is allowed to paint: the widest shadow under
- * it is 12px down and 32px soft, and the torn edge takes a few pixels more.
- */
-const SHEET_SHADOW_ROOM = '48px';
 /** The places on the page that can be linked to, and the ids they use. */
 const COST_ID = 'cost';
 const WAY_OUT_ID = 'way-out';
@@ -71,24 +56,6 @@ const STORY_URL = 'https://stopa.io/post/297';
  * pieces.
  */
 const LINK_SLOT = '\u0000';
-/** A till pads its receipt numbers. */
-const RECEIPT_DIGITS = 6;
-/**
- * How long the bill prints before the way past it is offered. A bill short
- * enough to be over by then never shows the button at all.
- */
-const SKIP_AFTER_MS = 400;
-/**
- * How far into the window the bill has to come before it prints: its top past
- * the line the print keeps its newest line on, so the first lines land where
- * the reader is looking.
- */
-const BILL_SEEN_MARGIN = '0px 0px -40% 0px';
-/** The sound icon, top right across from the name. */
-const ICON_SIZE = 22;
-
-/** How far along the bill is: not seen yet, printing, or standing whole. */
-type Print = 'held' | 'printed' | 'printing';
 
 /**
  * One real week on the wall: a screenshot cropped to the Screen Time average
@@ -133,53 +100,6 @@ const styles = create({
   // clear of the brand bar fixed over the top of the window.
   anchor: {
     scrollMarginBlockStart: `calc(${spacing.s16} + ${wip.height})`,
-  },
-  banner: {
-    alignItems: 'center',
-    borderColor: colors.border,
-    borderRadius: 999,
-    borderStyle: 'solid',
-    borderWidth: '1px',
-    boxSizing: 'border-box',
-    color: colors.muted,
-    display: 'flex',
-    fontSize: font.sizeSm,
-    gap: spacing.s2,
-    maxWidth: 760,
-    paddingBlock: spacing.s2,
-    paddingInline: spacing.s4,
-    textWrap: 'pretty',
-    width: '100%',
-  },
-  bannerDismiss: {
-    backgroundColor: 'transparent',
-    borderStyle: 'none',
-    borderWidth: 0,
-    color: {
-      ':hover': colors.fg,
-      default: colors.muted,
-    },
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-    fontSize: 18,
-    lineHeight: 1,
-    marginInlineStart: 'auto',
-    padding: 0,
-  },
-  // Act one: the rail and the bill it prices, one centred column in the
-  // measure of the first screen.
-  bill: {
-    alignItems: 'center',
-    alignSelf: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: {
-      '@media (min-width: 640px)': spacing.s8,
-      default: spacing.s6,
-    },
-    maxWidth: HERO_MEASURE,
-    textAlign: 'center',
-    width: '100%',
   },
   content: {
     display: 'flex',
@@ -232,9 +152,9 @@ const styles = create({
     },
     maxWidth: 760,
     // On a wide screen the hero is the first screen, less the air above it
-    // and the gap under it, so the bill starts at the fold. On a narrow one
+    // and the gap under it, so the story starts at the fold. On a narrow one
     // it is the whole first screen, less the air above it, so nothing of the
-    // bill shows until the reader scrolls.
+    // story shows until the reader scrolls.
     minHeight: {
       '@media (min-width: 640px) and (max-width: 767px)': firstThatWorks(
         `calc(100dvh - ${wip.height} - ${SECTION_GAP})`,
@@ -279,7 +199,7 @@ const styles = create({
     justifyContent: 'center',
     justifySelf: 'stretch',
   },
-  // The words the claim turns on: orange, like the figures on the bill.
+  // The words the claim turns on: orange, like the figures in the story.
   heroMark: {
     color: accent.base,
   },
@@ -322,21 +242,6 @@ const styles = create({
     },
     textWrap: 'balance',
   },
-  // The average the bill opens at, the way off it, and the rail that takes
-  // it, as one block over the bill.
-  hoursDial: {
-    alignItems: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s2,
-    width: '100%',
-  },
-  hoursHint: {
-    fontSize: font.sizeMd,
-    lineHeight: 1.5,
-    margin: 0,
-    textWrap: 'pretty',
-  },
   page: {
     alignItems: 'center',
     backgroundColor: colors.bg,
@@ -349,6 +254,10 @@ const styles = create({
     // background instead of behind it.
     isolation: 'isolate',
     minHeight: `calc(100vh - ${wip.height})`,
+    // The story's grid runs the whole width of the window; anything past the
+    // window's edge is cut, so nothing scrolls sideways. `clip` keeps the
+    // story's stage sticky, where `hidden` would not.
+    overflowX: 'clip',
     paddingBlockEnd: spacing.s16,
     paddingBlockStart: {
       '@media (min-width: 640px)': SECTION_GAP,
@@ -357,18 +266,6 @@ const styles = create({
     paddingInline: spacing.s4,
     // The containing block the grid layer measures itself against.
     position: 'relative',
-  },
-  // The bill's own slot. The sheet's shadow falls outside its edges: `clip`
-  // keeps the cut without a scroll box, and the margin lets the shadow and the
-  // torn outline out of it. It costs no layout, so nothing scrolls sideways on
-  // a phone.
-  receiptSlot: {
-    alignItems: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'clip',
-    overflowClipMargin: SHEET_SHADOW_ROOM,
-    width: '100%',
   },
   section: {
     display: 'flex',
@@ -391,64 +288,6 @@ const styles = create({
     lineHeight: 1.2,
     margin: 0,
     textWrap: 'balance',
-  },
-  // The way past the print: a quiet secondary control, standing in the foot
-  // of the window rather than in the column, because the bill it belongs to
-  // is still moving under it.
-  skip: {
-    backgroundColor: 'transparent',
-    borderStyle: 'none',
-    borderWidth: 0,
-    color: {
-      ':hover': colors.fg,
-      default: colors.muted,
-    },
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-    fontSize: 13,
-    insetBlockEnd: spacing.s6,
-    insetInlineStart: '50%',
-    lineHeight: 1,
-    opacity: 0,
-    padding: 0,
-    pointerEvents: 'none',
-    position: 'fixed',
-    transform: 'translateX(-50%)',
-    transitionDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: '400ms',
-    },
-    transitionProperty: 'opacity, visibility',
-    transitionTimingFunction: 'ease-in-out',
-    visibility: 'hidden',
-    zIndex: 20,
-  },
-  skipShown: {
-    opacity: 1,
-    pointerEvents: 'auto',
-    visibility: 'visible',
-  },
-  // The one tool on the page, top right across from the name: the sound of
-  // the rail, the bill and the count, on or off.
-  sound: {
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-    borderStyle: 'none',
-    borderWidth: 0,
-    color: {
-      ':hover': colors.fg,
-      default: colors.muted,
-    },
-    cursor: 'pointer',
-    display: 'inline-flex',
-    height: 40,
-    insetBlockStart: `calc(${spacing.s2} + ${wip.height})`,
-    insetInlineEnd: spacing.s4,
-    justifyContent: 'center',
-    padding: 0,
-    position: 'fixed',
-    width: 40,
-    zIndex: 30,
   },
   story: {
     display: 'flex',
@@ -585,22 +424,6 @@ const styles = create({
   },
 });
 
-/**
- * Whether the page may click. Reduced motion silences the default, because a
- * click is one more thing happening at the reader; a reader who turned the
- * speaker on themselves has answered that question already.
- */
-function tickAllowed(on: boolean, chosen: boolean): boolean {
-  if (!on) {
-    return false;
-  }
-  if (chosen) {
-    return true;
-  }
-  const query = (globalThis as { matchMedia?: (media: string) => MediaQueryList }).matchMedia;
-  return query === undefined || !query('(prefers-reduced-motion: reduce)').matches;
-}
-
 /** The day a week on the wall starts on, the way the reader's language writes it. */
 function weekOf(day: string, locale: string): string {
   return new Intl.DateTimeFormat(locale, {
@@ -633,131 +456,8 @@ function HeroTitle() {
 }
 
 function HomePage() {
-  const [hours, setHours] = useState(HOURS_DEFAULT);
-  // The bill stands blank until it is first seen, then prints its lines, then
-  // stands whole.
-  const [print, setPrint] = useState<Print>('held');
-  const billSheet = useRef<HTMLDivElement>(null);
   const storySection = useRef<HTMLElement>(null);
-  // The date on the bill: when the page was opened, not when it was rung up.
-  const [printedAt] = useState(() => new Date());
-  // Whether the reader asked for the rest of the bill at once, and whether the
-  // way to ask has been offered yet: it arrives a beat into the print, so a
-  // short bill is whole before it shows.
-  const [skipped, setSkipped] = useState(false);
-  const [skipReady, setSkipReady] = useState(false);
-  const [friendYears, setFriendYears] = useState<string | null>(null);
   const [storyOpen, setStoryOpen] = useState(false);
-  const [soundOn, setSoundOn] = useState(true);
-  const [soundChosen, setSoundChosen] = useState(false);
-  const billed = print !== 'held';
-  // A reader who asked for less motion never had a print to sit through.
-  const reduced = useReducedMotion();
-
-  /* oxlint-disable react/set-state-in-effect -- one-shot read of browser-only state */
-  useEffect(() => {
-    const shared = decodeShare(globalThis.location.search);
-    if (shared.hours !== undefined) {
-      // A friend's link carries their day, so the bill is priced at it.
-      setHours(shared.hours);
-      setFriendYears(formatYears(shared.hours));
-    }
-  }, []);
-  /* oxlint-enable react/set-state-in-effect */
-
-  // From the moment the bill starts printing until its last line has landed,
-  // the page owns the scroll: the reader cannot pull it out from under the
-  // lines, while the print keeps scrolling the newest one into view itself.
-  useScrollLock(print === 'printing');
-
-  // The print has been running a beat: the way past it is offered.
-  useEffect(() => {
-    if (print !== 'printing') {
-      return;
-    }
-    const timer = setTimeout(() => setSkipReady(true), SKIP_AFTER_MS);
-    return () => clearTimeout(timer);
-  }, [print]);
-
-  // Escape does what the button does, for a reader whose hands are already on
-  // the keyboard.
-  useEffect(() => {
-    if (print !== 'printing') {
-      return;
-    }
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape' && !typingIn(event.target)) {
-        skipBill();
-      }
-    }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-    // The skip is nothing but the setter under it, so the listener is bound
-    // for the print rather than rebound for every render of it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- setters only
-  }, [print]);
-
-  // The bill prints the first time it comes into view. One met from below,
-  // its head already scrolled past, is handed over whole rather than printed
-  // out of sight, and so is every bill for a reader who asked for less motion.
-  useEffect(() => {
-    const element = billSheet.current;
-    if (element === null || print !== 'held') {
-      return;
-    }
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry?.isIntersecting !== true) {
-          return;
-        }
-        observer.disconnect();
-        const passed = entry.boundingClientRect.top < 0;
-        setPrint(passed || reduced === true ? 'printed' : 'printing');
-      },
-      { rootMargin: BILL_SEEN_MARGIN },
-    );
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [print, reduced]);
-
-  // iOS Safari opens an audio device inside a gesture and nowhere else, so the
-  // first gesture it accepts anywhere on the page opens one. Once that works
-  // there is nothing left to listen for.
-  useEffect(() => {
-    const gestures = ['touchend', 'pointerup', 'click'] as const;
-    function stop() {
-      for (const gesture of gestures) {
-        document.removeEventListener(gesture, unlock);
-      }
-    }
-    function unlock() {
-      if (unlockTickSound()) {
-        stop();
-      }
-    }
-    for (const gesture of gestures) {
-      document.addEventListener(gesture, unlock, { once: true, passive: true });
-    }
-    return stop;
-  }, []);
-
-  // The rail or the bill's own stepper moved the day, and every figure on the
-  // bill is priced against it from here.
-  function setDay(value: number) {
-    setHours(clampHours(value));
-  }
-
-  // The last line has landed: the bill stands whole, and the page has its
-  // own scroll back.
-  function billPrinted() {
-    setPrint('printed');
-  }
-
-  // The reader would rather not watch it print: every line still pending lands
-  // in one batch, and the bill says it is printed once that batch has landed.
-  function skipBill() {
-    setSkipped(true);
-  }
 
   // Folding the story from its last paragraph would leave the reader far
   // below it, so once it is folded the page goes back to where it starts.
@@ -770,30 +470,7 @@ function HomePage() {
     storySection.current?.scrollIntoView({ block: 'start' });
   }
 
-  function toggleSound() {
-    const next = !soundOn;
-    setSoundOn(next);
-    setSoundChosen(true);
-    if (next) {
-      primeTickSound();
-    }
-  }
-
-  const wholeHours = clampHours(hours);
-  const sound = tickAllowed(soundOn, soundChosen);
-  // The way past the print is on the screen while the bill prints.
-  const skipOffered = print === 'printing' && skipReady && !skipped && reduced !== true;
   const locale = getLocale();
-  // The bill's own number and date: one number per visit, the second of the
-  // day the page was opened, and the date it was opened on.
-  const receiptNo = String(
-    printedAt.getHours() * 3600 + printedAt.getMinutes() * 60 + printedAt.getSeconds(),
-  ).padStart(RECEIPT_DIGITS, '0');
-  const printedOn = new Intl.DateTimeFormat(locale, {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(printedAt);
   // The post the story links out to, in the middle of the sentence that tells
   // it, so the words around it keep their own order in every language.
   const [storyBefore, storyAfter] = m.home_story_1({ post: LINK_SLOT }).split(LINK_SLOT);
@@ -819,41 +496,6 @@ function HomePage() {
   return (
     <main {...props(styles.page)}>
       <GridTexture />
-      <Tip
-        mobile="none"
-        title={m.home_math_sound_label()}
-        trigger={
-          <button
-            aria-label={m.home_math_sound_label()}
-            aria-pressed={soundOn}
-            onClick={toggleSound}
-            type="button"
-            {...props(styles.sound)}
-          >
-            {soundOn ? (
-              <VolumeUp aria-hidden="true" size={ICON_SIZE} />
-            ) : (
-              <VolumeCross aria-hidden="true" size={ICON_SIZE} />
-            )}
-          </button>
-        }
-        variant="label"
-      >
-        {null}
-      </Tip>
-      {friendYears === null ? null : (
-        <div {...props(styles.banner)}>
-          <span>{m.share_banner({ years: friendYears })}</span>
-          <button
-            aria-label={m.share_banner_dismiss()}
-            onClick={() => setFriendYears(null)}
-            type="button"
-            {...props(styles.bannerDismiss)}
-          >
-            ×
-          </button>
-        </div>
-      )}
       {/* The first screen: the claim, what the site is, and the way on, beside
       a feed that never stops. */}
       <header {...props(styles.hero)}>
@@ -870,45 +512,9 @@ function HomePage() {
       </header>
 
       <div {...props(styles.content)}>
-        {/* Act one, the problem: what an average day adds up to, repriced live
-        as the reader drags it to their own, and what it looks like on real
-        phones. The bill prints the first time it is seen. */}
-        <section id={COST_ID} {...props(styles.bill, styles.anchor)}>
-          <div {...props(styles.hoursDial)}>
-            <AverageNote />
-            <p {...props(styles.hoursHint)}>
-              {m.home_gate_drag()}
-              <ScreenTimeMark />
-            </p>
-            <HourSlider onChange={setDay} sound={sound} value={wholeHours} />
-          </div>
-          <div aria-live="polite" ref={billSheet} {...props(styles.receiptSlot)}>
-            <Receipt
-              hours={wholeHours}
-              number={receiptNo}
-              onChange={setDay}
-              onPrinted={billPrinted}
-              print={print}
-              printedOn={printedOn}
-              skipped={skipped}
-              sound={sound}
-            />
-          </div>
-        </section>
-        {/* The way past the print. It stands in the window's foot rather than
-        in the column, and stays on the page while the bill finishes so it
-        fades out instead of blinking away. */}
-        {billed ? (
-          <button
-            aria-hidden={!skipOffered}
-            onClick={skipBill}
-            tabIndex={skipOffered ? 0 : -1}
-            type="button"
-            {...props(styles.skip, skipOffered && styles.skipShown)}
-          >
-            {m.home_bill_skip()}
-          </button>
-        ) : null}
+        {/* Act one, the problem: what an average day adds up to, told one
+        sentence a screen, and then what it looks like on real phones. */}
+        <CostStory id={COST_ID} />
 
         <section {...props(styles.section)}>
           <h2 {...props(styles.sectionTitle)}>{m.home_wall_title()}</h2>
