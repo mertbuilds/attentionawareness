@@ -1,8 +1,9 @@
-import { colors, font } from '@attentionawareness/ui/tokens.stylex';
+import { colors, font, palette, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { useReducedMotion } from 'motion/react';
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { typingIn } from '../lib/typing-in.ts';
 import { m } from '../paraglide/messages.js';
 import { CHROMES } from './feed-chrome.tsx';
 import type { Platform } from './feed-chrome.tsx';
@@ -89,10 +90,15 @@ const PHONE_TALL = 430;
 const PHONE_TALL_SHORT = 300;
 const PHONE_TALL_NARROW = 360;
 /** Until the screen is measured, a video is this tall. */
-const SCREEN_FALLBACK = PHONE_TALL - 14;
+const SCREEN_FALLBACK = PHONE_TALL - 17;
+/**
+ * How much of the phone has to be in the window for the arrow keys to move
+ * the feed, and for the line that says so to show.
+ */
+const SEEN = 0.5;
 /**
  * Every part of the feed is drawn in the phone body's own width, so the whole
- * thing holds together at any size the mock is given. The screen is 89.6 of
+ * thing holds together at any size the mock is given. The screen is 92 of
  * those hundredths wide and an iPhone screen is 393 points wide, so a point is
  * roughly 0.23 of them: that is the ratio every number here, and every number
  * in the chrome beside it, comes from.
@@ -107,6 +113,18 @@ const WASHES = [
 ];
 
 const styles = create({
+  // The black glass between the band and the screen. At its outer edge it
+  // takes a little of the band's light, so the two meet in a soft fall rather
+  // than a line. Its corner is the band's less the band: 18 minus 1.3.
+  bezel: {
+    backgroundColor: palette.black,
+    borderRadius: '16.7cqw',
+    boxShadow: `inset 0 0 1.2cqw 0.1cqw color-mix(in srgb, ${palette.gray500} 85%, transparent)`,
+    boxSizing: 'border-box',
+    height: '100%',
+    padding: '2.7cqw',
+    width: '100%',
+  },
   feed: {
     display: 'flex',
     flexDirection: 'column',
@@ -120,39 +138,96 @@ const styles = create({
     filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6))',
   },
   // The island, at the top of the screen, over the feed: 126 by 37 points on
-  // a 393 point screen, 11 points down.
+  // a 393 point screen, centred on the status bar's line, with the front
+  // camera's lens a faint dot near its right end.
   island: {
-    backgroundColor: '#000',
+    backgroundColor: palette.black,
+    backgroundImage: `radial-gradient(circle at 84% 50%, #454b86 0, #1b1f3d 0.4cqw, #0c0e1c 0.8cqw, ${palette.black} 1.1cqw)`,
     borderRadius: 999,
-    height: '9.4cqw',
-    insetBlockStart: 'calc(3cqw + 2.8cqw)',
+    height: '8.6cqw',
+    insetBlockStart: '3.2cqw',
     insetInlineStart: '50%',
     position: 'absolute',
     transform: 'translateX(-50%)',
-    width: '32cqw',
+    width: '29.5cqw',
     zIndex: 2,
   },
-  // The phone's body: a titanium rim, a black bezel, and the screen cut into
-  // it with the corner an iPhone 15 Pro has. Everything is sized from the
-  // body's own width, so it is the same phone at every size.
-  phone: {
-    backgroundColor: '#000',
-    borderColor: `color-mix(in srgb, ${colors.fg} 26%, ${colors.bg})`,
-    borderRadius: '17cqw',
+  // One key, drawn the way a key is: a hairline box around the arrow on it.
+  // It is a button as well, and a press on it moves the feed as the key does.
+  keycap: {
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderColor: colors.border,
+    borderRadius: radius.base,
     borderStyle: 'solid',
-    borderWidth: '2.2cqw',
-    boxShadow: '0 12px 40px rgba(0, 0, 0, 0.35)',
+    borderWidth: '1px',
+    boxSizing: 'border-box',
+    color: {
+      ':hover': colors.fg,
+      default: 'inherit',
+    },
+    cursor: 'pointer',
+    display: 'inline-flex',
+    fontFamily: 'inherit',
+    fontSize: 'inherit',
+    height: 18,
+    justifyContent: 'center',
+    lineHeight: 1,
+    padding: 0,
+    width: 18,
+  },
+  // What the two arrows do, in the corner of the window, while the phone is in
+  // view. It is a keyboard's line: a reader who swipes has no keys to be told
+  // about, and never sees it.
+  keys: {
+    alignItems: 'center',
+    color: colors.muted,
+    display: {
+      '@media (hover: none)': 'none',
+      '@media (max-width: 767px)': 'none',
+      '@media (pointer: coarse)': 'none',
+      default: 'flex',
+    },
+    fontSize: 12,
+    gap: spacing.s1,
+    insetBlockEnd: spacing.s4,
+    insetInlineEnd: spacing.s4,
+    lineHeight: 1,
+    opacity: 0,
+    position: 'fixed',
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: '400ms',
+    },
+    transitionProperty: 'opacity, visibility',
+    transitionTimingFunction: 'ease-in-out',
+    visibility: 'hidden',
+    zIndex: 30,
+  },
+  keysShown: {
+    opacity: 1,
+    visibility: 'visible',
+  },
+  // The phone's body: a thin band of polished titanium around the bezel. The
+  // band is lit along its inner edge and falls darker toward its outer one,
+  // the way a rounded rim catches the light, with a soft sheen across it.
+  // Everything is sized from the body's own width, so it is the same phone at
+  // every size, and it is the same metal in a light theme and a dark one.
+  phone: {
+    backgroundColor: palette.gray300,
+    backgroundImage: `linear-gradient(160deg, #ececee, ${palette.gray300} 28%, ${palette.gray500} 62%, ${palette.gray300})`,
+    borderRadius: '18cqw',
+    boxShadow: `inset 0 0 0 0.15cqw ${palette.gray700}, inset 0 0 0.9cqw 0.3cqw color-mix(in srgb, ${palette.gray700} 70%, transparent), 0 12px 40px rgba(0, 0, 0, 0.35)`,
     boxSizing: 'border-box',
     height: '100%',
-    overflow: 'hidden',
-    padding: '3cqw',
+    padding: '1.3cqw',
     position: 'relative',
     width: '100%',
   },
   // The screen inside the bezel. Its corner is concentric with the body's:
-  // the outer radius less the rim and the bezel, 17 minus 2.2 minus 3.
+  // the outer radius less the band and the bezel, 18 minus 1.3 minus 2.7.
   screen: {
-    borderRadius: '11.8cqw',
+    borderRadius: '14cqw',
     height: '100%',
     overflow: 'hidden',
     position: 'relative',
@@ -174,6 +249,36 @@ const styles = create({
     userSelect: 'none',
     // The width follows the height through the aspect ratio.
     width: 'auto',
+  },
+  // The keys on the band's sides: the action button and the two volume keys
+  // on the left, the side button on the right. Each stands a hair proud of
+  // the band with the rest of it tucked under, where the body is drawn over it.
+  sideKey: {
+    backgroundColor: palette.gray500,
+    borderRadius: '0.6cqw',
+    position: 'absolute',
+    width: '2cqw',
+  },
+  // Where each key sits down the side, and how long it is, in the body's height.
+  sideKeyAction: {
+    height: '4.6%',
+    insetBlockStart: '20.5%',
+    insetInlineStart: '-0.7cqw',
+  },
+  sideKeyPower: {
+    height: '11.8%',
+    insetBlockStart: '31.1%',
+    insetInlineEnd: '-0.7cqw',
+  },
+  sideKeyVolumeDown: {
+    height: '7.5%',
+    insetBlockStart: '38%',
+    insetInlineStart: '-0.7cqw',
+  },
+  sideKeyVolumeUp: {
+    height: '7.5%',
+    insetBlockStart: '28.5%',
+    insetInlineStart: '-0.7cqw',
   },
   // The iPhone's own line, level with the island: the hour on the left, the
   // signal, the network and the battery on the right.
@@ -274,6 +379,11 @@ function IconBattery({ style }: { style?: StyleXStyles }) {
       <path d="M25 4.5v4c1-.42 1.6-1.15 1.6-2s-.6-1.58-1.6-2z" fillOpacity="0.45" />
     </svg>
   );
+}
+
+/** The step a key or a key cap moves the feed to. There is nothing above the first clip. */
+function stepped(at: number, by: number): number {
+  return Math.max(0, at + by);
 }
 
 /** The app a clip wears. */
@@ -396,9 +506,10 @@ function Video({
 /**
  * The feed the page opens on: a phone that scrolls itself, one clip every
  * beat and round again after the last, the way a feed never ends. It is a
- * picture, not a control: it takes no hand and makes no sound. It runs only
- * while it is on screen in a tab in front, and for a reader who asked for less
- * motion it is one still frame.
+ * picture that takes no hand and makes no sound, but while most of it is in
+ * the window the arrow keys move it a clip at a time, and a line in the corner
+ * says so. It runs only while it is on screen in a tab in front, and for a
+ * reader who asked for less motion it is one still frame that the keys cut.
  */
 export function FeedPhone() {
   // How many swipes the feed has made. The clip on screen is this, round the
@@ -407,6 +518,8 @@ export function FeedPhone() {
   const [step, setStep] = useState(0);
   const [screenHeight, setScreenHeight] = useState(SCREEN_FALLBACK);
   const [onScreen, setOnScreen] = useState(false);
+  // At least half the phone is in the window: the arrow keys are the feed's.
+  const [seen, setSeen] = useState(false);
   const reduced = useReducedMotion();
   const tabShown = useSyncExternalStore(subscribeVisibility, tabVisible, tabVisibleOnServer);
   const shell = useRef<HTMLDivElement>(null);
@@ -415,7 +528,8 @@ export function FeedPhone() {
   const swiped = useRef(step);
   const running = onScreen && tabShown && reduced !== true;
   // The clip that just left stays above the one on screen, so the swipe has
-  // somewhere to come from; the next ones wait under it, loading.
+  // somewhere to come from, whichever way it went; the next ones wait under
+  // it, loading.
   const first = Math.max(0, step - 1);
   const offset = (step - first) * screenHeight;
   // The hour and the icons belong to the phone, not to the app, but they have
@@ -436,39 +550,79 @@ export function FeedPhone() {
     return () => observer.disconnect();
   }, []);
 
-  // Off screen, the feed holds still.
+  // Off screen, the feed holds still; mostly on screen, it takes the keys.
   useEffect(() => {
     const element = shell.current;
     if (element === null) {
       return;
     }
-    const observer = new IntersectionObserver(([entry]) => {
-      setOnScreen(entry?.isIntersecting ?? false);
-    });
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setOnScreen(entry?.isIntersecting ?? false);
+        setSeen((entry?.intersectionRatio ?? 0) >= SEEN);
+      },
+      { threshold: [0, SEEN] },
+    );
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
 
-  // One swipe every beat, for as long as the feed runs.
+  // One swipe a beat after the last one, for as long as the feed runs. A step
+  // by hand starts the beat again, so the feed never jumps right after it.
   useEffect(() => {
     if (!running) {
       return;
     }
-    const timer = setInterval(() => setStep((at) => at + 1), HOLD_MS);
-    return () => clearInterval(timer);
-  }, [running]);
+    const timer = setTimeout(() => setStep((at) => at + 1), HOLD_MS);
+    return () => clearTimeout(timer);
+  }, [running, step]);
+
+  // Down is the next clip and up the one before, from anywhere on the page
+  // while the phone is in view, unless the key is being typed with or is
+  // already someone else's. A key held down moves the feed once.
+  useEffect(() => {
+    if (!seen) {
+      return;
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      const by = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0;
+      if (
+        by === 0 ||
+        event.defaultPrevented ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        typingIn(event.target)
+      ) {
+        return;
+      }
+      // The page must not scroll while the feed does.
+      event.preventDefault();
+      if (!event.repeat) {
+        setStep((at) => stepped(at, by));
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [seen]);
 
   // The track has already been cut to the new clip, before this frame is
-  // painted: it is drawn one screen lower, where the last clip stood, and
-  // travels up into place from there.
+  // painted: it is drawn from where the last clip stood, a screen lower on
+  // the way down and a screen higher on the way up, and travels into place.
+  // For a reader who asked for less motion the cut is all there is.
   useLayoutEffect(() => {
-    if (swiped.current === step) {
+    const from = swiped.current;
+    if (from === step) {
       return;
     }
     swiped.current = step;
+    if (reduced === true) {
+      return;
+    }
     track.current?.animate(
       [
-        { transform: `translateY(${-(offset - screenHeight)}px)` },
+        { transform: `translateY(${-(from - first) * screenHeight}px)` },
         { transform: `translateY(${-offset}px)` },
       ],
       { duration: SWIPE_MS, easing: SWIPE_EASE },
@@ -478,38 +632,65 @@ export function FeedPhone() {
   }, [step]);
 
   return (
-    <div aria-label={m.home_feed_label()} ref={shell} role="img" {...props(styles.shell)}>
-      <div aria-hidden="true" {...props(styles.phone)}>
-        <span {...props(styles.island)} />
-        <div ref={screen} {...props(styles.screen)}>
-          <div
-            ref={track}
-            style={{ transform: `translateY(${-offset}px)` }}
-            {...props(styles.feed)}
-          >
-            {Array.from({ length: step + PRELOAD_REACH - first + 1 }, (_, index) => {
-              const at = first + index;
-              return (
-                <Video
-                  clip={at % CLIP_COUNT}
-                  height={screenHeight}
-                  key={at}
-                  playing={running && at === step}
-                  preload={at <= step + 1 ? 'auto' : 'metadata'}
-                />
-              );
-            })}
-          </div>
-          <div {...props(styles.statusBar, light && styles.statusBarDark)}>
-            <span>{m.home_feed_status_time()}</span>
-            <span {...props(styles.statusIcons)}>
-              <IconSignal style={styles.statusSignal} />
-              <IconWifi style={styles.statusWifi} />
-              <IconBattery style={styles.statusBattery} />
-            </span>
+    <>
+      <div aria-label={m.home_feed_label()} ref={shell} role="img" {...props(styles.shell)}>
+        <span {...props(styles.sideKey, styles.sideKeyAction)} />
+        <span {...props(styles.sideKey, styles.sideKeyVolumeUp)} />
+        <span {...props(styles.sideKey, styles.sideKeyVolumeDown)} />
+        <span {...props(styles.sideKey, styles.sideKeyPower)} />
+        <div aria-hidden="true" {...props(styles.phone)}>
+          <div {...props(styles.bezel)}>
+            <div ref={screen} {...props(styles.screen)}>
+              <div
+                ref={track}
+                style={{ transform: `translateY(${-offset}px)` }}
+                {...props(styles.feed)}
+              >
+                {Array.from({ length: step + PRELOAD_REACH - first + 1 }, (_, index) => {
+                  const at = first + index;
+                  return (
+                    <Video
+                      clip={at % CLIP_COUNT}
+                      height={screenHeight}
+                      key={at}
+                      playing={running && at === step}
+                      preload={at <= step + 1 ? 'auto' : 'metadata'}
+                    />
+                  );
+                })}
+              </div>
+              <div {...props(styles.statusBar, light && styles.statusBarDark)}>
+                <span>{m.home_feed_status_time()}</span>
+                <span {...props(styles.statusIcons)}>
+                  <IconSignal style={styles.statusSignal} />
+                  <IconWifi style={styles.statusWifi} />
+                  <IconBattery style={styles.statusBattery} />
+                </span>
+              </div>
+              <span {...props(styles.island)} />
+            </div>
           </div>
         </div>
       </div>
-    </div>
+      <div {...props(styles.keys, seen && styles.keysShown)}>
+        <button
+          aria-label={m.home_feed_key_up_label()}
+          onClick={() => setStep((at) => stepped(at, -1))}
+          type="button"
+          {...props(styles.keycap)}
+        >
+          {m.home_feed_key_up()}
+        </button>
+        <button
+          aria-label={m.home_feed_key_down_label()}
+          onClick={() => setStep((at) => stepped(at, 1))}
+          type="button"
+          {...props(styles.keycap)}
+        >
+          {m.home_feed_key_down()}
+        </button>
+        <span>{m.home_feed_keys_hint()}</span>
+      </div>
+    </>
   );
 }

@@ -24,6 +24,7 @@ import { formatYears } from '../lib/attention-math.ts';
 import { useScrollLock } from '../lib/scroll-lock.ts';
 import { decodeShare } from '../lib/share.ts';
 import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
+import { typingIn } from '../lib/typing-in.ts';
 import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
@@ -577,18 +578,6 @@ const styles = create({
 });
 
 /**
- * Whether the key was pressed into something that is typed in: a field answers
- * Escape itself, and the page keeps its hands off it.
- */
-function typingIn(target: EventTarget | null): boolean {
-  const element = target as HTMLElement | null;
-  const tag = element?.tagName;
-  return (
-    element?.isContentEditable === true || tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA'
-  );
-}
-
-/**
  * Whether the page may click. Reduced motion silences the default, because a
  * click is one more thing happening at the reader; a reader who turned the
  * speaker on themselves has answered that question already.
@@ -602,30 +591,6 @@ function tickAllowed(on: boolean, chosen: boolean): boolean {
   }
   const query = (globalThis as { matchMedia?: (media: string) => MediaQueryList }).matchMedia;
   return query === undefined || !query('(prefers-reduced-motion: reduce)').matches;
-}
-
-/** Where the reader's day is kept between visits, in this browser only. */
-const HOURS_KEY = 'aa:hours';
-
-function recallHours(): number | null {
-  try {
-    const raw = globalThis.localStorage.getItem(HOURS_KEY);
-    if (raw === null) {
-      return null;
-    }
-    const value = Number(raw);
-    return Number.isFinite(value) ? clampHours(value) : null;
-  } catch {
-    return null;
-  }
-}
-
-function rememberHours(value: number): void {
-  try {
-    globalThis.localStorage.setItem(HOURS_KEY, String(value));
-  } catch {
-    // Private mode or a full store: the page still works, it just forgets.
-  }
 }
 
 /** The day a week on the wall starts on, the way the reader's language writes it. */
@@ -695,14 +660,6 @@ function HomePage() {
       setHours(shared.hours);
       setPrint('printed');
       setFriendYears(formatYears(shared.hours));
-      return;
-    }
-    const remembered = recallHours();
-    if (remembered !== null) {
-      // The reader has been here: the bill stands where they left it, whole,
-      // because it was printed on the last visit.
-      setHours(remembered);
-      setPrint('printed');
     }
   }, []);
   /* oxlint-enable react/set-state-in-effect */
@@ -775,18 +732,14 @@ function HomePage() {
     return stop;
   }, []);
 
-  // The rail or the bill's own stepper moved the day. Once there is a bill it
-  // is kept, and every figure on the bill is priced against it from here.
+  // The rail or the bill's own stepper moved the day, and every figure on the
+  // bill is priced against it from here.
   function setDay(value: number) {
-    const next = clampHours(value);
-    setHours(next);
-    if (billed) {
-      rememberHours(next);
-    }
+    setHours(clampHours(value));
   }
 
-  // The question is answered: the day they set is kept, and the bill prints
-  // for it. A bill already standing is only brought into view.
+  // The question is answered: the bill prints for the day they set. A bill
+  // already standing is only brought into view.
   function showBill() {
     if (billed) {
       billSection.current?.scrollIntoView({ block: 'start' });
@@ -794,7 +747,6 @@ function HomePage() {
     }
     // iOS opens an audio device inside a gesture and nowhere else.
     unlockTickSound();
-    rememberHours(hours);
     setPrint('printing');
   }
 
