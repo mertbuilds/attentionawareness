@@ -389,9 +389,12 @@ function IconBattery({ style }: { style?: StyleXStyles }) {
   );
 }
 
-/** The step a key or a key cap moves the feed to. There is nothing above the first clip. */
-function stepped(at: number, by: number): number {
-  return Math.max(0, at + by);
+/**
+ * The clip a place in the feed shows, round the eleven either way: above the
+ * first clip is the last one, and the feed never ends at either end.
+ */
+function clipAt(at: number): number {
+  return ((at % CLIP_COUNT) + CLIP_COUNT) % CLIP_COUNT;
 }
 
 /** The app a clip wears. */
@@ -523,7 +526,8 @@ function Video({
  * reader who asked for less motion it is one still frame that the keys cut.
  */
 export function FeedPhone() {
-  // How many swipes the feed has made. The clip on screen is this, round the
+  // How many swipes the feed has made, less the ones back up it, so it goes
+  // under zero above the first clip. The clip on screen is this, round the
   // eleven; the count itself keeps every slot's key, so a slot keeps its
   // video element for as long as it is in the track.
   const [step, setStep] = useState(0);
@@ -538,14 +542,14 @@ export function FeedPhone() {
   const track = useRef<HTMLDivElement>(null);
   const swiped = useRef(step);
   const running = onScreen && tabShown && reduced !== true;
-  // The clip that just left stays above the one on screen, so the swipe has
-  // somewhere to come from, whichever way it went; the next ones wait under
-  // it, loading.
-  const first = Math.max(0, step - 1);
+  // The clip before the one on screen always stands loaded above it, the last
+  // one above the first, so a swipe up has somewhere to go as much as a swipe
+  // down; the next ones wait under it, loading.
+  const first = step - 1;
   const offset = (step - first) * screenHeight;
   // The hour and the icons belong to the phone, not to the app, but they have
   // to be read against whatever the app on screen is: dark words on a light one.
-  const skin = platformFor(step % CLIP_COUNT);
+  const skin = platformFor(clipAt(step));
   const light = skin === 'facebook' || skin === 'linkedin';
 
   // A video is exactly one screen tall, whatever the screen turns out to be.
@@ -611,7 +615,7 @@ export function FeedPhone() {
       // The page must not scroll while the feed does.
       event.preventDefault();
       if (!event.repeat) {
-        setStep((at) => stepped(at, by));
+        setStep((at) => at + by);
       }
     }
     window.addEventListener('keydown', onKeyDown);
@@ -661,7 +665,7 @@ export function FeedPhone() {
                   const at = first + index;
                   return (
                     <Video
-                      clip={at % CLIP_COUNT}
+                      clip={clipAt(at)}
                       height={screenHeight}
                       key={at}
                       playing={running && at === step}
@@ -686,7 +690,7 @@ export function FeedPhone() {
       <div {...props(styles.keys, seen && styles.keysShown)}>
         <button
           aria-label={m.home_feed_key_up_label()}
-          onClick={() => setStep((at) => stepped(at, -1))}
+          onClick={() => setStep((at) => at - 1)}
           type="button"
           {...props(styles.keycap)}
         >
@@ -694,7 +698,7 @@ export function FeedPhone() {
         </button>
         <button
           aria-label={m.home_feed_key_down_label()}
-          onClick={() => setStep((at) => stepped(at, 1))}
+          onClick={() => setStep((at) => at + 1)}
           type="button"
           {...props(styles.keycap)}
         >
