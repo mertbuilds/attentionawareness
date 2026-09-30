@@ -54,10 +54,11 @@ const POSTS = [
 
 /**
  * Where a boxed skin cuts each clip, by its place in the feed: 0 keeps its top,
- * 100 its foot, 50 its middle. Each keeps the whole face, hair to chin, inside
- * the squarest box a skin has, so it holds in every other box too.
+ * 100 its foot, 50 its middle. Each keeps the face, down to the chin, above
+ * the caption at the foot of the box, with as much of the hair over it as the
+ * box has room for.
  */
-const FOCUS = [20, 10, 0, 18, 0, 20, 33, 18, 40, 45, 40];
+const FOCUS = [20, 10, 0, 32, 17, 20, 33, 25, 40, 45, 50];
 
 /**
  * The app each slot wears: the six of them in turn, over and over down the

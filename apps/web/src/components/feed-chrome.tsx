@@ -979,8 +979,11 @@ const styles = create({
     position: 'absolute',
     textAlign: 'center',
   },
-  // Inside a media box there is less room either side of the words.
-  overlayTight: {
+  // Inside a media box the words stand at its foot, clear of the face the box
+  // is framed on, with less room either side of them.
+  overlayBoxed: {
+    alignItems: 'flex-end',
+    paddingBlockEnd: `${GUTTER}cqw`,
     paddingInline: '5cqw',
   },
   // A dark wash over the clip, so the words are what the eye lands on.
@@ -1478,11 +1481,12 @@ function Marquee({ text }: { text: string }) {
 
 /**
  * The honest caption, the way a creator burns it into the middle of the
- * video: big, centred, white on a black band.
+ * video: big, centred, white on a black band. In a media box it sits at the
+ * foot instead, so it never lands on the face the box is cut around.
  */
-function Band({ caption, tight }: { caption: string; tight?: boolean | undefined }) {
+function Band({ boxed, caption }: { boxed?: boolean | undefined; caption: string }) {
   return (
-    <div {...props(styles.overlay, tight === true && styles.overlayTight)}>
+    <div {...props(styles.overlay, boxed === true && styles.overlayBoxed)}>
       <span {...props(styles.overlayText)}>{caption}</span>
     </div>
   );
@@ -1784,7 +1788,7 @@ function XChrome({ caption, clip, counts, frame, handle, post }: ChromeProps) {
             <span {...props(styles.xText)}>{post}</span>
             <div {...props(styles.xMedia)}>
               {clip}
-              <Band caption={caption} tight />
+              <Band boxed caption={caption} />
             </div>
             <div {...props(styles.xActions)}>
               <span {...props(styles.xAction)}>
@@ -1882,7 +1886,7 @@ function LinkedInChrome({ caption, clip, counts, frame, handle, post }: ChromePr
           <span {...props(styles.liText)}>{post}</span>
           <div {...props(styles.liMedia)}>
             {clip}
-            <Band caption={caption} tight />
+            <Band boxed caption={caption} />
           </div>
           <div {...props(styles.liReactions)}>
             <span {...props(styles.liEmoji)}>{m.home_feed_ui_li_reactions()}</span>
@@ -2009,7 +2013,7 @@ function FacebookChrome({ caption, clip, counts, frame, handle, post }: ChromePr
           <span {...props(styles.fbText)}>{post}</span>
           <div {...props(styles.fbMedia)}>
             {clip}
-            <Band caption={caption} tight />
+            <Band boxed caption={caption} />
           </div>
           <div {...props(styles.fbReactions)}>
             <span {...props(styles.fbEmoji)}>{m.home_feed_ui_fb_reactions()}</span>
