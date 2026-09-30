@@ -1,13 +1,11 @@
 import { Button } from '@attentionawareness/ui';
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, palette, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
-import { create, firstThatWorks, props } from '@stylexjs/stylex';
+import { create, props } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { CostStory } from '../components/cost-story.tsx';
-import { FeedPhone } from '../components/feed-phone.tsx';
-import { GridTexture } from '../components/grid-texture.tsx';
 import { MacDownload } from '../components/mac-download.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { wip } from '../lib/wip.stylex.ts';
@@ -19,7 +17,7 @@ export const Route = createFileRoute('/')({
 });
 
 /**
- * Every heading on the page, the hero's own included. It is not a token
+ * Every section heading on the page. It is not a token
  * because the scale holds three weights and this is the fourth: Suisse Intl
  * ships 400, 500 and 700, so a 600 lands on its bold face and on a true
  * semibold in the Inter Variable fallback.
@@ -31,12 +29,6 @@ const HEADING_WEIGHT = 600;
  * them, so the page's widest gap is the one measure written out here.
  */
 const SECTION_GAP = '96px';
-/**
- * How wide a line on the first screen is allowed to get. The column itself is
- * the page's, so every left edge lines up; this is how much of it a sentence
- * takes, which is less, because these are read rather than scanned.
- */
-const HERO_MEASURE = 640;
 /** The places on the page that can be linked to, and the ids they use. */
 const COST_ID = 'cost';
 const WAY_OUT_ID = 'way-out';
@@ -129,119 +121,6 @@ const styles = create({
   gone: {
     display: 'none',
   },
-  // The first screen: the claim and the way on beside the feed, which stands
-  // under them once the window is too narrow for two columns.
-  hero: {
-    alignItems: 'center',
-    boxSizing: 'border-box',
-    columnGap: spacing.s16,
-    display: 'grid',
-    gridTemplateColumns: {
-      '@media (min-width: 768px)': 'minmax(0, 1fr) auto',
-      default: 'minmax(0, 1fr)',
-    },
-    // On a narrow screen the words take what they need and the feed takes
-    // every row of the first screen they leave.
-    gridTemplateRows: {
-      '@media (min-width: 768px)': 'none',
-      default: 'auto minmax(0, 1fr)',
-    },
-    justifyItems: {
-      '@media (min-width: 768px)': 'start',
-      default: 'center',
-    },
-    maxWidth: 760,
-    // On a wide screen the hero is the first screen, less the air above it
-    // and the gap under it, so the story starts at the fold. On a narrow one
-    // it is the whole first screen, less the air above it, so nothing of the
-    // story shows until the reader scrolls.
-    minHeight: {
-      '@media (min-width: 640px) and (max-width: 767px)': firstThatWorks(
-        `calc(100dvh - ${wip.height} - ${SECTION_GAP})`,
-        `calc(100svh - ${wip.height} - ${SECTION_GAP})`,
-        `calc(100vh - ${wip.height} - ${SECTION_GAP})`,
-      ),
-      '@media (min-width: 768px)': firstThatWorks(
-        `calc(100svh - ${wip.height} - 2 * ${SECTION_GAP})`,
-        `calc(100vh - ${wip.height} - 2 * ${SECTION_GAP})`,
-      ),
-      default: firstThatWorks(
-        `calc(100dvh - ${wip.height} - ${spacing.s6})`,
-        `calc(100svh - ${wip.height} - ${spacing.s6})`,
-        `calc(100vh - ${wip.height} - ${spacing.s6})`,
-      ),
-    },
-    // A little air under the feed on a narrow screen, so the phone stands
-    // clear of the fold instead of on it.
-    paddingBlockEnd: {
-      '@media (min-width: 768px)': 0,
-      default: spacing.s6,
-    },
-    // On a phone the page's own air is too little to clear the brand bar.
-    paddingBlockStart: {
-      '@media (min-width: 640px)': 0,
-      default: spacing.s16,
-    },
-    rowGap: spacing.s8,
-    width: '100%',
-  },
-  // The room the feed stands in under the words on a narrow screen. The phone
-  // is sized by it, so all of it is above the fold. On a wide screen it is no
-  // box at all, and the phone stands in the hero's grid on its own.
-  heroFeed: {
-    alignItems: 'center',
-    alignSelf: 'stretch',
-    containerType: 'size',
-    display: {
-      '@media (min-width: 768px)': 'contents',
-      default: 'flex',
-    },
-    justifyContent: 'center',
-    justifySelf: 'stretch',
-  },
-  // The words the claim turns on: orange, like the figures in the story.
-  heroMark: {
-    color: accent.base,
-  },
-  heroProduct: {
-    color: colors.muted,
-    fontSize: font.sizeMd,
-    lineHeight: 1.5,
-    margin: 0,
-    maxWidth: '46ch',
-    textWrap: 'pretty',
-  },
-  // The words of the first screen: left of the feed on a wide screen, centred
-  // over it on a narrow one.
-  heroText: {
-    alignItems: {
-      '@media (min-width: 768px)': 'flex-start',
-      default: 'center',
-    },
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s6,
-    maxWidth: HERO_MEASURE,
-    textAlign: {
-      '@media (min-width: 768px)': 'start',
-      default: 'center',
-    },
-  },
-  heroTitle: {
-    fontSize: {
-      '@media (min-width: 640px)': 44,
-      default: 28,
-    },
-    fontWeight: HEADING_WEIGHT,
-    letterSpacing: '-0.02em',
-    lineHeight: 1.1,
-    margin: 0,
-    maxWidth: {
-      '@media (min-width: 640px)': 760,
-      default: HERO_MEASURE,
-    },
-    textWrap: 'balance',
-  },
   page: {
     alignItems: 'center',
     backgroundColor: colors.bg,
@@ -250,7 +129,7 @@ const styles = create({
     flexDirection: 'column',
     fontFamily: font.family,
     gap: SECTION_GAP,
-    // The stacking context that keeps the grid layer above the page's own
+    // The stacking context that keeps the story's grid above the page's own
     // background instead of behind it.
     isolation: 'isolate',
     minHeight: `calc(100vh - ${wip.height})`,
@@ -259,13 +138,7 @@ const styles = create({
     // story's stage sticky, where `hidden` would not.
     overflowX: 'clip',
     paddingBlockEnd: spacing.s16,
-    paddingBlockStart: {
-      '@media (min-width: 640px)': SECTION_GAP,
-      default: spacing.s6,
-    },
     paddingInline: spacing.s4,
-    // The containing block the grid layer measures itself against.
-    position: 'relative',
   },
   section: {
     display: 'flex',
@@ -433,28 +306,6 @@ function weekOf(day: string, locale: string): string {
   }).format(new Date(`${day}T00:00:00Z`));
 }
 
-/** The marked stretches of the title, [[like this]]. */
-const MARK = /\[\[(.*?)\]\]/u;
-
-/**
- * The claim the page opens on. The catalog marks the orange stretches, so
- * each language puts them where its grammar wants them.
- */
-function HeroTitle() {
-  return m
-    .home_hero_title()
-    .split(MARK)
-    .map((part, index) =>
-      index % 2 === 0 ? (
-        <span key={index}>{part}</span>
-      ) : (
-        <span key={index} {...props(styles.heroMark)}>
-          {part}
-        </span>
-      ),
-    );
-}
-
 function HomePage() {
   const storySection = useRef<HTMLElement>(null);
   const [storyOpen, setStoryOpen] = useState(false);
@@ -495,25 +346,10 @@ function HomePage() {
 
   return (
     <main {...props(styles.page)}>
-      <GridTexture />
-      {/* The first screen: the claim, what the site is, and the way on, beside
-      a feed that never stops. */}
-      <header {...props(styles.hero)}>
-        <div {...props(styles.heroText)}>
-          <h1 {...props(styles.heroTitle)}>
-            <HeroTitle />
-          </h1>
-          <p {...props(styles.heroProduct)}>{m.home_hero_product()}</p>
-          <Button render={<a href={`#${COST_ID}`} />}>{m.home_hero_cta()}</Button>
-        </div>
-        <div {...props(styles.heroFeed)}>
-          <FeedPhone />
-        </div>
-      </header>
-
       <div {...props(styles.content)}>
-        {/* Act one, the problem: what an average day adds up to, told one
-        sentence a screen, and then what it looks like on real phones. */}
+        {/* Act one, the problem, and the first screen: what an average day
+        adds up to, told one sentence a screen, and then what it looks like on
+        real phones. */}
         <CostStory id={COST_ID} />
 
         <section {...props(styles.section)}>

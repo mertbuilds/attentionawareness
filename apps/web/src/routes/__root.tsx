@@ -4,6 +4,7 @@ import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-r
 import { useEffect, type ReactNode } from 'react';
 import { SiteBrand } from '../components/site-brand.tsx';
 import { WipBanner } from '../components/wip-banner.tsx';
+import { AVERAGE_HOURS, formatYears } from '../lib/attention-math.ts';
 import { clientEnv } from '../lib/env.ts';
 import '@attentionawareness/ui/fonts.css';
 import '@attentionawareness/ui/theme.css';
@@ -44,9 +45,12 @@ const ANALYTICS_SCRIPT =
   `window.op('init',{clientId:'${ANALYTICS_CLIENT_ID}',apiUrl:'/op',trackScreenViews:true,trackOutgoingLinks:false,trackAttributes:false});` +
   "var s=document.createElement('script');s.src='/op/op1.js';s.async=true;document.head.appendChild(s)}";
 const OG_IMAGE = `${SITE_URL}/og.png`;
-/** What the site promises, in one line. The share cards lead with it. */
-const TAGLINE = 'The website that gives you 5 years of your life back';
-const DESCRIPTION = `${SITE_NAME}. ${TAGLINE}. See your number, then take the feeds off your iPhone for good, with a Mac app or by hand.`;
+/**
+ * What the site promises, in one line. The share cards lead with it. The years
+ * are the ones the story counts, so the two never disagree.
+ */
+const TAGLINE = `The website that gives you ${formatYears(AVERAGE_HOURS)} years of your life back`;
+const DESCRIPTION = `${SITE_NAME}. ${TAGLINE}. See what an average day costs, then take the feeds off your iPhone for good, with a Mac app or by hand.`;
 
 export const Route = createRootRoute({
   component: RootComponent,

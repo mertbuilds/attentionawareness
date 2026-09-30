@@ -44,6 +44,8 @@ const SPAN = BEATS - 1 + LAST_BEAT_SCREENS;
 /** The beat that walks around the Earth, and how far into it the walk is done. */
 const EARTH_BEAT = 2;
 const WALKED_BY = 0.8;
+/** How far into the story the progress rail has faded in. */
+const RAIL_IN = 0.02;
 /** How much of the stage has to be on screen before a figure counts. */
 const SEEN = 0.6;
 /** A figure counts up for this long, slowing into its value. */
@@ -77,6 +79,9 @@ const ORBIT_INNER = 64;
 const ORBIT_OUTER = 94;
 const POINTS_PER_LAP = 72;
 const WALKER_RADIUS = 3.5;
+/** The scroll cue: a short track at the foot of the first screen, and the drop that runs down it. */
+const CUE_HEIGHT = 48;
+const CUE_DROP = 12;
 
 /** One answer to "What else?": the sentence it is told in, and how it is counted. */
 type Answer = { line: (inputs: { count: string }) => string; tip: () => string };
@@ -99,6 +104,12 @@ const answerIn = keyframes({
 const answerOut = keyframes({
   from: { filter: 'blur(0)', opacity: 1, transform: 'none' },
   to: { filter: 'blur(6px)', opacity: 0, transform: 'translateY(-16px)' },
+});
+
+/** The drop falls from above the track to below it, and starts over. */
+const cueFall = keyframes({
+  from: { transform: `translateY(-${CUE_DROP}px)` },
+  to: { transform: `translateY(${CUE_HEIGHT}px)` },
 });
 
 const styles = create({
@@ -185,7 +196,11 @@ const styles = create({
     gridArea: '1 / 1',
     textAlign: 'end',
   },
+  // Drawn rather than written, so the sentence's text holds the number once.
   figureRoom: {
+    '::before': {
+      content: 'attr(data-room)',
+    },
     gridArea: '1 / 1',
     visibility: 'hidden',
   },
@@ -196,6 +211,39 @@ const styles = create({
   },
   globeFaint: {
     opacity: 0.5,
+  },
+  // The way on, at the foot of the first screen: the story starts at the top of
+  // the page, so it sits where the window ends before the first scroll, and
+  // scrolls away with it. With less motion the beats already stand one under
+  // the other, and there is nothing to point at.
+  cue: {
+    backgroundColor: colors.border,
+    borderRadius: 999,
+    display: {
+      '@media (prefers-reduced-motion: reduce)': 'none',
+      default: 'block',
+    },
+    height: CUE_HEIGHT,
+    insetBlockStart: firstThatWorks(
+      `calc(100dvh - ${wip.height} - ${spacing.s8} - ${CUE_HEIGHT}px)`,
+      `calc(100svh - ${wip.height} - ${spacing.s8} - ${CUE_HEIGHT}px)`,
+      `calc(100vh - ${wip.height} - ${spacing.s8} - ${CUE_HEIGHT}px)`,
+    ),
+    insetInlineStart: '50%',
+    overflow: 'hidden',
+    position: 'absolute',
+    transform: 'translateX(-50%)',
+    width: 2,
+  },
+  cueDrop: {
+    animationDuration: '1.8s',
+    animationIterationCount: 'infinite',
+    animationName: cueFall,
+    animationTimingFunction: 'cubic-bezier(0.65, 0, 0.35, 1)',
+    backgroundColor: accent.base,
+    display: 'block',
+    height: CUE_DROP,
+    width: '100%',
   },
   // The page's graph paper, pinned with the stage and as wide as the window,
   // so the story is told on it from the first beat to the last.
@@ -319,7 +367,7 @@ const styles = create({
     flexDirection: 'column',
     height: {
       '@media (prefers-reduced-motion: reduce)': 'auto',
-      default: firstThatWorks('100svh', '100vh'),
+      default: firstThatWorks('100dvh', '100svh', '100vh'),
     },
     insetBlockStart: 0,
     justifyContent: 'center',
@@ -328,7 +376,7 @@ const styles = create({
       default: spacing.s16,
     },
     paddingBlockStart: {
-      '@media (prefers-reduced-motion: reduce)': 0,
+      '@media (prefers-reduced-motion: reduce)': spacing.s16,
       default: `calc(${spacing.s16} + ${wip.height})`,
     },
     position: {
@@ -343,6 +391,8 @@ const styles = create({
       '@media (prefers-reduced-motion: reduce)': 'auto',
       default: firstThatWorks(`${(SPAN + 1) * 100}svh`, `${(SPAN + 1) * 100}vh`),
     },
+    // The box the scroll cue is placed in.
+    position: 'relative',
     // Pinned, the stage clears the brand bar itself. Standing in the column,
     // a jump to the story stops short of it instead.
     scrollMarginBlockStart: {
@@ -447,9 +497,7 @@ function Figure({
 
   return (
     <span {...props(styles.figure)}>
-      <span aria-hidden="true" {...props(styles.figureRoom)}>
-        {format.format(value)}
-      </span>
+      <span aria-hidden="true" data-room={format.format(value)} {...props(styles.figureRoom)} />
       <motion.span {...props(styles.figureCount)}>{shown}</motion.span>
     </span>
   );
@@ -539,6 +587,11 @@ export function CostStory({ id }: { id: string }) {
   const seen = useInView(stage, { amount: SEEN });
   const { scrollYProgress } = useScroll({ offset: ['start start', 'end end'], target: story });
   const [active, setActive] = useState(0);
+  // The progress rail comes in once the story has started to move, and the
+  // cue at the foot of the first screen has scrolled away.
+  // A function rather than a range: motion hands a range on the scroll itself
+  // to the browser's scroll timeline, which read this one backwards.
+  const railOpacity = useTransform(scrollYProgress, (progress) => Math.min(1, progress / RAIL_IN));
   const walked = useTransform(
     scrollYProgress,
     [EARTH_BEAT / SPAN, (EARTH_BEAT + WALKED_BY) / SPAN],
@@ -612,7 +665,8 @@ export function CostStory({ id }: { id: string }) {
         <GridTexture style={styles.grid} />
         <div {...props(styles.beats)}>
           <div {...beat(0)}>
-            <p {...props(styles.line)}>
+            {/* The page's heading: the first thing it says. */}
+            <h1 {...props(styles.line)}>
               <Sentence
                 figures={[<Figure key="hours" run={on(0)} value={AVERAGE_HOURS} />]}
                 mark={
@@ -624,7 +678,7 @@ export function CostStory({ id }: { id: string }) {
                 }
                 text={m.home_cost_average({ hours: slot(0) })}
               />
-            </p>
+            </h1>
           </div>
 
           <div {...beat(1)}>
@@ -717,10 +771,13 @@ export function CostStory({ id }: { id: string }) {
             </Button>
           </div>
         </div>
-        <span aria-hidden="true" {...props(styles.rail)}>
+        <motion.span aria-hidden="true" {...props(styles.rail)} style={{ opacity: railOpacity }}>
           <motion.span {...props(styles.railFill)} style={{ scaleX: scrollYProgress }} />
-        </span>
+        </motion.span>
       </div>
+      <span aria-hidden="true" {...props(styles.cue)}>
+        <span {...props(styles.cueDrop)} />
+      </span>
     </section>
   );
 }

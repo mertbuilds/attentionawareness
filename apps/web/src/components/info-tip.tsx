@@ -3,8 +3,12 @@ import { create, props } from '@stylexjs/stylex';
 import type { ReactNode } from 'react';
 import { Tip } from './tip.tsx';
 
-/** The letter on the button: not a message, so it is not in the catalog. */
-const GLYPH = 'i';
+/**
+ * The letter on the button: not a message, so it is not in the catalog. It is
+ * drawn rather than written, so a heading the button sits in reads as its own
+ * words and nothing else.
+ */
+const GLYPH = '"i"';
 
 const styles = create({
   button: {
@@ -30,6 +34,9 @@ const styles = create({
   },
   // A book-face italic i, the way a printed note marks one.
   glyph: {
+    '::before': {
+      content: GLYPH,
+    },
     fontFamily: "Georgia, 'Times New Roman', serif",
     fontSize: 12,
     fontStyle: 'italic',
@@ -48,9 +55,7 @@ export function InfoTip({ children, label }: { children: ReactNode; label: strin
       title={label}
       trigger={
         <button aria-label={label} type="button" {...props(styles.button)}>
-          <span aria-hidden="true" {...props(styles.glyph)}>
-            {GLYPH}
-          </span>
+          <span aria-hidden="true" {...props(styles.glyph)} />
         </button>
       }
     >
