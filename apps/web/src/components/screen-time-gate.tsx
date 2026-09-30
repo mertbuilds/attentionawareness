@@ -573,6 +573,10 @@ export function HourSlider({
   // from the hour it started on.
   const at = useRef(value);
   at.current = value;
+  // The page's live answer on sound, for the show: the reader can turn it off
+  // while the rail is still counting.
+  const loud = useRef(sound);
+  loud.current = sound;
 
   useEffect(() => {
     if (!arrived) {
@@ -602,7 +606,7 @@ export function HourSlider({
         if (whole !== lastWhole) {
           lastWhole = whole;
           onChange(whole);
-          if (sound) {
+          if (loud.current) {
             playClick();
           }
         }
@@ -625,7 +629,7 @@ export function HourSlider({
       // Open the device before the first click: a browser that has heard from
       // this reader before lets it sound, a brand-new tab keeps it silent
       // until their first press, and either way the clicks go through it.
-      if (sound) {
+      if (loud.current) {
         primeTickSound();
       }
       lastWhole = HOURS_DEFAULT;
@@ -670,8 +674,8 @@ export function HourSlider({
       onSixSeven(false);
       rest();
     };
-    // The count runs once, when the screen lands, with the sound setting it
-    // arrived with.
+    // The count runs once, when the screen lands, and asks the sound setting
+    // at every click.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot demo
   }, [arrived]);
 

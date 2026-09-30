@@ -5,6 +5,8 @@ import { create, firstThatWorks, props } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { useReducedMotion } from 'motion/react';
 import { useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
+import { VolumeCross, VolumeUp } from 'reicon-react';
 import { FeedPhone } from '../components/feed-phone.tsx';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { MacDownload } from '../components/mac-download.tsx';
@@ -17,10 +19,11 @@ import {
 } from '../components/screen-time-gate.tsx';
 import { AverageNote, ScreenTimeMark } from '../components/screen-time-help.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
+import { Tip } from '../components/tip.tsx';
 import { formatYears } from '../lib/attention-math.ts';
 import { useScrollLock } from '../lib/scroll-lock.ts';
 import { decodeShare } from '../lib/share.ts';
-import { unlockTickSound } from '../lib/tick-sound.ts';
+import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
 import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
@@ -84,6 +87,8 @@ const SKIP_AFTER_MS = 400;
  * counts six, seven, six only where the reader can see it do so.
  */
 const DIAL_SEEN = 0.75;
+/** The sound icon, top right across from the name. */
+const ICON_SIZE = 22;
 
 /** How far along the bill is: not asked for yet, printing, or standing whole. */
 type Print = 'held' | 'printed' | 'printing';
@@ -429,6 +434,28 @@ const styles = create({
     pointerEvents: 'auto',
     visibility: 'visible',
   },
+  // The one tool on the page, top right across from the name: the sound of
+  // the rail, the bill and the count, on or off.
+  sound: {
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderStyle: 'none',
+    borderWidth: 0,
+    color: {
+      ':hover': colors.fg,
+      default: colors.muted,
+    },
+    cursor: 'pointer',
+    display: 'inline-flex',
+    height: 40,
+    insetBlockStart: `calc(${spacing.s2} + ${wip.height})`,
+    insetInlineEnd: spacing.s4,
+    justifyContent: 'center',
+    padding: 0,
+    position: 'fixed',
+    width: 40,
+    zIndex: 30,
+  },
   story: {
     display: 'flex',
     flexDirection: 'column',
@@ -576,6 +603,22 @@ function typingIn(target: EventTarget | null): boolean {
   );
 }
 
+/**
+ * Whether the page may click. Reduced motion silences the default, because a
+ * click is one more thing happening at the reader; a reader who turned the
+ * speaker on themselves has answered that question already.
+ */
+function tickAllowed(on: boolean, chosen: boolean): boolean {
+  if (!on) {
+    return false;
+  }
+  if (chosen) {
+    return true;
+  }
+  const query = (globalThis as { matchMedia?: (media: string) => MediaQueryList }).matchMedia;
+  return query === undefined || !query('(prefers-reduced-motion: reduce)').matches;
+}
+
 /** Where the reader's day is kept between visits, in this browser only. */
 const HOURS_KEY = 'aa:hours';
 
@@ -644,6 +687,7 @@ function HomePage() {
   const [dialSeen, setDialSeen] = useState(false);
   const dial = useRef<HTMLDivElement>(null);
   const billSection = useRef<HTMLElement>(null);
+  const storySection = useRef<HTMLElement>(null);
   // The date on the bill: when the page was opened, not when it was rung up.
   const [printedAt] = useState(() => new Date());
   // Whether the reader asked for the rest of the bill at once, and whether the
@@ -653,6 +697,8 @@ function HomePage() {
   const [skipReady, setSkipReady] = useState(false);
   const [friendYears, setFriendYears] = useState<string | null>(null);
   const [storyOpen, setStoryOpen] = useState(false);
+  const [soundOn, setSoundOn] = useState(true);
+  const [soundChosen, setSoundChosen] = useState(false);
   const billed = print !== 'held';
 
   /* oxlint-disable react/set-state-in-effect -- one-shot read of browser-only state */
@@ -779,12 +825,31 @@ function HomePage() {
     setSkipped(true);
   }
 
+  // Folding the story from its last paragraph would leave the reader far
+  // below it, so once it is folded the page goes back to where it starts.
+  function toggleStory() {
+    if (!storyOpen) {
+      setStoryOpen(true);
+      return;
+    }
+    flushSync(() => setStoryOpen(false));
+    storySection.current?.scrollIntoView({ block: 'start' });
+  }
+
+  function toggleSound() {
+    const next = !soundOn;
+    setSoundOn(next);
+    setSoundChosen(true);
+    if (next) {
+      primeTickSound();
+    }
+  }
+
   const wholeHours = clampHours(hours);
   // The way past the print is on the screen while the bill prints, and a
-  // reader who asked for less motion never had a print to sit through. The
-  // same reader is spared the clicks.
+  // reader who asked for less motion never had a print to sit through.
   const reduced = useReducedMotion();
-  const sound = reduced !== true;
+  const sound = tickAllowed(soundOn, soundChosen);
   const skipOffered = print === 'printing' && skipReady && !skipped && reduced !== true;
   const locale = getLocale();
   // The bill's own number and date: one number per visit, the second of the
@@ -823,6 +888,28 @@ function HomePage() {
   return (
     <main {...props(styles.page)}>
       <GridTexture />
+      <Tip
+        mobile="none"
+        title={m.home_math_sound_label()}
+        trigger={
+          <button
+            aria-label={m.home_math_sound_label()}
+            aria-pressed={soundOn}
+            onClick={toggleSound}
+            type="button"
+            {...props(styles.sound)}
+          >
+            {soundOn ? (
+              <VolumeUp aria-hidden="true" size={ICON_SIZE} />
+            ) : (
+              <VolumeCross aria-hidden="true" size={ICON_SIZE} />
+            )}
+          </button>
+        }
+        variant="label"
+      >
+        {null}
+      </Tip>
       {friendYears === null ? null : (
         <div {...props(styles.banner)}>
           <span>{m.share_banner({ years: friendYears })}</span>
@@ -1005,7 +1092,7 @@ function HomePage() {
 
         {/* Act three, support. Who made this and why, told rather than argued:
         the only place on the page that speaks in the first person. */}
-        <section {...props(styles.section, styles.anchor)} id={STORY_ID}>
+        <section {...props(styles.section, styles.anchor)} id={STORY_ID} ref={storySection}>
           <h2 {...props(styles.sectionTitle)}>{m.home_story_title()}</h2>
           <div {...props(styles.story)}>
             <p {...props(styles.storyLine)}>
@@ -1017,15 +1104,9 @@ function HomePage() {
             </p>
             <p {...props(styles.storyLine)}>{m.home_story_2()}</p>
             <p {...props(styles.storyLine)}>{m.home_story_3()}</p>
-            <Button
-              aria-controls={STORY_REST_ID}
-              aria-expanded={storyOpen}
-              onClick={() => setStoryOpen((open) => !open)}
-              style={styles.storyMore}
-              variant="outline"
-            >
-              {storyOpen ? m.home_story_less() : m.home_story_more()}
-            </Button>
+            {/* The button comes after the rest, so it stands under the third
+            paragraph while the rest is folded and under the last once it is
+            open, without ever leaving its place in the page. */}
             <div id={STORY_REST_ID} {...props(styles.storyRest, !storyOpen && styles.gone)}>
               <p {...props(styles.storyLine)}>{m.home_story_4()}</p>
               <p {...props(styles.storyLine)}>{m.home_story_5()}</p>
@@ -1035,6 +1116,15 @@ function HomePage() {
               <p {...props(styles.storyLine)}>{m.home_story_9()}</p>
               <p {...props(styles.storyLine)}>{m.home_story_10()}</p>
             </div>
+            <Button
+              aria-controls={STORY_REST_ID}
+              aria-expanded={storyOpen}
+              onClick={toggleStory}
+              style={styles.storyMore}
+              variant="outline"
+            >
+              {storyOpen ? m.home_story_less() : m.home_story_more()}
+            </Button>
             <p {...props(styles.storySign)}>{m.home_story_sign()}</p>
           </div>
         </section>

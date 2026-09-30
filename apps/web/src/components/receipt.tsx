@@ -377,18 +377,26 @@ export function Receipt({
       window.scrollBy({ behavior: 'smooth', top: top - rest });
     }
   }
+  // The page's live answer on sound: the reader can turn it off while the
+  // bill is still printing, and the lines go on landing in view without it.
+  const loud = useRef(sound);
+  useEffect(() => {
+    loud.current = sound;
+  }, [sound]);
   // Every line that lands is stamped into the paper: one stamp for the head,
   // then one a beat down to the total, which takes the big block.
   useEffect(() => {
-    if (print !== 'printing' || !sound || fast || skipped) {
+    if (print !== 'printing' || fast || skipped) {
       return;
     }
     const timers = Array.from({ length: closeAt + 1 }, (_, step) =>
       setTimeout(() => {
-        if (step === closeAt) {
-          playStampHeavy();
-        } else {
-          playStamp();
+        if (loud.current) {
+          if (step === closeAt) {
+            playStampHeavy();
+          } else {
+            playStamp();
+          }
         }
         keepInView(step);
       }, step * LINE_STAGGER_MS),
