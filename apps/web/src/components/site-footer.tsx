@@ -5,7 +5,6 @@ import { layout } from '../lib/layout.ts';
 import { m } from '../paraglide/messages.js';
 import { ThemeSwitch } from './preferences.tsx';
 
-const REPO_URL = 'https://github.com/mertbuilds/attentionawareness';
 /** Every link to one of Mert's own sites carries utm tags, so the visit is traced to this site. */
 const BUILDER_URL =
   'https://mertbuilds.com/?utm_source=attentionawareness.com&utm_medium=referral&utm_campaign=footer';
@@ -34,34 +33,19 @@ const styles = create({
   line: {
     margin: 0,
   },
-  lines: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s4,
-  },
 });
 
 /**
  * The same footer on every page: what this is, who made it, and the theme
- * control. A page with one more line of its own passes it in, and it joins the
- * column above the shared three.
+ * control. A page with one more line of its own passes it in, and it sits above
+ * the shared row.
  */
 export function SiteFooter({ children }: { children?: ReactNode | undefined }) {
-  const [openBefore, openAfter] = m.gen_footer_open_source({ source: LINK_SLOT }).split(LINK_SLOT);
   const [appleBefore, appleAfter] = m.gen_footer_not_apple({ builder: LINK_SLOT }).split(LINK_SLOT);
 
   return (
     <footer {...props(styles.footer)}>
-      <div {...props(styles.lines)}>
-        {children}
-        <p {...props(layout.muted, styles.line)}>
-          {openBefore}
-          <a href={REPO_URL} rel="noreferrer" target="_blank">
-            {m.gen_footer_open_source_link()}
-          </a>
-          {openAfter}
-        </p>
-      </div>
+      {children}
       <div {...props(styles.last)}>
         <p {...props(layout.muted, styles.line)}>
           {appleBefore}

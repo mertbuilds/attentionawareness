@@ -209,8 +209,6 @@
   "share_text_more": "Hayatımın {years} yılını {apps} ve {count} uygulamadan daha geri aldım: {url}",
   "share_banner": "Bir arkadaşın {years} yılını geri aldı. Sen günde kaç saattesin?",
   "share_banner_dismiss": "Kapat",
-  "gen_footer_open_source": "Kod {source}.",
-  "gen_footer_open_source_link": "açık kaynak",
   "gen_footer_builder": "mertbuilds.com",
   "gen_footer_not_apple": "Bir {builder} farkındalık projesi. Apple ile bağlantısı yoktur.",
   "guides_head_title": "Rehberler",

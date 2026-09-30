@@ -197,8 +197,6 @@
   "share_text_more": "I just took back {years} years of my life from {apps} and {count} more apps: {url}",
   "share_banner": "A friend just took back {years} years. How many hours are you on?",
   "share_banner_dismiss": "Dismiss",
-  "gen_footer_open_source": "The code is {source}.",
-  "gen_footer_open_source_link": "open source",
   "gen_footer_builder": "mertbuilds.com",
   "gen_footer_not_apple": "A {builder} awareness project. Not affiliated with Apple.",
   "mac_download_cta": "Download for Mac",
