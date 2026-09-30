@@ -320,21 +320,6 @@ const styles = create({
     gap: spacing.s2,
     width: '100%',
   },
-  // The lines under the two ways: what both need, what to do without it, and
-  // the way back. A step quieter than the cards over them.
-  howAside: {
-    color: colors.muted,
-    fontSize: font.sizeSm,
-    lineHeight: 1.5,
-    margin: 0,
-    maxWidth: '60ch',
-    textWrap: 'pretty',
-  },
-  howLines: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s2,
-  },
   page: {
     alignItems: 'center',
     backgroundColor: colors.bg,
@@ -866,9 +851,8 @@ function HomePage() {
   // it, so the words around it keep their own order in every language.
   const [storyBefore, storyAfter] = m.home_story_1({ post: LINK_SLOT }).split(LINK_SLOT);
 
-  // The browser half, for a reader without a Mac: the extension, in the
-  // middle of the sentence, and the store it is added from.
-  const [noMacBefore, noMacAfter] = m.home_how_no_mac({ extension: LINK_SLOT }).split(LINK_SLOT);
+  // The browser half: the extension, in the middle of the sentence, and the
+  // store it is added from.
   const [computerBefore, computerAfter] = m
     .home_computer_body({ extension: LINK_SLOT })
     .split(LINK_SLOT);
@@ -1076,17 +1060,6 @@ function HomePage() {
                 </Button>
               </div>
             </article>
-          </div>
-          <div {...props(styles.howLines)}>
-            <p {...props(styles.howAside)}>{m.home_how_mac()}</p>
-            <p {...props(styles.howAside)}>
-              {noMacBefore}
-              <a href={STORE_URL} rel="noreferrer" target="_blank">
-                {m.home_how_no_mac_link()}
-              </a>
-              {noMacAfter}
-            </p>
-            <p {...props(styles.howAside)}>{m.home_how_undo()}</p>
           </div>
         </section>
 
