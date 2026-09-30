@@ -5,7 +5,7 @@ import { useReducedMotion } from 'motion/react';
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { typingIn } from '../lib/typing-in.ts';
 import { m } from '../paraglide/messages.js';
-import { CHROMES } from './feed-chrome.tsx';
+import { BOXED, CHROMES } from './feed-chrome.tsx';
 import type { Platform } from './feed-chrome.tsx';
 
 /** One caption per clip, by its place in the feed. */
@@ -51,6 +51,13 @@ const POSTS = [
   m.home_feed_post_10,
   m.home_feed_post_11,
 ];
+
+/**
+ * Where a boxed skin cuts each clip, by its place in the feed: 0 keeps its top,
+ * 100 its foot, 50 its middle. Each keeps the whole face, hair to chin, inside
+ * the squarest box a skin has, so it holds in every other box too.
+ */
+const FOCUS = [20, 10, 0, 18, 0, 20, 33, 18, 40, 45, 40];
 
 /**
  * The app each slot wears: the six of them in turn, over and over down the
@@ -452,7 +459,9 @@ function Video({
   const poster = clipUrl(clip, 'jpg');
   // The avatar and the record wear the clip's own frame.
   const frame = { backgroundImage: `url("${poster}")` };
-  const Chrome = CHROMES[platformFor(clip)];
+  const platform = platformFor(clip);
+  const Chrome = CHROMES[platform];
+  const focus = BOXED.has(platform) ? { objectPosition: `50% ${FOCUS[clip] ?? 50}%` } : undefined;
   useEffect(() => {
     const element = video.current;
     if (element === null) {
@@ -486,6 +495,7 @@ function Video({
             poster={poster}
             preload={preload}
             ref={video}
+            style={focus}
             {...props(styles.videoClip)}
           >
             <source src={clipUrl(clip, 'av1.mp4')} type={AV1_TYPE} />

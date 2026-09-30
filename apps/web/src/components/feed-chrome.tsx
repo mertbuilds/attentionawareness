@@ -10,6 +10,12 @@ import { m } from '../paraglide/messages.js';
  */
 export type Platform = 'facebook' | 'linkedin' | 'reels' | 'shorts' | 'tiktok' | 'x';
 
+/**
+ * The skins that put the clip in a box on a card, shorter than the clip, and
+ * cut it to that box. The rest show the whole screen of it.
+ */
+export const BOXED: ReadonlySet<Platform> = new Set<Platform>(['facebook', 'linkedin', 'x']);
+
 /** The numbers beside the actions, as the slot derives them. */
 export type Counts = {
   comments: number;
