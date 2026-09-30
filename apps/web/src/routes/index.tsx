@@ -1,12 +1,11 @@
 import { Button } from '@attentionawareness/ui';
 import { accent } from '@attentionawareness/ui/accent.stylex';
-import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
-import { create, firstThatWorks, keyframes, props } from '@stylexjs/stylex';
+import { colors, font, palette, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
+import { create, firstThatWorks, props } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { useReducedMotion } from 'motion/react';
 import { useEffect, useRef, useState } from 'react';
-import { Restart, VolumeCross, VolumeUp } from 'reicon-react';
-import { FeedKeysHint, FeedPhone } from '../components/feed-phone.tsx';
+import { FeedPhone } from '../components/feed-phone.tsx';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { MacDownload } from '../components/mac-download.tsx';
 import { Receipt } from '../components/receipt.tsx';
@@ -18,12 +17,10 @@ import {
 } from '../components/screen-time-gate.tsx';
 import { AverageNote, ScreenTimeMark } from '../components/screen-time-help.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
-import { Tip } from '../components/tip.tsx';
 import { formatYears } from '../lib/attention-math.ts';
 import { useScrollLock } from '../lib/scroll-lock.ts';
 import { decodeShare } from '../lib/share.ts';
-import { playClick } from '../lib/sounds.ts';
-import { primeTickSound, unlockTickSound } from '../lib/tick-sound.ts';
+import { unlockTickSound } from '../lib/tick-sound.ts';
 import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
@@ -57,18 +54,15 @@ const HERO_MEASURE = 640;
  */
 const SHEET_SHADOW_ROOM = '48px';
 /** The places on the page that can be linked to, and the ids they use. */
+const COST_ID = 'cost';
+const WAY_OUT_ID = 'way-out';
 const STORY_ID = 'story';
-const HOW_ID = 'how';
-/** The two tool icons, top right. */
-const ICON_SIZE = 22;
-/** The glyph on the way back into the show, a step under the word beside it. */
-const REPLAY_ICON_SIZE = 14;
-/** How tall the row it stands in is, under the phone and over it alike. */
-const REPLAY_ROW_HEIGHT = 18;
+const STORY_REST_ID = 'story-rest';
+/** The manual way out, on a page of its own. */
+const GUIDE_URL = '/guide';
 /** Every link off this site carries utm tags, so the visit is traced to this page. */
 const STORE_URL =
   'https://chromewebstore.google.com/detail/attention-awareness/lgcijcijcndmggjiioibfcmppndfakee?utm_source=attentionawareness.com&utm_medium=referral&utm_campaign=home';
-/** The report the average day is taken from. */
 /** The post this started from, linked out of the paragraph that tells it. */
 const STORY_URL = 'https://stopa.io/post/297';
 /**
@@ -80,66 +74,63 @@ const STORY_URL = 'https://stopa.io/post/297';
 const LINK_SLOT = '\u0000';
 /** A till pads its receipt numbers. */
 const RECEIPT_DIGITS = 6;
-/** How long the receipt takes to roll back up when the reader starts over. */
-const EXPAND_MS = '500ms';
-/** How long the first screen takes to leave, and the bill to arrive under it. */
-const SLIDE_MS = 500;
-const SLIDE_DURATION = `${SLIDE_MS}ms`;
-const SLIDE_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
-/** The blur the two screens carry while they travel. */
-const SLIDE_BLUR = '3px';
 /**
  * How long the bill prints before the way past it is offered. A bill short
  * enough to be over by then never shows the button at all.
  */
 const SKIP_AFTER_MS = 400;
+/**
+ * How much of the dial has to be on screen for its own show to run: the rail
+ * counts six, seven, six only where the reader can see it do so.
+ */
+const DIAL_SEEN = 0.75;
+
+/** How far along the bill is: not asked for yet, printing, or standing whole. */
+type Print = 'held' | 'printed' | 'printing';
 
 /**
- * Which of the page's three screens the reader is on, and how it got there:
- * the show, the question the bill is priced against, then the bill. `asking`
- * and `sliding` are the two swaps forward, `returning` the one back, whichever
- * screen is standing when it is asked for.
+ * One real week on the wall: a screenshot cropped to the Screen Time average
+ * card, so no name, device or status bar is in the picture, or a short clip.
+ * Another one is a file in `public/media/screentime-friends/` and a line here.
  */
-type Stage = 'asked' | 'asking' | 'held' | 'printed' | 'printing' | 'returning' | 'sliding';
+type Week = {
+  height: number;
+  kind: 'image' | 'video';
+  src: string;
+  /** The day the week starts on, as the phone counts it. */
+  week: string;
+  width: number;
+};
 
-/**
- * Each beat of the answer arriving: nothing is on the page until the question
- * is answered, and every beat comes in the same way after it.
- */
-const revealEnter = keyframes({
-  from: { filter: 'blur(2px)', opacity: 0, transform: 'translateY(4px)' },
-  to: { filter: 'blur(0)', opacity: 1, transform: 'translateY(0)' },
-});
-
-/**
- * One screen leaving and the next arriving, together. The page reads as one
- * screen scrolled up over another: one goes a screen up and off, the other
- * comes a screen down into the place it left. Every swap on the page is these
- * four moves, whichever pair of screens is making it.
- */
-const screenLeave = keyframes({
-  from: { filter: 'blur(0)', opacity: 1, transform: 'translateY(0)' },
-  to: { filter: `blur(${SLIDE_BLUR})`, opacity: 0, transform: 'translateY(-100svh)' },
-});
-const billArrive = keyframes({
-  from: { filter: `blur(${SLIDE_BLUR})`, opacity: 0, transform: 'translateY(100svh)' },
-  to: { filter: 'blur(0)', opacity: 1, transform: 'translateY(0)' },
-});
-/** The same two moves run backwards: the bill goes down, the question comes down. */
-const billLeave = keyframes({
-  from: { filter: 'blur(0)', opacity: 1, transform: 'translateY(0)' },
-  to: { filter: `blur(${SLIDE_BLUR})`, opacity: 0, transform: 'translateY(100svh)' },
-});
-const screenReturn = keyframes({
-  from: { filter: `blur(${SLIDE_BLUR})`, opacity: 0, transform: 'translateY(-100svh)' },
-  to: { filter: 'blur(0)', opacity: 1, transform: 'translateY(0)' },
-});
+const WEEKS: ReadonlyArray<Week> = [
+  {
+    height: 640,
+    kind: 'image',
+    src: '/media/screentime-friends/friend-1-week-sep-07.webp',
+    week: '2026-09-07',
+    width: 800,
+  },
+  {
+    height: 640,
+    kind: 'image',
+    src: '/media/screentime-friends/friend-1-week-sep-14.webp',
+    week: '2026-09-14',
+    width: 800,
+  },
+  {
+    height: 640,
+    kind: 'image',
+    src: '/media/screentime-friends/friend-1-week-sep-21.webp',
+    week: '2026-09-21',
+    width: 800,
+  },
+];
 
 const styles = create({
-  // A section the hero links down to. The scroll stops short of its heading
-  // instead of pinning it to the top edge of the window.
+  // A section the page links down to. The scroll stops short of its heading,
+  // clear of the brand bar fixed over the top of the window.
   anchor: {
-    scrollMarginBlockStart: spacing.s8,
+    scrollMarginBlockStart: `calc(${spacing.s16} + ${wip.height})`,
   },
   banner: {
     alignItems: 'center',
@@ -173,31 +164,11 @@ const styles = create({
     marginInlineStart: 'auto',
     padding: 0,
   },
-  // The bill, and the words under it, riding up into the screen the question
-  // has just left.
-  billArriving: {
-    animationDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: SLIDE_DURATION,
-    },
-    animationName: billArrive,
-    animationTimingFunction: SLIDE_EASE,
-  },
-  billLeaving: {
-    animationDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: SLIDE_DURATION,
-    },
-    animationFillMode: 'forwards',
-    animationName: billLeave,
-    animationTimingFunction: SLIDE_EASE,
-    pointerEvents: 'none',
-  },
   content: {
     display: 'flex',
     flexDirection: 'column',
-    // Nothing is drawn between the sections any more, so the gap carries the
-    // rhythm on its own at every width.
+    // Nothing is drawn between the sections, so the gap carries the rhythm on
+    // its own at every width.
     gap: SECTION_GAP,
     maxWidth: 760,
     width: '100%',
@@ -217,169 +188,57 @@ const styles = create({
     lineHeight: 1.5,
     textWrap: 'pretty',
   },
-  // The line the icon fan is set into. It is the section's picture, not its
-  // heading, so it sits one step under the h2 above it; the line box is tall
-  // enough for a 32px icon, which is what keeps the sentence around it even.
-  expand: {
-    display: 'grid',
-    gridTemplateRows: '0fr',
-    transitionProperty: 'grid-template-rows',
-    transitionTimingFunction: SLIDE_EASE,
-    width: '100%',
+  // Not on the page yet, and taking no room in it either.
+  gone: {
+    display: 'none',
   },
-  expandInner: {
-    minHeight: 0,
-    opacity: 0,
-    overflow: 'hidden',
-    transitionProperty: 'opacity',
-  },
-  expandInnerOpen: {
-    opacity: 1,
-  },
-  // Opening is not a tween any more: the box takes its full height at once,
-  // under a bill that slides into it. Only the way back is drawn.
-  expandInnerSnap: {
-    transitionDelay: '0ms',
-    transitionDuration: '0ms',
-  },
-  expandInnerTween: {
-    transitionDelay: '150ms',
-    transitionDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: EXPAND_MS,
-    },
-  },
-  expandOpen: {
-    gridTemplateRows: '1fr',
-  },
-  expandSnap: {
-    transitionDuration: '0ms',
-  },
-  expandTween: {
-    transitionDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: EXPAND_MS,
-    },
-  },
-  // The question the bill is priced against: one column, centred, in the same
-  // measure the show it replaces stands in, so the two swap without anything
-  // moving sideways.
-  gateAsk: {
-    alignItems: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: {
-      '@media (min-width: 640px)': spacing.s8,
-      default: spacing.s6,
-    },
-    maxWidth: HERO_MEASURE,
-    width: '100%',
-  },
-  // Hidden in place until the rail is held, then faded in: the box is laid
-  // out from the first paint, so the page does not move when it shows.
-  gateCta: {
-    opacity: 0,
-    transitionDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: '250ms',
-    },
-    transitionProperty: 'opacity, visibility',
-    transitionTimingFunction: 'ease-in-out',
-    visibility: 'hidden',
-  },
-  gateCtaShown: {
-    opacity: 1,
-    visibility: 'visible',
-  },
-  // The rail and the figure it reads, as one thing: the figure is the rail's
-  // own readout, so nothing comes between them.
-  gateDial: {
-    alignItems: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s2,
-    width: '100%',
-  },
-  // The way back into the show: the quietest thing on the screen, laid out
-  // from the first paint and faded in once the show has run itself out.
-  gateReplay: {
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-    borderStyle: 'none',
-    borderWidth: 0,
-    color: {
-      ':hover': colors.fg,
-      default: colors.muted,
-    },
-    cursor: 'pointer',
-    display: 'inline-flex',
-    fontFamily: 'inherit',
-    fontSize: 13,
-    gap: spacing.s1,
-    lineHeight: 1,
-    opacity: 0,
-    padding: 0,
-    transitionDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: '400ms',
-    },
-    transitionProperty: 'opacity, visibility',
-    transitionTimingFunction: 'ease-in-out',
-    visibility: 'hidden',
-  },
-  gateReplayShown: {
-    opacity: 1,
-    visibility: 'visible',
-  },
-  // The row the way back into the show stands in. The same row is kept empty
-  // over the phone, so what the button takes under it is given back above it
-  // and the phone stands where it stood when there was no button.
-  gateRow: {
-    flexShrink: 0,
-    height: REPLAY_ROW_HEIGHT,
-  },
+  // The first screen: the claim and the way on beside the feed, which stands
+  // under them once the window is too narrow for two columns.
   hero: {
     alignItems: 'center',
     boxSizing: 'border-box',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: {
-      '@media (min-width: 640px)': spacing.s8,
-      default: spacing.s6,
+    columnGap: spacing.s16,
+    display: 'grid',
+    gridTemplateColumns: {
+      '@media (min-width: 768px)': 'minmax(0, 1fr) auto',
+      default: 'minmax(0, 1fr)',
     },
-    // Centred while it fits; a receipt taller than a phone screen starts
-    // under the brand bar instead of climbing behind it.
-    justifyContent: firstThatWorks('safe center', 'center'),
+    justifyItems: {
+      '@media (min-width: 768px)': 'start',
+      default: 'center',
+    },
     maxWidth: 760,
-    minHeight: firstThatWorks(`calc(100svh - ${wip.height})`, `calc(100vh - ${wip.height})`),
-    paddingBlockEnd: {
-      '@media (max-width: 639px)': spacing.s6,
-      default: '8vh',
+    // On a wide screen the hero is the first screen, less the air above it
+    // and the gap under it, so the question starts at the fold.
+    minHeight: {
+      '@media (min-width: 768px)': firstThatWorks(
+        `calc(100svh - ${wip.height} - 2 * ${SECTION_GAP})`,
+        `calc(100vh - ${wip.height} - 2 * ${SECTION_GAP})`,
+      ),
+      default: 0,
     },
+    // On a phone the page's own air is too little to clear the brand bar.
     paddingBlockStart: {
       '@media (min-width: 640px)': 0,
       default: spacing.s16,
     },
-    position: 'relative',
-    textAlign: 'center',
+    rowGap: spacing.s8,
     width: '100%',
   },
-  // What the reader does next, and the one sentence that says what it is.
+  // What the reader does next: the bill, or straight past it.
   heroActions: {
     alignItems: 'center',
     display: 'flex',
     flexWrap: 'wrap',
     gap: spacing.s4,
-    justifyContent: 'center',
+    justifyContent: {
+      '@media (min-width: 768px)': 'flex-start',
+      default: 'center',
+    },
   },
-  heroPitch: {
-    alignItems: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s4,
-    marginInline: 'auto',
-    maxWidth: HERO_MEASURE,
-    textAlign: 'center',
+  // The words the claim turns on: orange, like the figures on the bill.
+  heroMark: {
+    color: accent.base,
   },
   heroProduct: {
     color: colors.muted,
@@ -389,7 +248,7 @@ const styles = create({
     maxWidth: '46ch',
     textWrap: 'pretty',
   },
-  // The way past the button, for a reader who wants the price in time first.
+  // The way past the bill, for a reader who has seen enough of it already.
   heroSecondary: {
     color: {
       ':hover': colors.fg,
@@ -401,9 +260,21 @@ const styles = create({
       default: 'none',
     },
   },
-  // The words the claim turns on: orange, like the figures on the bill.
-  heroMark: {
-    color: accent.base,
+  // The words of the first screen: left of the feed on a wide screen, centred
+  // over it on a narrow one.
+  heroText: {
+    alignItems: {
+      '@media (min-width: 768px)': 'flex-start',
+      default: 'center',
+    },
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s6,
+    maxWidth: HERO_MEASURE,
+    textAlign: {
+      '@media (min-width: 768px)': 'start',
+      default: 'center',
+    },
   },
   heroTitle: {
     fontSize: {
@@ -420,42 +291,44 @@ const styles = create({
     },
     textWrap: 'balance',
   },
-  howBody: {
+  // The question the bill is priced against: one column, centred, with the
+  // bill under it in the same measure.
+  hours: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: {
+      '@media (min-width: 640px)': spacing.s8,
+      default: spacing.s6,
+    },
+    maxWidth: HERO_MEASURE,
+    textAlign: 'center',
+    width: '100%',
+  },
+  // The rail and the figure it reads, as one thing: the figure is the rail's
+  // own readout, so nothing comes between them.
+  hoursDial: {
+    alignItems: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s2,
+    width: '100%',
+  },
+  // The lines under the two ways: what both need, what to do without it, and
+  // the way back. A step quieter than the cards over them.
+  howAside: {
     color: colors.muted,
-    fontSize: font.sizeMd,
+    fontSize: font.sizeSm,
     lineHeight: 1.5,
     margin: 0,
     maxWidth: '60ch',
     textWrap: 'pretty',
   },
-  // The two lines under the download: the way back out, and the browser half
-  // of the same idea. A step quieter than the sentence over the button.
-  howAside: {
-    color: colors.muted,
-    fontSize: font.sizeSm,
-    margin: 0,
-  },
-  // The download stands off the sentence above it by more than the column's
-  // own line spacing, so the button reads as the offer rather than a footnote.
-  howDownload: {
-    marginBlockStart: spacing.s4,
-  },
-  // What the app does, the download, and the two lines after it, in one
-  // column closer to itself than one section is to the next.
   howLines: {
     display: 'flex',
     flexDirection: 'column',
-    gap: spacing.s4,
-  },
-  // The page's one caption: the small line that names the group under it.
-  label: {
-    color: colors.muted,
-    fontSize: 12,
-    fontWeight: font.weightMedium,
-    letterSpacing: '0.08em',
-    lineHeight: 1.4,
-    margin: 0,
-    textTransform: 'uppercase',
+    gap: spacing.s2,
   },
   page: {
     alignItems: 'center',
@@ -471,56 +344,32 @@ const styles = create({
     minHeight: `calc(100vh - ${wip.height})`,
     paddingBlockEnd: spacing.s16,
     paddingBlockStart: {
-      '@media (min-width: 640px)': 96,
+      '@media (min-width: 640px)': SECTION_GAP,
       default: spacing.s6,
     },
     paddingInline: spacing.s4,
     // The containing block the grid layer measures itself against.
     position: 'relative',
   },
-  // One cited line inside the research box, and the whole line is the source.
-  receiptAfter: {
-    alignItems: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s4,
-  },
-  // The bill's own slot. The box above it is cut off at its edges so the
-  // opening reads as an unroll, and the sheet's shadow falls outside those
-  // edges: `clip` keeps the cut without a scroll box, and the margin lets the
-  // shadow and the torn outline out of it. It costs no layout, so nothing
-  // moves and nothing scrolls sideways on a phone.
+  // The bill's own slot. The sheet's shadow falls outside its edges: `clip`
+  // keeps the cut without a scroll box, and the margin lets the shadow and the
+  // torn outline out of it. It costs no layout, so nothing scrolls sideways on
+  // a phone.
   receiptSlot: {
     alignItems: 'center',
     display: 'flex',
     flexDirection: 'column',
-    gap: spacing.s6,
     overflow: 'clip',
     overflowClipMargin: SHEET_SHADOW_ROOM,
+    width: '100%',
   },
   receiptWrap: {
     alignItems: 'center',
+    alignSelf: 'center',
     display: 'flex',
     flexDirection: 'column',
-    gap: spacing.s6,
     maxWidth: HERO_MEASURE,
     width: '100%',
-  },
-  // What the answer buys, arriving: the total, the list under it, the line
-  // under that and the pitch. One fade for all of them, so every beat reads
-  // the same way.
-  reveal: {
-    animationDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: '150ms',
-    },
-    animationName: revealEnter,
-    animationTimingFunction: 'ease-in-out',
-  },
-  row: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: spacing.s2,
   },
   section: {
     display: 'flex',
@@ -544,9 +393,9 @@ const styles = create({
     margin: 0,
     textWrap: 'balance',
   },
-  // The way past the print: the same quiet secondary control as the way back
-  // into the show, standing in the foot of the window rather than in the
-  // column, because the bill it belongs to is still moving under it.
+  // The way past the print: a quiet secondary control, standing in the foot
+  // of the window rather than in the column, because the bill it belongs to
+  // is still moving under it.
   skip: {
     backgroundColor: 'transparent',
     borderStyle: 'none',
@@ -594,6 +443,17 @@ const styles = create({
     margin: 0,
     textWrap: 'pretty',
   },
+  // The way into the rest of the story, at the start of the line like the
+  // paragraphs around it.
+  storyMore: {
+    alignSelf: 'flex-start',
+  },
+  // The part of the story behind the button, spaced like the part before it.
+  storyRest: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s4,
+  },
   // Who wrote it, and from where. It is a signature, so it is the quietest
   // line in the section.
   storySign: {
@@ -602,103 +462,105 @@ const styles = create({
     lineHeight: 1.5,
     margin: 0,
   },
-  // The restart arrow, turned over so it runs the other way round.
-  flipped: {
-    transform: 'scaleX(-1)',
-  },
-  toolButton: {
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-    borderStyle: 'none',
-    borderWidth: 0,
-    color: {
-      ':hover': colors.fg,
-      default: colors.muted,
-    },
-    cursor: 'pointer',
-    display: 'inline-flex',
-    flexShrink: 0,
-    height: 40,
-    justifyContent: 'center',
+  // Real weeks, side by side while they fit and one under the other on a
+  // phone.
+  wall: {
+    display: 'grid',
+    gap: spacing.s6,
+    gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+    listStyle: 'none',
+    margin: 0,
     padding: 0,
-    width: 40,
   },
-  // The buttons are 40px tall and the brand mark 24px, both from a 16px top:
-  // pulled up by half the difference, their centres meet on one line.
-  // Start over rides with the bill: on screen while the bill is, gone when
-  // the reader has scrolled past it.
-  toolAway: {
-    opacity: 0,
-    pointerEvents: 'none',
+  wallCaption: {
+    color: colors.muted,
+    fontSize: font.sizeSm,
+    lineHeight: 1.4,
   },
-  toolFade: {
-    transitionDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: '250ms',
-    },
-    transitionProperty: 'opacity',
-    transitionTimingFunction: 'ease-in-out',
-  },
-  tools: {
-    display: 'flex',
-    gap: spacing.s1,
-    insetBlockStart: `calc(${spacing.s2} + ${wip.height})`,
-    insetInlineEnd: spacing.s4,
-    position: 'fixed',
-    zIndex: 30,
-  },
-  // Lays out like the hero itself: one column, centred, same gaps.
-  // On a phone the column takes the whole first screen: the question at the
-  // top, the words at the foot, and the phone grows into whatever is between.
-  untouched: {
-    alignItems: 'center',
+  wallFigure: {
     display: 'flex',
     flexDirection: 'column',
-    flexGrow: {
-      '@media (max-width: 639px)': 1,
-      default: 0,
-    },
-    gap: {
-      '@media (max-height: 720px)': spacing.s4,
-      '@media (min-width: 640px)': spacing.s6,
-      default: spacing.s4,
-    },
-    minHeight: 0,
+    gap: spacing.s2,
+    margin: 0,
+  },
+  // A screenshot is black in both themes, the way the phone took it.
+  wallMedia: {
+    backgroundColor: palette.black,
+    borderRadius: radius.base,
+    display: 'block',
+    height: 'auto',
     width: '100%',
   },
-  // On its way out: pinned where it stood, so it leaves from there, and over
-  // the bill coming up under it.
-  untouchedLeaving: {
-    animationDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: SLIDE_DURATION,
-    },
-    animationFillMode: 'forwards',
-    animationName: screenLeave,
-    animationTimingFunction: SLIDE_EASE,
-    insetInlineEnd: 0,
-    insetInlineStart: 0,
-    pointerEvents: 'none',
-    position: 'absolute',
-    zIndex: 1,
+  // One of the two ways out: what it is, what it costs, what it does to the
+  // phone, and the button at the foot, level with the other card's.
+  way: {
+    borderColor: colors.border,
+    borderRadius: radius.base,
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    boxSizing: 'border-box',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s4,
+    padding: spacing.s6,
   },
-  untouchedLeavingAt: (top: number) => ({
-    insetBlockStart: top,
-  }),
-  // On its way back: over the bill going down under it, coming down from
-  // above into the place it left.
-  untouchedReturning: {
-    animationDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: SLIDE_DURATION,
+  // The app is the way the page recommends, so its card carries the orange.
+  wayAccent: {
+    backgroundColor: `color-mix(in srgb, ${accent.base} 6%, ${colors.bg})`,
+    borderColor: accent.base,
+  },
+  wayAction: {
+    marginBlockStart: 'auto',
+    paddingBlockStart: spacing.s2,
+  },
+  wayBody: {
+    color: colors.muted,
+    fontSize: font.sizeSm,
+    lineHeight: 1.5,
+    margin: 0,
+    textWrap: 'pretty',
+  },
+  wayHead: {
+    alignItems: 'baseline',
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: spacing.s2,
+    justifyContent: 'space-between',
+  },
+  // What happens to the phone: the one difference between the two ways, so
+  // it is the loudest line on each card.
+  wayLead: {
+    fontSize: font.sizeMd,
+    fontWeight: font.weightMedium,
+    lineHeight: 1.5,
+    margin: 0,
+    textWrap: 'pretty',
+  },
+  wayPrice: {
+    fontSize: font.sizeMd,
+    fontVariantNumeric: 'tabular-nums',
+    fontWeight: font.weightMedium,
+    margin: 0,
+  },
+  wayPriceAccent: {
+    color: accent.base,
+  },
+  wayTitle: {
+    fontSize: font.sizeLg,
+    fontWeight: HEADING_WEIGHT,
+    letterSpacing: '-0.01em',
+    lineHeight: 1.2,
+    margin: 0,
+  },
+  // The recommended way a little wider than the other, side by side once
+  // there is room for both.
+  ways: {
+    display: 'grid',
+    gap: spacing.s4,
+    gridTemplateColumns: {
+      '@media (min-width: 640px)': 'minmax(0, 6fr) minmax(0, 5fr)',
+      default: 'minmax(0, 1fr)',
     },
-    animationName: screenReturn,
-    animationTimingFunction: SLIDE_EASE,
-    insetInlineEnd: 0,
-    insetInlineStart: 0,
-    pointerEvents: 'none',
-    position: 'absolute',
-    zIndex: 1,
   },
 });
 
@@ -714,26 +576,8 @@ function typingIn(target: EventTarget | null): boolean {
   );
 }
 
-/**
- * Whether the show may click. Reduced motion silences the default, because a
- * click is one more thing happening at the reader; a reader who turned the
- * speaker on themselves has answered that question already.
- */
-function tickAllowed(on: boolean, chosen: boolean): boolean {
-  if (!on) {
-    return false;
-  }
-  if (chosen) {
-    return true;
-  }
-  const query = (globalThis as { matchMedia?: (media: string) => MediaQueryList }).matchMedia;
-  return query === undefined || !query('(prefers-reduced-motion: reduce)').matches;
-}
-
 /** Where the reader's day is kept between visits, in this browser only. */
 const HOURS_KEY = 'aa:hours';
-/** The attribute the head script stamps on the root when hours are saved. */
-const RECALL_STAMP = 'data-aa-hours';
 
 function recallHours(): number | null {
   try {
@@ -756,12 +600,13 @@ function rememberHours(value: number): void {
   }
 }
 
-function forgetHours(): void {
-  try {
-    globalThis.localStorage.removeItem(HOURS_KEY);
-  } catch {
-    // Nothing to forget.
-  }
+/** The day a week on the wall starts on, the way the reader's language writes it. */
+function weekOf(day: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'UTC',
+  }).format(new Date(`${day}T00:00:00Z`));
 }
 
 /** The marked stretches of the title, [[like this]]. */
@@ -788,35 +633,17 @@ function HeroTitle() {
 
 function HomePage() {
   const [hours, setHours] = useState(HOURS_DEFAULT);
-  // Whether the reader has touched the dial: the receipt is empty until then.
-  const [touched, setTouched] = useState(false);
-  // Which screen is on the page, and how it got there: the show, the question
-  // under it, the bill sliding up into the place the question leaves, printing
-  // its lines, or simply standing there.
-  const [stage, setStage] = useState<Stage>('held');
-  // Where the screen on its way out stood when it was asked to go, so it
-  // leaves from there and not from the top of the column.
-  const [leaveTop, setLeaveTop] = useState(0);
-  const firstScreen = useRef<HTMLDivElement>(null);
-  const askScreen = useRef<HTMLDivElement>(null);
-  const billSection = useRef<HTMLElement>(null);
-  // Whether the bill is on screen: the way back to the question shows only
-  // while there is a bill to come back from.
-  const [billInView, setBillInView] = useState(true);
-  // After the way back the bill is already off screen: its box closes in one
-  // frame, so nothing of it shows under the question while it closes.
-  const [snapClose, setSnapClose] = useState(false);
-  // Whether the show has run its course: the way to the bill shows itself
-  // then, and not before.
-  const [picked, setPicked] = useState(false);
-  // Which run of the show is on screen, and whether it has ended. The count
-  // is the feed's key: a fresh one is a fresh show from the first clip.
-  const [run, setRun] = useState(0);
-  const [shown, setShown] = useState(false);
+  // The bill is off the page until it is asked for, then prints its lines,
+  // then stands whole.
+  const [print, setPrint] = useState<Print>('held');
   // The rail is counting six, seven, six on its own: the readout puts its
   // hands out, and the count keeps them starting from rest at each one.
   const [sixSeven, setSixSeven] = useState(false);
   const [sixSevenRun, setSixSevenRun] = useState(0);
+  // Whether the rail is on screen: it only shows itself where it is seen.
+  const [dialSeen, setDialSeen] = useState(false);
+  const dial = useRef<HTMLDivElement>(null);
+  const billSection = useRef<HTMLElement>(null);
   // The date on the bill: when the page was opened, not when it was rung up.
   const [printedAt] = useState(() => new Date());
   // Whether the reader asked for the rest of the bill at once, and whether the
@@ -824,64 +651,49 @@ function HomePage() {
   // short bill is whole before it shows.
   const [skipped, setSkipped] = useState(false);
   const [skipReady, setSkipReady] = useState(false);
-  const [sound, setSound] = useState(true);
-  const [soundChosen, setSoundChosen] = useState(false);
   const [friendYears, setFriendYears] = useState<string | null>(null);
+  const [storyOpen, setStoryOpen] = useState(false);
+  const billed = print !== 'held';
 
   /* oxlint-disable react/set-state-in-effect -- one-shot read of browser-only state */
   useEffect(() => {
     const shared = decodeShare(globalThis.location.search);
-    const remembered = recallHours();
-    if (shared.hours === undefined && remembered !== null) {
-      // The reader has been here: the receipt opens where they left it,
-      // whole, because it was printed on the last visit.
-      setHours(remembered);
-      setStage('printed');
-      setTouched(true);
-    }
-    // From here on React owns the first screen; the pre-paint stamp that hid
-    // it has done its job, and would otherwise hide it after a reset too.
-    document.documentElement.removeAttribute(RECALL_STAMP);
     if (shared.hours !== undefined) {
       // A friend already answered the question, so the page opens on their
       // number, printed.
       setHours(shared.hours);
-      setStage('printed');
-      setTouched(true);
+      setPrint('printed');
       setFriendYears(formatYears(shared.hours));
+      return;
+    }
+    const remembered = recallHours();
+    if (remembered !== null) {
+      // The reader has been here: the bill stands where they left it, whole,
+      // because it was printed on the last visit.
+      setHours(remembered);
+      setPrint('printed');
     }
   }, []);
   /* oxlint-enable react/set-state-in-effect */
 
-  // The first screen is the whole page until the dial is touched, and stays
-  // the whole page while it leaves: nothing under it can be scrolled to
-  // before the bill has landed in its place.
-  useEffect(() => {
-    document.documentElement.style.overflow =
-      touched && stage !== 'sliding' && stage !== 'returning' ? '' : 'hidden';
-    return () => {
-      document.documentElement.style.overflow = '';
-    };
-  }, [stage, touched]);
-
-  // From the moment the bill starts coming up until its last line has landed,
+  // From the moment the bill starts printing until its last line has landed,
   // the page owns the scroll: the reader cannot pull it out from under the
   // lines, while the print keeps scrolling the newest one into view itself.
-  useScrollLock(stage === 'sliding' || stage === 'printing');
+  useScrollLock(print === 'printing');
 
   // The print has been running a beat: the way past it is offered.
   useEffect(() => {
-    if (stage !== 'printing') {
+    if (print !== 'printing') {
       return;
     }
     const timer = setTimeout(() => setSkipReady(true), SKIP_AFTER_MS);
     return () => clearTimeout(timer);
-  }, [stage]);
+  }, [print]);
 
   // Escape does what the button does, for a reader whose hands are already on
   // the keyboard.
   useEffect(() => {
-    if (stage !== 'printing') {
+    if (print !== 'printing') {
       return;
     }
     function onKeyDown(event: KeyboardEvent) {
@@ -891,56 +703,25 @@ function HomePage() {
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-    // The skip is nothing but the two setters under it, so the listener is
-    // bound for the print rather than rebound for every render of it.
+    // The skip is nothing but the setter under it, so the listener is bound
+    // for the print rather than rebound for every render of it.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- setters only
-  }, [stage]);
+  }, [print]);
 
-  // The screens have swapped: the question has the column to itself.
+  // Watches the rail: its show runs while it is on screen and stops when it
+  // is scrolled away.
   useEffect(() => {
-    if (stage !== 'asking') {
+    const element = dial.current;
+    if (element === null) {
       return;
     }
-    const timer = setTimeout(() => setStage('asked'), SLIDE_MS);
-    return () => clearTimeout(timer);
-  }, [stage]);
-
-  // The screens have swapped: the page is free again, and the bill prints
-  // the rest of itself line by line.
-  useEffect(() => {
-    if (stage !== 'sliding') {
-      return;
-    }
-    const timer = setTimeout(() => setStage('printing'), SLIDE_MS);
-    return () => clearTimeout(timer);
-  }, [stage]);
-
-  // The screens have swapped back: the bill is gone and the first screen
-  // takes the column again.
-  useEffect(() => {
-    if (stage !== 'returning') {
-      return;
-    }
-    const timer = setTimeout(() => {
-      setStage('held');
-      setTouched(false);
-    }, SLIDE_MS);
-    return () => clearTimeout(timer);
-  }, [stage]);
-
-  // Watches the bill: Start over fades out once it has scrolled away and
-  // back in when it returns.
-  useEffect(() => {
-    const element = billSection.current;
-    if (element === null || !touched) {
-      return;
-    }
-    const observer = new IntersectionObserver(([entry]) => {
-      setBillInView(entry?.isIntersecting ?? true);
-    });
+    const observer = new IntersectionObserver(
+      ([entry]) => setDialSeen((entry?.intersectionRatio ?? 0) >= DIAL_SEEN),
+      { threshold: DIAL_SEEN },
+    );
     observer.observe(element);
     return () => observer.disconnect();
-  }, [touched]);
+  }, []);
 
   // iOS Safari opens an audio device inside a gesture and nowhere else, so the
   // first gesture it accepts anywhere on the page opens one. Once that works
@@ -963,67 +744,33 @@ function HomePage() {
     return stop;
   }, []);
 
-  // The bill's own stepper moved the day: it is kept, and every figure on the
-  // bill is priced against it from here.
-  function onHoursChange(value: number) {
+  // The rail or the bill's own stepper moved the day. Once there is a bill it
+  // is kept, and every figure on the bill is priced against it from here.
+  function setDay(value: number) {
     const next = clampHours(value);
     setHours(next);
-    setPicked(true);
-    if (touched) {
+    if (billed) {
       rememberHours(next);
     }
   }
 
-  // The rail moved, under the reader's hand or under its own sweep: the figure
-  // over it follows, and nothing is kept until the bill is asked for.
-  function pickHours(value: number) {
-    setHours(clampHours(value));
-  }
-
-  // The rail's count, put away: no hands, and no run behind the next screen
-  // to open with.
-  function restSixSeven() {
-    setSixSeven(false);
-    setSixSevenRun(0);
-  }
-
-  // The reader wants out: first the question the bill is priced against.
-  function askHours() {
+  // The question is answered: the day they set is kept, and the bill prints
+  // for it. A bill already standing is only brought into view.
+  function showBill() {
+    if (billed) {
+      billSection.current?.scrollIntoView({ block: 'start' });
+      return;
+    }
     // iOS opens an audio device inside a gesture and nowhere else.
     unlockTickSound();
-    // The question arrives with the rail at rest: the count that follows is
-    // the first this screen has had.
-    restSixSeven();
-    forgetSkip();
-    // Measured before the screen is taken out of the column, so it leaves
-    // from exactly where the reader last saw it.
-    setLeaveTop(firstScreen.current?.offsetTop ?? 0);
-    setStage('asking');
-  }
-
-  // The question is answered: the day they set is kept, and the bill unrolls
-  // for it.
-  function showBill() {
-    unlockTickSound();
-    forgetSkip();
     rememberHours(hours);
-    setLeaveTop(askScreen.current?.offsetTop ?? 0);
-    setSnapClose(false);
-    setStage('sliding');
-    setTouched(true);
+    setPrint('printing');
   }
 
   // The last line has landed: the bill stands whole, and the page has its
   // own scroll back.
   function billPrinted() {
-    setStage('printed');
-  }
-
-  // A print that has not started yet has nothing to skip, and nothing to
-  // offer the skip for.
-  function forgetSkip() {
-    setSkipped(false);
-    setSkipReady(false);
+    setPrint('printed');
   }
 
   // The reader would rather not watch it print: every line still pending lands
@@ -1032,69 +779,13 @@ function HomePage() {
     setSkipped(true);
   }
 
-  // Back to the first screen, from the bill or from the question alike: the
-  // remembered day is forgotten, the day itself goes back to the average, the
-  // feed starts its show again, and the two screens swap back the way they
-  // came.
-  function reset() {
-    forgetHours();
-    forgetSkip();
-    setHours(HOURS_DEFAULT);
-    restSixSeven();
-    setPicked(false);
-    setShown(false);
-    setBillInView(true);
-    // A section link may have brought the reader here; the fresh question
-    // carries no anchor.
-    history.replaceState(null, '', `${location.pathname}${location.search}`);
-    window.scrollTo({ behavior: 'instant', top: 0 });
-    setLeaveTop(0);
-    setSnapClose(true);
-    setStage('returning');
-  }
-
-  // The reader asked for the show again: the feed is mounted anew, and the
-  // way back into it goes quiet until this run has ended too.
-  function replay() {
-    if (tickAllowed(sound, soundChosen)) {
-      primeTickSound();
-      playClick();
-    }
-    setShown(false);
-    setRun((value) => value + 1);
-  }
-
-  function toggleSound() {
-    const next = !sound;
-    setSound(next);
-    setSoundChosen(true);
-    if (next) {
-      primeTickSound();
-    }
-  }
-
   const wholeHours = clampHours(hours);
-  // Which screen holds the column and which is on its way off it. The way back
-  // drops whatever is standing, so the bill and the question tell themselves
-  // apart by whether the bill has been asked for at all.
-  const showLeaving = stage === 'asking';
-  const showShown = stage === 'held' || stage === 'returning' || showLeaving;
-  const askLeaving = stage === 'sliding' || (stage === 'returning' && !touched);
-  const askShown = stage === 'asked' || askLeaving || showLeaving;
-  const billLeaving = stage === 'returning' && touched;
-  // What the bill itself is doing under all that: printing, or printed once it
-  // has been; whole again on the way back, so it drops rather than unprints;
-  // and held behind whichever screen stands in front of it.
-  const billPrint: 'held' | 'printed' | 'printing' =
-    stage === 'printed' || stage === 'printing'
-      ? stage
-      : stage === 'returning'
-        ? 'printed'
-        : 'held';
   // The way past the print is on the screen while the bill prints, and a
-  // reader who asked for less motion never had a print to sit through.
+  // reader who asked for less motion never had a print to sit through. The
+  // same reader is spared the clicks.
   const reduced = useReducedMotion();
-  const skipOffered = stage === 'printing' && skipReady && !skipped && reduced !== true;
+  const sound = reduced !== true;
+  const skipOffered = print === 'printing' && skipReady && !skipped && reduced !== true;
   const locale = getLocale();
   // The bill's own number and date: one number per visit, the second of the
   // day the page was opened, and the date it was opened on.
@@ -1110,15 +801,18 @@ function HomePage() {
   // it, so the words around it keep their own order in every language.
   const [storyBefore, storyAfter] = m.home_story_1({ post: LINK_SLOT }).split(LINK_SLOT);
 
-  // The browser half, in its own section: the extension, in the middle of the
-  // sentence, and the store it is added from.
+  // The browser half, for a reader without a Mac: the extension, in the
+  // middle of the sentence, and the store it is added from.
+  const [noMacBefore, noMacAfter] = m.home_how_no_mac({ extension: LINK_SLOT }).split(LINK_SLOT);
   const [computerBefore, computerAfter] = m
     .home_computer_body({ extension: LINK_SLOT })
     .split(LINK_SLOT);
 
   const objections = [
     { desc: m.home_faq_supervision_desc(), term: m.home_faq_supervision_term() },
+    { desc: m.home_faq_choice_desc(), term: m.home_faq_choice_term() },
     { desc: m.home_faq_data_desc(), term: m.home_faq_data_term() },
+    { desc: m.home_faq_fail_desc(), term: m.home_faq_fail_term() },
     { desc: m.home_faq_see_desc(), term: m.home_faq_see_term() },
     { desc: m.home_faq_undo_desc(), term: m.home_faq_undo_term() },
     { desc: m.home_faq_mac_desc(), term: m.home_faq_mac_term() },
@@ -1142,195 +836,77 @@ function HomePage() {
           </button>
         </div>
       )}
+      {/* The first screen: the claim, what the site is, and the two ways on,
+      beside a feed that never stops. */}
       <header {...props(styles.hero)}>
-        {/* The two tools, top right: start over, and the sound. */}
-        <div {...props(styles.tools)}>
-          {(touched || askShown) && stage !== 'returning' ? (
-            <div {...props(styles.toolFade, !billInView && styles.toolAway)}>
-              <Tip
-                mobile="none"
-                title={m.home_reset_label()}
-                trigger={
-                  <button
-                    aria-label={m.home_reset_label()}
-                    onClick={reset}
-                    type="button"
-                    {...props(styles.toolButton)}
-                  >
-                    <Restart aria-hidden="true" size={ICON_SIZE} {...props(styles.flipped)} />
-                  </button>
-                }
-                variant="label"
-              >
-                {null}
-              </Tip>
-            </div>
-          ) : null}
-          <Tip
-            mobile="none"
-            title={m.home_math_sound_label()}
-            trigger={
-              <button
-                aria-label={m.home_math_sound_label()}
-                aria-pressed={sound}
-                onClick={toggleSound}
-                type="button"
-                {...props(styles.toolButton)}
-              >
-                {sound ? (
-                  <VolumeUp aria-hidden="true" size={ICON_SIZE} />
-                ) : (
-                  <VolumeCross aria-hidden="true" size={ICON_SIZE} />
-                )}
-              </button>
-            }
-            variant="label"
-          >
-            {null}
-          </Tip>
+        <div {...props(styles.heroText)}>
+          <h1 {...props(styles.heroTitle)}>
+            <HeroTitle />
+          </h1>
+          <p {...props(styles.heroProduct)}>{m.home_hero_product()}</p>
+          <div {...props(styles.heroActions)}>
+            <Button render={<a href={`#${COST_ID}`} />}>{m.home_hero_cta()}</Button>
+            <a href={`#${WAY_OUT_ID}`} {...props(styles.heroSecondary)}>
+              {m.home_hero_secondary()}
+            </a>
+          </div>
         </div>
-        {/* The first screen: the question, the rail, the average and the
-        preferences. A reader with saved hours never sees it: an inline
-        script in the head stamps the root before first paint, and the
-        `data-aa-untouched` block is hidden by a global rule until React
-        restores the receipt. */}
-        {showShown ? (
-          <div
-            data-aa-untouched=""
-            // A fresh key on the way back, so the feed's show plays again.
-            key={stage === 'returning' ? 'returning' : 'held'}
-            ref={firstScreen}
-            {...props(
-              styles.untouched,
-              showLeaving && styles.untouchedLeaving,
-              showLeaving && styles.untouchedLeavingAt(leaveTop),
-              stage === 'returning' && styles.untouchedReturning,
-              stage === 'returning' && styles.untouchedLeavingAt(leaveTop),
-            )}
-          >
-            <h1 {...props(styles.heroTitle)}>
-              <HeroTitle />
-            </h1>
-            {/* The replay row again, empty: the phone is centred on the
-            screen, so the button under it is answered over it. */}
-            <span {...props(styles.gateRow)} />
-            <FeedPhone
-              key={run}
-              // The show has reached the last clip: the way on shows itself.
-              onDone={() => {
-                setPicked(true);
-                setShown(true);
+        <FeedPhone />
+      </header>
+
+      <div {...props(styles.content)}>
+        {/* Act one, the problem: the reader's own day, what it adds up to, and
+        what it looks like on real phones. */}
+        <section {...props(styles.hours, styles.anchor)} id={COST_ID}>
+          <h2 {...props(styles.heroTitle)}>
+            {m.home_gate_question()}
+            <ScreenTimeMark />
+          </h2>
+          <AverageNote />
+          <div ref={dial} {...props(styles.hoursDial)}>
+            <HourReadout hours={wholeHours} sixSeven={sixSeven} sixSevenRun={sixSevenRun} />
+            <HourSlider
+              // The rail shows itself only while it is seen, and only until
+              // the reader has asked for a bill: after that it is theirs.
+              arrived={dialSeen && !billed}
+              onChange={setDay}
+              onSixSeven={(showing) => {
+                setSixSeven(showing);
+                if (showing) {
+                  setSixSevenRun((count) => count + 1);
+                }
               }}
-              sound={tickAllowed(sound, soundChosen)}
+              sound={sound}
+              value={wholeHours}
             />
-            {/* In the column from the first paint, so the page does not move
-            when the show ends and this fades in under the phone. */}
-            <button
-              aria-hidden={!shown}
-              onClick={replay}
-              tabIndex={shown ? 0 : -1}
-              type="button"
-              {...props(styles.gateRow, styles.gateReplay, shown && styles.gateReplayShown)}
-            >
-              <Restart aria-hidden="true" size={REPLAY_ICON_SIZE} {...props(styles.flipped)} />
-              {m.home_gate_replay()}
-            </button>
-            {/* In the page from the start, so nothing moves when it appears:
-            it fades in once the show has run. */}
-            <div aria-hidden={!picked} {...props(styles.gateCta, picked && styles.gateCtaShown)}>
-              <Button onClick={askHours} tabIndex={picked ? 0 : -1}>
-                {m.home_gate_cta()}
-              </Button>
-            </div>
           </div>
-        ) : null}
-        {/* Outside the screen itself, because it stands in the window's corner
-        rather than in the column, and a leaving screen carries its column with
-        it. */}
-        <FeedKeysHint shown={shown && (stage === 'held' || stage === 'returning')} />
-        {/* The question the bill is priced against, on a screen of its own: it
-        arrives the way the bill does and leaves the same way the show did. */}
-        {askShown ? (
-          <div
-            ref={askScreen}
-            {...props(
-              styles.gateAsk,
-              showLeaving && styles.billArriving,
-              stage === 'sliding' && styles.untouchedLeaving,
-              stage === 'sliding' && styles.untouchedLeavingAt(leaveTop),
-              stage === 'returning' && styles.billLeaving,
-            )}
-          >
-            <h2 {...props(styles.heroTitle)}>
-              {m.home_gate_question()}
-              <ScreenTimeMark />
-            </h2>
-            <AverageNote />
-            <div {...props(styles.gateDial)}>
-              <HourReadout hours={wholeHours} sixSeven={sixSeven} sixSevenRun={sixSevenRun} />
-              <HourSlider
-                // The count runs while this screen stands and at no other
-                // time: it is on its way in while the show leaves, and on its
-                // way out as soon as the bill or the way back is asked for.
-                arrived={stage === 'asked'}
-                onChange={pickHours}
-                onSixSeven={(showing) => {
-                  setSixSeven(showing);
-                  if (showing) {
-                    setSixSevenRun((count) => count + 1);
-                  }
-                }}
-                sound={tickAllowed(sound, soundChosen)}
-                value={wholeHours}
-              />
-            </div>
-            <Button onClick={showBill}>{m.home_gate_show()}</Button>
-          </div>
-        ) : null}
-        {/* The receipt: empty until the reader touches the dial, then priced
-        live against it. Every figure on it rolls as the hours change. */}
+          <Button onClick={showBill}>{m.home_gate_show()}</Button>
+        </section>
+
+        {/* The bill: off the page until it is asked for, then printed line by
+        line and priced live against the day. */}
         <section
           aria-live="polite"
           ref={billSection}
-          {...props(
-            styles.receiptWrap,
-            stage === 'sliding' && styles.billArriving,
-            billLeaving && styles.billLeaving,
-          )}
+          {...props(styles.receiptWrap, styles.anchor, !billed && styles.gone)}
         >
-          <div
-            {...props(
-              styles.expand,
-              touched || snapClose ? styles.expandSnap : styles.expandTween,
-              touched && styles.expandOpen,
-            )}
-          >
-            <div
-              {...props(
-                styles.expandInner,
-                touched || snapClose ? styles.expandInnerSnap : styles.expandInnerTween,
-                touched && styles.expandInnerOpen,
-                styles.receiptSlot,
-              )}
-            >
-              <Receipt
-                hours={wholeHours}
-                number={receiptNo}
-                onChange={onHoursChange}
-                onPrinted={billPrinted}
-                print={billPrint}
-                printedOn={printedOn}
-                skipped={skipped}
-                sound={tickAllowed(sound, soundChosen)}
-              />
-              <div {...props(styles.receiptAfter)}></div>
-            </div>
+          <div {...props(styles.receiptSlot)}>
+            <Receipt
+              hours={wholeHours}
+              number={receiptNo}
+              onChange={setDay}
+              onPrinted={billPrinted}
+              print={print}
+              printedOn={printedOn}
+              skipped={skipped}
+              sound={sound}
+            />
           </div>
         </section>
         {/* The way past the print. It stands in the window's foot rather than
         in the column, and stays on the page while the bill finishes so it
         fades out instead of blinking away. */}
-        {stage === 'printing' || stage === 'printed' ? (
+        {billed ? (
           <button
             aria-hidden={!skipOffered}
             onClick={skipBill}
@@ -1341,37 +917,94 @@ function HomePage() {
             {m.home_bill_skip()}
           </button>
         ) : null}
-        <div
-          {...props(
-            styles.expand,
-            touched || snapClose ? styles.expandSnap : styles.expandTween,
-            touched && styles.expandOpen,
-            stage === 'sliding' && styles.billArriving,
-            billLeaving && styles.billLeaving,
-          )}
-        >
-          <div
-            {...props(
-              styles.expandInner,
-              touched || snapClose ? styles.expandInnerSnap : styles.expandInnerTween,
-              touched && styles.expandInnerOpen,
-              styles.heroPitch,
-            )}
-          >
-            <p {...props(styles.heroProduct)}>{m.home_hero_product()}</p>
-            <div {...props(styles.heroActions)}>
-              <Button render={<a href={`#${STORY_ID}`} />}>{m.home_hero_cta()}</Button>
-              <a href={`#${HOW_ID}`} {...props(styles.heroSecondary)}>
-                {m.home_hero_secondary()}
-              </a>
-            </div>
-          </div>
-        </div>
-      </header>
 
-      <div {...props(styles.content)}>
-        {/* Who made this and why, told rather than argued. It is the only
-        place on the page that speaks in the first person. */}
+        <section {...props(styles.section)}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_wall_title()}</h2>
+          <p {...props(styles.sectionBody)}>{m.home_wall_body()}</p>
+          <ul {...props(styles.wall)}>
+            {WEEKS.map((week) => (
+              <li key={week.src}>
+                <figure {...props(styles.wallFigure)}>
+                  {week.kind === 'video' ? (
+                    <video
+                      aria-label={m.home_wall_alt()}
+                      autoPlay
+                      height={week.height}
+                      loop
+                      muted
+                      playsInline
+                      preload="metadata"
+                      src={week.src}
+                      width={week.width}
+                      {...props(styles.wallMedia)}
+                    />
+                  ) : (
+                    <img
+                      alt={m.home_wall_alt()}
+                      decoding="async"
+                      height={week.height}
+                      loading="lazy"
+                      src={week.src}
+                      width={week.width}
+                      {...props(styles.wallMedia)}
+                    />
+                  )}
+                  <figcaption {...props(styles.wallCaption)}>
+                    {m.home_wall_caption({ week: weekOf(week.week, locale) })}
+                  </figcaption>
+                </figure>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        {/* Act two, the way out: the app that keeps the phone as it is, and
+        the manual way that starts it over. */}
+        <section {...props(styles.section, styles.anchor)} id={WAY_OUT_ID}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
+          <p {...props(styles.sectionBody)}>{m.home_how_body()}</p>
+          <div {...props(styles.ways)}>
+            <article {...props(styles.way, styles.wayAccent)}>
+              <div {...props(styles.wayHead)}>
+                <h3 {...props(styles.wayTitle)}>{m.home_how_app_title()}</h3>
+                <p {...props(styles.wayPrice, styles.wayPriceAccent)}>{m.home_how_app_price()}</p>
+              </div>
+              <p {...props(styles.wayLead)}>{m.home_how_app_lead()}</p>
+              <p {...props(styles.wayBody)}>{m.home_how_app_body()}</p>
+              <p {...props(styles.wayBody)}>{m.home_how_app_fail()}</p>
+              <div {...props(styles.wayAction)}>
+                <MacDownload />
+              </div>
+            </article>
+            <article {...props(styles.way)}>
+              <div {...props(styles.wayHead)}>
+                <h3 {...props(styles.wayTitle)}>{m.home_how_diy_title()}</h3>
+                <p {...props(styles.wayPrice)}>{m.home_how_diy_price()}</p>
+              </div>
+              <p {...props(styles.wayLead)}>{m.home_how_diy_lead()}</p>
+              <p {...props(styles.wayBody)}>{m.home_how_diy_body()}</p>
+              <div {...props(styles.wayAction)}>
+                <Button render={<a href={GUIDE_URL} />} variant="outline">
+                  {m.home_how_diy_cta()}
+                </Button>
+              </div>
+            </article>
+          </div>
+          <div {...props(styles.howLines)}>
+            <p {...props(styles.howAside)}>{m.home_how_mac()}</p>
+            <p {...props(styles.howAside)}>
+              {noMacBefore}
+              <a href={STORE_URL} rel="noreferrer" target="_blank">
+                {m.home_how_no_mac_link()}
+              </a>
+              {noMacAfter}
+            </p>
+            <p {...props(styles.howAside)}>{m.home_how_undo()}</p>
+          </div>
+        </section>
+
+        {/* Act three, support. Who made this and why, told rather than argued:
+        the only place on the page that speaks in the first person. */}
         <section {...props(styles.section, styles.anchor)} id={STORY_ID}>
           <h2 {...props(styles.sectionTitle)}>{m.home_story_title()}</h2>
           <div {...props(styles.story)}>
@@ -1384,32 +1017,30 @@ function HomePage() {
             </p>
             <p {...props(styles.storyLine)}>{m.home_story_2()}</p>
             <p {...props(styles.storyLine)}>{m.home_story_3()}</p>
-            <p {...props(styles.storyLine)}>{m.home_story_4()}</p>
-            <p {...props(styles.storyLine)}>{m.home_story_5()}</p>
-            <p {...props(styles.storyLine)}>{m.home_story_6()}</p>
-            <p {...props(styles.storyLine)}>{m.home_story_7()}</p>
-            <p {...props(styles.storyLine)}>{m.home_story_8()}</p>
-            <p {...props(styles.storyLine)}>{m.home_story_9()}</p>
-            <p {...props(styles.storyLine)}>{m.home_story_10()}</p>
+            <Button
+              aria-controls={STORY_REST_ID}
+              aria-expanded={storyOpen}
+              onClick={() => setStoryOpen((open) => !open)}
+              style={styles.storyMore}
+              variant="outline"
+            >
+              {storyOpen ? m.home_story_less() : m.home_story_more()}
+            </Button>
+            <div id={STORY_REST_ID} {...props(styles.storyRest, !storyOpen && styles.gone)}>
+              <p {...props(styles.storyLine)}>{m.home_story_4()}</p>
+              <p {...props(styles.storyLine)}>{m.home_story_5()}</p>
+              <p {...props(styles.storyLine)}>{m.home_story_6()}</p>
+              <p {...props(styles.storyLine)}>{m.home_story_7()}</p>
+              <p {...props(styles.storyLine)}>{m.home_story_8()}</p>
+              <p {...props(styles.storyLine)}>{m.home_story_9()}</p>
+              <p {...props(styles.storyLine)}>{m.home_story_10()}</p>
+            </div>
             <p {...props(styles.storySign)}>{m.home_story_sign()}</p>
           </div>
         </section>
 
-        {/* The way out is one app: nothing to read, nothing to build, nothing
-        to install by hand before the button under this paragraph. */}
-        <section {...props(styles.section, styles.anchor)} id={HOW_ID}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
-          <div {...props(styles.howLines)}>
-            <p {...props(styles.howBody)}>{m.home_how_app_body()}</p>
-            <div {...props(styles.howDownload)}>
-              <MacDownload />
-            </div>
-            <p {...props(styles.howAside)}>{m.home_how_undo()}</p>
-          </div>
-        </section>
-
         {/* The browser half of the same idea, on its own so the way out reads
-        as one app and the computer as one more place the feeds are shut off. */}
+        as the phone and the computer as one more place the feeds are shut off. */}
         <section {...props(styles.section)}>
           <h2 {...props(styles.sectionTitle)}>{m.home_computer_title()}</h2>
           <p {...props(styles.sectionBody)}>

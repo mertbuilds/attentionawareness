@@ -25,9 +25,6 @@ if (clientEnv.VITE_SENTRY_DSN && typeof window !== 'undefined') {
 
 /** The brand, in prose. The lowercase "aa" mark is the only lowercase form. */
 const SITE_NAME = 'attention awareness';
-/** Reads the saved hours before anything paints. Same key as the homepage. */
-const RECALL_SCRIPT =
-  "try{if(localStorage.getItem('aa:hours'))document.documentElement.setAttribute('data-aa-hours','')}catch(e){}";
 /**
  * Takes the work-in-progress strip off the page before it paints, for a reader
  * who has already put it away. Same key as the strip's own button.
@@ -49,7 +46,7 @@ const ANALYTICS_SCRIPT =
 const OG_IMAGE = `${SITE_URL}/og.png`;
 /** What the site promises, in one line. The share cards lead with it. */
 const TAGLINE = 'The website that gives you 5 years of your life back';
-const DESCRIPTION = `${SITE_NAME}. ${TAGLINE}. See your number, then take the feeds off your iPhone for good, free and open.`;
+const DESCRIPTION = `${SITE_NAME}. ${TAGLINE}. See your number, then take the feeds off your iPhone for good, with a Mac app or by hand.`;
 
 export const Route = createRootRoute({
   component: RootComponent,
@@ -136,9 +133,6 @@ function RootDocument({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
-        {/* Before first paint: a reader with saved hours gets the root stamped,
-        and the first screen stays hidden until the receipt is restored. */}
-        <script dangerouslySetInnerHTML={{ __html: RECALL_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: WIP_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: ANALYTICS_SCRIPT }} />
       </head>

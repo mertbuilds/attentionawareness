@@ -33,8 +33,6 @@ export type ChromeProps = {
   played: number;
   /** The words the slot posts: the body of a post, or the line under a handle. */
   post: string;
-  /** How dark the wash over the clip is. */
-  shade: number;
 };
 
 /**
@@ -1174,14 +1172,6 @@ const styles = create({
     position: 'absolute',
     width: '5.2cqw',
   },
-  // Darker with every video down the feed: the first is a little dimmed,
-  // the last is nearly black.
-  shade: {
-    backgroundColor: '#000',
-    inset: 0,
-    pointerEvents: 'none',
-    position: 'absolute',
-  },
   // YouTube's red pill, where Instagram puts its outline.
   subscribePill: {
     backgroundColor: YT_RED,
@@ -1492,11 +1482,6 @@ function Band({ caption, tight }: { caption: string; tight?: boolean | undefined
   );
 }
 
-/** The wash over the clip, deeper with every slot down the feed. */
-function Shade({ value }: { value: number }) {
-  return <span style={{ opacity: value }} {...props(styles.shade)} />;
-}
-
 /** A count the way a feed writes it: thousands grouped, ten thousand and up in K. */
 function formatCount(value: number): string {
   if (value >= 10_000) {
@@ -1533,7 +1518,6 @@ function TikTokChrome({
   handle,
   played,
   post,
-  shade,
 }: ChromeProps) {
   return (
     <>
@@ -1566,7 +1550,6 @@ function TikTokChrome({
           <span style={frame} {...props(styles.discCore)} />
         </span>
       </div>
-      <Shade value={shade} />
       <Band caption={caption} />
       <div {...props(styles.caption)}>
         <span {...props(styles.captionHandle)}>{handle}</span>
@@ -1625,17 +1608,7 @@ function TikTokChrome({
  * Instagram Reels: the word at the top left, a camera at the right, outlined
  * actions down the rail, and the reader's own face in the bar.
  */
-function ReelsChrome({
-  caption,
-  clip,
-  counts,
-  current,
-  frame,
-  handle,
-  played,
-  post,
-  shade,
-}: ChromeProps) {
+function ReelsChrome({ caption, clip, counts, current, frame, handle, played, post }: ChromeProps) {
   return (
     <>
       {clip}
@@ -1657,7 +1630,6 @@ function ReelsChrome({
         <Icon name="dots" style={[styles.railIcon, styles.railIconSmall]} />
         <span style={{ ...frame, ...spin(current) }} {...props(styles.audio)} />
       </div>
-      <Shade value={shade} />
       <Band caption={caption} />
       <div {...props(styles.caption)}>
         <span {...props(styles.captionRow)}>
@@ -1705,7 +1677,6 @@ function ShortsChrome({
   handle,
   played,
   post,
-  shade,
 }: ChromeProps) {
   return (
     <>
@@ -1735,7 +1706,6 @@ function ShortsChrome({
         </span>
         <span style={{ ...frame, ...spin(current) }} {...props(styles.audio)} />
       </div>
-      <Shade value={shade} />
       <Band caption={caption} />
       <div {...props(styles.caption)}>
         <span {...props(styles.captionRow)}>
@@ -1793,7 +1763,7 @@ function ShortsChrome({
  * X: not a feed of full-screen videos at all, but a timeline. The clip is a
  * picture inside a post, and the post is what the reader scrolls past.
  */
-function XChrome({ caption, clip, counts, frame, handle, post, shade }: ChromeProps) {
+function XChrome({ caption, clip, counts, frame, handle, post }: ChromeProps) {
   return (
     <>
       <span {...props(styles.xBoard)} />
@@ -1808,7 +1778,6 @@ function XChrome({ caption, clip, counts, frame, handle, post, shade }: ChromePr
             <span {...props(styles.xText)}>{post}</span>
             <div {...props(styles.xMedia)}>
               {clip}
-              <Shade value={shade} />
               <Band caption={caption} tight />
             </div>
             <div {...props(styles.xActions)}>
@@ -1879,7 +1848,7 @@ function XChrome({ caption, clip, counts, frame, handle, post, shade }: ChromePr
  * LinkedIn: the same clip, in a suit. A white card on light grey, a headline
  * nobody reads, and four words under the picture instead of a rail.
  */
-function LinkedInChrome({ caption, clip, counts, frame, handle, post, shade }: ChromeProps) {
+function LinkedInChrome({ caption, clip, counts, frame, handle, post }: ChromeProps) {
   return (
     <>
       <span {...props(styles.liBoard)} />
@@ -1907,7 +1876,6 @@ function LinkedInChrome({ caption, clip, counts, frame, handle, post, shade }: C
           <span {...props(styles.liText)}>{post}</span>
           <div {...props(styles.liMedia)}>
             {clip}
-            <Shade value={shade} />
             <Band caption={caption} tight />
           </div>
           <div {...props(styles.liReactions)}>
@@ -1982,7 +1950,7 @@ function LinkedInChrome({ caption, clip, counts, frame, handle, post, shade }: C
  * row of tabs under it, one white card on grey, and the next card already
  * showing at the foot so the feed reads as a feed.
  */
-function FacebookChrome({ caption, clip, counts, frame, handle, post, shade }: ChromeProps) {
+function FacebookChrome({ caption, clip, counts, frame, handle, post }: ChromeProps) {
   return (
     <>
       <span {...props(styles.fbBoard)} />
@@ -2035,7 +2003,6 @@ function FacebookChrome({ caption, clip, counts, frame, handle, post, shade }: C
           <span {...props(styles.fbText)}>{post}</span>
           <div {...props(styles.fbMedia)}>
             {clip}
-            <Shade value={shade} />
             <Band caption={caption} tight />
           </div>
           <div {...props(styles.fbReactions)}>
