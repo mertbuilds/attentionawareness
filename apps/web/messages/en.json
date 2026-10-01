@@ -178,6 +178,8 @@
   "home_faq_other_platforms_desc": "iPhone only today, from a Mac. Windows support is planned, since the same copy works through iTunes. Android needs a different build, a small device-owner app, and is planned too.",
   "home_faq_who_term": "Who is behind this?",
   "home_faq_who_desc": "Mert Duzgun, a developer in Antalya. The code is public, and the profile is signed with my Apple developer certificate.",
+  "home_close_title": "Take your attention back",
+  "home_close_diy": "or do it yourself for free",
   "gen_footer_builder": "mertbuilds.com",
   "gen_footer_not_apple": "A {builder} awareness project. Not affiliated with Apple.",
   "mac_download_cta": "Download for Mac",

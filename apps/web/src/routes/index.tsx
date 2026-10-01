@@ -56,6 +56,37 @@ const styles = create({
   anchor: {
     scrollMarginBlockStart: `calc(${spacing.s16} + ${wip.height})`,
   },
+  // The last word before the footer: one line, the download under it, then
+  // its price and the free way, all in the middle of the column.
+  closing: {
+    alignItems: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s6,
+    paddingBlock: spacing.s16,
+    textAlign: 'center',
+  },
+  closingNote: {
+    color: colors.muted,
+    display: 'flex',
+    flexDirection: 'column',
+    fontSize: font.sizeSm,
+    gap: spacing.s2,
+    lineHeight: 1.5,
+    margin: 0,
+  },
+  // Set at the turn's size, so the page closes on the voice it turned in.
+  closingTitle: {
+    fontSize: {
+      '@media (min-width: 640px)': 'clamp(40px, 5vw, 64px)',
+      default: 'clamp(32px, 9vw, 40px)',
+    },
+    fontWeight: font.weightRegular,
+    letterSpacing: '-0.02em',
+    lineHeight: 1.15,
+    margin: 0,
+    textWrap: 'balance',
+  },
   content: {
     display: 'flex',
     flexDirection: 'column',
@@ -377,6 +408,15 @@ function HomePage() {
               </div>
             ))}
           </dl>
+        </section>
+
+        <section {...props(styles.closing)}>
+          <h2 {...props(styles.closingTitle)}>{m.home_close_title()}</h2>
+          <MacDownload />
+          <p {...props(styles.closingNote)}>
+            <span>{m.home_how_app_price()}</span>
+            <a href={GUIDE_URL}>{m.home_close_diy()}</a>
+          </p>
         </section>
 
         <SiteFooter />

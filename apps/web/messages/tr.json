@@ -190,6 +190,8 @@
   "home_faq_windows_desc": "Henüz değil. Uygulama bugün Mac'te çalışıyor. Windows aynı yedeği iTunes ile alıyor, o yüzden destek planlı. O zamana kadar bir kerelik bir Mac ödünç al; telefonun sonrasında bilgisayara ihtiyacı yok.",
   "home_faq_who_term": "Bunun arkasında kim var?",
   "home_faq_who_desc": "Mert Duzgun, Antalya'da bir geliştirici. Kod herkese açık ve profil kendi Apple geliştirici sertifikamla imzalanıyor.",
+  "home_close_title": "Dikkatini geri al",
+  "home_close_diy": "ya da ücretsiz, kendin yap",
   "gen_footer_builder": "mertbuilds.com",
   "gen_footer_not_apple": "Bir {builder} farkındalık projesi. Apple ile bağlantısı yoktur.",
   "guides_head_title": "Rehberler",
