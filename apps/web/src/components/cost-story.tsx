@@ -9,7 +9,6 @@ import {
   useInView,
   useMotionValue,
   useMotionValueEvent,
-  useReducedMotion,
   useScroll,
   useTransform,
 } from 'motion/react';
@@ -49,27 +48,38 @@ const WEEKENDS_BEAT = 2;
 const EARTH_BEAT = 3;
 const MOON_BEAT = 4;
 const MORE_BEAT = 5;
-/**
- * The scroll each beat takes, in hundredths of a screen so the heights come
- * out whole: a little under half a screen, except the last, which holds for
- * less, then the page carries it away with the rest of the stage.
- */
-const BEAT_SCROLL = 45;
-const LAST_BEAT_SCROLL = 30;
-/** How far the stage stands pinned for, in hundredths of a screen. */
-const SPAN = (BEATS - 1) * BEAT_SCROLL + LAST_BEAT_SCROLL;
-/** How much of the story's progress one beat takes. */
-const BEAT = BEAT_SCROLL / SPAN;
-/**
- * How far into its beat a drawing is done, early enough that the whole of it
- * stands for a moment before the next.
- */
-const WALKED_BY = 0.7;
 /** How much of the stage has to be on screen before a figure counts. */
 const SEEN = 0.6;
 /** A figure counts up for this long, slowing into its value, well inside its beat. */
 const COUNT_SECONDS = 1;
 const EASE_OUT: [number, number, number, number] = [0.22, 1, 0.36, 1];
+const EASE_IN_OUT: [number, number, number, number] = [0.65, 0, 0.35, 1];
+/** How long a beat takes to fade in or out. */
+const FADE_MS = 700;
+/**
+ * A drawing plays once its beat has come on, a moment after, while the
+ * sentence settles: this long each, and from the start again every time.
+ */
+const DRAW_DELAY = 0.4;
+const WEEKS_SECONDS = 2;
+const WALK_SECONDS = 2.4;
+const MOON_SECONDS = 2.2;
+/**
+ * A wheel or a trackpad moves the story a beat a gesture. A gesture is over
+ * once the wheel has been still this long, or once it has ebbed to under a
+ * quarter of its strongest turn and been flicked again, three times as hard
+ * and by this many pixels at least.
+ */
+const WHEEL_QUIET_MS = 150;
+const WHEEL_EBB = 4;
+const WHEEL_SURGE = 3;
+const WHEEL_SURGE_PX = 16;
+/** How far a gesture pushes before it moves the story, so a graze of the trackpad does not. */
+const WHEEL_PUSH = 6;
+/** How long the story takes to move the page from one beat to the next. */
+const STEP_SECONDS = 0.8;
+/** A wheel that counts in lines, as Firefox's does, moves this far a line. */
+const LINE_PX = 16;
 /** The reroll icon turns half a turn a press. */
 const TURN_DEGREES = 180;
 const TURN_SECONDS = 0.7;
@@ -110,17 +120,24 @@ const WALKER_RADIUS = 3.5;
 const WEEK_GAP = 2;
 const WIDE_WEEKS = { columns: 52, size: 7 };
 const NARROW_WEEKS = { columns: 26, size: 6 };
+/** A square of the grid's legend, a touch bigger than the grid's own so it reads at text size. */
+const SWATCH_SIZE = 8;
 /**
  * The weekends, one calendar tile each, flipping past the line where each one
- * is stamped. They speed up as they go: the first few pass one at a time, the
- * last of the twenty years in a blur.
+ * is crossed out. They speed up as they go: the first few pass one at a time,
+ * this long each, then faster and faster, the last of the twenty years in a
+ * blur.
  */
-const WEEKEND_RAMP = 7;
+const WEEKENDS_SECONDS = 3.5;
+const FIRST_WEEKEND_SECONDS = 0.35;
+const WEEKEND_RAMP = 19;
 const TILE_WIDTH = 64;
+const TILE_HEIGHT = 76;
 const TILE_PITCH = 72;
 /** The tiles drawn either side of the line, enough to run past both faded edges. */
 const TILE_REACH = 5;
-const STAMP_SIZE = 40;
+/** How far in from the tile's corners the cross is drawn. */
+const CROSS_INSET = 12;
 /** The strip fades out at both ends, so the tiles come from and go nowhere in particular. */
 const STRIP_MASK = 'linear-gradient(to right, transparent, black 25%, black 75%, transparent)';
 const DAY_MS = 86_400_000;
@@ -144,6 +161,8 @@ const STRIDES = 7;
 const STRIDE = 2.4;
 const WALKER_HEAD = 12;
 const WALKER_HEAD_RADIUS = 2.2;
+/** The media query a reader who asked for less motion matches. */
+const LESS_MOTION = '(prefers-reduced-motion: reduce)';
 /** The scroll cue: a short track at the foot of the first beat, and the drop that runs down it. */
 const CUE_HEIGHT = 48;
 const CUE_DROP = 12;
@@ -207,7 +226,7 @@ const styles = create({
     textAlign: 'center',
     transitionDuration: {
       '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: '700ms',
+      default: `${FADE_MS}ms`,
     },
     transitionProperty: 'opacity, transform, filter',
     transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
@@ -356,6 +375,50 @@ const styles = create({
     justifyContent: 'center',
     justifySelf: 'stretch',
   },
+  // The cross a weekend gets as it passes the line, in red, corner to corner
+  // over the whole tile.
+  cross: {
+    fill: 'none',
+    height: '100%',
+    insetBlockStart: 0,
+    insetInlineStart: 0,
+    position: 'absolute',
+    stroke: colors.error,
+    strokeLinecap: 'round',
+    strokeWidth: 2,
+    width: '100%',
+  },
+  // Each stroke of the cross is drawn along its length, the second just after
+  // the first, the way a hand crosses something out.
+  crossStroke: {
+    opacity: 0,
+    strokeDasharray: 1,
+    strokeDashoffset: 1,
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: '200ms',
+    },
+    transitionProperty: 'stroke-dashoffset',
+    transitionTimingFunction: 'ease-out',
+  },
+  crossStrokeLate: {
+    transitionDelay: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: '120ms',
+    },
+  },
+  crossStrokeOn: {
+    opacity: 1,
+    strokeDashoffset: 0,
+  },
+  // A drawing and its legend, under each other.
+  drawing: {
+    alignItems: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s3,
+    width: '100%',
+  },
   // Out of sight: the cue past the first beat, and the rail on it.
   gone: {
     opacity: 0,
@@ -397,6 +460,24 @@ const styles = create({
     maskImage: GRID_MASK,
     WebkitMaskImage: GRID_MASK,
     width: '100vw',
+  },
+  // What a drawing's marks stand for, small and quiet under it.
+  legend: {
+    alignItems: 'center',
+    color: colors.muted,
+    columnGap: spacing.s4,
+    display: 'flex',
+    flexWrap: 'wrap',
+    fontSize: 12,
+    justifyContent: 'center',
+    lineHeight: 1.4,
+    margin: 0,
+    rowGap: spacing.s1,
+  },
+  legendItem: {
+    alignItems: 'center',
+    display: 'inline-flex',
+    gap: spacing.s2,
   },
   // Large and light: the story is read one sentence a screen, so each one is
   // set as big as the first screen's claim and a weight under it.
@@ -540,13 +621,36 @@ const styles = create({
       default: 'sticky',
     },
   },
-  // The stage and the scroll it is pinned through: one screen for the stage,
-  // and the scroll the beats take turns in.
+  // Where the page comes to rest: a mark a screen apart for each beat, and
+  // one at the story's foot, where the page past it takes over. None of them
+  // can be scrolled past, so a flick moves the story on by one beat however
+  // hard it is. With less motion nothing is pinned and the page never snaps.
+  snap: {
+    display: {
+      '@media (prefers-reduced-motion: reduce)': 'none',
+      default: 'block',
+    },
+    height: 1,
+    insetInlineStart: 0,
+    pointerEvents: 'none',
+    position: 'absolute',
+    scrollSnapAlign: 'start',
+    scrollSnapStop: 'always',
+    width: 1,
+  },
+  // The first beat rests at the very top of the page, with the strip over
+  // the story in view.
+  snapTop: {
+    scrollMarginBlockStart: wip.height,
+  },
+  // The stage and the scroll it is pinned through: a screen for each beat,
+  // the last of them the one the page carries the stage away in.
   story: {
     height: {
       '@media (prefers-reduced-motion: reduce)': 'auto',
-      default: firstThatWorks(`${SPAN + 100}svh`, `${SPAN + 100}vh`),
+      default: firstThatWorks(`${BEATS * 100}svh`, `${BEATS * 100}vh`),
     },
+    position: 'relative',
     // Pinned, the stage clears the brand bar itself. Standing in the column,
     // a jump to the story stops short of it instead.
     scrollMarginBlockStart: {
@@ -554,31 +658,20 @@ const styles = create({
       default: 0,
     },
   },
-  // The stamp a weekend gets as it passes the line: a ring and a tick, set
-  // down a little crooked, the way a hand stamps.
-  stamp: {
-    fill: 'none',
-    height: STAMP_SIZE,
-    insetBlockStart: '50%',
-    insetInlineStart: '50%',
-    opacity: 0,
-    position: 'absolute',
-    stroke: accent.base,
-    strokeLinecap: 'round',
-    strokeLinejoin: 'round',
-    strokeWidth: 1.5,
-    transform: 'translate(-50%, -50%) rotate(-14deg) scale(1.4)',
-    transitionDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: '180ms',
-    },
-    transitionProperty: 'opacity, transform',
-    transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
-    width: STAMP_SIZE,
+  // A square of the legend, drawn as the grid draws a week.
+  swatch: {
+    borderColor: colors.border,
+    borderStyle: 'solid',
+    borderWidth: 1,
+    boxSizing: 'border-box',
+    display: 'block',
+    flexShrink: 0,
+    height: SWATCH_SIZE,
+    width: SWATCH_SIZE,
   },
-  stampOn: {
-    opacity: 1,
-    transform: 'translate(-50%, -50%) rotate(-14deg) scale(1)',
+  swatchSpent: {
+    backgroundColor: accent.base,
+    borderColor: accent.base,
   },
   // The cue and the rail trade places on the turn to the second beat and
   // back, one fading out over the same time the other fades in.
@@ -641,7 +734,7 @@ const styles = create({
     textAlign: 'center',
     whiteSpace: 'nowrap',
   },
-  // A stamped weekend's dates step back under the stamp.
+  // A crossed-out weekend's dates step back under the cross.
   tileSpent: {
     opacity: 0.3,
   },
@@ -706,7 +799,7 @@ const styles = create({
     width: 1,
   },
   weekendsStrip: {
-    height: 76,
+    height: TILE_HEIGHT,
     maskImage: STRIP_MASK,
     overflow: 'hidden',
     position: 'relative',
@@ -744,6 +837,29 @@ const styles = create({
 /** One of the keys, at random. Only ever called from a press, never in a render. */
 function drawOne(keys: ReadonlyArray<string>): string | undefined {
   return keys[Math.floor(Math.random() * keys.length)];
+}
+
+function subscribeLessMotion(onChange: () => void): () => void {
+  const query = window.matchMedia(LESS_MOTION);
+  query.addEventListener('change', onChange);
+  return () => query.removeEventListener('change', onChange);
+}
+
+function prefersLessMotion(): boolean {
+  return window.matchMedia(LESS_MOTION).matches;
+}
+
+function lessMotionOnServer(): boolean {
+  return false;
+}
+
+/**
+ * Whether the reader asked for less motion. The server cannot know, so the
+ * page is first drawn the way the server drew it and changes once it has come
+ * alive, rather than drawing on top of markup the server never sent.
+ */
+function useLessMotion(): boolean {
+  return useSyncExternalStore(subscribeLessMotion, prefersLessMotion, lessMotionOnServer);
 }
 
 /** A figure's placeholder: its index, between two slot marks. */
@@ -820,7 +936,7 @@ function Figure({
   value: number;
   waits?: boolean;
 }) {
-  const reduced = useReducedMotion();
+  const reduced = useLessMotion();
   const format = new Intl.NumberFormat(getLocale(), {
     maximumFractionDigits: decimals,
     minimumFractionDigits: decimals,
@@ -829,13 +945,13 @@ function Figure({
   const shown = useTransform(count, (latest) => format.format(latest));
 
   useEffect(() => {
-    if (reduced !== true && waits) {
+    if (!reduced && waits) {
       count.set(0);
     }
   }, [count, reduced, waits]);
 
   useEffect(() => {
-    if (reduced === true) {
+    if (reduced) {
       count.set(value);
       return;
     }
@@ -864,9 +980,32 @@ function Mark({ children, label }: { children: ReactNode; label: string }) {
   );
 }
 
-/** The stretch of the story's progress a beat's drawing is done over. */
-function drawnIn(index: number): [number, number] {
-  return [index * BEAT, (index + WALKED_BY) * BEAT];
+/**
+ * How far a drawing has played, from 0 to 1: over `seconds` each time its beat
+ * comes on, and back to the start once the beat has faded out, so it plays
+ * again when the reader comes back to it. With less motion it stands done.
+ */
+function usePlayed(
+  run: boolean,
+  seconds: number,
+  ease: [number, number, number, number] | 'linear',
+): MotionValue<number> {
+  const reduced = useLessMotion();
+  const played = useMotionValue(0);
+  useEffect(() => {
+    if (reduced) {
+      played.set(1);
+      return;
+    }
+    if (!run) {
+      const timer = setTimeout(() => played.set(0), FADE_MS);
+      return () => clearTimeout(timer);
+    }
+    played.set(0);
+    const controls = animate(played, 1, { delay: DRAW_DELAY, duration: seconds, ease });
+    return () => controls.stop();
+  }, [ease, played, reduced, run, seconds]);
+  return played;
 }
 
 /** Where the walk is `t` of the way along: one lap a trip, spiralling out. */
@@ -886,12 +1025,12 @@ function orbitPath(laps: number): string {
 }
 
 /**
- * A plain globe, and the walks around it drawn as the reader scrolls: one lap
+ * A plain globe, and the walks around it drawn once the beat comes on: one lap
  * for every trip around the Earth, with the walker at the head of the line.
  * With less motion the walk stands drawn whole.
  */
 function Orbit({ laps, walked }: { laps: number; walked: MotionValue<number> }) {
-  const reduced = useReducedMotion();
+  const reduced = useLessMotion();
   const walkerX = useTransform(walked, (t) => orbitPoint(laps, t).x);
   const walkerY = useTransform(walked, (t) => orbitPoint(laps, t).y);
   const walkerOpacity = useTransform(walked, [0, 0.02], [0, 1]);
@@ -915,9 +1054,9 @@ function Orbit({ laps, walked }: { laps: number; walked: MotionValue<number> }) 
       <motion.path
         d={orbitPath(laps)}
         {...props(styles.orbitLine)}
-        style={{ pathLength: reduced === true ? 1 : walked }}
+        style={{ pathLength: reduced ? 1 : walked }}
       />
-      {reduced === true ? null : (
+      {reduced ? null : (
         <motion.circle
           cx={walkerX}
           cy={walkerY}
@@ -932,8 +1071,8 @@ function Orbit({ laps, walked }: { laps: number; walked: MotionValue<number> }) 
 
 /**
  * The next twenty years drawn a week a square, and the screen's share of them
- * filled in orange, a row at a time as the reader scrolls. However many weeks
- * it holds, it is three rectangles painted with a square pattern.
+ * filled in orange, a row at a time. However many weeks it holds, it is three
+ * rectangles painted with a square pattern.
  */
 function WeekGrid({
   filled,
@@ -982,26 +1121,43 @@ function WeekGrid({
 }
 
 /**
- * The grid of weeks, filled as far as the scroll has come. It is drawn wide and
- * narrow, and the screen shows the one that fits. With less motion it stands
- * filled.
+ * The grid of weeks, filled as far as it has played, and what its squares
+ * stand for under it. It is drawn wide and narrow, and the screen shows the
+ * one that fits. With less motion it stands filled.
  */
 function Weeks({ drawn, spent }: { drawn: MotionValue<number>; spent: number }) {
-  const reduced = useReducedMotion();
+  const reduced = useLessMotion();
   const [filled, setFilled] = useState(0);
   useMotionValueEvent(drawn, 'change', (latest) => setFilled(Math.round(latest * spent)));
-  const shown = reduced === true ? spent : filled;
+  const shown = reduced ? spent : filled;
   return (
-    <>
+    <div {...props(styles.drawing)}>
       <WeekGrid filled={shown} layout={WIDE_WEEKS} style={styles.weeksWide} />
       <WeekGrid filled={shown} layout={NARROW_WEEKS} style={styles.weeksNarrow} />
-    </>
+      <p aria-hidden="true" {...props(styles.legend)}>
+        <span {...props(styles.legendItem)}>
+          <span {...props(styles.swatch)} />
+          {m.home_cost_weeks_legend()}
+        </span>
+        <span {...props(styles.legendItem)}>
+          <span {...props(styles.swatch, styles.swatchSpent)} />
+          {m.home_cost_weeks_legend_screen()}
+        </span>
+      </p>
+    </div>
   );
 }
 
-/** How many weekends have passed the line `t` of the way through: slowly at first, then faster and faster. */
+/**
+ * How many weekends have passed the line `t` of the way through: the first
+ * few at a steady walk, one at a time, then a run that gathers pace smoothly
+ * from there to the last.
+ */
 function weekendsBy(t: number): number {
-  return ((HORIZON_WEEKS - 0.5) * Math.expm1(WEEKEND_RAMP * t)) / Math.expm1(WEEKEND_RAMP);
+  const steady = WEEKENDS_SECONDS / FIRST_WEEKEND_SECONDS;
+  const rush =
+    (Math.expm1(WEEKEND_RAMP * t) - WEEKEND_RAMP * t) / (Math.expm1(WEEKEND_RAMP) - WEEKEND_RAMP);
+  return steady * t + (HORIZON_WEEKS - 0.5 - steady) * rush;
 }
 
 /** A store that never changes: the calendar is read once, when the page comes alive. */
@@ -1017,12 +1173,12 @@ function comingSaturday(today: Date): number {
 
 /**
  * Every weekend in the next twenty years, a calendar tile each, flipping past
- * a line as the reader scrolls. Each one is stamped as it crosses, and the
+ * a line once the beat comes on. Each one is crossed out as it passes, and the
  * tally under them counts up to the last. With less motion they stand all
- * stamped.
+ * crossed out.
  */
 function Weekends({ drawn }: { drawn: MotionValue<number> }) {
-  const reduced = useReducedMotion();
+  const reduced = useLessMotion();
   const [passed, setPassed] = useState(0);
   // The tiles start this weekend, which only the reader's own clock knows, so
   // the server leaves the dates blank and the page fills them in.
@@ -1033,7 +1189,7 @@ function Weekends({ drawn }: { drawn: MotionValue<number> }) {
   );
   useMotionValueEvent(drawn, 'change', (latest) => setPassed(weekendsBy(latest)));
 
-  const at = reduced === true ? weekendsBy(1) : passed;
+  const at = reduced ? weekendsBy(1) : passed;
   const stamped = Math.round(at);
   const locale = getLocale();
   const month = new Intl.DateTimeFormat(locale, {
@@ -1077,9 +1233,21 @@ function Weekends({ drawn }: { drawn: MotionValue<number> }) {
                     </span>
                   ))}
                 </span>
-                <svg viewBox="0 0 30 30" {...props(styles.stamp, spent && styles.stampOn)}>
-                  <circle cx={15} cy={15} r={12} />
-                  <path d="M9.5 15.5l3.5 3.5 7.5-8" />
+                <svg viewBox={`0 0 ${TILE_WIDTH} ${TILE_HEIGHT}`} {...props(styles.cross)}>
+                  <path
+                    d={`M${CROSS_INSET} ${CROSS_INSET}L${TILE_WIDTH - CROSS_INSET} ${TILE_HEIGHT - CROSS_INSET}`}
+                    pathLength={1}
+                    {...props(styles.crossStroke, spent && styles.crossStrokeOn)}
+                  />
+                  <path
+                    d={`M${TILE_WIDTH - CROSS_INSET} ${CROSS_INSET}L${CROSS_INSET} ${TILE_HEIGHT - CROSS_INSET}`}
+                    pathLength={1}
+                    {...props(
+                      styles.crossStroke,
+                      styles.crossStrokeLate,
+                      spent && styles.crossStrokeOn,
+                    )}
+                  />
                 </svg>
               </div>
             );
@@ -1104,6 +1272,7 @@ function Weekends({ drawn }: { drawn: MotionValue<number> }) {
           })}
         />
       </p>
+      <p {...props(styles.legend)}>{m.home_cost_weekends_legend()}</p>
     </div>
   );
 }
@@ -1206,12 +1375,13 @@ function strideAt(walked: number): number {
 }
 
 /**
- * The Earth, the Moon and the dotted way between them. The hours walk it as
- * the reader scrolls, as far as they reach, and the walker stops there with
- * the rest of the way faint ahead of it. With less motion the walk stands done.
+ * The Earth, the Moon and the dotted way between them, and how far apart they
+ * are under it. The hours walk the way once the beat comes on, as far as they
+ * reach, and the walker stops there with the rest of the way faint ahead of
+ * it. With less motion the walk stands done.
  */
 function Moon({ share, walked }: { share: number; walked: MotionValue<number> }) {
-  const reduced = useReducedMotion();
+  const reduced = useLessMotion();
   const reach = Math.min(1, share);
   const way = useTransform(walked, (latest) => walkedTo(latest * reach));
   const figure = useTransform(walked, (latest) =>
@@ -1221,73 +1391,75 @@ function Moon({ share, walked }: { share: number; walked: MotionValue<number> })
   const headY = useTransform(walked, (latest) => wayAt(latest * reach).point.y - WALKER_HEAD);
   const end = wayAt(reach).point;
   return (
-    <svg aria-hidden="true" viewBox={`0 0 ${SKY_WIDTH} ${SKY_HEIGHT}`} {...props(styles.sky)}>
-      <circle cx={SKY_EARTH.x} cy={SKY_EARTH.y} r={SKY_EARTH.radius} {...props(styles.globe)} />
-      <ellipse
-        cx={SKY_EARTH.x}
-        cy={SKY_EARTH.y}
-        rx={SKY_EARTH.radius * MERIDIAN_SQUASH}
-        ry={SKY_EARTH.radius}
-        {...props(styles.globe, styles.globeFaint)}
-      />
-      <ellipse
-        cx={SKY_EARTH.x}
-        cy={SKY_EARTH.y}
-        rx={SKY_EARTH.radius}
-        ry={SKY_EARTH.radius * EQUATOR_SQUASH}
-        {...props(styles.globe, styles.globeFaint)}
-      />
-      <circle cx={SKY_MOON.x} cy={SKY_MOON.y} r={SKY_MOON.radius} {...props(styles.globe)} />
-      <circle
-        cx={SKY_MOON.x - 3}
-        cy={SKY_MOON.y - 2}
-        r={2.5}
-        {...props(styles.globe, styles.globeFaint)}
-      />
-      <circle
-        cx={SKY_MOON.x + 3.5}
-        cy={SKY_MOON.y + 3.5}
-        r={1.5}
-        {...props(styles.globe, styles.globeFaint)}
-      />
-      <path d={WAY_PATH} {...props(styles.way)} />
-      <path d={HALF_TICK} {...props(styles.wayHalf)} />
-      <motion.path
-        d={reduced === true ? walkedTo(reach) : way}
-        {...props(styles.way, styles.wayWalked)}
-      />
-      <motion.path
-        d={reduced === true ? walkerAt(end, STRIDE) : figure}
-        {...props(styles.walkerFigure)}
-      />
-      <motion.circle
-        cx={reduced === true ? end.x : headX}
-        cy={reduced === true ? end.y - WALKER_HEAD : headY}
-        r={WALKER_HEAD_RADIUS}
-        {...props(styles.walker)}
-      />
-    </svg>
+    <div {...props(styles.drawing)}>
+      <svg aria-hidden="true" viewBox={`0 0 ${SKY_WIDTH} ${SKY_HEIGHT}`} {...props(styles.sky)}>
+        <circle cx={SKY_EARTH.x} cy={SKY_EARTH.y} r={SKY_EARTH.radius} {...props(styles.globe)} />
+        <ellipse
+          cx={SKY_EARTH.x}
+          cy={SKY_EARTH.y}
+          rx={SKY_EARTH.radius * MERIDIAN_SQUASH}
+          ry={SKY_EARTH.radius}
+          {...props(styles.globe, styles.globeFaint)}
+        />
+        <ellipse
+          cx={SKY_EARTH.x}
+          cy={SKY_EARTH.y}
+          rx={SKY_EARTH.radius}
+          ry={SKY_EARTH.radius * EQUATOR_SQUASH}
+          {...props(styles.globe, styles.globeFaint)}
+        />
+        <circle cx={SKY_MOON.x} cy={SKY_MOON.y} r={SKY_MOON.radius} {...props(styles.globe)} />
+        <circle
+          cx={SKY_MOON.x - 3}
+          cy={SKY_MOON.y - 2}
+          r={2.5}
+          {...props(styles.globe, styles.globeFaint)}
+        />
+        <circle
+          cx={SKY_MOON.x + 3.5}
+          cy={SKY_MOON.y + 3.5}
+          r={1.5}
+          {...props(styles.globe, styles.globeFaint)}
+        />
+        <path d={WAY_PATH} {...props(styles.way)} />
+        <path d={HALF_TICK} {...props(styles.wayHalf)} />
+        <motion.path d={reduced ? walkedTo(reach) : way} {...props(styles.way, styles.wayWalked)} />
+        <motion.path d={reduced ? walkerAt(end, STRIDE) : figure} {...props(styles.walkerFigure)} />
+        <motion.circle
+          cx={reduced ? end.x : headX}
+          cy={reduced ? end.y - WALKER_HEAD : headY}
+          r={WALKER_HEAD_RADIUS}
+          {...props(styles.walker)}
+        />
+      </svg>
+      <p aria-hidden="true" {...props(styles.legend)}>
+        {m.home_cost_moon_legend({ km: new Intl.NumberFormat(getLocale()).format(MOON_KM) })}
+      </p>
+    </div>
   );
 }
 
 /**
  * Act one: what the average day costs, told one sentence a screen. The stage
- * stands pinned while the section scrolls under it, each beat takes over from
- * the last, and its figure counts up as it comes on. The Earth beat draws its
- * walk with the scroll itself. "What else?" ends it with the rest of what the
- * same hours would have bought, one at a time.
+ * stands pinned while the section scrolls under it, the page comes to rest on
+ * one beat at a time, and each beat's figure counts up and its drawing plays
+ * as it comes on. "What else?" ends it with the rest of what the same hours
+ * would have bought, one at a time.
  */
 export function CostStory({ id }: { id: string }) {
   const story = useRef<HTMLElement>(null);
   const stage = useRef<HTMLDivElement>(null);
-  const reduced = useReducedMotion();
+  // Where the page comes to rest for each beat, and past the story's foot.
+  const rests = useRef<Array<HTMLSpanElement | null>>([]);
+  const reduced = useLessMotion();
   const seen = useInView(stage, { amount: SEEN });
   const { scrollYProgress } = useScroll({ offset: ['start start', 'end end'], target: story });
   const [active, setActive] = useState(0);
-  const weeksDrawn = useTransform(scrollYProgress, drawnIn(WEEKS_BEAT), [0, 1]);
-  const weekendsDrawn = useTransform(scrollYProgress, drawnIn(WEEKENDS_BEAT), [0, 1]);
-  const walked = useTransform(scrollYProgress, drawnIn(EARTH_BEAT), [0, 1]);
-  const moonWalked = useTransform(scrollYProgress, drawnIn(MOON_BEAT), [0, 1]);
+  const on = (index: number) => seen && active === index;
+  const weeksDrawn = usePlayed(on(WEEKS_BEAT), WEEKS_SECONDS, EASE_IN_OUT);
+  const weekendsDrawn = usePlayed(on(WEEKENDS_BEAT), WEEKENDS_SECONDS, 'linear');
+  const walked = usePlayed(on(EARTH_BEAT), WALK_SECONDS, EASE_IN_OUT);
+  const moonWalked = usePlayed(on(MOON_BEAT), MOON_SECONDS, EASE_IN_OUT);
 
   const metrics = heroMetrics(AVERAGE_HOURS);
   const amountOf = (key: string) => metrics.find((metric) => metric.key === key)?.amount ?? 0;
@@ -1313,20 +1485,194 @@ export function CostStory({ id }: { id: string }) {
   const toMoon = moonShare(AVERAGE_HOURS);
   const toMoonPercent = Math.round(toMoon * 100);
 
+  // The beat whose resting place the page is nearest, so a beat takes over
+  // from the last halfway through the page's move from one to the next.
   useMotionValueEvent(scrollYProgress, 'change', (latest) => {
-    setActive(Math.min(BEATS - 1, Math.floor(latest / BEAT)));
+    setActive(Math.round(latest * (BEATS - 1)));
   });
+
+  // The page rests on one beat at a time while the story is on, and lets go
+  // once the stage has gone up and away, so the rest of the page scrolls the
+  // way it always does. Coming back up, it takes hold again as the last beat
+  // comes to rest. Touch and the keys snap from one rest to the next on their
+  // own. A wheel or a trackpad is taken a gesture at a time instead: a browser
+  // snaps those to wherever the gesture happens to end, which after a light
+  // flick is the same beat and after a hard one a beat too far. Nothing waits
+  // for a drawing: a gesture always moves the story, whatever is playing.
+  useEffect(() => {
+    if (reduced) {
+      return;
+    }
+    const root = document.documentElement;
+    let holding = false;
+    // The rest the story is moving the page to itself, if it is, the move,
+    // and where the move last put the page. Snapping waits until it lands, so
+    // the browser cannot pull the page back to the rest it is leaving.
+    let aim: number | null = null;
+    let drive: { stop: () => void } | undefined;
+    let driven = 0;
+    // The wheel gesture under way: how far it has pushed, when it last turned,
+    // its strongest turn and the weakest since, and whether it has moved the
+    // story already.
+    let pushed = 0;
+    let lastWheel = Number.NEGATIVE_INFINITY;
+    let peak = 0;
+    let ebb = 0;
+    let spent = false;
+
+    // How far the page is from each rest: under nought, the page has gone
+    // past it; over, it has still to come.
+    function offsets(): Array<number> {
+      return rests.current.map((mark) =>
+        mark === null
+          ? Number.NaN
+          : mark.getBoundingClientRect().top -
+            Number.parseFloat(getComputedStyle(mark).scrollMarginBlockStart),
+      );
+    }
+
+    function snap() {
+      const type = holding && aim === null ? 'y mandatory' : '';
+      if (root.style.scrollSnapType !== type) {
+        root.style.scrollSnapType = type;
+      }
+    }
+
+    function land() {
+      aim = null;
+      drive = undefined;
+      snap();
+    }
+
+    // One beat on or back: from the rest the page is already on its way to,
+    // so a gesture before the last one has landed still counts, or else from
+    // where it stands.
+    function step(by: number) {
+      const away = offsets();
+      const next =
+        aim === null
+          ? by > 0
+            ? away.findIndex((offset) => offset > 1)
+            : away.findLastIndex((offset) => offset < -1)
+          : aim + by;
+      const offset = away[next];
+      if (offset === undefined || Number.isNaN(offset)) {
+        return;
+      }
+      aim = next;
+      snap();
+      drive?.stop();
+      driven = window.scrollY;
+      drive = animate(driven, driven + offset, {
+        duration: STEP_SECONDS,
+        ease: EASE_OUT,
+        onComplete: land,
+        onUpdate: (top) => {
+          // The reader has taken the page back mid-move: it is theirs.
+          if (Math.abs(window.scrollY - driven) > 2) {
+            drive?.stop();
+            land();
+            return;
+          }
+          driven = top;
+          window.scrollTo({ behavior: 'instant', top });
+        },
+      });
+    }
+
+    function update() {
+      const away = offsets();
+      const last = away[BEATS - 1];
+      const foot = away[BEATS];
+      if (last === undefined || foot === undefined) {
+        return;
+      }
+      const bottom = window.scrollY >= root.scrollHeight - window.innerHeight - 1;
+      if (holding && (foot <= 1 || bottom)) {
+        holding = false;
+      } else if (!holding && last >= -1) {
+        holding = true;
+        // A wheel still turning from below has brought the story back: the
+        // rest of that gesture is spent on landing.
+        if (performance.now() - lastWheel < WHEEL_QUIET_MS) {
+          spent = true;
+        }
+      }
+      snap();
+    }
+
+    function onWheel(event: WheelEvent) {
+      if (
+        event.ctrlKey ||
+        Math.abs(event.deltaY) < Math.abs(event.deltaX) ||
+        ((event.target as Element | null)?.closest('[role="dialog"]') ?? null) !== null
+      ) {
+        return;
+      }
+      const now = performance.now();
+      const turn = Math.abs(event.deltaY);
+      // A new gesture: the wheel had stopped, or had all but died away and
+      // has been flicked again.
+      if (
+        now - lastWheel > WHEEL_QUIET_MS ||
+        (ebb < peak / WHEEL_EBB && turn > Math.max(ebb * WHEEL_SURGE, ebb + WHEEL_SURGE_PX))
+      ) {
+        pushed = 0;
+        peak = 0;
+        spent = false;
+      }
+      lastWheel = now;
+      if (turn >= peak) {
+        peak = turn;
+        ebb = turn;
+      } else {
+        ebb = Math.min(ebb, turn);
+      }
+      if (spent) {
+        event.preventDefault();
+        return;
+      }
+      // Between the last beat and the foot, where the page has let go on the
+      // way down and not yet taken hold on the way up, the wheel is still the
+      // story's, and so is a turn up from the foot itself.
+      const foot = offsets()[BEATS] ?? Number.NaN;
+      if (!holding && !(foot > 1 || (foot >= -1 && event.deltaY < 0))) {
+        return;
+      }
+      event.preventDefault();
+      const unit =
+        event.deltaMode === WheelEvent.DOM_DELTA_LINE
+          ? LINE_PX
+          : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+            ? window.innerHeight
+            : 1;
+      pushed += event.deltaY * unit;
+      if (Math.abs(pushed) >= WHEEL_PUSH) {
+        spent = true;
+        step(Math.sign(pushed));
+      }
+    }
+
+    update();
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    window.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      window.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+      window.removeEventListener('wheel', onWheel);
+      drive?.stop();
+      root.style.scrollSnapType = '';
+    };
+  }, [reduced]);
 
   // A beat reached from the keyboard is scrolled to, so what has focus is the
   // sentence on the stage rather than one faded out of sight.
   function reveal(index: number) {
-    const element = story.current;
-    if (element === null || reduced === true || index === active) {
+    if (reduced || index === active) {
       return;
     }
-    const range = element.offsetHeight - window.innerHeight;
-    const top = element.getBoundingClientRect().top + window.scrollY;
-    window.scrollTo({ top: top + (index + 0.25) * BEAT * range });
+    rests.current[index]?.scrollIntoView({ block: 'start' });
   }
 
   function reroll() {
@@ -1354,12 +1700,22 @@ export function CostStory({ id }: { id: string }) {
     };
   }
 
-  const on = (index: number) => seen && active === index;
   const tipLabel = m.home_receipt_tip_label();
 
   return (
     <section id={id} ref={story} {...props(styles.story)}>
       <BillFilters />
+      {Array.from({ length: BEATS + 1 }, (_, index) => (
+        <span
+          aria-hidden="true"
+          key={index}
+          ref={(mark) => {
+            rests.current[index] = mark;
+          }}
+          style={{ insetBlockStart: `${(index / BEATS) * 100}%` }}
+          {...props(styles.snap, index === 0 && styles.snapTop)}
+        />
+      ))}
       <div ref={stage} {...props(styles.stage)}>
         <GridTexture style={styles.grid} />
         <div {...props(styles.beats)}>
@@ -1381,7 +1737,7 @@ export function CostStory({ id }: { id: string }) {
             {/* It goes with the first beat. With less motion every beat stays
             on the page, so it does too. */}
             <div {...props(styles.feed)}>
-              <FeedPhone shown={reduced === true || active === 0} />
+              <FeedPhone shown={reduced || active === 0} />
             </div>
           </div>
 
@@ -1503,9 +1859,7 @@ export function CostStory({ id }: { id: string }) {
             <Button onClick={reroll} variant="outline">
               <motion.span
                 animate={{ rotate: turns * TURN_DEGREES }}
-                transition={
-                  reduced === true ? { duration: 0 } : { duration: TURN_SECONDS, ease: EASE_OUT }
-                }
+                transition={reduced ? { duration: 0 } : { duration: TURN_SECONDS, ease: EASE_OUT }}
                 {...props(styles.reroll)}
               >
                 <ArrowsRotate aria-hidden="true" size={ICON_SIZE} />
