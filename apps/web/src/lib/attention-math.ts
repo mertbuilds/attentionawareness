@@ -50,6 +50,21 @@ export const MOON_WALK_HOURS = Math.round(HOURS_TO_MOON / HOURS_ROUNDING) * HOUR
  */
 export const AVERAGE_HOURS = 6;
 
+/**
+ * Everyone with a mobile phone, each counted once however many lines they
+ * hold: 5.83 billion in April 2026 (GSMA Intelligence, in DataReportal's
+ * Digital 2026 Mid-Year Global Update Report).
+ */
+export const MOBILE_USERS = 5_830_000_000;
+const HOURS_PER_DAY = 24;
+const SECONDS_PER_DAY = 86_400;
+/** The hours all of them spend on a phone in a day, each at the page's average day. */
+export const WORLD_HOURS_PER_DAY = MOBILE_USERS * AVERAGE_HOURS;
+/** The same hours, spread over the day's seconds. */
+export const WORLD_HOURS_PER_SECOND = WORLD_HOURS_PER_DAY / SECONDS_PER_DAY;
+/** And counted in years: about 46 of them every second. */
+export const WORLD_YEARS_PER_SECOND = WORLD_HOURS_PER_SECOND / HOURS_PER_DAY / DAYS_PER_YEAR;
+
 /** One thing the hours would have bought: what it is, and how many. */
 export type HeroMetric = { amount: number; key: string };
 

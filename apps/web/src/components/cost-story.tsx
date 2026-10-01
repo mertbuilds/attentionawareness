@@ -30,6 +30,7 @@ import {
   heroMetrics,
   HORIZON_WEEKS,
   HORIZON_YEARS,
+  MOBILE_USERS,
   MOON_KM,
   MOON_WALK_HOURS,
   moonShare,
@@ -38,6 +39,9 @@ import {
   WAKING_HOURS,
   WALKING_KMH,
   WEEKEND_HOURS,
+  WORLD_HOURS_PER_DAY,
+  WORLD_HOURS_PER_SECOND,
+  WORLD_YEARS_PER_SECOND,
 } from '../lib/attention-math.ts';
 import { blur, distance, drawing, duration, easing } from '../lib/motion.stylex.ts';
 import { typingIn } from '../lib/typing-in.ts';
@@ -52,6 +56,13 @@ import { InfoTip } from './info-tip.tsx';
 
 /** The report the average day is taken from. */
 const SOURCE_URL = 'https://datareportal.com/reports/digital-2024-global-overview-report';
+/** The report the count of the world's phone users is taken from. */
+const WORLD_SOURCE_URL =
+  'https://datareportal.com/reports/digital-2026-mid-year-global-update-report';
+/** The world's count is printed to a tenth of a year until it reaches this many, then in whole years. */
+const WORLD_TENTHS_BELOW = 100;
+/** It is counted every frame and printed this often: a few times a second. */
+const WORLD_PRINT_MS = 200;
 /** The story's sentences, in the order the scroll plays them, and where each drawing's beat stands. */
 const BEATS = 6;
 const WEEKS_BEAT = 1;
@@ -577,6 +588,15 @@ const styles = create({
     transitionTimingFunction: easing.smoothOut,
     zIndex: 30,
   },
+  // The first beat's words: the sentence, and the world's count under it.
+  lead: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: {
+      '@media (min-width: 640px)': spacing.s6,
+      default: spacing.s3,
+    },
+  },
   // What a drawing's marks stand for, small and quiet under it. It fades in
   // as the drawing starts, and is gone again once its beat has faded out.
   legend: {
@@ -645,6 +665,20 @@ const styles = create({
       default: 'block',
     },
     pointerEvents: 'none',
+  },
+  // The world's count under the first sentence: a quiet line at reading size,
+  // its figure in the story's orange.
+  live: {
+    color: colors.muted,
+    fontSize: {
+      '@media (min-width: 640px)': font.sizeLg,
+      default: font.sizeMd,
+    },
+    fontWeight: font.weightRegular,
+    lineHeight: 1.4,
+    margin: 0,
+    maxWidth: 720,
+    textWrap: 'balance',
   },
   // The small i after a figure, a breath away from the word before it.
   mark: {
@@ -1121,6 +1155,80 @@ function Mark({
         {children}
       </InfoTip>
     </span>
+  );
+}
+
+/**
+ * The years the world has spent on its phones while the reader reads the
+ * first sentence: counted from nought every frame while `live`, printed a few
+ * times a second, and held where it got to while the line is off the stage or
+ * the tab is put away. With less motion nothing ticks, and the line gives the
+ * rate instead.
+ */
+function WorldCount({ live, style }: { live: boolean; style: StyleXStyles }) {
+  const reduced = useLessMotion();
+  const counted = useRef(0);
+  const [years, setYears] = useState(0);
+  const locale = getLocale();
+  const number = new Intl.NumberFormat(locale);
+  const compact = new Intl.NumberFormat(locale, {
+    compactDisplay: 'long',
+    maximumFractionDigits: 2,
+    notation: 'compact',
+  });
+
+  useEffect(() => {
+    if (!live || reduced) {
+      return;
+    }
+    let frame = 0;
+    let last = performance.now();
+    let printed = last;
+    function tick(now: number) {
+      counted.current += (Math.max(0, now - last) / 1000) * WORLD_YEARS_PER_SECOND;
+      last = now;
+      if (now - printed >= WORLD_PRINT_MS) {
+        printed = now;
+        setYears(counted.current);
+      }
+      frame = requestAnimationFrame(tick);
+    }
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [live, reduced]);
+
+  return (
+    <p {...props(styles.live, style)}>
+      <Sentence
+        figures={[
+          reduced ? (
+            <Figure key="rate" value={Math.round(WORLD_YEARS_PER_SECOND)} />
+          ) : (
+            <Figure decimals={years < WORLD_TENTHS_BELOW ? 1 : 0} key="years" value={years} />
+          ),
+        ]}
+        mark={
+          <Mark label={m.home_receipt_tip_label()}>
+            {m.home_cost_world_tip({
+              daily: compact.format(WORLD_HOURS_PER_DAY),
+              hours: AVERAGE_HOURS,
+              perSecond: number.format(Math.round(WORLD_HOURS_PER_SECOND)),
+              rate: number.format(Math.round(WORLD_YEARS_PER_SECOND)),
+              users: compact.format(MOBILE_USERS),
+            })}
+            {reduced ? null : <span>{m.home_cost_world_tip_live()}</span>}
+            <a href={WORLD_SOURCE_URL} rel="noreferrer" target="_blank">
+              {m.home_cost_world_source()}
+            </a>
+          </Mark>
+        }
+        text={
+          reduced
+            ? m.home_cost_world_rate({ years: slot(0) })
+            : m.home_cost_world_live({ years: slot(0) })
+        }
+      />
+    </p>
   );
 }
 
@@ -2012,23 +2120,26 @@ export function CostStory({ id }: { id: string }) {
         <GridTexture style={styles.grid} />
         <div {...props(styles.beats)}>
           <div {...beat(0, styles.beatFeed)}>
-            {/* The page's heading: the first thing it says. */}
-            <h1 {...props(partOf(0, 0, styles.line))}>
-              <Sentence
-                figures={[<Figure key="hours" value={AVERAGE_HOURS} />]}
-                mark={
-                  <Mark label={m.home_cost_source_label()}>
-                    <a href={SOURCE_URL} rel="noreferrer" target="_blank">
-                      {m.home_gate_source()}
-                    </a>
-                  </Mark>
-                }
-                text={m.home_cost_average({ hours: slot(0) })}
-              />
-            </h1>
+            <div {...props(styles.lead)}>
+              {/* The page's heading: the first thing it says. */}
+              <h1 {...props(partOf(0, 0, styles.line))}>
+                <Sentence
+                  figures={[<Figure key="hours" value={AVERAGE_HOURS} />]}
+                  mark={
+                    <Mark label={m.home_cost_source_label()}>
+                      <a href={SOURCE_URL} rel="noreferrer" target="_blank">
+                        {m.home_gate_source()}
+                      </a>
+                    </Mark>
+                  }
+                  text={m.home_cost_average({ hours: slot(0) })}
+                />
+              </h1>
+              <WorldCount live={on(0) && !hidden} style={partOf(0, 1)} />
+            </div>
             {/* It goes with the first beat. With less motion every beat stays
             on the page, so it does too. */}
-            <div {...props(partOf(0, 1, styles.feed))}>
+            <div {...props(partOf(0, 2, styles.feed))}>
               <FeedPhone shown={reduced || active === 0} />
             </div>
           </div>
