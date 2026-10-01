@@ -35,21 +35,28 @@ const SOURCE_URL = 'https://datareportal.com/reports/digital-2024-global-overvie
 /** The story's sentences, in the order the scroll plays them. */
 const BEATS = 5;
 /**
- * Every beat takes one screen of scroll, except the last: it holds for half
- * of one, then the page carries it away with the rest of the stage.
+ * The scroll each beat takes, in hundredths of a screen so the heights come
+ * out whole: a little under half a screen, except the last, which holds for
+ * less, then the page carries it away with the rest of the stage.
  */
-const LAST_BEAT_SCREENS = 0.5;
-/** How many screens of scroll the stage stands pinned for. */
-const SPAN = BEATS - 1 + LAST_BEAT_SCREENS;
-/** The beat that walks around the Earth, and how far into it the walk is done. */
+const BEAT_SCROLL = 45;
+const LAST_BEAT_SCROLL = 30;
+/** How far the stage stands pinned for, in hundredths of a screen. */
+const SPAN = (BEATS - 1) * BEAT_SCROLL + LAST_BEAT_SCROLL;
+/** How much of the story's progress one beat takes. */
+const BEAT = BEAT_SCROLL / SPAN;
+/**
+ * The beat that walks around the Earth, and how far into it the walk is done,
+ * early enough that the whole walk stands drawn for a moment before the next.
+ */
 const EARTH_BEAT = 2;
-const WALKED_BY = 0.8;
+const WALKED_BY = 0.7;
 /** How far into the story the progress rail has faded in. */
 const RAIL_IN = 0.02;
 /** How much of the stage has to be on screen before a figure counts. */
 const SEEN = 0.6;
-/** A figure counts up for this long, slowing into its value. */
-const COUNT_SECONDS = 1.4;
+/** A figure counts up for this long, slowing into its value, well inside its beat. */
+const COUNT_SECONDS = 1;
 const EASE_OUT: [number, number, number, number] = [0.22, 1, 0.36, 1];
 /** The reroll icon turns half a turn a press. */
 const TURN_DEGREES = 180;
@@ -79,9 +86,6 @@ const ORBIT_INNER = 64;
 const ORBIT_OUTER = 94;
 const POINTS_PER_LAP = 72;
 const WALKER_RADIUS = 3.5;
-/** The scroll cue: a short track at the foot of the first screen, and the drop that runs down it. */
-const CUE_HEIGHT = 48;
-const CUE_DROP = 12;
 
 /** One answer to "What else?": the sentence it is told in, and how it is counted. */
 type Answer = { line: (inputs: { count: string }) => string; tip: () => string };
@@ -104,12 +108,6 @@ const answerIn = keyframes({
 const answerOut = keyframes({
   from: { filter: 'blur(0)', opacity: 1, transform: 'none' },
   to: { filter: 'blur(6px)', opacity: 0, transform: 'translateY(-16px)' },
-});
-
-/** The drop falls from above the track to below it, and starts over. */
-const cueFall = keyframes({
-  from: { transform: `translateY(-${CUE_DROP}px)` },
-  to: { transform: `translateY(${CUE_HEIGHT}px)` },
 });
 
 const styles = create({
@@ -211,39 +209,6 @@ const styles = create({
   },
   globeFaint: {
     opacity: 0.5,
-  },
-  // The way on, at the foot of the first screen: the story starts at the top of
-  // the page, so it sits where the window ends before the first scroll, and
-  // scrolls away with it. With less motion the beats already stand one under
-  // the other, and there is nothing to point at.
-  cue: {
-    backgroundColor: colors.border,
-    borderRadius: 999,
-    display: {
-      '@media (prefers-reduced-motion: reduce)': 'none',
-      default: 'block',
-    },
-    height: CUE_HEIGHT,
-    insetBlockStart: firstThatWorks(
-      `calc(100dvh - ${wip.height} - ${spacing.s8} - ${CUE_HEIGHT}px)`,
-      `calc(100svh - ${wip.height} - ${spacing.s8} - ${CUE_HEIGHT}px)`,
-      `calc(100vh - ${wip.height} - ${spacing.s8} - ${CUE_HEIGHT}px)`,
-    ),
-    insetInlineStart: '50%',
-    overflow: 'hidden',
-    position: 'absolute',
-    transform: 'translateX(-50%)',
-    width: 2,
-  },
-  cueDrop: {
-    animationDuration: '1.8s',
-    animationIterationCount: 'infinite',
-    animationName: cueFall,
-    animationTimingFunction: 'cubic-bezier(0.65, 0, 0.35, 1)',
-    backgroundColor: accent.base,
-    display: 'block',
-    height: CUE_DROP,
-    width: '100%',
   },
   // The page's graph paper, pinned with the stage and as wide as the window,
   // so the story is told on it from the first beat to the last.
@@ -385,14 +350,12 @@ const styles = create({
     },
   },
   // The stage and the scroll it is pinned through: one screen for the stage,
-  // and the screens the beats take turns in.
+  // and the scroll the beats take turns in.
   story: {
     height: {
       '@media (prefers-reduced-motion: reduce)': 'auto',
-      default: firstThatWorks(`${(SPAN + 1) * 100}svh`, `${(SPAN + 1) * 100}vh`),
+      default: firstThatWorks(`${SPAN + 100}svh`, `${SPAN + 100}vh`),
     },
-    // The box the scroll cue is placed in.
-    position: 'relative',
     // Pinned, the stage clears the brand bar itself. Standing in the column,
     // a jump to the story stops short of it instead.
     scrollMarginBlockStart: {
@@ -587,14 +550,13 @@ export function CostStory({ id }: { id: string }) {
   const seen = useInView(stage, { amount: SEEN });
   const { scrollYProgress } = useScroll({ offset: ['start start', 'end end'], target: story });
   const [active, setActive] = useState(0);
-  // The progress rail comes in once the story has started to move, and the
-  // cue at the foot of the first screen has scrolled away.
+  // The progress rail comes in once the story has started to move.
   // A function rather than a range: motion hands a range on the scroll itself
   // to the browser's scroll timeline, which read this one backwards.
   const railOpacity = useTransform(scrollYProgress, (progress) => Math.min(1, progress / RAIL_IN));
   const walked = useTransform(
     scrollYProgress,
-    [EARTH_BEAT / SPAN, (EARTH_BEAT + WALKED_BY) / SPAN],
+    [EARTH_BEAT * BEAT, (EARTH_BEAT + WALKED_BY) * BEAT],
     [0, 1],
   );
 
@@ -620,7 +582,7 @@ export function CostStory({ id }: { id: string }) {
   const years = Number(formatYears(AVERAGE_HOURS));
 
   useMotionValueEvent(scrollYProgress, 'change', (latest) => {
-    setActive(Math.min(BEATS - 1, Math.floor(latest * SPAN)));
+    setActive(Math.min(BEATS - 1, Math.floor(latest / BEAT)));
   });
 
   // A beat reached from the keyboard is scrolled to, so what has focus is the
@@ -632,7 +594,7 @@ export function CostStory({ id }: { id: string }) {
     }
     const range = element.offsetHeight - window.innerHeight;
     const top = element.getBoundingClientRect().top + window.scrollY;
-    window.scrollTo({ top: top + ((index + 0.25) / SPAN) * range });
+    window.scrollTo({ top: top + (index + 0.25) * BEAT * range });
   }
 
   function reroll() {
@@ -775,9 +737,6 @@ export function CostStory({ id }: { id: string }) {
           <motion.span {...props(styles.railFill)} style={{ scaleX: scrollYProgress }} />
         </motion.span>
       </div>
-      <span aria-hidden="true" {...props(styles.cue)}>
-        <span {...props(styles.cueDrop)} />
-      </span>
     </section>
   );
 }
