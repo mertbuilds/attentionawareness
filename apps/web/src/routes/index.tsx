@@ -71,6 +71,10 @@ const styles = create({
     paddingBlock: spacing.s16,
     textAlign: 'center',
   },
+  // A phone's note and its button stand in the middle too, under the line.
+  closingDownload: {
+    alignItems: 'center',
+  },
   closingNote: {
     color: colors.muted,
     display: 'flex',
@@ -577,7 +581,7 @@ function HomePage() {
 
           <section {...props(styles.closing)}>
             <h2 {...props(styles.closingTitle)}>{m.home_close_title()}</h2>
-            <MacDownload />
+            <MacDownload style={styles.closingDownload} />
             <p {...props(styles.closingNote)}>
               <span>{m.home_how_app_price()}</span>
               <a href={GUIDE_URL}>{m.home_close_diy()}</a>

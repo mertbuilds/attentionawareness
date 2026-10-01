@@ -1,7 +1,9 @@
 import { Button } from '@attentionawareness/ui';
-import { spacing } from '@attentionawareness/ui/tokens.stylex';
+import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
-import { useEffect, useState } from 'react';
+import type { StyleXStyles } from '@stylexjs/stylex';
+import { useEffect, useState, useSyncExternalStore } from 'react';
+import type { ReactNode } from 'react';
 import { m } from '../paraglide/messages.js';
 
 /**
@@ -10,6 +12,8 @@ import { m } from '../paraglide/messages.js';
  * download.
  */
 const LATEST_URL = '/mac/latest.json';
+/** Where the download stands on the home page: the link a phone sends on to a Mac. */
+const DOWNLOAD_PATH = '/#way-out';
 
 /** The field of `latest.json` this component reads. The rest is the updater's. */
 type Release = {
@@ -43,6 +47,14 @@ const styles = create({
     lineHeight: 1,
     transform: 'translateY(1px)',
   },
+  // What a phone is told in place of the download it cannot run.
+  note: {
+    color: colors.muted,
+    fontSize: font.sizeSm,
+    lineHeight: 1.5,
+    margin: 0,
+    textWrap: 'pretty',
+  },
 });
 
 /**
@@ -75,12 +87,14 @@ function readLatest(): Promise<Release | null> {
 }
 
 /**
- * Reads `latest.json` once the page is up. A missing, unreadable or incomplete
- * file leaves the state null, which is what turns the download off: the page
- * never points at a build it has not read.
+ * Reads `latest.json` once the page is up. Until the read settles the state is
+ * undefined, which the server renders too, so neither a crawler nor the first
+ * paint is told there is no release. A missing, unreadable or incomplete file
+ * leaves it null, which is what turns the download off: the page never points
+ * at a build it has not read.
  */
-function useLatestRelease(): Release | null {
-  const [release, setRelease] = useState<Release | null>(null);
+function useLatestRelease(): Release | null | undefined {
+  const [release, setRelease] = useState<Release | null | undefined>(undefined);
 
   useEffect(() => {
     let mounted = true;
@@ -98,26 +112,99 @@ function useLatestRelease(): Release | null {
 }
 
 /**
- * The download, wherever the page asks for it. Before the first release there
- * is no `latest.json` to read, so the button says so and does nothing.
+ * An iPhone or an iPad. iPadOS asks for pages as a Mac does, so a Mac that
+ * takes touch is counted as one too.
  */
-export function MacDownload() {
-  const release = useLatestRelease();
+function isAppleMobile(): boolean {
+  const { maxTouchPoints, userAgent } = navigator;
+  return /iPhone|iPad|iPod/.test(userAgent) || (/Macintosh/.test(userAgent) && maxTouchPoints > 1);
+}
+
+/** The device does not change under the page, so there is nothing to listen to. */
+function subscribeNever() {
+  return () => {};
+}
+
+/**
+ * Whether the reader is on an iPhone or an iPad. The server cannot tell, so it
+ * and the first client render answer `false` and the page corrects itself
+ * once it is up.
+ */
+function useIsAppleMobile(): boolean {
+  return useSyncExternalStore(subscribeNever, isAppleMobile, () => false);
+}
+
+/**
+ * The download on a phone, which cannot run it: where to open the page
+ * instead, and the link to send there. The share sheet reaches a Mac by
+ * AirDrop or a message; without one, the link goes to the clipboard.
+ */
+function SendToMac() {
+  const [copied, setCopied] = useState(false);
+  const canShare = 'share' in navigator;
+
+  async function send() {
+    const url = new URL(DOWNLOAD_PATH, location.href).href;
+    if (canShare) {
+      try {
+        await navigator.share({ url });
+      } catch {
+        // The sheet was closed. Nothing to say.
+      }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+    } catch {
+      // The clipboard refused. The button keeps offering it.
+    }
+  }
+
+  let label = m.mac_download_copy();
+  if (canShare) {
+    label = m.mac_download_share();
+  } else if (copied) {
+    label = m.mac_download_copied();
+  }
 
   return (
-    <div {...props(styles.download)}>
-      {release === null ? (
-        <Button disabled>{m.mac_download_unreleased()}</Button>
-      ) : (
-        <Button render={<a download href={release.url} />}>
-          <span {...props(styles.cta)}>
-            <svg aria-hidden="true" viewBox="0 0 384 512" {...props(styles.appleMark)}>
-              <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z" />
-            </svg>
-            <span {...props(styles.label)}>{m.mac_download_cta()}</span>
-          </span>
-        </Button>
-      )}
-    </div>
+    <>
+      <p {...props(styles.note)}>{m.mac_download_on_mac()}</p>
+      <Button onClick={() => void send()}>{label}</Button>
+    </>
   );
+}
+
+/**
+ * The download, wherever the page asks for it. While `latest.json` is being
+ * read the button stands as it will, only off. Before the first release there
+ * is no file to read, so the button says so and does nothing. On a phone, the
+ * page says where to open it instead.
+ */
+export function MacDownload({ style }: { style?: StyleXStyles }) {
+  const release = useLatestRelease();
+  const appleMobile = useIsAppleMobile();
+
+  const cta = (
+    <span {...props(styles.cta)}>
+      <svg aria-hidden="true" viewBox="0 0 384 512" {...props(styles.appleMark)}>
+        <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z" />
+      </svg>
+      <span {...props(styles.label)}>{m.mac_download_cta()}</span>
+    </span>
+  );
+
+  let action: ReactNode;
+  if (release === null) {
+    action = <Button disabled>{m.mac_download_unreleased()}</Button>;
+  } else if (appleMobile) {
+    action = <SendToMac />;
+  } else if (release === undefined) {
+    action = <Button disabled>{cta}</Button>;
+  } else {
+    action = <Button render={<a download href={release.url} />}>{cta}</Button>;
+  }
+
+  return <div {...props(styles.download, style)}>{action}</div>;
 }
