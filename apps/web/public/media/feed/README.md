@@ -8,6 +8,10 @@ files: `NN.av1.mp4` (AV1), `NN.mp4` (H.264, for browsers without AV1) and
 for 1.5 seconds, then swipes to the next. After clip 11 the loop starts again
 at clip 01. A missing clip shows a plain wash instead.
 
+`mirror.webp` is the face in the black glass when the phone goes to sleep,
+every eight clips: one GPT Image 2 still, cropped to the screen, desaturated,
+darkened and softened, 540 by 1154.
+
 The slot sets the app chrome, cycling TikTok, Reels, Shorts, X, LinkedIn,
 Facebook. The words for clip N are `home_feed_handle_N`, `home_feed_caption_N`
 and `home_feed_post_N` in `messages/`.

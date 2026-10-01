@@ -3,6 +3,7 @@ import { create, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { useReducedMotion } from 'motion/react';
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { duration, easing } from '../lib/motion.stylex.ts';
 import { m } from '../paraglide/messages.js';
 import { BOXED, CHROMES } from './feed-chrome.tsx';
 import type { Platform } from './feed-chrome.tsx';
@@ -87,6 +88,22 @@ const FLICK_SPEED = 0.35;
 /** Clips in the feed: one per clip shot for it, 01 through 11. After 11 comes 01. */
 const CLIP_COUNT = 11;
 /**
+ * Every this many clips the phone goes to sleep: the screen cuts to black and
+ * the face looking down at it shows in the glass. It stays dark this long,
+ * then wakes on the clip it slept on, and the feed goes on.
+ */
+const SLEEP_EVERY = 8;
+const SLEEP_MS = 2800;
+/** The face in the black glass, faded out toward the screen's edges. */
+const MIRROR_URL = '/media/feed/mirror.webp';
+const MIRROR_MASK = 'radial-gradient(ellipse 80% 62% at 50% 52%, black 40%, transparent 100%)';
+const GLINT =
+  'linear-gradient(118deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02) 24%, transparent 40%)';
+const GLINT_BAND =
+  'linear-gradient(118deg, transparent 56%, rgba(255, 255, 255, 0.035) 66%, transparent 78%)';
+const GLASS_FALLOFF =
+  'radial-gradient(ellipse 130% 95% at 50% 45%, transparent 60%, rgba(0, 0, 0, 0.45))';
+/**
  * How many clips past the one on screen are already in the page. They load
  * while the feed stands, so a swipe never lands on a blank frame; the rest ask
  * the network for nothing until the feed comes to them.
@@ -139,6 +156,26 @@ const styles = create({
     flexDirection: 'column',
     willChange: 'transform',
   },
+  // The screen asleep: black glass over the feed and the phone's own line,
+  // under the island. It goes dark in a quick fade, the way a screen turns
+  // off, and lifts in a short one when the phone wakes. The glass is a hair
+  // off black, so the island still reads on it.
+  glass: {
+    backgroundColor: '#060709',
+    insetBlock: 0,
+    insetInline: 0,
+    opacity: 0,
+    pointerEvents: 'none',
+    position: 'absolute',
+    transitionDuration: duration.slow,
+    transitionProperty: 'opacity',
+    transitionTimingFunction: easing.smoothOut,
+  },
+  glassOn: {
+    opacity: 1,
+    transitionDuration: duration.quick,
+    transitionTimingFunction: easing.inOut,
+  },
   // The status icons carry the shadow a feed gives them, so they read on a
   // bright frame as well as a dark one.
   icon: {
@@ -177,6 +214,29 @@ const styles = create({
     position: 'relative',
     width: '100%',
   },
+  // The face in the glass: dim, grey and soft, the way a dark screen gives
+  // back whoever is looking down at it. It comes up a beat after the black,
+  // as an eye finds it.
+  reflection: {
+    backgroundImage: `url("${MIRROR_URL}")`,
+    backgroundPosition: '50% 50%',
+    backgroundSize: 'cover',
+    filter: 'blur(0.6cqw)',
+    insetBlock: 0,
+    insetInline: 0,
+    maskImage: MIRROR_MASK,
+    opacity: 0,
+    position: 'absolute',
+    transitionDuration: duration.quick,
+    transitionProperty: 'opacity',
+    WebkitMaskImage: MIRROR_MASK,
+  },
+  reflectionOn: {
+    opacity: 0.7,
+    transitionDelay: duration.quick,
+    transitionDuration: duration.verySlow,
+    transitionTimingFunction: easing.inOut,
+  },
   // The screen inside the bezel. Its corner is concentric with the body's:
   // the outer radius less the band and the bezel, 18 minus 1.3 minus 2.7.
   // It is the one part of the phone that takes a hand, so a finger on it
@@ -192,6 +252,15 @@ const styles = create({
   },
   screenHeld: {
     cursor: 'grabbing',
+  },
+  // The light a dark screen's glass catches: a soft glint across its top
+  // corner, a fainter band lower down, and the edges falling darker where the
+  // glass curves away.
+  sheen: {
+    backgroundImage: `${GLINT}, ${GLINT_BAND}, ${GLASS_FALLOFF}`,
+    insetBlock: 0,
+    insetInline: 0,
+    position: 'absolute',
   },
   // The box the phone is sized in: the shape of an iPhone 15 Pro, 71.6 by
   // 146.6. Only its screen takes a hand: a page scrolled over the band and
@@ -471,8 +540,10 @@ function Video({
 
 /**
  * The feed the page opens on: a phone that scrolls itself, one clip every
- * beat and round again after the last, the way a feed never ends. It makes no
- * sound. A hand on its screen drags it a clip at a time. It runs only while
+ * beat and round again after the last, the way a feed never ends. Every so
+ * often it goes to sleep, and the black glass shows a face looking down at it,
+ * the reader's, until it wakes. It makes no sound. A hand on its screen drags it a clip at a
+ * time, and wakes it. It runs only while
  * it is on screen in a tab in front, and for a reader who asked for less
  * motion it is one still frame that a hand cuts. While it is not `shown`,
  * faded out with the beat it stands in, it holds still, and a hand does not
@@ -488,6 +559,10 @@ export function FeedPhone({ shown }: { shown: boolean }) {
   const [onScreen, setOnScreen] = useState(false);
   // A hand is on the screen: the feed follows it and holds its beat.
   const [held, setHeld] = useState(false);
+  // The screen has gone to sleep, and the glass shows who is looking at it.
+  const [asleep, setAsleep] = useState(false);
+  // The clips the feed has stood on since it last slept.
+  const beats = useRef(0);
   const reduced = useReducedMotion();
   const tabShown = useSyncExternalStore(subscribeVisibility, tabVisible, tabVisibleOnServer);
   const shell = useRef<HTMLDivElement>(null);
@@ -538,15 +613,33 @@ export function FeedPhone({ shown }: { shown: boolean }) {
   }, []);
 
   // One swipe a beat after the last one, for as long as the feed runs and no
-  // hand is on it. A step by hand, or a hand let go, starts the beat again, so
+  // hand is on it, and every so many clips the phone goes to sleep instead. A
+  // step by hand, a hand let go, or the phone waking starts the beat again, so
   // the feed never jumps right after it.
   useEffect(() => {
-    if (!running || held) {
+    if (!running || held || asleep) {
       return;
     }
-    const timer = setTimeout(() => setStep((at) => at + 1), HOLD_MS);
+    const timer = setTimeout(() => {
+      beats.current += 1;
+      if (beats.current >= SLEEP_EVERY) {
+        beats.current = 0;
+        setAsleep(true);
+        return;
+      }
+      setStep((at) => at + 1);
+    }, HOLD_MS);
     return () => clearTimeout(timer);
-  }, [held, running, step]);
+  }, [asleep, held, running, step]);
+
+  // Asleep, the screen stays dark a while and wakes on its own.
+  useEffect(() => {
+    if (!asleep) {
+      return;
+    }
+    const timer = setTimeout(() => setAsleep(false), SLEEP_MS);
+    return () => clearTimeout(timer);
+  }, [asleep]);
 
   // The track has already been cut to the new clip, before this frame is
   // painted: it is drawn from where the last clip stood, a screen lower on
@@ -586,6 +679,8 @@ export function FeedPhone({ shown }: { shown: boolean }) {
       return;
     }
     event.currentTarget.setPointerCapture(event.pointerId);
+    // A hand on a sleeping screen wakes it.
+    setAsleep(false);
     // A swipe still travelling lands at once, so the hand takes the clip
     // where it stands.
     for (const animation of track.current?.getAnimations() ?? []) {
@@ -673,7 +768,7 @@ export function FeedPhone({ shown }: { shown: boolean }) {
                     clip={clipAt(at)}
                     height={screenHeight}
                     key={at}
-                    playing={running && at === step}
+                    playing={running && !asleep && at === step}
                     preload={at <= step + 1 ? 'auto' : 'metadata'}
                   />
                 );
@@ -687,6 +782,10 @@ export function FeedPhone({ shown }: { shown: boolean }) {
                 <IconBattery style={styles.statusBattery} />
               </span>
             </div>
+            <span {...props(styles.glass, asleep && styles.glassOn)}>
+              <span {...props(styles.reflection, asleep && styles.reflectionOn)} />
+              <span {...props(styles.sheen)} />
+            </span>
             <span {...props(styles.island)} />
           </div>
         </div>
