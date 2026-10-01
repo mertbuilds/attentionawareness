@@ -29,12 +29,18 @@ export const HORIZON_YEARS = 20;
 const WEEKS_PER_YEAR = 52;
 /** The weeks inside the horizon, and as many weekends: one square each in the grid of weeks. */
 export const HORIZON_WEEKS = HORIZON_YEARS * WEEKS_PER_YEAR;
+const DAYS_PER_WEEK = 7;
 const WEEKEND_DAYS = 2;
 /**
- * Every waking hour of every weekend inside the horizon. The story says the
- * screen takes more than this, which holds from 5 hours a day (36,500).
+ * The waking hours of one weekend. The story says the screen takes as many
+ * every week, which holds from 5 hours a day (35 a week).
  */
-export const WEEKEND_HOURS = HORIZON_WEEKS * WEEKEND_DAYS * WAKING_HOURS;
+export const WEEKEND_HOURS = WEEKEND_DAYS * WAKING_HOURS;
+
+/** A daily screen habit over a week, in hours. */
+export function weeklyHours(hoursPerDay: number): number {
+  return hoursPerDay * DAYS_PER_WEEK;
+}
 
 /** The walk to the Moon: its mean distance, at the pace the Earth walk is counted at. */
 export const MOON_KM = 384_400;

@@ -23,11 +23,11 @@ import {
   MOON_KM,
   MOON_WALK_HOURS,
   moonShare,
-  screenHours,
   screenWeeks,
   WAKING_HOURS,
   WALKING_KMH,
   WEEKEND_HOURS,
+  weeklyHours,
 } from '../lib/attention-math.ts';
 import { blur, distance, drawing, duration, easing } from '../lib/motion.stylex.ts';
 import { typingIn } from '../lib/typing-in.ts';
@@ -1749,11 +1749,9 @@ export function CostStory({ id }: { id: string }) {
                   <Mark label={tipLabel}>
                     {m.home_receipt_weekends_tip({
                       daily: AVERAGE_HOURS,
-                      horizon: HORIZON_YEARS,
-                      hours: number.format(WEEKEND_HOURS),
-                      total: number.format(screenHours(AVERAGE_HOURS)),
                       waking: WAKING_HOURS,
-                      weekends: number.format(HORIZON_WEEKS),
+                      weekend: WEEKEND_HOURS,
+                      weekly: weeklyHours(AVERAGE_HOURS),
                     })}
                   </Mark>
                 }
