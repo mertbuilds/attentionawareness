@@ -113,8 +113,15 @@ const SWATCH_SIZE = 8;
  * this share of the run, steady through the middle, and easing to a stop on
  * the last over this share.
  */
-const WEEKENDS_SPEED_UP = 0.15;
-const WEEKENDS_SLOW_DOWN = 0.4;
+const WEEKENDS_SPEED_UP = 0.2;
+const WEEKENDS_SLOW_DOWN = 0.3;
+/**
+ * The weekends drawn, a few of the twenty years' worth: the next ones in a
+ * row, then further and further apart out to the last, the gaps growing by
+ * this power. Each is a real weekend, so the dates run on through the years.
+ */
+const WEEKEND_TILES = 24;
+const WEEKEND_SPREAD = 3;
 /** Each stroke of a cross is drawn this long, the second this long after the first. */
 const CROSS_MS = 210;
 const CROSS_LATE_MS = 125;
@@ -124,13 +131,10 @@ const TILE_PITCH = 72;
 /** The tiles drawn either side of the line, enough to run past both faded edges. */
 const TILE_REACH = 5;
 /**
- * The weekends at each end whose crosses are drawn stroke by stroke: as many
- * as the strip shows either side of the line, the ones it opens on and the
- * ones it stops on. Every weekend between passes the line in under 30
- * milliseconds, far quicker than a stroke is drawn, so it carries its cross
- * whole all the way.
+ * A tile is crossed once its middle is this share of a tile short of the
+ * line, so the last one's cross is drawn as it settles rather than after.
  */
-const DRAWN_TILES = 4;
+const CROSS_LEAD = 0.25;
 /** How far in from the tile's corners the cross is drawn. */
 const CROSS_INSET = 12;
 /** The strip fades out at both ends, so the tiles come from and go nowhere in particular. */
@@ -1165,7 +1169,13 @@ function weekendsBy(t: number): number {
       : t < 1 - down
         ? speed * (t - up / 2)
         : 1 - (speed * (1 - t) ** 3) / (3 * down * down);
-  return (HORIZON_WEEKS - 0.5) * share;
+  return (WEEKEND_TILES - 0.5) * share;
+}
+
+/** How many weeks on from this one a tile's weekend is. */
+function tileWeek(tile: number): number {
+  const far = (HORIZON_WEEKS - 1) * (tile / (WEEKEND_TILES - 1)) ** WEEKEND_SPREAD;
+  return Math.max(tile, Math.round(far));
 }
 
 /** A store that never changes: the calendar is read once, when the page comes alive. */
@@ -1180,10 +1190,9 @@ function comingSaturday(today: Date): number {
 }
 
 /**
- * Every weekend in the next twenty years, a calendar tile each, flipping past
- * a line once the beat comes on. The first few and the last few are crossed
- * out as they pass; the ones that rush past between come crossed out. With
- * less motion they stand all crossed out.
+ * Weekends from the next twenty years, a calendar tile each, flipping past a
+ * line once the beat comes on. Each one is crossed out as it reaches the line.
+ * With less motion they stand all crossed out.
  */
 function Weekends({
   drawn,
@@ -1206,7 +1215,7 @@ function Weekends({
   useMotionValueEvent(drawn, 'change', (latest) => setPassed(weekendsBy(latest)));
 
   const at = reduced ? weekendsBy(1) : passed;
-  const stamped = Math.round(at);
+  const stamped = Math.floor(at + 0.5 + CROSS_LEAD);
   const locale = getLocale();
   const month = new Intl.DateTimeFormat(locale, {
     month: 'short',
@@ -1216,7 +1225,7 @@ function Weekends({
   const weekday = new Intl.DateTimeFormat(locale, { timeZone: 'UTC', weekday: 'short' });
   const date = new Intl.DateTimeFormat(locale, { day: 'numeric', timeZone: 'UTC' });
   const from = Math.max(0, stamped - TILE_REACH);
-  const to = Math.min(HORIZON_WEEKS - 1, stamped + TILE_REACH);
+  const to = Math.min(WEEKEND_TILES - 1, stamped + TILE_REACH);
 
   return (
     <div aria-hidden="true" {...props(styles.weekends, style)}>
@@ -1225,9 +1234,9 @@ function Weekends({
         <div {...props(styles.weekendsStrip)}>
           {Array.from({ length: to - from + 1 }, (_, step) => {
             const index = from + step;
-            const saturday = first === null ? null : first + index * DAYS_PER_WEEK * DAY_MS;
-            const rushing = index >= DRAWN_TILES && index < HORIZON_WEEKS - DRAWN_TILES;
-            const spent = rushing || index < stamped;
+            const saturday =
+              first === null ? null : first + tileWeek(index) * DAYS_PER_WEEK * DAY_MS;
+            const spent = index < stamped;
             return (
               <div
                 key={index}
