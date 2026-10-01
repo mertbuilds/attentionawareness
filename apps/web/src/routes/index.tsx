@@ -341,6 +341,11 @@ function HomePage() {
           </div>
         </section>
 
+        <section {...props(styles.section)}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_facts_title()}</h2>
+          <Facts />
+        </section>
+
         {/* Act three, support. Who made this and why, told rather than argued:
         the only place on the page that speaks in the first person. */}
         <section {...props(styles.section, styles.anchor)} id={STORY_ID} ref={storySection}>
@@ -391,11 +396,6 @@ function HomePage() {
             </a>
             {computerAfter}
           </p>
-        </section>
-
-        <section {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_facts_title()}</h2>
-          <Facts />
         </section>
 
         <section {...props(styles.section)}>
