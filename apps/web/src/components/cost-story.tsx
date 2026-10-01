@@ -13,8 +13,16 @@ import {
   useTransform,
 } from 'motion/react';
 import type { MotionValue } from 'motion/react';
-import { Fragment, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
-import type { ReactNode } from 'react';
+import {
+  Fragment,
+  useEffect,
+  useEffectEvent,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
+import type { FocusEvent, PointerEvent, ReactNode } from 'react';
 import { ArrowsRotate } from 'reicon-react';
 import {
   AVERAGE_HOURS,
@@ -84,10 +92,12 @@ const WHEEL_PUSH = 6;
 const STEP_SECONDS = 0.8;
 /** A wheel that counts in lines, as Firefox's does, moves this far a line. */
 const LINE_PX = 16;
-/** The reroll icon turns half a turn a press. */
+/** The reroll icon turns half a turn an answer. */
 const TURN_DEGREES = 180;
 const TURN_SECONDS = 0.7;
-const ICON_SIZE = 16;
+const ICON_SIZE = 18;
+/** How long an answer stands once its drawing starts: the drawing, then a hold on its end. */
+const ANSWER_SECONDS = drawing.deck + drawing.deckHold;
 /** The figures the story tells on its own, so "What else?" never offers them. */
 const TOLD = new Set(['earth']);
 /**
@@ -132,11 +142,11 @@ const SWATCH_SIZE = 8;
  * this long each, then faster and faster, the last of the twenty years in a
  * blur.
  */
-const FIRST_WEEKEND_SECONDS = 0.6;
+const FIRST_WEEKEND_SECONDS = 0.4;
 const WEEKEND_RAMP = 19;
 /** Each stroke of a cross is drawn this long, the second this long after the first. */
-const CROSS_MS = 320;
-const CROSS_LATE_MS = 190;
+const CROSS_MS = 210;
+const CROSS_LATE_MS = 125;
 const TILE_WIDTH = 64;
 const TILE_HEIGHT = 76;
 const TILE_PITCH = 72;
@@ -429,6 +439,27 @@ const styles = create({
     justifyContent: 'center',
     justifySelf: 'stretch',
   },
+  // The time left before the next answer takes this one's place: a hairline
+  // under the button, along its straight edge, filling in orange. With less
+  // motion nothing plays on its own, and there is nothing to count down.
+  countdown: {
+    backgroundColor: colors.border,
+    borderRadius: 999,
+    display: {
+      '@media (prefers-reduced-motion: reduce)': 'none',
+      default: 'block',
+    },
+    height: 2,
+    marginInline: spacing.s4,
+    overflow: 'hidden',
+  },
+  countdownFill: {
+    backgroundColor: accent.base,
+    display: 'block',
+    height: '100%',
+    transformOrigin: 'left',
+    width: '100%',
+  },
   // The cross a weekend gets as it passes the line, in red, corner to corner
   // over the whole tile.
   cross: {
@@ -473,30 +504,6 @@ const styles = create({
     gap: spacing.s3,
     width: '100%',
   },
-  // Out of sight: the cue past the first beat, and the rail on it.
-  gone: {
-    opacity: 0,
-    visibility: 'hidden',
-  },
-  // The count, stood over the room its last value takes, so the sentence
-  // around it never reflows while it climbs.
-  figure: {
-    color: accent.base,
-    display: 'inline-grid',
-    fontVariantNumeric: 'tabular-nums',
-  },
-  figureCount: {
-    gridArea: '1 / 1',
-    textAlign: 'end',
-  },
-  // Drawn rather than written, so the sentence's text holds the number once.
-  figureRoom: {
-    '::before': {
-      content: 'attr(data-room)',
-    },
-    gridArea: '1 / 1',
-    visibility: 'hidden',
-  },
   globe: {
     fill: 'none',
     stroke: colors.muted,
@@ -504,6 +511,11 @@ const styles = create({
   },
   globeFaint: {
     opacity: 0.5,
+  },
+  // Out of sight: the cue past the first beat, and the rail on the first and the last.
+  gone: {
+    opacity: 0,
+    visibility: 'hidden',
   },
   // The page's graph paper, pinned with the stage and as wide as the window,
   // so the story is told on it from the first beat to the last.
@@ -693,7 +705,9 @@ const styles = create({
   partThird: {
     transitionDelay: `calc(2 * ${duration.stagger})`,
   },
-  // How far along the story is, a hairline at the foot of the stage.
+  // How far along the story is, a hairline at the foot of the stage. It fades
+  // out on the last beat, where the countdown under the button is the line
+  // to watch, and back in on the way up.
   rail: {
     backgroundColor: colors.border,
     borderRadius: 999,
@@ -762,6 +776,18 @@ const styles = create({
   },
   reroll: {
     display: 'inline-flex',
+  },
+  // "Show another", a solid button sized for a thumb, over its countdown.
+  rerollButton: {
+    fontSize: font.sizeMd,
+    gap: spacing.s2,
+    height: 44,
+    paddingInline: spacing.s6,
+  },
+  rerollPart: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s2,
   },
   // The Earth and the Moon, as wide as the column on a phone.
   sky: {
@@ -867,12 +893,6 @@ const styles = create({
   swapLine: {
     gridArea: '1 / 1',
   },
-  // The count under the weekends, small, with its figure in the story's orange.
-  tally: {
-    color: colors.muted,
-    fontSize: font.sizeSm,
-    margin: 0,
-  },
   // One weekend, a page off a desk calendar: the month over the two days. It
   // stands on the line at its own middle and is moved along from there.
   tile: {
@@ -968,7 +988,7 @@ const styles = create({
     stroke: colors.border,
     strokeWidth: 1,
   },
-  // The weekends and their tally, under each other.
+  // The weekends and their legend, under each other.
   weekends: {
     alignItems: 'center',
     display: 'flex',
@@ -1021,11 +1041,6 @@ const styles = create({
   },
 });
 
-/** One of the keys, at random. Only ever called from a press, never in a render. */
-function drawOne(keys: ReadonlyArray<string>): string | undefined {
-  return keys[Math.floor(Math.random() * keys.length)];
-}
-
 function subscribeLessMotion(onChange: () => void): () => void {
   const query = window.matchMedia(LESS_MOTION);
   query.addEventListener('change', onChange);
@@ -1047,6 +1062,19 @@ function lessMotionOnServer(): boolean {
  */
 function useLessMotion(): boolean {
   return useSyncExternalStore(subscribeLessMotion, prefersLessMotion, lessMotionOnServer);
+}
+
+function subscribeVisibility(onChange: () => void): () => void {
+  document.addEventListener('visibilitychange', onChange);
+  return () => document.removeEventListener('visibilitychange', onChange);
+}
+
+function tabHidden(): boolean {
+  return document.visibilityState === 'hidden';
+}
+
+function hiddenOnServer(): boolean {
+  return false;
 }
 
 /** Whether an event comes from inside a dialog, which keeps its own wheel and keys. */
@@ -1264,10 +1292,20 @@ function Figure({
 }
 
 /** The small i after a figure, and how it is counted. */
-function Mark({ children, label }: { children: ReactNode; label: string }) {
+function Mark({
+  children,
+  label,
+  onOpenChange,
+}: {
+  children: ReactNode;
+  label: string;
+  onOpenChange?: (open: boolean) => void;
+}) {
   return (
     <span {...props(styles.mark)}>
-      <InfoTip label={label}>{children}</InfoTip>
+      <InfoTip label={label} onOpenChange={onOpenChange}>
+        {children}
+      </InfoTip>
     </span>
   );
 }
@@ -1499,9 +1537,8 @@ function comingSaturday(today: Date): number {
 
 /**
  * Every weekend in the next twenty years, a calendar tile each, flipping past
- * a line once the beat comes on. Each one is crossed out as it passes, and the
- * tally under them counts up to the last. With less motion they stand all
- * crossed out.
+ * a line once the beat comes on. Each one is crossed out as it passes. With
+ * less motion they stand all crossed out.
  */
 function Weekends({
   drawn,
@@ -1533,7 +1570,6 @@ function Weekends({
   });
   const weekday = new Intl.DateTimeFormat(locale, { timeZone: 'UTC', weekday: 'short' });
   const date = new Intl.DateTimeFormat(locale, { day: 'numeric', timeZone: 'UTC' });
-  const number = new Intl.NumberFormat(locale);
   const from = Math.max(0, stamped - TILE_REACH);
   const to = Math.min(HORIZON_WEEKS - 1, stamped + TILE_REACH);
 
@@ -1588,24 +1624,6 @@ function Weekends({
           })}
         </div>
       </div>
-      <p {...props(styles.tally)}>
-        <Words
-          figures={[
-            <span key="count" {...props(styles.figure)}>
-              <span
-                aria-hidden="true"
-                data-room={number.format(HORIZON_WEEKS)}
-                {...props(styles.figureRoom)}
-              />
-              <span {...props(styles.figureCount)}>{number.format(stamped)}</span>
-            </span>,
-          ]}
-          text={m.home_cost_weekends_count({
-            count: slot(0),
-            total: number.format(HORIZON_WEEKS),
-          })}
-        />
-      </p>
       <p {...props(styles.legend, on && styles.legendOn)}>{m.home_cost_weekends_legend()}</p>
     </div>
   );
@@ -1840,15 +1858,27 @@ export function CostStory({ id }: { id: string }) {
       ? []
       : [{ ...answer, amount: metric.amount, key: metric.key }];
   });
-  const first = answers[0]?.key ?? '';
-  const [pick, setPick] = useState(first);
-  // The answer the last press took away, on its way out.
+  const [pick, setPick] = useState(answers[0]?.key ?? '');
+  // The answer the last swap took away, on its way out.
   const [previous, setPrevious] = useState<string | null>(null);
-  // The answers this round has shown, so every one comes up before any repeats.
-  const [shown, setShown] = useState<ReadonlyArray<string>>([first]);
   const [turns, setTurns] = useState(0);
   // The answer up has swapped in, and its drawing may play.
   const [landed, setLanded] = useState(true);
+  // What holds the deck where it is: the reader's pointer or keyboard on it,
+  // its tip open, or the tab put away.
+  const [pointing, setPointing] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [tipOpen, setTipOpen] = useState(false);
+  const hidden = useSyncExternalStore(subscribeVisibility, tabHidden, hiddenOnServer);
+  // How far the answer up has stood, from 0 to 1, until the next takes its place.
+  const countdown = useMotionValue(0);
+  const held = pointing || focused || tipOpen || hidden;
+  // The deck is playing itself with nothing holding it.
+  const autoplay = deckPlays && !reduced && !held;
+  // The answer up has swapped in and its drawing plays, so its countdown may run.
+  const counting = deckPlays && landed && !reduced;
+  // What the countdown does once it runs out: show the answer after whichever is up by then.
+  const onTime = useEffectEvent(() => showNext());
   const answer = answers.find((candidate) => candidate.key === pick);
   const leaving = answers.find((candidate) => candidate.key === previous);
   // Each answer's count, which its drawing keeps and its sentence shows. The
@@ -2090,6 +2120,27 @@ export function CostStory({ id }: { id: string }) {
     return () => clearTimeout(timer);
   }, [landed, turns]);
 
+  // The deck plays itself: once an answer's drawing has played and stood a
+  // moment on its end, the next takes its place, through all of them in
+  // order and round again. The countdown runs while the drawing does, waits
+  // while something holds the deck and goes on from there, and starts over
+  // with each answer. With less motion nothing moves on its own.
+  useEffect(() => {
+    if (!counting) {
+      countdown.set(0);
+      return;
+    }
+    if (held) {
+      return;
+    }
+    const controls = animate(countdown, 1, {
+      duration: (1 - countdown.get()) * ANSWER_SECONDS,
+      ease: 'linear',
+      onComplete: () => onTime(),
+    });
+    return () => controls.stop();
+  }, [countdown, counting, held]);
+
   // A key in the corner that has focus when the story ends lets it go with
   // the line, so the arrows scroll the page from the first press on.
   useEffect(() => {
@@ -2108,19 +2159,30 @@ export function CostStory({ id }: { id: string }) {
     rests.current[index]?.scrollIntoView({ block: 'start' });
   }
 
-  function reroll() {
-    const keys = answers.map((candidate) => candidate.key);
-    const fresh = keys.filter((key) => !shown.includes(key));
-    const next = drawOne(fresh.length > 0 ? fresh : keys.filter((key) => key !== pick));
-    if (next === undefined) {
+  /** The answer after the one up, in order, and the first again after the last. */
+  function showNext() {
+    const next =
+      answers[(answers.findIndex((candidate) => candidate.key === pick) + 1) % answers.length];
+    if (next === undefined || next.key === pick) {
       return;
     }
-    setShown(fresh.length > 0 ? [...shown, next] : [pick, next]);
     setPrevious(pick);
-    setPick(next);
+    setPick(next.key);
     setTurns((turn) => turn + 1);
     setLanded(false);
+    setTipOpen(false);
   }
+
+  // The deck is held while a pointer is moved onto it, or the keyboard has
+  // moved into it. A pointer left standing where the deck scrolls in under it
+  // does not hold it. A finger does not hover, and a click leaves no keyboard
+  // focus: both are a press, and the deck goes on after it.
+  const holdsDeck = {
+    onBlur: () => setFocused(false),
+    onFocus: (event: FocusEvent) => setFocused(event.target.matches(':focus-visible')),
+    onPointerLeave: () => setPointing(false),
+    onPointerMove: (event: PointerEvent) => setPointing(event.pointerType !== 'touch'),
+  };
 
   function beat(index: number, style?: StyleXStyles) {
     return {
@@ -2284,8 +2346,14 @@ export function CostStory({ id }: { id: string }) {
             {/* The answer up is keyed by the press as well, so every press plays
             the swap again, even for an answer that has been up before. The one
             on its way out keeps the key it was up under, so it leaves as it
-            stood, drawing and all, and is gone once its drawing has faded. */}
-            <div aria-live="polite" {...props(partOf(MORE_BEAT, 1, styles.answer))}>
+            stood, drawing and all, and is gone once its drawing has faded. A
+            screen reader is told of an answer only while the deck is not
+            playing itself, so it is not read a new one every few seconds. */}
+            <div
+              aria-live={autoplay ? 'off' : 'polite'}
+              {...holdsDeck}
+              {...props(partOf(MORE_BEAT, 1, styles.answer))}
+            >
               <div {...props(styles.answerArt)}>
                 {leaving === undefined ? null : (
                   <div
@@ -2331,15 +2399,19 @@ export function CostStory({ id }: { id: string }) {
                   >
                     <Sentence
                       figures={[<Figure count={answerCount} key="count" value={answer.amount} />]}
-                      mark={<Mark label={tipLabel}>{answer.tip()}</Mark>}
+                      mark={
+                        <Mark label={tipLabel} onOpenChange={setTipOpen}>
+                          {answer.tip()}
+                        </Mark>
+                      }
                       text={answer.line({ count: slot(0) })}
                     />
                   </p>
                 )}
               </div>
             </div>
-            <div {...props(partOf(MORE_BEAT, 2))}>
-              <Button onClick={reroll} variant="outline">
+            <div {...holdsDeck} {...props(partOf(MORE_BEAT, 2, styles.rerollPart))}>
+              <Button onClick={showNext} style={styles.rerollButton}>
                 <motion.span
                   animate={{ rotate: turns * TURN_DEGREES }}
                   transition={
@@ -2351,6 +2423,9 @@ export function CostStory({ id }: { id: string }) {
                 </motion.span>
                 {m.home_cost_reroll()}
               </Button>
+              <span aria-hidden="true" {...props(styles.countdown)}>
+                <motion.span {...props(styles.countdownFill)} style={{ scaleX: countdown }} />
+              </span>
             </div>
           </div>
         </div>
@@ -2380,7 +2455,14 @@ export function CostStory({ id }: { id: string }) {
           </button>
           <span>{m.home_cost_keys_hint()}</span>
         </div>
-        <span aria-hidden="true" {...props(styles.rail, styles.swap, active === 0 && styles.gone)}>
+        <span
+          aria-hidden="true"
+          {...props(
+            styles.rail,
+            styles.swap,
+            (active === 0 || active === MORE_BEAT) && styles.gone,
+          )}
+        >
           <motion.span {...props(styles.railFill)} style={{ scaleX: scrollYProgress }} />
         </span>
       </div>

@@ -5,8 +5,7 @@ import { animate, useMotionValue, useMotionValueEvent, useReducedMotion } from '
 import type { MotionValue } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { drawing, easing } from '../../lib/motion.stylex.ts';
-import { getLocale } from '../../paraglide/runtime.js';
-import { ART_BOTTOM, COUNT_Y, DeckCount, HEIGHT, WIDTH } from './count.tsx';
+import { HEIGHT, WIDTH } from './box.ts';
 
 /** The drawing plays once over this long each time it comes on. */
 const PLAY_SECONDS = drawing.deck;
@@ -49,12 +48,8 @@ const NORTH = 80;
 const PITCH = 4.4;
 const DOT_RADIUS = 1.1;
 const MAP_X = (WIDTH - (LAND[0]?.length ?? 0) * PITCH) / 2;
-/**
- * The flights stay inside the map, so it stands with as much air over it as
- * under it, between the top of the box and the top of the count.
- */
-const COUNT_TOP = (COUNT_Y + ART_BOTTOM) / 2;
-const MAP_Y = (COUNT_TOP - LAND.length * PITCH) / 2;
+/** The flights stay inside the map, so it stands with as much air over it as under it. */
+const MAP_Y = (HEIGHT - LAND.length * PITCH) / 2;
 /** A flight bows up off the straight line between its cities, by this much of that line at its middle. */
 const ARC_RISE = 0.22;
 const ARC_STEPS = 40;
@@ -84,7 +79,7 @@ const styles = create({
   drawing: {
     display: 'block',
     height: 'auto',
-    maxWidth: 360,
+    maxWidth: 400,
     overflow: 'visible',
     width: '100%',
   },
@@ -276,10 +271,9 @@ function flown(way: Route, share: number): { path: string; point: Point } {
 /**
  * A dotted map of the world, and flights drawn across it one after another,
  * each from one city to another and down on a small mark. A flight steps back
- * once it has landed, so the one in the air leads. The count under the map
- * climbs with them to `amount`. It plays once each time `play` turns on and
- * stands empty while it is off. For a reader who asked for less motion it
- * stands finished.
+ * once it has landed, so the one in the air leads, while `count` climbs with
+ * them to `amount`. It plays once each time `play` turns on and stands empty
+ * while it is off. For a reader who asked for less motion it stands finished.
  */
 export function TripsGraphic({
   amount,
@@ -304,7 +298,6 @@ export function TripsGraphic({
   const counted =
     (amount * flights.reduce((sum, flight) => sum + flight.share, 0)) / FLIGHTS.length;
   const last = flights.at(-1);
-  const number = new Intl.NumberFormat(getLocale());
 
   useEffect(() => {
     count.set(counted);
@@ -344,7 +337,6 @@ export function TripsGraphic({
       {at >= 1 && reduced !== true && last !== undefined ? (
         <circle cx={last.to.x} cy={last.to.y} r={CITY_RADIUS} {...props(styles.ripple)} />
       ) : null}
-      <DeckCount>{number.format(Math.round(counted))}</DeckCount>
     </svg>
   );
 }

@@ -1,21 +1,14 @@
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
-import {
-  animate,
-  useMotionValue,
-  useMotionValueEvent,
-  useReducedMotion,
-  useTransform,
-} from 'motion/react';
+import { animate, useMotionValue, useMotionValueEvent, useReducedMotion } from 'motion/react';
 import type { MotionValue } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { drawing, easing } from '../../lib/motion.stylex.ts';
-import { getLocale } from '../../paraglide/runtime.js';
-import { DeckCount, HEIGHT, WIDTH } from './count.tsx';
+import { HEIGHT, WIDTH } from './box.ts';
 
 const CENTER = WIDTH / 2;
-/** The shelf the tower stands on, with the count under it. */
+/** The shelf the tower stands on. */
 const SHELF = { left: 40, right: 280, y: 200 };
 /**
  * Each book's thickness, length and how far off the middle it lies, taken in
@@ -112,7 +105,7 @@ const styles = create({
     height: 'auto',
     marginInline: 'auto',
     maskImage: FADE,
-    maxWidth: 360,
+    maxWidth: 400,
     WebkitMaskImage: FADE,
     width: '100%',
   },
@@ -151,9 +144,9 @@ function Detail({ book }: { book: Book }) {
 /**
  * Book spines piling up on a shelf, a few bound in orange, one at a time at
  * first, then faster than they can be told apart, until the tower runs out
- * past the top edge and fades there. The count under the shelf climbs with
- * it. It plays once each time `play` comes on and starts over when it goes
- * off; with less motion it stands piled high with the count at its value.
+ * past the top edge and fades there, while `count` climbs to `amount` for the
+ * sentence under it. It plays once each time `play` comes on and starts over
+ * when it goes off; with less motion it stands piled high.
  */
 export function BooksGraphic({
   amount,
@@ -170,8 +163,6 @@ export function BooksGraphic({
   const progress = useMotionValue(1);
   const [landed, setLanded] = useState(BOOKS.length);
   useMotionValueEvent(progress, 'change', (t) => setLanded(Math.ceil(t * BOOKS.length)));
-  const format = new Intl.NumberFormat(getLocale());
-  const shown = useTransform(progress, (t) => format.format(Math.round(t * amount)));
 
   useEffect(() => {
     count.set(progress.get() * amount);
@@ -207,7 +198,6 @@ export function BooksGraphic({
         </g>
       ))}
       <line x1={SHELF.left} x2={SHELF.right} y1={SHELF.y} y2={SHELF.y} {...props(styles.shelf)} />
-      <DeckCount>{shown}</DeckCount>
     </svg>
   );
 }

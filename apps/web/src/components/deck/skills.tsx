@@ -13,8 +13,7 @@ import {
 import type { MotionValue } from 'motion/react';
 import { useEffect } from 'react';
 import { drawing } from '../../lib/motion.stylex.ts';
-import { getLocale } from '../../paraglide/runtime.js';
-import { DeckCount, HEIGHT, WIDTH } from './count.tsx';
+import { HEIGHT, WIDTH } from './box.ts';
 
 /** What one skill takes: the folk figure for mastery. */
 const HOURS = 10_000;
@@ -25,13 +24,9 @@ const FINE_LENGTH = 3;
 const LONG_LENGTH = 6;
 /** The track's two ends, how thick it is, and how far over it the ruler stands. */
 const START = 16;
-const END = 224;
+const END = WIDTH - START;
 const TRACK = 6;
 const RULER_GAP = 2;
-/** The count stands right-aligned after the track, level with it. */
-const COUNT_END = 308;
-/** While a track fills its count is faint, and full once the track is. */
-const COUNTING = 0.45;
 /** The rows stand this far apart at most, inside this much of the box's height. */
 const ROW_PITCH = 48;
 const ROOM = 200;
@@ -48,7 +43,7 @@ const styles = create({
     display: 'block',
     height: 'auto',
     marginInline: 'auto',
-    maxWidth: 360,
+    maxWidth: 400,
     width: '100%',
   },
   ruler: {
@@ -102,8 +97,7 @@ function fillPath(y: number, share: number): string {
 
 /**
  * One skill: a ten-thousand-hour track under its ruler, filling orange in its
- * turn, and the hours counted up after it to the full figure. With less
- * motion it stands full.
+ * turn. With less motion it stands full.
  */
 function Track({
   clock,
@@ -118,21 +112,13 @@ function Track({
   reduced: boolean;
   y: number;
 }) {
-  const number = new Intl.NumberFormat(getLocale());
   const filled = useTransform(clock, (seconds) => filledAt(index, count, seconds));
   const bar = useTransform(filled, (share) => fillPath(y, share));
-  const hours = useTransform(filled, (share) => number.format(Math.round(share * HOURS)));
-  const shown = useTransform(filled, (share): number =>
-    share >= 1 ? 1 : share > 0 ? COUNTING : 0,
-  );
   return (
     <>
       <path d={trackPath(y)} {...props(styles.track)} />
       <path d={rulerPath(y)} {...props(styles.ruler)} />
       <motion.path d={reduced ? fillPath(y, 1) : bar} {...props(styles.fill)} />
-      <DeckCount anchor="end" opacity={reduced ? 1 : shown} x={COUNT_END} y={y}>
-        {reduced ? number.format(HOURS) : hours}
-      </DeckCount>
     </>
   );
 }
@@ -147,10 +133,9 @@ function masteredAt(tracks: number, seconds: number): number {
 
 /**
  * The world-class skills the hours would have bought: a ten-thousand-hour
- * track for each, filling orange one after another, each counted to the full
- * figure as it completes. When `play` turns on it plays once from the start;
- * when it turns off the tracks are empty again. With less motion they stand
- * full.
+ * track for each, filling orange one after another. When `play` turns on it
+ * plays once from the start; when it turns off the tracks are empty again.
+ * With less motion they stand full.
  */
 export function SkillsGraphic({
   amount,

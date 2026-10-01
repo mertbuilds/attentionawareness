@@ -5,8 +5,7 @@ import { animate, useMotionValue, useMotionValueEvent, useReducedMotion } from '
 import type { MotionValue } from 'motion/react';
 import { useEffect, useLayoutEffect, useState } from 'react';
 import { drawing } from '../../lib/motion.stylex.ts';
-import { getLocale } from '../../paraglide/runtime.js';
-import { DeckCount, HEIGHT, WIDTH } from './count.tsx';
+import { HEIGHT, WIDTH } from './box.ts';
 
 /** The whole run, from the first word to the last page done. */
 const RUN_SECONDS = drawing.deck;
@@ -18,8 +17,8 @@ const RUN_SECONDS = drawing.deck;
 const SPEED_UP = 0.68;
 const SLOW_DOWN = 0.45;
 const SETTLE = 0.6;
-/** The page being written, on the right, square-cornered like paper, standing over the count. */
-const PAGE = { height: 164, width: 122, x: 147, y: 36 };
+/** The page being written, on the right, square-cornered like paper, in the middle of the box. */
+const PAGE = { height: 164, width: 122, x: 147, y: 26 };
 const PAGE_MIDDLE = PAGE.y + PAGE.height / 2;
 /** The text: a margin all round and a line every so often, in two paragraphs. */
 const MARGIN = 16;
@@ -117,7 +116,7 @@ const styles = create({
   drawing: {
     display: 'block',
     height: 'auto',
-    maxWidth: 360,
+    maxWidth: 400,
     overflow: 'visible',
     width: '100%',
   },
@@ -265,8 +264,8 @@ function useRun(play: boolean): number {
 /**
  * A manuscript writing itself: lines of words typed in left to right, the page
  * turned over when it is full and the next one started, faster and faster.
- * Every finished page drops onto the pile beside it, in orange, and the count
- * under them climbs to `amount`.
+ * Every finished page drops onto the pile beside it, in orange, while `count`
+ * climbs to `amount` for the sentence under it.
  */
 export function NovelsGraphic({
   amount,
@@ -289,7 +288,6 @@ export function NovelsGraphic({
   const angle = (Math.PI / 2) * turned ** 2;
   const head = headAt(written);
   const counted = countAt(page + written, pages, amount);
-  const number = new Intl.NumberFormat(getLocale());
 
   useEffect(() => {
     count.set(counted);
@@ -336,7 +334,6 @@ export function NovelsGraphic({
           />
         </>
       )}
-      <DeckCount>{number.format(Math.floor(counted))}</DeckCount>
     </svg>
   );
 }

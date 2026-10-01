@@ -48,9 +48,18 @@ const styles = create({
 });
 
 /** A small "i" beside a line, and the explanation behind it. */
-export function InfoTip({ children, label }: { children: ReactNode; label: string }) {
+export function InfoTip({
+  children,
+  label,
+  onOpenChange,
+}: {
+  children: ReactNode;
+  label: string;
+  onOpenChange?: ((open: boolean) => void) | undefined;
+}) {
   return (
     <Tip
+      onOpenChange={onOpenChange}
       paper
       title={label}
       trigger={

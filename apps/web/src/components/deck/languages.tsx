@@ -12,8 +12,7 @@ import {
 import type { MotionValue } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { blur, distance, drawing } from '../../lib/motion.stylex.ts';
-import { getLocale } from '../../paraglide/runtime.js';
-import { DeckCount, HEIGHT, WIDTH } from './count.tsx';
+import { HEIGHT, WIDTH } from './box.ts';
 
 /**
  * Hello, then the same word in one language after another, each in its own
@@ -55,8 +54,8 @@ const GREETINGS: ReadonlyArray<string> = [
 ];
 const CENTER = WIDTH / 2;
 /** The bubble the word is said in, and its tail, hanging off the lower left. */
-const BUBBLE = { bottom: 150, left: 32, radius: 6, right: 288, top: 38 };
-const TAIL = { from: 84, tipX: 56, tipY: 166, to: 64 };
+const BUBBLE = { bottom: 144, left: 32, radius: 6, right: 288, top: 32 };
+const TAIL = { from: 84, tipX: 56, tipY: 160, to: 64 };
 const WORD_Y = (BUBBLE.top + BUBBLE.bottom) / 2;
 const WORD_SIZE = 32;
 /**
@@ -66,8 +65,8 @@ const WORD_SIZE = 32;
  */
 const SWAP_RISE = Number.parseFloat(distance.micro);
 const SWAP_BLUR = Number.parseFloat(blur.small);
-/** A tick for every language under the bubble, with the count under them. */
-const TICKS = { bottom: 190, left: 48, right: 272, top: 180 };
+/** A tick for every language under the bubble, as much air under them as over the bubble. */
+const TICKS = { bottom: 184, left: 48, right: 272, top: 174 };
 /** The whole run, slow at both ends and a blur in the middle. */
 const SECONDS = drawing.deck;
 /** How much of its turn a word stands still before it flips to the next. */
@@ -100,7 +99,7 @@ const styles = create({
     display: 'block',
     height: 'auto',
     marginInline: 'auto',
-    maxWidth: 360,
+    maxWidth: 400,
     width: '100%',
   },
   // A language still to come: a faint tick.
@@ -198,8 +197,6 @@ export function LanguagesGraphic({
     return () => controls.stop();
   }, [play, progress, reduced]);
 
-  const format = new Intl.NumberFormat(getLocale());
-
   return (
     <svg aria-hidden="true" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} {...props(styles.graphic)}>
       <path d={BUBBLE_PATH} {...props(styles.bubble)} />
@@ -223,7 +220,6 @@ export function LanguagesGraphic({
           {...props(styles.tick, index < counted && styles.tickCounted)}
         />
       ))}
-      <DeckCount>{format.format(counted)}</DeckCount>
     </svg>
   );
 }

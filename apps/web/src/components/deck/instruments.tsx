@@ -5,8 +5,7 @@ import { animate, useMotionValue, useMotionValueEvent, useReducedMotion } from '
 import type { MotionValue } from 'motion/react';
 import { useEffect, useLayoutEffect, useState } from 'react';
 import { drawing } from '../../lib/motion.stylex.ts';
-import { getLocale } from '../../paraglide/runtime.js';
-import { DeckCount, HEIGHT, WIDTH } from './count.tsx';
+import { HEIGHT, WIDTH } from './box.ts';
 
 /** The whole run, from the first sound to the last. */
 const RUN_SECONDS = drawing.deck;
@@ -32,8 +31,8 @@ const INSTRUMENTS = ['piano', 'guitar', 'drum'] as const;
  */
 const SCALE = [0, 2, 4, 5, 7, 9, 11, 1, 3, 6, 8, 10];
 const WHITE_KEYS = 7;
-/** The line every instrument stands on the middle of, as far over the count as under the top. */
-const MIDDLE = 108;
+/** The line every instrument stands on the middle of: the middle of the box. */
+const MIDDLE = HEIGHT / 2;
 /** The sound: a bar for each note, the tallest in the middle. */
 const BARS_X = 49;
 const BAR_PITCH = 18.5;
@@ -147,7 +146,7 @@ const styles = create({
   drawing: {
     display: 'block',
     height: 'auto',
-    maxWidth: 360,
+    maxWidth: 400,
     overflow: 'visible',
     width: '100%',
   },
@@ -427,8 +426,8 @@ function useRun(play: boolean): number {
 /**
  * A sound that turns into one instrument after another: piano keys lit in a
  * run, guitar strings strummed, a drum struck and rippling, round and round,
- * faster each time, while the count under them climbs to `amount`. It ends
- * as the sound it started from, in orange.
+ * faster each time, while `count` climbs to `amount` for the sentence under
+ * it. It ends as the sound it started from, in orange.
  */
 export function InstrumentsGraphic({
   amount,
@@ -458,7 +457,6 @@ export function InstrumentsGraphic({
   const from = scenes[step] ?? 'wave';
   const to = scenes[step + 1] ?? 'played';
   const counted = countAt(at, shown, amount);
-  const number = new Intl.NumberFormat(getLocale());
 
   useEffect(() => {
     count.set(counted);
@@ -495,7 +493,6 @@ export function InstrumentsGraphic({
           />
         );
       })}
-      <DeckCount>{number.format(Math.floor(counted))}</DeckCount>
     </svg>
   );
 }

@@ -130,6 +130,7 @@ export function Tip({
   children,
   content,
   mobile = 'sheet',
+  onOpenChange,
   paper = false,
   side,
   style,
@@ -148,6 +149,8 @@ export function Tip({
    * name on hover.
    */
   mobile?: 'none' | 'sheet';
+  /** Told each time the tooltip, or the sheet on a phone, opens or closes. */
+  onOpenChange?: ((open: boolean) => void) | undefined;
   /**
    * Drawn as a scrap of the bill's own paper rather than as a box: a torn
    * edge, the grain, and the ink pressed into it. The sheet on a phone is
@@ -170,6 +173,11 @@ export function Tip({
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
 
+  function changeOpen(next: boolean) {
+    setOpen(next);
+    onOpenChange?.(next);
+  }
+
   if (isMobile && mobile === 'none') {
     return trigger;
   }
@@ -181,10 +189,10 @@ export function Tip({
         {cloneElement(trigger, {
           onClick: (event: MouseEvent) => {
             trigger.props.onClick?.(event);
-            setOpen(true);
+            changeOpen(true);
           },
         })}
-        <Sheet onOpenChange={setOpen} open={open} title={title}>
+        <Sheet onOpenChange={changeOpen} open={open} title={title}>
           <div {...props(styles.sheetText)}>{content ?? children}</div>
         </Sheet>
       </>
@@ -201,7 +209,7 @@ export function Tip({
   );
 
   return (
-    <Tooltip.Root>
+    <Tooltip.Root onOpenChange={(next) => onOpenChange?.(next)}>
       <Tooltip.Trigger render={trigger} />
       <Tooltip.Portal>
         <Tooltip.Positioner

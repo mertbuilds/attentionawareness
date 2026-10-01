@@ -13,7 +13,6 @@
   "home_cost_weeks_legend": "= 1 hafta",
   "home_cost_weeks_legend_screen": "= ekranda geçen 1 hafta",
   "home_cost_weekends": "Bu sürede geçireceğin [[bütün hafta sonlarından]] daha fazla",
-  "home_cost_weekends_count": "{count} / {total} hafta sonu",
   "home_cost_weekends_legend": "1 yaprak = 1 hafta sonu",
   "home_cost_earth": "Dünya'nın çevresini {count} kez yürüyerek dolaşabilirdin",
   "home_cost_moon_half": "Ya da Ay'a giden yolun [[yarısından]] fazlasını yürüyebilirdin",

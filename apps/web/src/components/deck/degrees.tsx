@@ -13,7 +13,7 @@ import {
 import type { MotionValue } from 'motion/react';
 import { useEffect, useId } from 'react';
 import { drawing } from '../../lib/motion.stylex.ts';
-import { HEIGHT, WIDTH } from './count.tsx';
+import { HEIGHT, WIDTH } from './box.ts';
 
 /**
  * The caps go up from behind the shelf, out of sight under it, and come down
@@ -21,7 +21,7 @@ import { HEIGHT, WIDTH } from './count.tsx';
  * out instead of bunching in the middle, and all leave a little to the left
  * of that, so the fan is not a mirror image of itself.
  */
-const SHELF_Y = 226;
+const SHELF_Y = 202;
 const THROW_Y = SHELF_Y + 40;
 const THROW_SPREAD = 0.35;
 const THROW_LEAN = -16;
@@ -100,7 +100,7 @@ const styles = create({
     display: 'block',
     height: 'auto',
     marginInline: 'auto',
-    maxWidth: 360,
+    maxWidth: 400,
     width: '100%',
   },
   shelf: {

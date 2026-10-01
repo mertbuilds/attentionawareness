@@ -5,8 +5,7 @@ import { animate, useMotionValue, useMotionValueEvent, useReducedMotion } from '
 import type { MotionValue } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { drawing, easing } from '../../lib/motion.stylex.ts';
-import { getLocale } from '../../paraglide/runtime.js';
-import { ART_BOTTOM, DeckCount, HEIGHT, WIDTH } from './count.tsx';
+import { HEIGHT, WIDTH } from './box.ts';
 
 /** The drawing plays once over this long each time it comes on. */
 const PLAY_SECONDS = drawing.deck;
@@ -14,9 +13,9 @@ const PLAY_SECONDS = drawing.deck;
 const KERB = 56;
 const LANES = 4;
 const LANE = 8;
-/** The track, two straights and two bends around its middle, standing on the line the count is kept under. */
+/** The track, two straights and two bends around its middle, in the middle of the box. */
 const CENTER_X = WIDTH / 2;
-const CENTER_Y = ART_BOTTOM - KERB - LANES * LANE;
+const CENTER_Y = HEIGHT / 2;
 const HALF_STRAIGHT = 58;
 /** The runner keeps to the middle of the inside lane, the one a lap is measured on. */
 const RUN_RADIUS = KERB + LANE / 2;
@@ -25,7 +24,8 @@ const BEND = Math.PI * RUN_RADIUS;
 const LAP = 2 * STRAIGHT + 2 * BEND;
 /**
  * The laps the runner is seen to run: the first at a run, then a blur, and
- * the last easing over the line. The count runs with them to the whole figure.
+ * the last easing over the line. The sentence's count runs with them to the
+ * whole figure.
  */
 const LAPS_RUN = 8;
 /** The tail reaches back to where the runner was this share of the run ago, and never round more than most of a lap. */
@@ -49,7 +49,7 @@ const styles = create({
   drawing: {
     display: 'block',
     height: 'auto',
-    maxWidth: 360,
+    maxWidth: 400,
     overflow: 'visible',
     width: '100%',
   },
@@ -192,9 +192,9 @@ const FINISH = `M${CENTER_X + HALF_STRAIGHT} ${CENTER_Y + KERB} L${CENTER_X + HA
 /**
  * A running track seen from above, and a runner lapping it: off the line at
  * a run, then so fast the tail behind it rings the lane, then easing back
- * over the line. The count under it climbs with the laps to `amount`. It
- * plays once each time `play` turns on and stands at the start while it is
- * off. For a reader who asked for less motion it stands finished.
+ * over the line, while `count` climbs with the laps to `amount`. It plays
+ * once each time `play` turns on and stands at the start while it is off.
+ * For a reader who asked for less motion it stands finished.
  */
 export function MarathonsGraphic({
   amount,
@@ -213,7 +213,6 @@ export function MarathonsGraphic({
   const piece = (tail * LAP) / TAIL_PIECES;
   const runner = lapPoint(head);
   const counted = (amount * ran) / LAPS_RUN;
-  const number = new Intl.NumberFormat(getLocale());
 
   useEffect(() => {
     count.set(counted);
@@ -244,7 +243,6 @@ export function MarathonsGraphic({
         <circle cx={runner.x} cy={runner.y} r={RUNNER_RADIUS} {...props(styles.ripple)} />
       ) : null}
       <circle cx={runner.x} cy={runner.y} r={RUNNER_RADIUS} {...props(styles.runner)} />
-      <DeckCount>{number.format(Math.round(counted))}</DeckCount>
     </svg>
   );
 }
