@@ -3,6 +3,7 @@ import { create, props } from '@stylexjs/stylex';
 import type { ReactNode } from 'react';
 import { layout } from '../lib/layout.ts';
 import { m } from '../paraglide/messages.js';
+import { GridTexture } from './grid-texture.tsx';
 import { ThemeSwitch } from './preferences.tsx';
 
 /** Every link to one of Mert's own sites carries utm tags, so the visit is traced to this site. */
@@ -14,6 +15,17 @@ const BUILDER_URL =
  * order and spacing in every language instead of being stitched from pieces.
  */
 const LINK_SLOT = '\u0000';
+/** The strip of graph paper at the foot of every page: the footer and the room around it. */
+const PAPER_HEIGHT = 240;
+/**
+ * Ruled at the window's sides and clear in the middle, where the footer's words
+ * stand. On a phone the words run nearly edge to edge, so the sides stay faint.
+ */
+const PAPER_SIDES = 'linear-gradient(to right, black, transparent 35%, transparent 65%, black)';
+const PAPER_SIDES_NARROW =
+  'linear-gradient(to right, rgb(0 0 0 / 0.4), transparent 25%, transparent 75%, rgb(0 0 0 / 0.4))';
+/** No hard line where the paper starts: it comes in out of nothing at its top. */
+const PAPER_TOP = 'linear-gradient(to bottom, transparent, black 60%)';
 
 const styles = create({
   footer: {
@@ -33,6 +45,25 @@ const styles = create({
   line: {
     margin: 0,
   },
+  // The story's graph paper, under the foot of the page. The footer is not
+  // positioned, so the paper hangs from the page root every page positions:
+  // the window's whole width without pushing it sideways, standing on the
+  // page's bottom edge. The two masks are both applied, the sides and the top.
+  paper: {
+    height: PAPER_HEIGHT,
+    insetBlockEnd: 0,
+    insetBlockStart: 'auto',
+    maskComposite: 'intersect',
+    maskImage: {
+      '@media (min-width: 640px)': `${PAPER_SIDES}, ${PAPER_TOP}`,
+      default: `${PAPER_SIDES_NARROW}, ${PAPER_TOP}`,
+    },
+    WebkitMaskComposite: 'source-in',
+    WebkitMaskImage: {
+      '@media (min-width: 640px)': `${PAPER_SIDES}, ${PAPER_TOP}`,
+      default: `${PAPER_SIDES_NARROW}, ${PAPER_TOP}`,
+    },
+  },
 });
 
 /**
@@ -45,6 +76,7 @@ export function SiteFooter({ children }: { children?: ReactNode | undefined }) {
 
   return (
     <footer {...props(styles.footer)}>
+      <GridTexture style={styles.paper} />
       {children}
       <div {...props(styles.last)}>
         <p {...props(layout.muted, styles.line)}>

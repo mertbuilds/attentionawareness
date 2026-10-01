@@ -250,6 +250,8 @@ const styles = create({
     overflowX: 'clip',
     paddingBlockEnd: spacing.s16,
     paddingInline: spacing.s4,
+    // The containing block the footer's graph paper measures itself against.
+    position: 'relative',
   },
   section: {
     display: 'flex',
