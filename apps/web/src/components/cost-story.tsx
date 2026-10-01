@@ -639,7 +639,10 @@ const styles = create({
       default: 0,
     },
   },
-  // A square of the legend, drawn as the grid draws a week.
+  // A square of the legend, drawn as the grid draws a week. Centered on the
+  // line it sits a pixel under the middle of the figures beside it, as the
+  // line keeps room for descenders the words hardly use, so it is lifted to
+  // stand level with them.
   swatch: {
     borderColor: colors.border,
     borderStyle: 'solid',
@@ -648,6 +651,7 @@ const styles = create({
     display: 'block',
     flexShrink: 0,
     height: SWATCH_SIZE,
+    transform: 'translateY(-1px)',
     width: SWATCH_SIZE,
   },
   swatchSpent: {
