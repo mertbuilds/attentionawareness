@@ -48,7 +48,6 @@ import { getLocale } from '../paraglide/runtime.js';
 import { BillFilters } from './bill-paper.tsx';
 import { DECK_GRAPHICS } from './deck/index.ts';
 import type { SkillLabels } from './deck/skills.tsx';
-import { FeedPhone } from './feed-phone.tsx';
 import { GridTexture } from './grid-texture.tsx';
 import { InfoTip } from './info-tip.tsx';
 
@@ -183,11 +182,6 @@ const CUE_LABEL = 11;
 const CUE_TRACKING = '0.2em';
 /** Where the cue stands, just over the progress rail. */
 const CUE_BOTTOM = `calc(${spacing.s8} + ${spacing.s4})`;
-/**
- * How far up from the foot of the stage the cue reaches, word and track, with
- * a little air over it: what a beat that fills the stage leaves it.
- */
-const CUE_ROOM = `calc(${CUE_BOTTOM} + ${CUE_LABEL + CUE_HEIGHT}px + ${spacing.s2} + ${spacing.s4})`;
 
 /**
  * One answer to "What else?": the sentence it is told in, how it is counted,
@@ -348,40 +342,6 @@ const styles = create({
     transitionTimingFunction: easing.inOut,
     width: '100%',
   },
-  // The first beat: the sentence beside the feed, which stands under it once
-  // the window is too narrow for two columns. There it is the whole stage, so
-  // the words take what they need and the feed every row they leave, short of
-  // the cue at the foot.
-  beatFeed: {
-    boxSizing: 'border-box',
-    columnGap: spacing.s16,
-    display: 'grid',
-    gridTemplateColumns: {
-      '@media (min-width: 768px)': 'minmax(0, 1fr) auto',
-      default: 'minmax(0, 1fr)',
-    },
-    gridTemplateRows: {
-      '@media (min-width: 768px)': 'none',
-      default: 'auto minmax(0, 1fr)',
-    },
-    height: {
-      '@media (min-width: 768px)': 'auto',
-      default: firstThatWorks(
-        `calc(100dvh - ${wip.height} - 2 * ${spacing.s16})`,
-        `calc(100svh - ${wip.height} - 2 * ${spacing.s16})`,
-        `calc(100vh - ${wip.height} - 2 * ${spacing.s16})`,
-      ),
-    },
-    paddingBlockEnd: {
-      '@media (min-width: 768px)': 0,
-      default: `calc(${CUE_ROOM} - ${spacing.s16})`,
-    },
-    rowGap: spacing.s6,
-    textAlign: {
-      '@media (min-width: 768px)': 'start',
-      default: 'center',
-    },
-  },
   // The beat on the stage, and in the pointer's way.
   beatOn: {
     opacity: 1,
@@ -446,21 +406,6 @@ const styles = create({
     height: CUE_HEIGHT,
     overflow: 'hidden',
     width: 2,
-  },
-  // The room the feed stands in under the sentence on a narrow screen. The
-  // phone is sized by it, so all of it is on the first screen. On a wide
-  // screen it is no box at all, and the phone stands in the beat's grid on
-  // its own.
-  feed: {
-    alignItems: 'center',
-    alignSelf: 'stretch',
-    containerType: 'size',
-    display: {
-      '@media (min-width: 768px)': 'contents',
-      default: 'flex',
-    },
-    justifyContent: 'center',
-    justifySelf: 'stretch',
   },
   // The time left before the next answer takes this one's place: a hairline
   // under the button, along its straight edge, filling in orange. With less
@@ -935,6 +880,18 @@ const styles = create({
     letterSpacing: '0.06em',
     lineHeight: 1,
     textTransform: 'uppercase',
+  },
+  // The first beat's sentence, alone on the first screen: larger than the
+  // ones after it, and smaller on a short window. On a wide screen it reaches
+  // past the column, twelve times its size across, so it breaks into three
+  // lines rather than five.
+  title: {
+    alignSelf: 'stretch',
+    fontSize: 'clamp(40px, min(10.5vw, 11vh), 88px)',
+    letterSpacing: '-0.03em',
+    lineHeight: 1.05,
+    marginInline: `min(0px, 50% - min(6em, 50vw - ${spacing.s4}))`,
+    maxWidth: 'none',
   },
   walker: {
     fill: accent.base,
@@ -2050,9 +2007,9 @@ export function CostStory({ id }: { id: string }) {
       <div ref={stage} {...props(styles.stage)}>
         <GridTexture style={styles.grid} />
         <div {...props(styles.beats)}>
-          <div {...beat(0, styles.beatFeed)}>
+          <div {...beat(0)}>
             {/* The page's heading: the first thing it says. */}
-            <h1 {...props(partOf(0, 0, styles.line))}>
+            <h1 {...props(partOf(0, 0, [styles.line, styles.title]))}>
               <Sentence
                 figures={[<Figure key="hours" value={AVERAGE_HOURS} />]}
                 mark={
@@ -2065,11 +2022,6 @@ export function CostStory({ id }: { id: string }) {
                 text={m.home_cost_average({ hours: slot(0) })}
               />
             </h1>
-            {/* It goes with the first beat. With less motion every beat stays
-            on the page, so it does too. */}
-            <div {...props(partOf(0, 1, styles.feed))}>
-              <FeedPhone shown={reduced || active === 0} />
-            </div>
           </div>
 
           <div {...beat(WEEKS_BEAT)}>
