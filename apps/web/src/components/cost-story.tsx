@@ -36,6 +36,7 @@ import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
 import { BillFilters } from './bill-paper.tsx';
+import { DECK_GRAPHICS } from './deck/index.ts';
 import { FeedPhone } from './feed-phone.tsx';
 import { GridTexture } from './grid-texture.tsx';
 import { InfoTip } from './info-tip.tsx';
@@ -180,6 +181,8 @@ const CUE_ROOM = `calc(${CUE_BOTTOM} + ${CUE_LABEL + CUE_HEIGHT}px + ${spacing.s
 
 /** One answer to "What else?": the sentence it is told in, and how it is counted. */
 type Answer = { line: (inputs: { count: string }) => string; tip: () => string };
+/** An answer the hours reach, with how many of it they would have bought. */
+type Counted = Answer & { amount: number; key: string };
 
 const ANSWERS: Record<string, Answer> = {
   books: { line: m.home_cost_books, tip: m.home_receipt_books_tip },
@@ -209,6 +212,33 @@ const cueFall = keyframes({
 });
 
 const styles = create({
+  // One answer to "What else?": its drawing over the sentence it is told in.
+  answer: {
+    alignItems: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s4,
+    width: '100%',
+  },
+  // The drawing, centred, as wide as the column up to its own width.
+  answerArt: {
+    display: 'flex',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  // The sentence's own room, two lines tall at the story's size, so the
+  // button under it stays put while one answer trades places with the next.
+  answerRoom: {
+    alignItems: 'center',
+    display: 'grid',
+    fontSize: {
+      '@media (min-width: 640px)': 'clamp(36px, 4.6vw, 56px)',
+      default: 'clamp(28px, 7.5vw, 36px)',
+    },
+    justifyItems: 'center',
+    minHeight: '2.3em',
+    width: '100%',
+  },
   // One sentence of the story. They all stand in the same cell, so the stage
   // is as tall as the tallest and nothing moves when one takes over from the
   // next. With less motion they stand one under the other instead.
@@ -574,18 +604,11 @@ const styles = create({
     strokeLinecap: 'round',
     strokeWidth: 1.5,
   },
-  // The answer's own room, two lines tall at the story's size, so the button
-  // under it stays put while one answer trades places with the next. Both
-  // stand in the same cell while they do.
+  // The answer up and the one on its way out, in the same cell while they
+  // trade places.
   pick: {
-    alignItems: 'center',
     display: 'grid',
-    fontSize: {
-      '@media (min-width: 640px)': 'clamp(36px, 4.6vw, 56px)',
-      default: 'clamp(28px, 7.5vw, 36px)',
-    },
     justifyItems: 'center',
-    minHeight: '2.3em',
     width: '100%',
   },
   pickIn: {
@@ -606,7 +629,7 @@ const styles = create({
     animationTimingFunction: 'ease-in',
     display: {
       '@media (prefers-reduced-motion: reduce)': 'none',
-      default: 'block',
+      default: 'flex',
     },
     gridArea: '1 / 1',
     pointerEvents: 'none',
@@ -1063,6 +1086,20 @@ function usePlayed(
   return played;
 }
 
+/**
+ * Whether an answer's drawing plays: from a moment after its beat has come
+ * on, as every drawing does, until the beat has faded out, so it is never
+ * seen to start over on its way out.
+ */
+function useDeckPlay(on: boolean): boolean {
+  const [playing, setPlaying] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setPlaying(on), on ? DRAW_DELAY * 1000 : FADE_MS);
+    return () => clearTimeout(timer);
+  }, [on]);
+  return playing;
+}
+
 /** Where the walk is `t` of the way along: one lap a trip, spiralling out. */
 function orbitPoint(laps: number, t: number): { x: number; y: number } {
   const angle = t * laps * 2 * Math.PI - Math.PI / 2;
@@ -1495,6 +1532,38 @@ function Moon({ share, walked }: { share: number; walked: MotionValue<number> })
 }
 
 /**
+ * One answer to "What else?": its drawing, playing while `play` is on, over
+ * the sentence it is told in.
+ */
+function Reply({
+  answer,
+  figure,
+  mark,
+  play,
+}: {
+  answer: Counted;
+  figure: ReactNode;
+  mark: ReactNode;
+  play: boolean;
+}) {
+  const Graphic = DECK_GRAPHICS[answer.key];
+  return (
+    <>
+      {Graphic === undefined ? null : (
+        <div {...props(styles.answerArt)}>
+          <Graphic amount={answer.amount} play={play} />
+        </div>
+      )}
+      <div {...props(styles.answerRoom)}>
+        <p {...props(styles.line)}>
+          <Sentence figures={[figure]} mark={mark} text={answer.line({ count: slot(0) })} />
+        </p>
+      </div>
+    </>
+  );
+}
+
+/**
  * Act one: what the average day costs, told one sentence a screen. The stage
  * stands pinned while the section scrolls under it, the page comes to rest on
  * one beat at a time, and each beat's figure counts up and its drawing plays
@@ -1520,11 +1589,12 @@ export function CostStory({ id }: { id: string }) {
   const weekendsDrawn = usePlayed(on(WEEKENDS_BEAT), WEEKENDS_SECONDS, 'linear');
   const walked = usePlayed(on(EARTH_BEAT), WALK_SECONDS, EASE_IN_OUT);
   const moonWalked = usePlayed(on(MOON_BEAT), MOON_SECONDS, EASE_IN_OUT);
+  const deckPlays = useDeckPlay(on(MORE_BEAT));
 
   const metrics = heroMetrics(AVERAGE_HOURS);
   const amountOf = (key: string) => metrics.find((metric) => metric.key === key)?.amount ?? 0;
   const earth = amountOf('earth');
-  const answers = metrics.flatMap((metric) => {
+  const answers = metrics.flatMap((metric): Array<Counted> => {
     const answer = ANSWERS[metric.key];
     return answer === undefined || TOLD.has(metric.key) || metric.amount === 0
       ? []
@@ -1927,33 +1997,41 @@ export function CostStory({ id }: { id: string }) {
           <div {...beat(MORE_BEAT)}>
             <p {...props(styles.line)}>{m.home_cost_more()}</p>
             <div aria-live="polite" {...props(styles.pick)}>
-              {/* Keyed by the press as well, so every press plays the swap
-              again, even for an answer that has been up before. */}
+              {/* The answer up is keyed by the press as well, so every press
+              plays the swap again, even for an answer that has been up
+              before. The one on its way out keeps the key it was up under,
+              so it leaves as it stood, drawing and all, and is gone once it
+              has faded. */}
               {leaving === undefined ? null : (
-                <p
+                <div
                   aria-hidden="true"
-                  key={`${leaving.key}-${turns}`}
-                  {...props(styles.line, styles.pickOut)}
+                  key={`${leaving.key}-${turns - 1}`}
+                  onAnimationEnd={(event) => {
+                    if (event.target === event.currentTarget) {
+                      setPrevious(null);
+                    }
+                  }}
+                  {...props(styles.answer, styles.pickOut)}
                 >
-                  <Sentence
-                    figures={[
-                      <Figure key={leaving.key} run={false} value={leaving.amount} waits={false} />,
-                    ]}
+                  <Reply
+                    answer={leaving}
+                    figure={
+                      <Figure key={leaving.key} run={false} value={leaving.amount} waits={false} />
+                    }
                     mark={null}
-                    text={leaving.line({ count: slot(0) })}
+                    play={deckPlays}
                   />
-                </p>
+                </div>
               )}
               {answer === undefined ? null : (
-                <p key={`${answer.key}-${turns}`} {...props(styles.line, styles.pickIn)}>
-                  <Sentence
-                    figures={[
-                      <Figure key={answer.key} run={on(MORE_BEAT)} value={answer.amount} />,
-                    ]}
+                <div key={`${answer.key}-${turns}`} {...props(styles.answer, styles.pickIn)}>
+                  <Reply
+                    answer={answer}
+                    figure={<Figure key={answer.key} run={on(MORE_BEAT)} value={answer.amount} />}
                     mark={<Mark label={tipLabel}>{answer.tip()}</Mark>}
-                    text={answer.line({ count: slot(0) })}
+                    play={deckPlays}
                   />
-                </p>
+                </div>
               )}
             </div>
             <Button onClick={reroll} variant="outline">
