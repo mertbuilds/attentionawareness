@@ -25,6 +25,24 @@ const HOURS_PER_EARTH_WALK = 8000;
 /** How far ahead the page projects a daily habit. */
 export const HORIZON_YEARS = 20;
 
+/** Weeks in a year, so weekends in a year too. */
+const WEEKS_PER_YEAR = 52;
+/** The weeks inside the horizon, and as many weekends: one square each in the grid of weeks. */
+export const HORIZON_WEEKS = HORIZON_YEARS * WEEKS_PER_YEAR;
+const WEEKEND_DAYS = 2;
+/**
+ * Every waking hour of every weekend inside the horizon. The story says the
+ * screen takes more than this, which holds from 5 hours a day (36,500).
+ */
+export const WEEKEND_HOURS = HORIZON_WEEKS * WEEKEND_DAYS * WAKING_HOURS;
+
+/** The walk to the Moon: its mean distance, at the pace the Earth walk is counted at. */
+export const MOON_KM = 384_400;
+export const WALKING_KMH = 5;
+const HOURS_TO_MOON = MOON_KM / WALKING_KMH;
+/** That walk in hours, rounded the way the screen hours are: it is an estimate too. */
+export const MOON_WALK_HOURS = Math.round(HOURS_TO_MOON / HOURS_ROUNDING) * HOURS_ROUNDING;
+
 /**
  * The day the page is priced at. The typical internet user is online 6 hours
  * 40 minutes a day (DataReportal, Digital 2024); the page counts only the
@@ -53,6 +71,16 @@ export function formatYears(hoursPerDay: number): string {
 /** The same span counted in waking hours, rounded to the nearest hundred. */
 export function screenHours(hoursPerDay: number): number {
   return Math.round(exactHours(hoursPerDay) / HOURS_ROUNDING) * HOURS_ROUNDING;
+}
+
+/** The weeks of the horizon the screen years fill, whole: the grid's orange squares. */
+export function screenWeeks(hoursPerDay: number): number {
+  return Math.round((screenYears(hoursPerDay) / HORIZON_YEARS) * HORIZON_WEEKS);
+}
+
+/** How far toward the Moon the screen hours would walk, as a share of the way. */
+export function moonShare(hoursPerDay: number): number {
+  return screenHours(hoursPerDay) / HOURS_TO_MOON;
 }
 
 /**

@@ -1,6 +1,6 @@
 import { Button } from '@attentionawareness/ui';
 import { accent } from '@attentionawareness/ui/accent.stylex';
-import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
+import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, firstThatWorks, keyframes, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import {
@@ -14,15 +14,23 @@ import {
   useTransform,
 } from 'motion/react';
 import type { MotionValue } from 'motion/react';
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
 import type { ReactNode } from 'react';
 import { ArrowsRotate } from 'reicon-react';
 import {
   AVERAGE_HOURS,
   formatYears,
   heroMetrics,
+  HORIZON_WEEKS,
   HORIZON_YEARS,
+  MOON_KM,
+  MOON_WALK_HOURS,
+  moonShare,
+  screenHours,
+  screenWeeks,
   WAKING_HOURS,
+  WALKING_KMH,
+  WEEKEND_HOURS,
 } from '../lib/attention-math.ts';
 import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
@@ -34,8 +42,13 @@ import { InfoTip } from './info-tip.tsx';
 
 /** The report the average day is taken from. */
 const SOURCE_URL = 'https://datareportal.com/reports/digital-2024-global-overview-report';
-/** The story's sentences, in the order the scroll plays them. */
-const BEATS = 5;
+/** The story's sentences, in the order the scroll plays them, and where each drawing's beat stands. */
+const BEATS = 6;
+const WEEKS_BEAT = 1;
+const WEEKENDS_BEAT = 2;
+const EARTH_BEAT = 3;
+const MOON_BEAT = 4;
+const MORE_BEAT = 5;
 /**
  * The scroll each beat takes, in hundredths of a screen so the heights come
  * out whole: a little under half a screen, except the last, which holds for
@@ -48,10 +61,9 @@ const SPAN = (BEATS - 1) * BEAT_SCROLL + LAST_BEAT_SCROLL;
 /** How much of the story's progress one beat takes. */
 const BEAT = BEAT_SCROLL / SPAN;
 /**
- * The beat that walks around the Earth, and how far into it the walk is done,
- * early enough that the whole walk stands drawn for a moment before the next.
+ * How far into its beat a drawing is done, early enough that the whole of it
+ * stands for a moment before the next.
  */
-const EARTH_BEAT = 2;
 const WALKED_BY = 0.7;
 /** How much of the stage has to be on screen before a figure counts. */
 const SEEN = 0.6;
@@ -63,7 +75,7 @@ const TURN_DEGREES = 180;
 const TURN_SECONDS = 0.7;
 const ICON_SIZE = 16;
 /** The figures the story tells on its own, so "What else?" never offers them. */
-const TOLD = new Set(['earth', 'languages']);
+const TOLD = new Set(['earth']);
 /**
  * What marks a figure's place in a sentence. The message is written with a
  * placeholder for each figure and split on this, so the words around a figure
@@ -91,6 +103,47 @@ const ORBIT_INNER = 64;
 const ORBIT_OUTER = 94;
 const POINTS_PER_LAP = 72;
 const WALKER_RADIUS = 3.5;
+/**
+ * The grid of weeks, a square for each and drawn to the pixel: a row a year on
+ * a wide screen, and half a year on a narrow one, where it stands tall instead.
+ */
+const WEEK_GAP = 2;
+const WIDE_WEEKS = { columns: 52, size: 7 };
+const NARROW_WEEKS = { columns: 26, size: 6 };
+/**
+ * The weekends, one calendar tile each, flipping past the line where each one
+ * is stamped. They speed up as they go: the first few pass one at a time, the
+ * last of the twenty years in a blur.
+ */
+const WEEKEND_RAMP = 7;
+const TILE_WIDTH = 64;
+const TILE_PITCH = 72;
+/** The tiles drawn either side of the line, enough to run past both faded edges. */
+const TILE_REACH = 5;
+const STAMP_SIZE = 40;
+/** The strip fades out at both ends, so the tiles come from and go nowhere in particular. */
+const STRIP_MASK = 'linear-gradient(to right, transparent, black 25%, black 75%, transparent)';
+const DAY_MS = 86_400_000;
+const DAYS_PER_WEEK = 7;
+const SATURDAY = 6;
+/** 1 January 2000 was a Saturday: the tiles read the names of the two days off it. */
+const A_SATURDAY = Date.UTC(2000, 0, 1);
+/** The walk to the Moon, in the drawing's own 320 by 180 box: the Earth low on the left, the Moon high on the right. */
+const SKY_WIDTH = 320;
+const SKY_HEIGHT = 180;
+const SKY_EARTH = { radius: 18, x: 38, y: 146 };
+const SKY_MOON = { radius: 10, x: 288, y: 34 };
+/** The way bows up off the Earth like a launch, toward this point, and is drawn as a run of points. */
+const WAY_BEND = { x: 96, y: 28 };
+const WAY_STEPS = 160;
+/** The middle of the way: a line marks it, and only past it does the sentence say halfway. */
+const HALFWAY = 0.5;
+const HALF_TICK_REACH = 5;
+/** The walker's strides on the way out, a whole number so the legs land apart where it stops. */
+const STRIDES = 7;
+const STRIDE = 2.4;
+const WALKER_HEAD = 12;
+const WALKER_HEAD_RADIUS = 2.2;
 /** The scroll cue: a short track at the foot of the first beat, and the drop that runs down it. */
 const CUE_HEIGHT = 48;
 const CUE_DROP = 12;
@@ -112,6 +165,7 @@ const ANSWERS: Record<string, Answer> = {
   books: { line: m.home_cost_books, tip: m.home_receipt_books_tip },
   degrees: { line: m.home_cost_degrees, tip: m.home_receipt_degrees_tip },
   instruments: { line: m.home_cost_instruments, tip: m.home_receipt_instruments_tip },
+  languages: { line: m.home_cost_languages, tip: m.home_receipt_languages_tip },
   marathons: { line: m.home_cost_marathons, tip: m.home_receipt_marathons_tip },
   novels: { line: m.home_cost_novels, tip: m.home_receipt_novels_tip },
   skills: { line: m.home_cost_skills, tip: m.home_receipt_skills_tip },
@@ -452,6 +506,14 @@ const styles = create({
   reroll: {
     display: 'inline-flex',
   },
+  // The Earth and the Moon, as wide as the column on a phone.
+  sky: {
+    display: 'block',
+    height: 'auto',
+    maxWidth: 400,
+    overflow: 'visible',
+    width: '100%',
+  },
   // The screen the story is told on. It stands still while the section
   // scrolls under it, and clears the brand bar at the top.
   stage: {
@@ -492,6 +554,32 @@ const styles = create({
       default: 0,
     },
   },
+  // The stamp a weekend gets as it passes the line: a ring and a tick, set
+  // down a little crooked, the way a hand stamps.
+  stamp: {
+    fill: 'none',
+    height: STAMP_SIZE,
+    insetBlockStart: '50%',
+    insetInlineStart: '50%',
+    opacity: 0,
+    position: 'absolute',
+    stroke: accent.base,
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    strokeWidth: 1.5,
+    transform: 'translate(-50%, -50%) rotate(-14deg) scale(1.4)',
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: '180ms',
+    },
+    transitionProperty: 'opacity, transform',
+    transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
+    width: STAMP_SIZE,
+  },
+  stampOn: {
+    opacity: 1,
+    transform: 'translate(-50%, -50%) rotate(-14deg) scale(1)',
+  },
   // The cue and the rail trade places on the turn to the second beat and
   // back, one fading out over the same time the other fades in.
   swap: {
@@ -499,8 +587,157 @@ const styles = create({
     transitionProperty: 'opacity, visibility',
     transitionTimingFunction: 'ease-in-out',
   },
+  // The count under the weekends, small, with its figure in the story's orange.
+  tally: {
+    color: colors.muted,
+    fontSize: font.sizeSm,
+    margin: 0,
+  },
+  // One weekend, a page off a desk calendar: the month over the two days. It
+  // stands on the line at its own middle and is moved along from there.
+  tile: {
+    backgroundColor: colors.bg,
+    borderColor: colors.border,
+    borderRadius: radius.base,
+    borderStyle: 'solid',
+    borderWidth: 1,
+    boxSizing: 'border-box',
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100%',
+    insetBlockStart: 0,
+    insetInlineStart: `calc(50% - ${TILE_WIDTH / 2}px)`,
+    position: 'absolute',
+    width: TILE_WIDTH,
+  },
+  tileDate: {
+    color: colors.fg,
+    fontSize: 18,
+    fontVariantNumeric: 'tabular-nums',
+    lineHeight: 1,
+  },
+  tileDay: {
+    alignItems: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s1,
+  },
+  tileDays: {
+    alignItems: 'center',
+    display: 'grid',
+    flexGrow: 1,
+    gridTemplateColumns: '1fr 1fr',
+  },
+  // The month, in a band of its own across the top, the way a calendar page has it.
+  tileMonth: {
+    borderBlockEndColor: colors.border,
+    borderBlockEndStyle: 'solid',
+    borderBlockEndWidth: 1,
+    color: colors.muted,
+    fontSize: 10,
+    lineHeight: 1,
+    overflow: 'hidden',
+    paddingBlock: spacing.s1,
+    textAlign: 'center',
+    whiteSpace: 'nowrap',
+  },
+  // A stamped weekend's dates step back under the stamp.
+  tileSpent: {
+    opacity: 0.3,
+  },
+  tileWeekday: {
+    color: colors.muted,
+    fontSize: 9,
+    letterSpacing: '0.06em',
+    lineHeight: 1,
+    textTransform: 'uppercase',
+  },
   walker: {
     fill: accent.base,
+  },
+  // The stick figure walking to the Moon, in the walk's orange.
+  walkerFigure: {
+    fill: 'none',
+    stroke: accent.base,
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    strokeWidth: 1.4,
+  },
+  // The way to the Moon, a dotted line: faint all the way, and orange as far
+  // as the hours walk it.
+  way: {
+    fill: 'none',
+    opacity: 0.45,
+    stroke: colors.muted,
+    strokeDasharray: '0 6',
+    strokeLinecap: 'round',
+    strokeWidth: 2,
+  },
+  wayHalf: {
+    stroke: colors.muted,
+    strokeLinecap: 'round',
+    strokeWidth: 1,
+  },
+  wayWalked: {
+    opacity: 1,
+    stroke: accent.base,
+  },
+  // A week still to come: a faint square, outlined.
+  week: {
+    fill: 'none',
+    stroke: colors.border,
+    strokeWidth: 1,
+  },
+  // The weekends and their tally, under each other.
+  weekends: {
+    alignItems: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s3,
+    width: '100%',
+  },
+  // The line the weekends are stamped at, showing above and below the strip
+  // and in the gaps between the tiles, which hide it where they pass.
+  weekendsLine: {
+    backgroundColor: accent.base,
+    insetBlock: 0,
+    insetInlineStart: '50%',
+    position: 'absolute',
+    width: 1,
+  },
+  weekendsStrip: {
+    height: 76,
+    maskImage: STRIP_MASK,
+    overflow: 'hidden',
+    position: 'relative',
+    WebkitMaskImage: STRIP_MASK,
+  },
+  weekendsTrack: {
+    boxSizing: 'border-box',
+    maxWidth: 520,
+    paddingBlock: spacing.s2,
+    position: 'relative',
+    width: '100%',
+  },
+  // The grid drawn at its own size, never scaled, so every square stays sharp.
+  weeks: {
+    flexShrink: 0,
+  },
+  weeksNarrow: {
+    display: {
+      '@media (min-width: 640px)': 'none',
+      default: 'block',
+    },
+  },
+  // A week the screen takes: filled in orange.
+  weekSpent: {
+    fill: accent.base,
+  },
+  weeksWide: {
+    display: {
+      '@media (min-width: 640px)': 'block',
+      default: 'none',
+    },
   },
 });
 
@@ -627,6 +864,11 @@ function Mark({ children, label }: { children: ReactNode; label: string }) {
   );
 }
 
+/** The stretch of the story's progress a beat's drawing is done over. */
+function drawnIn(index: number): [number, number] {
+  return [index * BEAT, (index + WALKED_BY) * BEAT];
+}
+
 /** Where the walk is `t` of the way along: one lap a trip, spiralling out. */
 function orbitPoint(laps: number, t: number): { x: number; y: number } {
   const angle = t * laps * 2 * Math.PI - Math.PI / 2;
@@ -689,6 +931,346 @@ function Orbit({ laps, walked }: { laps: number; walked: MotionValue<number> }) 
 }
 
 /**
+ * The next twenty years drawn a week a square, and the screen's share of them
+ * filled in orange, a row at a time as the reader scrolls. However many weeks
+ * it holds, it is three rectangles painted with a square pattern.
+ */
+function WeekGrid({
+  filled,
+  layout,
+  style,
+}: {
+  filled: number;
+  layout: { columns: number; size: number };
+  style: StyleXStyles;
+}) {
+  const id = useId();
+  const { columns, size } = layout;
+  const pitch = size + WEEK_GAP;
+  const width = columns * pitch - WEEK_GAP;
+  const height = Math.ceil(HORIZON_WEEKS / columns) * pitch - WEEK_GAP;
+  const rows = Math.floor(filled / columns);
+  const week = `${id}-week`;
+  const spent = `${id}-spent`;
+  return (
+    <svg
+      aria-hidden="true"
+      height={height}
+      shapeRendering="crispEdges"
+      viewBox={`0 0 ${width} ${height}`}
+      width={width}
+      {...props(styles.weeks, style)}
+    >
+      <defs>
+        <pattern height={pitch} id={week} patternUnits="userSpaceOnUse" width={pitch}>
+          <rect height={size - 1} width={size - 1} x={0.5} y={0.5} {...props(styles.week)} />
+        </pattern>
+        <pattern height={pitch} id={spent} patternUnits="userSpaceOnUse" width={pitch}>
+          <rect height={size} width={size} {...props(styles.weekSpent)} />
+        </pattern>
+      </defs>
+      <rect fill={`url(#${week})`} height={height} width={width} />
+      <rect fill={`url(#${spent})`} height={rows * pitch} width={width} />
+      <rect
+        fill={`url(#${spent})`}
+        height={pitch}
+        width={(filled % columns) * pitch}
+        y={rows * pitch}
+      />
+    </svg>
+  );
+}
+
+/**
+ * The grid of weeks, filled as far as the scroll has come. It is drawn wide and
+ * narrow, and the screen shows the one that fits. With less motion it stands
+ * filled.
+ */
+function Weeks({ drawn, spent }: { drawn: MotionValue<number>; spent: number }) {
+  const reduced = useReducedMotion();
+  const [filled, setFilled] = useState(0);
+  useMotionValueEvent(drawn, 'change', (latest) => setFilled(Math.round(latest * spent)));
+  const shown = reduced === true ? spent : filled;
+  return (
+    <>
+      <WeekGrid filled={shown} layout={WIDE_WEEKS} style={styles.weeksWide} />
+      <WeekGrid filled={shown} layout={NARROW_WEEKS} style={styles.weeksNarrow} />
+    </>
+  );
+}
+
+/** How many weekends have passed the line `t` of the way through: slowly at first, then faster and faster. */
+function weekendsBy(t: number): number {
+  return ((HORIZON_WEEKS - 0.5) * Math.expm1(WEEKEND_RAMP * t)) / Math.expm1(WEEKEND_RAMP);
+}
+
+/** A store that never changes: the calendar is read once, when the page comes alive. */
+function unchanging(): () => void {
+  return () => {};
+}
+
+/** The coming Saturday, as midnight UTC on its date, so every one after it is a whole week on. */
+function comingSaturday(today: Date): number {
+  const ahead = (SATURDAY - today.getDay() + DAYS_PER_WEEK) % DAYS_PER_WEEK;
+  return Date.UTC(today.getFullYear(), today.getMonth(), today.getDate() + ahead);
+}
+
+/**
+ * Every weekend in the next twenty years, a calendar tile each, flipping past
+ * a line as the reader scrolls. Each one is stamped as it crosses, and the
+ * tally under them counts up to the last. With less motion they stand all
+ * stamped.
+ */
+function Weekends({ drawn }: { drawn: MotionValue<number> }) {
+  const reduced = useReducedMotion();
+  const [passed, setPassed] = useState(0);
+  // The tiles start this weekend, which only the reader's own clock knows, so
+  // the server leaves the dates blank and the page fills them in.
+  const first = useSyncExternalStore(
+    unchanging,
+    () => comingSaturday(new Date()),
+    () => null,
+  );
+  useMotionValueEvent(drawn, 'change', (latest) => setPassed(weekendsBy(latest)));
+
+  const at = reduced === true ? weekendsBy(1) : passed;
+  const stamped = Math.round(at);
+  const locale = getLocale();
+  const month = new Intl.DateTimeFormat(locale, {
+    month: 'short',
+    timeZone: 'UTC',
+    year: 'numeric',
+  });
+  const weekday = new Intl.DateTimeFormat(locale, { timeZone: 'UTC', weekday: 'short' });
+  const date = new Intl.DateTimeFormat(locale, { day: 'numeric', timeZone: 'UTC' });
+  const number = new Intl.NumberFormat(locale);
+  const from = Math.max(0, stamped - TILE_REACH);
+  const to = Math.min(HORIZON_WEEKS - 1, stamped + TILE_REACH);
+
+  return (
+    <div aria-hidden="true" {...props(styles.weekends)}>
+      <div {...props(styles.weekendsTrack)}>
+        <span {...props(styles.weekendsLine)} />
+        <div {...props(styles.weekendsStrip)}>
+          {Array.from({ length: to - from + 1 }, (_, step) => {
+            const index = from + step;
+            const saturday = first === null ? null : first + index * DAYS_PER_WEEK * DAY_MS;
+            const spent = index < stamped;
+            return (
+              <div
+                key={index}
+                style={{ transform: `translateX(${(index + 0.5 - at) * TILE_PITCH}px)` }}
+                {...props(styles.tile)}
+              >
+                <span {...props(styles.tileMonth, spent && styles.tileSpent)}>
+                  {saturday === null ? null : month.format(saturday)}
+                </span>
+                <span {...props(styles.tileDays, spent && styles.tileSpent)}>
+                  {[0, 1].map((day) => (
+                    <span key={day} {...props(styles.tileDay)}>
+                      <span {...props(styles.tileWeekday)}>
+                        {weekday.format(A_SATURDAY + day * DAY_MS)}
+                      </span>
+                      <span {...props(styles.tileDate)}>
+                        {saturday === null ? null : date.format(saturday + day * DAY_MS)}
+                      </span>
+                    </span>
+                  ))}
+                </span>
+                <svg viewBox="0 0 30 30" {...props(styles.stamp, spent && styles.stampOn)}>
+                  <circle cx={15} cy={15} r={12} />
+                  <path d="M9.5 15.5l3.5 3.5 7.5-8" />
+                </svg>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <p {...props(styles.tally)}>
+        <Words
+          figures={[
+            <span key="count" {...props(styles.figure)}>
+              <span
+                aria-hidden="true"
+                data-room={number.format(HORIZON_WEEKS)}
+                {...props(styles.figureRoom)}
+              />
+              <span {...props(styles.figureCount)}>{number.format(stamped)}</span>
+            </span>,
+          ]}
+          text={m.home_cost_weekends_count({
+            count: slot(0),
+            total: number.format(HORIZON_WEEKS),
+          })}
+        />
+      </p>
+    </div>
+  );
+}
+
+type Point = { x: number; y: number };
+
+/** Where a body's surface faces a point: the way leaves the Earth and meets the Moon there. */
+function surfaceToward(body: { radius: number; x: number; y: number }, point: Point): Point {
+  const angle = Math.atan2(point.y - body.y, point.x - body.x);
+  return { x: body.x + body.radius * Math.cos(angle), y: body.y + body.radius * Math.sin(angle) };
+}
+
+const WAY_START = surfaceToward(SKY_EARTH, WAY_BEND);
+const WAY_END = surfaceToward(SKY_MOON, WAY_BEND);
+/** The way from the Earth to the Moon as a run of points, bowed toward the bend. */
+const WAY: ReadonlyArray<Point> = Array.from({ length: WAY_STEPS + 1 }, (_, step) => {
+  const t = step / WAY_STEPS;
+  const start = (1 - t) ** 2;
+  const bend = 2 * (1 - t) * t;
+  const end = t ** 2;
+  return {
+    x: start * WAY_START.x + bend * WAY_BEND.x + end * WAY_END.x,
+    y: start * WAY_START.y + bend * WAY_BEND.y + end * WAY_END.y,
+  };
+});
+/** How far along the way each of its points is. */
+const WAY_LENGTHS: ReadonlyArray<number> = WAY.reduce<Array<number>>((lengths, point, index) => {
+  const previous = WAY[index - 1];
+  lengths.push(
+    previous === undefined
+      ? 0
+      : (lengths[index - 1] ?? 0) + Math.hypot(point.x - previous.x, point.y - previous.y),
+  );
+  return lengths;
+}, []);
+const WAY_LENGTH = WAY_LENGTHS.at(-1) ?? 0;
+
+/** A run of points as one path. */
+function through(points: ReadonlyArray<Point>): string {
+  return points
+    .map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
+    .join(' ');
+}
+
+/** The point `share` of the way along, and how many of the way's points lie behind it. */
+function wayAt(share: number): { behind: number; point: Point } {
+  const along = Math.min(1, Math.max(0, share)) * WAY_LENGTH;
+  const behind = Math.max(
+    1,
+    WAY_LENGTHS.findIndex((length) => length >= along),
+  );
+  const from = WAY[behind - 1] ?? WAY_START;
+  const to = WAY[behind] ?? WAY_END;
+  const fromLength = WAY_LENGTHS[behind - 1] ?? 0;
+  const span = (WAY_LENGTHS[behind] ?? fromLength) - fromLength;
+  const t = span > 0 ? (along - fromLength) / span : 0;
+  return { behind, point: { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t } };
+}
+
+/** The way walked, from the Earth to the point `share` of the way along. */
+function walkedTo(share: number): string {
+  const { behind, point } = wayAt(share);
+  return through([...WAY.slice(0, behind), point]);
+}
+
+const WAY_PATH = through(WAY);
+/** The short line across the way at its middle, square to it. */
+const HALF_TICK = (() => {
+  const { point } = wayAt(HALFWAY);
+  const before = wayAt(HALFWAY - 0.01).point;
+  const after = wayAt(HALFWAY + 0.01).point;
+  const length = Math.hypot(after.x - before.x, after.y - before.y);
+  const across = {
+    x: ((before.y - after.y) / length) * HALF_TICK_REACH,
+    y: ((after.x - before.x) / length) * HALF_TICK_REACH,
+  };
+  return through([
+    { x: point.x - across.x, y: point.y - across.y },
+    { x: point.x + across.x, y: point.y + across.y },
+  ]);
+})();
+
+/**
+ * The walker standing with its feet on a point of the way: legs `stride`
+ * either side, arms swinging the other way, in the drawing's units. Its head
+ * is drawn on its own, `WALKER_HEAD` over the point.
+ */
+function walkerAt({ x, y }: Point, stride: number): string {
+  const arm = stride * 0.8;
+  return [
+    `M${x - stride} ${y} L${x} ${y - 4} L${x + stride} ${y}`,
+    `M${x} ${y - 4} L${x} ${y - 9.5}`,
+    `M${x + arm} ${y - 5.5} L${x} ${y - 8.5} L${x - arm} ${y - 5.5}`,
+  ].join(' ');
+}
+
+/** The legs' spread `walked` of the way out, landing wide apart where the walk stops. */
+function strideAt(walked: number): number {
+  return STRIDE * Math.cos((1 - walked) * STRIDES * 2 * Math.PI);
+}
+
+/**
+ * The Earth, the Moon and the dotted way between them. The hours walk it as
+ * the reader scrolls, as far as they reach, and the walker stops there with
+ * the rest of the way faint ahead of it. With less motion the walk stands done.
+ */
+function Moon({ share, walked }: { share: number; walked: MotionValue<number> }) {
+  const reduced = useReducedMotion();
+  const reach = Math.min(1, share);
+  const way = useTransform(walked, (latest) => walkedTo(latest * reach));
+  const figure = useTransform(walked, (latest) =>
+    walkerAt(wayAt(latest * reach).point, strideAt(latest)),
+  );
+  const headX = useTransform(walked, (latest) => wayAt(latest * reach).point.x);
+  const headY = useTransform(walked, (latest) => wayAt(latest * reach).point.y - WALKER_HEAD);
+  const end = wayAt(reach).point;
+  return (
+    <svg aria-hidden="true" viewBox={`0 0 ${SKY_WIDTH} ${SKY_HEIGHT}`} {...props(styles.sky)}>
+      <circle cx={SKY_EARTH.x} cy={SKY_EARTH.y} r={SKY_EARTH.radius} {...props(styles.globe)} />
+      <ellipse
+        cx={SKY_EARTH.x}
+        cy={SKY_EARTH.y}
+        rx={SKY_EARTH.radius * MERIDIAN_SQUASH}
+        ry={SKY_EARTH.radius}
+        {...props(styles.globe, styles.globeFaint)}
+      />
+      <ellipse
+        cx={SKY_EARTH.x}
+        cy={SKY_EARTH.y}
+        rx={SKY_EARTH.radius}
+        ry={SKY_EARTH.radius * EQUATOR_SQUASH}
+        {...props(styles.globe, styles.globeFaint)}
+      />
+      <circle cx={SKY_MOON.x} cy={SKY_MOON.y} r={SKY_MOON.radius} {...props(styles.globe)} />
+      <circle
+        cx={SKY_MOON.x - 3}
+        cy={SKY_MOON.y - 2}
+        r={2.5}
+        {...props(styles.globe, styles.globeFaint)}
+      />
+      <circle
+        cx={SKY_MOON.x + 3.5}
+        cy={SKY_MOON.y + 3.5}
+        r={1.5}
+        {...props(styles.globe, styles.globeFaint)}
+      />
+      <path d={WAY_PATH} {...props(styles.way)} />
+      <path d={HALF_TICK} {...props(styles.wayHalf)} />
+      <motion.path
+        d={reduced === true ? walkedTo(reach) : way}
+        {...props(styles.way, styles.wayWalked)}
+      />
+      <motion.path
+        d={reduced === true ? walkerAt(end, STRIDE) : figure}
+        {...props(styles.walkerFigure)}
+      />
+      <motion.circle
+        cx={reduced === true ? end.x : headX}
+        cy={reduced === true ? end.y - WALKER_HEAD : headY}
+        r={WALKER_HEAD_RADIUS}
+        {...props(styles.walker)}
+      />
+    </svg>
+  );
+}
+
+/**
  * Act one: what the average day costs, told one sentence a screen. The stage
  * stands pinned while the section scrolls under it, each beat takes over from
  * the last, and its figure counts up as it comes on. The Earth beat draws its
@@ -702,11 +1284,10 @@ export function CostStory({ id }: { id: string }) {
   const seen = useInView(stage, { amount: SEEN });
   const { scrollYProgress } = useScroll({ offset: ['start start', 'end end'], target: story });
   const [active, setActive] = useState(0);
-  const walked = useTransform(
-    scrollYProgress,
-    [EARTH_BEAT * BEAT, (EARTH_BEAT + WALKED_BY) * BEAT],
-    [0, 1],
-  );
+  const weeksDrawn = useTransform(scrollYProgress, drawnIn(WEEKS_BEAT), [0, 1]);
+  const weekendsDrawn = useTransform(scrollYProgress, drawnIn(WEEKENDS_BEAT), [0, 1]);
+  const walked = useTransform(scrollYProgress, drawnIn(EARTH_BEAT), [0, 1]);
+  const moonWalked = useTransform(scrollYProgress, drawnIn(MOON_BEAT), [0, 1]);
 
   const metrics = heroMetrics(AVERAGE_HOURS);
   const amountOf = (key: string) => metrics.find((metric) => metric.key === key)?.amount ?? 0;
@@ -728,6 +1309,9 @@ export function CostStory({ id }: { id: string }) {
   const leaving = answers.find((candidate) => candidate.key === previous);
   // The waking years, as the page prints them, counted at the same precision.
   const years = Number(formatYears(AVERAGE_HOURS));
+  const number = new Intl.NumberFormat(getLocale());
+  const toMoon = moonShare(AVERAGE_HOURS);
+  const toMoonPercent = Math.round(toMoon * 100);
 
   useMotionValueEvent(scrollYProgress, 'change', (latest) => {
     setActive(Math.min(BEATS - 1, Math.floor(latest / BEAT)));
@@ -801,14 +1385,15 @@ export function CostStory({ id }: { id: string }) {
             </div>
           </div>
 
-          <div {...beat(1)}>
+          <div {...beat(WEEKS_BEAT)}>
+            <Weeks drawn={weeksDrawn} spent={screenWeeks(AVERAGE_HOURS)} />
             <p {...props(styles.line)}>
               <Sentence
                 figures={[
                   <Figure
                     decimals={Number.isInteger(years) ? 0 : 1}
                     key="years"
-                    run={on(1)}
+                    run={on(WEEKS_BEAT)}
                     value={years}
                   />,
                 ]}
@@ -826,6 +1411,28 @@ export function CostStory({ id }: { id: string }) {
             </p>
           </div>
 
+          <div {...beat(WEEKENDS_BEAT)}>
+            <Weekends drawn={weekendsDrawn} />
+            <p {...props(styles.line)}>
+              <Sentence
+                figures={[]}
+                mark={
+                  <Mark label={tipLabel}>
+                    {m.home_receipt_weekends_tip({
+                      daily: AVERAGE_HOURS,
+                      horizon: HORIZON_YEARS,
+                      hours: number.format(WEEKEND_HOURS),
+                      total: number.format(screenHours(AVERAGE_HOURS)),
+                      waking: WAKING_HOURS,
+                      weekends: number.format(HORIZON_WEEKS),
+                    })}
+                  </Mark>
+                }
+                text={m.home_cost_weekends()}
+              />
+            </p>
+          </div>
+
           <div {...beat(EARTH_BEAT)}>
             <Orbit laps={earth} walked={walked} />
             <p {...props(styles.line)}>
@@ -837,17 +1444,31 @@ export function CostStory({ id }: { id: string }) {
             </p>
           </div>
 
-          <div {...beat(3)}>
+          <div {...beat(MOON_BEAT)}>
+            <Moon share={toMoon} walked={moonWalked} />
             <p {...props(styles.line)}>
               <Sentence
-                figures={[<Figure key="languages" run={on(3)} value={amountOf('languages')} />]}
-                mark={<Mark label={tipLabel}>{m.home_receipt_languages_tip()}</Mark>}
-                text={m.home_cost_languages({ count: slot(0) })}
+                figures={[]}
+                mark={
+                  <Mark label={tipLabel}>
+                    {m.home_receipt_moon_tip({
+                      hours: number.format(MOON_WALK_HOURS),
+                      km: number.format(MOON_KM),
+                      percent: toMoonPercent,
+                      speed: WALKING_KMH,
+                    })}
+                  </Mark>
+                }
+                text={
+                  toMoon >= HALFWAY
+                    ? m.home_cost_moon_half()
+                    : m.home_cost_moon_part({ percent: toMoonPercent })
+                }
               />
             </p>
           </div>
 
-          <div {...beat(4)}>
+          <div {...beat(MORE_BEAT)}>
             <p {...props(styles.line)}>{m.home_cost_more()}</p>
             <div aria-live="polite" {...props(styles.pick)}>
               {/* Keyed by the press as well, so every press plays the swap
@@ -870,7 +1491,9 @@ export function CostStory({ id }: { id: string }) {
               {answer === undefined ? null : (
                 <p key={`${answer.key}-${turns}`} {...props(styles.line, styles.pickIn)}>
                   <Sentence
-                    figures={[<Figure key={answer.key} run={on(4)} value={answer.amount} />]}
+                    figures={[
+                      <Figure key={answer.key} run={on(MORE_BEAT)} value={answer.amount} />,
+                    ]}
                     mark={<Mark label={tipLabel}>{answer.tip()}</Mark>}
                     text={answer.line({ count: slot(0) })}
                   />
