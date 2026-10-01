@@ -56,6 +56,7 @@ export const scale = defineConsts({
  * `deckHold` on its finished drawing before the next takes its place.
  */
 export const drawing = defineConsts({
+  day: 3,
   deck: 4,
   deckHold: 1.5,
   delay: 0.54,

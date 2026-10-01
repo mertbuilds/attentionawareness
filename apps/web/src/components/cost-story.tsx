@@ -46,7 +46,6 @@ import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
 import { BillFilters } from './bill-paper.tsx';
 import { DECK_GRAPHICS } from './deck/index.ts';
-import { FeedPhone } from './feed-phone.tsx';
 import { GridTexture } from './grid-texture.tsx';
 import { InfoTip } from './info-tip.tsx';
 
@@ -112,6 +111,53 @@ const MARKED = /\[\[(.*?)\]\]/u;
 const GRID_MASK = 'radial-gradient(ellipse at 50% 50%, black 35%, transparent 80%)';
 /** The last run of non-blank characters in a piece of a sentence: its last word. */
 const LAST_WORD = /\S*$/u;
+/** The legends under the drawings: small type, one line of it this tall. */
+const LEGEND_SIZE = 12;
+const LEGEND_LINE_HEIGHT = 1.4;
+/**
+ * The day as a 24-hour dial, in the drawing's own 320-unit box: midnight at
+ * the top and the hours going round clockwise, the way a clock's do.
+ */
+const DIAL_BOX = 320;
+const DIAL_CENTER = DIAL_BOX / 2;
+const DIAL_RADIUS = 140;
+const HOURS_PER_DAY = 24;
+/**
+ * The night runs from bedtime to waking, the hours of the day not spent
+ * awake. The phone takes its hours from waking on, as many as the average day
+ * gives it.
+ */
+const BEDTIME = 23;
+const SLEEP_HOURS = HOURS_PER_DAY - WAKING_HOURS;
+const WAKING = BEDTIME + SLEEP_HOURS;
+const PHONE_HOURS = Math.min(AVERAGE_HOURS, WAKING_HOURS);
+/** A tick inside the ring for every hour, longer every six, where the small labels stand. */
+const TICK_OUTER = 128;
+const TICK_SHORT = 5;
+const TICK_LONG = 10;
+const LABEL_EVERY = 6;
+const LABEL_RADIUS = 104;
+/**
+ * The night is dotted, a dot about this far from the next and none on either
+ * end, where the day's line starts and stops.
+ */
+const SLEEP_PITCH = 6;
+const SLEEP_DOT_RADIUS = 1;
+const SLEEP_DOTS = Math.round(
+  (2 * Math.PI * DIAL_RADIUS * SLEEP_HOURS) / HOURS_PER_DAY / SLEEP_PITCH,
+);
+/** The dot at the head of the sweep. */
+const DIAL_DOT_RADIUS = 4;
+/**
+ * How wide the dial stands beside the sentence. Under it, on a narrow screen,
+ * it takes the room the sentence leaves it, short of the legend under it.
+ */
+const DIAL_WIDE = 'min(300px, max(220px, 28vw), 52vh)';
+const DIAL_NARROW = `min(320px, 100cqw, 100cqh - ${spacing.s3} - ${LEGEND_SIZE}px * ${LEGEND_LINE_HEIGHT})`;
+/** A line of the dial's legend, drawn the way the dial draws it, this far in from either end. */
+const KEY_WIDTH = 16;
+const KEY_HEIGHT = 4;
+const KEY_INSET = 2;
 /** The globe and the walk around it, in the drawing's own 200-unit box. */
 const BOX = 200;
 const CENTER = BOX / 2;
@@ -231,6 +277,12 @@ const artIn = keyframes({
   to: { filter: 'blur(0)', opacity: 1 },
 });
 
+/** Once the day is swept, a ring goes out from the dot now and then, and nothing else moves. */
+const dialPulse = keyframes({
+  from: { opacity: 0.6, transform: 'scale(1)' },
+  to: { opacity: 0, transform: 'scale(3)' },
+});
+
 /** The drop falls from above the track to below it, and starts over. */
 const cueFall = keyframes({
   from: { transform: `translateY(-${CUE_DROP}px)` },
@@ -321,11 +373,11 @@ const styles = create({
     transitionTimingFunction: easing.inOut,
     width: '100%',
   },
-  // The first beat: the sentence beside the feed, which stands under it once
+  // The first beat: the sentence beside the dial, which stands under it once
   // the window is too narrow for two columns. There it is the whole stage, so
-  // the words take what they need and the feed every row they leave, short of
+  // the words take what they need and the dial every row they leave, short of
   // the cue at the foot.
-  beatFeed: {
+  beatDial: {
     boxSizing: 'border-box',
     columnGap: spacing.s16,
     display: 'grid',
@@ -420,11 +472,11 @@ const styles = create({
     overflow: 'hidden',
     width: 2,
   },
-  // The room the feed stands in under the sentence on a narrow screen. The
-  // phone is sized by it, so all of it is on the first screen. On a wide
-  // screen it is no box at all, and the phone stands in the beat's grid on
+  // The room the dial stands in under the sentence on a narrow screen. The
+  // dial is sized by it, so all of it is on the first screen. On a wide
+  // screen it is no box at all, and the dial stands in the beat's grid on
   // its own.
-  feed: {
+  dialRoom: {
     alignItems: 'center',
     alignSelf: 'stretch',
     containerType: 'size',
@@ -491,6 +543,86 @@ const styles = create({
   crossStrokeOn: {
     opacity: 1,
     strokeDashoffset: 0,
+  },
+  // The waking hours, a thin line round the dial from waking to bedtime.
+  dayAwake: {
+    fill: 'none',
+    stroke: colors.muted,
+    strokeLinecap: 'round',
+    strokeWidth: 1,
+  },
+  // The phone's hours, swept in orange over the waking ones.
+  dayPhone: {
+    fill: 'none',
+    stroke: accent.base,
+    strokeLinecap: 'round',
+    strokeWidth: 2,
+  },
+  // The night, a row of dots a step quieter than the day.
+  daySleep: {
+    fill: colors.muted,
+    opacity: 0.7,
+  },
+  // The dial and its legend, under each other, in the middle of their room.
+  dial: {
+    alignItems: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s3,
+    justifyContent: 'center',
+  },
+  dialArt: {
+    display: 'block',
+    flexShrink: 0,
+    height: 'auto',
+    overflow: 'visible',
+    width: {
+      '@media (min-width: 768px)': DIAL_WIDE,
+      default: DIAL_NARROW,
+    },
+  },
+  dialKey: {
+    display: 'block',
+    flexShrink: 0,
+    overflow: 'visible',
+  },
+  // The hours at the quarters of the day, small and quiet, in even figures.
+  dialLabel: {
+    fill: colors.muted,
+    fontSize: LEGEND_SIZE,
+    fontVariantNumeric: 'tabular-nums',
+  },
+  dialPulse: {
+    animationDuration: '2.8s',
+    animationIterationCount: 'infinite',
+    animationName: {
+      '@media (prefers-reduced-motion: reduce)': 'none',
+      default: dialPulse,
+    },
+    animationTimingFunction: easing.smoothOut,
+    fill: 'none',
+    stroke: accent.base,
+    strokeWidth: 0.75,
+    transformBox: 'fill-box',
+    transformOrigin: 'center',
+  },
+  // An hour's tick, faint, and a step stronger every six hours. One the sweep
+  // has passed turns orange as it does.
+  dialTick: {
+    stroke: colors.border,
+    strokeWidth: 1,
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: duration.slow,
+    },
+    transitionProperty: 'stroke',
+    transitionTimingFunction: easing.smoothOut,
+  },
+  dialTickLong: {
+    stroke: colors.muted,
+  },
+  dialTickSpent: {
+    stroke: accent.base,
   },
   // A drawing and its legend, under each other.
   drawing: {
@@ -585,9 +717,9 @@ const styles = create({
     columnGap: spacing.s4,
     display: 'flex',
     flexWrap: 'wrap',
-    fontSize: 12,
+    fontSize: LEGEND_SIZE,
     justifyContent: 'center',
-    lineHeight: 1.4,
+    lineHeight: LEGEND_LINE_HEIGHT,
     margin: 0,
     opacity: {
       '@media (prefers-reduced-motion: reduce)': 1,
@@ -1128,16 +1260,18 @@ function Mark({
  * How far a drawing has played, from 0 to 1: over `seconds` each time its beat
  * comes on, once the sentence has risen into place, and back to the start
  * once the beat has faded out, so it plays again when the reader comes back
- * to it. It stands done until the page has come alive, and for good with less
- * motion.
+ * to it. Until the page has come alive it stands at `from`: done, unless the
+ * drawing is on the first screen, where it would be seen to start over. With
+ * less motion it stands done for good.
  */
 function usePlayed(
   run: boolean,
   seconds: number,
   ease: [number, number, number, number] | 'linear',
+  from = 1,
 ): MotionValue<number> {
   const reduced = useLessMotion();
-  const played = useMotionValue(1);
+  const played = useMotionValue(from);
   useEffect(() => {
     if (reduced) {
       played.set(1);
@@ -1166,6 +1300,170 @@ function useDeckPlay(on: boolean): boolean {
     return () => clearTimeout(timer);
   }, [on]);
   return playing;
+}
+
+/**
+ * Where `hour` falls on the dial, `radius` out from its middle, to a hundredth
+ * of a unit, so the server and the browser draw it the same.
+ */
+function dialPoint(radius: number, hour: number): Point {
+  const angle = (hour / HOURS_PER_DAY) * 2 * Math.PI - Math.PI / 2;
+  return {
+    x: Math.round((DIAL_CENTER + radius * Math.cos(angle)) * 100) / 100,
+    y: Math.round((DIAL_CENTER + radius * Math.sin(angle)) * 100) / 100,
+  };
+}
+
+/** The ring from one hour clockwise to a later one. */
+function dialArc(from: number, to: number): string {
+  const start = dialPoint(DIAL_RADIUS, from);
+  const end = dialPoint(DIAL_RADIUS, to);
+  const large = to - from > HOURS_PER_DAY / 2 ? 1 : 0;
+  return `M${start.x} ${start.y} A${DIAL_RADIUS} ${DIAL_RADIUS} 0 ${large} 1 ${end.x} ${end.y}`;
+}
+
+const AWAKE_ARC = dialArc(WAKING, WAKING + WAKING_HOURS);
+const SLEEP_POINTS: ReadonlyArray<Point> = Array.from({ length: SLEEP_DOTS - 1 }, (_, index) =>
+  dialPoint(DIAL_RADIUS, BEDTIME + (SLEEP_HOURS * (index + 1)) / SLEEP_DOTS),
+);
+const PHONE_END = dialPoint(DIAL_RADIUS, WAKING + PHONE_HOURS);
+/** Each hour's tick, from its outer end in, and how many hours after waking it stands. */
+const DIAL_TICKS = Array.from({ length: HOURS_PER_DAY }, (_, hour) => {
+  const long = hour % LABEL_EVERY === 0;
+  return {
+    hour,
+    inner: dialPoint(TICK_OUTER - (long ? TICK_LONG : TICK_SHORT), hour),
+    long,
+    outer: dialPoint(TICK_OUTER, hour),
+    since: (hour - (WAKING % HOURS_PER_DAY) + HOURS_PER_DAY) % HOURS_PER_DAY,
+  };
+});
+const DIAL_LABELS = Array.from({ length: HOURS_PER_DAY / LABEL_EVERY }, (_, index) => ({
+  hour: index * LABEL_EVERY,
+  point: dialPoint(LABEL_RADIUS, index * LABEL_EVERY),
+}));
+/** The night's key: dots as far apart as the dial's, between the key's ends. */
+const SLEEP_KEY: ReadonlyArray<number> = Array.from(
+  { length: Math.floor((KEY_WIDTH - 2 * KEY_INSET) / SLEEP_PITCH) + 1 },
+  (_, index) => KEY_INSET + index * SLEEP_PITCH,
+);
+const KEY_LINE = `M${KEY_INSET} ${KEY_HEIGHT / 2} H${KEY_WIDTH - KEY_INSET}`;
+
+/** One line of the dial's legend: its key, drawn as the dial draws it, and what it stands for. */
+function DialKey({ children, label }: { children: ReactNode; label: string }) {
+  return (
+    <span {...props(styles.legendItem)}>
+      <svg
+        height={KEY_HEIGHT}
+        viewBox={`0 0 ${KEY_WIDTH} ${KEY_HEIGHT}`}
+        width={KEY_WIDTH}
+        {...props(styles.dialKey)}
+      >
+        {children}
+      </svg>
+      {label}
+    </span>
+  );
+}
+
+/**
+ * The day as a 24-hour dial: the night dotted, the waking hours a thin line
+ * round the rest, and the phone's hours swept in orange from waking on once
+ * the beat comes on, a dot at the head of the sweep and each hour's tick
+ * turning orange as the dot passes it. Once the sweep is done a ring goes out
+ * from the dot now and then. With less motion it stands swept, and still.
+ */
+function DayDial({ on, swept }: { on: boolean; swept: MotionValue<number> }) {
+  const reduced = useLessMotion();
+  // The hours the sweep has passed since waking, and whether it is done.
+  const [reached, setReached] = useState(-1);
+  const [done, setDone] = useState(false);
+  useMotionValueEvent(swept, 'change', (latest) => {
+    setReached(latest > 0 ? Math.floor(latest * PHONE_HOURS) : -1);
+    setDone(latest >= 1);
+  });
+  const phone = useTransform(swept, (latest) =>
+    latest > 0 ? dialArc(WAKING, WAKING + latest * PHONE_HOURS) : '',
+  );
+  const dotX = useTransform(
+    swept,
+    (latest) => dialPoint(DIAL_RADIUS, WAKING + latest * PHONE_HOURS).x,
+  );
+  const dotY = useTransform(
+    swept,
+    (latest) => dialPoint(DIAL_RADIUS, WAKING + latest * PHONE_HOURS).y,
+  );
+  const dotOpacity = useTransform(swept, [0, 0.02], [0, 1]);
+  const hours = new Intl.NumberFormat(getLocale(), { minimumIntegerDigits: 2 });
+  return (
+    <div {...props(styles.dial)}>
+      <svg aria-hidden="true" viewBox={`0 0 ${DIAL_BOX} ${DIAL_BOX}`} {...props(styles.dialArt)}>
+        {DIAL_TICKS.map((tick) => (
+          <line
+            key={tick.hour}
+            x1={tick.outer.x}
+            x2={tick.inner.x}
+            y1={tick.outer.y}
+            y2={tick.inner.y}
+            {...props(
+              styles.dialTick,
+              tick.long && styles.dialTickLong,
+              tick.since <= reached && styles.dialTickSpent,
+            )}
+          />
+        ))}
+        {DIAL_LABELS.map(({ hour, point }) => (
+          <text
+            dominantBaseline="central"
+            key={hour}
+            textAnchor="middle"
+            x={point.x}
+            y={point.y}
+            {...props(styles.dialLabel)}
+          >
+            {hours.format(hour)}
+          </text>
+        ))}
+        <g {...props(styles.daySleep)}>
+          {SLEEP_POINTS.map((point, index) => (
+            <circle cx={point.x} cy={point.y} key={index} r={SLEEP_DOT_RADIUS} />
+          ))}
+        </g>
+        <path d={AWAKE_ARC} {...props(styles.dayAwake)} />
+        <motion.path d={phone} {...props(styles.dayPhone)} />
+        {done && !reduced ? (
+          <circle
+            cx={PHONE_END.x}
+            cy={PHONE_END.y}
+            r={DIAL_DOT_RADIUS}
+            {...props(styles.dialPulse)}
+          />
+        ) : null}
+        <motion.circle
+          cx={dotX}
+          cy={dotY}
+          r={DIAL_DOT_RADIUS}
+          {...props(styles.walker)}
+          style={{ opacity: dotOpacity }}
+        />
+      </svg>
+      <p aria-hidden="true" {...props(styles.legend, on && styles.legendOn)}>
+        <DialKey label={m.home_cost_day_legend_sleep()}>
+          <g {...props(styles.daySleep)}>
+            {SLEEP_KEY.map((x) => (
+              <circle cx={x} cy={KEY_HEIGHT / 2} key={x} r={SLEEP_DOT_RADIUS} />
+            ))}
+          </g>
+        </DialKey>
+        <DialKey label={m.home_cost_day_legend_awake()}>
+          <path d={KEY_LINE} {...props(styles.dayAwake)} />
+        </DialKey>
+        <DialKey label={m.home_cost_day_legend_phone()}>
+          <path d={KEY_LINE} {...props(styles.dayPhone)} />
+        </DialKey>
+      </p>
+    </div>
+  );
 }
 
 /** Where the walk is `t` of the way along: one lap a trip, spiralling out. */
@@ -1643,6 +1941,7 @@ export function CostStory({ id }: { id: string }) {
   // The page has gone on past the last beat, and the story is over.
   const [told, setTold] = useState(false);
   const on = (index: number) => seen && active === index;
+  const daySwept = usePlayed(on(0), drawing.day, SMOOTH_OUT, 0);
   const weeksDrawn = usePlayed(on(WEEKS_BEAT), drawing.weeks, SMOOTH_OUT);
   const weekendsDrawn = usePlayed(on(WEEKENDS_BEAT), drawing.weekends, 'linear');
   const walked = usePlayed(on(EARTH_BEAT), drawing.earth, SMOOTH_OUT);
@@ -2011,7 +2310,7 @@ export function CostStory({ id }: { id: string }) {
       <div ref={stage} {...props(styles.stage)}>
         <GridTexture style={styles.grid} />
         <div {...props(styles.beats)}>
-          <div {...beat(0, styles.beatFeed)}>
+          <div {...beat(0, styles.beatDial)}>
             {/* The page's heading: the first thing it says. */}
             <h1 {...props(partOf(0, 0, styles.line))}>
               <Sentence
@@ -2026,10 +2325,8 @@ export function CostStory({ id }: { id: string }) {
                 text={m.home_cost_average({ hours: slot(0) })}
               />
             </h1>
-            {/* It goes with the first beat. With less motion every beat stays
-            on the page, so it does too. */}
-            <div {...props(partOf(0, 1, styles.feed))}>
-              <FeedPhone shown={reduced || active === 0} />
+            <div {...props(partOf(0, 1, styles.dialRoom))}>
+              <DayDial on={on(0)} swept={daySwept} />
             </div>
           </div>
 
