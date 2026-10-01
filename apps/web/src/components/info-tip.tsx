@@ -1,4 +1,4 @@
-import { colors } from '@attentionawareness/ui/tokens.stylex';
+import { colors, font } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import type { ReactNode } from 'react';
 import { Tip } from './tip.tsx';
@@ -40,7 +40,7 @@ const styles = create({
     fontFamily: "Georgia, 'Times New Roman', serif",
     fontSize: 12,
     fontStyle: 'italic',
-    fontWeight: 700,
+    fontWeight: font.weightRegular,
     lineHeight: 1,
     marginBlockStart: -1,
     textTransform: 'none',

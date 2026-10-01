@@ -51,7 +51,7 @@ const styles = create({
   },
   heroTitle: {
     fontSize: 'clamp(36px, 6.4vw, 54px)',
-    fontWeight: font.weightBold,
+    fontWeight: font.weightRegular,
     letterSpacing: '-0.035em',
     lineHeight: 1.04,
     margin: 0,
@@ -95,7 +95,7 @@ const styles = create({
   },
   sectionTitle: {
     fontSize: 'clamp(22px, 3.2vw, 28px)',
-    fontWeight: font.weightBold,
+    fontWeight: font.weightMedium,
     letterSpacing: '-0.02em',
     lineHeight: 1.2,
     margin: 0,

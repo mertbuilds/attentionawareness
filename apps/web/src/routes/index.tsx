@@ -19,13 +19,6 @@ export const Route = createFileRoute('/')({
 });
 
 /**
- * Every section heading on the page. It is not a token
- * because the scale holds three weights and this is the fourth: Suisse Intl
- * ships 400, 500 and 700, so a 600 lands on its bold face and on a true
- * semibold in the Inter Variable fallback.
- */
-const HEADING_WEIGHT = 600;
-/**
  * The air between two sections, wider than anything inside one. The 4px scale
  * stops at 64px, and one idea per screen needs more than that between two of
  * them, so the page's widest gap is the one measure written out here.
@@ -269,7 +262,7 @@ const styles = create({
   },
   sectionTitle: {
     fontSize: font.sizeLg,
-    fontWeight: HEADING_WEIGHT,
+    fontWeight: font.weightMedium,
     letterSpacing: '-0.01em',
     lineHeight: 1.2,
     margin: 0,
@@ -364,7 +357,7 @@ const styles = create({
   },
   wayTitle: {
     fontSize: font.sizeLg,
-    fontWeight: HEADING_WEIGHT,
+    fontWeight: font.weightMedium,
     letterSpacing: '-0.01em',
     lineHeight: 1.2,
     margin: 0,

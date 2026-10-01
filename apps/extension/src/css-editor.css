@@ -64,7 +64,6 @@
 
 .language-css .token.important {
   color: var(--aa-css-important);
-  font-weight: 600;
 }
 
 .language-css .token.punctuation {

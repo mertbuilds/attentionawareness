@@ -50,7 +50,6 @@ export const font = defineVars({
   sizeLg: '20px',
   sizeMd: '16px',
   sizeSm: '14px',
-  weightBold: '700',
   weightMedium: '500',
   weightRegular: '400',
 });
