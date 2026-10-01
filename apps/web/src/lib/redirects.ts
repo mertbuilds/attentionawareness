@@ -5,7 +5,10 @@
  * own is sent there, so a link shared before the fold still lands somewhere.
  */
 const REMOVED_PATHS = new Set(['/friend', '/mac', '/supervise']);
-/** The guides lived under one prefix, so the whole tree goes home together. */
+/**
+ * The old guides lived under one prefix, so the whole tree goes home together.
+ * `/guide`, singular, is the page that replaced them and is not caught.
+ */
 const GUIDES_PREFIX = '/guides';
 
 /**
