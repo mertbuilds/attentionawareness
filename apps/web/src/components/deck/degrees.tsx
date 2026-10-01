@@ -12,10 +12,9 @@ import {
 } from 'motion/react';
 import type { MotionValue } from 'motion/react';
 import { useEffect, useId } from 'react';
+import { drawing } from '../../lib/motion.stylex.ts';
+import { HEIGHT, WIDTH } from './count.tsx';
 
-/** The drawing's own box, four by three. */
-const WIDTH = 320;
-const HEIGHT = 240;
 /**
  * The caps go up from behind the shelf, out of sight under it, and come down
  * on it. Each leaves from a little way toward its own slot, so the arcs fan
@@ -26,9 +25,12 @@ const SHELF_Y = 226;
 const THROW_Y = SHELF_Y + 40;
 const THROW_SPREAD = 0.35;
 const THROW_LEAN = -16;
-/** The room either side of the row, and the most caps a row holds before the next stands over it. */
+/**
+ * The room either side of the row, and the most caps a row holds before the
+ * next stands over it: few enough that each cap is large enough to read.
+ */
 const SIDE = 14;
-const COLUMNS = 9;
+const COLUMNS = 5;
 /**
  * A cap in its own units, the middle of its board at the origin: the board
  * seen from a little above, half as wide and half as deep, the crown under
@@ -46,12 +48,12 @@ const CROWN_TOP = BOARD.depth * (1 - CROWN.width / BOARD.width);
 const CAP_DEPTH = (CROWN.bottom + CROWN.bulge) / 2;
 /** A cap and the gap after it at full size, the largest a few caps are drawn, and a row over the last. */
 const CAP_PITCH = 32;
-const LARGEST = 1.2;
+const LARGEST = 1.6;
 const ROW_PITCH = 22;
-/** The timeline in seconds: one throw's flight, the hop it lands with, and all of it. */
-const FLIGHT = 0.8;
-const HOP_SECONDS = 0.18;
-const SECONDS = 2.4;
+/** The timeline in seconds: all of it, one throw's flight, and the hop it lands with. */
+const SECONDS = drawing.deck;
+const FLIGHT = SECONDS / 3;
+const HOP_SECONDS = SECONDS * 0.075;
 /** The orange cap waits this many gaps instead of one, a beat after the rest. */
 const LAST_WAIT = 1.8;
 /** The top of a throw: the orange cap goes highest, the others a step lower in turn. */
@@ -107,7 +109,7 @@ const styles = create({
     strokeWidth: 1,
   },
   swing: {
-    animationDelay: `${SECONDS}s`,
+    animationDelay: `${drawing.deck}s`,
     animationDuration: '3s',
     animationIterationCount: 'infinite',
     animationName: {
@@ -121,17 +123,17 @@ const styles = create({
     strokeWidth: 2.2,
   },
   // The way each cap went, a faint dotted line, the way the walk to the Moon
-  // is drawn: the orange cap's in orange.
+  // is drawn: the orange cap's in orange. They stay behind the caps.
   trail: {
     fill: 'none',
-    opacity: 0.45,
+    opacity: 0.2,
     stroke: colors.muted,
     strokeDasharray: '0 5',
     strokeLinecap: 'round',
-    strokeWidth: 1.5,
+    strokeWidth: 1,
   },
   trailLast: {
-    opacity: 1,
+    opacity: 0.5,
     stroke: accent.base,
   },
 });
@@ -333,14 +335,27 @@ function Cap({
   );
 }
 
+/** The caps counted `seconds` in: each one as far as it has flown, so the count lands with the last. */
+function landedAt(throws: ReadonlyArray<Throw>, seconds: number): number {
+  return throws.reduce((sum, cap) => sum + flownAt(cap, seconds), 0);
+}
+
 /**
  * The degrees the hours would have bought: a mortarboard for each, tossed up
- * one at a time, turning once in the air and landing in a row on a shelf, the
+ * one at a time, turning once in the air and landing in rows on a shelf, the
  * last one orange. When `play` turns on it plays once from the start; when it
- * turns off the caps are back out of sight. With less motion the row stands
+ * turns off the caps are back out of sight. With less motion the rows stand
  * done.
  */
-export function DegreesGraphic({ amount, play }: { amount: number; play: boolean }) {
+export function DegreesGraphic({
+  amount,
+  count,
+  play,
+}: {
+  amount: number;
+  count: MotionValue<number>;
+  play: boolean;
+}) {
   const reduced = useReducedMotion() === true;
   // Done until the page says otherwise, so a page that has not run its script
   // shows the whole row.
@@ -348,6 +363,12 @@ export function DegreesGraphic({ amount, play }: { amount: number; play: boolean
   const above = `${useId()}-above`;
   const throws = throwsFor(amount);
   const last = throws.length - 1;
+
+  useEffect(() => {
+    const caps = throwsFor(amount);
+    count.set(landedAt(caps, clock.get()));
+    return clock.on('change', (seconds) => count.set(landedAt(caps, seconds)));
+  }, [amount, clock, count]);
 
   useEffect(() => {
     if (reduced) {

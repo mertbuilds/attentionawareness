@@ -3,23 +3,20 @@ import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import {
   animate,
-  motion,
   useMotionValue,
   useMotionValueEvent,
   useReducedMotion,
   useTransform,
 } from 'motion/react';
+import type { MotionValue } from 'motion/react';
 import { useEffect, useState } from 'react';
+import { drawing, easing } from '../../lib/motion.stylex.ts';
 import { getLocale } from '../../paraglide/runtime.js';
+import { DeckCount, HEIGHT, WIDTH } from './count.tsx';
 
-/** The drawing's own box, four by three. */
-const WIDTH = 320;
-const HEIGHT = 240;
 const CENTER = WIDTH / 2;
-/** The shelf the tower stands on, and the count under it. */
+/** The shelf the tower stands on, with the count under it. */
 const SHELF = { left: 40, right: 280, y: 200 };
-const COUNT_Y = 222;
-const COUNT_SIZE = 13;
 /**
  * Each book's thickness, length and how far off the middle it lies, taken in
  * turn from runs of different lengths, so no pattern shows in the pile.
@@ -34,13 +31,12 @@ const GAP = 1.5;
 const CORNER = 1.5;
 /** How far a book falls onto the pile, and how long it takes. */
 const DROP = 14;
-const DROP_MS = 360;
+const DROP_MS = 600;
 /** Where a band or a title sits on a spine. */
 const BAND_INSET = 5;
 const TITLE_SPAN = 0.15;
 /** The whole pile, slow at both ends and a blur in the middle. */
-const SECONDS = 2.2;
-const EASE: [number, number, number, number] = [0.5, 0, 0.3, 1];
+const SECONDS = drawing.deck;
 /** The top of the drawing fades out, and the tower goes on past it. */
 const FADE = 'linear-gradient(to bottom, transparent, black 40%)';
 
@@ -101,15 +97,10 @@ const styles = create({
       default: `${DROP_MS}ms`,
     },
     transitionProperty: 'opacity, transform',
-    transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
+    transitionTimingFunction: easing.smoothOut,
   },
   bookOrange: {
     stroke: accent.base,
-  },
-  count: {
-    fill: accent.base,
-    fontSize: COUNT_SIZE,
-    fontVariantNumeric: 'tabular-nums',
   },
   // The bands and titles on the spines, a step fainter than the books.
   detail: {
@@ -164,7 +155,15 @@ function Detail({ book }: { book: Book }) {
  * it. It plays once each time `play` comes on and starts over when it goes
  * off; with less motion it stands piled high with the count at its value.
  */
-export function BooksGraphic({ amount, play }: { amount: number; play: boolean }) {
+export function BooksGraphic({
+  amount,
+  count,
+  play,
+}: {
+  amount: number;
+  count: MotionValue<number>;
+  play: boolean;
+}) {
   const reduced = useReducedMotion();
   // Done until the page says otherwise, so a page that has not run its script
   // shows the whole pile.
@@ -175,6 +174,11 @@ export function BooksGraphic({ amount, play }: { amount: number; play: boolean }
   const shown = useTransform(progress, (t) => format.format(Math.round(t * amount)));
 
   useEffect(() => {
+    count.set(progress.get() * amount);
+    return progress.on('change', (t) => count.set(t * amount));
+  }, [amount, count, progress]);
+
+  useEffect(() => {
     if (reduced === true) {
       progress.set(1);
       return;
@@ -183,7 +187,7 @@ export function BooksGraphic({ amount, play }: { amount: number; play: boolean }
     if (!play) {
       return;
     }
-    const controls = animate(progress, 1, { duration: SECONDS, ease: EASE });
+    const controls = animate(progress, 1, { duration: SECONDS, ease: 'easeInOut' });
     return () => controls.stop();
   }, [play, progress, reduced]);
 
@@ -203,15 +207,7 @@ export function BooksGraphic({ amount, play }: { amount: number; play: boolean }
         </g>
       ))}
       <line x1={SHELF.left} x2={SHELF.right} y1={SHELF.y} y2={SHELF.y} {...props(styles.shelf)} />
-      <motion.text
-        dominantBaseline="central"
-        textAnchor="middle"
-        x={CENTER}
-        y={COUNT_Y}
-        {...props(styles.count)}
-      >
-        {shown}
-      </motion.text>
+      <DeckCount>{shown}</DeckCount>
     </svg>
   );
 }

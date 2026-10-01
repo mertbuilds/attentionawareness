@@ -2,21 +2,22 @@ import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
 import { animate, useMotionValue, useMotionValueEvent, useReducedMotion } from 'motion/react';
+import type { MotionValue } from 'motion/react';
 import { useEffect, useState } from 'react';
+import { drawing, easing } from '../../lib/motion.stylex.ts';
 import { getLocale } from '../../paraglide/runtime.js';
+import { ART_BOTTOM, DeckCount, HEIGHT, WIDTH } from './count.tsx';
 
 /** The drawing plays once over this long each time it comes on. */
-const PLAY_SECONDS = 2.4;
-/** The track, in the drawing's own 320 by 240 box: two straights and two bends around its middle. */
-const WIDTH = 320;
-const HEIGHT = 240;
-const CENTER_X = WIDTH / 2;
-const CENTER_Y = HEIGHT / 2;
-const HALF_STRAIGHT = 58;
+const PLAY_SECONDS = drawing.deck;
 /** The inner kerb, and the lanes outside it. */
 const KERB = 56;
 const LANES = 4;
 const LANE = 8;
+/** The track, two straights and two bends around its middle, standing on the line the count is kept under. */
+const CENTER_X = WIDTH / 2;
+const CENTER_Y = ART_BOTTOM - KERB - LANES * LANE;
+const HALF_STRAIGHT = 58;
 /** The runner keeps to the middle of the inside lane, the one a lap is measured on. */
 const RUN_RADIUS = KERB + LANE / 2;
 const STRAIGHT = 2 * HALF_STRAIGHT;
@@ -27,15 +28,14 @@ const LAP = 2 * STRAIGHT + 2 * BEND;
  * the last easing over the line. The count runs with them to the whole figure.
  */
 const LAPS_RUN = 8;
-/** The tail reaches back to where the runner was this long ago, and never round more than most of a lap. */
-const TAIL_SECONDS = 0.2;
+/** The tail reaches back to where the runner was this share of the run ago, and never round more than most of a lap. */
+const TAIL = 1 / 12;
 const TAIL_MAX = 0.85;
 /** The tail fades out in this many pieces, each fainter than the one ahead of it. */
 const TAIL_PIECES = 14;
 /** How far apart the points a stretch of lane is drawn through stand. */
 const SAMPLE = 3;
 const RUNNER_RADIUS = 3.5;
-const COUNT_SIZE = 28;
 
 type Point = { x: number; y: number };
 
@@ -46,13 +46,6 @@ const ripple = keyframes({
 });
 
 const styles = create({
-  // The count of laps, in the infield, the way a scoreboard has it.
-  count: {
-    fill: colors.fg,
-    fontSize: COUNT_SIZE,
-    fontVariantNumeric: 'tabular-nums',
-    letterSpacing: '-0.02em',
-  },
   drawing: {
     display: 'block',
     height: 'auto',
@@ -76,7 +69,7 @@ const styles = create({
     animationDuration: '2.4s',
     animationIterationCount: 'infinite',
     animationName: ripple,
-    animationTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
+    animationTimingFunction: easing.smoothOut,
     fill: 'none',
     stroke: accent.base,
     strokeWidth: 0.75,
@@ -199,20 +192,32 @@ const FINISH = `M${CENTER_X + HALF_STRAIGHT} ${CENTER_Y + KERB} L${CENTER_X + HA
 /**
  * A running track seen from above, and a runner lapping it: off the line at
  * a run, then so fast the tail behind it rings the lane, then easing back
- * over the line. The count in the infield climbs with the laps to `amount`.
- * It plays once each time `play` turns on and stands at the start while it
- * is off. For a reader who asked for less motion it stands finished.
+ * over the line. The count under it climbs with the laps to `amount`. It
+ * plays once each time `play` turns on and stands at the start while it is
+ * off. For a reader who asked for less motion it stands finished.
  */
-export function MarathonsGraphic({ amount, play }: { amount: number; play: boolean }) {
+export function MarathonsGraphic({
+  amount,
+  count,
+  play,
+}: {
+  amount: number;
+  count: MotionValue<number>;
+  play: boolean;
+}) {
   const reduced = useReducedMotion();
   const at = usePlayhead(play);
   const ran = lapsBy(at);
-  const tail = Math.min(TAIL_MAX, ran - lapsBy(at - TAIL_SECONDS / PLAY_SECONDS));
+  const tail = Math.min(TAIL_MAX, ran - lapsBy(at - TAIL));
   const head = ran * LAP;
   const piece = (tail * LAP) / TAIL_PIECES;
   const runner = lapPoint(head);
-  const count = Math.round((amount * ran) / LAPS_RUN);
+  const counted = (amount * ran) / LAPS_RUN;
   const number = new Intl.NumberFormat(getLocale());
+
+  useEffect(() => {
+    count.set(counted);
+  }, [count, counted]);
 
   return (
     <svg aria-hidden="true" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} {...props(styles.drawing)}>
@@ -239,15 +244,7 @@ export function MarathonsGraphic({ amount, play }: { amount: number; play: boole
         <circle cx={runner.x} cy={runner.y} r={RUNNER_RADIUS} {...props(styles.ripple)} />
       ) : null}
       <circle cx={runner.x} cy={runner.y} r={RUNNER_RADIUS} {...props(styles.runner)} />
-      <text
-        dominantBaseline="central"
-        textAnchor="middle"
-        x={CENTER_X}
-        y={CENTER_Y}
-        {...props(styles.count)}
-      >
-        {number.format(count)}
-      </text>
+      <DeckCount>{number.format(Math.round(counted))}</DeckCount>
     </svg>
   );
 }

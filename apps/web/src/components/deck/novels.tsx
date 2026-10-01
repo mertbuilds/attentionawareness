@@ -2,14 +2,14 @@ import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
 import { animate, useMotionValue, useMotionValueEvent, useReducedMotion } from 'motion/react';
-import { useLayoutEffect, useState } from 'react';
+import type { MotionValue } from 'motion/react';
+import { useEffect, useLayoutEffect, useState } from 'react';
+import { drawing } from '../../lib/motion.stylex.ts';
 import { getLocale } from '../../paraglide/runtime.js';
+import { DeckCount, HEIGHT, WIDTH } from './count.tsx';
 
-/** The drawing's own box, four by three. */
-const BOX_WIDTH = 240;
-const BOX_HEIGHT = 180;
 /** The whole run, from the first word to the last page done. */
-const RUN_SECONDS = 2.4;
+const RUN_SECONDS = drawing.deck;
 /**
  * How long each page takes, before the run is scaled to its length: every
  * page quicker than the one before, and the last few slowing again, so the
@@ -18,50 +18,48 @@ const RUN_SECONDS = 2.4;
 const SPEED_UP = 0.68;
 const SLOW_DOWN = 0.45;
 const SETTLE = 0.6;
-/** The page being written, on the right, square-cornered like paper. */
-const PAGE = { height: 124, width: 92, x: 110, y: 28 };
+/** The page being written, on the right, square-cornered like paper, standing over the count. */
+const PAGE = { height: 164, width: 122, x: 147, y: 36 };
 const PAGE_MIDDLE = PAGE.y + PAGE.height / 2;
-/** The text: a margin all round and a line every eleven units, in two paragraphs. */
-const MARGIN = 12;
-const FIRST_LINE = PAGE.y + 18;
-const LINE_PITCH = 11;
+/** The text: a margin all round and a line every so often, in two paragraphs. */
+const MARGIN = 16;
+const FIRST_LINE = PAGE.y + 24;
+const LINE_PITCH = 14.5;
 const LINE_COUNT = 9;
 /** A paragraph's first line is indented and its last one stops short. */
-const INDENT = 8;
+const INDENT = 11;
 const SHORT = 0.55;
 const PARAGRAPH_ENDS = new Set([4, 8]);
 /** A word is a rounded bar this thick, with this much paper to the next. */
-const WORD = 2.6;
-const WORD_GAP = 5;
+const WORD = 3.4;
+const WORD_GAP = 6.5;
 /**
  * The lengths the words take in turn. A word that does not fit goes to the
  * next line, the way text wraps, so every line ends ragged.
  */
-const WORD_LENGTHS = [9, 5, 12, 7, 4, 10, 6, 13, 8, 5, 11, 7, 6, 9, 4, 12];
+const WORD_LENGTHS = [12, 7, 16, 9, 5, 13, 8, 17, 11, 7, 15, 9, 8, 12, 5, 16];
 /** The share of a page's time spent writing it. The rest turns it over. */
 const WRITING = 0.78;
 /** How far the turning page's free edge grows toward the reader, top and bottom, at its steepest. */
-const LIFT = 10;
+const LIFT = 13;
 /** The caret: how far it reaches either side of its line, and how far it stands off the last word. */
-const CARET_REACH = 4.5;
-const CARET_GAP = 2;
+const CARET_REACH = 6;
+const CARET_GAP = 2.5;
 /**
  * The pile of finished manuscripts, left of the page, a slab each. Past this
  * many pages, a slab stands for more than one novel.
  */
 const PILE_MAX = 24;
-const PILE_X = 38;
-const PILE_WIDTH = 50;
-const PILE_PITCH = 4;
+const PILE_X = 51;
+const PILE_WIDTH = 67;
+const PILE_PITCH = 5.3;
 const PILE_BASE = PAGE.y + PAGE.height;
-const SLAB = 1.8;
+const SLAB = 2.4;
+/** Stacked by hand, a slab sits up to two of these off the one under it, either way. */
+const SLAB_SHIFT = 1.1;
 /** A slab drops onto the pile from this high, over this share of a page, landing as the page is done. */
-const DROP_HEIGHT = 8;
+const DROP_HEIGHT = 11;
 const DROP = 0.2;
-/** The count, over the pile. */
-const COUNT_X = PILE_X + PILE_WIDTH / 2;
-const COUNT_Y = 44;
-const COUNT_SIZE = 14;
 
 type Word = { from: number; to: number };
 /** A line of the page: where it starts and ends, and how much writing comes before it. */
@@ -115,11 +113,6 @@ const styles = create({
       default: pulse,
     },
     animationTimingFunction: 'ease-in-out',
-  },
-  count: {
-    fill: accent.base,
-    fontSize: COUNT_SIZE,
-    fontVariantNumeric: 'tabular-nums',
   },
   drawing: {
     display: 'block',
@@ -193,7 +186,7 @@ function countAt(written: number, pages: number, amount: number): number {
   }
   const whole = Math.min(Math.floor(written), pages - 1);
   const from = novelsBy(whole, pages, amount);
-  return Math.floor(from + (novelsBy(whole + 1, pages, amount) - from) * (written - whole));
+  return from + (novelsBy(whole + 1, pages, amount) - from) * (written - whole);
 }
 
 /**
@@ -273,9 +266,17 @@ function useRun(play: boolean): number {
  * A manuscript writing itself: lines of words typed in left to right, the page
  * turned over when it is full and the next one started, faster and faster.
  * Every finished page drops onto the pile beside it, in orange, and the count
- * over the pile climbs to `amount`.
+ * under them climbs to `amount`.
  */
-export function NovelsGraphic({ amount, play }: { amount: number; play: boolean }) {
+export function NovelsGraphic({
+  amount,
+  count,
+  play,
+}: {
+  amount: number;
+  count: MotionValue<number>;
+  play: boolean;
+}) {
   const run = useRun(play);
   const pages = Math.max(0, Math.min(PILE_MAX, amount));
   const at = pagesAt(run, pageWeights(pages));
@@ -287,10 +288,15 @@ export function NovelsGraphic({ amount, play }: { amount: number; play: boolean 
   const turned = last ? 0 : clamp((into - WRITING) / (1 - WRITING));
   const angle = (Math.PI / 2) * turned ** 2;
   const head = headAt(written);
+  const counted = countAt(page + written, pages, amount);
   const number = new Intl.NumberFormat(getLocale());
 
+  useEffect(() => {
+    count.set(counted);
+  }, [count, counted]);
+
   return (
-    <svg aria-hidden="true" viewBox={`0 0 ${BOX_WIDTH} ${BOX_HEIGHT}`} {...props(styles.drawing)}>
+    <svg aria-hidden="true" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} {...props(styles.drawing)}>
       {Array.from({ length: pages }, (_, slab) => {
         const landed = clamp((at - doneAt(slab, pages)) / DROP + 1);
         if (landed === 0) {
@@ -298,7 +304,7 @@ export function NovelsGraphic({ amount, play }: { amount: number; play: boolean 
         }
         const y = PILE_BASE - SLAB / 2 - slab * PILE_PITCH - DROP_HEIGHT * (1 - landed) ** 2;
         // Stacked by hand, so no slab sits quite square on the one under it.
-        const shift = (((slab * 7) % 5) - 2) * 0.8;
+        const shift = (((slab * 7) % 5) - 2) * SLAB_SHIFT;
         return (
           <line
             key={slab}
@@ -311,9 +317,6 @@ export function NovelsGraphic({ amount, play }: { amount: number; play: boolean 
           />
         );
       })}
-      <text textAnchor="middle" x={COUNT_X} y={COUNT_Y} {...props(styles.count)}>
-        {number.format(countAt(page + written, pages, amount))}
-      </text>
       <rect height={PAGE.height} width={PAGE.width} x={PAGE.x} y={PAGE.y} {...props(styles.page)} />
       {turned > 0 ? (
         // The written page turning over, with the next one blank under it.
@@ -333,6 +336,7 @@ export function NovelsGraphic({ amount, play }: { amount: number; play: boolean 
           />
         </>
       )}
+      <DeckCount>{number.format(Math.floor(counted))}</DeckCount>
     </svg>
   );
 }

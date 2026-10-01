@@ -2,14 +2,14 @@ import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
 import { animate, useMotionValue, useMotionValueEvent, useReducedMotion } from 'motion/react';
+import type { MotionValue } from 'motion/react';
 import { useEffect, useState } from 'react';
+import { drawing, easing } from '../../lib/motion.stylex.ts';
 import { getLocale } from '../../paraglide/runtime.js';
+import { ART_BOTTOM, COUNT_Y, DeckCount, HEIGHT, WIDTH } from './count.tsx';
 
 /** The drawing plays once over this long each time it comes on. */
-const PLAY_SECONDS = 2.4;
-/** The map, in the drawing's own 320 by 240 box, with room over it for the flights and under it for the count. */
-const WIDTH = 320;
-const HEIGHT = 240;
+const PLAY_SECONDS = drawing.deck;
 /**
  * The land, a mark for every five degrees of longitude and latitude that is
  * mostly land, from 80 degrees north to 55 south: the Antarctic is left off.
@@ -49,22 +49,24 @@ const NORTH = 80;
 const PITCH = 4.4;
 const DOT_RADIUS = 1.1;
 const MAP_X = (WIDTH - (LAND[0]?.length ?? 0) * PITCH) / 2;
-const MAP_Y = 40;
-const MAP_BOTTOM = MAP_Y + LAND.length * PITCH;
+/**
+ * The flights stay inside the map, so it stands with as much air over it as
+ * under it, between the top of the box and the top of the count.
+ */
+const COUNT_TOP = (COUNT_Y + ART_BOTTOM) / 2;
+const MAP_Y = (COUNT_TOP - LAND.length * PITCH) / 2;
 /** A flight bows up off the straight line between its cities, by this much of that line at its middle. */
 const ARC_RISE = 0.22;
 const ARC_STEPS = 40;
-/** The flights leave one after another, each in the air this long. */
-const FLIGHT_SECONDS = 0.7;
-/** A flight that has landed steps back to this, so the one in the air leads. */
+/** The flights leave one after another, each in the air for this share of the drawing. */
+const FLIGHT = 0.3;
+/** A flight that has landed steps back to this, so the one in the air leads, over this share. */
 const LANDED_OPACITY = 0.35;
-const FADE_SECONDS = 0.6;
-/** A city's mark pops up as a flight leaves or lands there. */
-const POP_SECONDS = 0.25;
+const FADE = 0.25;
+/** A city's mark pops up as a flight leaves or lands there, over this share. */
+const POP = 0.1;
 const CITY_RADIUS = 1.6;
 const PLANE_RADIUS = 2.2;
-const COUNT_SIZE = 28;
-const COUNT_Y = MAP_BOTTOM + 34;
 
 type Point = { x: number; y: number };
 type Route = { lengths: ReadonlyArray<number>; points: ReadonlyArray<Point> };
@@ -78,13 +80,6 @@ const ripple = keyframes({
 const styles = create({
   city: {
     fill: accent.base,
-  },
-  // The count of trips, under the map.
-  count: {
-    fill: colors.fg,
-    fontSize: COUNT_SIZE,
-    fontVariantNumeric: 'tabular-nums',
-    letterSpacing: '-0.02em',
   },
   drawing: {
     display: 'block',
@@ -107,7 +102,7 @@ const styles = create({
     animationDuration: '2.4s',
     animationIterationCount: 'infinite',
     animationName: ripple,
-    animationTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
+    animationTimingFunction: easing.smoothOut,
     fill: 'none',
     stroke: accent.base,
     strokeWidth: 0.75,
@@ -213,7 +208,7 @@ const FLIGHTS: ReadonlyArray<[keyof typeof CITIES, keyof typeof CITIES]> = [
   ['mumbai', 'tokyo'],
 ];
 /** How long after the first flight leaves each next one does, so the last lands as the drawing ends. */
-const STAGGER = (PLAY_SECONDS - FLIGHT_SECONDS) / (FLIGHTS.length - 1);
+const STAGGER = (1 - FLIGHT) / (FLIGHTS.length - 1);
 
 /** A flight's way as a run of points, bowed up off the straight line between its cities. */
 function route(from: Point, to: Point): Route {
@@ -286,24 +281,34 @@ function flown(way: Route, share: number): { path: string; point: Point } {
  * stands empty while it is off. For a reader who asked for less motion it
  * stands finished.
  */
-export function TripsGraphic({ amount, play }: { amount: number; play: boolean }) {
+export function TripsGraphic({
+  amount,
+  count,
+  play,
+}: {
+  amount: number;
+  count: MotionValue<number>;
+  play: boolean;
+}) {
   const reduced = useReducedMotion();
   const at = usePlayhead(play);
-  const seconds = at * PLAY_SECONDS;
   const flights = ROUTES.map((flight, index) => {
     const leaves = index * STAGGER;
     return {
       ...flight,
-      departed: clamp((seconds - leaves) / POP_SECONDS),
-      share: easeInOut(clamp((seconds - leaves) / FLIGHT_SECONDS)),
-      since: seconds - leaves - FLIGHT_SECONDS,
+      departed: clamp((at - leaves) / POP),
+      share: easeInOut(clamp((at - leaves) / FLIGHT)),
+      since: at - leaves - FLIGHT,
     };
   });
-  const count = Math.round(
-    (amount * flights.reduce((sum, flight) => sum + flight.share, 0)) / FLIGHTS.length,
-  );
+  const counted =
+    (amount * flights.reduce((sum, flight) => sum + flight.share, 0)) / FLIGHTS.length;
   const last = flights.at(-1);
   const number = new Intl.NumberFormat(getLocale());
+
+  useEffect(() => {
+    count.set(counted);
+  }, [count, counted]);
 
   return (
     <svg aria-hidden="true" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} {...props(styles.drawing)}>
@@ -318,7 +323,7 @@ export function TripsGraphic({ amount, play }: { amount: number; play: boolean }
           <g key={key}>
             <path
               d={path}
-              opacity={landed ? 1 - (1 - LANDED_OPACITY) * easeOut(clamp(since / FADE_SECONDS)) : 1}
+              opacity={landed ? 1 - (1 - LANDED_OPACITY) * easeOut(clamp(since / FADE)) : 1}
               {...props(styles.flight)}
             />
             <circle
@@ -330,7 +335,7 @@ export function TripsGraphic({ amount, play }: { amount: number; play: boolean }
             <circle
               cx={landed ? to.x : point.x}
               cy={landed ? to.y : point.y}
-              r={landed ? CITY_RADIUS * easeOutBack(clamp(since / POP_SECONDS)) : PLANE_RADIUS}
+              r={landed ? CITY_RADIUS * easeOutBack(clamp(since / POP)) : PLANE_RADIUS}
               {...props(styles.city)}
             />
           </g>
@@ -339,15 +344,7 @@ export function TripsGraphic({ amount, play }: { amount: number; play: boolean }
       {at >= 1 && reduced !== true && last !== undefined ? (
         <circle cx={last.to.x} cy={last.to.y} r={CITY_RADIUS} {...props(styles.ripple)} />
       ) : null}
-      <text
-        dominantBaseline="central"
-        textAnchor="middle"
-        x={WIDTH / 2}
-        y={COUNT_Y}
-        {...props(styles.count)}
-      >
-        {number.format(count)}
-      </text>
+      <DeckCount>{number.format(Math.round(counted))}</DeckCount>
     </svg>
   );
 }

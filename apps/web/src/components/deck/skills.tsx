@@ -12,11 +12,10 @@ import {
 } from 'motion/react';
 import type { MotionValue } from 'motion/react';
 import { useEffect } from 'react';
+import { drawing } from '../../lib/motion.stylex.ts';
 import { getLocale } from '../../paraglide/runtime.js';
+import { DeckCount, HEIGHT, WIDTH } from './count.tsx';
 
-/** The drawing's own box, four by three. */
-const WIDTH = 320;
-const HEIGHT = 240;
 /** What one skill takes: the folk figure for mastery. */
 const HOURS = 10_000;
 /** The ruler over each track: a fine mark every 250 hours, a longer one every thousand. */
@@ -26,28 +25,21 @@ const FINE_LENGTH = 3;
 const LONG_LENGTH = 6;
 /** The track's two ends, how thick it is, and how far over it the ruler stands. */
 const START = 16;
-const END = 240;
+const END = 224;
 const TRACK = 6;
 const RULER_GAP = 2;
-/** The count stands right-aligned after the track, its baseline a little under the track's middle. */
-const COUNT_END = 304;
-const COUNT_DROP = 4;
+/** The count stands right-aligned after the track, level with it. */
+const COUNT_END = 308;
 /** While a track fills its count is faint, and full once the track is. */
 const COUNTING = 0.45;
 /** The rows stand this far apart at most, inside this much of the box's height. */
 const ROW_PITCH = 48;
 const ROOM = 200;
 /** All of it in seconds, and the part of each track's turn it spends filling: the rest is a beat before the next. */
-const SECONDS = 2.4;
+const SECONDS = drawing.deck;
 const FILL_SHARE = 0.84;
 
 const styles = create({
-  // The count, small and set in even figures so it does not shake as it climbs.
-  count: {
-    fill: colors.fg,
-    fontSize: 12,
-    fontVariantNumeric: 'tabular-nums',
-  },
   // The hours, solid orange, a hair larger than the track so they cover its outline.
   fill: {
     fill: accent.base,
@@ -130,22 +122,26 @@ function Track({
   const filled = useTransform(clock, (seconds) => filledAt(index, count, seconds));
   const bar = useTransform(filled, (share) => fillPath(y, share));
   const hours = useTransform(filled, (share) => number.format(Math.round(share * HOURS)));
-  const shown = useTransform(filled, (share) => (share >= 1 ? 1 : share > 0 ? COUNTING : 0));
+  const shown = useTransform(filled, (share): number =>
+    share >= 1 ? 1 : share > 0 ? COUNTING : 0,
+  );
   return (
     <>
       <path d={trackPath(y)} {...props(styles.track)} />
       <path d={rulerPath(y)} {...props(styles.ruler)} />
       <motion.path d={reduced ? fillPath(y, 1) : bar} {...props(styles.fill)} />
-      <motion.text
-        textAnchor="end"
-        x={COUNT_END}
-        y={y + COUNT_DROP}
-        {...props(styles.count)}
-        style={{ opacity: reduced ? 1 : shown }}
-      >
+      <DeckCount anchor="end" opacity={reduced ? 1 : shown} x={COUNT_END} y={y}>
         {reduced ? number.format(HOURS) : hours}
-      </motion.text>
+      </DeckCount>
     </>
+  );
+}
+
+/** The skills counted `seconds` in: each track as far as it has filled, so the count lands with the last. */
+function masteredAt(tracks: number, seconds: number): number {
+  return Array.from({ length: tracks }, (_, index) => filledAt(index, tracks, seconds)).reduce(
+    (sum, share) => sum + share,
+    0,
   );
 }
 
@@ -156,12 +152,26 @@ function Track({
  * when it turns off the tracks are empty again. With less motion they stand
  * full.
  */
-export function SkillsGraphic({ amount, play }: { amount: number; play: boolean }) {
+export function SkillsGraphic({
+  amount,
+  count,
+  play,
+}: {
+  amount: number;
+  count: MotionValue<number>;
+  play: boolean;
+}) {
   const reduced = useReducedMotion() === true;
   // Done until the page says otherwise, so a page that has not run its script
   // shows every track full.
   const clock = useMotionValue(SECONDS);
   const rows = rowsFor(amount);
+  const tracks = rows.length;
+
+  useEffect(() => {
+    count.set(masteredAt(tracks, clock.get()));
+    return clock.on('change', (seconds) => count.set(masteredAt(tracks, seconds)));
+  }, [clock, count, tracks]);
 
   useEffect(() => {
     if (reduced) {

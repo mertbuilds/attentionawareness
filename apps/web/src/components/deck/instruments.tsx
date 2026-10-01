@@ -2,14 +2,14 @@ import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
 import { animate, useMotionValue, useMotionValueEvent, useReducedMotion } from 'motion/react';
-import { useLayoutEffect, useState } from 'react';
+import type { MotionValue } from 'motion/react';
+import { useEffect, useLayoutEffect, useState } from 'react';
+import { drawing } from '../../lib/motion.stylex.ts';
 import { getLocale } from '../../paraglide/runtime.js';
+import { DeckCount, HEIGHT, WIDTH } from './count.tsx';
 
-/** The drawing's own box, four by three. */
-const BOX_WIDTH = 240;
-const BOX_HEIGHT = 180;
 /** The whole run, from the first sound to the last. */
-const RUN_SECONDS = 2.4;
+const RUN_SECONDS = drawing.deck;
 /**
  * How long each step takes, before the run is scaled to its length: every
  * step quicker than the one before, and the last few slowing again, so the
@@ -32,51 +32,51 @@ const INSTRUMENTS = ['piano', 'guitar', 'drum'] as const;
  */
 const SCALE = [0, 2, 4, 5, 7, 9, 11, 1, 3, 6, 8, 10];
 const WHITE_KEYS = 7;
-/** The line every instrument stands on the middle of. */
-const MIDDLE = 82;
+/** The line every instrument stands on the middle of, as far over the count as under the top. */
+const MIDDLE = 108;
 /** The sound: a bar for each note, the tallest in the middle. */
-const BARS_X = 36;
-const BAR_PITCH = 14;
-const BAR = 3;
-const WAVE = [14, 26, 40, 30, 54, 38, 64, 46, 34, 50, 24, 16];
+const BARS_X = 49;
+const BAR_PITCH = 18.5;
+const BAR = 4;
+const WAVE = [19, 35, 53, 40, 72, 51, 85, 61, 45, 67, 32, 21];
 /** How quickly the bars of the first sound rise and fall, a little apart from each other. */
 const WAVE_HERTZ = 1.4;
 const WAVE_SPREAD = 1.3;
 /** The keyboard: one octave, the black keys between the white ones they sit after. */
-const KEYS_X = 36;
-const KEYS_Y = MIDDLE - 40;
-const WHITE_WIDTH = 24;
-const WHITE_HEIGHT = 80;
-const BLACK_WIDTH = 14;
-const BLACK_HEIGHT = 48;
+const KEYS_X = 48;
+const KEYS_Y = MIDDLE - 53;
+const WHITE_WIDTH = 32;
+const WHITE_HEIGHT = 106;
+const BLACK_WIDTH = 19;
+const BLACK_HEIGHT = 64;
 const BLACK_AFTER = [1, 2, 4, 5, 6];
 /** How many keys the run has passed over once it is gone from the last. */
 const RUN_LENGTH = SCALE.length + 2;
 const RUN_LIT = 1.5;
 /** The neck: six strings, thin to thick, across the nut and five frets closing up toward the body. */
 const STRING_PARTS = [7, 8, 9, 10, 11, 6];
-const STRINGS_X = 24;
-const STRINGS_WIDTH = 192;
-const STRING_PITCH = 11.2;
+const STRINGS_X = 32;
+const STRINGS_WIDTH = 256;
+const STRING_PITCH = 15;
 const STRINGS_Y = MIDDLE - (STRING_PITCH * 5) / 2;
 const STRING = 0.8;
 const STRING_THICKER = 0.16;
-const FRETS = [30, 64, 96, 126, 155, 182];
-const FRET_HEIGHT = 68;
+const FRETS = [40, 85, 128, 168, 207, 243];
+const FRET_HEIGHT = 91;
 const NUT = 2.4;
 /** The strum: each string plucked this long after the one over it, ringing out and dying away. */
 const STRUM = 0.07;
-const PLUCK = 3.2;
+const PLUCK = 4.3;
 const DECAY = 4;
 const RING_HERTZ = 7;
 /** The drum: its head, the shell under it, and the six lugs round the front, by their angle off the middle. */
-const DRUM_X = 120;
-const HEAD_Y = MIDDLE - 22;
-const HEAD_RX = 62;
-const HEAD_RY = 15;
-const SHELL = 46;
+const DRUM_X = WIDTH / 2;
+const HEAD_Y = MIDDLE - 29;
+const HEAD_RX = 83;
+const HEAD_RY = 20;
+const SHELL = 61;
 const LUGS = [-75, -45, -15, 15, 45, 75];
-const LUG_INSET = 4;
+const LUG_INSET = 5;
 /** The head is struck as the drum comes on, and the ripples spread out across it, one after another. */
 const HIT = 0.3;
 const RIPPLE_FIRST = 8;
@@ -84,9 +84,6 @@ const RIPPLE_FROM = 0.12;
 const RIPPLE_TO = 0.94;
 const RIPPLE_AFTER = 0.12;
 const RIPPLE_SPAN = 0.6;
-/** The count, under the instruments. */
-const COUNT_Y = 160;
-const COUNT_SIZE = 14;
 /** Once it is done the last sound keeps breathing, each bar a little after the one before. */
 const BREATH_AFTER = 0.09;
 
@@ -146,11 +143,6 @@ const styles = create({
     animationTimingFunction: 'ease-in-out',
     transformBox: 'fill-box',
     transformOrigin: 'center',
-  },
-  count: {
-    fill: accent.base,
-    fontSize: COUNT_SIZE,
-    fontVariantNumeric: 'tabular-nums',
   },
   drawing: {
     display: 'block',
@@ -234,7 +226,7 @@ function countAt(at: number, shown: number, amount: number): number {
   const reached = Math.min(at, shown);
   const whole = Math.min(Math.floor(reached), shown - 1);
   const from = learnedBy(whole, shown, amount);
-  return Math.floor(from + (learnedBy(whole + 1, shown, amount) - from) * (reached - whole));
+  return from + (learnedBy(whole + 1, shown, amount) - from) * (reached - whole);
 }
 
 /** A bar of the sound, `swing` of its full height. */
@@ -438,7 +430,15 @@ function useRun(play: boolean): number {
  * faster each time, while the count under them climbs to `amount`. It ends
  * as the sound it started from, in orange.
  */
-export function InstrumentsGraphic({ amount, play }: { amount: number; play: boolean }) {
+export function InstrumentsGraphic({
+  amount,
+  count,
+  play,
+}: {
+  amount: number;
+  count: MotionValue<number>;
+  play: boolean;
+}) {
   const run = useRun(play);
   const shown = Math.max(0, Math.min(SHOWN_MAX, amount));
   const scenes: ReadonlyArray<Scene> = [
@@ -457,10 +457,15 @@ export function InstrumentsGraphic({ amount, play }: { amount: number; play: boo
   const seconds = run * RUN_SECONDS;
   const from = scenes[step] ?? 'wave';
   const to = scenes[step + 1] ?? 'played';
+  const counted = countAt(at, shown, amount);
   const number = new Intl.NumberFormat(getLocale());
 
+  useEffect(() => {
+    count.set(counted);
+  }, [count, counted]);
+
   return (
-    <svg aria-hidden="true" viewBox={`0 0 ${BOX_WIDTH} ${BOX_HEIGHT}`} {...props(styles.drawing)}>
+    <svg aria-hidden="true" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} {...props(styles.drawing)}>
       {SCALE.map((note, index) => {
         const t = easeInOut(clamp((morph - (note / (SCALE.length - 1)) * STAGGER) / (1 - STAGGER)));
         const part = between(
@@ -490,9 +495,7 @@ export function InstrumentsGraphic({ amount, play }: { amount: number; play: boo
           />
         );
       })}
-      <text textAnchor="middle" x={BOX_WIDTH / 2} y={COUNT_Y} {...props(styles.count)}>
-        {number.format(countAt(at, shown, amount))}
-      </text>
+      <DeckCount>{number.format(Math.floor(counted))}</DeckCount>
     </svg>
   );
 }

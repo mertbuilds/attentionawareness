@@ -4,9 +4,16 @@ import { create, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { cloneElement, useState } from 'react';
 import type { MouseEvent, ReactElement, ReactNode } from 'react';
+import { duration, easing, scale } from '../lib/motion.stylex.ts';
 import { useIsMobile } from '../lib/use-is-mobile.ts';
 import { paperRoot, PaperSheet } from './bill-paper.tsx';
 import { Sheet } from './sheet.tsx';
+
+/**
+ * A tooltip appears a beat after it is asked for and goes at once: this long,
+ * the tooltip's own close, quicker than any step of the motion scale.
+ */
+const CLOSE_MS = 50;
 
 const styles = create({
   popup: {
@@ -41,16 +48,23 @@ const styles = create({
     textTransform: 'none',
     textWrap: 'pretty',
     transform: {
-      ':is([data-ending-style])': 'translateY(4px) scale(0.98)',
-      ':is([data-starting-style])': 'translateY(4px) scale(0.98)',
-      default: 'translateY(0) scale(1)',
+      ':is([data-ending-style])': `scale(${scale.small})`,
+      ':is([data-starting-style])': `scale(${scale.small})`,
+      default: 'none',
+    },
+    // It grows from the side it opens on, toward its trigger.
+    transformOrigin: 'var(--transform-origin)',
+    transitionDelay: {
+      ':is([data-ending-style])': '0ms',
+      default: duration.micro,
     },
     transitionDuration: {
+      ':is([data-ending-style])': `${CLOSE_MS}ms`,
       '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: '150ms',
+      default: duration.quick,
     },
     transitionProperty: 'opacity, transform',
-    transitionTimingFunction: 'ease-out',
+    transitionTimingFunction: easing.out,
     width: 260,
   },
   // A note torn off the bill: the box gives up its own face, and the scrap of

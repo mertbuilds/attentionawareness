@@ -9,8 +9,11 @@ import {
   useReducedMotion,
   useTransform,
 } from 'motion/react';
+import type { MotionValue } from 'motion/react';
 import { useEffect, useState } from 'react';
+import { blur, distance, drawing } from '../../lib/motion.stylex.ts';
 import { getLocale } from '../../paraglide/runtime.js';
+import { DeckCount, HEIGHT, WIDTH } from './count.tsx';
 
 /**
  * Hello, then the same word in one language after another, each in its own
@@ -50,24 +53,23 @@ const GREETINGS: ReadonlyArray<string> = [
   'sawubona',
   'hei',
 ];
-/** The drawing's own box, four by three. */
-const WIDTH = 320;
-const HEIGHT = 240;
 const CENTER = WIDTH / 2;
 /** The bubble the word is said in, and its tail, hanging off the lower left. */
-const BUBBLE = { bottom: 142, left: 32, radius: 6, right: 288, top: 30 };
-const TAIL = { from: 84, tipX: 56, tipY: 158, to: 64 };
+const BUBBLE = { bottom: 150, left: 32, radius: 6, right: 288, top: 38 };
+const TAIL = { from: 84, tipX: 56, tipY: 166, to: 64 };
 const WORD_Y = (BUBBLE.top + BUBBLE.bottom) / 2;
 const WORD_SIZE = 32;
-/** How far a word travels on its flip: the old one up and out, the new one up and in. */
-const RISE = 22;
-/** A tick for every language under the bubble, and the count under them. */
-const TICKS = { bottom: 182, left: 48, right: 272, top: 172 };
-const COUNT_Y = 204;
-const COUNT_SIZE = 13;
+/**
+ * A word swaps for the next the way any text does here: the old one goes up
+ * and out of focus, and only then does the new one come up into it, so the
+ * two are never on top of each other.
+ */
+const SWAP_RISE = Number.parseFloat(distance.micro);
+const SWAP_BLUR = Number.parseFloat(blur.small);
+/** A tick for every language under the bubble, with the count under them. */
+const TICKS = { bottom: 190, left: 48, right: 272, top: 180 };
 /** The whole run, slow at both ends and a blur in the middle. */
-const SECONDS = 2.4;
-const EASE: [number, number, number, number] = [0.5, 0, 0.3, 1];
+const SECONDS = drawing.deck;
 /** How much of its turn a word stands still before it flips to the next. */
 const HOLD = 0.5;
 
@@ -93,11 +95,6 @@ const styles = create({
     stroke: colors.muted,
     strokeLinejoin: 'round',
     strokeWidth: 1,
-  },
-  count: {
-    fill: accent.base,
-    fontSize: COUNT_SIZE,
-    fontVariantNumeric: 'tabular-nums',
   },
   graphic: {
     display: 'block',
@@ -143,6 +140,11 @@ function tickX(index: number, amount: number): number {
   return amount > 1 ? TICKS.left + (index * (TICKS.right - TICKS.left)) / (amount - 1) : CENTER;
 }
 
+/** How far a flip is: under a half, the old word on its way out; past it, the new one on its way in. */
+function flipOf(at: number): number {
+  return at - Math.floor(at);
+}
+
 /**
  * "Hello" in a speech bubble, flipping through one language after another,
  * slowly at first, then in a blur, then slowly onto the last. Under it a tick
@@ -150,21 +152,38 @@ function tickX(index: number, amount: number): number {
  * `play` comes on and starts over when it goes off; with less motion it stands
  * on the last word with every tick counted.
  */
-export function LanguagesGraphic({ amount, play }: { amount: number; play: boolean }) {
+export function LanguagesGraphic({
+  amount,
+  count,
+  play,
+}: {
+  amount: number;
+  count: MotionValue<number>;
+  play: boolean;
+}) {
   const reduced = useReducedMotion();
   // Done until the page says otherwise, so a page that has not run its script
   // shows the last word.
   const progress = useMotionValue(1);
   const reel = useTransform(progress, (t) => reelAt(t, amount));
-  const flip = useTransform(reel, (at) => at - Math.floor(at));
-  const leaving = useTransform(reel, (at) => greeting(Math.floor(at)));
-  const coming = useTransform(reel, (at) => greeting(Math.floor(at) + 1));
-  const leavingY = useTransform(flip, [0, 1], [WORD_Y, WORD_Y - RISE]);
-  const comingY = useTransform(flip, [0, 1], [WORD_Y + RISE, WORD_Y]);
-  const leavingOpacity = useTransform(flip, [0, 0.6], [1, 0]);
-  const comingOpacity = useTransform(flip, [0.4, 1], [0, 1]);
+  // How far into the swap the word is: none while it stands, all of it at the
+  // turn, where the old word is gone and the new one not yet come.
+  const away = useTransform(reel, (at) => 1 - Math.abs(1 - 2 * flipOf(at)));
+  const word = useTransform(reel, (at) => greeting(Math.floor(at) + (flipOf(at) < 0.5 ? 0 : 1)));
+  const wordY = useTransform(reel, (at) =>
+    flipOf(at) < 0.5
+      ? WORD_Y - SWAP_RISE * 2 * flipOf(at)
+      : WORD_Y + SWAP_RISE * 2 * (1 - flipOf(at)),
+  );
+  const wordOpacity = useTransform(away, (t) => 1 - t);
+  const wordFilter = useTransform(away, (t) => `blur(${(SWAP_BLUR * t).toFixed(2)}px)`);
   const [counted, setCounted] = useState(amount);
   useMotionValueEvent(reel, 'change', (at) => setCounted(Math.round(at)));
+
+  useEffect(() => {
+    count.set(reel.get());
+    return reel.on('change', (at) => count.set(at));
+  }, [count, reel]);
 
   useEffect(() => {
     if (reduced === true) {
@@ -175,14 +194,11 @@ export function LanguagesGraphic({ amount, play }: { amount: number; play: boole
     if (!play) {
       return;
     }
-    const controls = animate(progress, 1, { duration: SECONDS, ease: EASE });
+    const controls = animate(progress, 1, { duration: SECONDS, ease: 'easeInOut' });
     return () => controls.stop();
   }, [play, progress, reduced]);
 
-  const format = new Intl.NumberFormat(getLocale(), {
-    minimumIntegerDigits: String(amount).length,
-    useGrouping: false,
-  });
+  const format = new Intl.NumberFormat(getLocale());
 
   return (
     <svg aria-hidden="true" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} {...props(styles.graphic)}>
@@ -191,21 +207,11 @@ export function LanguagesGraphic({ amount, play }: { amount: number; play: boole
         dominantBaseline="central"
         textAnchor="middle"
         x={CENTER}
-        y={leavingY}
+        y={wordY}
         {...props(styles.word)}
-        style={{ opacity: leavingOpacity }}
+        style={{ filter: wordFilter, opacity: wordOpacity }}
       >
-        {leaving}
-      </motion.text>
-      <motion.text
-        dominantBaseline="central"
-        textAnchor="middle"
-        x={CENTER}
-        y={comingY}
-        {...props(styles.word)}
-        style={{ opacity: comingOpacity }}
-      >
-        {coming}
+        {word}
       </motion.text>
       {Array.from({ length: amount }, (_, index) => (
         <line
@@ -217,15 +223,7 @@ export function LanguagesGraphic({ amount, play }: { amount: number; play: boole
           {...props(styles.tick, index < counted && styles.tickCounted)}
         />
       ))}
-      <text
-        dominantBaseline="central"
-        textAnchor="middle"
-        x={CENTER}
-        y={COUNT_Y}
-        {...props(styles.count)}
-      >
-        {format.format(counted)}
-      </text>
+      <DeckCount>{format.format(counted)}</DeckCount>
     </svg>
   );
 }

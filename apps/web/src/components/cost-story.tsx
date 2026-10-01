@@ -31,6 +31,7 @@ import {
   WALKING_KMH,
   WEEKEND_HOURS,
 } from '../lib/attention-math.ts';
+import { blur, distance, drawing, duration, easing } from '../lib/motion.stylex.ts';
 import { typingIn } from '../lib/typing-in.ts';
 import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
@@ -52,20 +53,21 @@ const MOON_BEAT = 4;
 const MORE_BEAT = 5;
 /** How much of the stage has to be on screen before a figure counts. */
 const SEEN = 0.6;
-/** A figure counts up for this long, slowing into its value, well inside its beat. */
-const COUNT_SECONDS = 1;
-const EASE_OUT: [number, number, number, number] = [0.22, 1, 0.36, 1];
-const EASE_IN_OUT: [number, number, number, number] = [0.65, 0, 0.35, 1];
-/** How long a beat takes to fade in or out. */
-const FADE_MS = 700;
+/** `easing.smoothOut`, the curve things move into place on, as motion takes a curve. */
+const SMOOTH_OUT: [number, number, number, number] = [0.22, 1, 0.36, 1];
+/** How long a beat takes to fade out. Its drawings start over once it has. */
+const FADE_OUT_MS = Number.parseFloat(duration.quick);
 /**
- * A drawing plays once its beat has come on, a moment after, while the
- * sentence settles: this long each, and from the start again every time.
+ * An answer's sentence goes out and the next comes in after it, a quick swap
+ * each, and the next drawing waits for it to land.
  */
-const DRAW_DELAY = 0.4;
-const WEEKS_SECONDS = 2;
-const WALK_SECONDS = 2.4;
-const MOON_SECONDS = 2.2;
+const SWAP_MS = 2 * Number.parseFloat(duration.quick);
+/** The sentences' line height, which a figure's reels are cut to so its digits sit on the line. */
+const LINE_HEIGHT = 1.15;
+/** A reel: every digit, and nought again after nine, so a turn past nine rolls on into it. */
+const REEL = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
+/** The window a reel is seen through fades out at its top and foot, so a digit rolls in and out of nowhere. */
+const REEL_MASK = 'linear-gradient(to bottom, transparent, black 18%, black 82%, transparent)';
 /**
  * A wheel or a trackpad moves the story a beat a gesture. A gesture is over
  * once the wheel has been still this long, or once it has ebbed to under a
@@ -130,9 +132,11 @@ const SWATCH_SIZE = 8;
  * this long each, then faster and faster, the last of the twenty years in a
  * blur.
  */
-const WEEKENDS_SECONDS = 3.5;
-const FIRST_WEEKEND_SECONDS = 0.35;
+const FIRST_WEEKEND_SECONDS = 0.6;
 const WEEKEND_RAMP = 19;
+/** Each stroke of a cross is drawn this long, the second this long after the first. */
+const CROSS_MS = 320;
+const CROSS_LATE_MS = 190;
 const TILE_WIDTH = 64;
 const TILE_HEIGHT = 76;
 const TILE_PITCH = 72;
@@ -195,14 +199,30 @@ const ANSWERS: Record<string, Answer> = {
   travel: { line: m.home_cost_travel, tip: m.home_receipt_travel_tip },
 };
 
-/** A new answer to "What else?" comes up out of focus, and the old one goes the other way. */
-const answerIn = keyframes({
-  from: { filter: 'blur(6px)', opacity: 0, transform: 'translateY(16px)' },
+/**
+ * A new answer to "What else?" takes the old one's place the way any text
+ * swaps: the old sentence goes up a hair and out of focus, then the new one
+ * comes up into its place. The drawings cross over each other meanwhile.
+ */
+const lineOut = keyframes({
+  from: { filter: 'blur(0)', opacity: 1, transform: 'none' },
+  to: {
+    filter: `blur(${blur.small})`,
+    opacity: 0,
+    transform: `translateY(calc(-1 * ${distance.micro}))`,
+  },
+});
+const lineIn = keyframes({
+  from: { filter: `blur(${blur.small})`, opacity: 0, transform: `translateY(${distance.micro})` },
   to: { filter: 'blur(0)', opacity: 1, transform: 'none' },
 });
-const answerOut = keyframes({
-  from: { filter: 'blur(0)', opacity: 1, transform: 'none' },
-  to: { filter: 'blur(6px)', opacity: 0, transform: 'translateY(-16px)' },
+const artOut = keyframes({
+  from: { filter: 'blur(0)', opacity: 1 },
+  to: { filter: `blur(${blur.small})`, opacity: 0 },
+});
+const artIn = keyframes({
+  from: { filter: `blur(${blur.small})`, opacity: 0 },
+  to: { filter: 'blur(0)', opacity: 1 },
 });
 
 /** The drop falls from above the track to below it, and starts over. */
@@ -220,10 +240,10 @@ const styles = create({
     gap: spacing.s4,
     width: '100%',
   },
-  // The drawing, centred, as wide as the column up to its own width.
+  // The drawing, centred, as wide as the column up to its own width. The one
+  // on its way out stands in the same cell while the next comes in.
   answerArt: {
-    display: 'flex',
-    justifyContent: 'center',
+    display: 'grid',
     width: '100%',
   },
   // The sentence's own room, two lines tall at the story's size, so the
@@ -239,9 +259,33 @@ const styles = create({
     minHeight: '2.3em',
     width: '100%',
   },
+  // A drawing coming in for "Show another", out of focus to sharp, while the
+  // last one goes the other way over it.
+  artIn: {
+    animationDuration: duration.slow,
+    animationFillMode: 'both',
+    animationName: {
+      '@media (prefers-reduced-motion: reduce)': 'none',
+      default: artIn,
+    },
+    animationTimingFunction: easing.smoothOut,
+  },
+  artOut: {
+    animationDuration: duration.slow,
+    animationFillMode: 'forwards',
+    animationName: artOut,
+    animationTimingFunction: easing.smoothOut,
+    display: {
+      '@media (prefers-reduced-motion: reduce)': 'none',
+      default: 'flex',
+    },
+    pointerEvents: 'none',
+  },
   // One sentence of the story. They all stand in the same cell, so the stage
   // is as tall as the tallest and nothing moves when one takes over from the
-  // next. With less motion they stand one under the other instead.
+  // next. A beat leaves in a quiet fade, all of it at once; it comes on with
+  // its parts rising into place one after another. With less motion they
+  // stand one under the other instead.
   beat: {
     alignItems: 'center',
     display: 'flex',
@@ -254,13 +298,21 @@ const styles = create({
       '@media (prefers-reduced-motion: reduce)': 'auto',
       default: '1 / 1',
     },
+    opacity: {
+      '@media (prefers-reduced-motion: reduce)': 1,
+      default: 0,
+    },
+    pointerEvents: {
+      '@media (prefers-reduced-motion: reduce)': 'auto',
+      default: 'none',
+    },
     textAlign: 'center',
     transitionDuration: {
       '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: `${FADE_MS}ms`,
+      default: duration.quick,
     },
-    transitionProperty: 'opacity, transform, filter',
-    transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
+    transitionProperty: 'opacity',
+    transitionTimingFunction: easing.inOut,
     width: '100%',
   },
   // The first beat: the sentence beside the feed, which stands under it once
@@ -297,42 +349,13 @@ const styles = create({
       default: 'center',
     },
   },
-  // Still to come: under the line, out of focus, and out of the pointer's way.
-  beatNext: {
-    filter: {
-      '@media (prefers-reduced-motion: reduce)': 'none',
-      default: 'blur(8px)',
-    },
-    opacity: {
-      '@media (prefers-reduced-motion: reduce)': 1,
-      default: 0,
-    },
-    pointerEvents: {
-      '@media (prefers-reduced-motion: reduce)': 'auto',
-      default: 'none',
-    },
-    transform: {
-      '@media (prefers-reduced-motion: reduce)': 'none',
-      default: 'translateY(40px)',
-    },
-  },
-  // Already told: gone the other way, up and out.
-  beatPast: {
-    filter: {
-      '@media (prefers-reduced-motion: reduce)': 'none',
-      default: 'blur(8px)',
-    },
-    opacity: {
-      '@media (prefers-reduced-motion: reduce)': 1,
-      default: 0,
-    },
-    pointerEvents: {
-      '@media (prefers-reduced-motion: reduce)': 'auto',
-      default: 'none',
-    },
-    transform: {
-      '@media (prefers-reduced-motion: reduce)': 'none',
-      default: 'translateY(-40px)',
+  // The beat on the stage, and in the pointer's way.
+  beatOn: {
+    opacity: 1,
+    pointerEvents: 'auto',
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: duration.verySlow,
     },
   },
   beats: {
@@ -427,15 +450,15 @@ const styles = create({
     strokeDashoffset: 1,
     transitionDuration: {
       '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: '200ms',
+      default: `${CROSS_MS}ms`,
     },
     transitionProperty: 'stroke-dashoffset',
-    transitionTimingFunction: 'ease-out',
+    transitionTimingFunction: easing.smoothOut,
   },
   crossStrokeLate: {
     transitionDelay: {
       '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: '120ms',
+      default: `${CROSS_LATE_MS}ms`,
     },
   },
   crossStrokeOn: {
@@ -536,12 +559,13 @@ const styles = create({
     insetInlineEnd: spacing.s4,
     lineHeight: 1,
     position: 'fixed',
-    transitionDuration: '400ms',
+    transitionDuration: duration.slow,
     transitionProperty: 'opacity, visibility',
-    transitionTimingFunction: 'ease-in-out',
+    transitionTimingFunction: easing.smoothOut,
     zIndex: 30,
   },
-  // What a drawing's marks stand for, small and quiet under it.
+  // What a drawing's marks stand for, small and quiet under it. It fades in
+  // as the drawing starts, and is gone again once its beat has faded out.
   legend: {
     alignItems: 'center',
     color: colors.muted,
@@ -552,12 +576,25 @@ const styles = create({
     justifyContent: 'center',
     lineHeight: 1.4,
     margin: 0,
+    opacity: {
+      '@media (prefers-reduced-motion: reduce)': 1,
+      default: 0,
+    },
     rowGap: spacing.s1,
+    transitionDelay: duration.quick,
+    transitionDuration: '0s',
+    transitionProperty: 'opacity',
   },
   legendItem: {
     alignItems: 'center',
     display: 'inline-flex',
     gap: spacing.s2,
+  },
+  legendOn: {
+    opacity: 1,
+    transitionDelay: `${drawing.delay}s`,
+    transitionDuration: duration.slow,
+    transitionTimingFunction: easing.smoothOut,
   },
   // Large and light: the story is read one sentence a screen, so each one is
   // set as big as the first screen's claim and a weight under it.
@@ -569,10 +606,32 @@ const styles = create({
     },
     fontWeight: font.weightRegular,
     letterSpacing: '-0.02em',
-    lineHeight: 1.15,
+    lineHeight: LINE_HEIGHT,
     margin: 0,
     maxWidth: 720,
     textWrap: 'balance',
+  },
+  // A sentence coming in for "Show another", once the last has gone out.
+  lineIn: {
+    animationDelay: duration.quick,
+    animationDuration: duration.quick,
+    animationFillMode: 'both',
+    animationName: {
+      '@media (prefers-reduced-motion: reduce)': 'none',
+      default: lineIn,
+    },
+    animationTimingFunction: easing.inOut,
+  },
+  lineOut: {
+    animationDuration: duration.quick,
+    animationFillMode: 'forwards',
+    animationName: lineOut,
+    animationTimingFunction: easing.inOut,
+    display: {
+      '@media (prefers-reduced-motion: reduce)': 'none',
+      default: 'block',
+    },
+    pointerEvents: 'none',
   },
   // The small i after a figure, a breath away from the word before it.
   mark: {
@@ -604,35 +663,35 @@ const styles = create({
     strokeLinecap: 'round',
     strokeWidth: 1.5,
   },
-  // The answer up and the one on its way out, in the same cell while they
-  // trade places.
-  pick: {
-    display: 'grid',
-    justifyItems: 'center',
-    width: '100%',
-  },
-  pickIn: {
-    animationDelay: '100ms',
-    animationDuration: '450ms',
-    animationFillMode: 'both',
-    animationName: {
+  // A part of a beat: its drawing, its sentence, a button. Off the stage it
+  // waits a little low and out of focus, put there once its beat has faded
+  // out, so the fade is never seen to move.
+  part: {
+    filter: {
       '@media (prefers-reduced-motion: reduce)': 'none',
-      default: answerIn,
+      default: `blur(${blur.medium})`,
     },
-    animationTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
-    gridArea: '1 / 1',
-  },
-  pickOut: {
-    animationDuration: '300ms',
-    animationFillMode: 'forwards',
-    animationName: answerOut,
-    animationTimingFunction: 'ease-in',
-    display: {
+    transform: {
       '@media (prefers-reduced-motion: reduce)': 'none',
-      default: 'flex',
+      default: `translateY(${distance.medium})`,
     },
-    gridArea: '1 / 1',
-    pointerEvents: 'none',
+    transitionDelay: duration.quick,
+    transitionDuration: '0s',
+    transitionProperty: 'transform, filter',
+  },
+  // On the stage it rises into focus, a step after the part over it.
+  partOn: {
+    filter: 'none',
+    transform: 'none',
+    transitionDelay: '0s',
+    transitionDuration: duration.verySlow,
+    transitionTimingFunction: easing.inOut,
+  },
+  partSecond: {
+    transitionDelay: duration.stagger,
+  },
+  partThird: {
+    transitionDelay: `calc(2 * ${duration.stagger})`,
   },
   // How far along the story is, a hairline at the foot of the stage.
   rail: {
@@ -656,6 +715,50 @@ const styles = create({
     height: '100%',
     transformOrigin: 'left',
     width: '100%',
+  },
+  // A figure that counts: the number itself, read but not seen, and its
+  // reels, seen but not read.
+  rolling: {
+    color: accent.base,
+    fontVariantNumeric: 'tabular-nums',
+    position: 'relative',
+  },
+  rollingText: {
+    clipPath: 'inset(50%)',
+    height: 1,
+    insetInlineStart: 0,
+    overflow: 'hidden',
+    position: 'absolute',
+    whiteSpace: 'nowrap',
+    width: 1,
+  },
+  // The reels side by side, a line tall, top to the top of the line, so each
+  // digit sits where the line would have set it.
+  reels: {
+    display: 'inline-flex',
+    height: `${LINE_HEIGHT}em`,
+    lineHeight: LINE_HEIGHT,
+    verticalAlign: 'top',
+    whiteSpace: 'nowrap',
+  },
+  // One digit's window, a digit wide and a line tall.
+  reel: {
+    height: `${LINE_HEIGHT}em`,
+    maskImage: REEL_MASK,
+    overflow: 'hidden',
+    WebkitMaskImage: REEL_MASK,
+  },
+  reelStrip: {
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  // Drawn rather than written, the way the room is.
+  reelDigit: {
+    '::before': {
+      content: 'attr(data-digit)',
+    },
+    display: 'block',
+    height: `${LINE_HEIGHT}em`,
   },
   reroll: {
     display: 'inline-flex',
@@ -749,9 +852,20 @@ const styles = create({
   // The cue and the rail trade places on the turn to the second beat and
   // back, one fading out over the same time the other fades in.
   swap: {
-    transitionDuration: '400ms',
+    transitionDuration: duration.slow,
     transitionProperty: 'opacity, visibility',
-    transitionTimingFunction: 'ease-in-out',
+    transitionTimingFunction: easing.smoothOut,
+  },
+  // The answer up and the one on its way out, in the same cell while they
+  // trade places: the drawings, and the sentences under them.
+  swapArt: {
+    display: 'flex',
+    gridArea: '1 / 1',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  swapLine: {
+    gridArea: '1 / 1',
   },
   // The count under the weekends, small, with its figure in the story's orange.
   tally: {
@@ -998,53 +1112,153 @@ function Sentence({
 }
 
 /**
- * A number that counts up from zero each time its beat comes on. It waits at
- * zero until then, and stands at its value from the start for a reader who
- * asked for less motion, or whose page has not run its script. One that does
- * not wait, like an answer on its way out, stands at its value too.
+ * A place of a number as the page prints it: a digit, worth `unit`, whose
+ * nought only shows from `zeroFrom` on, so a count has no leading noughts; or
+ * a mark between digits, shown from `from` on.
+ */
+type Place =
+  | { kind: 'digit'; unit: number; zeroFrom: number }
+  | { from: number; kind: 'mark'; text: string };
+
+/** The places `value` is printed in: a reel for each digit, and the marks between them as they stand. */
+function placesOf(format: Intl.NumberFormat, value: number): Array<Place> {
+  const parts = format.formatToParts(value);
+  let place = parts
+    .filter((part) => part.type === 'integer')
+    .reduce((digits, part) => digits + part.value.length, 0);
+  const places: Array<Place> = [];
+  for (const part of parts) {
+    if (part.type === 'integer' || part.type === 'fraction') {
+      for (let digit = 0; digit < part.value.length; digit++) {
+        place -= 1;
+        const unit = 10 ** place;
+        places.push({ kind: 'digit', unit, zeroFrom: unit >= 10 ? unit : 0 });
+      }
+    } else {
+      // A thousands mark shows once the digit before it does; a decimal one always.
+      places.push({
+        from: part.type === 'group' ? 10 ** place : 0,
+        kind: 'mark',
+        text: part.value,
+      });
+    }
+  }
+  return places;
+}
+
+/**
+ * Where a digit's reel stands at `count`, in digits from nought: the last
+ * place turns with the count itself, and every other one only while the
+ * places under it roll over from all nines, the way a mechanical counter
+ * carries.
+ */
+function reelAt(count: number, unit: number, smallest: number): number {
+  const steps = Math.round((Math.max(0, count) / smallest) * 1e6) / 1e6;
+  const turn = Math.round(unit / smallest);
+  const turns = Math.floor(steps / turn);
+  const carry = Math.min(1, Math.max(0, steps - turns * turn - (turn - 1)));
+  return turn === 1 ? steps % 10 : (turns % 10) + carry;
+}
+
+/**
+ * A value that follows `count` through `toValue`. It takes up the count as it
+ * stands whenever it starts following, so a count set while the reel was
+ * being put on the page is never missed.
+ */
+function useFollowing<T>(
+  count: MotionValue<number>,
+  toValue: (latest: number) => T,
+): MotionValue<T> {
+  const value = useMotionValue(toValue(count.get()));
+  useEffect(() => {
+    value.set(toValue(count.get()));
+    return count.on('change', (latest) => value.set(toValue(latest)));
+  }, [count, toValue, value]);
+  return value;
+}
+
+/** One digit's reel, rolled to where `count` puts it. */
+function Reel({
+  count,
+  smallest,
+  unit,
+  zeroFrom,
+}: {
+  count: MotionValue<number>;
+  smallest: number;
+  unit: number;
+  zeroFrom: number;
+}) {
+  const y = useFollowing(count, (latest) => `${-reelAt(latest, unit, smallest) * LINE_HEIGHT}em`);
+  const zero = useFollowing(count, (latest) => (latest >= zeroFrom ? 1 : 0));
+  return (
+    <span {...props(styles.reel)}>
+      <motion.span {...props(styles.reelStrip)} style={{ y }}>
+        {REEL.map((digit, index) => (
+          <motion.span
+            data-digit={digit}
+            key={index}
+            {...props(styles.reelDigit)}
+            style={index === 0 ? { opacity: zero } : {}}
+          />
+        ))}
+      </motion.span>
+    </span>
+  );
+}
+
+/** A mark between a number's digits, shown once the digit before it is. */
+function ReelMark({
+  count,
+  from,
+  text,
+}: {
+  count: MotionValue<number>;
+  from: number;
+  text: string;
+}) {
+  const opacity = useFollowing(count, (latest) => (latest >= from ? 1 : 0));
+  return <motion.span data-digit={text} {...props(styles.reelDigit)} style={{ opacity }} />;
+}
+
+/**
+ * A figure in a sentence, counted up to `value` as far as `count` has got:
+ * its beat's drawing keeps it, so the two count together. Each digit rolls on
+ * its own reel, the way a mechanical counter turns. The sentence's text holds
+ * the figure once, at its value, for whoever reads rather than looks.
  */
 function Figure({
+  count,
   decimals = 0,
-  run,
   value,
-  waits = true,
 }: {
+  count: MotionValue<number>;
   decimals?: number;
-  run: boolean;
   value: number;
-  waits?: boolean;
 }) {
-  const reduced = useLessMotion();
   const format = new Intl.NumberFormat(getLocale(), {
     maximumFractionDigits: decimals,
     minimumFractionDigits: decimals,
   });
-  const count = useMotionValue(value);
-  const shown = useTransform(count, (latest) => format.format(latest));
-
-  useEffect(() => {
-    if (!reduced && waits) {
-      count.set(0);
-    }
-  }, [count, reduced, waits]);
-
-  useEffect(() => {
-    if (reduced) {
-      count.set(value);
-      return;
-    }
-    if (!run) {
-      return;
-    }
-    count.set(0);
-    const controls = animate(count, value, { duration: COUNT_SECONDS, ease: EASE_OUT });
-    return () => controls.stop();
-  }, [count, reduced, run, value]);
-
+  const smallest = 10 ** -decimals;
   return (
-    <span {...props(styles.figure)}>
-      <span aria-hidden="true" data-room={format.format(value)} {...props(styles.figureRoom)} />
-      <motion.span {...props(styles.figureCount)}>{shown}</motion.span>
+    <span {...props(styles.rolling)}>
+      <span {...props(styles.rollingText)}>{format.format(value)}</span>
+      <span aria-hidden="true" {...props(styles.reels)}>
+        {placesOf(format, value).map((place, index) =>
+          place.kind === 'digit' ? (
+            <Reel
+              count={count}
+              key={index}
+              smallest={smallest}
+              unit={place.unit}
+              zeroFrom={place.zeroFrom}
+            />
+          ) : (
+            <ReelMark count={count} from={place.from} key={index} text={place.text} />
+          ),
+        )}
+      </span>
     </span>
   );
 }
@@ -1060,8 +1274,10 @@ function Mark({ children, label }: { children: ReactNode; label: string }) {
 
 /**
  * How far a drawing has played, from 0 to 1: over `seconds` each time its beat
- * comes on, and back to the start once the beat has faded out, so it plays
- * again when the reader comes back to it. With less motion it stands done.
+ * comes on, once the sentence has risen into place, and back to the start
+ * once the beat has faded out, so it plays again when the reader comes back
+ * to it. It stands done until the page has come alive, and for good with less
+ * motion.
  */
 function usePlayed(
   run: boolean,
@@ -1069,32 +1285,32 @@ function usePlayed(
   ease: [number, number, number, number] | 'linear',
 ): MotionValue<number> {
   const reduced = useLessMotion();
-  const played = useMotionValue(0);
+  const played = useMotionValue(1);
   useEffect(() => {
     if (reduced) {
       played.set(1);
       return;
     }
     if (!run) {
-      const timer = setTimeout(() => played.set(0), FADE_MS);
+      const timer = setTimeout(() => played.set(0), FADE_OUT_MS);
       return () => clearTimeout(timer);
     }
     played.set(0);
-    const controls = animate(played, 1, { delay: DRAW_DELAY, duration: seconds, ease });
+    const controls = animate(played, 1, { delay: drawing.delay, duration: seconds, ease });
     return () => controls.stop();
   }, [ease, played, reduced, run, seconds]);
   return played;
 }
 
 /**
- * Whether an answer's drawing plays: from a moment after its beat has come
- * on, as every drawing does, until the beat has faded out, so it is never
- * seen to start over on its way out.
+ * Whether an answer's drawing plays: once its beat has come on and the
+ * sentence has risen into place, as every drawing does, until the beat has
+ * faded out, so it is never seen to start over on its way out.
  */
 function useDeckPlay(on: boolean): boolean {
   const [playing, setPlaying] = useState(false);
   useEffect(() => {
-    const timer = setTimeout(() => setPlaying(on), on ? DRAW_DELAY * 1000 : FADE_MS);
+    const timer = setTimeout(() => setPlaying(on), on ? drawing.delay * 1000 : FADE_OUT_MS);
     return () => clearTimeout(timer);
   }, [on]);
   return playing;
@@ -1121,13 +1337,21 @@ function orbitPath(laps: number): string {
  * for every trip around the Earth, with the walker at the head of the line.
  * With less motion the walk stands drawn whole.
  */
-function Orbit({ laps, walked }: { laps: number; walked: MotionValue<number> }) {
+function Orbit({
+  laps,
+  style,
+  walked,
+}: {
+  laps: number;
+  style: StyleXStyles;
+  walked: MotionValue<number>;
+}) {
   const reduced = useLessMotion();
   const walkerX = useTransform(walked, (t) => orbitPoint(laps, t).x);
   const walkerY = useTransform(walked, (t) => orbitPoint(laps, t).y);
   const walkerOpacity = useTransform(walked, [0, 0.02], [0, 1]);
   return (
-    <svg aria-hidden="true" viewBox={`0 0 ${BOX} ${BOX}`} {...props(styles.orbit)}>
+    <svg aria-hidden="true" viewBox={`0 0 ${BOX} ${BOX}`} {...props(styles.orbit, style)}>
       <circle cx={CENTER} cy={CENTER} r={GLOBE_RADIUS} {...props(styles.globe)} />
       <ellipse
         cx={CENTER}
@@ -1217,16 +1441,26 @@ function WeekGrid({
  * stand for under it. It is drawn wide and narrow, and the screen shows the
  * one that fits. With less motion it stands filled.
  */
-function Weeks({ drawn, spent }: { drawn: MotionValue<number>; spent: number }) {
+function Weeks({
+  drawn,
+  on,
+  spent,
+  style,
+}: {
+  drawn: MotionValue<number>;
+  on: boolean;
+  spent: number;
+  style: StyleXStyles;
+}) {
   const reduced = useLessMotion();
   const [filled, setFilled] = useState(0);
   useMotionValueEvent(drawn, 'change', (latest) => setFilled(Math.round(latest * spent)));
   const shown = reduced ? spent : filled;
   return (
-    <div {...props(styles.drawing)}>
+    <div {...props(styles.drawing, style)}>
       <WeekGrid filled={shown} layout={WIDE_WEEKS} style={styles.weeksWide} />
       <WeekGrid filled={shown} layout={NARROW_WEEKS} style={styles.weeksNarrow} />
-      <p aria-hidden="true" {...props(styles.legend)}>
+      <p aria-hidden="true" {...props(styles.legend, on && styles.legendOn)}>
         <span {...props(styles.legendItem)}>
           <span {...props(styles.swatch)} />
           {m.home_cost_weeks_legend()}
@@ -1246,7 +1480,7 @@ function Weeks({ drawn, spent }: { drawn: MotionValue<number>; spent: number }) 
  * from there to the last.
  */
 function weekendsBy(t: number): number {
-  const steady = WEEKENDS_SECONDS / FIRST_WEEKEND_SECONDS;
+  const steady = drawing.weekends / FIRST_WEEKEND_SECONDS;
   const rush =
     (Math.expm1(WEEKEND_RAMP * t) - WEEKEND_RAMP * t) / (Math.expm1(WEEKEND_RAMP) - WEEKEND_RAMP);
   return steady * t + (HORIZON_WEEKS - 0.5 - steady) * rush;
@@ -1269,7 +1503,15 @@ function comingSaturday(today: Date): number {
  * tally under them counts up to the last. With less motion they stand all
  * crossed out.
  */
-function Weekends({ drawn }: { drawn: MotionValue<number> }) {
+function Weekends({
+  drawn,
+  on,
+  style,
+}: {
+  drawn: MotionValue<number>;
+  on: boolean;
+  style: StyleXStyles;
+}) {
   const reduced = useLessMotion();
   const [passed, setPassed] = useState(0);
   // The tiles start this weekend, which only the reader's own clock knows, so
@@ -1296,7 +1538,7 @@ function Weekends({ drawn }: { drawn: MotionValue<number> }) {
   const to = Math.min(HORIZON_WEEKS - 1, stamped + TILE_REACH);
 
   return (
-    <div aria-hidden="true" {...props(styles.weekends)}>
+    <div aria-hidden="true" {...props(styles.weekends, style)}>
       <div {...props(styles.weekendsTrack)}>
         <span {...props(styles.weekendsLine)} />
         <div {...props(styles.weekendsStrip)}>
@@ -1364,7 +1606,7 @@ function Weekends({ drawn }: { drawn: MotionValue<number> }) {
           })}
         />
       </p>
-      <p {...props(styles.legend)}>{m.home_cost_weekends_legend()}</p>
+      <p {...props(styles.legend, on && styles.legendOn)}>{m.home_cost_weekends_legend()}</p>
     </div>
   );
 }
@@ -1472,7 +1714,17 @@ function strideAt(walked: number): number {
  * reach, and the walker stops there with the rest of the way faint ahead of
  * it. With less motion the walk stands done.
  */
-function Moon({ share, walked }: { share: number; walked: MotionValue<number> }) {
+function Moon({
+  on,
+  share,
+  style,
+  walked,
+}: {
+  on: boolean;
+  share: number;
+  style: StyleXStyles;
+  walked: MotionValue<number>;
+}) {
   const reduced = useLessMotion();
   const reach = Math.min(1, share);
   const way = useTransform(walked, (latest) => walkedTo(latest * reach));
@@ -1483,7 +1735,7 @@ function Moon({ share, walked }: { share: number; walked: MotionValue<number> })
   const headY = useTransform(walked, (latest) => wayAt(latest * reach).point.y - WALKER_HEAD);
   const end = wayAt(reach).point;
   return (
-    <div {...props(styles.drawing)}>
+    <div {...props(styles.drawing, style)}>
       <svg aria-hidden="true" viewBox={`0 0 ${SKY_WIDTH} ${SKY_HEIGHT}`} {...props(styles.sky)}>
         <circle cx={SKY_EARTH.x} cy={SKY_EARTH.y} r={SKY_EARTH.radius} {...props(styles.globe)} />
         <ellipse
@@ -1524,7 +1776,7 @@ function Moon({ share, walked }: { share: number; walked: MotionValue<number> })
           {...props(styles.walker)}
         />
       </svg>
-      <p aria-hidden="true" {...props(styles.legend)}>
+      <p aria-hidden="true" {...props(styles.legend, on && styles.legendOn)}>
         {m.home_cost_moon_legend({ km: new Intl.NumberFormat(getLocale()).format(MOON_KM) })}
       </p>
     </div>
@@ -1532,34 +1784,21 @@ function Moon({ share, walked }: { share: number; walked: MotionValue<number> })
 }
 
 /**
- * One answer to "What else?": its drawing, playing while `play` is on, over
- * the sentence it is told in.
+ * One answer to "What else?" drawn, playing while `play` is on, and keeping
+ * `count` on how far it has counted, for the sentence it is told in.
  */
-function Reply({
+function AnswerGraphic({
   answer,
-  figure,
-  mark,
+  count,
   play,
 }: {
   answer: Counted;
-  figure: ReactNode;
-  mark: ReactNode;
+  count: MotionValue<number>;
   play: boolean;
 }) {
   const Graphic = DECK_GRAPHICS[answer.key];
-  return (
-    <>
-      {Graphic === undefined ? null : (
-        <div {...props(styles.answerArt)}>
-          <Graphic amount={answer.amount} play={play} />
-        </div>
-      )}
-      <div {...props(styles.answerRoom)}>
-        <p {...props(styles.line)}>
-          <Sentence figures={[figure]} mark={mark} text={answer.line({ count: slot(0) })} />
-        </p>
-      </div>
-    </>
+  return Graphic === undefined ? null : (
+    <Graphic amount={answer.amount} count={count} play={play} />
   );
 }
 
@@ -1585,10 +1824,11 @@ export function CostStory({ id }: { id: string }) {
   // The page has gone on past the last beat, and the story is over.
   const [told, setTold] = useState(false);
   const on = (index: number) => seen && active === index;
-  const weeksDrawn = usePlayed(on(WEEKS_BEAT), WEEKS_SECONDS, EASE_IN_OUT);
-  const weekendsDrawn = usePlayed(on(WEEKENDS_BEAT), WEEKENDS_SECONDS, 'linear');
-  const walked = usePlayed(on(EARTH_BEAT), WALK_SECONDS, EASE_IN_OUT);
-  const moonWalked = usePlayed(on(MOON_BEAT), MOON_SECONDS, EASE_IN_OUT);
+  const hoursCounted = usePlayed(on(0), drawing.hours, SMOOTH_OUT);
+  const weeksDrawn = usePlayed(on(WEEKS_BEAT), drawing.weeks, SMOOTH_OUT);
+  const weekendsDrawn = usePlayed(on(WEEKENDS_BEAT), drawing.weekends, 'linear');
+  const walked = usePlayed(on(EARTH_BEAT), drawing.earth, SMOOTH_OUT);
+  const moonWalked = usePlayed(on(MOON_BEAT), drawing.moon, SMOOTH_OUT);
   const deckPlays = useDeckPlay(on(MORE_BEAT));
 
   const metrics = heroMetrics(AVERAGE_HOURS);
@@ -1607,13 +1847,26 @@ export function CostStory({ id }: { id: string }) {
   // The answers this round has shown, so every one comes up before any repeats.
   const [shown, setShown] = useState<ReadonlyArray<string>>([first]);
   const [turns, setTurns] = useState(0);
+  // The answer up has swapped in, and its drawing may play.
+  const [landed, setLanded] = useState(true);
   const answer = answers.find((candidate) => candidate.key === pick);
   const leaving = answers.find((candidate) => candidate.key === previous);
+  // Each answer's count, which its drawing keeps and its sentence shows. The
+  // answer up and the one on its way out take one each, in turn, so the one
+  // leaving keeps its own.
+  const countA = useMotionValue(0);
+  const countB = useMotionValue(0);
+  const answerCount = turns % 2 === 0 ? countA : countB;
+  const leavingCount = turns % 2 === 0 ? countB : countA;
   // The waking years, as the page prints them, counted at the same precision.
   const years = Number(formatYears(AVERAGE_HOURS));
   const number = new Intl.NumberFormat(getLocale());
   const toMoon = moonShare(AVERAGE_HOURS);
   const toMoonPercent = Math.round(toMoon * 100);
+  // Each figure counts on its beat's own clock, so it lands as the drawing does.
+  const hours = useTransform(hoursCounted, (t) => t * AVERAGE_HOURS);
+  const yearsCounted = useTransform(weeksDrawn, (t) => t * years);
+  const laps = useTransform(walked, (t) => t * earth);
 
   // The beat whose resting place the page is nearest, so a beat takes over
   // from the last halfway through the page's move from one to the next.
@@ -1696,7 +1949,7 @@ export function CostStory({ id }: { id: string }) {
       driven = window.scrollY;
       drive = animate(driven, driven + offset, {
         duration: STEP_SECONDS,
-        ease: EASE_OUT,
+        ease: SMOOTH_OUT,
         onComplete: land,
         onUpdate: (top) => {
           // The reader has taken the page back mid-move: it is theirs.
@@ -1827,6 +2080,16 @@ export function CostStory({ id }: { id: string }) {
     };
   }, [reduced]);
 
+  // A new answer's drawing waits for its sentence to swap in, so it starts
+  // drawing, and counting, once the reader can see what it counts.
+  useEffect(() => {
+    if (landed) {
+      return;
+    }
+    const timer = setTimeout(() => setLanded(true), SWAP_MS);
+    return () => clearTimeout(timer);
+  }, [landed, turns]);
+
   // A key in the corner that has focus when the story ends lets it go with
   // the line, so the arrows scroll the page from the first press on.
   useEffect(() => {
@@ -1856,18 +2119,26 @@ export function CostStory({ id }: { id: string }) {
     setPrevious(pick);
     setPick(next);
     setTurns((turn) => turn + 1);
+    setLanded(false);
   }
 
   function beat(index: number, style?: StyleXStyles) {
     return {
       onFocus: () => reveal(index),
-      ...props(
-        styles.beat,
-        style,
-        index < active && styles.beatPast,
-        index > active && styles.beatNext,
-      ),
+      ...props(styles.beat, style, index === active && styles.beatOn),
     };
+  }
+
+  /** The `order`th part of a beat from the top, which rises into place a step after the one over it. */
+  function partOf(index: number, order: number, style?: StyleXStyles): StyleXStyles {
+    const shown = index === active;
+    return [
+      styles.part,
+      style,
+      shown && styles.partOn,
+      shown && order === 1 && styles.partSecond,
+      shown && order === 2 && styles.partThird,
+    ];
   }
 
   const tipLabel = m.home_receipt_tip_label();
@@ -1891,9 +2162,9 @@ export function CostStory({ id }: { id: string }) {
         <div {...props(styles.beats)}>
           <div {...beat(0, styles.beatFeed)}>
             {/* The page's heading: the first thing it says. */}
-            <h1 {...props(styles.line)}>
+            <h1 {...props(partOf(0, 0, styles.line))}>
               <Sentence
-                figures={[<Figure key="hours" run={on(0)} value={AVERAGE_HOURS} />]}
+                figures={[<Figure count={hours} key="hours" value={AVERAGE_HOURS} />]}
                 mark={
                   <Mark label={m.home_cost_source_label()}>
                     <a href={SOURCE_URL} rel="noreferrer" target="_blank">
@@ -1906,20 +2177,25 @@ export function CostStory({ id }: { id: string }) {
             </h1>
             {/* It goes with the first beat. With less motion every beat stays
             on the page, so it does too. */}
-            <div {...props(styles.feed)}>
+            <div {...props(partOf(0, 1, styles.feed))}>
               <FeedPhone shown={reduced || active === 0} />
             </div>
           </div>
 
           <div {...beat(WEEKS_BEAT)}>
-            <Weeks drawn={weeksDrawn} spent={screenWeeks(AVERAGE_HOURS)} />
-            <p {...props(styles.line)}>
+            <Weeks
+              drawn={weeksDrawn}
+              on={on(WEEKS_BEAT)}
+              spent={screenWeeks(AVERAGE_HOURS)}
+              style={partOf(WEEKS_BEAT, 0)}
+            />
+            <p {...props(partOf(WEEKS_BEAT, 1, styles.line))}>
               <Sentence
                 figures={[
                   <Figure
+                    count={yearsCounted}
                     decimals={Number.isInteger(years) ? 0 : 1}
                     key="years"
-                    run={on(WEEKS_BEAT)}
                     value={years}
                   />,
                 ]}
@@ -1938,8 +2214,12 @@ export function CostStory({ id }: { id: string }) {
           </div>
 
           <div {...beat(WEEKENDS_BEAT)}>
-            <Weekends drawn={weekendsDrawn} />
-            <p {...props(styles.line)}>
+            <Weekends
+              drawn={weekendsDrawn}
+              on={on(WEEKENDS_BEAT)}
+              style={partOf(WEEKENDS_BEAT, 0)}
+            />
+            <p {...props(partOf(WEEKENDS_BEAT, 1, styles.line))}>
               <Sentence
                 figures={[]}
                 mark={
@@ -1960,10 +2240,10 @@ export function CostStory({ id }: { id: string }) {
           </div>
 
           <div {...beat(EARTH_BEAT)}>
-            <Orbit laps={earth} walked={walked} />
-            <p {...props(styles.line)}>
+            <Orbit laps={earth} style={partOf(EARTH_BEAT, 0)} walked={walked} />
+            <p {...props(partOf(EARTH_BEAT, 1, styles.line))}>
               <Sentence
-                figures={[<Figure key="earth" run={on(EARTH_BEAT)} value={earth} />]}
+                figures={[<Figure count={laps} key="earth" value={earth} />]}
                 mark={<Mark label={tipLabel}>{m.home_receipt_earth_tip()}</Mark>}
                 text={m.home_cost_earth({ count: slot(0) })}
               />
@@ -1971,8 +2251,13 @@ export function CostStory({ id }: { id: string }) {
           </div>
 
           <div {...beat(MOON_BEAT)}>
-            <Moon share={toMoon} walked={moonWalked} />
-            <p {...props(styles.line)}>
+            <Moon
+              on={on(MOON_BEAT)}
+              share={toMoon}
+              style={partOf(MOON_BEAT, 0)}
+              walked={moonWalked}
+            />
+            <p {...props(partOf(MOON_BEAT, 1, styles.line))}>
               <Sentence
                 figures={[]}
                 mark={
@@ -1995,55 +2280,78 @@ export function CostStory({ id }: { id: string }) {
           </div>
 
           <div {...beat(MORE_BEAT)}>
-            <p {...props(styles.line)}>{m.home_cost_more()}</p>
-            <div aria-live="polite" {...props(styles.pick)}>
-              {/* The answer up is keyed by the press as well, so every press
-              plays the swap again, even for an answer that has been up
-              before. The one on its way out keeps the key it was up under,
-              so it leaves as it stood, drawing and all, and is gone once it
-              has faded. */}
-              {leaving === undefined ? null : (
-                <div
-                  aria-hidden="true"
-                  key={`${leaving.key}-${turns - 1}`}
-                  onAnimationEnd={(event) => {
-                    if (event.target === event.currentTarget) {
-                      setPrevious(null);
-                    }
-                  }}
-                  {...props(styles.answer, styles.pickOut)}
-                >
-                  <Reply
-                    answer={leaving}
-                    figure={
-                      <Figure key={leaving.key} run={false} value={leaving.amount} waits={false} />
-                    }
-                    mark={null}
-                    play={deckPlays}
-                  />
-                </div>
-              )}
-              {answer === undefined ? null : (
-                <div key={`${answer.key}-${turns}`} {...props(styles.answer, styles.pickIn)}>
-                  <Reply
-                    answer={answer}
-                    figure={<Figure key={answer.key} run={on(MORE_BEAT)} value={answer.amount} />}
-                    mark={<Mark label={tipLabel}>{answer.tip()}</Mark>}
-                    play={deckPlays}
-                  />
-                </div>
-              )}
+            <p {...props(partOf(MORE_BEAT, 0, styles.line))}>{m.home_cost_more()}</p>
+            {/* The answer up is keyed by the press as well, so every press plays
+            the swap again, even for an answer that has been up before. The one
+            on its way out keeps the key it was up under, so it leaves as it
+            stood, drawing and all, and is gone once its drawing has faded. */}
+            <div aria-live="polite" {...props(partOf(MORE_BEAT, 1, styles.answer))}>
+              <div {...props(styles.answerArt)}>
+                {leaving === undefined ? null : (
+                  <div
+                    aria-hidden="true"
+                    key={`${leaving.key}-${turns - 1}`}
+                    onAnimationEnd={(event) => {
+                      if (event.target === event.currentTarget) {
+                        setPrevious(null);
+                      }
+                    }}
+                    {...props(styles.swapArt, styles.artOut)}
+                  >
+                    <AnswerGraphic answer={leaving} count={leavingCount} play={deckPlays} />
+                  </div>
+                )}
+                {answer === undefined ? null : (
+                  <div
+                    key={`${answer.key}-${turns}`}
+                    {...props(styles.swapArt, turns > 0 && styles.artIn)}
+                  >
+                    <AnswerGraphic answer={answer} count={answerCount} play={deckPlays && landed} />
+                  </div>
+                )}
+              </div>
+              <div {...props(styles.answerRoom)}>
+                {leaving === undefined ? null : (
+                  <p
+                    aria-hidden="true"
+                    key={`${leaving.key}-${turns - 1}`}
+                    {...props(styles.line, styles.swapLine, styles.lineOut)}
+                  >
+                    <Sentence
+                      figures={[<Figure count={leavingCount} key="count" value={leaving.amount} />]}
+                      mark={null}
+                      text={leaving.line({ count: slot(0) })}
+                    />
+                  </p>
+                )}
+                {answer === undefined ? null : (
+                  <p
+                    key={`${answer.key}-${turns}`}
+                    {...props(styles.line, styles.swapLine, turns > 0 && styles.lineIn)}
+                  >
+                    <Sentence
+                      figures={[<Figure count={answerCount} key="count" value={answer.amount} />]}
+                      mark={<Mark label={tipLabel}>{answer.tip()}</Mark>}
+                      text={answer.line({ count: slot(0) })}
+                    />
+                  </p>
+                )}
+              </div>
             </div>
-            <Button onClick={reroll} variant="outline">
-              <motion.span
-                animate={{ rotate: turns * TURN_DEGREES }}
-                transition={reduced ? { duration: 0 } : { duration: TURN_SECONDS, ease: EASE_OUT }}
-                {...props(styles.reroll)}
-              >
-                <ArrowsRotate aria-hidden="true" size={ICON_SIZE} />
-              </motion.span>
-              {m.home_cost_reroll()}
-            </Button>
+            <div {...props(partOf(MORE_BEAT, 2))}>
+              <Button onClick={reroll} variant="outline">
+                <motion.span
+                  animate={{ rotate: turns * TURN_DEGREES }}
+                  transition={
+                    reduced ? { duration: 0 } : { duration: TURN_SECONDS, ease: SMOOTH_OUT }
+                  }
+                  {...props(styles.reroll)}
+                >
+                  <ArrowsRotate aria-hidden="true" size={ICON_SIZE} />
+                </motion.span>
+                {m.home_cost_reroll()}
+              </Button>
+            </div>
           </div>
         </div>
         <span aria-hidden="true" {...props(styles.cue, styles.swap, active > 0 && styles.gone)}>
