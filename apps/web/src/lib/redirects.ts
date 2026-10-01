@@ -13,8 +13,8 @@ const GUIDES_PREFIX = '/guides';
 
 /**
  * A 301 to the home page for a path the site no longer answers on its own. The
- * static files under `/mac/` (the Sparkle feed and `latest.json`) are served by
- * the asset worker before this runs, so only the bare `/mac` page is caught.
+ * files under `/mac/` (the Sparkle feed, `latest.json`, the dmgs) come from R2
+ * through `macFileResponse`, so only the bare `/mac` page is caught.
  * `null` when the path is one the site still renders.
  */
 export function removedPathRedirect(url: URL): Response | null {
