@@ -126,14 +126,14 @@ const styles = create({
   // is drawn: the orange cap's in orange. They stay behind the caps.
   trail: {
     fill: 'none',
-    opacity: 0.2,
+    opacity: 0.45,
     stroke: colors.muted,
     strokeDasharray: '0 5',
     strokeLinecap: 'round',
-    strokeWidth: 1,
+    strokeWidth: 1.5,
   },
   trailLast: {
-    opacity: 0.5,
+    opacity: 1,
     stroke: accent.base,
   },
 });

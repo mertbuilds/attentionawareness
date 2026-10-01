@@ -30,6 +30,7 @@ import {
   heroMetrics,
   HORIZON_WEEKS,
   HORIZON_YEARS,
+  HOURS_PER_SKILL,
   MOON_KM,
   MOON_WALK_HOURS,
   moonShare,
@@ -46,6 +47,7 @@ import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
 import { BillFilters } from './bill-paper.tsx';
 import { DECK_GRAPHICS } from './deck/index.ts';
+import type { SkillLabels } from './deck/skills.tsx';
 import { FeedPhone } from './feed-phone.tsx';
 import { GridTexture } from './grid-texture.tsx';
 import { InfoTip } from './info-tip.tsx';
@@ -91,9 +93,7 @@ const LINE_PX = 16;
 /** The reroll icon turns half a turn an answer. */
 const TURN_DEGREES = 180;
 const TURN_SECONDS = 0.7;
-const ICON_SIZE = 18;
-/** How long an answer stands once its drawing starts: the drawing, then a hold on its end. */
-const ANSWER_SECONDS = drawing.deck + drawing.deckHold;
+const ICON_SIZE = 16;
 /** The figures the story tells on its own, so "What else?" never offers them. */
 const TOLD = new Set(['earth']);
 /**
@@ -134,12 +134,12 @@ const NARROW_WEEKS = { columns: 26, size: 6 };
 const SWATCH_SIZE = 8;
 /**
  * The weekends, one calendar tile each, flipping past the line where each one
- * is crossed out. They speed up as they go: the first few pass one at a time,
- * this long each, then faster and faster, the last of the twenty years in a
- * blur.
+ * is crossed out. They move the way the other drawings do: up to speed over
+ * this share of the run, steady through the middle, and easing to a stop on
+ * the last over this share.
  */
-const FIRST_WEEKEND_SECONDS = 0.4;
-const WEEKEND_RAMP = 19;
+const WEEKENDS_SPEED_UP = 0.15;
+const WEEKENDS_SLOW_DOWN = 0.4;
 /** Each stroke of a cross is drawn this long, the second this long after the first. */
 const CROSS_MS = 210;
 const CROSS_LATE_MS = 125;
@@ -189,19 +189,46 @@ const CUE_BOTTOM = `calc(${spacing.s8} + ${spacing.s4})`;
  */
 const CUE_ROOM = `calc(${CUE_BOTTOM} + ${CUE_LABEL + CUE_HEIGHT}px + ${spacing.s2} + ${spacing.s4})`;
 
-/** One answer to "What else?": the sentence it is told in, and how it is counted. */
-type Answer = { line: (inputs: { count: string }) => string; tip: () => string };
+/**
+ * One answer to "What else?": the sentence it is told in, how it is counted,
+ * how long its drawing plays if not an answer's usual time, and the words
+ * drawn on it, if any.
+ */
+type Answer = {
+  labels?: () => SkillLabels;
+  line: (inputs: { count: string }) => string;
+  seconds?: number;
+  tip: () => string;
+};
 /** An answer the hours reach, with how many of it they would have bought. */
 type Counted = Answer & { amount: number; key: string };
 
 const ANSWERS: Record<string, Answer> = {
   books: { line: m.home_cost_books, tip: m.home_receipt_books_tip },
   degrees: { line: m.home_cost_degrees, tip: m.home_receipt_degrees_tip },
-  instruments: { line: m.home_cost_instruments, tip: m.home_receipt_instruments_tip },
+  instruments: {
+    line: m.home_cost_instruments,
+    seconds: drawing.instruments,
+    tip: m.home_receipt_instruments_tip,
+  },
   languages: { line: m.home_cost_languages, tip: m.home_receipt_languages_tip },
   marathons: { line: m.home_cost_marathons, tip: m.home_receipt_marathons_tip },
   novels: { line: m.home_cost_novels, tip: m.home_receipt_novels_tip },
-  skills: { line: m.home_cost_skills, tip: m.home_receipt_skills_tip },
+  skills: {
+    labels: () => ({
+      hours: m.home_cost_skills_hours({
+        hours: new Intl.NumberFormat(getLocale()).format(HOURS_PER_SKILL),
+      }),
+      names: [
+        m.home_cost_skills_software(),
+        m.home_cost_skills_drawing(),
+        m.home_cost_skills_photography(),
+        m.home_cost_skills_chess(),
+      ],
+    }),
+    line: m.home_cost_skills,
+    tip: m.home_receipt_skills_tip,
+  },
   travel: { line: m.home_cost_travel, tip: m.home_receipt_travel_tip },
 };
 
@@ -736,15 +763,15 @@ const styles = create({
   },
   // "Show another", a solid button sized for a thumb, over its countdown.
   rerollButton: {
-    fontSize: font.sizeMd,
+    fontSize: font.sizeSm,
     gap: spacing.s2,
-    height: 44,
-    paddingInline: spacing.s6,
+    height: 40,
+    paddingInline: spacing.s4,
   },
   rerollPart: {
     display: 'flex',
     flexDirection: 'column',
-    gap: spacing.s2,
+    gap: spacing.s4,
   },
   // The Earth and the Moon, as wide as the column on a phone.
   sky: {
@@ -1175,11 +1202,19 @@ function orbitPoint(laps: number, t: number): { x: number; y: number } {
   return { x: CENTER + radius * Math.cos(angle), y: CENTER + radius * Math.sin(angle) };
 }
 
-/** The whole walk as one path, starting at the top and going clockwise. */
-function orbitPath(laps: number): string {
+/**
+ * The walk as far as `t` of the way along, as one path starting at the top and
+ * going clockwise. It ends on `orbitPoint(laps, t)`, where the walker stands,
+ * so the line and the walker are always the same distance along.
+ */
+function orbitPath(laps: number, t: number): string {
+  if (t <= 0) {
+    return '';
+  }
   const steps = Math.max(1, laps) * POINTS_PER_LAP;
-  return Array.from({ length: steps + 1 }, (_, step) => {
-    const { x, y } = orbitPoint(laps, step / steps);
+  const behind = Math.min(steps, Math.floor(t * steps));
+  return Array.from({ length: behind + 2 }, (_, step) => {
+    const { x, y } = orbitPoint(laps, step > behind ? t : step / steps);
     return `${step === 0 ? 'M' : 'L'}${x.toFixed(2)} ${y.toFixed(2)}`;
   }).join(' ');
 }
@@ -1187,7 +1222,9 @@ function orbitPath(laps: number): string {
 /**
  * A plain globe, and the walks around it drawn once the beat comes on: one lap
  * for every trip around the Earth, with the walker at the head of the line.
- * With less motion the walk stands drawn whole.
+ * The line and the walker are both drawn from how far it has walked, so the
+ * walker never runs ahead of the line or falls behind it. With less motion
+ * the walk stands drawn whole.
  */
 function Orbit({
   laps,
@@ -1199,6 +1236,7 @@ function Orbit({
   walked: MotionValue<number>;
 }) {
   const reduced = useLessMotion();
+  const line = useTransform(walked, (t) => orbitPath(laps, t));
   const walkerX = useTransform(walked, (t) => orbitPoint(laps, t).x);
   const walkerY = useTransform(walked, (t) => orbitPoint(laps, t).y);
   const walkerOpacity = useTransform(walked, [0, 0.02], [0, 1]);
@@ -1219,11 +1257,7 @@ function Orbit({
         ry={GLOBE_RADIUS * EQUATOR_SQUASH}
         {...props(styles.globe, styles.globeFaint)}
       />
-      <motion.path
-        d={orbitPath(laps)}
-        {...props(styles.orbitLine)}
-        style={{ pathLength: reduced ? 1 : walked }}
-      />
+      <motion.path d={reduced ? orbitPath(laps, 1) : line} {...props(styles.orbitLine)} />
       {reduced ? null : (
         <motion.circle
           cx={walkerX}
@@ -1327,15 +1361,21 @@ function Weeks({
 }
 
 /**
- * How many weekends have passed the line `t` of the way through: the first
- * few at a steady walk, one at a time, then a run that gathers pace smoothly
- * from there to the last.
+ * How many weekends have passed the line `t` of the way through: gathering
+ * speed at first, steady through the middle, and slowing to a stop on the
+ * last, with no jolt where one stretch hands over to the next.
  */
 function weekendsBy(t: number): number {
-  const steady = drawing.weekends / FIRST_WEEKEND_SECONDS;
-  const rush =
-    (Math.expm1(WEEKEND_RAMP * t) - WEEKEND_RAMP * t) / (Math.expm1(WEEKEND_RAMP) - WEEKEND_RAMP);
-  return steady * t + (HORIZON_WEEKS - 0.5 - steady) * rush;
+  const up = WEEKENDS_SPEED_UP;
+  const down = WEEKENDS_SLOW_DOWN;
+  const speed = 1 / (1 - up / 2 - (2 * down) / 3);
+  const share =
+    t < up
+      ? (speed * t * t) / (2 * up)
+      : t < 1 - down
+        ? speed * (t - up / 2)
+        : 1 - (speed * (1 - t) ** 3) / (3 * down * down);
+  return (HORIZON_WEEKS - 0.5) * share;
 }
 
 /** A store that never changes: the calendar is read once, when the page comes alive. */
@@ -1541,18 +1581,16 @@ function strideAt(walked: number): number {
 }
 
 /**
- * The Earth, the Moon and the dotted way between them, and how far apart they
- * are under it. The hours walk the way once the beat comes on, as far as they
- * reach, and the walker stops there with the rest of the way faint ahead of
- * it. With less motion the walk stands done.
+ * The Earth, the Moon and the dotted way between them. The hours walk the way
+ * once the beat comes on, as far as they reach, and the walker stops there
+ * with the rest of the way faint ahead of it. With less motion the walk
+ * stands done.
  */
 function Moon({
-  on,
   share,
   style,
   walked,
 }: {
-  on: boolean;
   share: number;
   style: StyleXStyles;
   walked: MotionValue<number>;
@@ -1608,9 +1646,6 @@ function Moon({
           {...props(styles.walker)}
         />
       </svg>
-      <p aria-hidden="true" {...props(styles.legend, on && styles.legendOn)}>
-        {m.home_cost_moon_legend({ km: new Intl.NumberFormat(getLocale()).format(MOON_KM) })}
-      </p>
     </div>
   );
 }
@@ -1618,7 +1653,9 @@ function Moon({
 /** One answer to "What else?" drawn, playing while `play` is on. */
 function AnswerGraphic({ answer, play }: { answer: Counted; play: boolean }) {
   const Graphic = DECK_GRAPHICS[answer.key];
-  return Graphic === undefined ? null : <Graphic amount={answer.amount} play={play} />;
+  return Graphic === undefined ? null : (
+    <Graphic amount={answer.amount} labels={answer.labels?.()} play={play} />
+  );
 }
 
 /**
@@ -1681,6 +1718,8 @@ export function CostStory({ id }: { id: string }) {
   const onTime = useEffectEvent(() => showNext());
   const answer = answers.find((candidate) => candidate.key === pick);
   const leaving = answers.find((candidate) => candidate.key === previous);
+  // How long the answer up stands once its drawing starts: the drawing, then a hold on its end.
+  const answerSeconds = (answer?.seconds ?? drawing.deck) + drawing.deckHold;
   // The waking years, as the page prints them.
   const years = Number(formatYears(AVERAGE_HOURS));
   const number = new Intl.NumberFormat(getLocale());
@@ -1923,12 +1962,12 @@ export function CostStory({ id }: { id: string }) {
       return;
     }
     const controls = animate(countdown, 1, {
-      duration: (1 - countdown.get()) * ANSWER_SECONDS,
+      duration: (1 - countdown.get()) * answerSeconds,
       ease: 'linear',
       onComplete: () => onTime(),
     });
     return () => controls.stop();
-  }, [countdown, counting, held]);
+  }, [answerSeconds, countdown, counting, held]);
 
   // A key in the corner that has focus when the story ends lets it go with
   // the line, so the arrows scroll the page from the first press on.
@@ -2097,12 +2136,7 @@ export function CostStory({ id }: { id: string }) {
           </div>
 
           <div {...beat(MOON_BEAT)}>
-            <Moon
-              on={on(MOON_BEAT)}
-              share={toMoon}
-              style={partOf(MOON_BEAT, 0)}
-              walked={moonWalked}
-            />
+            <Moon share={toMoon} style={partOf(MOON_BEAT, 0)} walked={moonWalked} />
             <p {...props(partOf(MOON_BEAT, 1, styles.line))}>
               <Sentence
                 figures={[]}

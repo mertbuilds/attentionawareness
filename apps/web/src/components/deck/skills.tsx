@@ -7,12 +7,13 @@ import {
   easeInOut,
   motion,
   useMotionValue,
+  useMotionValueEvent,
   useReducedMotion,
   useTransform,
 } from 'motion/react';
 import type { MotionValue } from 'motion/react';
-import { useEffect } from 'react';
-import { drawing } from '../../lib/motion.stylex.ts';
+import { useEffect, useState } from 'react';
+import { drawing, duration, easing } from '../../lib/motion.stylex.ts';
 import { HEIGHT, WIDTH } from './box.ts';
 
 /** What one skill takes: the folk figure for mastery. */
@@ -27,12 +28,18 @@ const START = 16;
 const END = WIDTH - START;
 const TRACK = 6;
 const RULER_GAP = 2;
+/** The skill over the start of each ruler, and its hours over the end once the track is full. */
+const LABEL_SIZE = 11;
+const LABEL_GAP = 5;
 /** The rows stand this far apart at most, inside this much of the box's height. */
 const ROW_PITCH = 48;
 const ROOM = 200;
 /** All of it in seconds, and the part of each track's turn it spends filling: the rest is a beat before the next. */
 const SECONDS = drawing.deck;
 const FILL_SHARE = 0.84;
+
+/** What the tracks are for, in turn and round again, and the hours each one took. */
+export type SkillLabels = { hours: string; names: ReadonlyArray<string> };
 
 const styles = create({
   // The hours, solid orange, a hair larger than the track so they cover its outline.
@@ -45,6 +52,25 @@ const styles = create({
     marginInline: 'auto',
     maxWidth: 400,
     width: '100%',
+  },
+  // The hours wait unseen, and are gone again at once when the tracks empty.
+  hours: {
+    opacity: 0,
+  },
+  // A track full: its hours come in.
+  hoursOn: {
+    opacity: 1,
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: duration.slow,
+    },
+    transitionProperty: 'opacity',
+    transitionTimingFunction: easing.smoothOut,
+  },
+  // A track's skill and its hours, small and quiet over the ruler.
+  label: {
+    fill: colors.muted,
+    fontSize: LABEL_SIZE,
   },
   ruler: {
     fill: 'none',
@@ -62,7 +88,7 @@ const styles = create({
 function rowsFor(amount: number): Array<number> {
   const count = Math.max(0, Math.floor(amount));
   const pitch = Math.min(ROW_PITCH, ROOM / Math.max(1, count));
-  const above = TRACK / 2 + RULER_GAP + LONG_LENGTH;
+  const above = TRACK / 2 + RULER_GAP + LONG_LENGTH + LABEL_GAP + LABEL_SIZE;
   const height = (count - 1) * pitch + above + TRACK / 2;
   const top = (HEIGHT - height) / 2 + above;
   return Array.from({ length: count }, (_, index) => top + index * pitch);
@@ -96,26 +122,50 @@ function fillPath(y: number, share: number): string {
 }
 
 /**
- * One skill: a ten-thousand-hour track under its ruler, filling orange in its
- * turn. With less motion it stands full.
+ * One skill: a ten-thousand-hour track under its ruler and its name, filling
+ * orange in its turn, with its hours over the end once it is full. With less
+ * motion it stands full.
  */
 function Track({
   clock,
   count,
+  hours,
   index,
+  name,
   reduced,
   y,
 }: {
   clock: MotionValue<number>;
   count: number;
+  hours: string | undefined;
   index: number;
+  name: string | undefined;
   reduced: boolean;
   y: number;
 }) {
   const filled = useTransform(clock, (seconds) => filledAt(index, count, seconds));
   const bar = useTransform(filled, (share) => fillPath(y, share));
+  // Full until the page says otherwise, as the track is.
+  const [full, setFull] = useState(true);
+  useMotionValueEvent(clock, 'change', (seconds) => setFull(filledAt(index, count, seconds) >= 1));
+  const labelY = y - TRACK / 2 - RULER_GAP - LONG_LENGTH - LABEL_GAP;
   return (
     <>
+      {name === undefined ? null : (
+        <text x={START} y={labelY} {...props(styles.label)}>
+          {name}
+        </text>
+      )}
+      {hours === undefined ? null : (
+        <text
+          textAnchor="end"
+          x={END}
+          y={labelY}
+          {...props(styles.label, styles.hours, (reduced || full) && styles.hoursOn)}
+        >
+          {hours}
+        </text>
+      )}
       <path d={trackPath(y)} {...props(styles.track)} />
       <path d={rulerPath(y)} {...props(styles.ruler)} />
       <motion.path d={reduced ? fillPath(y, 1) : bar} {...props(styles.fill)} />
@@ -125,11 +175,19 @@ function Track({
 
 /**
  * The world-class skills the hours would have bought: a ten-thousand-hour
- * track for each, filling orange one after another. When `play` turns on it
- * plays once from the start; when it turns off the tracks are empty again.
- * With less motion they stand full.
+ * track for each, named after a skill from `labels`, filling orange one after
+ * another. When `play` turns on it plays once from the start; when it turns
+ * off the tracks are empty again. With less motion they stand full.
  */
-export function SkillsGraphic({ amount, play }: { amount: number; play: boolean }) {
+export function SkillsGraphic({
+  amount,
+  labels,
+  play,
+}: {
+  amount: number;
+  labels?: SkillLabels | undefined;
+  play: boolean;
+}) {
   const reduced = useReducedMotion() === true;
   // Done until the page says otherwise, so a page that has not run its script
   // shows every track full.
@@ -154,8 +212,10 @@ export function SkillsGraphic({ amount, play }: { amount: number; play: boolean 
         <Track
           clock={clock}
           count={rows.length}
+          hours={labels?.hours}
           index={index}
           key={index}
+          name={labels?.names[index % labels.names.length]}
           reduced={reduced}
           y={y}
         />

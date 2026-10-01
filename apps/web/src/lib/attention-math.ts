@@ -18,7 +18,7 @@ const HOURS_PER_INSTRUMENT = 2000;
 /** Hours of a four-year degree: 1,200 a year. */
 const HOURS_PER_DEGREE = 4800;
 /** The folk figure for mastery. */
-const HOURS_PER_SKILL = 10_000;
+export const HOURS_PER_SKILL = 10_000;
 /** Once around the Earth on foot: 40,075 km at 5 km/h. */
 const HOURS_PER_EARTH_WALK = 8000;
 

@@ -6,8 +6,8 @@ import { useLayoutEffect, useState } from 'react';
 import { drawing } from '../../lib/motion.stylex.ts';
 import { HEIGHT, WIDTH } from './box.ts';
 
-/** The whole run, from the first sound to the last. */
-const RUN_SECONDS = drawing.deck;
+/** The whole run, from the first sound to the last: twice an answer's time, so no scene is rushed. */
+const RUN_SECONDS = drawing.instruments;
 /**
  * How long each step takes, before the run is scaled to its length: every
  * step quicker than the one before, and the last few slowing again, so the
