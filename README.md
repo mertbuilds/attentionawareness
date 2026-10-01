@@ -1,9 +1,10 @@
 # attention awareness
 
-Free, open-source tools to take your attention back. <https://attentionawareness.com>
+Open-source site and browser extension to take your attention back. <https://attentionawareness.com>
 
-The product is three parts and nothing else: the site, the browser extension
-and the Mac app.
+The product is three parts: the site, the browser extension and the Mac app.
+The site and the extension live here. The Mac app is closed source and ships
+from the site.
 
 ## What is here
 
@@ -14,14 +15,6 @@ the download for the Mac app, and the guide to the extension. It also signs
 the configuration profile: `POST /api/sign` is what the Mac app asks for the
 profile it installs. TanStack Start on Cloudflare Workers; the founding stack
 decisions are in [docs/adr/0001-stack.md](docs/adr/0001-stack.md).
-
-### `apps/mac`
-
-The Mac app. Plug the iPhone in with a cable and it backs the phone up,
-patches one flag inside the backup and restores it, then installs the profile
-over USB. The phone comes back supervised with everything still on it.
-Unsupervising is the same app run the other way. See
-[apps/mac/README.md](apps/mac/README.md).
 
 ### `apps/extension`
 
@@ -38,9 +31,8 @@ See [apps/extension/README.md](apps/extension/README.md).
   block sites. On a normal phone it cannot, and Screen Time is all that is left.
 - Apple's own path to supervision is Apple Configurator's Prepare action, which
   erases the phone first.
-- The Mac app flips one flag inside a local backup instead, so a restore yields
-  a supervised phone with the data still on it. Restore verified on iOS 26.6.1
-  (unencrypted backup) and iOS 26.2.1 (encrypted backup).
+- The paid Mac app supervises the phone without erasing it. The free guide
+  uses Apple Configurator, which erases it.
 - Profiles are signed on the server with a Developer ID certificate and carry a
   unique identifier per install, so a second profile stacks on the first
   instead of replacing it and only an erase takes one off. Trial mode is the
@@ -53,7 +45,6 @@ See [apps/extension/README.md](apps/extension/README.md).
 | ----------- | ------------------------------------------------------------------------ |
 | Monorepo    | pnpm workspaces + Turborepo, Node 24, TypeScript 7                       |
 | Web         | TanStack Start (React 19 + Compiler) on Cloudflare Workers               |
-| Mac app     | SwiftUI, macOS 14+, Apple Silicon, outside the pnpm workspace            |
 | Extension   | Chromium MV3, React 19 popup, three Vite builds                          |
 | Styling     | StyleX tokens (black/white, 4px radius) + Base UI components + Storybook |
 | i18n        | Paraglide v2 (English + Turkish catalogs)                                |
@@ -98,8 +89,6 @@ repo layout and the full workflow live in [AGENTS.md](AGENTS.md).
 
 ## Honesty
 
-- Patching a backup is not an Apple-supported procedure. It works today on iOS 26. A future release can close it, so keep the untouched copies the app saves
-  beside the backup.
 - These sites change their markup, and a changed selector is a rule that
   silently stops hiding anything. Every rule file carries the date it was last
   checked against the live DOM.
