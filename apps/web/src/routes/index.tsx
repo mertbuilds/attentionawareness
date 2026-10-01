@@ -10,7 +10,6 @@ import { Facts } from '../components/facts.tsx';
 import { HowItWorks } from '../components/how-it-works.tsx';
 import { MacDownload } from '../components/mac-download.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
-import { Turn } from '../components/turn.tsx';
 import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
 
@@ -306,7 +305,6 @@ function HomePage() {
         {/* Act one, the problem, and the first screen: what an average day
         adds up to, told one sentence a screen, and then whose doing it is. */}
         <CostStory id={COST_ID} />
-        <Turn />
 
         {/* Act two, the way out: how it works, in three steps, then the app
         that keeps the phone as it is and the manual way that starts it over. */}

@@ -7,6 +7,7 @@ import { SCROLL_METERS } from '../lib/attention-math.ts';
 import { m } from '../paraglide/messages.js';
 import { Figure, Mark, Sentence, slot } from './cost-story.tsx';
 import { ThumbDistance } from './thumb-distance.tsx';
+import { WhatElse } from './what-else.tsx';
 
 /** Where Facebook's figure for a day's scroll was reported. */
 const SCROLL_SOURCE_URL =
@@ -83,7 +84,10 @@ function FactItem({ fact }: { fact: Fact }) {
   );
 }
 
-/** Facts about the feeds that do not fit the story, one under the other. */
+/**
+ * Facts about the feeds that do not fit the story, one under the other, and
+ * last the rest of what the same hours would have bought, one at a time.
+ */
 export function Facts() {
   const facts: ReadonlyArray<Fact> = [
     {
@@ -111,6 +115,7 @@ export function Facts() {
       {facts.map((fact) => (
         <FactItem fact={fact} key={fact.key} />
       ))}
+      <WhatElse style={styles.fact} />
     </ul>
   );
 }

@@ -1,4 +1,3 @@
-import { Button } from '@attentionawareness/ui';
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, firstThatWorks, keyframes, props } from '@stylexjs/stylex';
@@ -13,24 +12,14 @@ import {
   useTransform,
 } from 'motion/react';
 import type { MotionValue } from 'motion/react';
-import {
-  Fragment,
-  useEffect,
-  useEffectEvent,
-  useId,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from 'react';
-import type { FocusEvent, PointerEvent, ReactNode } from 'react';
-import { ArrowsRotate } from 'reicon-react';
+import { Fragment, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
+import type { ReactNode } from 'react';
 import {
   AVERAGE_HOURS,
   formatYears,
   heroMetrics,
   HORIZON_WEEKS,
   HORIZON_YEARS,
-  HOURS_PER_SKILL,
   MOON_KM,
   MOON_WALK_HOURS,
   moonShare,
@@ -46,8 +35,6 @@ import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
 import { BillFilters } from './bill-paper.tsx';
-import { DECK_GRAPHICS } from './deck/index.ts';
-import type { SkillLabels } from './deck/skills.tsx';
 import { GridTexture } from './grid-texture.tsx';
 import { InfoTip } from './info-tip.tsx';
 
@@ -59,18 +46,13 @@ const WEEKS_BEAT = 1;
 const WEEKENDS_BEAT = 2;
 const EARTH_BEAT = 3;
 const MOON_BEAT = 4;
-const MORE_BEAT = 5;
+const TURN_BEAT = 5;
 /** How much of the stage has to be on screen before a drawing plays. */
 const SEEN = 0.6;
 /** `easing.smoothOut`, the curve things move into place on, as motion takes a curve. */
 const SMOOTH_OUT: [number, number, number, number] = [0.22, 1, 0.36, 1];
 /** How long a beat takes to fade out. Its drawings start over once it has. */
 const FADE_OUT_MS = Number.parseFloat(duration.quick);
-/**
- * An answer's sentence goes out and the next comes in after it, a quick swap
- * each, and the next drawing waits for it to land.
- */
-const SWAP_MS = 2 * Number.parseFloat(duration.quick);
 /** The sentences' line height. */
 const LINE_HEIGHT = 1.15;
 /**
@@ -89,12 +71,6 @@ const WHEEL_PUSH = 6;
 const STEP_SECONDS = 0.8;
 /** A wheel that counts in lines, as Firefox's does, moves this far a line. */
 const LINE_PX = 16;
-/** The reroll icon turns half a turn an answer. */
-const TURN_DEGREES = 180;
-const TURN_SECONDS = 0.7;
-const ICON_SIZE = 16;
-/** The figures the story tells on its own, so "What else?" never offers them. */
-const TOLD = new Set(['earth']);
 /**
  * What marks a figure's place in a sentence. The message is written with a
  * placeholder for each figure and split on this, so the words around a figure
@@ -183,75 +159,6 @@ const CUE_TRACKING = '0.2em';
 /** Where the cue stands, just over the progress rail. */
 const CUE_BOTTOM = `calc(${spacing.s8} + ${spacing.s4})`;
 
-/**
- * One answer to "What else?": the sentence it is told in, how it is counted,
- * how long its drawing plays if not an answer's usual time, and the words
- * drawn on it, if any.
- */
-type Answer = {
-  labels?: () => SkillLabels;
-  line: (inputs: { count: string }) => string;
-  seconds?: number;
-  tip: () => string;
-};
-/** An answer the hours reach, with how many of it they would have bought. */
-type Counted = Answer & { amount: number; key: string };
-
-const ANSWERS: Record<string, Answer> = {
-  books: { line: m.home_cost_books, tip: m.home_receipt_books_tip },
-  degrees: { line: m.home_cost_degrees, tip: m.home_receipt_degrees_tip },
-  instruments: {
-    line: m.home_cost_instruments,
-    seconds: drawing.instruments,
-    tip: m.home_receipt_instruments_tip,
-  },
-  languages: { line: m.home_cost_languages, tip: m.home_receipt_languages_tip },
-  marathons: { line: m.home_cost_marathons, tip: m.home_receipt_marathons_tip },
-  novels: { line: m.home_cost_novels, tip: m.home_receipt_novels_tip },
-  skills: {
-    labels: () => ({
-      hours: m.home_cost_skills_hours({
-        hours: new Intl.NumberFormat(getLocale()).format(HOURS_PER_SKILL),
-      }),
-      names: [
-        m.home_cost_skills_software(),
-        m.home_cost_skills_drawing(),
-        m.home_cost_skills_photography(),
-        m.home_cost_skills_chess(),
-      ],
-    }),
-    line: m.home_cost_skills,
-    tip: m.home_receipt_skills_tip,
-  },
-  travel: { line: m.home_cost_travel, tip: m.home_receipt_travel_tip },
-};
-
-/**
- * A new answer to "What else?" takes the old one's place the way any text
- * swaps: the old sentence goes up a hair and out of focus, then the new one
- * comes up into its place. The drawings cross over each other meanwhile.
- */
-const lineOut = keyframes({
-  from: { filter: 'blur(0)', opacity: 1, transform: 'none' },
-  to: {
-    filter: `blur(${blur.small})`,
-    opacity: 0,
-    transform: `translateY(calc(-1 * ${distance.micro}))`,
-  },
-});
-const lineIn = keyframes({
-  from: { filter: `blur(${blur.small})`, opacity: 0, transform: `translateY(${distance.micro})` },
-  to: { filter: 'blur(0)', opacity: 1, transform: 'none' },
-});
-const artOut = keyframes({
-  from: { filter: 'blur(0)', opacity: 1 },
-  to: { filter: `blur(${blur.small})`, opacity: 0 },
-});
-const artIn = keyframes({
-  from: { filter: `blur(${blur.small})`, opacity: 0 },
-  to: { filter: 'blur(0)', opacity: 1 },
-});
-
 /** The drop falls from above the track to below it, and starts over. */
 const cueFall = keyframes({
   from: { transform: `translateY(-${CUE_DROP}px)` },
@@ -259,55 +166,6 @@ const cueFall = keyframes({
 });
 
 const styles = create({
-  // One answer to "What else?": its drawing over the sentence it is told in.
-  answer: {
-    alignItems: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s4,
-    width: '100%',
-  },
-  // The drawing, centred, as wide as the column up to its own width. The one
-  // on its way out stands in the same cell while the next comes in.
-  answerArt: {
-    display: 'grid',
-    width: '100%',
-  },
-  // The sentence's own room, two lines tall at the story's size, so the
-  // button under it stays put while one answer trades places with the next.
-  answerRoom: {
-    alignItems: 'center',
-    display: 'grid',
-    fontSize: {
-      '@media (min-width: 640px)': 'clamp(36px, 4.6vw, 56px)',
-      default: 'clamp(28px, 7.5vw, 36px)',
-    },
-    justifyItems: 'center',
-    minHeight: '2.3em',
-    width: '100%',
-  },
-  // A drawing coming in for "Show another", out of focus to sharp, while the
-  // last one goes the other way over it.
-  artIn: {
-    animationDuration: duration.slow,
-    animationFillMode: 'both',
-    animationName: {
-      '@media (prefers-reduced-motion: reduce)': 'none',
-      default: artIn,
-    },
-    animationTimingFunction: easing.smoothOut,
-  },
-  artOut: {
-    animationDuration: duration.slow,
-    animationFillMode: 'forwards',
-    animationName: artOut,
-    animationTimingFunction: easing.smoothOut,
-    display: {
-      '@media (prefers-reduced-motion: reduce)': 'none',
-      default: 'flex',
-    },
-    pointerEvents: 'none',
-  },
   // One sentence of the story. They all stand in the same cell, so the stage
   // is as tall as the tallest and nothing moves when one takes over from the
   // next. A beat leaves in a quiet fade, all of it at once; it comes on with
@@ -406,27 +264,6 @@ const styles = create({
     height: CUE_HEIGHT,
     overflow: 'hidden',
     width: 2,
-  },
-  // The time left before the next answer takes this one's place: a hairline
-  // under the button, along its straight edge, filling in orange. With less
-  // motion nothing plays on its own, and there is nothing to count down.
-  countdown: {
-    backgroundColor: colors.border,
-    borderRadius: 999,
-    display: {
-      '@media (prefers-reduced-motion: reduce)': 'none',
-      default: 'block',
-    },
-    height: 2,
-    marginInline: spacing.s4,
-    overflow: 'hidden',
-  },
-  countdownFill: {
-    backgroundColor: accent.base,
-    display: 'block',
-    height: '100%',
-    transformOrigin: 'left',
-    width: '100%',
   },
   // The cross a weekend gets as it passes the line, in red, corner to corner
   // over the whole tile.
@@ -596,28 +433,6 @@ const styles = create({
     maxWidth: 720,
     textWrap: 'balance',
   },
-  // A sentence coming in for "Show another", once the last has gone out.
-  lineIn: {
-    animationDelay: duration.quick,
-    animationDuration: duration.quick,
-    animationFillMode: 'both',
-    animationName: {
-      '@media (prefers-reduced-motion: reduce)': 'none',
-      default: lineIn,
-    },
-    animationTimingFunction: easing.inOut,
-  },
-  lineOut: {
-    animationDuration: duration.quick,
-    animationFillMode: 'forwards',
-    animationName: lineOut,
-    animationTimingFunction: easing.inOut,
-    display: {
-      '@media (prefers-reduced-motion: reduce)': 'none',
-      default: 'block',
-    },
-    pointerEvents: 'none',
-  },
   // The small i after a figure, a breath away from the word before it.
   mark: {
     display: 'inline-flex',
@@ -648,9 +463,9 @@ const styles = create({
     strokeLinecap: 'round',
     strokeWidth: 1.5,
   },
-  // A part of a beat: its drawing, its sentence, a button. Off the stage it
-  // waits a little low and out of focus, put there once its beat has faded
-  // out, so the fade is never seen to move.
+  // A part of a beat: its drawing, its sentence, a line of the turn. Off the
+  // stage it waits a little low and out of focus, put there once its beat has
+  // faded out, so the fade is never seen to move.
   part: {
     filter: {
       '@media (prefers-reduced-motion: reduce)': 'none',
@@ -675,12 +490,9 @@ const styles = create({
   partSecond: {
     transitionDelay: duration.stagger,
   },
-  partThird: {
-    transitionDelay: `calc(2 * ${duration.stagger})`,
-  },
   // How far along the story is, a hairline at the foot of the stage. It fades
-  // out on the last beat, where the countdown under the button is the line
-  // to watch, and back in on the way up.
+  // out on the last beat, where the turn stands on its own, and back in on
+  // the way up.
   rail: {
     backgroundColor: colors.border,
     borderRadius: 999,
@@ -702,21 +514,6 @@ const styles = create({
     height: '100%',
     transformOrigin: 'left',
     width: '100%',
-  },
-  reroll: {
-    display: 'inline-flex',
-  },
-  // "Show another", a solid button sized for a thumb, over its countdown.
-  rerollButton: {
-    fontSize: font.sizeSm,
-    gap: spacing.s2,
-    height: 40,
-    paddingInline: spacing.s4,
-  },
-  rerollPart: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s4,
   },
   // The Earth and the Moon, as wide as the column on a phone.
   sky: {
@@ -811,17 +608,6 @@ const styles = create({
     transitionProperty: 'opacity, visibility',
     transitionTimingFunction: easing.smoothOut,
   },
-  // The answer up and the one on its way out, in the same cell while they
-  // trade places: the drawings, and the sentences under them.
-  swapArt: {
-    display: 'flex',
-    gridArea: '1 / 1',
-    justifyContent: 'center',
-    width: '100%',
-  },
-  swapLine: {
-    gridArea: '1 / 1',
-  },
   // One weekend, a page off a desk calendar: the month over the two days. It
   // stands on the line at its own middle and is moved along from there.
   tile: {
@@ -892,6 +678,35 @@ const styles = create({
     lineHeight: 1.05,
     marginInline: `min(0px, 50% - min(6em, 50vw - ${spacing.s4}))`,
     maxWidth: 'none',
+  },
+  // The last beat, the sentence the story turns on: it is not the reader, it
+  // is the apps. Larger than the sentences before it, and wider than the
+  // column on a wide screen, so each of its two lines stays one line.
+  turn: {
+    alignSelf: 'stretch',
+    fontSize: {
+      '@media (min-width: 640px)': 'clamp(40px, 5vw, 64px)',
+      default: 'clamp(32px, 9vw, 40px)',
+    },
+    marginInline: `min(0px, 50% - min(8.5em, 50vw - ${spacing.s4}))`,
+    maxWidth: 'none',
+  },
+  // A line of the turn, a part that fades in as it rises, so the second line
+  // can wait for the first. With less motion both stand from the start.
+  turnLine: {
+    display: 'block',
+    opacity: {
+      '@media (prefers-reduced-motion: reduce)': 1,
+      default: 0,
+    },
+    transitionProperty: 'transform, filter, opacity',
+  },
+  turnLineOn: {
+    opacity: 1,
+  },
+  // The second line comes on once the first has, so the two are read apart.
+  turnLineSecond: {
+    transitionDelay: duration.verySlow,
   },
   walker: {
     fill: accent.base,
@@ -1001,21 +816,8 @@ function lessMotionOnServer(): boolean {
  * page is first drawn the way the server drew it and changes once it has come
  * alive, rather than drawing on top of markup the server never sent.
  */
-function useLessMotion(): boolean {
+export function useLessMotion(): boolean {
   return useSyncExternalStore(subscribeLessMotion, prefersLessMotion, lessMotionOnServer);
-}
-
-function subscribeVisibility(onChange: () => void): () => void {
-  document.addEventListener('visibilitychange', onChange);
-  return () => document.removeEventListener('visibilitychange', onChange);
-}
-
-function tabHidden(): boolean {
-  return document.visibilityState === 'hidden';
-}
-
-function hiddenOnServer(): boolean {
-  return false;
 }
 
 /** Whether an event comes from inside a dialog, which keeps its own wheel and keys. */
@@ -1136,20 +938,6 @@ function usePlayed(
     return () => controls.stop();
   }, [ease, played, reduced, run, seconds]);
   return played;
-}
-
-/**
- * Whether an answer's drawing plays: once its beat has come on and the
- * sentence has risen into place, as every drawing does, until the beat has
- * faded out, so it is never seen to start over on its way out.
- */
-function useDeckPlay(on: boolean): boolean {
-  const [playing, setPlaying] = useState(false);
-  useEffect(() => {
-    const timer = setTimeout(() => setPlaying(on), on ? drawing.delay * 1000 : FADE_OUT_MS);
-    return () => clearTimeout(timer);
-  }, [on]);
-  return playing;
 }
 
 /** Where the walk is `t` of the way along: one lap a trip, spiralling out. */
@@ -1607,20 +1395,11 @@ function Moon({
   );
 }
 
-/** One answer to "What else?" drawn, playing while `play` is on. */
-function AnswerGraphic({ answer, play }: { answer: Counted; play: boolean }) {
-  const Graphic = DECK_GRAPHICS[answer.key];
-  return Graphic === undefined ? null : (
-    <Graphic amount={answer.amount} labels={answer.labels?.()} play={play} />
-  );
-}
-
 /**
  * Act one: what the average day costs, told one sentence a screen. The stage
  * stands pinned while the section scrolls under it, the page comes to rest on
- * one beat at a time, and each beat's drawing plays as it comes on. "What
- * else?" ends it with the rest of what the same hours would have bought, one
- * at a time.
+ * one beat at a time, and each beat's drawing plays as it comes on. It ends
+ * on the turn: it is not the reader's willpower, it is the apps.
  */
 export function CostStory({ id }: { id: string }) {
   const story = useRef<HTMLElement>(null);
@@ -1641,42 +1420,10 @@ export function CostStory({ id }: { id: string }) {
   const weekendsDrawn = usePlayed(on(WEEKENDS_BEAT), drawing.weekends, 'linear');
   const walked = usePlayed(on(EARTH_BEAT), drawing.earth, SMOOTH_OUT);
   const moonWalked = usePlayed(on(MOON_BEAT), drawing.moon, SMOOTH_OUT);
-  const deckPlays = useDeckPlay(on(MORE_BEAT));
 
   const metrics = heroMetrics(AVERAGE_HOURS);
   const amountOf = (key: string) => metrics.find((metric) => metric.key === key)?.amount ?? 0;
   const earth = amountOf('earth');
-  const answers = metrics.flatMap((metric): Array<Counted> => {
-    const answer = ANSWERS[metric.key];
-    return answer === undefined || TOLD.has(metric.key) || metric.amount === 0
-      ? []
-      : [{ ...answer, amount: metric.amount, key: metric.key }];
-  });
-  const [pick, setPick] = useState(answers[0]?.key ?? '');
-  // The answer the last swap took away, on its way out.
-  const [previous, setPrevious] = useState<string | null>(null);
-  const [turns, setTurns] = useState(0);
-  // The answer up has swapped in, and its drawing may play.
-  const [landed, setLanded] = useState(true);
-  // What holds the deck where it is: the reader's pointer or keyboard on it,
-  // its tip open, or the tab put away.
-  const [pointing, setPointing] = useState(false);
-  const [focused, setFocused] = useState(false);
-  const [tipOpen, setTipOpen] = useState(false);
-  const hidden = useSyncExternalStore(subscribeVisibility, tabHidden, hiddenOnServer);
-  // How far the answer up has stood, from 0 to 1, until the next takes its place.
-  const countdown = useMotionValue(0);
-  const held = pointing || focused || tipOpen || hidden;
-  // The deck is playing itself with nothing holding it.
-  const autoplay = deckPlays && !reduced && !held;
-  // The answer up has swapped in and its drawing plays, so its countdown may run.
-  const counting = deckPlays && landed && !reduced;
-  // What the countdown does once it runs out: show the answer after whichever is up by then.
-  const onTime = useEffectEvent(() => showNext());
-  const answer = answers.find((candidate) => candidate.key === pick);
-  const leaving = answers.find((candidate) => candidate.key === previous);
-  // How long the answer up stands once its drawing starts: the drawing, then a hold on its end.
-  const answerSeconds = (answer?.seconds ?? drawing.deck) + drawing.deckHold;
   // The waking years, as the page prints them.
   const years = Number(formatYears(AVERAGE_HOURS));
   const number = new Intl.NumberFormat(getLocale());
@@ -1895,37 +1642,6 @@ export function CostStory({ id }: { id: string }) {
     };
   }, [reduced]);
 
-  // A new answer's drawing waits for its sentence to swap in, so it starts
-  // drawing once the reader can see what it stands for.
-  useEffect(() => {
-    if (landed) {
-      return;
-    }
-    const timer = setTimeout(() => setLanded(true), SWAP_MS);
-    return () => clearTimeout(timer);
-  }, [landed, turns]);
-
-  // The deck plays itself: once an answer's drawing has played and stood a
-  // moment on its end, the next takes its place, through all of them in
-  // order and round again. The countdown runs while the drawing does, waits
-  // while something holds the deck and goes on from there, and starts over
-  // with each answer. With less motion nothing moves on its own.
-  useEffect(() => {
-    if (!counting) {
-      countdown.set(0);
-      return;
-    }
-    if (held) {
-      return;
-    }
-    const controls = animate(countdown, 1, {
-      duration: (1 - countdown.get()) * answerSeconds,
-      ease: 'linear',
-      onComplete: () => onTime(),
-    });
-    return () => controls.stop();
-  }, [answerSeconds, countdown, counting, held]);
-
   // A key in the corner that has focus when the story ends lets it go with
   // the line, so the arrows scroll the page from the first press on.
   useEffect(() => {
@@ -1944,31 +1660,6 @@ export function CostStory({ id }: { id: string }) {
     rests.current[index]?.scrollIntoView({ block: 'start' });
   }
 
-  /** The answer after the one up, in order, and the first again after the last. */
-  function showNext() {
-    const next =
-      answers[(answers.findIndex((candidate) => candidate.key === pick) + 1) % answers.length];
-    if (next === undefined || next.key === pick) {
-      return;
-    }
-    setPrevious(pick);
-    setPick(next.key);
-    setTurns((turn) => turn + 1);
-    setLanded(false);
-    setTipOpen(false);
-  }
-
-  // The deck is held while a pointer is moved onto it, or the keyboard has
-  // moved into it. A pointer left standing where the deck scrolls in under it
-  // does not hold it. A finger does not hover, and a click leaves no keyboard
-  // focus: both are a press, and the deck goes on after it.
-  const holdsDeck = {
-    onBlur: () => setFocused(false),
-    onFocus: (event: FocusEvent) => setFocused(event.target.matches(':focus-visible')),
-    onPointerLeave: () => setPointing(false),
-    onPointerMove: (event: PointerEvent) => setPointing(event.pointerType !== 'touch'),
-  };
-
   function beat(index: number, style?: StyleXStyles) {
     return {
       onFocus: () => reveal(index),
@@ -1979,16 +1670,11 @@ export function CostStory({ id }: { id: string }) {
   /** The `order`th part of a beat from the top, which rises into place a step after the one over it. */
   function partOf(index: number, order: number, style?: StyleXStyles): StyleXStyles {
     const shown = index === active;
-    return [
-      styles.part,
-      style,
-      shown && styles.partOn,
-      shown && order === 1 && styles.partSecond,
-      shown && order === 2 && styles.partThird,
-    ];
+    return [styles.part, style, shown && styles.partOn, shown && order === 1 && styles.partSecond];
   }
 
   const tipLabel = m.home_receipt_tip_label();
+  const turning = active === TURN_BEAT;
 
   return (
     <section id={id} ref={story} {...props(styles.story)}>
@@ -2111,92 +1797,20 @@ export function CostStory({ id }: { id: string }) {
             </p>
           </div>
 
-          <div {...beat(MORE_BEAT)}>
-            <p {...props(partOf(MORE_BEAT, 0, styles.line))}>{m.home_cost_more()}</p>
-            {/* The answer up is keyed by the press as well, so every press plays
-            the swap again, even for an answer that has been up before. The one
-            on its way out keeps the key it was up under, so it leaves as it
-            stood, drawing and all, and is gone once its drawing has faded. A
-            screen reader is told of an answer only while the deck is not
-            playing itself, so it is not read a new one every few seconds. */}
-            <div
-              aria-live={autoplay ? 'off' : 'polite'}
-              {...holdsDeck}
-              {...props(partOf(MORE_BEAT, 1, styles.answer))}
-            >
-              <div {...props(styles.answerArt)}>
-                {leaving === undefined ? null : (
-                  <div
-                    aria-hidden="true"
-                    key={`${leaving.key}-${turns - 1}`}
-                    onAnimationEnd={(event) => {
-                      if (event.target === event.currentTarget) {
-                        setPrevious(null);
-                      }
-                    }}
-                    {...props(styles.swapArt, styles.artOut)}
-                  >
-                    <AnswerGraphic answer={leaving} play={deckPlays} />
-                  </div>
+          <div {...beat(TURN_BEAT)}>
+            <h2 {...props(styles.line, styles.turn)}>
+              <span {...props(partOf(TURN_BEAT, 0, styles.turnLine), turning && styles.turnLineOn)}>
+                {m.home_turn_willpower()}
+              </span>{' '}
+              <span
+                {...props(
+                  partOf(TURN_BEAT, 1, styles.turnLine),
+                  turning && [styles.turnLineOn, styles.turnLineSecond],
                 )}
-                {answer === undefined ? null : (
-                  <div
-                    key={`${answer.key}-${turns}`}
-                    {...props(styles.swapArt, turns > 0 && styles.artIn)}
-                  >
-                    <AnswerGraphic answer={answer} play={deckPlays && landed} />
-                  </div>
-                )}
-              </div>
-              <div {...props(styles.answerRoom)}>
-                {leaving === undefined ? null : (
-                  <p
-                    aria-hidden="true"
-                    key={`${leaving.key}-${turns - 1}`}
-                    {...props(styles.line, styles.swapLine, styles.lineOut)}
-                  >
-                    <Sentence
-                      figures={[<Figure key="count" value={leaving.amount} />]}
-                      mark={null}
-                      text={leaving.line({ count: slot(0) })}
-                    />
-                  </p>
-                )}
-                {answer === undefined ? null : (
-                  <p
-                    key={`${answer.key}-${turns}`}
-                    {...props(styles.line, styles.swapLine, turns > 0 && styles.lineIn)}
-                  >
-                    <Sentence
-                      figures={[<Figure key="count" value={answer.amount} />]}
-                      mark={
-                        <Mark label={tipLabel} onOpenChange={setTipOpen}>
-                          {answer.tip()}
-                        </Mark>
-                      }
-                      text={answer.line({ count: slot(0) })}
-                    />
-                  </p>
-                )}
-              </div>
-            </div>
-            <div {...holdsDeck} {...props(partOf(MORE_BEAT, 2, styles.rerollPart))}>
-              <Button onClick={showNext} style={styles.rerollButton}>
-                <motion.span
-                  animate={{ rotate: turns * TURN_DEGREES }}
-                  transition={
-                    reduced ? { duration: 0 } : { duration: TURN_SECONDS, ease: SMOOTH_OUT }
-                  }
-                  {...props(styles.reroll)}
-                >
-                  <ArrowsRotate aria-hidden="true" size={ICON_SIZE} />
-                </motion.span>
-                {m.home_cost_reroll()}
-              </Button>
-              <span aria-hidden="true" {...props(styles.countdown)}>
-                <motion.span {...props(styles.countdownFill)} style={{ scaleX: countdown }} />
+              >
+                <Sentence figures={[]} mark={null} text={m.home_turn_built()} />
               </span>
-            </div>
+            </h2>
           </div>
         </div>
         <span aria-hidden="true" {...props(styles.cue, styles.swap, active > 0 && styles.gone)}>
@@ -2227,11 +1841,7 @@ export function CostStory({ id }: { id: string }) {
         </div>
         <span
           aria-hidden="true"
-          {...props(
-            styles.rail,
-            styles.swap,
-            (active === 0 || active === MORE_BEAT) && styles.gone,
-          )}
+          {...props(styles.rail, styles.swap, (active === 0 || turning) && styles.gone)}
         >
           <motion.span {...props(styles.railFill)} style={{ scaleX: scrollYProgress }} />
         </span>
