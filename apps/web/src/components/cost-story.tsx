@@ -46,8 +46,8 @@ import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
 import { BillFilters } from './bill-paper.tsx';
 import { DECK_GRAPHICS } from './deck/index.ts';
-import { FeedPhone } from './feed-phone.tsx';
 import { GridTexture } from './grid-texture.tsx';
+import { Hourglass } from './hourglass.tsx';
 import { InfoTip } from './info-tip.tsx';
 
 /** The report the average day is taken from. */
@@ -321,10 +321,10 @@ const styles = create({
     transitionTimingFunction: easing.inOut,
     width: '100%',
   },
-  // The first beat: the sentence beside the feed, which stands under it once
-  // the window is too narrow for two columns. There it is the whole stage, so
-  // the words take what they need and the feed every row they leave, short of
-  // the cue at the foot.
+  // The first beat: the sentence beside the hourglass, which stands under it
+  // once the window is too narrow for two columns. There it is the whole
+  // stage, so the words take what they need and the hourglass every row they
+  // leave, short of the cue at the foot.
   beatFeed: {
     boxSizing: 'border-box',
     columnGap: spacing.s16,
@@ -420,9 +420,9 @@ const styles = create({
     overflow: 'hidden',
     width: 2,
   },
-  // The room the feed stands in under the sentence on a narrow screen. The
-  // phone is sized by it, so all of it is on the first screen. On a wide
-  // screen it is no box at all, and the phone stands in the beat's grid on
+  // The room the hourglass stands in under the sentence on a narrow screen.
+  // The glass is sized by it, so all of it is on the first screen. On a wide
+  // screen it is no box at all, and the glass stands in the beat's grid on
   // its own.
   feed: {
     alignItems: 'center',
@@ -2026,10 +2026,10 @@ export function CostStory({ id }: { id: string }) {
                 text={m.home_cost_average({ hours: slot(0) })}
               />
             </h1>
-            {/* It goes with the first beat. With less motion every beat stays
-            on the page, so it does too. */}
+            {/* It pours once the first beat is on. With less motion every beat
+            stays on the page, and the glass stands already run through. */}
             <div {...props(partOf(0, 1, styles.feed))}>
-              <FeedPhone shown={reduced || active === 0} />
+              <Hourglass play={on(0)} />
             </div>
           </div>
 
