@@ -46,7 +46,7 @@ import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
 import { BillFilters } from './bill-paper.tsx';
 import { DECK_GRAPHICS } from './deck/index.ts';
-import { FeedPhone } from './feed-phone.tsx';
+import { EndlessScroll } from './endless-scroll.tsx';
 import { GridTexture } from './grid-texture.tsx';
 import { InfoTip } from './info-tip.tsx';
 
@@ -2029,7 +2029,7 @@ export function CostStory({ id }: { id: string }) {
             {/* It goes with the first beat. With less motion every beat stays
             on the page, so it does too. */}
             <div {...props(partOf(0, 1, styles.feed))}>
-              <FeedPhone shown={reduced || active === 0} />
+              <EndlessScroll shown={reduced || active === 0} />
             </div>
           </div>
 
