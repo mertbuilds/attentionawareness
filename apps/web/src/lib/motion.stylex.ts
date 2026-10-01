@@ -71,6 +71,6 @@ export const drawing = defineConsts({
   stepStays: 3,
   thumb: 11,
   thumbHold: 2.4,
-  weekends: 6.5,
+  weekends: 4.5,
   weeks: 3.4,
 });

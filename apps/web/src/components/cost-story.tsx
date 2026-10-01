@@ -34,6 +34,7 @@ import { typingIn } from '../lib/typing-in.ts';
 import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
+import { AppFan } from './app-fan.tsx';
 import { BillFilters } from './bill-paper.tsx';
 import { GridTexture } from './grid-texture.tsx';
 import { InfoTip } from './info-tip.tsx';
@@ -109,19 +110,15 @@ const NARROW_WEEKS = { columns: 26, size: 6 };
 const SWATCH_SIZE = 8;
 /**
  * The weekends, one calendar tile each, flipping past the line where each one
- * is crossed out. They move the way the other drawings do: up to speed over
- * this share of the run, steady through the middle, and easing to a stop on
- * the last over this share.
+ * is crossed out. They ease from rest up to a pace a cross can be watched
+ * drawing at, this many tiles a second, over the first `WEEKENDS_EASE`
+ * seconds of the run, and hold it while the first few are crossed out; gather
+ * speed over `WEEKENDS_RAMP` into a rush through the years; lose it over as
+ * long; and end the way they began.
  */
-const WEEKENDS_SPEED_UP = 0.2;
-const WEEKENDS_SLOW_DOWN = 0.3;
-/**
- * The weekends drawn, a few of the twenty years' worth: the next ones in a
- * row, then further and further apart out to the last, the gaps growing by
- * this power. Each is a real weekend, so the dates run on through the years.
- */
-const WEEKEND_TILES = 24;
-const WEEKEND_SPREAD = 3;
+const WEEKENDS_PACE = 2.8;
+const WEEKENDS_EASE = 0.4;
+const WEEKENDS_RAMP = 0.8;
 /** Each stroke of a cross is drawn this long, the second this long after the first. */
 const CROSS_MS = 210;
 const CROSS_LATE_MS = 125;
@@ -135,6 +132,24 @@ const TILE_REACH = 5;
  * line, so the last one's cross is drawn as it settles rather than after.
  */
 const CROSS_LEAD = 0.25;
+/**
+ * The weekends at each end crossed out stroke by stroke; every one between is
+ * crossed whole as it rushes past. The run holds its pace until the cross on
+ * the last of the first few is drawn in full, this many tiles in; the pace is
+ * slow enough that the next one reaches the line only after that.
+ */
+const DRAWN_TILES = 3;
+const WEEKENDS_PACED =
+  DRAWN_TILES - 0.5 - CROSS_LEAD + (WEEKENDS_PACE * (CROSS_LATE_MS + CROSS_MS)) / 1000;
+/** How long the pace is held, and how long the rush lasts between gathering and losing speed. */
+const WEEKENDS_HOLD = WEEKENDS_PACED / WEEKENDS_PACE - WEEKENDS_EASE / 2;
+const WEEKENDS_RUSH_SECONDS =
+  drawing.weekends - 2 * (WEEKENDS_EASE + WEEKENDS_HOLD + WEEKENDS_RAMP);
+/** The steps the distance gone while gathering speed is summed over. */
+const RAMP_STEPS = 64;
+/** How fast the rush goes to get through every weekend between, and how far the run goes gathering it. */
+const WEEKENDS_RUSH = rushSpeed();
+const WEEKENDS_RAMPED = rampDistance(1, WEEKENDS_RUSH);
 /** How far in from the tile's corners the cross is drawn. */
 const CROSS_INSET = 12;
 /** The strip fades out at both ends, so the tiles come from and go nowhere in particular. */
@@ -312,6 +327,12 @@ const styles = create({
   crossStrokeOn: {
     opacity: 1,
     strokeDashoffset: 0,
+  },
+  // A weekend that rushes past is crossed whole: no stroke could be seen
+  // drawn at that speed.
+  crossStrokeWhole: {
+    transitionDelay: '0ms',
+    transitionDuration: '0ms',
   },
   // A drawing and its legend, under each other.
   drawing: {
@@ -1155,27 +1176,84 @@ function Weeks({
 }
 
 /**
- * How many weekends have passed the line `t` of the way through: gathering
- * speed at first, steady through the middle, and slowing to a stop on the
- * last, with no jolt where one stretch hands over to the next.
+ * How much of a change of speed is made `u` of the way through it: none of
+ * it at first and all of it at the end, starting and stopping so gently that
+ * neither end is felt (smootherstep).
  */
-function weekendsBy(t: number): number {
-  const up = WEEKENDS_SPEED_UP;
-  const down = WEEKENDS_SLOW_DOWN;
-  const speed = 1 / (1 - up / 2 - (2 * down) / 3);
-  const share =
-    t < up
-      ? (speed * t * t) / (2 * up)
-      : t < 1 - down
-        ? speed * (t - up / 2)
-        : 1 - (speed * (1 - t) ** 3) / (3 * down * down);
-  return (WEEKEND_TILES - 0.5) * share;
+function smootherstep(u: number): number {
+  return u ** 3 * (u * (6 * u - 15) + 10);
 }
 
-/** How many weeks on from this one a tile's weekend is. */
-function tileWeek(tile: number): number {
-  const far = (HORIZON_WEEKS - 1) * (tile / (WEEKEND_TILES - 1)) ** WEEKEND_SPREAD;
-  return Math.max(tile, Math.round(far));
+/** How far a run easing from rest to one tile a second, over one second, has gone `u` of the way through. */
+function smootherstepArea(u: number): number {
+  return u ** 4 * (u * (u - 3) + 2.5);
+}
+
+/**
+ * How far the weekends go `u` of the way through gathering speed up to
+ * `rush`. The speed is multiplied rather than added to, by the same factor
+ * over equal steps of the change, since that is how the eye reads a speed
+ * picking up; added to, it would be a blur after the first few frames.
+ * Summed by Simpson's rule, as the distance has no closed form.
+ */
+function rampDistance(u: number, rush: number): number {
+  const growth = Math.log(rush / WEEKENDS_PACE);
+  const step = u / RAMP_STEPS;
+  const sum = Array.from({ length: RAMP_STEPS + 1 }, (_, index) => {
+    const weight = index === 0 || index === RAMP_STEPS ? 1 : index % 2 === 0 ? 2 : 4;
+    return weight * Math.exp(growth * smootherstep(index * step));
+  }).reduce((total, term) => total + term, 0);
+  return (WEEKENDS_PACE * WEEKENDS_RAMP * step * sum) / 3;
+}
+
+/**
+ * The rush that gets through every weekend in the run's time. A faster one
+ * only ever goes further, so it is found by doubling a guess until it goes
+ * too far, then halving the gap between the last two.
+ */
+function rushSpeed(): number {
+  const left = (HORIZON_WEEKS - 0.5) / 2 - WEEKENDS_PACED;
+  const gone = (rush: number) => rampDistance(1, rush) + (rush * WEEKENDS_RUSH_SECONDS) / 2;
+  let low = WEEKENDS_PACE;
+  let high = 2 * low;
+  while (gone(high) < left) {
+    low = high;
+    high *= 2;
+  }
+  for (let halving = 0; halving < 50; halving++) {
+    const middle = (low + high) / 2;
+    if (gone(middle) < left) {
+      low = middle;
+    } else {
+      high = middle;
+    }
+  }
+  return (low + high) / 2;
+}
+
+/**
+ * How many weekends have passed the line `t` of the way through. Every change
+ * of speed eases in and out, so the speed never jumps and never turns a
+ * corner. The run is the same backwards as forwards, so its second half is
+ * the first turned round.
+ */
+function weekendsBy(t: number): number {
+  const seconds = t * drawing.weekends;
+  if (seconds > drawing.weekends / 2) {
+    return HORIZON_WEEKS - 0.5 - weekendsBy(1 - t);
+  }
+  if (seconds < WEEKENDS_EASE) {
+    return WEEKENDS_PACE * WEEKENDS_EASE * smootherstepArea(seconds / WEEKENDS_EASE);
+  }
+  const held = seconds - WEEKENDS_EASE;
+  if (held < WEEKENDS_HOLD) {
+    return WEEKENDS_PACE * (WEEKENDS_EASE / 2 + held);
+  }
+  const ramping = held - WEEKENDS_HOLD;
+  if (ramping < WEEKENDS_RAMP) {
+    return WEEKENDS_PACED + rampDistance(ramping / WEEKENDS_RAMP, WEEKENDS_RUSH);
+  }
+  return WEEKENDS_PACED + WEEKENDS_RAMPED + WEEKENDS_RUSH * (ramping - WEEKENDS_RAMP);
 }
 
 /** A store that never changes: the calendar is read once, when the page comes alive. */
@@ -1190,9 +1268,10 @@ function comingSaturday(today: Date): number {
 }
 
 /**
- * Weekends from the next twenty years, a calendar tile each, flipping past a
- * line once the beat comes on. Each one is crossed out as it reaches the line.
- * With less motion they stand all crossed out.
+ * Every weekend in the next twenty years, a calendar tile each, flipping past
+ * a line once the beat comes on. The first few and the last few are crossed
+ * out stroke by stroke as they reach it; the ones that rush past between are
+ * crossed whole. With less motion they stand all crossed out.
  */
 function Weekends({
   drawn,
@@ -1225,7 +1304,7 @@ function Weekends({
   const weekday = new Intl.DateTimeFormat(locale, { timeZone: 'UTC', weekday: 'short' });
   const date = new Intl.DateTimeFormat(locale, { day: 'numeric', timeZone: 'UTC' });
   const from = Math.max(0, stamped - TILE_REACH);
-  const to = Math.min(WEEKEND_TILES - 1, stamped + TILE_REACH);
+  const to = Math.min(HORIZON_WEEKS - 1, stamped + TILE_REACH);
 
   return (
     <div aria-hidden="true" {...props(styles.weekends, style)}>
@@ -1234,8 +1313,8 @@ function Weekends({
         <div {...props(styles.weekendsStrip)}>
           {Array.from({ length: to - from + 1 }, (_, step) => {
             const index = from + step;
-            const saturday =
-              first === null ? null : first + tileWeek(index) * DAYS_PER_WEEK * DAY_MS;
+            const saturday = first === null ? null : first + index * DAYS_PER_WEEK * DAY_MS;
+            const rushing = index >= DRAWN_TILES && index < HORIZON_WEEKS - DRAWN_TILES;
             const spent = index < stamped;
             return (
               <div
@@ -1262,7 +1341,11 @@ function Weekends({
                   <path
                     d={`M${CROSS_INSET} ${CROSS_INSET}L${TILE_WIDTH - CROSS_INSET} ${TILE_HEIGHT - CROSS_INSET}`}
                     pathLength={1}
-                    {...props(styles.crossStroke, spent && styles.crossStrokeOn)}
+                    {...props(
+                      styles.crossStroke,
+                      rushing && styles.crossStrokeWhole,
+                      spent && styles.crossStrokeOn,
+                    )}
                   />
                   <path
                     d={`M${TILE_WIDTH - CROSS_INSET} ${CROSS_INSET}L${CROSS_INSET} ${TILE_HEIGHT - CROSS_INSET}`}
@@ -1270,6 +1353,7 @@ function Weekends({
                     {...props(
                       styles.crossStroke,
                       styles.crossStrokeLate,
+                      rushing && styles.crossStrokeWhole,
                       spent && styles.crossStrokeOn,
                     )}
                   />
@@ -1864,7 +1948,11 @@ export function CostStory({ id }: { id: string }) {
                   turning && [styles.turnLineOn, styles.turnLineSecond],
                 )}
               >
-                <Sentence figures={[]} mark={null} text={m.home_turn_built()} />
+                <Sentence
+                  figures={[<AppFan key="apps" label={m.home_turn_apps()} on={turning} />]}
+                  mark={null}
+                  text={m.home_turn_built({ apps: slot(0) })}
+                />
               </span>
             </h2>
           </div>
