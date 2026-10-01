@@ -86,6 +86,9 @@ const ORBIT_INNER = 64;
 const ORBIT_OUTER = 94;
 const POINTS_PER_LAP = 72;
 const WALKER_RADIUS = 3.5;
+/** The scroll cue: a short track at the foot of the first beat, and the drop that runs down it. */
+const CUE_HEIGHT = 48;
+const CUE_DROP = 12;
 
 /** One answer to "What else?": the sentence it is told in, and how it is counted. */
 type Answer = { line: (inputs: { count: string }) => string; tip: () => string };
@@ -108,6 +111,12 @@ const answerIn = keyframes({
 const answerOut = keyframes({
   from: { filter: 'blur(0)', opacity: 1, transform: 'none' },
   to: { filter: 'blur(6px)', opacity: 0, transform: 'translateY(-16px)' },
+});
+
+/** The drop falls from above the track to below it, and starts over. */
+const cueFall = keyframes({
+  from: { transform: `translateY(-${CUE_DROP}px)` },
+  to: { transform: `translateY(${CUE_HEIGHT}px)` },
 });
 
 const styles = create({
@@ -182,6 +191,44 @@ const styles = create({
       default: 0,
     },
     width: '100%',
+  },
+  // The way on, pinned with the stage just over the progress rail. It stands
+  // while the first beat does and fades as the second comes on, so it is never
+  // seen past the first beat. With less motion the beats already stand one
+  // under the other, and there is nothing to point at.
+  cue: {
+    backgroundColor: colors.border,
+    borderRadius: 999,
+    display: {
+      '@media (prefers-reduced-motion: reduce)': 'none',
+      default: 'block',
+    },
+    height: CUE_HEIGHT,
+    insetBlockEnd: `calc(${spacing.s8} + ${spacing.s4})`,
+    insetInlineStart: '50%',
+    overflow: 'hidden',
+    pointerEvents: 'none',
+    position: 'absolute',
+    transform: 'translateX(-50%)',
+    transitionDuration: '400ms',
+    transitionProperty: 'opacity, visibility',
+    transitionTimingFunction: 'ease-out',
+    width: 2,
+  },
+  cueDrop: {
+    animationDuration: '1.8s',
+    animationIterationCount: 'infinite',
+    animationName: cueFall,
+    animationTimingFunction: 'cubic-bezier(0.65, 0, 0.35, 1)',
+    backgroundColor: accent.base,
+    display: 'block',
+    height: CUE_DROP,
+    width: '100%',
+  },
+  // Past the first beat: faded out of sight.
+  cueGone: {
+    opacity: 0,
+    visibility: 'hidden',
   },
   // The count, stood over the room its last value takes, so the sentence
   // around it never reflows while it climbs.
@@ -733,6 +780,9 @@ export function CostStory({ id }: { id: string }) {
             </Button>
           </div>
         </div>
+        <span aria-hidden="true" {...props(styles.cue, active > 0 && styles.cueGone)}>
+          <span {...props(styles.cueDrop)} />
+        </span>
         <motion.span aria-hidden="true" {...props(styles.rail)} style={{ opacity: railOpacity }}>
           <motion.span {...props(styles.railFill)} style={{ scaleX: scrollYProgress }} />
         </motion.span>
