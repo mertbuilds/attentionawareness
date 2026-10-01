@@ -456,6 +456,26 @@ const styles = create({
   marked: {
     color: accent.base,
   },
+  // A stretch with a figure in it, linked to where the figure is from:
+  // underlined in thin dashes, solid while pointed at, and ringed in the same
+  // orange while the keyboard is on it.
+  markedSource: {
+    borderRadius: radius.base,
+    outlineColor: accent.base,
+    outlineOffset: '0.08em',
+    outlineStyle: {
+      ':focus-visible': 'solid',
+      default: 'none',
+    },
+    outlineWidth: 2,
+    textDecorationLine: 'underline',
+    textDecorationStyle: {
+      ':hover': 'solid',
+      default: 'dashed',
+    },
+    textDecorationThickness: '0.03em',
+    textUnderlineOffset: '0.1em',
+  },
   orbit: {
     display: 'block',
     height: 'auto',
@@ -853,16 +873,20 @@ function Words({ figures, text }: { figures: ReadonlyArray<ReactNode>; text: str
 /**
  * A sentence with figures in it, and the small i that says how it is counted.
  * Split on the marks, every other stretch is one the sentence turns on, set in
- * the figures' orange. The i ends the sentence and holds on to its last word:
- * a browser would otherwise start a line with it.
+ * the figures' orange. With a `source`, a marked stretch with a figure in it
+ * links to where the figure is from, and the element `source.description`
+ * names says what it links to. The i ends the sentence and holds on to its
+ * last word: a browser would otherwise start a line with it.
  */
 export function Sentence({
   figures,
   mark,
+  source,
   text,
 }: {
   figures: ReadonlyArray<ReactNode>;
   mark: ReactNode;
+  source?: { description: string; href: string } | undefined;
   text: string;
 }) {
   const stretches = text.split(MARKED);
@@ -880,12 +904,25 @@ export function Sentence({
         ) : null}
       </>
     );
-    return index % 2 === 1 ? (
+    if (index % 2 === 0) {
+      return <Fragment key={index}>{words}</Fragment>;
+    }
+    return source !== undefined && stretch.includes(SLOT) ? (
+      <a
+        aria-describedby={source.description}
+        data-plain=""
+        href={source.href}
+        key={index}
+        rel="noopener"
+        target="_blank"
+        {...props(styles.marked, styles.markedSource)}
+      >
+        {words}
+      </a>
+    ) : (
       <span key={index} {...props(styles.marked)}>
         {words}
       </span>
-    ) : (
-      <Fragment key={index}>{words}</Fragment>
     );
   });
 }
@@ -1419,6 +1456,8 @@ export function CostStory({ id }: { id: string }) {
   // A beat on or back, as a gesture moves the story, for the keys in the corner.
   const stepper = useRef<(by: number) => void>(() => {});
   const keys = useRef<HTMLDivElement>(null);
+  // The words that say where the hours on the first screen are from.
+  const sourceId = useId();
   const reduced = useLessMotion();
   const seen = useInView(stage, { amount: SEEN });
   const { scrollYProgress } = useScroll({ offset: ['start start', 'end end'], target: story });
@@ -1708,16 +1747,16 @@ export function CostStory({ id }: { id: string }) {
             <h1 {...props(partOf(0, 0, [styles.line, styles.title]))}>
               <Sentence
                 figures={[<Figure key="hours" value={AVERAGE_HOURS} />]}
-                mark={
-                  <Mark label={m.home_cost_source_label()}>
-                    <a href={SOURCE_URL} rel="noreferrer" target="_blank">
-                      {m.home_gate_source()}
-                    </a>
-                  </Mark>
-                }
+                mark={null}
+                source={{ description: sourceId, href: SOURCE_URL }}
                 text={m.home_cost_average({ hours: slot(0) })}
               />
             </h1>
+            {/* What the hours link to, read out with the link and kept out of
+            the heading's own words. */}
+            <span hidden id={sourceId}>
+              {m.home_cost_average_source()}
+            </span>
           </div>
 
           <div {...beat(WEEKS_BEAT)}>
