@@ -123,6 +123,14 @@ const TILE_HEIGHT = 76;
 const TILE_PITCH = 72;
 /** The tiles drawn either side of the line, enough to run past both faded edges. */
 const TILE_REACH = 5;
+/**
+ * The weekends at each end whose crosses are drawn stroke by stroke: as many
+ * as the strip shows either side of the line, the ones it opens on and the
+ * ones it stops on. Every weekend between passes the line in under 30
+ * milliseconds, far quicker than a stroke is drawn, so it carries its cross
+ * whole all the way.
+ */
+const DRAWN_TILES = 4;
 /** How far in from the tile's corners the cross is drawn. */
 const CROSS_INSET = 12;
 /** The strip fades out at both ends, so the tiles come from and go nowhere in particular. */
@@ -1136,7 +1144,8 @@ function comingSaturday(today: Date): number {
 
 /**
  * Every weekend in the next twenty years, a calendar tile each, flipping past
- * a line once the beat comes on. Each one is crossed out as it passes. With
+ * a line once the beat comes on. The first few and the last few are crossed
+ * out as they pass; the ones that rush past between come crossed out. With
  * less motion they stand all crossed out.
  */
 function Weekends({
@@ -1180,7 +1189,8 @@ function Weekends({
           {Array.from({ length: to - from + 1 }, (_, step) => {
             const index = from + step;
             const saturday = first === null ? null : first + index * DAYS_PER_WEEK * DAY_MS;
-            const spent = index < stamped;
+            const rushing = index >= DRAWN_TILES && index < HORIZON_WEEKS - DRAWN_TILES;
+            const spent = rushing || index < stamped;
             return (
               <div
                 key={index}
