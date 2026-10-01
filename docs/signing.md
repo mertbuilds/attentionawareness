@@ -93,15 +93,17 @@ are done.
 
 ## Production
 
-Three Worker secrets, set from `apps/web` so wrangler finds the config:
+Three Worker secrets, declared with `bindings.secret()` in
+`apps/web/cloudflare.config.ts` and set from `apps/web`:
 
 ```sh
-wrangler secret put SIGNING_CERT_PEM      < cert.pem
-wrangler secret put SIGNING_CHAIN_PEM     < chain.pem
-wrangler secret put SIGNING_KEY_PKCS8_PEM < key.pkcs8.pem
+pnpm exec cf workers secrets update SIGNING_CERT_PEM      --worker attentionawareness-web --type secret_text --text "$(cat cert.pem)"
+pnpm exec cf workers secrets update SIGNING_CHAIN_PEM     --worker attentionawareness-web --type secret_text --text "$(cat chain.pem)"
+pnpm exec cf workers secrets update SIGNING_KEY_PKCS8_PEM --worker attentionawareness-web --type secret_text --text "$(cat key.pkcs8.pem)"
 ```
 
-Multi-line PEM is fine; pass the file on stdin as above rather than pasting.
+Multi-line PEM is fine; read the file as above rather than pasting. `cf deploy`
+fails while any declared secret is unset, and keeps the set ones across deploys.
 Rotating a certificate is the same three commands with new files. A profile
 signed by the old certificate stays installed and stays valid: the same-signer
 rule only decides what may replace it.
@@ -112,10 +114,11 @@ Signing is off until the secrets exist. Without them `/api/sign` answers `503`
 and the Mac app says signing is unavailable, so the rest of the site and every
 test keep working on a bare checkout.
 
-To sign locally, copy `apps/web/.dev.vars.example` to `apps/web/.dev.vars` and
-fill in the three values. `.dev.vars` is gitignored, and `wrangler` loads it for
-`vite dev` through the Cloudflare plugin. PEM newlines survive if you quote the
-value and write `\n` escapes:
+To sign locally, copy `.dev.vars.example` to `.dev.vars` at the repo root and
+fill in the three values. `.dev.vars` is gitignored, and the Cloudflare Vite
+plugin loads it for `vite dev` from the Vite envDir (the repo root), binding only
+the names declared in `apps/web/cloudflare.config.ts`. PEM newlines survive if
+you quote the value and write `\n` escapes:
 
 ```sh
 SIGNING_CERT_PEM="-----BEGIN CERTIFICATE-----\nMIIF...\n-----END CERTIFICATE-----\n"

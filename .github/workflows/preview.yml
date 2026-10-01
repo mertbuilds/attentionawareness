@@ -22,12 +22,16 @@ jobs:
       - run: pnpm --filter @attentionawareness/web build
       - name: Upload preview version
         id: upload
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: apps/web
-          command: versions upload
+        run: |
+          pnpm --filter @attentionawareness/web exec cf workers versions create --prebuilt
+          url=$(jq -r 'select(.type == "version-upload") | .preview_url // empty' "$WRANGLER_OUTPUT_FILE_PATH" | tail -n 1)
+          echo "deployment-url=$url" >> "$GITHUB_OUTPUT"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # cf still honors wrangler's output-file variable: one JSON record per line,
+          # the version-upload record carries preview_url.
+          WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/cf-output.ndjson
       - name: Comment preview URL
         uses: actions/github-script@v7
         with:

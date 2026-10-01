@@ -27,4 +27,4 @@ The dmg policy relies on the release script never reusing a dmg name (see `scrip
 - Shipped apps keep updating: the feed URL is the same one they already have.
 - Every download is a Worker request; R2 has no egress fees.
 - The bucket stays private: the Worker is the only way in, and it reads nothing outside the served file shape.
-- Local dev reads a simulated bucket under `.wrangler/state`, seeded by hand (see AGENTS.md).
+- Local dev reads a simulated bucket under `apps/web/.cloudflare/state`, seeded by hand (see AGENTS.md).

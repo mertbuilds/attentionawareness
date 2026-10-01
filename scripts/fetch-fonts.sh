@@ -2,7 +2,7 @@
 # Fetch the licensed Suisse Intl woff2 files from the private R2 bucket.
 # Never blocks: without FONT_BUCKET (or on any download failure) the app falls
 # back to the bundled Inter Variable, so this exits 0 with a warning.
-# Needs wrangler auth: an OAuth login locally, CLOUDFLARE_API_TOKEN in CI.
+# Needs cf auth: `cf auth login` locally, CLOUDFLARE_API_TOKEN in CI.
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -21,9 +21,10 @@ for file in "${FILES[@]}"; do
     echo "have $file"
     continue
   fi
-  if (cd "$ROOT/apps/web" && pnpm exec wrangler r2 object get "$FONT_BUCKET/$file" --file "$DEST/$file" --remote >/dev/null 2>&1); then
+  if (cd "$ROOT/apps/web" && pnpm exec cf r2 objects get "$file" --bucket-name "$FONT_BUCKET" >"$DEST/$file" 2>/dev/null); then
     echo "fetched $file"
   else
+    rm -f "$DEST/$file"
     echo "warn: failed to fetch $file"
     failed=1
   fi

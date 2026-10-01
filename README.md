@@ -80,8 +80,8 @@ pnpm dev   # mprocs: web + storybook
 works. `pnpm fonts` fetches them from a private bucket; see
 [scripts/fetch-fonts.sh](scripts/fetch-fonts.sh).
 
-**Signing secrets.** Signing is off until they exist, and `/api/sign` answers 503. To sign locally, copy `apps/web/.dev.vars.example` to
-`apps/web/.dev.vars` and fill in the three values.
+**Signing secrets.** Signing is off until they exist, and `/api/sign` answers 503. To sign locally, copy `.dev.vars.example` to
+`.dev.vars` at the repo root and fill in the three values.
 
 **Deploy.** `pnpm --filter @attentionawareness/web deploy` builds and ships to
 Cloudflare Workers; a push to main does the same from CI. Agent rules, the

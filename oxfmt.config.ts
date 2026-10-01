@@ -12,6 +12,7 @@ export default defineConfig({
     'packages/db/generated',
     'apps/web/src/paraglide',
     'apps/web/src/routeTree.gen.ts',
+    '.cloudflare',
     '.wrangler',
     'pnpm-lock.yaml',
     '.claude/skills',

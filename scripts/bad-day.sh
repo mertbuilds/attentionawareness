@@ -27,6 +27,7 @@ done < <(find . -name node_modules -type d -prune -not -path './.git/*')
 
 for extra in \
   .turbo \
+  apps/web/.cloudflare \
   apps/web/.output \
   apps/web/.wrangler \
   apps/web/dist \

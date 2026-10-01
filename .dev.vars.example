@@ -1,4 +1,6 @@
-# Copy to apps/web/.dev.vars for local signing. Never commit the real file.
+# Copy to .dev.vars (repo root) for local signing. Never commit the real file.
+# The Cloudflare Vite plugin reads it from the Vite envDir (the repo root) and
+# binds only the secrets declared in apps/web/cloudflare.config.ts.
 # See docs/signing.md for how to export these three from Keychain.
 # Without them /api/sign answers 503 and the page says signing is unavailable.
 SIGNING_CERT_PEM="-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----\n"
