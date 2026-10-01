@@ -1,15 +1,16 @@
 import { Button } from '@attentionawareness/ui';
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
-import { create, props } from '@stylexjs/stylex';
+import { create, defaultMarker, props, when } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
-import { useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { CostStory } from '../components/cost-story.tsx';
 import { Facts } from '../components/facts.tsx';
 import { HowItWorks } from '../components/how-it-works.tsx';
 import { MacDownload } from '../components/mac-download.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
+import { blur, duration, easing } from '../lib/motion.stylex.ts';
 import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
 
@@ -96,20 +97,125 @@ const styles = create({
     maxWidth: 760,
     width: '100%',
   },
-  defDesc: {
-    color: colors.muted,
-    lineHeight: 1.5,
-    marginBlockEnd: spacing.s3,
-    marginInlineStart: 0,
-    textWrap: 'pretty',
+  // The track an answer grows and shrinks in, from no height to its own. It
+  // takes no padding, or a closed answer would keep a strip of it.
+  faqAnswer: {
+    display: 'grid',
+    gridTemplateRows: '0fr',
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: duration.fast,
+    },
+    transitionProperty: 'grid-template-rows',
+    transitionTimingFunction: easing.smoothOut,
   },
-  defList: {
+  faqAnswerOpen: {
+    gridTemplateRows: '1fr',
+  },
+  // What the track cuts off while it is short, coming into focus as it opens.
+  faqClip: {
+    filter: `blur(${blur.small})`,
+    minHeight: 0,
+    opacity: 0,
+    overflow: 'hidden',
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: duration.fast,
+    },
+    transitionProperty: 'opacity, filter',
+    transitionTimingFunction: easing.smoothOut,
+  },
+  faqClipOpen: {
+    filter: 'blur(0)',
+    opacity: 1,
+  },
+  faqHeading: {
     margin: 0,
   },
-  defTerm: {
-    fontWeight: font.weightMedium,
+  // A line between two questions, none above the first.
+  faqItem: {
+    borderBlockStartColor: colors.border,
+    borderBlockStartStyle: 'solid',
+    borderBlockStartWidth: {
+      ':first-child': 0,
+      default: '1px',
+    },
+  },
+  // Quieter than the question, and clear of the plus above it.
+  faqText: {
+    color: colors.muted,
     lineHeight: 1.5,
+    margin: 0,
+    paddingBlockEnd: spacing.s4,
+    paddingInlineEnd: spacing.s8,
     textWrap: 'pretty',
+  },
+  // The plus at the end of the row. It waits in the muted ink and darkens when
+  // the row is pointed at or its answer is open.
+  faqPlus: {
+    color: {
+      default: colors.muted,
+      [when.ancestor(':hover')]: colors.fg,
+    },
+    fill: 'none',
+    flexShrink: 0,
+    height: 16,
+    stroke: 'currentColor',
+    strokeLinecap: 'round',
+    strokeWidth: 1.5,
+    width: 16,
+  },
+  faqPlusOpen: {
+    color: colors.fg,
+  },
+  // The whole row is the button, so the question is pressed wherever it is
+  // touched.
+  faqQuestion: {
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderRadius: radius.base,
+    borderStyle: 'none',
+    borderWidth: 0,
+    color: colors.fg,
+    cursor: 'pointer',
+    display: 'flex',
+    fontFamily: 'inherit',
+    fontSize: font.sizeMd,
+    fontWeight: font.weightRegular,
+    gap: spacing.s4,
+    justifyContent: 'space-between',
+    lineHeight: 1.5,
+    margin: 0,
+    outlineColor: colors.fg,
+    outlineOffset: 2,
+    outlineStyle: {
+      ':focus-visible': 'solid',
+      default: 'none',
+    },
+    outlineWidth: 2,
+    paddingBlock: spacing.s4,
+    paddingInline: 0,
+    textAlign: 'start',
+    textWrap: 'pretty',
+    width: '100%',
+  },
+  // The upright stroke of the plus. It turns a quarter onto the level one and
+  // fades as it goes, which leaves the minus.
+  faqTurn: {
+    opacity: 1,
+    transform: 'none',
+    transformBox: 'fill-box',
+    transformOrigin: 'center',
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: duration.fast,
+    },
+    transitionProperty: 'opacity, transform',
+    transitionTimingFunction: easing.smoothOut,
+  },
+  faqTurnOpen: {
+    opacity: 0,
+    transform: 'rotate(90deg)',
   },
   // Not on the page yet, and taking no room in it either.
   gone: {
@@ -262,6 +368,61 @@ const styles = create({
   },
 });
 
+/**
+ * One question, closed until it is pressed. Its answer opens under it and
+ * leaves the others as they are, so two can be read at once. A closed answer
+ * is inert: out of the tab order and unread by a screen reader, though it
+ * stays in the page to animate.
+ */
+function Question({ answer, question }: { answer: string; question: string }) {
+  const id = useId();
+  const [open, setOpen] = useState(false);
+  const questionId = `${id}-question`;
+  const answerId = `${id}-answer`;
+
+  return (
+    <div {...props(styles.faqItem)}>
+      <h3 {...props(styles.faqHeading)}>
+        <button
+          aria-controls={answerId}
+          aria-expanded={open}
+          id={questionId}
+          onClick={() => setOpen(!open)}
+          type="button"
+          {...props(styles.faqQuestion, defaultMarker())}
+        >
+          <span>{question}</span>
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 16 16"
+            {...props(styles.faqPlus, open && styles.faqPlusOpen)}
+          >
+            <line x1={3} x2={13} y1={8} y2={8} />
+            <line
+              x1={8}
+              x2={8}
+              y1={3}
+              y2={13}
+              {...props(styles.faqTurn, open && styles.faqTurnOpen)}
+            />
+          </svg>
+        </button>
+      </h3>
+      <div
+        aria-labelledby={questionId}
+        id={answerId}
+        inert={!open}
+        role="region"
+        {...props(styles.faqAnswer, open && styles.faqAnswerOpen)}
+      >
+        <div {...props(styles.faqClip, open && styles.faqClipOpen)}>
+          <p {...props(styles.faqText)}>{answer}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function HomePage() {
   const storySection = useRef<HTMLElement>(null);
   const [storyOpen, setStoryOpen] = useState(false);
@@ -400,14 +561,11 @@ function HomePage() {
 
         <section {...props(styles.section)}>
           <h2 {...props(styles.sectionTitle)}>{m.home_faq_title()}</h2>
-          <dl {...props(styles.defList)}>
+          <div>
             {objections.map((objection) => (
-              <div key={objection.term}>
-                <dt {...props(styles.defTerm)}>{objection.term}</dt>
-                <dd {...props(styles.defDesc)}>{objection.desc}</dd>
-              </div>
+              <Question answer={objection.desc} key={objection.term} question={objection.term} />
             ))}
-          </dl>
+          </div>
         </section>
 
         <section {...props(styles.closing)}>

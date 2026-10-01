@@ -7,6 +7,8 @@ import { defineConsts } from '@stylexjs/stylex';
  * crossfade slow, a text reveal very slow.
  */
 export const duration = defineConsts({
+  // An answer opening or closing under its question, and its plus turning.
+  fast: '250ms',
   // The wait before a tooltip appears.
   micro: '80ms',
   // A text swap, a tooltip appearing, a quiet fade out.
@@ -38,7 +40,7 @@ export const distance = defineConsts({
 export const blur = defineConsts({
   // A revealed line.
   medium: '3px',
-  // Swapped text, a crossfade.
+  // Swapped text, a crossfade, an answer coming into focus.
   small: '2px',
 });
 
