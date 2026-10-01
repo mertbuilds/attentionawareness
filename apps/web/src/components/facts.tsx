@@ -36,8 +36,8 @@ const SWAP_MS = 2 * Number.parseFloat(duration.quick);
 /** The reroll icon turns half a turn a fact. */
 const TURN_DEGREES = 180;
 const TURN_SECONDS = 0.7;
-/** The size the standard button gives its icons. */
-const ICON_SIZE = '1rem';
+/** The reroll icon, as tall as the capitals of the label beside it. */
+const ICON_SIZE = '0.85em';
 /** The figures the story tells on its own, so the deck never offers them. */
 const TOLD = new Set(['earth']);
 /**
