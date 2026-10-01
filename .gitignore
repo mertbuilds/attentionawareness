@@ -8,9 +8,6 @@ dist/
 storybook-static/
 # the packed extension, rebuilt by `pnpm --filter @attentionawareness/extension zip`
 apps/extension/*.zip
-# the Mac app the site serves: the dmg is a release artifact, the two small
-# files beside it (appcast.xml, latest.json) are committed
-apps/web/public/mac/*.dmg
 
 # caches
 .turbo/
