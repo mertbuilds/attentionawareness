@@ -10,7 +10,8 @@ import type { SkillLabels } from './skills.tsx';
 import { TripsGraphic } from './trips.tsx';
 
 /**
- * The drawing for each answer to "What else?", by its key in `heroMetrics`.
+ * The drawing for each of the hours' answers in the deck of other facts, by
+ * its key in `heroMetrics`.
  * Each plays once from the start when `play` turns on and resets when it
  * turns off. Only the skills take `labels`, the words drawn on them.
  */

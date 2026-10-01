@@ -12,7 +12,7 @@ import {
 } from 'motion/react';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { SCROLL_METERS } from '../lib/attention-math.ts';
-import { drawing, duration } from '../lib/motion.stylex.ts';
+import { drawing } from '../lib/motion.stylex.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
 
@@ -56,21 +56,12 @@ const FOLLOW = 0.1;
 const LIFT = 20;
 const THUMB_REST = 5;
 const SWIPE_SECONDS = drawing.thumb / SWIPES;
-/** The thumb rests a moment before its first swipe; at the end the day fades out and back in. */
+/** The thumb rests a moment before its first swipe. */
 const REST_SECONDS = drawing.delay;
-const FADE_SECONDS = Number.parseFloat(duration.slow) / 1000;
-const LOOP_SECONDS = REST_SECONDS + drawing.thumb + drawing.thumbHold + 2 * FADE_SECONDS;
+/** How long the thumb plays, from its rest to a day's scroll, where it stands from then on. */
+export const THUMB_SECONDS = REST_SECONDS + drawing.thumb;
 /** `easing.smoothOut`, the curve a scrolled feed coasts to a stop on. */
 const coastOut = cubicBezier(0.22, 1, 0.36, 1);
-/**
- * How tall the drawing stands beside the words on a wide screen, and on a
- * wide but short one, so all of it is in the window at once. Over the words
- * on a narrow screen it is a little shorter, and narrower than any phone's
- * column.
- */
-const TALL = 380;
-const TALL_SHORT = 260;
-const TALL_NARROW = 320;
 /** The sides fade out, so the landmarks come into the frame rather than being cut by it. */
 const EDGE_MASK = 'linear-gradient(to right, transparent, black 8%, black 92%, transparent)';
 
@@ -138,15 +129,12 @@ const STATUE = [
 const STATUE_DETAIL = 'M-7.2 33 L7.2 33';
 
 const styles = create({
-  // The box the drawing is sized in, with the counter over it.
+  // The box the drawing is sized in, as tall as the room it is given, with
+  // the counter over it.
   box: {
     aspectRatio: `${WIDTH} / ${HEIGHT}`,
     flexShrink: 0,
-    height: {
-      '@media (max-width: 767px)': TALL_NARROW,
-      '@media (min-width: 768px) and (max-height: 720px)': TALL_SHORT,
-      default: TALL,
-    },
+    height: '100%',
     position: 'relative',
     userSelect: 'none',
     // The width follows the height through the aspect ratio.
@@ -213,8 +201,8 @@ const styles = create({
   },
 });
 
-/** Where the drawing stands at a moment: the thumb's lift, the line's height, how much of it shows and the view's height, in meters. */
-type Frame = { lift: number; meters: number; seen: number; view: number };
+/** Where the drawing stands at a moment: the thumb's lift, the line's height and the view's height, in meters. */
+type Frame = { lift: number; meters: number; view: number };
 
 function clamp(value: number): number {
   return Math.min(1, Math.max(0, value));
@@ -239,26 +227,11 @@ function climbAt(seconds: number): Frame {
   return {
     lift,
     meters: from + (to - from) * coastOut(clamp(through / COAST)),
-    seen: 1,
     view: viewFor(from + (to - from) * easeInOut(clamp((through - FOLLOW) / (1 - FOLLOW)))),
   };
 }
 
-const START = climbAt(0);
 const END = climbAt(drawing.thumb);
-
-/** The loop `seconds` in: a rest, the climb, a hold on a day's scroll, and a fade back to the start. */
-function frameAt(seconds: number): Frame {
-  const fadeIn = LOOP_SECONDS - FADE_SECONDS;
-  const fadeOut = fadeIn - FADE_SECONDS;
-  if (seconds >= fadeIn) {
-    return { ...START, seen: clamp((seconds - fadeIn) / FADE_SECONDS) };
-  }
-  if (seconds >= fadeOut) {
-    return { ...END, seen: 1 - clamp((seconds - fadeOut) / FADE_SECONDS) };
-  }
-  return climbAt(Math.max(0, seconds - REST_SECONDS));
-}
 
 /** Whether the tab is the one in front: a hidden tab plays nothing. */
 function subscribeVisibility(onChange: () => void) {
@@ -278,40 +251,39 @@ function tabVisibleOnServer(): boolean {
  * A thumb under a line, swiping up over and over. Each swipe scrolls the line
  * higher, and the view zooms out to keep up with it, past a person, a house
  * and a block, until it reaches the Statue of Liberty's torch: a day's
- * scroll. It holds there, fades and starts over. It runs only while it is
- * `shown`, on screen, in a tab in front, and holds still where it is
- * otherwise. For a reader who asked for less motion it stands at a day's
- * scroll.
+ * scroll, where it stands. It plays once from the start each time `play`
+ * comes on and starts over when it goes off. It runs only while it is on
+ * screen, in a tab in front, and holds still where it is otherwise. For a
+ * reader who asked for less motion it stands at a day's scroll.
  */
-export function ThumbDistance({ shown }: { shown: boolean }) {
+export function ThumbDistance({ play }: { play: boolean }) {
   const box = useRef<HTMLDivElement>(null);
   const reduced = useReducedMotion() === true;
   const onScreen = useInView(box);
   const tabShown = useSyncExternalStore(subscribeVisibility, tabVisible, tabVisibleOnServer);
   const clock = useMotionValue(0);
   const [at, setAt] = useState(0);
-  // Each time round, the loop starts again from the top.
-  const [loops, setLoops] = useState(0);
-  const running = shown && onScreen && tabShown && !reduced;
+  const running = play && onScreen && tabShown && !reduced;
   useMotionValueEvent(clock, 'change', setAt);
 
-  // The clock runs on from wherever it was held, and round again at the end.
+  // The clock goes back to the start while the thumb is not playing, and runs
+  // on from wherever it was held while it is, until a day's scroll.
   useEffect(() => {
+    if (!play) {
+      clock.set(0);
+      return;
+    }
     if (!running) {
       return;
     }
-    const controls = animate(clock, LOOP_SECONDS, {
-      duration: LOOP_SECONDS - clock.get(),
+    const controls = animate(clock, THUMB_SECONDS, {
+      duration: THUMB_SECONDS - clock.get(),
       ease: 'linear',
-      onComplete: () => {
-        clock.set(0);
-        setLoops((loop) => loop + 1);
-      },
     });
     return () => controls.stop();
-  }, [clock, loops, running]);
+  }, [clock, play, running]);
 
-  const frame = reduced ? END : frameAt(at);
+  const frame = reduced ? END : climbAt(Math.max(0, at - REST_SECONDS));
   const scale = GROUND / frame.view;
   const tip = GROUND - frame.meters * scale;
   const counterAt = Math.min(tip, GROUND - COUNTER_FLOOR);
@@ -327,40 +299,38 @@ export function ThumbDistance({ shown }: { shown: boolean }) {
     <div aria-hidden="true" ref={box} {...props(styles.box)}>
       <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} {...props(styles.drawing)}>
         <path d={GROUND_LINE} {...props(styles.ground)} />
-        <g opacity={frame.seen}>
-          <g transform={`translate(${LINE_X} ${GROUND}) scale(${scale} ${-scale})`}>
-            <path d={LANDMARKS} vectorEffect="non-scaling-stroke" {...props(styles.landmark)} />
+        <g transform={`translate(${LINE_X} ${GROUND}) scale(${scale} ${-scale})`}>
+          <path d={LANDMARKS} vectorEffect="non-scaling-stroke" {...props(styles.landmark)} />
+          <path
+            d={LANDMARK_DETAIL}
+            vectorEffect="non-scaling-stroke"
+            {...props(styles.landmark, styles.faint)}
+          />
+          <circle
+            cx={PERSON_HEAD.x}
+            cy={PERSON_HEAD.y}
+            r={PERSON_HEAD.r}
+            vectorEffect="non-scaling-stroke"
+            {...props(styles.landmark)}
+          />
+          <g transform={`translate(${STATUE_X} 0)`}>
+            <path d={STATUE} vectorEffect="non-scaling-stroke" {...props(styles.landmark)} />
             <path
-              d={LANDMARK_DETAIL}
+              d={STATUE_DETAIL}
               vectorEffect="non-scaling-stroke"
               {...props(styles.landmark, styles.faint)}
             />
             <circle
-              cx={PERSON_HEAD.x}
-              cy={PERSON_HEAD.y}
-              r={PERSON_HEAD.r}
+              cx={STATUE_HEAD.x}
+              cy={STATUE_HEAD.y}
+              r={STATUE_HEAD.r}
               vectorEffect="non-scaling-stroke"
               {...props(styles.landmark)}
             />
-            <g transform={`translate(${STATUE_X} 0)`}>
-              <path d={STATUE} vectorEffect="non-scaling-stroke" {...props(styles.landmark)} />
-              <path
-                d={STATUE_DETAIL}
-                vectorEffect="non-scaling-stroke"
-                {...props(styles.landmark, styles.faint)}
-              />
-              <circle
-                cx={STATUE_HEAD.x}
-                cy={STATUE_HEAD.y}
-                r={STATUE_HEAD.r}
-                vectorEffect="non-scaling-stroke"
-                {...props(styles.landmark)}
-              />
-            </g>
           </g>
-          <path d={`M${LINE_X} ${GROUND} L${LINE_X} ${tip.toFixed(2)}`} {...props(styles.line)} />
-          <circle cx={LINE_X} cy={tip} r={TIP_RADIUS} {...props(styles.tip)} />
         </g>
+        <path d={`M${LINE_X} ${GROUND} L${LINE_X} ${tip.toFixed(2)}`} {...props(styles.line)} />
+        <circle cx={LINE_X} cy={tip} r={TIP_RADIUS} {...props(styles.tip)} />
         <g transform={`translate(${LINE_X} ${GROUND + THUMB_REST - frame.lift * LIFT})`}>
           <path d={THUMB} {...props(styles.thumb)} />
           <path d={THUMB_DETAIL} {...props(styles.thumbDetail)} />
@@ -370,7 +340,6 @@ export function ThumbDistance({ shown }: { shown: boolean }) {
         style={{
           insetBlockStart: `${(counterAt / HEIGHT) * 100}%`,
           insetInlineEnd: `${((WIDTH - LINE_X + COUNTER_GAP) / WIDTH) * 100}%`,
-          opacity: frame.seen,
         }}
         {...props(styles.counter)}
       >

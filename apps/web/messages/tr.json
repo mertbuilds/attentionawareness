@@ -18,7 +18,6 @@
   "home_cost_moon_half": "Ya da Ay'a giden yolun [[yarısından]] fazlasını yürüyebilirdin",
   "home_cost_moon_part": "Ya da Ay'a giden yolun [[%{percent}]] kadarını yürüyebilirdin",
   "home_cost_languages": "{count} dil öğrenebilirdin",
-  "home_cost_more": "Başka ne?",
   "home_cost_reroll": "Başka göster",
   "home_cost_books": "{count} kitap okuyabilirdin",
   "home_cost_travel": "Bir haftalık {count} seyahate çıkabilirdin",

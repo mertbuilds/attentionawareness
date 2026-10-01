@@ -52,12 +52,12 @@ export const scale = defineConsts({
  * token above fits them; they are kept together here so the whole story can
  * be slowed or quickened at once. Each starts `delay` after its beat comes on,
  * once the sentence has risen into place: `duration.verySlow` and a stagger.
- * An answer to "What else?" stands
- * `deckHold` on its finished drawing before the next takes its place. The
- * instruments take twice an answer's time, a scene at a time. Past the story,
- * the thumb among the facts climbs to a day's scroll over `thumb` and stands
- * `thumbHold` on it before it starts over. Further down, the way out's three
- * steps play over `stepPlug`, `stepChoose` and `stepStays`, one after another.
+ * Past the story, the deck of other facts opens on the thumb, which climbs
+ * to a day's scroll over `thumb` and stands `thumbHold` on it. Every other
+ * fact in it draws over `deck` and stands `deckHold` on its finished drawing
+ * before the next takes its place; the instruments take twice that time, a
+ * scene at a time. Further down, the way out's three steps play over
+ * `stepPlug`, `stepChoose` and `stepStays`, one after another.
  */
 export const drawing = defineConsts({
   deck: 4,
