@@ -46,6 +46,35 @@ const styles = create({
 });
 
 /**
+ * The one read of `latest.json` every download on the page shares, so two
+ * buttons cost one request. A read that finds nothing is not kept, so a page
+ * opened later tries again.
+ */
+let latestRead: Promise<Release | null> | undefined;
+
+function readLatest(): Promise<Release | null> {
+  latestRead ??= (async () => {
+    try {
+      const response = await fetch(LATEST_URL);
+      if (!response.ok) {
+        return null;
+      }
+      const payload = (await response.json()) as Partial<Release>;
+      return typeof payload.url === 'string' ? { url: payload.url } : null;
+    } catch {
+      // No release yet, or the network refused it. The button stays off.
+      return null;
+    }
+  })().then((release) => {
+    if (release === null) {
+      latestRead = undefined;
+    }
+    return release;
+  });
+  return latestRead;
+}
+
+/**
  * Reads `latest.json` once the page is up. A missing, unreadable or incomplete
  * file leaves the state null, which is what turns the download off: the page
  * never points at a build it has not read.
@@ -54,25 +83,15 @@ function useLatestRelease(): Release | null {
   const [release, setRelease] = useState<Release | null>(null);
 
   useEffect(() => {
-    const controller = new AbortController();
-
-    const read = async (): Promise<void> => {
-      try {
-        const response = await fetch(LATEST_URL, { signal: controller.signal });
-        if (!response.ok) {
-          return;
-        }
-        const payload = (await response.json()) as Partial<Release>;
-        if (typeof payload.url === 'string') {
-          setRelease({ url: payload.url });
-        }
-      } catch {
-        // No release yet, or the network refused it. The button stays off.
+    let mounted = true;
+    void readLatest().then((found) => {
+      if (mounted) {
+        setRelease(found);
       }
+    });
+    return () => {
+      mounted = false;
     };
-
-    void read();
-    return () => controller.abort();
   }, []);
 
   return release;
