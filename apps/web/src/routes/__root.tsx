@@ -2,10 +2,12 @@ import { Tooltip } from '@base-ui/react/tooltip';
 import { PostHogProvider } from '@posthog/react';
 import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-router';
 import { useEffect, type ReactNode } from 'react';
+import { NotFound } from '../components/not-found.tsx';
 import { SiteBrand } from '../components/site-brand.tsx';
 import { WipBanner } from '../components/wip-banner.tsx';
 import { AVERAGE_HOURS, formatYears } from '../lib/attention-math.ts';
 import { clientEnv } from '../lib/env.ts';
+import { m } from '../paraglide/messages.js';
 import '@attentionawareness/ui/fonts.css';
 import '@attentionawareness/ui/theme.css';
 import '../app.css';
@@ -54,7 +56,7 @@ const DESCRIPTION = `${SITE_NAME}. ${TAGLINE}. See what an average day costs, th
 
 export const Route = createRootRoute({
   component: RootComponent,
-  head: () => ({
+  head: ({ match }) => ({
     links: [
       // The SVG first: it inverts with the browser's own theme. The PNG is
       // there for Safari, which takes the first icon it understands.
@@ -78,7 +80,8 @@ export const Route = createRootRoute({
       // oxlint-disable-next-line text-encoding-identifier-case -- HTML meta charset must be "utf-8"
       { charSet: 'utf-8' },
       { content: 'width=device-width, initial-scale=1', name: 'viewport' },
-      { title: SITE_NAME },
+      // A path no route answers is marked on the root match, and the tab says so.
+      { title: match._notFound ? `${m.not_found_head_title()} · ${SITE_NAME}` : SITE_NAME },
       { content: DESCRIPTION, name: 'description' },
       { content: SITE_NAME, property: 'og:site_name' },
       { content: TAGLINE, property: 'og:title' },
@@ -90,6 +93,7 @@ export const Route = createRootRoute({
       { content: OG_IMAGE, name: 'twitter:image' },
     ],
   }),
+  notFoundComponent: NotFound,
 });
 
 function RootComponent() {
