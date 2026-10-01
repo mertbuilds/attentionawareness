@@ -10,7 +10,7 @@ apps/
           Mostly client-only: SSR, routes, PostHog, Sentry, Paraglide i18n.
           No auth, no database. Server routes: the PostHog ingest proxy and
           `/api/sign`, which signs the profile with the Developer ID key.
-          The Mac app is the only caller of `/api/sign`.
+          Callers: the Mac app and the `/build` page.
   extension/
           MV3 browser extension (Chromium first). One content script injects
           per-site CSS from `src/rules/*.css` plus the reader's own rules from
@@ -28,9 +28,11 @@ packages/
 e2e/      Playwright smoke spec.
 ```
 
-The product is the site, the extension and the Mac app. Nothing else: the
-Python `supervise` tool, the web profile generator and the supervision guide
-were retired on 2026-09-18 and live only in git history.
+The product is the site, the extension and the Mac app. The Python `supervise`
+tool was retired on 2026-09-18 and lives only in git history. The web profile
+builder (`/build`) came back on 2026-09-30 as the profile step of the free
+do-it-yourself path (`/guide`), which erases the iPhone; the Mac app is the
+paid path that keeps the data.
 
 ## Commands
 

@@ -4,7 +4,7 @@
  * features all live on the home page or nowhere. Every path that used to be its
  * own is sent there, so a link shared before the fold still lands somewhere.
  */
-const REMOVED_PATHS = new Set(['/build', '/friend', '/mac', '/supervise']);
+const REMOVED_PATHS = new Set(['/friend', '/mac', '/supervise']);
 /** The guides lived under one prefix, so the whole tree goes home together. */
 const GUIDES_PREFIX = '/guides';
 
