@@ -2,6 +2,7 @@ import { Button } from '@attentionawareness/ui';
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, firstThatWorks, keyframes, props } from '@stylexjs/stylex';
+import type { StyleXStyles } from '@stylexjs/stylex';
 import {
   animate,
   motion,
@@ -27,6 +28,7 @@ import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
 import { BillFilters } from './bill-paper.tsx';
+import { FeedPhone } from './feed-phone.tsx';
 import { GridTexture } from './grid-texture.tsx';
 import { InfoTip } from './info-tip.tsx';
 
@@ -51,8 +53,6 @@ const BEAT = BEAT_SCROLL / SPAN;
  */
 const EARTH_BEAT = 2;
 const WALKED_BY = 0.7;
-/** How far into the story the progress rail has faded in. */
-const RAIL_IN = 0.02;
 /** How much of the stage has to be on screen before a figure counts. */
 const SEEN = 0.6;
 /** A figure counts up for this long, slowing into its value, well inside its beat. */
@@ -71,6 +71,11 @@ const TOLD = new Set(['earth', 'languages']);
  * pieces.
  */
 const SLOT = '\u0000';
+/**
+ * The stretches of a sentence it turns on, [[like this]]. The message marks
+ * them, so each language puts them where its own grammar wants them.
+ */
+const MARKED = /\[\[(.*?)\]\]/u;
 /** The grid behind the stage, solid in the middle and gone before the edges. */
 const GRID_MASK = 'radial-gradient(ellipse at 50% 50%, black 35%, transparent 80%)';
 /** The last run of non-blank characters in a piece of a sentence: its last word. */
@@ -89,6 +94,16 @@ const WALKER_RADIUS = 3.5;
 /** The scroll cue: a short track at the foot of the first beat, and the drop that runs down it. */
 const CUE_HEIGHT = 48;
 const CUE_DROP = 12;
+/** The word over the track, set solid so the cue's height is known to the pixel. */
+const CUE_LABEL = 11;
+const CUE_TRACKING = '0.2em';
+/** Where the cue stands, just over the progress rail. */
+const CUE_BOTTOM = `calc(${spacing.s8} + ${spacing.s4})`;
+/**
+ * How far up from the foot of the stage the cue reaches, word and track, with
+ * a little air over it: what a beat that fills the stage leaves it.
+ */
+const CUE_ROOM = `calc(${CUE_BOTTOM} + ${CUE_LABEL + CUE_HEIGHT}px + ${spacing.s2} + ${spacing.s4})`;
 
 /** One answer to "What else?": the sentence it is told in, and how it is counted. */
 type Answer = { line: (inputs: { count: string }) => string; tip: () => string };
@@ -144,6 +159,40 @@ const styles = create({
     transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
     width: '100%',
   },
+  // The first beat: the sentence beside the feed, which stands under it once
+  // the window is too narrow for two columns. There it is the whole stage, so
+  // the words take what they need and the feed every row they leave, short of
+  // the cue at the foot.
+  beatFeed: {
+    boxSizing: 'border-box',
+    columnGap: spacing.s16,
+    display: 'grid',
+    gridTemplateColumns: {
+      '@media (min-width: 768px)': 'minmax(0, 1fr) auto',
+      default: 'minmax(0, 1fr)',
+    },
+    gridTemplateRows: {
+      '@media (min-width: 768px)': 'none',
+      default: 'auto minmax(0, 1fr)',
+    },
+    height: {
+      '@media (min-width: 768px)': 'auto',
+      default: firstThatWorks(
+        `calc(100dvh - ${wip.height} - 2 * ${spacing.s16})`,
+        `calc(100svh - ${wip.height} - 2 * ${spacing.s16})`,
+        `calc(100vh - ${wip.height} - 2 * ${spacing.s16})`,
+      ),
+    },
+    paddingBlockEnd: {
+      '@media (min-width: 768px)': 0,
+      default: `calc(${CUE_ROOM} - ${spacing.s16})`,
+    },
+    rowGap: spacing.s6,
+    textAlign: {
+      '@media (min-width: 768px)': 'start',
+      default: 'center',
+    },
+  },
   // Still to come: under the line, out of focus, and out of the pointer's way.
   beatNext: {
     filter: {
@@ -193,27 +242,22 @@ const styles = create({
     width: '100%',
   },
   // The way on, pinned with the stage just over the progress rail. It stands
-  // while the first beat does and fades as the second comes on, so it is never
-  // seen past the first beat. With less motion the beats already stand one
-  // under the other, and there is nothing to point at.
+  // while the first beat does and trades places with the rail as the second
+  // comes on, so the two are never seen whole at once. With less motion the
+  // beats already stand one under the other, and there is nothing to point at.
   cue: {
-    backgroundColor: colors.border,
-    borderRadius: 999,
+    alignItems: 'center',
     display: {
       '@media (prefers-reduced-motion: reduce)': 'none',
-      default: 'block',
+      default: 'flex',
     },
-    height: CUE_HEIGHT,
-    insetBlockEnd: `calc(${spacing.s8} + ${spacing.s4})`,
+    flexDirection: 'column',
+    gap: spacing.s2,
+    insetBlockEnd: CUE_BOTTOM,
     insetInlineStart: '50%',
-    overflow: 'hidden',
     pointerEvents: 'none',
     position: 'absolute',
     transform: 'translateX(-50%)',
-    transitionDuration: '400ms',
-    transitionProperty: 'opacity, visibility',
-    transitionTimingFunction: 'ease-out',
-    width: 2,
   },
   cueDrop: {
     animationDuration: '1.8s',
@@ -225,8 +269,41 @@ const styles = create({
     height: CUE_DROP,
     width: '100%',
   },
-  // Past the first beat: faded out of sight.
-  cueGone: {
+  // The word over the track, small and spaced out. The space after its last
+  // letter is taken back, so the word stands centred over the track.
+  cueLabel: {
+    color: colors.muted,
+    fontSize: CUE_LABEL,
+    letterSpacing: CUE_TRACKING,
+    lineHeight: 1,
+    marginInlineEnd: `-${CUE_TRACKING}`,
+    textTransform: 'uppercase',
+  },
+  cueTrack: {
+    backgroundColor: colors.border,
+    borderRadius: 999,
+    display: 'block',
+    height: CUE_HEIGHT,
+    overflow: 'hidden',
+    width: 2,
+  },
+  // The room the feed stands in under the sentence on a narrow screen. The
+  // phone is sized by it, so all of it is on the first screen. On a wide
+  // screen it is no box at all, and the phone stands in the beat's grid on
+  // its own.
+  feed: {
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    containerType: 'size',
+    display: {
+      '@media (min-width: 768px)': 'contents',
+      default: 'flex',
+    },
+    justifyContent: 'center',
+    justifySelf: 'stretch',
+  },
+  // Out of sight: the cue past the first beat, and the rail on it.
+  gone: {
     opacity: 0,
     visibility: 'hidden',
   },
@@ -291,6 +368,11 @@ const styles = create({
   // The i and the word before it, never split across two lines.
   markWord: {
     whiteSpace: 'nowrap',
+  },
+  // A stretch the sentence turns on: the figures' orange, at the sentence's
+  // own weight.
+  marked: {
+    color: accent.base,
   },
   orbit: {
     display: 'block',
@@ -410,6 +492,13 @@ const styles = create({
       default: 0,
     },
   },
+  // The cue and the rail trade places on the turn to the second beat and
+  // back, one fading out over the same time the other fades in.
+  swap: {
+    transitionDuration: '400ms',
+    transitionProperty: 'opacity, visibility',
+    transitionTimingFunction: 'ease-in-out',
+  },
   walker: {
     fill: accent.base,
   },
@@ -426,10 +515,22 @@ function slot(index: number): string {
 }
 
 /**
+ * Words with figures in them. Split on the slot mark, every other piece is a
+ * figure's index and the pieces between are the words around it.
+ */
+function Words({ figures, text }: { figures: ReadonlyArray<ReactNode>; text: string }) {
+  return text
+    .split(SLOT)
+    .map((piece, index) => (
+      <Fragment key={index}>{index % 2 === 1 ? figures[Number(piece)] : piece}</Fragment>
+    ));
+}
+
+/**
  * A sentence with figures in it, and the small i that says how it is counted.
- * Split on the slot mark, every other piece is a figure's index and the pieces
- * between are the words around it. The i ends the sentence and holds on to its
- * last word: a browser would otherwise start a line with it.
+ * Split on the marks, every other stretch is one the sentence turns on, set in
+ * the figures' orange. The i ends the sentence and holds on to its last word:
+ * a browser would otherwise start a line with it.
  */
 function Sentence({
   figures,
@@ -440,23 +541,27 @@ function Sentence({
   mark: ReactNode;
   text: string;
 }) {
-  const pieces = text.split(SLOT);
-  return pieces.map((piece, index) => {
-    if (index % 2 === 1) {
-      return <Fragment key={index}>{figures[Number(piece)]}</Fragment>;
-    }
-    if (index < pieces.length - 1) {
-      return <Fragment key={index}>{piece}</Fragment>;
-    }
-    const cut = piece.search(LAST_WORD);
-    return (
-      <Fragment key={index}>
-        {piece.slice(0, cut)}
-        <span {...props(styles.markWord)}>
-          {piece.slice(cut)}
-          {mark}
-        </span>
-      </Fragment>
+  const stretches = text.split(MARKED);
+  const last = stretches.length - 1;
+  return stretches.map((stretch, index) => {
+    const cut = index === last ? stretch.search(LAST_WORD) : stretch.length;
+    const words = (
+      <>
+        <Words figures={figures} text={stretch.slice(0, cut)} />
+        {index === last ? (
+          <span {...props(styles.markWord)}>
+            <Words figures={figures} text={stretch.slice(cut)} />
+            {mark}
+          </span>
+        ) : null}
+      </>
+    );
+    return index % 2 === 1 ? (
+      <span key={index} {...props(styles.marked)}>
+        {words}
+      </span>
+    ) : (
+      <Fragment key={index}>{words}</Fragment>
     );
   });
 }
@@ -597,10 +702,6 @@ export function CostStory({ id }: { id: string }) {
   const seen = useInView(stage, { amount: SEEN });
   const { scrollYProgress } = useScroll({ offset: ['start start', 'end end'], target: story });
   const [active, setActive] = useState(0);
-  // The progress rail comes in once the story has started to move.
-  // A function rather than a range: motion hands a range on the scroll itself
-  // to the browser's scroll timeline, which read this one backwards.
-  const railOpacity = useTransform(scrollYProgress, (progress) => Math.min(1, progress / RAIL_IN));
   const walked = useTransform(
     scrollYProgress,
     [EARTH_BEAT * BEAT, (EARTH_BEAT + WALKED_BY) * BEAT],
@@ -657,10 +758,15 @@ export function CostStory({ id }: { id: string }) {
     setTurns((turn) => turn + 1);
   }
 
-  function beat(index: number) {
+  function beat(index: number, style?: StyleXStyles) {
     return {
       onFocus: () => reveal(index),
-      ...props(styles.beat, index < active && styles.beatPast, index > active && styles.beatNext),
+      ...props(
+        styles.beat,
+        style,
+        index < active && styles.beatPast,
+        index > active && styles.beatNext,
+      ),
     };
   }
 
@@ -673,7 +779,7 @@ export function CostStory({ id }: { id: string }) {
       <div ref={stage} {...props(styles.stage)}>
         <GridTexture style={styles.grid} />
         <div {...props(styles.beats)}>
-          <div {...beat(0)}>
+          <div {...beat(0, styles.beatFeed)}>
             {/* The page's heading: the first thing it says. */}
             <h1 {...props(styles.line)}>
               <Sentence
@@ -688,6 +794,11 @@ export function CostStory({ id }: { id: string }) {
                 text={m.home_cost_average({ hours: slot(0) })}
               />
             </h1>
+            {/* It goes with the first beat. With less motion every beat stays
+            on the page, so it does too. */}
+            <div {...props(styles.feed)}>
+              <FeedPhone shown={reduced === true || active === 0} />
+            </div>
           </div>
 
           <div {...beat(1)}>
@@ -780,12 +891,15 @@ export function CostStory({ id }: { id: string }) {
             </Button>
           </div>
         </div>
-        <span aria-hidden="true" {...props(styles.cue, active > 0 && styles.cueGone)}>
-          <span {...props(styles.cueDrop)} />
+        <span aria-hidden="true" {...props(styles.cue, styles.swap, active > 0 && styles.gone)}>
+          <span {...props(styles.cueLabel)}>{m.home_cost_scroll()}</span>
+          <span {...props(styles.cueTrack)}>
+            <span {...props(styles.cueDrop)} />
+          </span>
         </span>
-        <motion.span aria-hidden="true" {...props(styles.rail)} style={{ opacity: railOpacity }}>
+        <span aria-hidden="true" {...props(styles.rail, styles.swap, active === 0 && styles.gone)}>
           <motion.span {...props(styles.railFill)} style={{ scaleX: scrollYProgress }} />
-        </motion.span>
+        </span>
       </div>
     </section>
   );
