@@ -11,7 +11,14 @@ import { m } from '../paraglide/messages.js';
 
 export const Route = createFileRoute('/extension/privacy')({
   component: ExtensionPrivacy,
-  head: () => ({ meta: [{ title: `${m.ext_privacy_head_title()} · ${SITE_NAME}` }] }),
+  head: () => ({
+    meta: [
+      { title: `${m.ext_privacy_head_title()} · ${SITE_NAME}` },
+      { content: m.ext_privacy_lead(), name: 'description' },
+      { content: m.ext_privacy_head_title(), property: 'og:title' },
+      { content: m.ext_privacy_lead(), property: 'og:description' },
+    ],
+  }),
 });
 
 /** The brand in prose, the way the root document spells it. */

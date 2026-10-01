@@ -16,6 +16,8 @@ export const Route = createFileRoute('/guide')({
     meta: [
       { title: `${m.guide_head_title()} · ${SITE_NAME}` },
       { content: m.guide_description(), name: 'description' },
+      { content: m.guide_head_title(), property: 'og:title' },
+      { content: m.guide_description(), property: 'og:description' },
     ],
   }),
 });

@@ -49,6 +49,8 @@ export const Route = createFileRoute('/build')({
     meta: [
       { title: `${m.build_head_title()} · ${SITE_NAME}` },
       { content: m.build_description(), name: 'description' },
+      { content: m.build_head_title(), property: 'og:title' },
+      { content: m.build_description(), property: 'og:description' },
     ],
   }),
 });

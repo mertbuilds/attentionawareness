@@ -56,43 +56,52 @@ const DESCRIPTION = `${SITE_NAME}. ${TAGLINE}. See what an average day costs, th
 
 export const Route = createRootRoute({
   component: RootComponent,
-  head: ({ match }) => ({
-    links: [
-      // The SVG first: it inverts with the browser's own theme. The PNG is
-      // there for Safari, which takes the first icon it understands.
-      // The dev build wears a blue mark, so a dev tab is never taken for the site.
-      { href: `/favicon${ICON_SUFFIX}.svg`, rel: 'icon', type: 'image/svg+xml' },
-      { href: `/favicon${ICON_SUFFIX}.png`, rel: 'icon', sizes: '32x32', type: 'image/png' },
-      { href: `/apple-touch-icon${ICON_SUFFIX}.png`, rel: 'apple-touch-icon' },
-      // Dev-only: link the unplugin's compiled CSS so SSR HTML is styled on
-      // first paint (the virtual:stylex:runtime import only injects after
-      // hydration — without this link every refresh flashes unstyled).
-      // Production CSS is emitted into app.css at build, so the link is
-      // dev-only. `precedence` is required: React 19 hoists SSR stylesheets
-      // with data-precedence, and a client link without the prop
-      // hydration-mismatches (which silently breaks event wiring on the whole
-      // tree).
-      ...(import.meta.env.DEV
-        ? [{ href: '/virtual:stylex.css', precedence: 'default', rel: 'stylesheet' }]
-        : []),
-    ],
-    meta: [
-      // oxlint-disable-next-line text-encoding-identifier-case -- HTML meta charset must be "utf-8"
-      { charSet: 'utf-8' },
-      { content: 'width=device-width, initial-scale=1', name: 'viewport' },
-      // A path no route answers is marked on the root match, and the tab says so.
-      { title: match._notFound ? `${m.not_found_head_title()} · ${SITE_NAME}` : SITE_NAME },
-      { content: DESCRIPTION, name: 'description' },
-      { content: SITE_NAME, property: 'og:site_name' },
-      { content: TAGLINE, property: 'og:title' },
-      { content: DESCRIPTION, property: 'og:description' },
-      { content: 'website', property: 'og:type' },
-      { content: SITE_URL, property: 'og:url' },
-      { content: OG_IMAGE, property: 'og:image' },
-      { content: 'summary_large_image', name: 'twitter:card' },
-      { content: OG_IMAGE, name: 'twitter:image' },
-    ],
-  }),
+  head: ({ match, matches }) => {
+    // The address a page is known by: the site's own host and the path of the
+    // deepest match, which is the page itself. A path no route answers is
+    // marked on the root match and has no address of its own.
+    const url = match._notFound ? undefined : `${SITE_URL}${matches.at(-1)?.pathname ?? '/'}`;
+    return {
+      links: [
+        // The SVG first: it inverts with the browser's own theme. The PNG is
+        // there for Safari, which takes the first icon it understands.
+        // The dev build wears a blue mark, so a dev tab is never taken for the site.
+        { href: `/favicon${ICON_SUFFIX}.svg`, rel: 'icon', type: 'image/svg+xml' },
+        { href: `/favicon${ICON_SUFFIX}.png`, rel: 'icon', sizes: '32x32', type: 'image/png' },
+        { href: `/apple-touch-icon${ICON_SUFFIX}.png`, rel: 'apple-touch-icon' },
+        // Every page names its own address, so a query string or a trailing
+        // slash is never indexed as a page of its own.
+        ...(url ? [{ href: url, rel: 'canonical' }] : []),
+        // Dev-only: link the unplugin's compiled CSS so SSR HTML is styled on
+        // first paint (the virtual:stylex:runtime import only injects after
+        // hydration — without this link every refresh flashes unstyled).
+        // Production CSS is emitted into app.css at build, so the link is
+        // dev-only. `precedence` is required: React 19 hoists SSR stylesheets
+        // with data-precedence, and a client link without the prop
+        // hydration-mismatches (which silently breaks event wiring on the whole
+        // tree).
+        ...(import.meta.env.DEV
+          ? [{ href: '/virtual:stylex.css', precedence: 'default', rel: 'stylesheet' }]
+          : []),
+      ],
+      meta: [
+        // oxlint-disable-next-line text-encoding-identifier-case -- HTML meta charset must be "utf-8"
+        { charSet: 'utf-8' },
+        { content: 'width=device-width, initial-scale=1', name: 'viewport' },
+        // A path no route answers is marked on the root match, and the tab says so.
+        { title: match._notFound ? `${m.not_found_head_title()} · ${SITE_NAME}` : SITE_NAME },
+        { content: DESCRIPTION, name: 'description' },
+        { content: SITE_NAME, property: 'og:site_name' },
+        { content: TAGLINE, property: 'og:title' },
+        { content: DESCRIPTION, property: 'og:description' },
+        { content: 'website', property: 'og:type' },
+        { content: url ?? SITE_URL, property: 'og:url' },
+        { content: OG_IMAGE, property: 'og:image' },
+        { content: 'summary_large_image', name: 'twitter:card' },
+        { content: OG_IMAGE, name: 'twitter:image' },
+      ],
+    };
+  },
   notFoundComponent: NotFound,
 });
 
