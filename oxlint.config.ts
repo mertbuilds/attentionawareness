@@ -11,10 +11,10 @@ export default defineConfig({
     '.output',
     '.turbo',
     'storybook-static',
+    '.cloudflare',
     '.wrangler',
     'apps/web/src/paraglide',
     'apps/web/src/routeTree.gen.ts',
-    'apps/web/worker-configuration.d.ts',
     '.claude/skills',
   ],
   overrides: [

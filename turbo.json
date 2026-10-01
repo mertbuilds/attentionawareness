@@ -15,7 +15,7 @@
     },
     "@attentionawareness/web#build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", "src/routeTree.gen.ts", "src/paraglide/**"]
+      "outputs": [".cloudflare/output/**", "src/routeTree.gen.ts", "src/paraglide/**"]
     },
     "@attentionawareness/web#typecheck": {
       "dependsOn": ["@attentionawareness/web#build"]

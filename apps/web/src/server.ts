@@ -1,6 +1,8 @@
 import handler from '@tanstack/react-start/server-entry';
 import { initWorkersLogger } from 'evlog/workers';
 import { canonicalRedirect } from './lib/canonical.ts';
+import { macFileResponse } from './lib/mac-files.ts';
+import type { MacFilesBucket } from './lib/mac-files.ts';
 import { removedPathRedirect } from './lib/redirects.ts';
 import { setSigningSecrets } from './lib/signing-secrets.ts';
 import { paraglideMiddleware } from './paraglide/server.js';
@@ -8,6 +10,7 @@ import { paraglideMiddleware } from './paraglide/server.js';
 interface WorkerEnv {
   AXIOM_DATASET?: string;
   AXIOM_TOKEN?: string;
+  MAC_FILES: MacFilesBucket;
   SIGNING_CERT_PEM?: string;
   SIGNING_CHAIN_PEM?: string;
   SIGNING_KEY_PKCS8_PEM?: string;
@@ -52,6 +55,7 @@ export default {
       const response =
         canonicalRedirect(url) ??
         removedPathRedirect(url) ??
+        (await macFileResponse(request, url, env.MAC_FILES)) ??
         (await paraglideMiddleware(request, () => handler.fetch(request)));
       log.set({ status: response.status });
       return response;

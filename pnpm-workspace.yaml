@@ -53,10 +53,7 @@ minimumReleaseAgeExclude:
   - '@oxlint/binding-win32-x64-msvc@1.81.0'
   - oxfmt@0.66.0
   - oxlint@1.81.0
-  - '@cloudflare/vite-plugin@1.54.3'
   - '@posthog/core@1.50.2'
-  - miniflare@5.20260831.0-alpha
   - posthog-js@1.424.1
-  - wrangler@4.128.0
   - '@testing-library/user-event@14.6.7'
-  - devknobs@0.0.1 || 0.0.2
+  - devknobs@0.0.1 || 0.0.2 || 0.0.3-next.0
