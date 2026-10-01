@@ -1,6 +1,5 @@
 /** Hours in a day a person is awake. The other eight are sleep. */
 export const WAKING_HOURS = 16;
-const MONTHS_PER_YEAR = 12;
 const DAYS_PER_YEAR = 365;
 /** The screen hours are an estimate, so they are shown to the nearest hundred. */
 const HOURS_ROUNDING = 100;
@@ -19,18 +18,51 @@ const HOURS_PER_INSTRUMENT = 2000;
 /** Hours of a four-year degree: 1,200 a year. */
 const HOURS_PER_DEGREE = 4800;
 /** The folk figure for mastery. */
-const HOURS_PER_SKILL = 10_000;
+export const HOURS_PER_SKILL = 10_000;
 /** Once around the Earth on foot: 40,075 km at 5 km/h. */
 const HOURS_PER_EARTH_WALK = 8000;
 
 /** How far ahead the page projects a daily habit. */
 export const HORIZON_YEARS = 20;
 
+/** Weeks in a year, so weekends in a year too. */
+const WEEKS_PER_YEAR = 52;
+/** The weeks inside the horizon, and as many weekends: one square each in the grid of weeks. */
+export const HORIZON_WEEKS = HORIZON_YEARS * WEEKS_PER_YEAR;
+const DAYS_PER_WEEK = 7;
+const WEEKEND_DAYS = 2;
 /**
- * The day every page falls back to: what a US adult spends on the phone
- * itself. A link that carries no day of its own is read against it.
+ * The waking hours of one weekend. The story says the screen takes as many
+ * every week, which holds from 5 hours a day (35 a week).
  */
-export const AVERAGE_DAY = { hours: 4, minutes: 5 };
+export const WEEKEND_HOURS = WEEKEND_DAYS * WAKING_HOURS;
+
+/** A daily screen habit over a week, in hours. */
+export function weeklyHours(hoursPerDay: number): number {
+  return hoursPerDay * DAYS_PER_WEEK;
+}
+
+/** The walk to the Moon: its mean distance, at the pace the Earth walk is counted at. */
+export const MOON_KM = 384_400;
+export const WALKING_KMH = 5;
+const HOURS_TO_MOON = MOON_KM / WALKING_KMH;
+/** That walk in hours, rounded the way the screen hours are: it is an estimate too. */
+export const MOON_WALK_HOURS = Math.round(HOURS_TO_MOON / HOURS_ROUNDING) * HOURS_ROUNDING;
+
+/**
+ * The day the page is priced at. The typical internet user is online 6 hours
+ * 40 minutes a day (DataReportal, Digital 2024); the page counts only the
+ * whole hours, so every figure it derives is on the low side.
+ */
+export const AVERAGE_HOURS = 6;
+
+/**
+ * How far a thumb scrolls a day, in meters: 300 feet of mobile content for
+ * the average person, the height of the Statue of Liberty, as Facebook's
+ * global creative director put it in 2017 (The Drum). Facebook gave no hours
+ * behind it, so it is not scaled to the day above.
+ */
+export const SCROLL_METERS = 90;
 
 /** One thing the hours would have bought: what it is, and how many. */
 export type HeroMetric = { amount: number; key: string };
@@ -50,18 +82,19 @@ export function formatYears(hoursPerDay: number): string {
   return text.endsWith('.0') ? text.slice(0, -2) : text;
 }
 
-/** The same span split into whole years and the months left over. */
-export function yearsAndMonths(hoursPerDay: number): { months: number; years: number } {
-  const totalMonths = Math.round(screenYears(hoursPerDay) * MONTHS_PER_YEAR);
-  return {
-    months: totalMonths % MONTHS_PER_YEAR,
-    years: Math.floor(totalMonths / MONTHS_PER_YEAR),
-  };
-}
-
 /** The same span counted in waking hours, rounded to the nearest hundred. */
 export function screenHours(hoursPerDay: number): number {
   return Math.round(exactHours(hoursPerDay) / HOURS_ROUNDING) * HOURS_ROUNDING;
+}
+
+/** The weeks of the horizon the screen years fill, whole: the grid's orange squares. */
+export function screenWeeks(hoursPerDay: number): number {
+  return Math.round((screenYears(hoursPerDay) / HORIZON_YEARS) * HORIZON_WEEKS);
+}
+
+/** How far toward the Moon the screen hours would walk, as a share of the way. */
+export function moonShare(hoursPerDay: number): number {
+  return screenHours(hoursPerDay) / HOURS_TO_MOON;
 }
 
 /**

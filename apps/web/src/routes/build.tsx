@@ -34,6 +34,7 @@ import {
   storefrontLabel,
   storefronts,
 } from '../lib/app-search.ts';
+import { brandBar } from '../lib/brand-bar.stylex.ts';
 import { controls } from '../lib/controls.ts';
 import { layout } from '../lib/layout.ts';
 import { presets } from '../lib/profile/index.ts';
@@ -48,6 +49,8 @@ export const Route = createFileRoute('/build')({
     meta: [
       { title: `${m.build_head_title()} · ${SITE_NAME}` },
       { content: m.build_description(), name: 'description' },
+      { content: m.build_head_title(), property: 'og:title' },
+      { content: m.build_description(), property: 'og:description' },
     ],
   }),
 });
@@ -269,9 +272,11 @@ const styles = create({
     isolation: 'isolate',
     minHeight: `calc(100vh - ${wip.height})`,
     paddingBlockEnd: spacing.s16,
+    // On a phone the name's strip stands over the top of the page, so the
+    // first line starts clear of it.
     paddingBlockStart: {
       '@media (min-width: 640px)': 96,
-      default: spacing.s12,
+      default: `calc(${brandBar.height} + ${spacing.s6})`,
     },
     paddingInline: spacing.s4,
     // The containing block the grid layer measures itself against.

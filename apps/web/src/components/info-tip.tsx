@@ -1,10 +1,14 @@
-import { colors } from '@attentionawareness/ui/tokens.stylex';
+import { colors, font } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import type { ReactNode } from 'react';
 import { Tip } from './tip.tsx';
 
-/** The letter on the button: not a message, so it is not in the catalog. */
-const GLYPH = 'i';
+/**
+ * The letter on the button: not a message, so it is not in the catalog. It is
+ * drawn rather than written, so a heading the button sits in reads as its own
+ * words and nothing else.
+ */
+const GLYPH = '"i"';
 
 const styles = create({
   button: {
@@ -22,21 +26,21 @@ const styles = create({
     cursor: 'pointer',
     display: 'inline-flex',
     flexShrink: 0,
-    height: 16,
+    height: 20,
     justifyContent: 'center',
     padding: 0,
-    // Centred on the cap height of the line it follows, which sits a touch
-    // above the box's own middle in a shouted receipt.
-    transform: 'translateY(-1px)',
     verticalAlign: 'middle',
-    width: 16,
+    width: 20,
   },
   // A book-face italic i, the way a printed note marks one.
   glyph: {
+    '::before': {
+      content: GLYPH,
+    },
     fontFamily: "Georgia, 'Times New Roman', serif",
     fontSize: 12,
     fontStyle: 'italic',
-    fontWeight: 700,
+    fontWeight: font.weightRegular,
     lineHeight: 1,
     marginBlockStart: -1,
     textTransform: 'none',
@@ -44,16 +48,23 @@ const styles = create({
 });
 
 /** A small "i" beside a line, and the explanation behind it. */
-export function InfoTip({ children, label }: { children: ReactNode; label: string }) {
+export function InfoTip({
+  children,
+  label,
+  onOpenChange,
+}: {
+  children: ReactNode;
+  label: string;
+  onOpenChange?: ((open: boolean) => void) | undefined;
+}) {
   return (
     <Tip
+      onOpenChange={onOpenChange}
       paper
       title={label}
       trigger={
         <button aria-label={label} type="button" {...props(styles.button)}>
-          <span aria-hidden="true" {...props(styles.glyph)}>
-            {GLYPH}
-          </span>
+          <span aria-hidden="true" {...props(styles.glyph)} />
         </button>
       }
     >

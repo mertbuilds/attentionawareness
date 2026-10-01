@@ -5,6 +5,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
+import { brandBar } from '../lib/brand-bar.stylex.ts';
 import { layout } from '../lib/layout.ts';
 import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
@@ -15,6 +16,8 @@ export const Route = createFileRoute('/guide')({
     meta: [
       { title: `${m.guide_head_title()} · ${SITE_NAME}` },
       { content: m.guide_description(), name: 'description' },
+      { content: m.guide_head_title(), property: 'og:title' },
+      { content: m.guide_description(), property: 'og:description' },
     ],
   }),
 });
@@ -121,9 +124,11 @@ const styles = create({
     isolation: 'isolate',
     minHeight: `calc(100vh - ${wip.height})`,
     paddingBlockEnd: spacing.s16,
+    // On a phone the name's strip stands over the top of the page, so the
+    // first line starts clear of it.
     paddingBlockStart: {
       '@media (min-width: 640px)': 96,
-      default: spacing.s12,
+      default: `calc(${brandBar.height} + ${spacing.s6})`,
     },
     paddingInline: spacing.s4,
     // The containing block the grid layer measures itself against.

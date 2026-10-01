@@ -1,5 +1,6 @@
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, firstThatWorks, props } from '@stylexjs/stylex';
+import type { StyleXStyles } from '@stylexjs/stylex';
 
 /** The hairline the graph paper is ruled in. Faint enough to read as paper. */
 const LINE = `color-mix(in srgb, ${colors.fg} 8%, transparent)`;
@@ -34,8 +35,9 @@ const styles = create({
  * The share card's graph paper, in the page's own colours, behind the first
  * screen of a page. It is a background and nothing else: out of flow, unclickable
  * and unreadable, so it moves nothing on the page it sits behind. It goes first
- * inside a page root that is `position: relative` and `isolation: isolate`.
+ * inside a page root that is `position: relative` and `isolation: isolate`,
+ * or inside any other positioned box that `style` sizes it to.
  */
-export function GridTexture() {
-  return <div aria-hidden="true" {...props(styles.grid)} />;
+export function GridTexture({ style }: { style?: StyleXStyles }) {
+  return <div aria-hidden="true" {...props(styles.grid, style)} />;
 }

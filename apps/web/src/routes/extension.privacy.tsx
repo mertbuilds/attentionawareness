@@ -4,13 +4,21 @@ import { create, props } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
+import { brandBar } from '../lib/brand-bar.stylex.ts';
 import { layout } from '../lib/layout.ts';
 import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
 
 export const Route = createFileRoute('/extension/privacy')({
   component: ExtensionPrivacy,
-  head: () => ({ meta: [{ title: `${m.ext_privacy_head_title()} · ${SITE_NAME}` }] }),
+  head: () => ({
+    meta: [
+      { title: `${m.ext_privacy_head_title()} · ${SITE_NAME}` },
+      { content: m.ext_privacy_lead(), name: 'description' },
+      { content: m.ext_privacy_head_title(), property: 'og:title' },
+      { content: m.ext_privacy_lead(), property: 'og:description' },
+    ],
+  }),
 });
 
 /** The brand in prose, the way the root document spells it. */
@@ -51,7 +59,7 @@ const styles = create({
   },
   heroTitle: {
     fontSize: 'clamp(36px, 6.4vw, 54px)',
-    fontWeight: font.weightBold,
+    fontWeight: font.weightRegular,
     letterSpacing: '-0.035em',
     lineHeight: 1.04,
     margin: 0,
@@ -80,9 +88,11 @@ const styles = create({
     isolation: 'isolate',
     minHeight: `calc(100vh - ${wip.height})`,
     paddingBlockEnd: spacing.s16,
+    // On a phone the name's strip stands over the top of the page, so the
+    // first line starts clear of it.
     paddingBlockStart: {
       '@media (min-width: 640px)': 96,
-      default: spacing.s12,
+      default: `calc(${brandBar.height} + ${spacing.s6})`,
     },
     paddingInline: spacing.s4,
     // The containing block the grid layer measures itself against.
@@ -95,7 +105,7 @@ const styles = create({
   },
   sectionTitle: {
     fontSize: 'clamp(22px, 3.2vw, 28px)',
-    fontWeight: font.weightBold,
+    fontWeight: font.weightMedium,
     letterSpacing: '-0.02em',
     lineHeight: 1.2,
     margin: 0,
