@@ -36,7 +36,8 @@ const SWAP_MS = 2 * Number.parseFloat(duration.quick);
 /** The reroll icon turns half a turn a fact. */
 const TURN_DEGREES = 180;
 const TURN_SECONDS = 0.7;
-const ICON_SIZE = 16;
+/** The size the standard button gives its icons. */
+const ICON_SIZE = '1rem';
 /** The figures the story tells on its own, so the deck never offers them. */
 const TOLD = new Set(['earth']);
 /**
@@ -236,13 +237,6 @@ const styles = create({
   },
   reroll: {
     display: 'inline-flex',
-  },
-  // "Show another", a solid button sized for a thumb, over its countdown.
-  rerollButton: {
-    fontSize: font.sizeSm,
-    gap: spacing.s2,
-    height: 40,
-    paddingInline: spacing.s4,
   },
   rerollPart: {
     display: 'flex',
@@ -503,7 +497,7 @@ export function Facts() {
           )}
         </div>
         <div {...props(styles.rerollPart)}>
-          <Button onClick={showNext} style={styles.rerollButton}>
+          <Button onClick={showNext}>
             <motion.span
               animate={{ rotate: turns * TURN_DEGREES }}
               transition={reduced ? { duration: 0 } : { duration: TURN_SECONDS, ease: SMOOTH_OUT }}
