@@ -1,9 +1,10 @@
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
-import { animate, useMotionValue, useMotionValueEvent, useReducedMotion } from 'motion/react';
+import { animate, useMotionValue, useMotionValueEvent } from 'motion/react';
 import { useLayoutEffect, useState } from 'react';
 import { drawing } from '../../lib/motion.stylex.ts';
+import { useLessMotion } from '../cost-story.tsx';
 import { HEIGHT, WIDTH } from './box.ts';
 
 /** The whole run, from the first word to the last page done. */
@@ -222,7 +223,7 @@ function headAt(written: number): { x: number; y: number } {
  * run its script.
  */
 function useRun(play: boolean): number {
-  const reduced = useReducedMotion();
+  const reduced = useLessMotion();
   const progress = useMotionValue(1);
   const [run, setRun] = useState(1);
   useMotionValueEvent(progress, 'change', setRun);
@@ -230,7 +231,7 @@ function useRun(play: boolean): number {
   // Before the browser paints, so a drawing put on the page never shows its
   // end for a frame before it starts.
   useLayoutEffect(() => {
-    if (reduced === true) {
+    if (reduced) {
       progress.set(1);
       return;
     }

@@ -8,12 +8,12 @@ import {
   motion,
   useMotionValue,
   useMotionValueEvent,
-  useReducedMotion,
   useTransform,
 } from 'motion/react';
 import type { MotionValue } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { drawing, duration, easing } from '../../lib/motion.stylex.ts';
+import { useLessMotion } from '../cost-story.tsx';
 import { HEIGHT, WIDTH } from './box.ts';
 
 /** What one skill takes: the folk figure for mastery. */
@@ -188,7 +188,7 @@ export function SkillsGraphic({
   labels?: SkillLabels | undefined;
   play: boolean;
 }) {
-  const reduced = useReducedMotion() === true;
+  const reduced = useLessMotion();
   // Done until the page says otherwise, so a page that has not run its script
   // shows every track full.
   const clock = useMotionValue(SECONDS);

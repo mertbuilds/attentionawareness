@@ -1,16 +1,10 @@
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
-import {
-  animate,
-  motion,
-  useMotionValue,
-  useMotionValueEvent,
-  useReducedMotion,
-  useTransform,
-} from 'motion/react';
+import { animate, motion, useMotionValue, useMotionValueEvent, useTransform } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { blur, distance, drawing } from '../../lib/motion.stylex.ts';
+import { useLessMotion } from '../cost-story.tsx';
 import { HEIGHT, WIDTH } from './box.ts';
 
 /**
@@ -151,7 +145,7 @@ function flipOf(at: number): number {
  * on the last word with every tick counted.
  */
 export function LanguagesGraphic({ amount, play }: { amount: number; play: boolean }) {
-  const reduced = useReducedMotion();
+  const reduced = useLessMotion();
   // Done until the page says otherwise, so a page that has not run its script
   // shows the last word.
   const progress = useMotionValue(1);
@@ -171,7 +165,7 @@ export function LanguagesGraphic({ amount, play }: { amount: number; play: boole
   useMotionValueEvent(reel, 'change', (at) => setCounted(Math.round(at)));
 
   useEffect(() => {
-    if (reduced === true) {
+    if (reduced) {
       progress.set(1);
       return;
     }

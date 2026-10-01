@@ -8,13 +8,13 @@ import {
   useInView,
   useMotionValue,
   useMotionValueEvent,
-  useReducedMotion,
 } from 'motion/react';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { SCROLL_METERS } from '../lib/attention-math.ts';
 import { drawing } from '../lib/motion.stylex.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
+import { useLessMotion } from './cost-story.tsx';
 
 /** The drawing's own box, taller than it is wide, and the ground near its foot: the thumb stands under it. */
 const WIDTH = 240;
@@ -258,7 +258,7 @@ function tabVisibleOnServer(): boolean {
  */
 export function ThumbDistance({ play }: { play: boolean }) {
   const box = useRef<HTMLDivElement>(null);
-  const reduced = useReducedMotion() === true;
+  const reduced = useLessMotion();
   const onScreen = useInView(box);
   const tabShown = useSyncExternalStore(subscribeVisibility, tabVisible, tabVisibleOnServer);
   const clock = useMotionValue(0);

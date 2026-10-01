@@ -1,12 +1,6 @@
-import {
-  animate,
-  clamp,
-  cubicBezier,
-  useMotionValue,
-  useMotionValueEvent,
-  useReducedMotion,
-} from 'motion/react';
+import { animate, clamp, cubicBezier, useMotionValue, useMotionValueEvent } from 'motion/react';
 import { useLayoutEffect, useState } from 'react';
+import { useLessMotion } from '../cost-story.tsx';
 
 /** `easing.smoothOut`, as a function the drawings can ease a stretch by. */
 const smoothOut = cubicBezier(0.22, 1, 0.36, 1);
@@ -18,7 +12,7 @@ const smoothOut = cubicBezier(0.22, 1, 0.36, 1);
  * for a page that has not run its script.
  */
 export function usePlayhead(play: boolean, seconds: number): number {
-  const reduced = useReducedMotion() === true;
+  const reduced = useLessMotion();
   const clock = useMotionValue(1);
   const [at, setAt] = useState(1);
   useMotionValueEvent(clock, 'change', setAt);

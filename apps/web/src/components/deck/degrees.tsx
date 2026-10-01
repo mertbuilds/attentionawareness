@@ -1,18 +1,11 @@
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
-import {
-  animate,
-  clamp,
-  easeOut,
-  motion,
-  useMotionValue,
-  useReducedMotion,
-  useTransform,
-} from 'motion/react';
+import { animate, clamp, easeOut, motion, useMotionValue, useTransform } from 'motion/react';
 import type { MotionValue } from 'motion/react';
 import { useEffect, useId } from 'react';
 import { drawing } from '../../lib/motion.stylex.ts';
+import { useLessMotion } from '../cost-story.tsx';
 import { HEIGHT, WIDTH } from './box.ts';
 
 /**
@@ -343,7 +336,7 @@ function Cap({
  * done.
  */
 export function DegreesGraphic({ amount, play }: { amount: number; play: boolean }) {
-  const reduced = useReducedMotion() === true;
+  const reduced = useLessMotion();
   // Done until the page says otherwise, so a page that has not run its script
   // shows the whole row.
   const clock = useMotionValue(SECONDS);

@@ -1,9 +1,10 @@
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
-import { animate, useMotionValue, useMotionValueEvent, useReducedMotion } from 'motion/react';
+import { animate, useMotionValue, useMotionValueEvent } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { drawing, easing } from '../../lib/motion.stylex.ts';
+import { useLessMotion } from '../cost-story.tsx';
 import { HEIGHT, WIDTH } from './box.ts';
 
 const CENTER = WIDTH / 2;
@@ -147,7 +148,7 @@ function Detail({ book }: { book: Book }) {
  * and starts over when it goes off; with less motion it stands piled high.
  */
 export function BooksGraphic({ play }: { play: boolean }) {
-  const reduced = useReducedMotion();
+  const reduced = useLessMotion();
   // Done until the page says otherwise, so a page that has not run its script
   // shows the whole pile.
   const progress = useMotionValue(1);
@@ -155,7 +156,7 @@ export function BooksGraphic({ play }: { play: boolean }) {
   useMotionValueEvent(progress, 'change', (t) => setLanded(Math.ceil(t * BOOKS.length)));
 
   useEffect(() => {
-    if (reduced === true) {
+    if (reduced) {
       progress.set(1);
       return;
     }

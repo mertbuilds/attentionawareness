@@ -1,9 +1,10 @@
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
-import { animate, useMotionValue, useMotionValueEvent, useReducedMotion } from 'motion/react';
+import { animate, useMotionValue, useMotionValueEvent } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { drawing, easing } from '../../lib/motion.stylex.ts';
+import { useLessMotion } from '../cost-story.tsx';
 import { HEIGHT, WIDTH } from './box.ts';
 
 /** The drawing plays once over this long each time it comes on. */
@@ -111,21 +112,21 @@ const styles = create({
  * reader who asked for less motion it stands at the end.
  */
 function usePlayhead(play: boolean): number {
-  const reduced = useReducedMotion();
+  const reduced = useLessMotion();
   const clock = useMotionValue(0);
   const [at, setAt] = useState(0);
   useMotionValueEvent(clock, 'change', setAt);
 
   useEffect(() => {
     clock.set(0);
-    if (!play || reduced === true) {
+    if (!play || reduced) {
       return;
     }
     const controls = animate(clock, 1, { duration: PLAY_SECONDS, ease: 'linear' });
     return () => controls.stop();
   }, [clock, play, reduced]);
 
-  return reduced === true ? 1 : at;
+  return reduced ? 1 : at;
 }
 
 function clamp(t: number): number {
@@ -275,7 +276,7 @@ function flown(way: Route, share: number): { path: string; point: Point } {
  * less motion it stands finished.
  */
 export function TripsGraphic({ play }: { play: boolean }) {
-  const reduced = useReducedMotion();
+  const reduced = useLessMotion();
   const at = usePlayhead(play);
   const flights = ROUTES.map((flight, index) => {
     const leaves = index * STAGGER;
@@ -319,7 +320,7 @@ export function TripsGraphic({ play }: { play: boolean }) {
           </g>
         );
       })}
-      {at >= 1 && reduced !== true && last !== undefined ? (
+      {at >= 1 && !reduced && last !== undefined ? (
         <circle cx={last.to.x} cy={last.to.y} r={CITY_RADIUS} {...props(styles.ripple)} />
       ) : null}
     </svg>
