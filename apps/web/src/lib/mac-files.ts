@@ -1,11 +1,16 @@
 /**
  * The Mac app's files: the Sparkle feed (`appcast.xml`), `latest.json` and the
- * versioned dmgs. They live in the private R2 bucket `attentionawareness-mac`
- * under the same path as their URL (`/mac/appcast.xml` is the key
+ * versioned dmgs. They live in the private R2 bucket behind `MAC_FILES` under
+ * the same path as their URL (`/mac/appcast.xml` is the key
  * `mac/appcast.xml`). The shipped app has the feed URL baked in, so these URLs
  * never move.
  */
 const PREFIX = '/mac/';
+/**
+ * The shape of a served file: one flat name under `/mac/`. Anything else is a
+ * 404 before R2 is asked, which throws on a key that is too long.
+ */
+const FILE_PATH = /^\/mac\/[\w.-]{1,200}$/u;
 
 /** A dmg is never replaced under its versioned name. */
 const DMG_CACHE = 'public, max-age=31536000, immutable';
@@ -117,6 +122,9 @@ export async function macFileResponse(
 ): Promise<Response | null> {
   if (!url.pathname.startsWith(PREFIX) || url.pathname.length === PREFIX.length) {
     return null;
+  }
+  if (!FILE_PATH.test(url.pathname)) {
+    return notFound();
   }
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     return new Response(null, { headers: { allow: 'GET, HEAD' }, status: 405 });
