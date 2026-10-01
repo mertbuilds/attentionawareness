@@ -1046,7 +1046,7 @@ function Words({ figures, text }: { figures: ReadonlyArray<ReactNode>; text: str
  * the figures' orange. The i ends the sentence and holds on to its last word:
  * a browser would otherwise start a line with it.
  */
-function Sentence({
+export function Sentence({
   figures,
   mark,
   text,

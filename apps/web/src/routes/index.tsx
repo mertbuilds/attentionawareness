@@ -1,6 +1,6 @@
 import { Button } from '@attentionawareness/ui';
 import { accent } from '@attentionawareness/ui/accent.stylex';
-import { colors, font, palette, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
+import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { useRef, useState } from 'react';
@@ -8,9 +8,9 @@ import { flushSync } from 'react-dom';
 import { CostStory } from '../components/cost-story.tsx';
 import { MacDownload } from '../components/mac-download.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
+import { Turn } from '../components/turn.tsx';
 import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
-import { getLocale } from '../paraglide/runtime.js';
 
 export const Route = createFileRoute('/')({
   component: HomePage,
@@ -48,44 +48,6 @@ const STORY_URL = 'https://stopa.io/post/297';
  * pieces.
  */
 const LINK_SLOT = '\u0000';
-
-/**
- * One real week on the wall: a screenshot cropped to the Screen Time average
- * card, so no name, device or status bar is in the picture, or a short clip.
- * Another one is a file in `public/media/screentime-friends/` and a line here.
- */
-type Week = {
-  height: number;
-  kind: 'image' | 'video';
-  src: string;
-  /** The day the week starts on, as the phone counts it. */
-  week: string;
-  width: number;
-};
-
-const WEEKS: ReadonlyArray<Week> = [
-  {
-    height: 640,
-    kind: 'image',
-    src: '/media/screentime-friends/friend-1-week-sep-07.webp',
-    week: '2026-09-07',
-    width: 800,
-  },
-  {
-    height: 640,
-    kind: 'image',
-    src: '/media/screentime-friends/friend-1-week-sep-14.webp',
-    week: '2026-09-14',
-    width: 800,
-  },
-  {
-    height: 640,
-    kind: 'image',
-    src: '/media/screentime-friends/friend-1-week-sep-21.webp',
-    week: '2026-09-21',
-    width: 800,
-  },
-];
 
 const styles = create({
   // A section the page links down to. The scroll stops short of its heading,
@@ -195,35 +157,6 @@ const styles = create({
     lineHeight: 1.5,
     margin: 0,
   },
-  // Real weeks, side by side while they fit and one under the other on a
-  // phone.
-  wall: {
-    display: 'grid',
-    gap: spacing.s6,
-    gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-    listStyle: 'none',
-    margin: 0,
-    padding: 0,
-  },
-  wallCaption: {
-    color: colors.muted,
-    fontSize: font.sizeSm,
-    lineHeight: 1.4,
-  },
-  wallFigure: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s2,
-    margin: 0,
-  },
-  // A screenshot is black in both themes, the way the phone took it.
-  wallMedia: {
-    backgroundColor: palette.black,
-    borderRadius: radius.base,
-    display: 'block',
-    height: 'auto',
-    width: '100%',
-  },
   // One of the two ways out: what it is, what it costs, what it does to the
   // phone, and the button at the foot, level with the other card's.
   way: {
@@ -297,15 +230,6 @@ const styles = create({
   },
 });
 
-/** The day a week on the wall starts on, the way the reader's language writes it. */
-function weekOf(day: string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, {
-    day: 'numeric',
-    month: 'long',
-    timeZone: 'UTC',
-  }).format(new Date(`${day}T00:00:00Z`));
-}
-
 function HomePage() {
   const storySection = useRef<HTMLElement>(null);
   const [storyOpen, setStoryOpen] = useState(false);
@@ -321,7 +245,6 @@ function HomePage() {
     storySection.current?.scrollIntoView({ block: 'start' });
   }
 
-  const locale = getLocale();
   // The post the story links out to, in the middle of the sentence that tells
   // it, so the words around it keep their own order in every language.
   const [storyBefore, storyAfter] = m.home_story_1({ post: LINK_SLOT }).split(LINK_SLOT);
@@ -348,49 +271,9 @@ function HomePage() {
     <main {...props(styles.page)}>
       <div {...props(styles.content)}>
         {/* Act one, the problem, and the first screen: what an average day
-        adds up to, told one sentence a screen, and then what it looks like on
-        real phones. */}
+        adds up to, told one sentence a screen, and then whose doing it is. */}
         <CostStory id={COST_ID} />
-
-        <section {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_wall_title()}</h2>
-          <p {...props(styles.sectionBody)}>{m.home_wall_body()}</p>
-          <ul {...props(styles.wall)}>
-            {WEEKS.map((week) => (
-              <li key={week.src}>
-                <figure {...props(styles.wallFigure)}>
-                  {week.kind === 'video' ? (
-                    <video
-                      aria-label={m.home_wall_alt()}
-                      autoPlay
-                      height={week.height}
-                      loop
-                      muted
-                      playsInline
-                      preload="metadata"
-                      src={week.src}
-                      width={week.width}
-                      {...props(styles.wallMedia)}
-                    />
-                  ) : (
-                    <img
-                      alt={m.home_wall_alt()}
-                      decoding="async"
-                      height={week.height}
-                      loading="lazy"
-                      src={week.src}
-                      width={week.width}
-                      {...props(styles.wallMedia)}
-                    />
-                  )}
-                  <figcaption {...props(styles.wallCaption)}>
-                    {m.home_wall_caption({ week: weekOf(week.week, locale) })}
-                  </figcaption>
-                </figure>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <Turn />
 
         {/* Act two, the way out: the app that keeps the phone as it is, and
         the manual way that starts it over. */}
