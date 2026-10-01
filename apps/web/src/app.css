@@ -55,6 +55,21 @@ body {
   margin: 0;
 }
 
+/*
+ * Form controls wear the page's font, not the browser's own. StyleX writes
+ * into cascade layers and an unlayered rule would beat every one of them, so
+ * this sits in a layer of its own. This sheet comes before StyleX's, so the
+ * layer ranks under theirs and a component's own size and weight still apply.
+ */
+@layer reset {
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+}
+
 /* The more-settings disclosure draws its own chevron, so Safari's triangle
    goes away here as well as through `list-style`. */
 summary::-webkit-details-marker {
