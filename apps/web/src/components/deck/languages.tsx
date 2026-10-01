@@ -9,7 +9,6 @@ import {
   useReducedMotion,
   useTransform,
 } from 'motion/react';
-import type { MotionValue } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { blur, distance, drawing } from '../../lib/motion.stylex.ts';
 import { HEIGHT, WIDTH } from './box.ts';
@@ -151,15 +150,7 @@ function flipOf(at: number): number {
  * `play` comes on and starts over when it goes off; with less motion it stands
  * on the last word with every tick counted.
  */
-export function LanguagesGraphic({
-  amount,
-  count,
-  play,
-}: {
-  amount: number;
-  count: MotionValue<number>;
-  play: boolean;
-}) {
+export function LanguagesGraphic({ amount, play }: { amount: number; play: boolean }) {
   const reduced = useReducedMotion();
   // Done until the page says otherwise, so a page that has not run its script
   // shows the last word.
@@ -178,11 +169,6 @@ export function LanguagesGraphic({
   const wordFilter = useTransform(away, (t) => `blur(${(SWAP_BLUR * t).toFixed(2)}px)`);
   const [counted, setCounted] = useState(amount);
   useMotionValueEvent(reel, 'change', (at) => setCounted(Math.round(at)));
-
-  useEffect(() => {
-    count.set(reel.get());
-    return reel.on('change', (at) => count.set(at));
-  }, [count, reel]);
 
   useEffect(() => {
     if (reduced === true) {

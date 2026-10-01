@@ -59,7 +59,7 @@ const WEEKENDS_BEAT = 2;
 const EARTH_BEAT = 3;
 const MOON_BEAT = 4;
 const MORE_BEAT = 5;
-/** How much of the stage has to be on screen before a figure counts. */
+/** How much of the stage has to be on screen before a drawing plays. */
 const SEEN = 0.6;
 /** `easing.smoothOut`, the curve things move into place on, as motion takes a curve. */
 const SMOOTH_OUT: [number, number, number, number] = [0.22, 1, 0.36, 1];
@@ -70,12 +70,8 @@ const FADE_OUT_MS = Number.parseFloat(duration.quick);
  * each, and the next drawing waits for it to land.
  */
 const SWAP_MS = 2 * Number.parseFloat(duration.quick);
-/** The sentences' line height, which a figure's reels are cut to so its digits sit on the line. */
+/** The sentences' line height. */
 const LINE_HEIGHT = 1.15;
-/** A reel: every digit, and nought again after nine, so a turn past nine rolls on into it. */
-const REEL = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
-/** The window a reel is seen through fades out at its top and foot, so a digit rolls in and out of nowhere. */
-const REEL_MASK = 'linear-gradient(to bottom, transparent, black 18%, black 82%, transparent)';
 /**
  * A wheel or a trackpad moves the story a beat a gesture. A gesture is over
  * once the wheel has been still this long, or once it has ebbed to under a
@@ -504,6 +500,11 @@ const styles = create({
     gap: spacing.s3,
     width: '100%',
   },
+  // A figure in a sentence, in the story's orange and in even figures.
+  figure: {
+    color: accent.base,
+    fontVariantNumeric: 'tabular-nums',
+  },
   globe: {
     fill: 'none',
     stroke: colors.muted,
@@ -729,50 +730,6 @@ const styles = create({
     height: '100%',
     transformOrigin: 'left',
     width: '100%',
-  },
-  // A figure that counts: the number itself, read but not seen, and its
-  // reels, seen but not read.
-  rolling: {
-    color: accent.base,
-    fontVariantNumeric: 'tabular-nums',
-    position: 'relative',
-  },
-  rollingText: {
-    clipPath: 'inset(50%)',
-    height: 1,
-    insetInlineStart: 0,
-    overflow: 'hidden',
-    position: 'absolute',
-    whiteSpace: 'nowrap',
-    width: 1,
-  },
-  // The reels side by side, a line tall, top to the top of the line, so each
-  // digit sits where the line would have set it.
-  reels: {
-    display: 'inline-flex',
-    height: `${LINE_HEIGHT}em`,
-    lineHeight: LINE_HEIGHT,
-    verticalAlign: 'top',
-    whiteSpace: 'nowrap',
-  },
-  // One digit's window, a digit wide and a line tall.
-  reel: {
-    height: `${LINE_HEIGHT}em`,
-    maskImage: REEL_MASK,
-    overflow: 'hidden',
-    WebkitMaskImage: REEL_MASK,
-  },
-  reelStrip: {
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  // Drawn rather than written, the way the room is.
-  reelDigit: {
-    '::before': {
-      content: 'attr(data-digit)',
-    },
-    display: 'block',
-    height: `${LINE_HEIGHT}em`,
   },
   reroll: {
     display: 'inline-flex',
@@ -1139,156 +1096,13 @@ function Sentence({
   });
 }
 
-/**
- * A place of a number as the page prints it: a digit, worth `unit`, whose
- * nought only shows from `zeroFrom` on, so a count has no leading noughts; or
- * a mark between digits, shown from `from` on.
- */
-type Place =
-  | { kind: 'digit'; unit: number; zeroFrom: number }
-  | { from: number; kind: 'mark'; text: string };
-
-/** The places `value` is printed in: a reel for each digit, and the marks between them as they stand. */
-function placesOf(format: Intl.NumberFormat, value: number): Array<Place> {
-  const parts = format.formatToParts(value);
-  let place = parts
-    .filter((part) => part.type === 'integer')
-    .reduce((digits, part) => digits + part.value.length, 0);
-  const places: Array<Place> = [];
-  for (const part of parts) {
-    if (part.type === 'integer' || part.type === 'fraction') {
-      for (let digit = 0; digit < part.value.length; digit++) {
-        place -= 1;
-        const unit = 10 ** place;
-        places.push({ kind: 'digit', unit, zeroFrom: unit >= 10 ? unit : 0 });
-      }
-    } else {
-      // A thousands mark shows once the digit before it does; a decimal one always.
-      places.push({
-        from: part.type === 'group' ? 10 ** place : 0,
-        kind: 'mark',
-        text: part.value,
-      });
-    }
-  }
-  return places;
-}
-
-/**
- * Where a digit's reel stands at `count`, in digits from nought: the last
- * place turns with the count itself, and every other one only while the
- * places under it roll over from all nines, the way a mechanical counter
- * carries.
- */
-function reelAt(count: number, unit: number, smallest: number): number {
-  const steps = Math.round((Math.max(0, count) / smallest) * 1e6) / 1e6;
-  const turn = Math.round(unit / smallest);
-  const turns = Math.floor(steps / turn);
-  const carry = Math.min(1, Math.max(0, steps - turns * turn - (turn - 1)));
-  return turn === 1 ? steps % 10 : (turns % 10) + carry;
-}
-
-/**
- * A value that follows `count` through `toValue`. It takes up the count as it
- * stands whenever it starts following, so a count set while the reel was
- * being put on the page is never missed.
- */
-function useFollowing<T>(
-  count: MotionValue<number>,
-  toValue: (latest: number) => T,
-): MotionValue<T> {
-  const value = useMotionValue(toValue(count.get()));
-  useEffect(() => {
-    value.set(toValue(count.get()));
-    return count.on('change', (latest) => value.set(toValue(latest)));
-  }, [count, toValue, value]);
-  return value;
-}
-
-/** One digit's reel, rolled to where `count` puts it. */
-function Reel({
-  count,
-  smallest,
-  unit,
-  zeroFrom,
-}: {
-  count: MotionValue<number>;
-  smallest: number;
-  unit: number;
-  zeroFrom: number;
-}) {
-  const y = useFollowing(count, (latest) => `${-reelAt(latest, unit, smallest) * LINE_HEIGHT}em`);
-  const zero = useFollowing(count, (latest) => (latest >= zeroFrom ? 1 : 0));
-  return (
-    <span {...props(styles.reel)}>
-      <motion.span {...props(styles.reelStrip)} style={{ y }}>
-        {REEL.map((digit, index) => (
-          <motion.span
-            data-digit={digit}
-            key={index}
-            {...props(styles.reelDigit)}
-            style={index === 0 ? { opacity: zero } : {}}
-          />
-        ))}
-      </motion.span>
-    </span>
-  );
-}
-
-/** A mark between a number's digits, shown once the digit before it is. */
-function ReelMark({
-  count,
-  from,
-  text,
-}: {
-  count: MotionValue<number>;
-  from: number;
-  text: string;
-}) {
-  const opacity = useFollowing(count, (latest) => (latest >= from ? 1 : 0));
-  return <motion.span data-digit={text} {...props(styles.reelDigit)} style={{ opacity }} />;
-}
-
-/**
- * A figure in a sentence, counted up to `value` as far as `count` has got:
- * its beat's drawing keeps it, so the two count together. Each digit rolls on
- * its own reel, the way a mechanical counter turns. The sentence's text holds
- * the figure once, at its value, for whoever reads rather than looks.
- */
-function Figure({
-  count,
-  decimals = 0,
-  value,
-}: {
-  count: MotionValue<number>;
-  decimals?: number;
-  value: number;
-}) {
+/** A figure in a sentence, printed the way the page's language prints it. */
+function Figure({ decimals = 0, value }: { decimals?: number; value: number }) {
   const format = new Intl.NumberFormat(getLocale(), {
     maximumFractionDigits: decimals,
     minimumFractionDigits: decimals,
   });
-  const smallest = 10 ** -decimals;
-  return (
-    <span {...props(styles.rolling)}>
-      <span {...props(styles.rollingText)}>{format.format(value)}</span>
-      <span aria-hidden="true" {...props(styles.reels)}>
-        {placesOf(format, value).map((place, index) =>
-          place.kind === 'digit' ? (
-            <Reel
-              count={count}
-              key={index}
-              smallest={smallest}
-              unit={place.unit}
-              zeroFrom={place.zeroFrom}
-            />
-          ) : (
-            <ReelMark count={count} from={place.from} key={index} text={place.text} />
-          ),
-        )}
-      </span>
-    </span>
-  );
+  return <span {...props(styles.figure)}>{format.format(value)}</span>;
 }
 
 /** The small i after a figure, and how it is counted. */
@@ -1801,31 +1615,18 @@ function Moon({
   );
 }
 
-/**
- * One answer to "What else?" drawn, playing while `play` is on, and keeping
- * `count` on how far it has counted, for the sentence it is told in.
- */
-function AnswerGraphic({
-  answer,
-  count,
-  play,
-}: {
-  answer: Counted;
-  count: MotionValue<number>;
-  play: boolean;
-}) {
+/** One answer to "What else?" drawn, playing while `play` is on. */
+function AnswerGraphic({ answer, play }: { answer: Counted; play: boolean }) {
   const Graphic = DECK_GRAPHICS[answer.key];
-  return Graphic === undefined ? null : (
-    <Graphic amount={answer.amount} count={count} play={play} />
-  );
+  return Graphic === undefined ? null : <Graphic amount={answer.amount} play={play} />;
 }
 
 /**
  * Act one: what the average day costs, told one sentence a screen. The stage
  * stands pinned while the section scrolls under it, the page comes to rest on
- * one beat at a time, and each beat's figure counts up and its drawing plays
- * as it comes on. "What else?" ends it with the rest of what the same hours
- * would have bought, one at a time.
+ * one beat at a time, and each beat's drawing plays as it comes on. "What
+ * else?" ends it with the rest of what the same hours would have bought, one
+ * at a time.
  */
 export function CostStory({ id }: { id: string }) {
   const story = useRef<HTMLElement>(null);
@@ -1842,7 +1643,6 @@ export function CostStory({ id }: { id: string }) {
   // The page has gone on past the last beat, and the story is over.
   const [told, setTold] = useState(false);
   const on = (index: number) => seen && active === index;
-  const hoursCounted = usePlayed(on(0), drawing.hours, SMOOTH_OUT);
   const weeksDrawn = usePlayed(on(WEEKS_BEAT), drawing.weeks, SMOOTH_OUT);
   const weekendsDrawn = usePlayed(on(WEEKENDS_BEAT), drawing.weekends, 'linear');
   const walked = usePlayed(on(EARTH_BEAT), drawing.earth, SMOOTH_OUT);
@@ -1881,22 +1681,11 @@ export function CostStory({ id }: { id: string }) {
   const onTime = useEffectEvent(() => showNext());
   const answer = answers.find((candidate) => candidate.key === pick);
   const leaving = answers.find((candidate) => candidate.key === previous);
-  // Each answer's count, which its drawing keeps and its sentence shows. The
-  // answer up and the one on its way out take one each, in turn, so the one
-  // leaving keeps its own.
-  const countA = useMotionValue(0);
-  const countB = useMotionValue(0);
-  const answerCount = turns % 2 === 0 ? countA : countB;
-  const leavingCount = turns % 2 === 0 ? countB : countA;
-  // The waking years, as the page prints them, counted at the same precision.
+  // The waking years, as the page prints them.
   const years = Number(formatYears(AVERAGE_HOURS));
   const number = new Intl.NumberFormat(getLocale());
   const toMoon = moonShare(AVERAGE_HOURS);
   const toMoonPercent = Math.round(toMoon * 100);
-  // Each figure counts on its beat's own clock, so it lands as the drawing does.
-  const hours = useTransform(hoursCounted, (t) => t * AVERAGE_HOURS);
-  const yearsCounted = useTransform(weeksDrawn, (t) => t * years);
-  const laps = useTransform(walked, (t) => t * earth);
 
   // The beat whose resting place the page is nearest, so a beat takes over
   // from the last halfway through the page's move from one to the next.
@@ -2111,7 +1900,7 @@ export function CostStory({ id }: { id: string }) {
   }, [reduced]);
 
   // A new answer's drawing waits for its sentence to swap in, so it starts
-  // drawing, and counting, once the reader can see what it counts.
+  // drawing once the reader can see what it stands for.
   useEffect(() => {
     if (landed) {
       return;
@@ -2226,7 +2015,7 @@ export function CostStory({ id }: { id: string }) {
             {/* The page's heading: the first thing it says. */}
             <h1 {...props(partOf(0, 0, styles.line))}>
               <Sentence
-                figures={[<Figure count={hours} key="hours" value={AVERAGE_HOURS} />]}
+                figures={[<Figure key="hours" value={AVERAGE_HOURS} />]}
                 mark={
                   <Mark label={m.home_cost_source_label()}>
                     <a href={SOURCE_URL} rel="noreferrer" target="_blank">
@@ -2254,12 +2043,7 @@ export function CostStory({ id }: { id: string }) {
             <p {...props(partOf(WEEKS_BEAT, 1, styles.line))}>
               <Sentence
                 figures={[
-                  <Figure
-                    count={yearsCounted}
-                    decimals={Number.isInteger(years) ? 0 : 1}
-                    key="years"
-                    value={years}
-                  />,
+                  <Figure decimals={Number.isInteger(years) ? 0 : 1} key="years" value={years} />,
                 ]}
                 mark={
                   <Mark label={tipLabel}>
@@ -2305,7 +2089,7 @@ export function CostStory({ id }: { id: string }) {
             <Orbit laps={earth} style={partOf(EARTH_BEAT, 0)} walked={walked} />
             <p {...props(partOf(EARTH_BEAT, 1, styles.line))}>
               <Sentence
-                figures={[<Figure count={laps} key="earth" value={earth} />]}
+                figures={[<Figure key="earth" value={earth} />]}
                 mark={<Mark label={tipLabel}>{m.home_receipt_earth_tip()}</Mark>}
                 text={m.home_cost_earth({ count: slot(0) })}
               />
@@ -2366,7 +2150,7 @@ export function CostStory({ id }: { id: string }) {
                     }}
                     {...props(styles.swapArt, styles.artOut)}
                   >
-                    <AnswerGraphic answer={leaving} count={leavingCount} play={deckPlays} />
+                    <AnswerGraphic answer={leaving} play={deckPlays} />
                   </div>
                 )}
                 {answer === undefined ? null : (
@@ -2374,7 +2158,7 @@ export function CostStory({ id }: { id: string }) {
                     key={`${answer.key}-${turns}`}
                     {...props(styles.swapArt, turns > 0 && styles.artIn)}
                   >
-                    <AnswerGraphic answer={answer} count={answerCount} play={deckPlays && landed} />
+                    <AnswerGraphic answer={answer} play={deckPlays && landed} />
                   </div>
                 )}
               </div>
@@ -2386,7 +2170,7 @@ export function CostStory({ id }: { id: string }) {
                     {...props(styles.line, styles.swapLine, styles.lineOut)}
                   >
                     <Sentence
-                      figures={[<Figure count={leavingCount} key="count" value={leaving.amount} />]}
+                      figures={[<Figure key="count" value={leaving.amount} />]}
                       mark={null}
                       text={leaving.line({ count: slot(0) })}
                     />
@@ -2398,7 +2182,7 @@ export function CostStory({ id }: { id: string }) {
                     {...props(styles.line, styles.swapLine, turns > 0 && styles.lineIn)}
                   >
                     <Sentence
-                      figures={[<Figure count={answerCount} key="count" value={answer.amount} />]}
+                      figures={[<Figure key="count" value={answer.amount} />]}
                       mark={
                         <Mark label={tipLabel} onOpenChange={setTipOpen}>
                           {answer.tip()}

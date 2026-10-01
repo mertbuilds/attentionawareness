@@ -2,8 +2,7 @@ import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
 import { animate, useMotionValue, useMotionValueEvent, useReducedMotion } from 'motion/react';
-import type { MotionValue } from 'motion/react';
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { drawing } from '../../lib/motion.stylex.ts';
 import { HEIGHT, WIDTH } from './box.ts';
 
@@ -173,21 +172,6 @@ function doneAt(page: number, pages: number): number {
   return page + (page === pages - 1 ? 1 : WRITING);
 }
 
-/** The novels the pile stands for once `slabs` of its slabs are down: one a slab at first, more and more after. */
-function novelsBy(slabs: number, pages: number, amount: number): number {
-  return slabs === 0 ? 0 : Math.max(slabs, Math.ceil(amount * (slabs / pages) ** 2));
-}
-
-/** The count `written` pages in: it climbs while a page is written and lands as the page is done. */
-function countAt(written: number, pages: number, amount: number): number {
-  if (pages === 0) {
-    return 0;
-  }
-  const whole = Math.min(Math.floor(written), pages - 1);
-  const from = novelsBy(whole, pages, amount);
-  return from + (novelsBy(whole + 1, pages, amount) - from) * (written - whole);
-}
-
 /**
  * A point of the page turned `angle` about its left edge: it closes in on
  * that edge while the far side grows toward the reader.
@@ -264,18 +248,9 @@ function useRun(play: boolean): number {
 /**
  * A manuscript writing itself: lines of words typed in left to right, the page
  * turned over when it is full and the next one started, faster and faster.
- * Every finished page drops onto the pile beside it, in orange, while `count`
- * climbs to `amount` for the sentence under it.
+ * Every finished page drops onto the pile beside it, in orange.
  */
-export function NovelsGraphic({
-  amount,
-  count,
-  play,
-}: {
-  amount: number;
-  count: MotionValue<number>;
-  play: boolean;
-}) {
+export function NovelsGraphic({ amount, play }: { amount: number; play: boolean }) {
   const run = useRun(play);
   const pages = Math.max(0, Math.min(PILE_MAX, amount));
   const at = pagesAt(run, pageWeights(pages));
@@ -287,11 +262,6 @@ export function NovelsGraphic({
   const turned = last ? 0 : clamp((into - WRITING) / (1 - WRITING));
   const angle = (Math.PI / 2) * turned ** 2;
   const head = headAt(written);
-  const counted = countAt(page + written, pages, amount);
-
-  useEffect(() => {
-    count.set(counted);
-  }, [count, counted]);
 
   return (
     <svg aria-hidden="true" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} {...props(styles.drawing)}>

@@ -52,7 +52,7 @@ export const scale = defineConsts({
  * token above fits them; they are kept together here so the whole story can
  * be slowed or quickened at once. Each starts `delay` after its beat comes on,
  * once the sentence has risen into place: `duration.verySlow` and a stagger.
- * Its count runs on the same clock. An answer to "What else?" stands
+ * An answer to "What else?" stands
  * `deckHold` on its finished drawing before the next takes its place.
  */
 export const drawing = defineConsts({
@@ -60,7 +60,6 @@ export const drawing = defineConsts({
   deckHold: 1.5,
   delay: 0.54,
   earth: 4.2,
-  hours: 1.6,
   moon: 3.8,
   weekends: 3.2,
   weeks: 3.4,

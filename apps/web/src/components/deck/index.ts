@@ -1,4 +1,3 @@
-import type { MotionValue } from 'motion/react';
 import type { ComponentType } from 'react';
 import { BooksGraphic } from './books.tsx';
 import { DegreesGraphic } from './degrees.tsx';
@@ -12,13 +11,9 @@ import { TripsGraphic } from './trips.tsx';
 /**
  * The drawing for each answer to "What else?", by its key in `heroMetrics`.
  * Each plays once from the start when `play` turns on and resets when it
- * turns off, and keeps `count` on how far it has counted toward `amount`, so
- * the sentence under it counts with it.
+ * turns off.
  */
-export const DECK_GRAPHICS: Record<
-  string,
-  ComponentType<{ amount: number; count: MotionValue<number>; play: boolean }>
-> = {
+export const DECK_GRAPHICS: Record<string, ComponentType<{ amount: number; play: boolean }>> = {
   books: BooksGraphic,
   degrees: DegreesGraphic,
   instruments: InstrumentsGraphic,

@@ -335,11 +335,6 @@ function Cap({
   );
 }
 
-/** The caps counted `seconds` in: each one as far as it has flown, so the count lands with the last. */
-function landedAt(throws: ReadonlyArray<Throw>, seconds: number): number {
-  return throws.reduce((sum, cap) => sum + flownAt(cap, seconds), 0);
-}
-
 /**
  * The degrees the hours would have bought: a mortarboard for each, tossed up
  * one at a time, turning once in the air and landing in rows on a shelf, the
@@ -347,15 +342,7 @@ function landedAt(throws: ReadonlyArray<Throw>, seconds: number): number {
  * turns off the caps are back out of sight. With less motion the rows stand
  * done.
  */
-export function DegreesGraphic({
-  amount,
-  count,
-  play,
-}: {
-  amount: number;
-  count: MotionValue<number>;
-  play: boolean;
-}) {
+export function DegreesGraphic({ amount, play }: { amount: number; play: boolean }) {
   const reduced = useReducedMotion() === true;
   // Done until the page says otherwise, so a page that has not run its script
   // shows the whole row.
@@ -363,12 +350,6 @@ export function DegreesGraphic({
   const above = `${useId()}-above`;
   const throws = throwsFor(amount);
   const last = throws.length - 1;
-
-  useEffect(() => {
-    const caps = throwsFor(amount);
-    count.set(landedAt(caps, clock.get()));
-    return clock.on('change', (seconds) => count.set(landedAt(caps, seconds)));
-  }, [amount, clock, count]);
 
   useEffect(() => {
     if (reduced) {

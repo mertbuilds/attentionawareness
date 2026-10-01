@@ -2,7 +2,6 @@ import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
 import { animate, useMotionValue, useMotionValueEvent, useReducedMotion } from 'motion/react';
-import type { MotionValue } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { drawing, easing } from '../../lib/motion.stylex.ts';
 import { HEIGHT, WIDTH } from './box.ts';
@@ -24,8 +23,7 @@ const BEND = Math.PI * RUN_RADIUS;
 const LAP = 2 * STRAIGHT + 2 * BEND;
 /**
  * The laps the runner is seen to run: the first at a run, then a blur, and
- * the last easing over the line. The sentence's count runs with them to the
- * whole figure.
+ * the last easing over the line.
  */
 const LAPS_RUN = 8;
 /** The tail reaches back to where the runner was this share of the run ago, and never round more than most of a lap. */
@@ -192,19 +190,11 @@ const FINISH = `M${CENTER_X + HALF_STRAIGHT} ${CENTER_Y + KERB} L${CENTER_X + HA
 /**
  * A running track seen from above, and a runner lapping it: off the line at
  * a run, then so fast the tail behind it rings the lane, then easing back
- * over the line, while `count` climbs with the laps to `amount`. It plays
- * once each time `play` turns on and stands at the start while it is off.
- * For a reader who asked for less motion it stands finished.
+ * over the line. It plays once each time `play` turns on and stands at the
+ * start while it is off. For a reader who asked for less motion it stands
+ * finished.
  */
-export function MarathonsGraphic({
-  amount,
-  count,
-  play,
-}: {
-  amount: number;
-  count: MotionValue<number>;
-  play: boolean;
-}) {
+export function MarathonsGraphic({ play }: { play: boolean }) {
   const reduced = useReducedMotion();
   const at = usePlayhead(play);
   const ran = lapsBy(at);
@@ -212,11 +202,6 @@ export function MarathonsGraphic({
   const head = ran * LAP;
   const piece = (tail * LAP) / TAIL_PIECES;
   const runner = lapPoint(head);
-  const counted = (amount * ran) / LAPS_RUN;
-
-  useEffect(() => {
-    count.set(counted);
-  }, [count, counted]);
 
   return (
     <svg aria-hidden="true" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} {...props(styles.drawing)}>

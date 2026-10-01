@@ -2,8 +2,7 @@ import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
 import { animate, useMotionValue, useMotionValueEvent, useReducedMotion } from 'motion/react';
-import type { MotionValue } from 'motion/react';
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { drawing } from '../../lib/motion.stylex.ts';
 import { HEIGHT, WIDTH } from './box.ts';
 
@@ -212,22 +211,6 @@ function stepsAt(run: number, weights: ReadonlyArray<number>): number {
   return weights.length;
 }
 
-/** The instruments the first `reached` of the `shown` ones stand for: one each at first, more and more after. */
-function learnedBy(reached: number, shown: number, amount: number): number {
-  return reached === 0 ? 0 : Math.max(reached, Math.ceil(amount * (reached / shown) ** 2));
-}
-
-/** The count `at` steps in: it climbs on the way to each instrument and lands as it comes on. */
-function countAt(at: number, shown: number, amount: number): number {
-  if (shown === 0) {
-    return 0;
-  }
-  const reached = Math.min(at, shown);
-  const whole = Math.min(Math.floor(reached), shown - 1);
-  const from = learnedBy(whole, shown, amount);
-  return from + (learnedBy(whole + 1, shown, amount) - from) * (reached - whole);
-}
-
 /** A bar of the sound, `swing` of its full height. */
 function bar(note: number, swing: number, lit: boolean): Part {
   const height = (WAVE[note] ?? 0) * swing;
@@ -426,18 +409,9 @@ function useRun(play: boolean): number {
 /**
  * A sound that turns into one instrument after another: piano keys lit in a
  * run, guitar strings strummed, a drum struck and rippling, round and round,
- * faster each time, while `count` climbs to `amount` for the sentence under
- * it. It ends as the sound it started from, in orange.
+ * faster each time. It ends as the sound it started from, in orange.
  */
-export function InstrumentsGraphic({
-  amount,
-  count,
-  play,
-}: {
-  amount: number;
-  count: MotionValue<number>;
-  play: boolean;
-}) {
+export function InstrumentsGraphic({ amount, play }: { amount: number; play: boolean }) {
   const run = useRun(play);
   const shown = Math.max(0, Math.min(SHOWN_MAX, amount));
   const scenes: ReadonlyArray<Scene> = [
@@ -456,11 +430,6 @@ export function InstrumentsGraphic({
   const seconds = run * RUN_SECONDS;
   const from = scenes[step] ?? 'wave';
   const to = scenes[step + 1] ?? 'played';
-  const counted = countAt(at, shown, amount);
-
-  useEffect(() => {
-    count.set(counted);
-  }, [count, counted]);
 
   return (
     <svg aria-hidden="true" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} {...props(styles.drawing)}>

@@ -123,40 +123,18 @@ function Track({
   );
 }
 
-/** The skills counted `seconds` in: each track as far as it has filled, so the count lands with the last. */
-function masteredAt(tracks: number, seconds: number): number {
-  return Array.from({ length: tracks }, (_, index) => filledAt(index, tracks, seconds)).reduce(
-    (sum, share) => sum + share,
-    0,
-  );
-}
-
 /**
  * The world-class skills the hours would have bought: a ten-thousand-hour
  * track for each, filling orange one after another. When `play` turns on it
  * plays once from the start; when it turns off the tracks are empty again.
  * With less motion they stand full.
  */
-export function SkillsGraphic({
-  amount,
-  count,
-  play,
-}: {
-  amount: number;
-  count: MotionValue<number>;
-  play: boolean;
-}) {
+export function SkillsGraphic({ amount, play }: { amount: number; play: boolean }) {
   const reduced = useReducedMotion() === true;
   // Done until the page says otherwise, so a page that has not run its script
   // shows every track full.
   const clock = useMotionValue(SECONDS);
   const rows = rowsFor(amount);
-  const tracks = rows.length;
-
-  useEffect(() => {
-    count.set(masteredAt(tracks, clock.get()));
-    return clock.on('change', (seconds) => count.set(masteredAt(tracks, seconds)));
-  }, [clock, count, tracks]);
 
   useEffect(() => {
     if (reduced) {

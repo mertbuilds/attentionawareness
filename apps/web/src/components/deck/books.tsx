@@ -2,7 +2,6 @@ import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { animate, useMotionValue, useMotionValueEvent, useReducedMotion } from 'motion/react';
-import type { MotionValue } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { drawing, easing } from '../../lib/motion.stylex.ts';
 import { HEIGHT, WIDTH } from './box.ts';
@@ -144,30 +143,16 @@ function Detail({ book }: { book: Book }) {
 /**
  * Book spines piling up on a shelf, a few bound in orange, one at a time at
  * first, then faster than they can be told apart, until the tower runs out
- * past the top edge and fades there, while `count` climbs to `amount` for the
- * sentence under it. It plays once each time `play` comes on and starts over
- * when it goes off; with less motion it stands piled high.
+ * past the top edge and fades there. It plays once each time `play` comes on
+ * and starts over when it goes off; with less motion it stands piled high.
  */
-export function BooksGraphic({
-  amount,
-  count,
-  play,
-}: {
-  amount: number;
-  count: MotionValue<number>;
-  play: boolean;
-}) {
+export function BooksGraphic({ play }: { play: boolean }) {
   const reduced = useReducedMotion();
   // Done until the page says otherwise, so a page that has not run its script
   // shows the whole pile.
   const progress = useMotionValue(1);
   const [landed, setLanded] = useState(BOOKS.length);
   useMotionValueEvent(progress, 'change', (t) => setLanded(Math.ceil(t * BOOKS.length)));
-
-  useEffect(() => {
-    count.set(progress.get() * amount);
-    return progress.on('change', (t) => count.set(t * amount));
-  }, [amount, count, progress]);
 
   useEffect(() => {
     if (reduced === true) {

@@ -2,7 +2,6 @@ import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
 import { animate, useMotionValue, useMotionValueEvent, useReducedMotion } from 'motion/react';
-import type { MotionValue } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { drawing, easing } from '../../lib/motion.stylex.ts';
 import { HEIGHT, WIDTH } from './box.ts';
@@ -271,19 +270,11 @@ function flown(way: Route, share: number): { path: string; point: Point } {
 /**
  * A dotted map of the world, and flights drawn across it one after another,
  * each from one city to another and down on a small mark. A flight steps back
- * once it has landed, so the one in the air leads, while `count` climbs with
- * them to `amount`. It plays once each time `play` turns on and stands empty
- * while it is off. For a reader who asked for less motion it stands finished.
+ * once it has landed, so the one in the air leads. It plays once each time
+ * `play` turns on and stands empty while it is off. For a reader who asked for
+ * less motion it stands finished.
  */
-export function TripsGraphic({
-  amount,
-  count,
-  play,
-}: {
-  amount: number;
-  count: MotionValue<number>;
-  play: boolean;
-}) {
+export function TripsGraphic({ play }: { play: boolean }) {
   const reduced = useReducedMotion();
   const at = usePlayhead(play);
   const flights = ROUTES.map((flight, index) => {
@@ -295,13 +286,7 @@ export function TripsGraphic({
       since: at - leaves - FLIGHT,
     };
   });
-  const counted =
-    (amount * flights.reduce((sum, flight) => sum + flight.share, 0)) / FLIGHTS.length;
   const last = flights.at(-1);
-
-  useEffect(() => {
-    count.set(counted);
-  }, [count, counted]);
 
   return (
     <svg aria-hidden="true" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} {...props(styles.drawing)}>
