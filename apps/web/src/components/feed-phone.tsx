@@ -1,10 +1,8 @@
-import { colors, font, palette, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
+import { font, palette } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { useReducedMotion } from 'motion/react';
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { createPortal } from 'react-dom';
-import { typingIn } from '../lib/typing-in.ts';
 import { m } from '../paraglide/messages.js';
 import { BOXED, CHROMES } from './feed-chrome.tsx';
 import type { Platform } from './feed-chrome.tsx';
@@ -108,11 +106,6 @@ const PHONE_TALL_NARROW = `min(100cqh, 100cqw * ${PHONE_HEIGHT} / ${PHONE_WIDTH}
 /** Until the screen is measured, a video is this tall. */
 const SCREEN_FALLBACK = PHONE_TALL - 17;
 /**
- * How much of the phone has to be in the window for the arrow keys to move
- * the feed, and for the line that says so to show.
- */
-const SEEN = 0.5;
-/**
  * Every part of the feed is drawn in the phone body's own width, so the whole
  * thing holds together at any size the mock is given. The screen is 92 of
  * those hundredths wide and an iPhone screen is 393 points wide, so a point is
@@ -167,62 +160,6 @@ const styles = create({
     transform: 'translateX(-50%)',
     width: '29.5cqw',
     zIndex: 2,
-  },
-  // One key, drawn the way a key is: a hairline box around the arrow on it.
-  // It is a button as well, and a press on it moves the feed as the key does.
-  keycap: {
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-    borderColor: colors.border,
-    borderRadius: radius.base,
-    borderStyle: 'solid',
-    borderWidth: '1px',
-    boxSizing: 'border-box',
-    color: {
-      ':hover': colors.fg,
-      default: 'inherit',
-    },
-    cursor: 'pointer',
-    display: 'inline-flex',
-    fontFamily: 'inherit',
-    fontSize: 'inherit',
-    height: 18,
-    justifyContent: 'center',
-    lineHeight: 1,
-    padding: 0,
-    width: 18,
-  },
-  // What the two arrows do, in the corner of the window, while the phone is in
-  // view. It is a keyboard's line: a reader who swipes has no keys to be told
-  // about, and never sees it.
-  keys: {
-    alignItems: 'center',
-    color: colors.muted,
-    display: {
-      '@media (hover: none)': 'none',
-      '@media (max-width: 767px)': 'none',
-      '@media (pointer: coarse)': 'none',
-      default: 'flex',
-    },
-    fontSize: 12,
-    gap: spacing.s1,
-    insetBlockEnd: spacing.s4,
-    insetInlineEnd: spacing.s4,
-    lineHeight: 1,
-    opacity: 0,
-    position: 'fixed',
-    transitionDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: '400ms',
-    },
-    transitionProperty: 'opacity, visibility',
-    transitionTimingFunction: 'ease-in-out',
-    visibility: 'hidden',
-    zIndex: 30,
-  },
-  keysShown: {
-    opacity: 1,
-    visibility: 'visible',
   },
   // The phone's body: a thin band of polished titanium around the bezel. The
   // band is lit along its inner edge and falls darker toward its outer one,
@@ -454,19 +391,6 @@ function tabVisibleOnServer(): boolean {
   return false;
 }
 
-/** Whether the page runs in a browser yet: the server and the first render say no. */
-function subscribeNothing() {
-  return () => {};
-}
-
-function inBrowser(): boolean {
-  return true;
-}
-
-function inBrowserOnServer(): boolean {
-  return false;
-}
-
 /**
  * One video of the feed. The clip plays only while this is the video on
  * screen and the feed is running, muted and looping, over a wash that stands
@@ -548,12 +472,11 @@ function Video({
 /**
  * The feed the page opens on: a phone that scrolls itself, one clip every
  * beat and round again after the last, the way a feed never ends. It makes no
- * sound. A hand on its screen drags it a clip at a time, and while most of it
- * is in the window the arrow keys do too, and a line in the corner says so. It
- * runs only while it is on screen in a tab in front, and for a reader who
- * asked for less motion it is one still frame that a hand or a key cuts.
- * While it is not `shown`, faded out with the beat it stands in, it holds
- * still, and neither a key nor a hand moves it.
+ * sound. A hand on its screen drags it a clip at a time. It runs only while
+ * it is on screen in a tab in front, and for a reader who asked for less
+ * motion it is one still frame that a hand cuts. While it is not `shown`,
+ * faded out with the beat it stands in, it holds still, and a hand does not
+ * move it.
  */
 export function FeedPhone({ shown }: { shown: boolean }) {
   // How many swipes the feed has made, less the ones back up it, so it goes
@@ -563,13 +486,10 @@ export function FeedPhone({ shown }: { shown: boolean }) {
   const [step, setStep] = useState(0);
   const [screenHeight, setScreenHeight] = useState(SCREEN_FALLBACK);
   const [onScreen, setOnScreen] = useState(false);
-  // At least half the phone is in the window: the arrow keys are the feed's.
-  const [seen, setSeen] = useState(false);
   // A hand is on the screen: the feed follows it and holds its beat.
   const [held, setHeld] = useState(false);
   const reduced = useReducedMotion();
   const tabShown = useSyncExternalStore(subscribeVisibility, tabVisible, tabVisibleOnServer);
-  const browser = useSyncExternalStore(subscribeNothing, inBrowser, inBrowserOnServer);
   const shell = useRef<HTMLDivElement>(null);
   const screen = useRef<HTMLDivElement>(null);
   const track = useRef<HTMLDivElement>(null);
@@ -581,8 +501,6 @@ export function FeedPhone({ shown }: { shown: boolean }) {
   // swipe it starts runs on from there rather than from a whole screen away.
   const released = useRef(0);
   const running = onScreen && tabShown && reduced !== true && shown;
-  // The arrow keys are the feed's, and the line in the corner says so.
-  const keyed = seen && shown;
   // The clip before the one on screen always stands loaded above it, the last
   // one above the first, so a swipe up has somewhere to go as much as a swipe
   // down; the next ones wait under it, loading.
@@ -606,19 +524,15 @@ export function FeedPhone({ shown }: { shown: boolean }) {
     return () => observer.disconnect();
   }, []);
 
-  // Off screen, the feed holds still; mostly on screen, it takes the keys.
+  // Off screen, the feed holds still.
   useEffect(() => {
     const element = shell.current;
     if (element === null) {
       return;
     }
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setOnScreen(entry?.isIntersecting ?? false);
-        setSeen((entry?.intersectionRatio ?? 0) >= SEEN);
-      },
-      { threshold: [0, SEEN] },
-    );
+    const observer = new IntersectionObserver(([entry]) => {
+      setOnScreen(entry?.isIntersecting ?? false);
+    });
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
@@ -633,36 +547,6 @@ export function FeedPhone({ shown }: { shown: boolean }) {
     const timer = setTimeout(() => setStep((at) => at + 1), HOLD_MS);
     return () => clearTimeout(timer);
   }, [held, running, step]);
-
-  // Down is the next clip and up the one before, from anywhere on the page
-  // while the phone is in view, unless the key is being typed with or is
-  // already someone else's. A key held down moves the feed once.
-  useEffect(() => {
-    if (!keyed) {
-      return;
-    }
-    function onKeyDown(event: KeyboardEvent) {
-      const by = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0;
-      if (
-        by === 0 ||
-        event.defaultPrevented ||
-        event.altKey ||
-        event.ctrlKey ||
-        event.metaKey ||
-        event.shiftKey ||
-        typingIn(event.target)
-      ) {
-        return;
-      }
-      // The page must not scroll while the feed does.
-      event.preventDefault();
-      if (!event.repeat) {
-        setStep((at) => at + by);
-      }
-    }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [keyed]);
 
   // The track has already been cut to the new clip, before this frame is
   // painted: it is drawn from where the last clip stood, a screen lower on
@@ -762,79 +646,51 @@ export function FeedPhone({ shown }: { shown: boolean }) {
   }
 
   return (
-    <>
-      <div aria-label={m.home_feed_label()} ref={shell} role="img" {...props(styles.shell)}>
-        <span {...props(styles.sideKey, styles.sideKeyAction)} />
-        <span {...props(styles.sideKey, styles.sideKeyVolumeUp)} />
-        <span {...props(styles.sideKey, styles.sideKeyVolumeDown)} />
-        <span {...props(styles.sideKey, styles.sideKeyPower)} />
-        <div aria-hidden="true" {...props(styles.phone)}>
-          <div {...props(styles.bezel)}>
+    <div aria-label={m.home_feed_label()} ref={shell} role="img" {...props(styles.shell)}>
+      <span {...props(styles.sideKey, styles.sideKeyAction)} />
+      <span {...props(styles.sideKey, styles.sideKeyVolumeUp)} />
+      <span {...props(styles.sideKey, styles.sideKeyVolumeDown)} />
+      <span {...props(styles.sideKey, styles.sideKeyPower)} />
+      <div aria-hidden="true" {...props(styles.phone)}>
+        <div {...props(styles.bezel)}>
+          <div
+            onPointerCancel={onPointerUp}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            ref={screen}
+            {...props(styles.screen, held && styles.screenHeld)}
+          >
             <div
-              onPointerCancel={onPointerUp}
-              onPointerDown={onPointerDown}
-              onPointerMove={onPointerMove}
-              onPointerUp={onPointerUp}
-              ref={screen}
-              {...props(styles.screen, held && styles.screenHeld)}
+              ref={track}
+              style={{ transform: `translateY(${-offset}px)` }}
+              {...props(styles.feed)}
             >
-              <div
-                ref={track}
-                style={{ transform: `translateY(${-offset}px)` }}
-                {...props(styles.feed)}
-              >
-                {Array.from({ length: step + PRELOAD_REACH - first + 1 }, (_, index) => {
-                  const at = first + index;
-                  return (
-                    <Video
-                      clip={clipAt(at)}
-                      height={screenHeight}
-                      key={at}
-                      playing={running && at === step}
-                      preload={at <= step + 1 ? 'auto' : 'metadata'}
-                    />
-                  );
-                })}
-              </div>
-              <div {...props(styles.statusBar, light && styles.statusBarDark)}>
-                <span>{m.home_feed_status_time()}</span>
-                <span {...props(styles.statusIcons)}>
-                  <IconSignal style={styles.statusSignal} />
-                  <IconWifi style={styles.statusWifi} />
-                  <IconBattery style={styles.statusBattery} />
-                </span>
-              </div>
-              <span {...props(styles.island)} />
+              {Array.from({ length: step + PRELOAD_REACH - first + 1 }, (_, index) => {
+                const at = first + index;
+                return (
+                  <Video
+                    clip={clipAt(at)}
+                    height={screenHeight}
+                    key={at}
+                    playing={running && at === step}
+                    preload={at <= step + 1 ? 'auto' : 'metadata'}
+                  />
+                );
+              })}
             </div>
+            <div {...props(styles.statusBar, light && styles.statusBarDark)}>
+              <span>{m.home_feed_status_time()}</span>
+              <span {...props(styles.statusIcons)}>
+                <IconSignal style={styles.statusSignal} />
+                <IconWifi style={styles.statusWifi} />
+                <IconBattery style={styles.statusBattery} />
+              </span>
+            </div>
+            <span {...props(styles.island)} />
           </div>
         </div>
       </div>
-      {/* Fixed to the window, so it hangs off the page itself rather than
-      the beat the phone stands in, which moves and blurs as it fades. */}
-      {browser
-        ? createPortal(
-            <div {...props(styles.keys, keyed && styles.keysShown)}>
-              <button
-                aria-label={m.home_feed_key_up_label()}
-                onClick={() => setStep((at) => at - 1)}
-                type="button"
-                {...props(styles.keycap)}
-              >
-                {m.home_feed_key_up()}
-              </button>
-              <button
-                aria-label={m.home_feed_key_down_label()}
-                onClick={() => setStep((at) => at + 1)}
-                type="button"
-                {...props(styles.keycap)}
-              >
-                {m.home_feed_key_down()}
-              </button>
-              <span>{m.home_feed_keys_hint()}</span>
-            </div>,
-            document.body,
-          )
-        : null}
-    </>
+    </div>
   );
 }

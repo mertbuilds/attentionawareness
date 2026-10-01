@@ -31,6 +31,7 @@ import {
   WALKING_KMH,
   WEEKEND_HOURS,
 } from '../lib/attention-math.ts';
+import { typingIn } from '../lib/typing-in.ts';
 import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
@@ -461,6 +462,55 @@ const styles = create({
     WebkitMaskImage: GRID_MASK,
     width: '100vw',
   },
+  // One key, drawn the way a key is: a hairline box around the arrow on it.
+  // It is a button as well, and a press on it moves the story as the key does.
+  keycap: {
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderColor: colors.border,
+    borderRadius: radius.base,
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    boxSizing: 'border-box',
+    color: {
+      ':hover': colors.fg,
+      default: 'inherit',
+    },
+    cursor: 'pointer',
+    display: 'inline-flex',
+    fontFamily: 'inherit',
+    fontSize: 'inherit',
+    height: 18,
+    justifyContent: 'center',
+    lineHeight: 1,
+    padding: 0,
+    width: 18,
+  },
+  // What the two arrows do, in the corner of the window, for as long as the
+  // story is on. It is a keyboard's line: a reader who swipes has no keys to
+  // be told about, and never sees it. With less motion nothing is pinned and
+  // the arrows scroll the page as they always do.
+  keys: {
+    alignItems: 'center',
+    color: colors.muted,
+    display: {
+      '@media (hover: none)': 'none',
+      '@media (max-width: 767px)': 'none',
+      '@media (pointer: coarse)': 'none',
+      '@media (prefers-reduced-motion: reduce)': 'none',
+      default: 'flex',
+    },
+    fontSize: 12,
+    gap: spacing.s1,
+    insetBlockEnd: spacing.s4,
+    insetInlineEnd: spacing.s4,
+    lineHeight: 1,
+    position: 'fixed',
+    transitionDuration: '400ms',
+    transitionProperty: 'opacity, visibility',
+    transitionTimingFunction: 'ease-in-out',
+    zIndex: 30,
+  },
   // What a drawing's marks stand for, small and quiet under it.
   legend: {
     alignItems: 'center',
@@ -860,6 +910,11 @@ function lessMotionOnServer(): boolean {
  */
 function useLessMotion(): boolean {
   return useSyncExternalStore(subscribeLessMotion, prefersLessMotion, lessMotionOnServer);
+}
+
+/** Whether an event comes from inside a dialog, which keeps its own wheel and keys. */
+function inDialog(target: EventTarget | null): boolean {
+  return ((target as Element | null)?.closest('[role="dialog"]') ?? null) !== null;
 }
 
 /** A figure's placeholder: its index, between two slot marks. */
@@ -1451,10 +1506,15 @@ export function CostStory({ id }: { id: string }) {
   const stage = useRef<HTMLDivElement>(null);
   // Where the page comes to rest for each beat, and past the story's foot.
   const rests = useRef<Array<HTMLSpanElement | null>>([]);
+  // A beat on or back, as a gesture moves the story, for the keys in the corner.
+  const stepper = useRef<(by: number) => void>(() => {});
+  const keys = useRef<HTMLDivElement>(null);
   const reduced = useLessMotion();
   const seen = useInView(stage, { amount: SEEN });
   const { scrollYProgress } = useScroll({ offset: ['start start', 'end end'], target: story });
   const [active, setActive] = useState(0);
+  // The page has gone on past the last beat, and the story is over.
+  const [told, setTold] = useState(false);
   const on = (index: number) => seen && active === index;
   const weeksDrawn = usePlayed(on(WEEKS_BEAT), WEEKS_SECONDS, EASE_IN_OUT);
   const weekendsDrawn = usePlayed(on(WEEKENDS_BEAT), WEEKENDS_SECONDS, 'linear');
@@ -1494,11 +1554,12 @@ export function CostStory({ id }: { id: string }) {
   // The page rests on one beat at a time while the story is on, and lets go
   // once the stage has gone up and away, so the rest of the page scrolls the
   // way it always does. Coming back up, it takes hold again as the last beat
-  // comes to rest. Touch and the keys snap from one rest to the next on their
-  // own. A wheel or a trackpad is taken a gesture at a time instead: a browser
-  // snaps those to wherever the gesture happens to end, which after a light
-  // flick is the same beat and after a hard one a beat too far. Nothing waits
-  // for a drawing: a gesture always moves the story, whatever is playing.
+  // comes to rest. Touch, space and the page keys snap from one rest to the
+  // next on their own. The arrow keys, and a wheel or a trackpad a gesture at
+  // a time, move the story a beat themselves: a browser snaps a wheel to
+  // wherever the gesture happens to end, which after a light flick is the same
+  // beat and after a hard one a beat too far. Nothing waits for a drawing: a
+  // gesture always moves the story, whatever is playing.
   useEffect(() => {
     if (reduced) {
       return;
@@ -1598,14 +1659,40 @@ export function CostStory({ id }: { id: string }) {
           spent = true;
         }
       }
+      setTold(last < -1);
       snap();
+    }
+
+    // Down is the next beat and up the one before, on every beat, the phone's
+    // too, unless the key is being typed with or is already someone else's. A
+    // key held down moves the story once. Past the last beat the keys are the
+    // page's own again.
+    function onKeyDown(event: KeyboardEvent) {
+      const by = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0;
+      if (
+        by === 0 ||
+        event.defaultPrevented ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        typingIn(event.target) ||
+        inDialog(event.target) ||
+        !((offsets()[BEATS - 1] ?? Number.NaN) >= -1)
+      ) {
+        return;
+      }
+      event.preventDefault();
+      if (!event.repeat) {
+        step(by);
+      }
     }
 
     function onWheel(event: WheelEvent) {
       if (
         event.ctrlKey ||
         Math.abs(event.deltaY) < Math.abs(event.deltaX) ||
-        ((event.target as Element | null)?.closest('[role="dialog"]') ?? null) !== null
+        inDialog(event.target)
       ) {
         return;
       }
@@ -1654,17 +1741,30 @@ export function CostStory({ id }: { id: string }) {
     }
 
     update();
+    stepper.current = step;
     window.addEventListener('scroll', update, { passive: true });
     window.addEventListener('resize', update);
     window.addEventListener('wheel', onWheel, { passive: false });
+    window.addEventListener('keydown', onKeyDown);
     return () => {
       window.removeEventListener('scroll', update);
       window.removeEventListener('resize', update);
       window.removeEventListener('wheel', onWheel);
+      window.removeEventListener('keydown', onKeyDown);
+      stepper.current = () => {};
       drive?.stop();
       root.style.scrollSnapType = '';
     };
   }, [reduced]);
+
+  // A key in the corner that has focus when the story ends lets it go with
+  // the line, so the arrows scroll the page from the first press on.
+  useEffect(() => {
+    const focused = document.activeElement as HTMLElement | null;
+    if (told && focused !== null && keys.current?.contains(focused) === true) {
+      focused.blur();
+    }
+  }, [told]);
 
   // A beat reached from the keyboard is scrolled to, so what has focus is the
   // sentence on the stage rather than one faded out of sight.
@@ -1874,6 +1974,26 @@ export function CostStory({ id }: { id: string }) {
             <span {...props(styles.cueDrop)} />
           </span>
         </span>
+        {/* Fixed to the window, and gone once the story is over. */}
+        <div ref={keys} {...props(styles.keys, told && styles.gone)}>
+          <button
+            aria-label={m.home_cost_key_up_label()}
+            onClick={() => stepper.current(-1)}
+            type="button"
+            {...props(styles.keycap)}
+          >
+            {m.home_cost_key_up()}
+          </button>
+          <button
+            aria-label={m.home_cost_key_down_label()}
+            onClick={() => stepper.current(1)}
+            type="button"
+            {...props(styles.keycap)}
+          >
+            {m.home_cost_key_down()}
+          </button>
+          <span>{m.home_cost_keys_hint()}</span>
+        </div>
         <span aria-hidden="true" {...props(styles.rail, styles.swap, active === 0 && styles.gone)}>
           <motion.span {...props(styles.railFill)} style={{ scaleX: scrollYProgress }} />
         </span>
