@@ -52,6 +52,17 @@ const STORY_URL = 'https://stopa.io/post/297';
 const LINK_SLOT = '\u0000';
 
 const styles = create({
+  // Everything under the story, as one place the page can rest anywhere in.
+  // It is taller than the window, so while the story holds the page to its
+  // beats a find, a link or a focus that lands down here stays where it lands
+  // instead of being pulled back to the story's foot.
+  afterStory: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: SECTION_GAP,
+    scrollMarginBlockStart: SECTION_GAP,
+    scrollSnapAlign: 'start',
+  },
   // A section the page links down to. The scroll stops short of its heading,
   // clear of the brand bar fixed over the top of the window.
   anchor: {
@@ -467,117 +478,119 @@ function HomePage() {
         adds up to, told one sentence a screen, and then whose doing it is. */}
         <CostStory id={COST_ID} />
 
-        {/* Act two, the way out: how it works, in three steps, then the app
-        that keeps the phone as it is and the manual way that starts it over. */}
-        <section {...props(styles.section, styles.anchor)} id={WAY_OUT_ID}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
-          <p {...props(styles.sectionBody)}>{m.home_how_body()}</p>
-          <HowItWorks />
-          <div {...props(styles.ways)}>
-            <article {...props(styles.way, styles.wayAccent)}>
-              <div {...props(styles.wayHead)}>
-                <h3 {...props(styles.wayTitle)}>{m.home_how_app_title()}</h3>
-                <p {...props(styles.wayPrice, styles.wayPriceAccent)}>{m.home_how_app_price()}</p>
-              </div>
-              <p {...props(styles.wayLead)}>{m.home_how_app_lead()}</p>
-              <p {...props(styles.wayBody)}>{m.home_how_app_body()}</p>
-              <p {...props(styles.wayBody)}>{m.home_how_app_fail()}</p>
-              <div {...props(styles.wayAction)}>
-                <MacDownload />
-              </div>
-            </article>
-            <article {...props(styles.way)}>
-              <div {...props(styles.wayHead)}>
-                <h3 {...props(styles.wayTitle)}>{m.home_how_diy_title()}</h3>
-                <p {...props(styles.wayPrice)}>{m.home_how_diy_price()}</p>
-              </div>
-              <p {...props(styles.wayLead)}>{m.home_how_diy_lead()}</p>
-              <p {...props(styles.wayBody)}>{m.home_how_diy_body()}</p>
-              <div {...props(styles.wayAction)}>
-                <Button render={<a href={GUIDE_URL} />} variant="outline">
-                  {m.home_how_diy_cta()}
-                </Button>
-              </div>
-            </article>
-          </div>
-        </section>
-
-        <section {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_facts_title()}</h2>
-          <Facts />
-        </section>
-
-        {/* Act three, support. Who made this and why, told rather than argued:
-        the only place on the page that speaks in the first person. */}
-        <section {...props(styles.section, styles.anchor)} id={STORY_ID} ref={storySection}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_story_title()}</h2>
-          <div {...props(styles.story)}>
-            <p {...props(styles.storyLine)}>
-              {storyBefore}
-              <a href={STORY_URL} rel="noreferrer" target="_blank">
-                {m.home_story_2_link()}
-              </a>
-              {storyAfter}
-            </p>
-            <p {...props(styles.storyLine)}>{m.home_story_2()}</p>
-            <p {...props(styles.storyLine)}>{m.home_story_3()}</p>
-            {/* The button comes after the rest, so it stands under the third
-            paragraph while the rest is folded and under the last once it is
-            open, without ever leaving its place in the page. */}
-            <div id={STORY_REST_ID} {...props(styles.storyRest, !storyOpen && styles.gone)}>
-              <p {...props(styles.storyLine)}>{m.home_story_4()}</p>
-              <p {...props(styles.storyLine)}>{m.home_story_5()}</p>
-              <p {...props(styles.storyLine)}>{m.home_story_6()}</p>
-              <p {...props(styles.storyLine)}>{m.home_story_7()}</p>
-              <p {...props(styles.storyLine)}>{m.home_story_8()}</p>
-              <p {...props(styles.storyLine)}>{m.home_story_9()}</p>
-              <p {...props(styles.storyLine)}>{m.home_story_10()}</p>
+        <div {...props(styles.afterStory)}>
+          {/* Act two, the way out: how it works, in three steps, then the app
+          that keeps the phone as it is and the manual way that starts it over. */}
+          <section {...props(styles.section, styles.anchor)} id={WAY_OUT_ID}>
+            <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
+            <p {...props(styles.sectionBody)}>{m.home_how_body()}</p>
+            <HowItWorks />
+            <div {...props(styles.ways)}>
+              <article {...props(styles.way, styles.wayAccent)}>
+                <div {...props(styles.wayHead)}>
+                  <h3 {...props(styles.wayTitle)}>{m.home_how_app_title()}</h3>
+                  <p {...props(styles.wayPrice, styles.wayPriceAccent)}>{m.home_how_app_price()}</p>
+                </div>
+                <p {...props(styles.wayLead)}>{m.home_how_app_lead()}</p>
+                <p {...props(styles.wayBody)}>{m.home_how_app_body()}</p>
+                <p {...props(styles.wayBody)}>{m.home_how_app_fail()}</p>
+                <div {...props(styles.wayAction)}>
+                  <MacDownload />
+                </div>
+              </article>
+              <article {...props(styles.way)}>
+                <div {...props(styles.wayHead)}>
+                  <h3 {...props(styles.wayTitle)}>{m.home_how_diy_title()}</h3>
+                  <p {...props(styles.wayPrice)}>{m.home_how_diy_price()}</p>
+                </div>
+                <p {...props(styles.wayLead)}>{m.home_how_diy_lead()}</p>
+                <p {...props(styles.wayBody)}>{m.home_how_diy_body()}</p>
+                <div {...props(styles.wayAction)}>
+                  <Button render={<a href={GUIDE_URL} />} variant="outline">
+                    {m.home_how_diy_cta()}
+                  </Button>
+                </div>
+              </article>
             </div>
-            <Button
-              aria-controls={STORY_REST_ID}
-              aria-expanded={storyOpen}
-              onClick={toggleStory}
-              style={styles.storyMore}
-              variant="outline"
-            >
-              {storyOpen ? m.home_story_less() : m.home_story_more()}
-            </Button>
-            <p {...props(styles.storySign)}>{m.home_story_sign()}</p>
-          </div>
-        </section>
+          </section>
 
-        {/* The browser half of the same idea, on its own so the way out reads
-        as the phone and the computer as one more place the feeds are shut off. */}
-        <section {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_computer_title()}</h2>
-          <p {...props(styles.sectionBody)}>
-            {computerBefore}
-            <a href={STORE_URL} rel="noreferrer" target="_blank">
-              {m.home_computer_link()}
-            </a>
-            {computerAfter}
-          </p>
-        </section>
+          <section {...props(styles.section)}>
+            <h2 {...props(styles.sectionTitle)}>{m.home_facts_title()}</h2>
+            <Facts />
+          </section>
 
-        <section {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_faq_title()}</h2>
-          <div>
-            {objections.map((objection) => (
-              <Question answer={objection.desc} key={objection.term} question={objection.term} />
-            ))}
-          </div>
-        </section>
+          {/* Act three, support. Who made this and why, told rather than argued:
+          the only place on the page that speaks in the first person. */}
+          <section {...props(styles.section, styles.anchor)} id={STORY_ID} ref={storySection}>
+            <h2 {...props(styles.sectionTitle)}>{m.home_story_title()}</h2>
+            <div {...props(styles.story)}>
+              <p {...props(styles.storyLine)}>
+                {storyBefore}
+                <a href={STORY_URL} rel="noreferrer" target="_blank">
+                  {m.home_story_2_link()}
+                </a>
+                {storyAfter}
+              </p>
+              <p {...props(styles.storyLine)}>{m.home_story_2()}</p>
+              <p {...props(styles.storyLine)}>{m.home_story_3()}</p>
+              {/* The button comes after the rest, so it stands under the third
+              paragraph while the rest is folded and under the last once it is
+              open, without ever leaving its place in the page. */}
+              <div id={STORY_REST_ID} {...props(styles.storyRest, !storyOpen && styles.gone)}>
+                <p {...props(styles.storyLine)}>{m.home_story_4()}</p>
+                <p {...props(styles.storyLine)}>{m.home_story_5()}</p>
+                <p {...props(styles.storyLine)}>{m.home_story_6()}</p>
+                <p {...props(styles.storyLine)}>{m.home_story_7()}</p>
+                <p {...props(styles.storyLine)}>{m.home_story_8()}</p>
+                <p {...props(styles.storyLine)}>{m.home_story_9()}</p>
+                <p {...props(styles.storyLine)}>{m.home_story_10()}</p>
+              </div>
+              <Button
+                aria-controls={STORY_REST_ID}
+                aria-expanded={storyOpen}
+                onClick={toggleStory}
+                style={styles.storyMore}
+                variant="outline"
+              >
+                {storyOpen ? m.home_story_less() : m.home_story_more()}
+              </Button>
+              <p {...props(styles.storySign)}>{m.home_story_sign()}</p>
+            </div>
+          </section>
 
-        <section {...props(styles.closing)}>
-          <h2 {...props(styles.closingTitle)}>{m.home_close_title()}</h2>
-          <MacDownload />
-          <p {...props(styles.closingNote)}>
-            <span>{m.home_how_app_price()}</span>
-            <a href={GUIDE_URL}>{m.home_close_diy()}</a>
-          </p>
-        </section>
+          {/* The browser half of the same idea, on its own so the way out reads
+          as the phone and the computer as one more place the feeds are shut off. */}
+          <section {...props(styles.section)}>
+            <h2 {...props(styles.sectionTitle)}>{m.home_computer_title()}</h2>
+            <p {...props(styles.sectionBody)}>
+              {computerBefore}
+              <a href={STORE_URL} rel="noreferrer" target="_blank">
+                {m.home_computer_link()}
+              </a>
+              {computerAfter}
+            </p>
+          </section>
 
-        <SiteFooter />
+          <section {...props(styles.section)}>
+            <h2 {...props(styles.sectionTitle)}>{m.home_faq_title()}</h2>
+            <div>
+              {objections.map((objection) => (
+                <Question answer={objection.desc} key={objection.term} question={objection.term} />
+              ))}
+            </div>
+          </section>
+
+          <section {...props(styles.closing)}>
+            <h2 {...props(styles.closingTitle)}>{m.home_close_title()}</h2>
+            <MacDownload />
+            <p {...props(styles.closingNote)}>
+              <span>{m.home_how_app_price()}</span>
+              <a href={GUIDE_URL}>{m.home_close_diy()}</a>
+            </p>
+          </section>
+
+          <SiteFooter />
+        </div>
       </div>
     </main>
   );
