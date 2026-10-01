@@ -1,6 +1,7 @@
 import { Button } from '@attentionawareness/ui';
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
+import NumberFlow from '@number-flow/react';
 import { create, firstThatWorks, keyframes, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import {
@@ -50,7 +51,6 @@ import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
 import { BillFilters } from './bill-paper.tsx';
 import { DECK_GRAPHICS } from './deck/index.ts';
-import { FeedPhone } from './feed-phone.tsx';
 import { GridTexture } from './grid-texture.tsx';
 import { InfoTip } from './info-tip.tsx';
 
@@ -61,8 +61,13 @@ const WORLD_SOURCE_URL =
   'https://datareportal.com/reports/digital-2026-mid-year-global-update-report';
 /** The world's count is printed to a tenth of a year until it reaches this many, then in whole years. */
 const WORLD_TENTHS_BELOW = 100;
-/** It is counted every frame and printed this often: a few times a second. */
-const WORLD_PRINT_MS = 200;
+/**
+ * It is counted every frame and printed twice a second, an even beat. Each
+ * print rolls the digits on to the new figure the way a panel opens, quick
+ * and then settling, so the figure stands still a moment before the next.
+ */
+const WORLD_PRINT_MS = 500;
+const WORLD_ROLL = { duration: Number.parseFloat(duration.slow), easing: easing.smoothOut };
 /** The story's sentences, in the order the scroll plays them, and where each drawing's beat stands. */
 const BEATS = 6;
 const WEEKS_BEAT = 1;
@@ -199,6 +204,8 @@ const CUE_BOTTOM = `calc(${spacing.s8} + ${spacing.s4})`;
  * a little air over it: what a beat that fills the stage leaves it.
  */
 const CUE_ROOM = `calc(${CUE_BOTTOM} + ${CUE_LABEL + CUE_HEIGHT}px + ${spacing.s2} + ${spacing.s4})`;
+/** How wide the first beat stands on a wide screen: the sentence and the count side by side. */
+const FIRST_BEAT_WIDTH = `min(960px, 100vw - 2 * ${spacing.s8})`;
 
 /** One answer to "What else?": the sentence it is told in, and how it is counted. */
 type Answer = { line: (inputs: { count: string }) => string; tip: () => string };
@@ -332,16 +339,16 @@ const styles = create({
     transitionTimingFunction: easing.inOut,
     width: '100%',
   },
-  // The first beat: the sentence beside the feed, which stands under it once
-  // the window is too narrow for two columns. There it is the whole stage, so
-  // the words take what they need and the feed every row they leave, short of
-  // the cue at the foot.
-  beatFeed: {
+  // The first beat: the sentence beside the world's count, which stands under
+  // it once the window is too narrow for two columns. There it is the whole
+  // stage, so the words take what they need and the count every row they
+  // leave, short of the cue at the foot.
+  beatCounter: {
     boxSizing: 'border-box',
-    columnGap: spacing.s16,
+    columnGap: spacing.s12,
     display: 'grid',
     gridTemplateColumns: {
-      '@media (min-width: 768px)': 'minmax(0, 1fr) auto',
+      '@media (min-width: 768px)': 'minmax(0, 1fr) minmax(0, 1fr)',
       default: 'minmax(0, 1fr)',
     },
     gridTemplateRows: {
@@ -356,6 +363,12 @@ const styles = create({
         `calc(100vh - ${wip.height} - 2 * ${spacing.s16})`,
       ),
     },
+    // On a wide screen it stands wider than the column, centred over it, so
+    // the sentence keeps its lines and the count its size.
+    marginInline: {
+      '@media (min-width: 768px)': `calc((100% - ${FIRST_BEAT_WIDTH}) / 2)`,
+      default: 0,
+    },
     paddingBlockEnd: {
       '@media (min-width: 768px)': 0,
       default: `calc(${CUE_ROOM} - ${spacing.s16})`,
@@ -364,6 +377,10 @@ const styles = create({
     textAlign: {
       '@media (min-width: 768px)': 'start',
       default: 'center',
+    },
+    width: {
+      '@media (min-width: 768px)': FIRST_BEAT_WIDTH,
+      default: '100%',
     },
   },
   // The beat on the stage, and in the pointer's way.
@@ -431,20 +448,44 @@ const styles = create({
     overflow: 'hidden',
     width: 2,
   },
-  // The room the feed stands in under the sentence on a narrow screen. The
-  // phone is sized by it, so all of it is on the first screen. On a wide
-  // screen it is no box at all, and the phone stands in the beat's grid on
-  // its own.
-  feed: {
+  // The world's count: the figure over what it counts, centred in its column
+  // beside the sentence, or in the room the sentence leaves under it on a
+  // narrow screen. The figure is sized by the column.
+  counter: {
     alignItems: 'center',
     alignSelf: 'stretch',
-    containerType: 'size',
-    display: {
-      '@media (min-width: 768px)': 'contents',
-      default: 'flex',
+    containerType: 'inline-size',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: {
+      '@media (min-width: 640px)': spacing.s4,
+      default: spacing.s3,
     },
     justifyContent: 'center',
-    justifySelf: 'stretch',
+    textAlign: 'center',
+  },
+  // What the figure counts, small and quiet under it, with the i at its end.
+  counterCaption: {
+    color: colors.muted,
+    fontSize: {
+      '@media (min-width: 640px)': font.sizeMd,
+      default: font.sizeSm,
+    },
+    lineHeight: 1.4,
+    margin: 0,
+    maxWidth: '30ch',
+    textWrap: 'balance',
+  },
+  // The figure itself, the largest thing on the first screen, in the story's
+  // orange and in even figures. It fits seven characters, a million years
+  // less one, across its column.
+  counterFigure: {
+    color: accent.base,
+    fontSize: 'min(120px, 23cqi)',
+    fontVariantNumeric: 'tabular-nums',
+    fontWeight: font.weightRegular,
+    letterSpacing: '-0.03em',
+    lineHeight: 1,
   },
   // The time left before the next answer takes this one's place: a hairline
   // under the button, along its straight edge, filling in orange. With less
@@ -588,15 +629,6 @@ const styles = create({
     transitionTimingFunction: easing.smoothOut,
     zIndex: 30,
   },
-  // The first beat's words: the sentence, and the world's count under it.
-  lead: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: {
-      '@media (min-width: 640px)': spacing.s6,
-      default: spacing.s3,
-    },
-  },
   // What a drawing's marks stand for, small and quiet under it. It fades in
   // as the drawing starts, and is gone again once its beat has faded out.
   legend: {
@@ -665,20 +697,6 @@ const styles = create({
       default: 'block',
     },
     pointerEvents: 'none',
-  },
-  // The world's count under the first sentence: a quiet line at reading size,
-  // its figure in the story's orange.
-  live: {
-    color: colors.muted,
-    fontSize: {
-      '@media (min-width: 640px)': font.sizeLg,
-      default: font.sizeMd,
-    },
-    fontWeight: font.weightRegular,
-    lineHeight: 1.4,
-    margin: 0,
-    maxWidth: 720,
-    textWrap: 'balance',
   },
   // The small i after a figure, a breath away from the word before it.
   mark: {
@@ -1159,15 +1177,19 @@ function Mark({
 }
 
 /**
- * The years the world has spent on its phones while the reader reads the
- * first sentence: counted from nought every frame while `live`, printed a few
- * times a second, and held where it got to while the line is off the stage or
- * the tab is put away. With less motion nothing ticks, and the line gives the
- * rate instead.
+ * The years the world has spent on its phones since the reader opened the
+ * page: the time the tab has stood in view, at the world's rate, printed twice
+ * a second while the first beat is on the stage. The digits roll from
+ * one print to the next. A tab put away stops the clock, and the count goes
+ * on from where it was when the tab comes back. With less motion nothing
+ * ticks, and the figure is the rate instead: the years every second.
  */
-function WorldCount({ live, style }: { live: boolean; style: StyleXStyles }) {
+function WorldCounter({ on, style }: { on: boolean; style: StyleXStyles }) {
   const reduced = useLessMotion();
-  const counted = useRef(0);
+  const hidden = useSyncExternalStore(subscribeVisibility, tabHidden, hiddenOnServer);
+  // The time in view banked each time the tab was put away, and when it last came back.
+  const banked = useRef(0);
+  const since = useRef<number | null>(null);
   const [years, setYears] = useState(0);
   const locale = getLocale();
   const number = new Intl.NumberFormat(locale);
@@ -1176,59 +1198,71 @@ function WorldCount({ live, style }: { live: boolean; style: StyleXStyles }) {
     maximumFractionDigits: 2,
     notation: 'compact',
   });
+  const decimals = !reduced && years < WORLD_TENTHS_BELOW ? 1 : 0;
 
   useEffect(() => {
-    if (!live || reduced) {
+    if (hidden) {
+      return;
+    }
+    const back = performance.now();
+    since.current = back;
+    return () => {
+      banked.current += performance.now() - back;
+      since.current = null;
+    };
+  }, [hidden]);
+
+  useEffect(() => {
+    if (!on || hidden || reduced) {
       return;
     }
     let frame = 0;
-    let last = performance.now();
-    let printed = last;
+    let printed = Number.NEGATIVE_INFINITY;
     function tick(now: number) {
-      counted.current += (Math.max(0, now - last) / 1000) * WORLD_YEARS_PER_SECOND;
-      last = now;
       if (now - printed >= WORLD_PRINT_MS) {
         printed = now;
-        setYears(counted.current);
+        const back = since.current;
+        const shown = banked.current + (back === null ? 0 : performance.now() - back);
+        setYears((shown / 1000) * WORLD_YEARS_PER_SECOND);
       }
       frame = requestAnimationFrame(tick);
     }
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [live, reduced]);
+  }, [hidden, on, reduced]);
 
   return (
-    <p {...props(styles.live, style)}>
-      <Sentence
-        figures={[
-          reduced ? (
-            <Figure key="rate" value={Math.round(WORLD_YEARS_PER_SECOND)} />
-          ) : (
-            <Figure decimals={years < WORLD_TENTHS_BELOW ? 1 : 0} key="years" value={years} />
-          ),
-        ]}
-        mark={
-          <Mark label={m.home_receipt_tip_label()}>
-            {m.home_cost_world_tip({
-              daily: compact.format(WORLD_HOURS_PER_DAY),
-              hours: AVERAGE_HOURS,
-              perSecond: number.format(Math.round(WORLD_HOURS_PER_SECOND)),
-              rate: number.format(Math.round(WORLD_YEARS_PER_SECOND)),
-              users: compact.format(MOBILE_USERS),
-            })}
-            {reduced ? null : <span>{m.home_cost_world_tip_live()}</span>}
-            <a href={WORLD_SOURCE_URL} rel="noreferrer" target="_blank">
-              {m.home_cost_world_source()}
-            </a>
-          </Mark>
-        }
-        text={
-          reduced
-            ? m.home_cost_world_rate({ years: slot(0) })
-            : m.home_cost_world_live({ years: slot(0) })
-        }
+    <div {...props(styles.counter, style)}>
+      <NumberFlow
+        format={{ maximumFractionDigits: decimals, minimumFractionDigits: decimals }}
+        locales={locale}
+        spinTiming={WORLD_ROLL}
+        transformTiming={WORLD_ROLL}
+        value={reduced ? Math.round(WORLD_YEARS_PER_SECOND) : years}
+        {...props(styles.counterFigure)}
       />
-    </p>
+      <p {...props(styles.counterCaption)}>
+        <Sentence
+          figures={[]}
+          mark={
+            <Mark label={m.home_receipt_tip_label()}>
+              {m.home_cost_world_tip({
+                daily: compact.format(WORLD_HOURS_PER_DAY),
+                hours: AVERAGE_HOURS,
+                perSecond: number.format(Math.round(WORLD_HOURS_PER_SECOND)),
+                rate: number.format(Math.round(WORLD_YEARS_PER_SECOND)),
+                users: compact.format(MOBILE_USERS),
+              })}
+              {reduced ? null : <span>{m.home_cost_world_tip_live()}</span>}
+              <a href={WORLD_SOURCE_URL} rel="noreferrer" target="_blank">
+                {m.home_cost_world_source()}
+              </a>
+            </Mark>
+          }
+          text={reduced ? m.home_cost_world_rate() : m.home_cost_world_caption()}
+        />
+      </p>
+    </div>
   );
 }
 
@@ -2119,29 +2153,22 @@ export function CostStory({ id }: { id: string }) {
       <div ref={stage} {...props(styles.stage)}>
         <GridTexture style={styles.grid} />
         <div {...props(styles.beats)}>
-          <div {...beat(0, styles.beatFeed)}>
-            <div {...props(styles.lead)}>
-              {/* The page's heading: the first thing it says. */}
-              <h1 {...props(partOf(0, 0, styles.line))}>
-                <Sentence
-                  figures={[<Figure key="hours" value={AVERAGE_HOURS} />]}
-                  mark={
-                    <Mark label={m.home_cost_source_label()}>
-                      <a href={SOURCE_URL} rel="noreferrer" target="_blank">
-                        {m.home_gate_source()}
-                      </a>
-                    </Mark>
-                  }
-                  text={m.home_cost_average({ hours: slot(0) })}
-                />
-              </h1>
-              <WorldCount live={on(0) && !hidden} style={partOf(0, 1)} />
-            </div>
-            {/* It goes with the first beat. With less motion every beat stays
-            on the page, so it does too. */}
-            <div {...props(partOf(0, 2, styles.feed))}>
-              <FeedPhone shown={reduced || active === 0} />
-            </div>
+          <div {...beat(0, styles.beatCounter)}>
+            {/* The page's heading: the first thing it says. */}
+            <h1 {...props(partOf(0, 0, styles.line))}>
+              <Sentence
+                figures={[<Figure key="hours" value={AVERAGE_HOURS} />]}
+                mark={
+                  <Mark label={m.home_cost_source_label()}>
+                    <a href={SOURCE_URL} rel="noreferrer" target="_blank">
+                      {m.home_gate_source()}
+                    </a>
+                  </Mark>
+                }
+                text={m.home_cost_average({ hours: slot(0) })}
+              />
+            </h1>
+            <WorldCounter on={on(0)} style={partOf(0, 1)} />
           </div>
 
           <div {...beat(WEEKS_BEAT)}>
