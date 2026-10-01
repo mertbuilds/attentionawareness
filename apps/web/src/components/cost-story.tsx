@@ -1569,6 +1569,8 @@ export function CostStory({ id }: { id: string }) {
   // The waking years, as the page prints them.
   const years = Number(formatYears(AVERAGE_HOURS));
   const number = new Intl.NumberFormat(getLocale());
+  // The waking share to a tenth, as the years it adds up to are.
+  const share = new Intl.NumberFormat(getLocale(), { maximumFractionDigits: 1 });
   const toMoon = moonShare(AVERAGE_HOURS);
   const toMoonPercent = Math.round(toMoon * 100);
 
@@ -1868,7 +1870,7 @@ export function CostStory({ id }: { id: string }) {
                   <Mark label={tipLabel}>
                     {m.home_receipt_total_tip({
                       hours: AVERAGE_HOURS,
-                      percent: Math.round((AVERAGE_HOURS / WAKING_HOURS) * 100),
+                      percent: share.format((AVERAGE_HOURS / WAKING_HOURS) * 100),
                       years: formatYears(AVERAGE_HOURS),
                     })}
                   </Mark>
