@@ -35,6 +35,7 @@ import {
   moonShare,
   screenHours,
   screenWeeks,
+  SCROLL_METERS,
   WAKING_HOURS,
   WALKING_KMH,
   WEEKEND_HOURS,
@@ -46,12 +47,15 @@ import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
 import { BillFilters } from './bill-paper.tsx';
 import { DECK_GRAPHICS } from './deck/index.ts';
-import { FeedPhone } from './feed-phone.tsx';
 import { GridTexture } from './grid-texture.tsx';
 import { InfoTip } from './info-tip.tsx';
+import { ThumbDistance } from './thumb-distance.tsx';
 
 /** The report the average day is taken from. */
 const SOURCE_URL = 'https://datareportal.com/reports/digital-2024-global-overview-report';
+/** Where Facebook's figure for a day's scroll was reported. */
+const SCROLL_SOURCE_URL =
+  'https://www.thedrum.com/news/creativity-meets-collaboration-marketers-find-new-ways-work-mobile-world-advertising';
 /** The story's sentences, in the order the scroll plays them, and where each drawing's beat stands. */
 const BEATS = 6;
 const WEEKS_BEAT = 1;
@@ -321,10 +325,10 @@ const styles = create({
     transitionTimingFunction: easing.inOut,
     width: '100%',
   },
-  // The first beat: the sentence beside the feed, which stands under it once
-  // the window is too narrow for two columns. There it is the whole stage, so
-  // the words take what they need and the feed every row they leave, short of
-  // the cue at the foot.
+  // The first beat: the sentence beside the thumb's drawing, which stands
+  // under it once the window is too narrow for two columns. There it is the
+  // whole stage, so the words take what they need and the drawing every row
+  // they leave, short of the cue at the foot.
   beatFeed: {
     boxSizing: 'border-box',
     columnGap: spacing.s16,
@@ -419,21 +423,6 @@ const styles = create({
     height: CUE_HEIGHT,
     overflow: 'hidden',
     width: 2,
-  },
-  // The room the feed stands in under the sentence on a narrow screen. The
-  // phone is sized by it, so all of it is on the first screen. On a wide
-  // screen it is no box at all, and the phone stands in the beat's grid on
-  // its own.
-  feed: {
-    alignItems: 'center',
-    alignSelf: 'stretch',
-    containerType: 'size',
-    display: {
-      '@media (min-width: 768px)': 'contents',
-      default: 'flex',
-    },
-    justifyContent: 'center',
-    justifySelf: 'stretch',
   },
   // The time left before the next answer takes this one's place: a hairline
   // under the button, along its straight edge, filling in orange. With less
@@ -849,6 +838,52 @@ const styles = create({
   },
   swapLine: {
     gridArea: '1 / 1',
+  },
+  // The thumb's drawing over what it counts: beside the sentence on a wide
+  // screen, and under it on a narrow one, in every row the words leave.
+  thumb: {
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s3,
+    justifyContent: 'center',
+    justifySelf: 'stretch',
+    minHeight: 0,
+  },
+  // What the drawing counts, small and quiet under it. It takes the drawing's
+  // width and adds none of its own, so the column stays as wide as the drawing.
+  thumbCaption: {
+    alignSelf: 'stretch',
+    color: colors.muted,
+    contain: 'inline-size',
+    fontSize: font.sizeSm,
+    lineHeight: 1.4,
+    margin: 0,
+    textAlign: 'center',
+    textWrap: 'balance',
+  },
+  // The room the drawing is sized by under the sentence on a narrow screen,
+  // so all of it is on the first screen. On a wide screen the drawing has a
+  // height of its own.
+  thumbRoom: {
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    containerType: {
+      '@media (min-width: 768px)': 'normal',
+      default: 'size',
+    },
+    display: 'flex',
+    flexBasis: {
+      '@media (min-width: 768px)': 'auto',
+      default: 0,
+    },
+    flexGrow: {
+      '@media (min-width: 768px)': 0,
+      default: 1,
+    },
+    justifyContent: 'center',
+    minHeight: 0,
   },
   // One weekend, a page off a desk calendar: the month over the two days. It
   // stands on the line at its own middle and is moved along from there.
@@ -2028,8 +2063,24 @@ export function CostStory({ id }: { id: string }) {
             </h1>
             {/* It goes with the first beat. With less motion every beat stays
             on the page, so it does too. */}
-            <div {...props(partOf(0, 1, styles.feed))}>
-              <FeedPhone shown={reduced || active === 0} />
+            <div {...props(partOf(0, 1, styles.thumb))}>
+              <div {...props(styles.thumbRoom)}>
+                <ThumbDistance shown={reduced || active === 0} />
+              </div>
+              <p {...props(styles.thumbCaption)}>
+                <Sentence
+                  figures={[<Figure key="meters" value={SCROLL_METERS} />]}
+                  mark={
+                    <Mark label={m.home_cost_source_label()}>
+                      <span>{m.home_cost_thumb_tip()}</span>
+                      <a href={SCROLL_SOURCE_URL} rel="noreferrer" target="_blank">
+                        {m.home_cost_thumb_source()}
+                      </a>
+                    </Mark>
+                  }
+                  text={m.home_cost_thumb({ meters: slot(0) })}
+                />
+              </p>
             </div>
           </div>
 

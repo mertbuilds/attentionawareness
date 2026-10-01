@@ -53,7 +53,9 @@ export const scale = defineConsts({
  * be slowed or quickened at once. Each starts `delay` after its beat comes on,
  * once the sentence has risen into place: `duration.verySlow` and a stagger.
  * An answer to "What else?" stands
- * `deckHold` on its finished drawing before the next takes its place.
+ * `deckHold` on its finished drawing before the next takes its place. The
+ * thumb climbs to a day's scroll over `thumb` and stands `thumbHold` on it
+ * before it starts over.
  */
 export const drawing = defineConsts({
   deck: 4,
@@ -61,6 +63,8 @@ export const drawing = defineConsts({
   delay: 0.54,
   earth: 4.2,
   moon: 3.8,
+  thumb: 11,
+  thumbHold: 2.4,
   weekends: 3.2,
   weeks: 3.4,
 });
