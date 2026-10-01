@@ -56,7 +56,8 @@ export const scale = defineConsts({
  * `deckHold` on its finished drawing before the next takes its place. The
  * instruments take twice an answer's time, a scene at a time. Past the story,
  * the thumb among the facts climbs to a day's scroll over `thumb` and stands
- * `thumbHold` on it before it starts over.
+ * `thumbHold` on it before it starts over. Further down, the way out's three
+ * steps play over `stepPlug`, `stepChoose` and `stepStays`, one after another.
  */
 export const drawing = defineConsts({
   deck: 4,
@@ -65,6 +66,9 @@ export const drawing = defineConsts({
   earth: 4.2,
   instruments: 8,
   moon: 3.8,
+  stepChoose: 3.2,
+  stepPlug: 3.4,
+  stepStays: 3,
   thumb: 11,
   thumbHold: 2.4,
   weekends: 3.2,

@@ -7,6 +7,7 @@ import { useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { CostStory } from '../components/cost-story.tsx';
 import { Facts } from '../components/facts.tsx';
+import { HowItWorks } from '../components/how-it-works.tsx';
 import { MacDownload } from '../components/mac-download.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { Turn } from '../components/turn.tsx';
@@ -307,11 +308,12 @@ function HomePage() {
         <CostStory id={COST_ID} />
         <Turn />
 
-        {/* Act two, the way out: the app that keeps the phone as it is, and
-        the manual way that starts it over. */}
+        {/* Act two, the way out: how it works, in three steps, then the app
+        that keeps the phone as it is and the manual way that starts it over. */}
         <section {...props(styles.section, styles.anchor)} id={WAY_OUT_ID}>
           <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
           <p {...props(styles.sectionBody)}>{m.home_how_body()}</p>
+          <HowItWorks />
           <div {...props(styles.ways)}>
             <article {...props(styles.way, styles.wayAccent)}>
               <div {...props(styles.wayHead)}>

@@ -76,7 +76,7 @@ export function Turn() {
   return (
     <section {...props(styles.turn)}>
       <h2 ref={title} {...props(styles.title)}>
-        <span {...props(styles.line, seen && styles.lineOn)}>{m.home_turn_willpower()}</span>
+        <span {...props(styles.line, seen && styles.lineOn)}>{m.home_turn_willpower()}</span>{' '}
         <span {...props(styles.line, styles.lineSecond, seen && styles.lineOn)}>
           <Sentence figures={[]} mark={null} text={m.home_turn_built()} />
         </span>
