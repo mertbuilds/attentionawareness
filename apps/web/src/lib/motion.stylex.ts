@@ -54,7 +54,9 @@ export const scale = defineConsts({
  * once the sentence has risen into place: `duration.verySlow` and a stagger.
  * An answer to "What else?" stands
  * `deckHold` on its finished drawing before the next takes its place. The
- * instruments take twice an answer's time, a scene at a time.
+ * instruments take twice an answer's time, a scene at a time. Past the story,
+ * the thumb among the facts climbs to a day's scroll over `thumb` and stands
+ * `thumbHold` on it before it starts over.
  */
 export const drawing = defineConsts({
   deck: 4,
@@ -63,6 +65,8 @@ export const drawing = defineConsts({
   earth: 4.2,
   instruments: 8,
   moon: 3.8,
+  thumb: 11,
+  thumbHold: 2.4,
   weekends: 3.2,
   weeks: 3.4,
 });

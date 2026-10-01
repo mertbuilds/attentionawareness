@@ -1024,7 +1024,7 @@ function inDialog(target: EventTarget | null): boolean {
 }
 
 /** A figure's placeholder: its index, between two slot marks. */
-function slot(index: number): string {
+export function slot(index: number): string {
   return `${SLOT}${index}${SLOT}`;
 }
 
@@ -1081,7 +1081,7 @@ export function Sentence({
 }
 
 /** A figure in a sentence, printed the way the page's language prints it. */
-function Figure({ decimals = 0, value }: { decimals?: number; value: number }) {
+export function Figure({ decimals = 0, value }: { decimals?: number; value: number }) {
   const format = new Intl.NumberFormat(getLocale(), {
     maximumFractionDigits: decimals,
     minimumFractionDigits: decimals,
@@ -1090,7 +1090,7 @@ function Figure({ decimals = 0, value }: { decimals?: number; value: number }) {
 }
 
 /** The small i after a figure, and how it is counted. */
-function Mark({
+export function Mark({
   children,
   label,
   onOpenChange,

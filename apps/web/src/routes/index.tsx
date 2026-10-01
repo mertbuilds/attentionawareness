@@ -6,6 +6,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { CostStory } from '../components/cost-story.tsx';
+import { Facts } from '../components/facts.tsx';
 import { MacDownload } from '../components/mac-download.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { Turn } from '../components/turn.tsx';
@@ -359,6 +360,11 @@ function HomePage() {
             </a>
             {computerAfter}
           </p>
+        </section>
+
+        <section {...props(styles.section)}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_facts_title()}</h2>
+          <Facts />
         </section>
 
         <section {...props(styles.section)}>
