@@ -5,7 +5,19 @@ import { create, defaultMarker, props, when } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { useId, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { AngleDown, Check } from 'reicon-react';
+import {
+  AngleDown,
+  BookOpen,
+  Briefcase,
+  Brush,
+  Call,
+  Camera,
+  ChartLine,
+  Check,
+  MusicNote,
+  Video,
+} from 'reicon-react';
+import { HeroPhone } from '../components/hero-phone.tsx';
 import { HowItWorks } from '../components/how-it-works.tsx';
 import { MacDownload } from '../components/mac-download.tsx';
 import { ScreenShots } from '../components/screen-shots.tsx';
@@ -25,6 +37,15 @@ export const Route = createFileRoute('/')({
  * them, so the page's widest gap is the one measure written out here.
  */
 const SECTION_GAP = '96px';
+/** The column every section stands in, and the first screen too once it is stacked. */
+const COLUMN_WIDTH = 760;
+/**
+ * The first screen side by side: wider than the column, so the words keep a
+ * readable measure next to the phone.
+ */
+const HERO_WIDTH = 1040;
+/** The phone's column beside the words, as wide as the phone is drawn there. */
+const HERO_PHONE_WIDTH = 320;
 /** The places on the page that can be linked to, and the ids they use. */
 const WAY_OUT_ID = 'way-out';
 const STORY_ID = 'story';
@@ -37,7 +58,7 @@ const STORE_URL =
 /** The post this started from, linked out of the paragraph that tells it. */
 const STORY_URL = 'https://stopa.io/post/297';
 /**
- * Where a link or a figure stands inside a sentence. The message is written
+ * Where a link or an orange word stands inside a sentence. The message is written
  * with it as a placeholder and split on it, so the words around it keep their
  * own order and spacing in every language instead of being stitched from
  * pieces.
@@ -49,6 +70,8 @@ const CHEVRON_SIZE = 16;
 const CHEVRON_STROKE = 2.25;
 /** The tick before a promise, in pixels, drawn with the chevron's line. */
 const CHECK_SIZE = 16;
+/** A use's icon, in pixels, at the icons' own 1.5px line. */
+const USE_ICON_SIZE = 24;
 
 const styles = create({
   // A section the page links down to. The scroll stops short of its heading,
@@ -75,7 +98,18 @@ const styles = create({
     lineHeight: 1.5,
     margin: 0,
   },
-  closingTitle: {
+  content: {
+    display: 'flex',
+    flexDirection: 'column',
+    // Nothing is drawn between the sections, so the gap carries the rhythm on
+    // its own at every width.
+    gap: SECTION_GAP,
+    maxWidth: COLUMN_WIDTH,
+    width: '100%',
+  },
+  // The page's largest words, at one size: the claim it opens on and the line
+  // it closes on.
+  displayTitle: {
     fontSize: {
       '@media (min-width: 640px)': 'clamp(40px, 5vw, 64px)',
       default: 'clamp(32px, 9vw, 40px)',
@@ -85,15 +119,6 @@ const styles = create({
     lineHeight: 1.15,
     margin: 0,
     textWrap: 'balance',
-  },
-  content: {
-    display: 'flex',
-    flexDirection: 'column',
-    // Nothing is drawn between the sections, so the gap carries the rhythm on
-    // its own at every width.
-    gap: SECTION_GAP,
-    maxWidth: 760,
-    width: '100%',
   },
   // The free way, under the or: one quiet line and its button, in the middle
   // like the price above it.
@@ -226,6 +251,61 @@ const styles = create({
   // Not on the page yet, and taking no room in it either.
   gone: {
     display: 'none',
+  },
+  // The first screen: the claim, the reason and the download beside the phone
+  // the feeds leave. Too narrow for two columns, the phone stands under the
+  // words and the hero narrows to the column, so every left edge lines up.
+  hero: {
+    alignItems: 'center',
+    columnGap: spacing.s16,
+    display: 'grid',
+    gridTemplateColumns: {
+      '@media (min-width: 900px)': `minmax(0, 1fr) ${HERO_PHONE_WIDTH}px`,
+      default: 'minmax(0, 1fr)',
+    },
+    maxWidth: {
+      '@media (min-width: 900px)': HERO_WIDTH,
+      default: COLUMN_WIDTH,
+    },
+    // Clear of the name: the strip a phone keeps it in, and the corner a wider
+    // window keeps it in.
+    paddingBlockStart: spacing.s16,
+    rowGap: spacing.s12,
+    width: '100%',
+  },
+  // The word the claim turns on, in the one orange.
+  heroAccent: {
+    color: accent.base,
+  },
+  // The download and its price, close under it.
+  heroAction: {
+    alignItems: 'flex-start',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s3,
+  },
+  heroPrice: {
+    color: colors.muted,
+    fontSize: font.sizeSm,
+    lineHeight: 1.5,
+    margin: 0,
+  },
+  // The reason under the claim, a step quieter and a step smaller on a phone.
+  heroSub: {
+    color: colors.muted,
+    fontSize: {
+      '@media (min-width: 640px)': font.sizeLg,
+      default: font.sizeMd,
+    },
+    lineHeight: 1.5,
+    margin: 0,
+    maxWidth: '46ch',
+    textWrap: 'pretty',
+  },
+  heroText: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s6,
   },
   // The app's offer under the steps: the price and what it buys, then the
   // download, all in the middle. The app is the way the page recommends, so
@@ -381,6 +461,39 @@ const styles = create({
     flexDirection: 'column',
     gap: spacing.s4,
   },
+  // One thing the phone is for: a quiet tile, its icon over its line.
+  use: {
+    borderColor: colors.border,
+    borderRadius: radius.base,
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    display: 'flex',
+    flexDirection: 'column',
+    fontSize: font.sizeMd,
+    gap: spacing.s4,
+    lineHeight: 1.4,
+    padding: {
+      '@media (min-width: 768px)': spacing.s6,
+      default: spacing.s4,
+    },
+    textWrap: 'pretty',
+  },
+  useIcon: {
+    color: colors.muted,
+    flexShrink: 0,
+  },
+  // Two to a row on a phone, all four across once the column has room.
+  uses: {
+    display: 'grid',
+    gap: spacing.s3,
+    gridTemplateColumns: {
+      '@media (min-width: 768px)': 'repeat(4, minmax(0, 1fr))',
+      default: 'repeat(2, minmax(0, 1fr))',
+    },
+    listStyle: 'none',
+    margin: 0,
+    padding: 0,
+  },
 });
 
 /**
@@ -445,6 +558,22 @@ function HomePage() {
     storySection.current?.scrollIntoView({ block: 'start' });
   }
 
+  // The word the claim turns on, in the middle of it, so the words around it
+  // keep their own order in every language.
+  const [titleBefore, titleAfter] = m.home_hero_title({ algorithms: LINK_SLOT }).split(LINK_SLOT);
+
+  // What the phone is still for, each with its icon.
+  const uses = [
+    { Icon: Brush, text: m.home_uses_make() },
+    { Icon: Camera, text: m.home_uses_photos() },
+    { Icon: Call, text: m.home_uses_call() },
+    { Icon: Briefcase, text: m.home_uses_work() },
+    { Icon: ChartLine, text: m.home_uses_numbers() },
+    { Icon: BookOpen, text: m.home_uses_learn() },
+    { Icon: MusicNote, text: m.home_uses_music() },
+    { Icon: Video, text: m.home_uses_video() },
+  ];
+
   // The post the story links out to, in the middle of the sentence that tells
   // it, so the words around it keep their own order in every language.
   const [storyBefore, storyAfter] = m.home_story_1({ post: LINK_SLOT }).split(LINK_SLOT);
@@ -477,10 +606,43 @@ function HomePage() {
 
   return (
     <main {...props(styles.page)}>
+      {/* The first screen: the claim, why willpower cannot win it, and the
+      download with its price, beside the phone the feeds leave. */}
+      <header {...props(styles.hero)}>
+        <div {...props(styles.heroText)}>
+          <h1 {...props(styles.displayTitle)}>
+            {titleBefore}
+            <span {...props(styles.heroAccent)}>{m.home_hero_title_accent()}</span>
+            {titleAfter}
+          </h1>
+          <p {...props(styles.heroSub)}>{m.home_hero_sub()}</p>
+          <div {...props(styles.heroAction)}>
+            <MacDownload />
+            <p {...props(styles.heroPrice)}>{m.home_hero_price()}</p>
+          </div>
+        </div>
+        <HeroPhone />
+      </header>
+
       <div {...props(styles.content)}>
-        {/* Act two, the way out: where the Mac app comes in and what it does,
-        then how it works, in three steps, what the app costs and promises,
-        and under it, past an or, the manual way that starts the phone over. */}
+        {/* What the phone is for once the feeds are off it: everything else
+        it does, which is why the rest of it stays. */}
+        <section {...props(styles.section)}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_uses_title()}</h2>
+          <ul {...props(styles.uses)}>
+            {uses.map(({ Icon, text }) => (
+              <li key={text} {...props(styles.use)}>
+                <Icon aria-hidden="true" size={USE_ICON_SIZE} {...props(styles.useIcon)} />
+                {text}
+              </li>
+            ))}
+          </ul>
+          <p {...props(styles.sectionBody)}>{m.home_uses_close()}</p>
+        </section>
+
+        {/* How it works: where the Mac app comes in and what it does, in
+        three steps, what the app costs and promises, and under it, past an
+        or, the manual way that starts the phone over. */}
         <section {...props(styles.section, styles.anchor)} id={WAY_OUT_ID}>
           <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
           <p {...props(styles.sectionBody)}>{m.home_how_lead()}</p>
@@ -513,8 +675,8 @@ function HomePage() {
           </div>
         </section>
 
-        {/* Act three, support. Who made this and why, told rather than argued:
-        the only place on the page that speaks in the first person. */}
+        {/* Who made this and why, told rather than argued: the only place on
+        the page that speaks in the first person. */}
         <section {...props(styles.section, styles.anchor)} id={STORY_ID} ref={storySection}>
           <h2 {...props(styles.sectionTitle)}>{m.home_story_title()}</h2>
           <div {...props(styles.story)}>
@@ -608,7 +770,7 @@ function HomePage() {
         </section>
 
         <section {...props(styles.closing)}>
-          <h2 {...props(styles.closingTitle)}>{m.home_close_title()}</h2>
+          <h2 {...props(styles.displayTitle)}>{m.home_close_title()}</h2>
           <MacDownload style={styles.downloadCentered} />
           <p {...props(styles.closingNote)}>
             <span>{m.home_how_app_price()}</span>
