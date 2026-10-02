@@ -60,12 +60,14 @@ import { InfoTip } from './info-tip.tsx';
 
 /** The report the average day is taken from. */
 const SOURCE_URL = 'https://datareportal.com/reports/digital-2024-global-overview-report';
-/** The story's sentences, in the order the scroll plays them, and where each drawing's beat stands. */
-const BEATS = 5;
+/** The story's sentences, in the order the scroll plays them, and where each beat after the first stands. */
+const BEATS = 7;
 const WEEKS_BEAT = 1;
 const EARTH_BEAT = 2;
 const GRID_BEAT = 3;
-const TURN_BEAT = 4;
+const FAULT_BEAT = 4;
+const PLAY_BEAT = 5;
+const APP_BEAT = 6;
 /** How much of the stage has to be on screen before a drawing plays. */
 const SEEN = 0.6;
 /** `easing.smoothOut`, the curve things move into place on, as motion takes a curve. */
@@ -696,8 +698,8 @@ const styles = create({
     textDecorationThickness: '0.03em',
     textUnderlineOffset: '0.1em',
   },
-  // What the turn leads to: the line that answers it and the button down to
-  // the way out, under the turn and quieter than it.
+  // What the app does and the button down to the way out, under the line
+  // that brings the app in and quieter than it.
   onward: {
     alignItems: 'center',
     display: 'flex',
@@ -757,7 +759,7 @@ const styles = create({
     transitionDelay: duration.stagger,
   },
   // How far along the story is, a hairline at the foot of the stage. It fades
-  // out on the last beat, where the turn stands on its own, and back in on
+  // out on the last beat, where the way out stands on its own, and back in on
   // the way up.
   rail: {
     backgroundColor: colors.border,
@@ -936,8 +938,8 @@ const styles = create({
   },
   // The first beat's sentence, alone on the first screen: larger than the
   // ones after it, and smaller on a short window. On a wide screen it reaches
-  // past the column, twelve times its size across, so it breaks into three
-  // lines rather than five.
+  // past the column, twelve times its size across, so it breaks into two or
+  // three lines rather than five.
   title: {
     alignSelf: 'stretch',
     fontSize: 'clamp(40px, min(10.5vw, 11vh), 88px)',
@@ -946,9 +948,10 @@ const styles = create({
     marginInline: `min(0px, 50% - min(6em, 50vw - ${spacing.s4}))`,
     maxWidth: 'none',
   },
-  // The last beat, the sentence the story turns on: it is not the reader, it
-  // is the apps. Larger than the sentences before it, and wider than the
-  // column on a wide screen, so each of its two lines stays one line.
+  // The sentence the story turns on: it is not our fault, it is the apps and
+  // the people behind them. Larger than the sentences before it, and wider
+  // than the column on a wide screen, so its long second line takes as few
+  // lines as it can.
   turn: {
     alignSelf: 'stretch',
     fontSize: {
@@ -958,8 +961,9 @@ const styles = create({
     marginInline: `min(0px, 50% - min(8.5em, 50vw - ${spacing.s4}))`,
     maxWidth: 'none',
   },
-  // A line of the turn, a part that fades in as it rises, so the second line
-  // can wait for the first. With less motion both stand from the start.
+  // A line of the turn, or what the app does under the line that brings it
+  // in: a part that fades in as it rises, so it can wait for the line over it.
+  // With less motion both stand from the start.
   turnLine: {
     display: 'block',
     opacity: {
@@ -971,13 +975,9 @@ const styles = create({
   turnLineOn: {
     opacity: 1,
   },
-  // The second line comes on once the first has, so the two are read apart.
+  // The second comes on once the first has, so the two are read apart.
   turnLineSecond: {
     transitionDelay: duration.verySlow,
-  },
-  // What it leads to comes on once the second line has.
-  turnLineThird: {
-    transitionDelay: `calc(${duration.verySlow} * 2)`,
   },
   walker: {
     fill: accent.base,
@@ -1972,11 +1972,14 @@ function FactGrid({
 }
 
 /**
- * Act one: what the average day costs, told one sentence a screen. The stage
- * stands pinned while the section scrolls under it, the page comes to rest on
- * one beat at a time, and each beat's drawing plays as it comes on. It ends
- * on the turn: it is not the reader's willpower, it is the apps, and a button
- * down to `wayOut`, the id of the section that answers it.
+ * Act one: what the average day costs, told one sentence a screen and as
+ * "we", the one telling it on the reader's side. The stage stands pinned
+ * while the section scrolls under it, the page comes to rest on one beat at a
+ * time, and each beat's drawing plays as it comes on. It ends on the turn, a
+ * beat at a time: it is not our fault, it is the apps and the people behind
+ * them; the only way to win is not to play; and that is where the Mac app
+ * comes in, with a button down to `wayOut`, the id of the section that
+ * answers it.
  */
 export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
   const story = useRef<HTMLElement>(null);
@@ -2279,7 +2282,8 @@ export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
   }
 
   const tipLabel = m.home_receipt_tip_label();
-  const turning = active === TURN_BEAT;
+  const turning = active === FAULT_BEAT;
+  const closing = active === APP_BEAT;
 
   // Every fact the grid can show, each eased the way it is on its own. It
   // opens on the first six, in this order, and swaps the rest in over time.
@@ -2296,32 +2300,6 @@ export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
       ease: 'linear',
       key: 'instruments',
       seconds: drawing.instruments,
-    },
-    {
-      art: (played) => <Moon share={toMoon} walked={played} />,
-      caption: (
-        <Sentence
-          figures={[]}
-          mark={
-            <Mark label={tipLabel}>
-              {m.home_receipt_moon_tip({
-                hours: number.format(MOON_WALK_HOURS),
-                km: number.format(MOON_KM),
-                percent: toMoonPercent,
-                speed: WALKING_KMH,
-              })}
-            </Mark>
-          }
-          text={
-            toMoon >= HALFWAY
-              ? m.home_cost_could_moon_half()
-              : m.home_cost_could_moon_part({ percent: toMoonPercent })
-          }
-        />
-      ),
-      ease: SMOOTH_OUT,
-      key: 'moon',
-      seconds: drawing.moon,
     },
     {
       art: (played) => <BooksGraphic play={played} />,
@@ -2376,6 +2354,45 @@ export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
       seconds: drawing.deck,
     },
     {
+      art: (played) => <DegreesGraphic amount={degrees} play={played} />,
+      caption: (
+        <Sentence
+          figures={[<Figure key="degrees" value={degrees} />]}
+          mark={<Mark label={tipLabel}>{m.home_receipt_degrees_tip()}</Mark>}
+          text={m.home_cost_could_degrees({ count: slot(0) })}
+        />
+      ),
+      ease: 'linear',
+      key: 'degrees',
+      seconds: drawing.deck,
+    },
+    {
+      art: (played) => <Moon share={toMoon} walked={played} />,
+      caption: (
+        <Sentence
+          figures={[]}
+          mark={
+            <Mark label={tipLabel}>
+              {m.home_receipt_moon_tip({
+                hours: number.format(MOON_WALK_HOURS),
+                km: number.format(MOON_KM),
+                percent: toMoonPercent,
+                speed: WALKING_KMH,
+              })}
+            </Mark>
+          }
+          text={
+            toMoon >= HALFWAY
+              ? m.home_cost_could_moon_half()
+              : m.home_cost_could_moon_part({ percent: toMoonPercent })
+          }
+        />
+      ),
+      ease: SMOOTH_OUT,
+      key: 'moon',
+      seconds: drawing.moon,
+    },
+    {
       art: (played) => <Weekends drawn={played} />,
       caption: (
         <Sentence
@@ -2396,19 +2413,6 @@ export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
       ease: 'linear',
       key: 'weekends',
       seconds: drawing.weekends,
-    },
-    {
-      art: (played) => <DegreesGraphic amount={degrees} play={played} />,
-      caption: (
-        <Sentence
-          figures={[<Figure key="degrees" value={degrees} />]}
-          mark={<Mark label={tipLabel}>{m.home_receipt_degrees_tip()}</Mark>}
-          text={m.home_cost_could_degrees({ count: slot(0) })}
-        />
-      ),
-      ease: 'linear',
-      key: 'degrees',
-      seconds: drawing.deck,
     },
     {
       art: (played) => <NovelsGraphic amount={novels} play={played} />,
@@ -2532,14 +2536,16 @@ export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
             <FactGrid facts={facts} on={on(GRID_BEAT)} staged={active === GRID_BEAT} />
           </div>
 
-          <div {...beat(TURN_BEAT)}>
+          <div {...beat(FAULT_BEAT)}>
             <h2 {...props(styles.line, styles.turn)}>
-              <span {...props(partOf(TURN_BEAT, 0, styles.turnLine), turning && styles.turnLineOn)}>
-                {m.home_turn_willpower()}
+              <span
+                {...props(partOf(FAULT_BEAT, 0, styles.turnLine), turning && styles.turnLineOn)}
+              >
+                {m.home_turn_fault()}
               </span>{' '}
               <span
                 {...props(
-                  partOf(TURN_BEAT, 1, styles.turnLine),
+                  partOf(FAULT_BEAT, 1, styles.turnLine),
                   turning && [styles.turnLineOn, styles.turnLineSecond],
                 )}
               >
@@ -2550,10 +2556,18 @@ export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
                 />
               </span>
             </h2>
+          </div>
+
+          <div {...beat(PLAY_BEAT)}>
+            <p {...props(partOf(PLAY_BEAT, 0, styles.line))}>{m.home_turn_play()}</p>
+          </div>
+
+          <div {...beat(APP_BEAT)}>
+            <p {...props(partOf(APP_BEAT, 0, styles.line))}>{m.home_turn_app()}</p>
             <div
               {...props(
-                partOf(TURN_BEAT, 2, [styles.turnLine, styles.onward]),
-                turning && [styles.turnLineOn, styles.turnLineThird],
+                partOf(APP_BEAT, 1, [styles.turnLine, styles.onward]),
+                closing && [styles.turnLineOn, styles.turnLineSecond],
               )}
             >
               <p {...props(styles.onwardLine)}>{m.home_turn_onward()}</p>
@@ -2591,7 +2605,7 @@ export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
         </div>
         <span
           aria-hidden="true"
-          {...props(styles.rail, styles.swap, (active === 0 || turning) && styles.gone)}
+          {...props(styles.rail, styles.swap, (active === 0 || closing) && styles.gone)}
         >
           <motion.span {...props(styles.railFill)} style={{ scaleX: scrollYProgress }} />
         </span>

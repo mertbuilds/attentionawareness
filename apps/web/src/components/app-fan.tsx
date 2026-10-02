@@ -17,6 +17,7 @@ const FEED_APPS: ReadonlyArray<BlockedApp> = [
   { bundleId: 'com.atebits.Tweetie2', name: 'X' },
   { bundleId: 'com.facebook.Facebook', name: 'Facebook' },
   { bundleId: 'com.toyopagroup.picaboo', name: 'Snapchat' },
+  { bundleId: 'com.reddit.Reddit', name: 'Reddit' },
 ];
 /** The rounding of an iPhone's icon, as a share of its side. */
 const ICON_RADIUS = '22.5%';
