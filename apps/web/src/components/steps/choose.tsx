@@ -4,7 +4,7 @@ import { create, props } from '@stylexjs/stylex';
 import { easeInOut } from 'motion/react';
 import { drawing } from '../../lib/motion.stylex.ts';
 import { HEIGHT, WIDTH } from './box.ts';
-import { AppSquare, ICON } from './phone.tsx';
+import { AppSquare, FEEDS, FeedIcon, ICON } from './phone.tsx';
 import { stretch, usePlayhead } from './playhead.ts';
 
 /** The Mac app's window, the bar along its top, and the three buttons at the bar's left. */
@@ -23,7 +23,7 @@ const TICK = 'M-2.4 0.2 L-0.6 2 L2.6 -1.8';
 /** A ticked box's orange wash, faint enough that the tick still reads on it. */
 const WASH = 0.12;
 
-/** The rows ticked, in the order they are ticked. */
+/** The rows ticked, in the order they are ticked, each the next of the feeds. */
 const PICKS = [0, 2, 3, 5];
 /** When the pointer sets off for the first, and how long after it for each next one. */
 const FIRST = 0.04;
@@ -126,15 +126,17 @@ function pointerAt(at: number): { x: number; y: number } {
 }
 
 /**
- * The Mac app's window and the list of apps in it, and a pointer that goes
- * down the list ticking a few of them in orange one after another, then
- * steps back, while the rest stay as they are. It plays once each time
- * `play` turns on and stands with nothing ticked while it is off. With less
- * motion it stands ticked.
+ * The Mac app's window and the list of apps in it, a few of them feeds shown
+ * by their own icons, and a pointer that goes down the list ticking the feeds
+ * in orange one after another, then steps back, while the rest stay as they
+ * are. It plays once each time `play` turns on and stands with nothing ticked
+ * while it is off. With less motion it stands ticked.
  */
 export function ChooseGraphic({ play }: { play: boolean }) {
   const at = usePlayhead(play, drawing.stepChoose);
-  const picks = new Map(PICKS.map((row, order) => [row, tickAt(at, order)]));
+  const picks = new Map(
+    PICKS.map((row, order) => [row, { feed: FEEDS[order], ...tickAt(at, order) }]),
+  );
   const pointer = pointerAt(at);
 
   return (
@@ -166,12 +168,7 @@ export function ChooseGraphic({ play }: { play: boolean }) {
         return (
           <g key={row}>
             <g transform={`translate(${SQUARE_X} ${y})`}>
-              <AppSquare />
-              {pick === undefined ? null : (
-                <g opacity={pick.on}>
-                  <AppSquare picked />
-                </g>
-              )}
+              {pick?.feed === undefined ? <AppSquare /> : <FeedIcon bundleId={pick.feed} />}
             </g>
             <path d={`M${NAME_X} ${y} h${name}`} {...props(styles.faint)} />
             <g transform={`translate(${BOX_X} ${y})`}>

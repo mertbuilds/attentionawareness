@@ -1,6 +1,6 @@
-import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
+import { useId } from 'react';
 import { WIDTH } from './box.ts';
 
 /**
@@ -20,6 +20,17 @@ const ROWS = 5;
 const GRID_TOP = 31;
 /** The dock's tray along the bottom of the screen, and how far in from its edges the apps sit. */
 const DOCK = { height: 18, inset: 3, radius: 6, y: 143 };
+/**
+ * The feeds chosen on the Mac, in the order they are chosen, by bundle id:
+ * TikTok, Instagram, YouTube and X. Their icons are the turn's own, in
+ * `public/media/apps`.
+ */
+export const FEEDS = [
+  'com.zhiliaoapp.musically',
+  'com.burbn.instagram',
+  'com.google.ios.youtube',
+  'com.atebits.Tweetie2',
+];
 
 const GRID_LEFT = PHONE.x + (PHONE.width - (COLUMNS - 1) * PITCH.x - ICON) / 2;
 const SCREEN = {
@@ -56,11 +67,12 @@ const styles = create({
     stroke: colors.muted,
     strokeWidth: 1,
   },
-  // An app chosen to be blocked.
-  appPicked: {
-    stroke: accent.base,
-  },
   dock: {
+    fill: 'none',
+    stroke: colors.border,
+    strokeWidth: 1,
+  },
+  feedEdge: {
     fill: 'none',
     stroke: colors.border,
     strokeWidth: 1,
@@ -115,11 +127,8 @@ export function PhoneFrame() {
   );
 }
 
-/**
- * An app's square, around the origin, for a group placed at the app's middle,
- * in orange once it is `picked` to be blocked.
- */
-export function AppSquare({ picked = false }: { picked?: boolean }) {
+/** An app's square, around the origin, for a group placed at the app's middle. */
+export function AppSquare() {
   return (
     <rect
       height={ICON}
@@ -127,7 +136,39 @@ export function AppSquare({ picked = false }: { picked?: boolean }) {
       width={ICON}
       x={-ICON / 2}
       y={-ICON / 2}
-      {...props(styles.app, picked && styles.appPicked)}
+      {...props(styles.app)}
     />
+  );
+}
+
+/**
+ * The feed `bundleId`'s own icon in place of an app's square, rounded like
+ * the square and edged like the icons in the turn, so a white or a black one
+ * still holds its shape on the page.
+ */
+export function FeedIcon({ bundleId }: { bundleId: string }) {
+  const clip = useId();
+  return (
+    <>
+      <clipPath id={clip}>
+        <rect height={ICON} rx={ICON_RADIUS} width={ICON} x={-ICON / 2} y={-ICON / 2} />
+      </clipPath>
+      <image
+        clipPath={`url(#${clip})`}
+        height={ICON}
+        href={`/media/apps/${bundleId}.webp`}
+        width={ICON}
+        x={-ICON / 2}
+        y={-ICON / 2}
+      />
+      <rect
+        height={ICON}
+        rx={ICON_RADIUS}
+        width={ICON}
+        x={-ICON / 2}
+        y={-ICON / 2}
+        {...props(styles.feedEdge)}
+      />
+    </>
   );
 }

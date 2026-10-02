@@ -6,7 +6,7 @@ import { drawing, easing } from '../../lib/motion.stylex.ts';
 import { HEIGHT, WIDTH } from './box.ts';
 import { Cable } from './cable.tsx';
 import { Laptop, MAC_PLUG } from './laptop.tsx';
-import { APPS, AppSquare, PHONE, PhoneFrame } from './phone.tsx';
+import { APPS, AppSquare, FEEDS, FeedIcon, PHONE, PhoneFrame } from './phone.tsx';
 import { stretch, usePlayhead } from './playhead.ts';
 
 /** What is drawn on an app's square: something of the reader's own that it holds. */
@@ -32,7 +32,7 @@ const GLYPH_PATHS: Record<Glyph, string> = {
   photo:
     'M-4 3.4 L-1.2 0 L0.8 2 L2 0.8 L4 3.4 M3.4 -2.4 A1.1 1.1 0 1 1 1.2 -2.4 A1.1 1.1 0 1 1 3.4 -2.4 Z',
 };
-/** The apps chosen on the Mac, by their place on the home screen, in the order they go. */
+/** The feeds chosen on the Mac, by their place on the home screen, in the order they go. */
 const PICKS = [2, 4, 11, 13];
 
 /**
@@ -144,11 +144,11 @@ const styles = create({
 
 /**
  * A small Mac on the left, the iPhone on the right and the cable between
- * them, the apps chosen on the Mac in orange on the phone's home screen
- * among the reader's photos, messages and notes: a pulse runs down the
- * cable, the chosen apps go one after another while everything else stays,
+ * them, the feeds chosen on the Mac by their own icons on the phone's home
+ * screen among the reader's photos, messages and notes: a pulse runs down the
+ * cable, the chosen feeds go one after another while everything else stays,
  * and an orange lock comes up over the phone's corner and shuts. It plays
- * once each time `play` turns on and stands with the chosen apps still there
+ * once each time `play` turns on and stands with the chosen feeds still there
  * while it is off. With less motion it stands locked.
  */
 export function StaysGraphic({ play }: { play: boolean }) {
@@ -168,6 +168,7 @@ export function StaysGraphic({ play }: { play: boolean }) {
           const order = PICKS.indexOf(index);
           const start = GONE.from + order * GONE.next;
           const gone = order === -1 ? 0 : stretch(at, start, start + GONE.length);
+          const feed = order === -1 ? undefined : FEEDS[order];
           const glyph = GLYPHS.get(index);
           return gone < 1 ? (
             <g
@@ -175,7 +176,7 @@ export function StaysGraphic({ play }: { play: boolean }) {
               opacity={1 - gone}
               transform={`translate(${app.x} ${app.y}) scale(${1 - GONE_SCALE * gone})`}
             >
-              <AppSquare picked={order !== -1} />
+              {feed === undefined ? <AppSquare /> : <FeedIcon bundleId={feed} />}
               {glyph === undefined ? null : (
                 <path d={GLYPH_PATHS[glyph]} {...props(styles.glyph)} />
               )}
