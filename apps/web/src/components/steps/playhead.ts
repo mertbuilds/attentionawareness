@@ -1,6 +1,6 @@
 import { animate, clamp, cubicBezier, useMotionValue, useMotionValueEvent } from 'motion/react';
 import { useLayoutEffect, useState } from 'react';
-import { useLessMotion } from '../cost-story.tsx';
+import { useLessMotion } from '../../lib/use-less-motion.ts';
 
 /** `easing.smoothOut`, as a function the drawings can ease a stretch by. */
 const smoothOut = cubicBezier(0.22, 1, 0.36, 1);

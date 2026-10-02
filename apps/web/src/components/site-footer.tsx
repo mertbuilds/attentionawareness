@@ -44,7 +44,7 @@ const styles = create({
   line: {
     margin: 0,
   },
-  // The story's graph paper, under the foot of the page. The footer is not
+  // The graph paper, under the foot of the page. The footer is not
   // positioned, so the paper hangs from the page root every page positions:
   // the window's whole width without pushing it sideways, standing on the
   // page's bottom edge. The two masks are both applied, the sides and the top.

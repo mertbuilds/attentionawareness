@@ -82,21 +82,6 @@ const styles = create({
     flexDirection: 'column',
     gap: spacing.s2,
   },
-  // The small kind: one word in a dark pill, for a button that only wants
-  // its name said.
-  label: {
-    backgroundColor: colors.fg,
-    borderRadius: 999,
-    borderStyle: 'none',
-    boxShadow: 'none',
-    color: colors.bg,
-    fontSize: 12,
-    lineHeight: 1.4,
-    paddingBlock: 4,
-    paddingInline: 8,
-    whiteSpace: 'nowrap',
-    width: 'auto',
-  },
   positioner: {
     zIndex: 60,
   },
@@ -129,36 +114,22 @@ const styles = create({
 export function Tip({
   children,
   content,
-  mobile = 'sheet',
-  onOpenChange,
   paper = false,
-  side,
   style,
   title,
   trigger,
   untitled = false,
-  variant = 'box',
 }: {
   /** Shown on a wide page, over the trigger. */
   children: ReactNode;
   /** Shown in the sheet on a phone; defaults to the same as `children`. */
   content?: ReactNode;
   /**
-   * What a phone does: open a sheet with the content on tap (the default), or
-   * nothing, for a button whose tap already does its job and only wanted a
-   * name on hover.
-   */
-  mobile?: 'none' | 'sheet';
-  /** Told each time the tooltip, or the sheet on a phone, opens or closes. */
-  onOpenChange?: ((open: boolean) => void) | undefined;
-  /**
    * Drawn as a scrap of the bill's own paper rather than as a box: a torn
    * edge, the grain, and the ink pressed into it. The sheet on a phone is
    * untouched by it.
    */
   paper?: boolean;
-  /** Which side of the trigger the box opens on; a label defaults to below. */
-  side?: 'bottom' | 'top';
   /** Extra style for the box, when a tip needs a different width. */
   style?: StyleXStyles;
   /** Written over the box, and used as the sheet's heading. */
@@ -167,20 +138,9 @@ export function Tip({
   trigger: ReactElement<{ onClick?: (event: MouseEvent) => void }>;
   /** The box shows only its content; the title still names the sheet on a phone. */
   untitled?: boolean;
-  /** `label`: a one-word dark pill, no title row; the default is the box. */
-  variant?: 'box' | 'label';
 }) {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
-
-  function changeOpen(next: boolean) {
-    setOpen(next);
-    onOpenChange?.(next);
-  }
-
-  if (isMobile && mobile === 'none') {
-    return trigger;
-  }
 
   if (isMobile) {
     return (
@@ -189,10 +149,10 @@ export function Tip({
         {cloneElement(trigger, {
           onClick: (event: MouseEvent) => {
             trigger.props.onClick?.(event);
-            changeOpen(true);
+            setOpen(true);
           },
         })}
-        <Sheet onOpenChange={changeOpen} open={open} title={title}>
+        <Sheet onOpenChange={setOpen} open={open} title={title}>
           <div {...props(styles.sheetText)}>{content ?? children}</div>
         </Sheet>
       </>
@@ -202,29 +162,18 @@ export function Tip({
   // What the box says, whether it is drawn as a box or as a scrap of paper.
   const written = (
     <>
-      {variant === 'label' ? title : null}
-      {variant === 'box' && !untitled ? <span {...props(styles.title)}>{title}</span> : null}
+      {untitled ? null : <span {...props(styles.title)}>{title}</span>}
       {children}
     </>
   );
 
   return (
-    <Tooltip.Root onOpenChange={(next) => onOpenChange?.(next)}>
+    <Tooltip.Root>
       <Tooltip.Trigger render={trigger} />
       <Tooltip.Portal>
-        <Tooltip.Positioner
-          side={side ?? (variant === 'label' ? 'bottom' : 'top')}
-          sideOffset={variant === 'label' ? 6 : 8}
-          {...props(styles.positioner)}
-        >
+        <Tooltip.Positioner side="top" sideOffset={8} {...props(styles.positioner)}>
           <Tooltip.Popup
-            {...props(
-              styles.popup,
-              variant === 'label' && styles.label,
-              paper && styles.popupPaper,
-              paper && paperRoot,
-              style,
-            )}
+            {...props(styles.popup, paper && styles.popupPaper, paper && paperRoot, style)}
           >
             {paper ? (
               <PaperSheet scrap style={styles.popupInk}>
