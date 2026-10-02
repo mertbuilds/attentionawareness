@@ -18,28 +18,19 @@ import {
 } from './phone.tsx';
 import { stretch, usePlayhead } from './playhead.ts';
 
-/** Every app the reader keeps, by its place on the home screen; the rest are the feeds. */
+/**
+ * The apps that show which app they are, no two alike, by their place on the
+ * home screen; the rest are plain.
+ */
 const GLYPHS: ReadonlyMap<number, Glyph> = new Map([
-  [0, 'facetime'],
-  [1, 'calendar'],
-  [3, 'photos'],
-  [5, 'camera'],
-  [6, 'mail'],
-  [7, 'clock'],
-  [8, 'maps'],
-  [9, 'weather'],
-  [10, 'notes'],
-  [12, 'contacts'],
-  [14, 'books'],
-  [15, 'calculator'],
-  [16, 'health'],
-  [17, 'home'],
-  [18, 'wallet'],
-  [19, 'settings'],
-  [20, 'phone'],
-  [21, 'messages'],
-  [22, 'safari'],
-  [23, 'music'],
+  [0, 'photos'],
+  [1, 'messages'],
+  [3, 'notes'],
+  [6, 'contacts'],
+  [9, 'camera'],
+  [12, 'clock'],
+  [14, 'maps'],
+  [21, 'mail'],
 ]);
 /** The feeds chosen on the Mac, by their place on the home screen, in the order they go. */
 const PICKS = [2, 4, 11, 13];
