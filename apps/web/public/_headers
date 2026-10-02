@@ -1,0 +1,4 @@
+# Vite's content-hashed build output only. Never HTML, /media/* (replaced in
+# place under the same name) or /mac/* (answered by the Worker).
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

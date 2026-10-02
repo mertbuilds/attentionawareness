@@ -26,6 +26,10 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           FONT_BUCKET: ${{ vars.FONT_BUCKET }}
       - run: pnpm --filter @attentionawareness/web build
+      - name: Smoke-test the built Worker
+        # Serves the build with the production preview; / and /guide must render.
+        run: bash scripts/smoke-web.sh
+        timeout-minutes: 5
       - name: Deploy to Cloudflare Workers
         # --prebuilt deploys the output of the build step above.
         run: pnpm --filter @attentionawareness/web exec cf deploy --prebuilt

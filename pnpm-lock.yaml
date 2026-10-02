@@ -193,6 +193,9 @@ importers:
       '@inlang/paraglide-js':
         specifier: ^2.25.0
         version: 2.25.0(typescript@7.0.2)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
+      '@inlang/plugin-message-format':
+        specifier: 4.4.4
+        version: 4.4.4
       '@stylexjs/unplugin':
         specifier: ^0.19.0
         version: 0.19.0(supports-color@10.2.2)(unplugin@2.3.11)
@@ -209,8 +212,8 @@ importers:
         specifier: 1.0.0-beta.5
         version: 1.0.0-beta.5(@types/node@26.4.0)
       devknobs:
-        specifier: 0.0.3-next.0
-        version: 0.0.3-next.0(react@19.2.8)
+        specifier: 0.0.3-next.1
+        version: 0.0.3-next.1(react@19.2.8)
       oxc-transform-react:
         specifier: ^0.148.0
         version: 0.148.0
@@ -1006,6 +1009,9 @@ packages:
         optional: true
       vite:
         optional: true
+
+  '@inlang/plugin-message-format@4.4.4':
+    resolution: {integrity: sha512-50tkyH/qMFudcIOZSCRdi+BeCVuJQo3BWbvfRTVKr8pEslBiRaZDTKBC1NkCI3ivmkyqzK8k+ktBci3NtDu3Lg==}
 
   '@inlang/recommend-sherlock@0.2.1':
     resolution: {integrity: sha512-ckv8HvHy/iTqaVAEKrr+gnl+p3XFNwe5D2+6w6wJk2ORV2XkcRkKOJ/XsTUJbPSiyi4PI+p+T3bqbmNx/rDUlg==}
@@ -3147,8 +3153,8 @@ packages:
   detect-node-es@1.1.0:
     resolution: {integrity: sha512-ypdmJU/TbBby2Dxibuv7ZLW3Bs1QEmM7nHjEANfohJLvE0XVujisn1qPJcZxg+qDucsr+bP6fLD1rPS3AhJ7EQ==}
 
-  devknobs@0.0.3-next.0:
-    resolution: {integrity: sha512-c3VCdG+tVzs6SPbqaotKtLaOuQkvKl0TgOZ0d/rZQzFpRKJlkJ63Bi3yKakcjbzvmCo6/TtvR2dGpbpf8pWpbw==}
+  devknobs@0.0.3-next.1:
+    resolution: {integrity: sha512-93iy7+P3XOrPcXXSst9NZqPpZfH0ue8fxQBEU6oEeQofQkPMoNl3YjVj7/2zxAbN+njV/4p2fhFpyzjz4WqvYg==}
     peerDependencies:
       react: '>=18'
     peerDependenciesMeta:
@@ -3426,6 +3432,11 @@ packages:
   flat-cache@4.0.1:
     resolution: {integrity: sha512-f7ccFPK3SXFHpx15UIGyRJ/FJQctuKZ0zVuN3frBo4HnK3cay9VEW0R6yPYFHC0AgqhukPzKjq22t5DmAyqGyw==}
     engines: {node: '>=16'}
+
+  flat@6.0.1:
+    resolution: {integrity: sha512-/3FfIa8mbrg3xE7+wAhWeV+bd7L2Mof+xtZb5dRDKZ+wDvYJK4WDYeIOuOhre5Yv5aQObZrlbRmk3RTSiuQBtw==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   flatted@3.4.4:
     resolution: {integrity: sha512-5+ybhBZANEJxaH3X5evAFatUxLfEHSr7n6kYJ+1Qd0mUqr4eu9gIf6GDbWHf8RJijHrjjO8G+la14SlL2SeS1Q==}
@@ -5436,6 +5447,10 @@ snapshots:
       typescript: 7.0.2
       vite: 8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0)
 
+  '@inlang/plugin-message-format@4.4.4':
+    dependencies:
+      flat: 6.0.1
+
   '@inlang/recommend-sherlock@0.2.1':
     dependencies:
       comment-json: 4.6.2
@@ -7322,7 +7337,7 @@ snapshots:
 
   detect-node-es@1.1.0: {}
 
-  devknobs@0.0.3-next.0(react@19.2.8):
+  devknobs@0.0.3-next.1(react@19.2.8):
     optionalDependencies:
       react: 19.2.8
 
@@ -7588,6 +7603,8 @@ snapshots:
     dependencies:
       flatted: 3.4.4
       keyv: 4.5.4
+
+  flat@6.0.1: {}
 
   flatted@3.4.4: {}
 
