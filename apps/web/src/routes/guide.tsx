@@ -308,9 +308,9 @@ function Guide() {
             <p {...props(styles.body)}>{m.guide_step_backup_note()}</p>
             <Shot
               alt={m.guide_shot_backup_finder()}
-              height={501}
+              height={600}
               name="backup-finder"
-              width={800}
+              width={779}
             />
           </Step>
 
