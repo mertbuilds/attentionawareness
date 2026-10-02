@@ -1072,6 +1072,19 @@ export function useLessMotion(): boolean {
   return useSyncExternalStore(subscribeLessMotion, prefersLessMotion, lessMotionOnServer);
 }
 
+function subscribeVisibility(onChange: () => void): () => void {
+  document.addEventListener('visibilitychange', onChange);
+  return () => document.removeEventListener('visibilitychange', onChange);
+}
+
+function tabHidden(): boolean {
+  return document.visibilityState === 'hidden';
+}
+
+function hiddenOnServer(): boolean {
+  return false;
+}
+
 /** Whether an event comes from inside a dialog, which keeps its own wheel and keys. */
 function inDialog(target: EventTarget | null): boolean {
   return ((target as Element | null)?.closest('[role="dialog"]') ?? null) !== null;
@@ -1729,12 +1742,12 @@ function Moon({ share, walked }: { share: number; walked: MotionValue<number> })
 
 /**
  * One thing the hours could have been, as the grid shows it: its drawing,
- * drawn as far as `played` says, the line under it, and how long and on what
- * curve the drawing plays.
+ * drawn as far as `played` says, the line under it, telling `onTip` as its
+ * tip opens and closes, and how long and on what curve the drawing plays.
  */
 type Fact = {
   art: (played: MotionValue<number>) => ReactNode;
-  caption: ReactNode;
+  caption: (onTip: (open: boolean) => void) => ReactNode;
   ease: EasingDefinition;
   key: string;
   seconds: number;
@@ -1744,18 +1757,20 @@ type Fact = {
 type Cell = { fact: string; swap: number };
 
 /**
- * The next swap: a cell other than the one the last swap was made in, and a
- * fact off the grid to put in it, one the grid has not shown since it came on
- * while any is left, so in time every fact in `pool` comes up.
+ * The next swap: a cell other than the one the last swap was made in and
+ * none the reader is `using`, and a fact off the grid to put in it, one the
+ * grid has not shown since it came on while any is left, so in time every
+ * fact in `pool` comes up.
  */
 function nextSwap(
   cells: ReadonlyArray<Cell>,
   pool: ReadonlyArray<string>,
   shown: ReadonlySet<string>,
+  using: (cell: Cell, place: number) => boolean,
 ): { cell: number; fact: string } | null {
   const latest = Math.max(...cells.map((cell) => cell.swap));
   const places = cells.flatMap((cell, index) =>
-    latest > 0 && cell.swap === latest ? [] : [index],
+    (latest > 0 && cell.swap === latest) || using(cell, index) ? [] : [index],
   );
   const off = pool.filter((fact) => cells.every((cell) => cell.fact !== fact));
   const fresh = off.filter((fact) => !shown.has(fact));
@@ -1772,14 +1787,15 @@ function nextSwap(
  * rises on its own, once the one before it has faded out. Either way its
  * drawing plays once as it lands, while the grid is `on`, and stands on its
  * end. Clicked, the drawing plays once more from the start, even halfway
- * through, and the grid hears of it through `onReplay`. With less motion it
- * stands as it is.
+ * through, and the grid hears of it through `onReplay`, as it does of its tip
+ * through `onTip`. With less motion it stands as it is.
  */
 function FactCell({
   fact,
   leaving,
   on,
   onReplay,
+  onTip,
   place,
   staged,
   swapped,
@@ -1788,6 +1804,7 @@ function FactCell({
   leaving: boolean;
   on: boolean;
   onReplay: () => void;
+  onTip: (open: boolean) => void;
   place: number;
   staged: boolean;
   swapped: boolean;
@@ -1832,7 +1849,7 @@ function FactCell({
           <Fragment key={take}>{fact.art(played)}</Fragment>
         </button>
       </div>
-      <p {...props(styles.caption)}>{fact.caption}</p>
+      <p {...props(styles.caption)}>{fact.caption(onTip)}</p>
     </li>
   );
 }
@@ -1842,9 +1859,10 @@ function FactCell({
  * order, each drawn once as it comes on. Once all six have played it stands
  * `drawing.gridShuffle`, then one cell trades its fact for one of the rest,
  * and so on for as long as the grid is `on`: never the same cell twice
- * running, and never a fact twice at once. Off the stage it goes back to the
- * six it opens on, so every visit starts the same. With less motion the six
- * stand drawn and nothing is swapped.
+ * running, and never a fact twice at once. It holds still while the reader
+ * is at it, and the wait starts over once they let it go. Off the stage it
+ * goes back to the six it opens on, so every visit starts the same. With less
+ * motion the six stand drawn and nothing is swapped.
  */
 function FactGrid({
   facts,
@@ -1868,6 +1886,14 @@ function FactGrid({
   // over, and the wait outlasts any one drawing, so a drawing played again is
   // never swapped out before it has played to its end.
   const [replays, setReplays] = useState(0);
+  // What holds the grid where it is: the reader's pointer or keyboard on it,
+  // a tip of it open, or the tab put away.
+  const [pointing, setPointing] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [tips, setTips] = useState<ReadonlySet<string>>(() => new Set());
+  const hidden = useSyncExternalStore(subscribeVisibility, tabHidden, hiddenOnServer);
+  const held = pointing || focused || tips.size > 0 || hidden;
+  const list = useRef<HTMLUListElement>(null);
   const running = on && !reduced;
   const latest = Math.max(...cells.map((cell) => cell.swap));
   const changed = latest > 0 || leaving !== null;
@@ -1886,12 +1912,16 @@ function FactGrid({
       ),
     );
 
+  // A cell with focus in it or its tip open is never the one swapped out.
   const swapOut = useEffectEvent(() =>
     setLeaving(
       nextSwap(
         cells,
         facts.map((fact) => fact.key),
         shown,
+        (cell, place) =>
+          tips.has(cell.fact) ||
+          list.current?.children[place]?.contains(document.activeElement) === true,
       ),
     ),
   );
@@ -1911,11 +1941,13 @@ function FactGrid({
     setCells(opening);
     setShown(new Set(opening.map((cell) => cell.fact)));
     setLeaving(null);
+    setTips(new Set());
   });
 
   // While the grid is on, a cell fades out once the wait is over and its new
-  // fact comes in once it has gone. Off, the grid goes back to the six it
-  // opens on as soon as the beat has faded out.
+  // fact comes in once it has gone. The wait does not run while the grid is
+  // held. Off, the grid goes back to the six it opens on as soon as the beat
+  // has faded out.
   useEffect(() => {
     if (!running) {
       if (!changed) {
@@ -1924,15 +1956,28 @@ function FactGrid({
       const timer = setTimeout(() => reset(), FADE_OUT_MS);
       return () => clearTimeout(timer);
     }
+    if (held && leaving === null) {
+      return;
+    }
     const timer =
       leaving === null
         ? setTimeout(() => swapOut(), wait * 1000)
         : setTimeout(() => swapIn(), FADE_OUT_MS);
     return () => clearTimeout(timer);
-  }, [changed, leaving, replays, running, wait]);
+  }, [changed, held, leaving, replays, running, wait]);
 
+  // A pointer moved onto the grid holds it, one left standing where the grid
+  // scrolls in under it does not, and neither does a finger. Keyboard focus
+  // holds it, the focus a click leaves does not.
   return (
-    <ul {...props(styles.could)}>
+    <ul
+      onBlur={() => setFocused(false)}
+      onFocus={(event) => setFocused(event.target.matches(':focus-visible'))}
+      onPointerLeave={() => setPointing(false)}
+      onPointerMove={(event) => setPointing(event.pointerType !== 'touch')}
+      ref={list}
+      {...props(styles.could)}
+    >
       {cells.map((cell, place) => {
         const fact = facts.find((candidate) => candidate.key === cell.fact);
         return fact === undefined ? null : (
@@ -1942,6 +1987,17 @@ function FactGrid({
             leaving={leaving?.cell === place}
             on={on}
             onReplay={() => setReplays(replays + 1)}
+            onTip={(open) =>
+              setTips((current) => {
+                const next = new Set(current);
+                if (open) {
+                  next.add(cell.fact);
+                } else {
+                  next.delete(cell.fact);
+                }
+                return next;
+              })
+            }
             place={place}
             staged={staged}
             swapped={cell.swap > 0}
@@ -2270,10 +2326,14 @@ export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
   const facts: ReadonlyArray<Fact> = [
     {
       art: (played) => <InstrumentsGraphic amount={instruments} play={played} />,
-      caption: (
+      caption: (onTip) => (
         <Sentence
           figures={[<Figure key="instruments" value={instruments} />]}
-          mark={<Mark label={tipLabel}>{m.home_receipt_instruments_tip()}</Mark>}
+          mark={
+            <Mark label={tipLabel} onOpenChange={onTip}>
+              {m.home_receipt_instruments_tip()}
+            </Mark>
+          }
           text={m.home_cost_could_instruments({ count: slot(0) })}
         />
       ),
@@ -2283,10 +2343,14 @@ export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
     },
     {
       art: (played) => <BooksGraphic play={played} />,
-      caption: (
+      caption: (onTip) => (
         <Sentence
           figures={[<Figure key="books" value={books} />]}
-          mark={<Mark label={tipLabel}>{m.home_receipt_books_tip()}</Mark>}
+          mark={
+            <Mark label={tipLabel} onOpenChange={onTip}>
+              {m.home_receipt_books_tip()}
+            </Mark>
+          }
           text={m.home_cost_could_books({ count: slot(0) })}
         />
       ),
@@ -2296,10 +2360,14 @@ export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
     },
     {
       art: (played) => <LanguagesGraphic amount={languages} play={played} />,
-      caption: (
+      caption: (onTip) => (
         <Sentence
           figures={[<Figure key="languages" value={languages} />]}
-          mark={<Mark label={tipLabel}>{m.home_receipt_languages_tip()}</Mark>}
+          mark={
+            <Mark label={tipLabel} onOpenChange={onTip}>
+              {m.home_receipt_languages_tip()}
+            </Mark>
+          }
           text={m.home_cost_could_languages({ count: slot(0) })}
         />
       ),
@@ -2309,10 +2377,14 @@ export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
     },
     {
       art: (played) => <MarathonsGraphic play={played} />,
-      caption: (
+      caption: (onTip) => (
         <Sentence
           figures={[<Figure key="marathons" value={marathons} />]}
-          mark={<Mark label={tipLabel}>{m.home_receipt_marathons_tip()}</Mark>}
+          mark={
+            <Mark label={tipLabel} onOpenChange={onTip}>
+              {m.home_receipt_marathons_tip()}
+            </Mark>
+          }
           text={m.home_cost_could_marathons({ count: slot(0) })}
         />
       ),
@@ -2322,10 +2394,14 @@ export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
     },
     {
       art: (played) => <TripsGraphic play={played} />,
-      caption: (
+      caption: (onTip) => (
         <Sentence
           figures={[<Figure key="trips" value={trips} />]}
-          mark={<Mark label={tipLabel}>{m.home_receipt_travel_tip()}</Mark>}
+          mark={
+            <Mark label={tipLabel} onOpenChange={onTip}>
+              {m.home_receipt_travel_tip()}
+            </Mark>
+          }
           text={m.home_cost_could_travel({ count: slot(0) })}
         />
       ),
@@ -2335,10 +2411,14 @@ export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
     },
     {
       art: (played) => <DegreesGraphic amount={degrees} play={played} />,
-      caption: (
+      caption: (onTip) => (
         <Sentence
           figures={[<Figure key="degrees" value={degrees} />]}
-          mark={<Mark label={tipLabel}>{m.home_receipt_degrees_tip()}</Mark>}
+          mark={
+            <Mark label={tipLabel} onOpenChange={onTip}>
+              {m.home_receipt_degrees_tip()}
+            </Mark>
+          }
           text={m.home_cost_could_degrees({ count: slot(0) })}
         />
       ),
@@ -2348,11 +2428,11 @@ export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
     },
     {
       art: (played) => <Moon share={toMoon} walked={played} />,
-      caption: (
+      caption: (onTip) => (
         <Sentence
           figures={[]}
           mark={
-            <Mark label={tipLabel}>
+            <Mark label={tipLabel} onOpenChange={onTip}>
               {m.home_receipt_moon_tip({
                 hours: number.format(MOON_WALK_HOURS),
                 km: number.format(MOON_KM),
@@ -2374,11 +2454,11 @@ export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
     },
     {
       art: (played) => <Weekends drawn={played} />,
-      caption: (
+      caption: (onTip) => (
         <Sentence
           figures={[]}
           mark={
-            <Mark label={tipLabel}>
+            <Mark label={tipLabel} onOpenChange={onTip}>
               {m.home_receipt_weekends_tip({
                 daily: AVERAGE_HOURS,
                 waking: WAKING_HOURS,
@@ -2396,10 +2476,14 @@ export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
     },
     {
       art: (played) => <NovelsGraphic amount={novels} play={played} />,
-      caption: (
+      caption: (onTip) => (
         <Sentence
           figures={[<Figure key="novels" value={novels} />]}
-          mark={<Mark label={tipLabel}>{m.home_receipt_novels_tip()}</Mark>}
+          mark={
+            <Mark label={tipLabel} onOpenChange={onTip}>
+              {m.home_receipt_novels_tip()}
+            </Mark>
+          }
           text={m.home_cost_could_novels({ count: slot(0) })}
         />
       ),
@@ -2423,10 +2507,14 @@ export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
           play={played}
         />
       ),
-      caption: (
+      caption: (onTip) => (
         <Sentence
           figures={[<Figure key="skills" value={skills} />]}
-          mark={<Mark label={tipLabel}>{m.home_receipt_skills_tip()}</Mark>}
+          mark={
+            <Mark label={tipLabel} onOpenChange={onTip}>
+              {m.home_receipt_skills_tip()}
+            </Mark>
+          }
           text={m.home_cost_could_skills({ count: slot(0) })}
         />
       ),
