@@ -116,6 +116,15 @@ const styles = create({
     gap: spacing.s3,
     textAlign: 'center',
   },
+  // The free way's one line, quiet: one line where it fits, even lines where
+  // it wraps.
+  diyLine: {
+    color: colors.muted,
+    fontSize: font.sizeSm,
+    lineHeight: 1.5,
+    margin: 0,
+    textWrap: 'balance',
+  },
   // A phone's note and its button stand in the middle, under the words above
   // them.
   downloadCentered: {
@@ -230,22 +239,26 @@ const styles = create({
   gone: {
     display: 'none',
   },
-  // The app's offer under the steps, with no box around it: the price and
-  // what it buys, then the download and the one thing to do first, all in the
-  // middle of the column.
+  // The app's offer under the steps: the price and what it buys, then the
+  // download, all in the middle. The app is the way the page recommends, so
+  // its card carries the orange. It takes the column on a phone and stands
+  // narrower in the middle of it on a wide one.
   offer: {
     alignItems: 'center',
+    alignSelf: 'center',
+    backgroundColor: `color-mix(in srgb, ${accent.base} 6%, ${colors.bg})`,
+    borderColor: accent.base,
+    borderRadius: radius.base,
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    boxSizing: 'border-box',
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s6,
+    maxWidth: 560,
+    padding: spacing.s6,
     textAlign: 'center',
-  },
-  // The download, and the backup note close under it.
-  offerAction: {
-    alignItems: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s3,
+    width: '100%',
   },
   // The price, and the promises close under it.
   offerHead: {
@@ -254,16 +267,7 @@ const styles = create({
     flexDirection: 'column',
     gap: spacing.s4,
   },
-  // A quiet line in the middle: one line where it fits, even lines where it
-  // wraps.
-  offerNote: {
-    color: colors.muted,
-    fontSize: font.sizeSm,
-    lineHeight: 1.5,
-    margin: 0,
-    textWrap: 'balance',
-  },
-  // The app is the way the page recommends, so its price carries the orange.
+  // The price is in the card's orange.
   offerPrice: {
     color: accent.base,
     fontSize: font.sizeLg,
@@ -526,14 +530,11 @@ function HomePage() {
                   ))}
                 </ul>
               </div>
-              <div {...props(styles.offerAction)}>
-                <MacDownload style={styles.downloadCentered} />
-                <p {...props(styles.offerNote)}>{m.home_how_backup()}</p>
-              </div>
+              <MacDownload style={styles.downloadCentered} />
             </div>
             <p {...props(styles.or)}>{m.home_how_or()}</p>
             <div {...props(styles.diy)}>
-              <p {...props(styles.offerNote)}>{m.home_how_diy()}</p>
+              <p {...props(styles.diyLine)}>{m.home_how_diy()}</p>
               <Button render={<a href={GUIDE_URL} />} variant="outline">
                 {m.home_how_diy_cta()}
               </Button>

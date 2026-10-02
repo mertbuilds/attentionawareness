@@ -82,7 +82,7 @@ const styles = create({
     marginBlock: `${spacing.s2} 0`,
     textWrap: 'balance',
   },
-  // The steps clear of the price under them.
+  // The steps clear of the card under them.
   steps: {
     paddingBlockEnd: spacing.s6,
   },
