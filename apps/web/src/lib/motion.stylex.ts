@@ -13,6 +13,8 @@ export const duration = defineConsts({
   micro: '80ms',
   // A tooltip appearing, a quiet fade out.
   quick: '150ms',
+  // A tile rising into place.
+  verySlow: '500ms',
 });
 
 export const easing = defineConsts({
@@ -23,8 +25,15 @@ export const easing = defineConsts({
 });
 
 export const blur = defineConsts({
+  // A tile coming into focus as it rises.
+  medium: '3px',
   // An answer coming into focus.
   small: '2px',
+});
+
+export const distance = defineConsts({
+  // How far a tile rises into place.
+  medium: '12px',
 });
 
 export const scale = defineConsts({

@@ -4,24 +4,14 @@ import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.sty
 import { create, defaultMarker, props, when } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { useId, useState } from 'react';
-import {
-  AngleDown,
-  BookOpen,
-  Briefcase,
-  Brush,
-  Call,
-  Camera,
-  ChartLine,
-  Check,
-  MusicNote,
-  Video,
-} from 'reicon-react';
+import { AngleDown, Check } from 'reicon-react';
 import { HeroPhone } from '../components/hero-phone.tsx';
 import { HowItWorks } from '../components/how-it-works.tsx';
 import { MacDownload } from '../components/mac-download.tsx';
 import { ScreenShots } from '../components/screen-shots.tsx';
 import { Signature } from '../components/signature.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
+import { UsesGrid } from '../components/uses-grid.tsx';
 import { blur, duration, easing } from '../lib/motion.stylex.ts';
 import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
@@ -69,8 +59,6 @@ const CHEVRON_SIZE = 16;
 const CHEVRON_STROKE = 2.25;
 /** The tick before a promise, in pixels, drawn with the chevron's line. */
 const CHECK_SIZE = 16;
-/** A use's icon, in pixels, at the icons' own 1.5px line. */
-const USE_ICON_SIZE = 24;
 
 const styles = create({
   // A section the page links down to. The scroll stops short of its heading,
@@ -449,39 +437,6 @@ const styles = create({
     margin: 0,
     textWrap: 'pretty',
   },
-  // One thing the phone is for: a quiet tile, its icon over its line.
-  use: {
-    borderColor: colors.border,
-    borderRadius: radius.base,
-    borderStyle: 'solid',
-    borderWidth: '1px',
-    display: 'flex',
-    flexDirection: 'column',
-    fontSize: font.sizeMd,
-    gap: spacing.s4,
-    lineHeight: 1.4,
-    padding: {
-      '@media (min-width: 768px)': spacing.s6,
-      default: spacing.s4,
-    },
-    textWrap: 'pretty',
-  },
-  useIcon: {
-    color: colors.muted,
-    flexShrink: 0,
-  },
-  // Two to a row on a phone, all four across once the column has room.
-  uses: {
-    display: 'grid',
-    gap: spacing.s3,
-    gridTemplateColumns: {
-      '@media (min-width: 768px)': 'repeat(4, minmax(0, 1fr))',
-      default: 'repeat(2, minmax(0, 1fr))',
-    },
-    listStyle: 'none',
-    margin: 0,
-    padding: 0,
-  },
 });
 
 /**
@@ -535,18 +490,6 @@ function HomePage() {
   // The word the claim turns on, in the middle of it, so the words around it
   // keep their own order in every language.
   const [titleBefore, titleAfter] = m.home_hero_title({ algorithms: LINK_SLOT }).split(LINK_SLOT);
-
-  // What the phone is still for, each with its icon.
-  const uses = [
-    { Icon: Brush, text: m.home_uses_make() },
-    { Icon: Camera, text: m.home_uses_photos() },
-    { Icon: Call, text: m.home_uses_call() },
-    { Icon: Briefcase, text: m.home_uses_work() },
-    { Icon: ChartLine, text: m.home_uses_numbers() },
-    { Icon: BookOpen, text: m.home_uses_learn() },
-    { Icon: MusicNote, text: m.home_uses_music() },
-    { Icon: Video, text: m.home_uses_video() },
-  ];
 
   // The browser half: the extension, in the middle of the sentence, and the
   // store it is added from.
@@ -604,14 +547,7 @@ function HomePage() {
         it does, which is why the rest of it stays. */}
         <section {...props(styles.section)}>
           <h2 {...props(styles.sectionTitle)}>{m.home_uses_title()}</h2>
-          <ul {...props(styles.uses)}>
-            {uses.map(({ Icon, text }) => (
-              <li key={text} {...props(styles.use)}>
-                <Icon aria-hidden="true" size={USE_ICON_SIZE} {...props(styles.useIcon)} />
-                {text}
-              </li>
-            ))}
-          </ul>
+          <UsesGrid />
           <p {...props(styles.sectionBody)}>{m.home_uses_close()}</p>
         </section>
 
