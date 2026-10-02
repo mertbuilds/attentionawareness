@@ -47,7 +47,14 @@ export default defineConfig(({ command, mode }) => {
       // debug:false — StyleX's dev `data-style-src` attribute embeds file:line, and the
       // React Compiler (client-only) shifts line numbers vs the SSR transform, causing a
       // hydration attribute mismatch that detaches React's event tree (dead forms).
-      stylex.vite({ debug: false, useCSSLayers: true }),
+      // cssInjectionTarget: the default target is a file named index.css, else the first CSS
+      // asset. Hashed names never match, so the rules landed in the font stylesheet, which
+      // is linked first and so flipped the cascade layer order.
+      stylex.vite({
+        cssInjectionTarget: (fileName) => !fileName.includes('fonts-optional'),
+        debug: false,
+        useCSSLayers: true,
+      }),
       paraglideVitePlugin({
         outdir: './src/paraglide',
         project: './project.inlang',
