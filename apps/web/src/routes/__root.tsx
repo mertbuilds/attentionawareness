@@ -39,12 +39,14 @@ const ICON_SUFFIX = import.meta.env.DEV ? '-dev' : '';
 /** The site's own OpenPanel project. The id is public by design. */
 const ANALYTICS_CLIENT_ID = '7969381f-4a54-484b-abe4-79148bce2206';
 /**
- * Loads the analytics through the site's own proxy. Page views only, no link
- * or attribute tracking, and nothing at all from an automated browser.
+ * Loads the analytics through the site's own proxy. Page views, no link or
+ * attribute tracking, and nothing at all from an automated browser.
+ * Session replay records one visit in ten, every input and text masked.
  */
 const ANALYTICS_SCRIPT =
   'if(!navigator.webdriver){window.op=window.op||function(){(window.op.q=window.op.q||[]).push(arguments)};' +
-  `window.op('init',{clientId:'${ANALYTICS_CLIENT_ID}',apiUrl:'/op',trackScreenViews:true,trackOutgoingLinks:false,trackAttributes:false});` +
+  `window.op('init',{clientId:'${ANALYTICS_CLIENT_ID}',apiUrl:'/op',trackScreenViews:true,trackOutgoingLinks:false,trackAttributes:false,` +
+  'sessionReplay:{enabled:true,sampleRate:0.1,maskAllInputs:true,maskAllText:true}});' +
   "var s=document.createElement('script');s.src='/op/op1.js';s.async=true;document.head.appendChild(s)}";
 const OG_IMAGE = `${SITE_URL}/og.png`;
 /**

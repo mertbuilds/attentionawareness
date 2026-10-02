@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "NODE_ENV=production vite build --mode production",
+    "build": "WRANGLER_DOCKER_BIN=/usr/bin/false NODE_ENV=production vite build --mode production",
     "cf-typegen": "cf workers types",
     "deploy": "pnpm build && cf deploy --prebuilt",
     "dev": "vite dev",
