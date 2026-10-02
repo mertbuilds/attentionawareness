@@ -9,6 +9,7 @@ import { AngleDown, Check } from 'reicon-react';
 import { CostStory } from '../components/cost-story.tsx';
 import { HowItWorks } from '../components/how-it-works.tsx';
 import { MacDownload } from '../components/mac-download.tsx';
+import { ScreenShots } from '../components/screen-shots.tsx';
 import { Signature } from '../components/signature.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { blur, duration, easing } from '../lib/motion.stylex.ts';
@@ -548,6 +549,22 @@ function HomePage() {
               </p>
               <p {...props(styles.storyLine)}>{m.home_story_2()}</p>
               <p {...props(styles.storyLine)}>{m.home_story_3()}</p>
+              <ScreenShots
+                shots={[
+                  {
+                    alt: m.home_story_shot_friend_1(),
+                    height: 640,
+                    src: '/media/screentime-friends/friend-1-week-sep-14.webp',
+                    width: 800,
+                  },
+                  {
+                    alt: m.home_story_shot_friend_2(),
+                    height: 670,
+                    src: '/media/screentime-friends/friend-2-week-sep-07.webp',
+                    width: 800,
+                  },
+                ]}
+              />
               {/* The button comes after the rest, so it stands under the third
               paragraph while the rest is folded and under the last once it is
               open, without ever leaving its place in the page. */}
