@@ -5,6 +5,7 @@ import { create, defaultMarker, props, when } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { useId, useState } from 'react';
 import { AngleDown, Check } from 'reicon-react';
+import { GridTexture } from '../components/grid-texture.tsx';
 import { HeroPhone } from '../components/hero-phone.tsx';
 import { HowItWorks } from '../components/how-it-works.tsx';
 import { MacDownload } from '../components/mac-download.tsx';
@@ -524,6 +525,9 @@ function HomePage() {
 
   return (
     <main {...props(styles.page)}>
+      {/* The graph paper the first screen stands on, fading out before the
+      first section. */}
+      <GridTexture />
       {/* The first screen: the claim, why willpower cannot win it, and the
       download with its price, beside the phone the feeds leave. */}
       <header {...props(styles.hero)}>
