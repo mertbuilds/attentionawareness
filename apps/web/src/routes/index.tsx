@@ -218,6 +218,29 @@ const styles = create({
   gone: {
     display: 'none',
   },
+  // The rule between the two ways, broken in its middle by the word that
+  // tells the reader to pick one.
+  or: {
+    '::after': {
+      backgroundColor: colors.border,
+      content: '""',
+      flexGrow: 1,
+      height: 1,
+    },
+    '::before': {
+      backgroundColor: colors.border,
+      content: '""',
+      flexGrow: 1,
+      height: 1,
+    },
+    alignItems: 'center',
+    color: colors.muted,
+    display: 'flex',
+    fontSize: font.sizeSm,
+    gap: spacing.s4,
+    lineHeight: 1.5,
+    margin: 0,
+  },
   page: {
     alignItems: 'center',
     backgroundColor: colors.bg,
@@ -294,27 +317,36 @@ const styles = create({
     lineHeight: 1.5,
     margin: 0,
   },
-  // One of the two ways out: what it is, what it costs, what it does to the
-  // phone, and the button at the foot, level with the other card's.
+  // One of the two ways out, the width of the column: what it is and what it
+  // costs across the top, then what it does to the phone, with its button
+  // under the words, or beside them once there is room.
   way: {
     borderColor: colors.border,
     borderRadius: radius.base,
     borderStyle: 'solid',
     borderWidth: '1px',
     boxSizing: 'border-box',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s4,
+    columnGap: spacing.s8,
+    display: 'grid',
+    gridTemplateColumns: {
+      '@media (min-width: 640px)': 'minmax(0, 1fr) auto',
+      default: 'minmax(0, 1fr)',
+    },
     padding: spacing.s6,
+    rowGap: spacing.s4,
   },
   // The app is the way the page recommends, so its card carries the orange.
   wayAccent: {
     backgroundColor: `color-mix(in srgb, ${accent.base} 6%, ${colors.bg})`,
     borderColor: accent.base,
   },
+  // Beside the words, the button stands under the price, right edges shared.
   wayAction: {
-    marginBlockStart: 'auto',
-    paddingBlockStart: spacing.s2,
+    alignSelf: 'start',
+    paddingBlockStart: {
+      '@media (min-width: 640px)': 0,
+      default: spacing.s2,
+    },
   },
   wayBody: {
     color: colors.muted,
@@ -328,6 +360,7 @@ const styles = create({
     display: 'flex',
     flexWrap: 'wrap',
     gap: spacing.s2,
+    gridColumn: '1 / -1',
     justifyContent: 'space-between',
   },
   // What happens to the phone: the one difference between the two ways, so
@@ -348,22 +381,17 @@ const styles = create({
   wayPriceAccent: {
     color: accent.base,
   },
+  wayText: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s4,
+  },
   wayTitle: {
     fontSize: font.sizeLg,
     fontWeight: font.weightMedium,
     letterSpacing: '-0.01em',
     lineHeight: 1.2,
     margin: 0,
-  },
-  // The recommended way a little wider than the other, side by side once
-  // there is room for both.
-  ways: {
-    display: 'grid',
-    gap: spacing.s4,
-    gridTemplateColumns: {
-      '@media (min-width: 640px)': 'minmax(0, 6fr) minmax(0, 5fr)',
-      default: 'minmax(0, 1fr)',
-    },
   },
 });
 
@@ -462,40 +490,43 @@ function HomePage() {
 
         <div {...props(styles.afterStory)}>
           {/* Act two, the way out: where the Mac app comes in and what it does,
-          then how it works, in three steps, and the app that keeps the phone as
-          it is beside the manual way that starts it over. */}
+          then how it works, in three steps, the app that keeps the phone as it
+          is, and under it, past an or, the manual way that starts it over. */}
           <section {...props(styles.section, styles.anchor)} id={WAY_OUT_ID}>
             <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
             <p {...props(styles.sectionBody)}>{m.home_how_lead()}</p>
             <HowItWorks />
-            <div {...props(styles.ways)}>
-              <article {...props(styles.way, styles.wayAccent)}>
-                <div {...props(styles.wayHead)}>
-                  <h3 {...props(styles.wayTitle)}>{m.home_how_app_title()}</h3>
-                  <p {...props(styles.wayPrice, styles.wayPriceAccent)}>{m.home_how_app_price()}</p>
-                </div>
+            <article {...props(styles.way, styles.wayAccent)}>
+              <div {...props(styles.wayHead)}>
+                <h3 {...props(styles.wayTitle)}>{m.home_how_app_title()}</h3>
+                <p {...props(styles.wayPrice, styles.wayPriceAccent)}>{m.home_how_app_price()}</p>
+              </div>
+              <div {...props(styles.wayText)}>
                 <p {...props(styles.wayLead)}>{m.home_how_app_lead()}</p>
                 <p {...props(styles.wayBody)}>{m.home_how_app_body()}</p>
                 <p {...props(styles.wayBody)}>{m.home_how_app_fail()}</p>
                 <p {...props(styles.wayBody)}>{m.home_how_app_trial()}</p>
-                <div {...props(styles.wayAction)}>
-                  <MacDownload />
-                </div>
-              </article>
-              <article {...props(styles.way)}>
-                <div {...props(styles.wayHead)}>
-                  <h3 {...props(styles.wayTitle)}>{m.home_how_diy_title()}</h3>
-                  <p {...props(styles.wayPrice)}>{m.home_how_diy_price()}</p>
-                </div>
+              </div>
+              <div {...props(styles.wayAction)}>
+                <MacDownload />
+              </div>
+            </article>
+            <p {...props(styles.or)}>{m.home_how_or()}</p>
+            <article {...props(styles.way)}>
+              <div {...props(styles.wayHead)}>
+                <h3 {...props(styles.wayTitle)}>{m.home_how_diy_title()}</h3>
+                <p {...props(styles.wayPrice)}>{m.home_how_diy_price()}</p>
+              </div>
+              <div {...props(styles.wayText)}>
                 <p {...props(styles.wayLead)}>{m.home_how_diy_lead()}</p>
                 <p {...props(styles.wayBody)}>{m.home_how_diy_body()}</p>
-                <div {...props(styles.wayAction)}>
-                  <Button render={<a href={GUIDE_URL} />} variant="outline">
-                    {m.home_how_diy_cta()}
-                  </Button>
-                </div>
-              </article>
-            </div>
+              </div>
+              <div {...props(styles.wayAction)}>
+                <Button render={<a href={GUIDE_URL} />} variant="outline">
+                  {m.home_how_diy_cta()}
+                </Button>
+              </div>
+            </article>
           </section>
 
           {/* Act three, support. Who made this and why, told rather than argued:
