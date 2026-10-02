@@ -207,8 +207,8 @@ export function AppGlyph({ glyph, hairline = false }: { glyph: Glyph; hairline?:
 
 /**
  * The feed `bundleId`'s own icon in place of an app's square, rounded like
- * the square and edged like the icons in the turn, so a white or a black one
- * still holds its shape on the page.
+ * the square and edged with a border, so a white or a black one still holds
+ * its shape on the page.
  */
 export function FeedIcon({ bundleId, hairline = false }: { bundleId: string; hairline?: boolean }) {
   const clip = useId();
