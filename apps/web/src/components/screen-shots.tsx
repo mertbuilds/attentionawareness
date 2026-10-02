@@ -4,17 +4,24 @@ import { create, props } from '@stylexjs/stylex';
 /**
  * One real screenshot, cropped to the card itself, so no name, device, status
  * bar or app list is in the picture. Another one is a file in `public/media/`
- * and a line in the list it stands in. One that is not in yet takes a `todo`
- * note instead of its `src`, and a marked box its size stands in for it. One
- * the caption under the row does not speak for, such as someone else's, says
- * whose it is in a `label` under it.
+ * and a line in the list it stands in. One the caption under the row does not
+ * speak for, such as someone else's, says whose it is in a `label` under it.
  */
 export type Shot = {
   alt: string;
   height: number;
   label?: string;
+  src: string;
   width: number;
-} & ({ src: string } | { todo: string });
+};
+
+/**
+ * No row of shots stands taller than this, in pixels, so one shot alone stays
+ * a picture in the prose rather than a wall.
+ */
+const MAX_HEIGHT = 320;
+/** The gap between two shots, in pixels: `spacing.s3`. */
+const GAP = 12;
 
 const styles = create({
   caption: {
@@ -30,17 +37,24 @@ const styles = create({
     gap: spacing.s3,
     margin: 0,
   },
-  // Side by side once two fit, one under the other before. Cards of
-  // different heights stand on the same top line.
+  // Side by side once there is room, one under the other before. Side by
+  // side, each column is as wide as its shot is for its height, so every
+  // frame in the row stands exactly as tall as the others: none is cropped,
+  // stretched or padded out.
   row: {
     alignItems: 'start',
     display: 'grid',
     gap: spacing.s3,
+    marginInline: 'auto',
+    width: '100%',
+  },
+  rowFit: (columns: string, maxWidth: number) => ({
     gridTemplateColumns: {
-      '@media (min-width: 560px)': 'repeat(2, minmax(0, 1fr))',
+      '@media (min-width: 560px)': columns,
       default: 'minmax(0, 1fr)',
     },
-  },
+    maxWidth,
+  }),
   // One shot and its label, close under it.
   item: {
     display: 'flex',
@@ -57,48 +71,6 @@ const styles = create({
     cornerShape: 'squircle',
     overflow: 'hidden',
   },
-  // The odd card out on a row of two stands in the middle of it, at the width
-  // of one, over the line under the row.
-  lone: {
-    gridColumn: {
-      '@media (min-width: 560px)': '1 / -1',
-      default: null,
-    },
-    justifySelf: {
-      '@media (min-width: 560px)': 'center',
-      default: null,
-    },
-    width: {
-      '@media (min-width: 560px)': `calc((100% - ${spacing.s3}) / 2)`,
-      default: null,
-    },
-  },
-  // A shot that is not in yet: the frame's shape, dashed, at the shot's own
-  // size, with what goes there and the note that it is missing.
-  placeholder: {
-    alignItems: 'center',
-    borderColor: colors.muted,
-    borderRadius: 32,
-    borderStyle: 'dashed',
-    borderWidth: 1,
-    boxSizing: 'border-box',
-    cornerShape: 'squircle',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s1,
-    justifyContent: 'center',
-    lineHeight: 1.5,
-    padding: spacing.s6,
-    textAlign: 'center',
-    textWrap: 'balance',
-  },
-  placeholderSize: (width: number, height: number) => ({
-    aspectRatio: `${width} / ${height}`,
-  }),
-  placeholderTodo: {
-    color: colors.muted,
-    fontSize: font.sizeSm,
-  },
   shot: {
     display: 'block',
     height: 'auto',
@@ -112,45 +84,34 @@ const styles = create({
  * sized up front so the prose does not jump when they land.
  */
 export function ScreenShots({ caption, shots }: { caption?: string; shots: ReadonlyArray<Shot> }) {
+  // Each shot's width for its height, the share of the row it takes.
+  const ratios = shots.map((shot) => shot.width / shot.height);
+  const columns = ratios.map((ratio) => `minmax(0, ${ratio}fr)`).join(' ');
+  const widest = MAX_HEIGHT * ratios.reduce((sum, ratio) => sum + ratio, 0);
   return (
     <figure {...props(styles.figure)}>
-      <div {...props(styles.row)}>
-        {shots.map((shot, index) => {
-          const lone = shots.length % 2 === 1 && index === shots.length - 1;
-          return 'src' in shot ? (
-            <div key={shot.src} {...props(styles.item, lone && styles.lone)}>
-              <div {...props(styles.frame)}>
-                <img
-                  alt={shot.alt}
-                  decoding="async"
-                  height={shot.height}
-                  loading="lazy"
-                  src={shot.src}
-                  width={shot.width}
-                  {...props(styles.shot)}
-                />
-              </div>
-              {/* The label repeats the alt, so it is read once. */}
-              {shot.label === undefined ? null : (
-                <span aria-hidden="true" {...props(styles.caption)}>
-                  {shot.label}
-                </span>
-              )}
+      <div {...props(styles.row, styles.rowFit(columns, widest + GAP * (shots.length - 1)))}>
+        {shots.map((shot) => (
+          <div key={shot.src} {...props(styles.item)}>
+            <div {...props(styles.frame)}>
+              <img
+                alt={shot.alt}
+                decoding="async"
+                height={shot.height}
+                loading="lazy"
+                src={shot.src}
+                width={shot.width}
+                {...props(styles.shot)}
+              />
             </div>
-          ) : (
-            <div
-              key={shot.alt}
-              {...props(
-                styles.placeholder,
-                styles.placeholderSize(shot.width, shot.height),
-                lone && styles.lone,
-              )}
-            >
-              <span>{shot.alt}</span>
-              <span {...props(styles.placeholderTodo)}>{shot.todo}</span>
-            </div>
-          );
-        })}
+            {/* The label repeats the alt, so it is read once. */}
+            {shot.label === undefined ? null : (
+              <span aria-hidden="true" {...props(styles.caption)}>
+                {shot.label}
+              </span>
+            )}
+          </div>
+        ))}
       </div>
       {caption === undefined ? null : <figcaption {...props(styles.caption)}>{caption}</figcaption>}
     </figure>

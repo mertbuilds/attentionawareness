@@ -555,70 +555,6 @@ function HomePage() {
           <p {...props(styles.sectionBody)}>{m.home_uses_close()}</p>
         </section>
 
-        {/* That it works: a friend's week as the before, my own screen time
-        after, and what the hours went to instead. */}
-        <section {...props(styles.section, styles.anchor)} id={PROOF_ID}>
-          <h2 {...props(styles.displayTitle, styles.stat)}>{m.home_proof_title()}</h2>
-          <p {...props(styles.sectionBody)}>{m.home_proof_lead()}</p>
-          <ScreenShots
-            caption={m.home_proof_caption()}
-            shots={[
-              // A friend's week, not mine: the label under it says so.
-              {
-                alt: m.home_proof_shot_friend(),
-                height: 640,
-                label: m.home_proof_shot_friend(),
-                src: '/media/screentime-friends/friend-1-week-sep-14.webp',
-                width: 800,
-              },
-              {
-                alt: m.home_proof_shot_time(),
-                height: 684,
-                src: '/media/screentime-mert/mert-after-screen-time.webp',
-                width: 800,
-              },
-              {
-                alt: m.home_proof_shot_pickups(),
-                height: 511,
-                src: '/media/screentime-mert/mert-after-pickups.webp',
-                width: 800,
-              },
-            ]}
-          />
-          <ScreenShots
-            shots={[
-              // TODO(mert): replace with real screenshot
-              {
-                alt: m.home_proof_shot_github(),
-                height: 640,
-                todo: m.home_proof_shot_todo(),
-                width: 800,
-              },
-              // TODO(mert): replace with real screenshot
-              {
-                alt: m.home_proof_shot_claude(),
-                height: 640,
-                todo: m.home_proof_shot_todo(),
-                width: 800,
-              },
-            ]}
-          />
-        </section>
-
-        {/* Not against the networks, only their feeds, and the browser half
-        of the same idea: the extension that takes the feeds off the computer. */}
-        <section {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_social_title()}</h2>
-          <p {...props(styles.sectionBody)}>{m.home_social_body()}</p>
-          <p {...props(styles.sectionBody)}>
-            {socialBefore}
-            <a href={STORE_URL} rel="noreferrer" target="_blank">
-              {m.home_social_link()}
-            </a>
-            {socialAfter}
-          </p>
-        </section>
-
         {/* How it works: what the Mac app does, in three steps, what it costs
         and promises, and under it, past an or, the manual way that starts the
         phone over. */}
@@ -652,6 +588,52 @@ function HomePage() {
               {m.home_how_diy_cta()}
             </Button>
           </div>
+        </section>
+
+        {/* That it works, once the way is told: a friend's week as the before
+        and my own screen time after. */}
+        <section {...props(styles.section, styles.anchor)} id={PROOF_ID}>
+          <h2 {...props(styles.displayTitle, styles.stat)}>{m.home_proof_title()}</h2>
+          <p {...props(styles.sectionBody)}>{m.home_proof_lead()}</p>
+          <ScreenShots
+            caption={m.home_proof_caption()}
+            shots={[
+              // A friend's week, not mine: the label under it says so.
+              {
+                alt: m.home_proof_shot_friend(),
+                height: 640,
+                label: m.home_proof_shot_friend(),
+                src: '/media/screentime-friends/friend-1-week-sep-14.webp',
+                width: 800,
+              },
+              {
+                alt: m.home_proof_shot_time(),
+                height: 684,
+                src: '/media/screentime-mert/mert-after-screen-time.webp',
+                width: 800,
+              },
+              {
+                alt: m.home_proof_shot_pickups(),
+                height: 511,
+                src: '/media/screentime-mert/mert-after-pickups.webp',
+                width: 800,
+              },
+            ]}
+          />
+        </section>
+
+        {/* Not against the networks, only their feeds, and the browser half
+        of the same idea: the extension that takes the feeds off the computer. */}
+        <section {...props(styles.section)}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_social_title()}</h2>
+          <p {...props(styles.sectionBody)}>{m.home_social_body()}</p>
+          <p {...props(styles.sectionBody)}>
+            {socialBefore}
+            <a href={STORE_URL} rel="noreferrer" target="_blank">
+              {m.home_social_link()}
+            </a>
+            {socialAfter}
+          </p>
         </section>
 
         <section {...props(styles.section)}>
