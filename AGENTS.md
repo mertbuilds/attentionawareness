@@ -22,7 +22,6 @@ packages/
           `@attentionawareness/ui/brand` holds the outlined "aa" mark both apps draw from.
   env/    Zod-validated client env schema. All env access goes through here.
   config/ Shared tsconfig base.
-e2e/      Playwright smoke spec.
 ```
 
 The product is the site, the extension and the Mac app. The Mac app is closed
@@ -58,7 +57,6 @@ Web app (`apps/web`): `pnpm --filter @attentionawareness/web dev` (:3000 standal
 
 - First run needs one-time setup in a terminal: `sudo pnpm exec portless proxy start --https` (binds 443, generates + trusts a local CA). After that the proxy auto-starts. `pnpm exec portless service install` makes it start on boot.
 - portless injects `PORT` (4000-4999 pool) into each app; vite reads it in `vite.config.ts`, storybook takes it as `--port`. If TLS is in the way, `--no-tls` on portless or curl `-k`.
-- e2e stays port-based (CI has no portless proxy).
 
 ## UI (`packages/ui`)
 
