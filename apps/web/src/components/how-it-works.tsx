@@ -4,13 +4,15 @@ import { useInView } from 'motion/react';
 import { useEffect, useRef, useState } from 'react';
 import { drawing } from '../lib/motion.stylex.ts';
 import { m } from '../paraglide/messages.js';
+import { Mark, Sentence } from './cost-story.tsx';
 import { ChooseGraphic, PlugGraphic, StaysGraphic } from './steps/index.ts';
 
 /** How much of a step has to be on screen before its drawing plays. */
 const SEEN = 0.6;
 /**
- * The steps in their order: the drawing, how long it plays, and its words,
- * read in the reader's language when the step is drawn.
+ * The steps in their order: the drawing, how long it plays, its words, and
+ * the small i after a title that needs one, read in the reader's language
+ * when the step is drawn.
  */
 const STEPS = [
   {
@@ -18,6 +20,7 @@ const STEPS = [
     Graphic: PlugGraphic,
     key: 'plug',
     seconds: drawing.stepPlug,
+    tip: { label: m.home_how_plug_tip_label, text: m.home_how_plug_tip },
     title: m.home_how_plug_title,
   },
   {
@@ -79,19 +82,9 @@ const styles = create({
     marginBlock: `${spacing.s2} 0`,
     textWrap: 'balance',
   },
-  // A step clear of the cards under it, as well as of the line over it.
+  // The steps clear of the card under them.
   steps: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s6,
     paddingBlockEnd: spacing.s6,
-  },
-  title: {
-    color: colors.muted,
-    fontSize: font.sizeSm,
-    fontWeight: font.weightMedium,
-    lineHeight: 1.5,
-    margin: 0,
   },
 });
 
@@ -145,14 +138,22 @@ export function HowItWorks() {
 
   return (
     <div {...props(styles.steps)}>
-      <h3 {...props(styles.title)}>{m.home_how_steps_title()}</h3>
       <ol {...props(styles.list)}>
         {STEPS.map(({ Graphic, ...step }, index) => (
           <li key={step.key} ref={items[index]} {...props(styles.step)}>
             <Graphic play={playing[index] === true} />
-            <h4 {...props(styles.stepTitle)}>
-              <span {...props(styles.number)}>{index + 1}</span> {step.title()}
-            </h4>
+            <h3 {...props(styles.stepTitle)}>
+              <span {...props(styles.number)}>{index + 1}</span>{' '}
+              <Sentence
+                figures={[]}
+                mark={
+                  step.tip === undefined ? null : (
+                    <Mark label={step.tip.label()}>{step.tip.text()}</Mark>
+                  )
+                }
+                text={step.title()}
+              />
+            </h3>
             <p {...props(styles.stepBody)}>{step.body()}</p>
           </li>
         ))}

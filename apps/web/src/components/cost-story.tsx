@@ -1,3 +1,4 @@
+import { Button } from '@attentionawareness/ui';
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, firstThatWorks, keyframes, props } from '@stylexjs/stylex';
@@ -11,15 +12,24 @@ import {
   useScroll,
   useTransform,
 } from 'motion/react';
-import type { MotionValue } from 'motion/react';
-import { Fragment, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
-import type { ReactNode } from 'react';
+import type { EasingDefinition, MotionValue } from 'motion/react';
+import {
+  Fragment,
+  useEffect,
+  useEffectEvent,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import {
   AVERAGE_HOURS,
   formatYears,
   heroMetrics,
   HORIZON_WEEKS,
   HORIZON_YEARS,
+  HOURS_PER_SKILL,
   MOON_KM,
   MOON_WALK_HOURS,
   moonShare,
@@ -36,18 +46,27 @@ import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
 import { AppFan } from './app-fan.tsx';
 import { BillFilters } from './bill-paper.tsx';
+import { BooksGraphic } from './deck/books.tsx';
+import { HEIGHT, WIDTH } from './deck/box.ts';
+import { DegreesGraphic } from './deck/degrees.tsx';
+import { InstrumentsGraphic } from './deck/instruments.tsx';
+import { LanguagesGraphic } from './deck/languages.tsx';
+import { MarathonsGraphic } from './deck/marathons.tsx';
+import { NovelsGraphic } from './deck/novels.tsx';
+import { SkillsGraphic } from './deck/skills.tsx';
+import { TripsGraphic } from './deck/trips.tsx';
 import { GridTexture } from './grid-texture.tsx';
 import { InfoTip } from './info-tip.tsx';
 
 /** The report the average day is taken from. */
 const SOURCE_URL = 'https://datareportal.com/reports/digital-2024-global-overview-report';
-/** The story's sentences, in the order the scroll plays them, and where each drawing's beat stands. */
+/** The story's sentences, in the order the scroll plays them, and where each beat after the first stands. */
 const BEATS = 6;
 const WEEKS_BEAT = 1;
-const WEEKENDS_BEAT = 2;
-const EARTH_BEAT = 3;
-const MOON_BEAT = 4;
-const TURN_BEAT = 5;
+const EARTH_BEAT = 2;
+const GRID_BEAT = 3;
+const FAULT_BEAT = 4;
+const PLAY_BEAT = 5;
 /** How much of the stage has to be on screen before a drawing plays. */
 const SEEN = 0.6;
 /** `easing.smoothOut`, the curve things move into place on, as motion takes a curve. */
@@ -109,6 +128,24 @@ const NARROW_WEEKS = { columns: 26, size: 6 };
 /** A square of the grid's legend, a touch bigger than the grid's own so it reads at text size. */
 const SWATCH_SIZE = 8;
 /**
+ * The six things the hours could have been, each drawn in the deck's own box.
+ * The box is set on the element, as the stylesheet reads no constant from
+ * another module.
+ */
+const ART_RATIO = `${WIDTH} / ${HEIGHT}`;
+/**
+ * The six share the window's height with the rest of the stage: its padding,
+ * and this much more for the line over them and the captions under them, two
+ * rows of them on a wide screen and three on a phone. On a window too short
+ * for them at their full size, they are drawn smaller.
+ */
+const WIDE_GRID_ROOM = 204;
+const NARROW_GRID_ROOM = 264;
+/** How wide the six stand on a wide screen: past the column, so each is drawn large enough to read. */
+const GRID_WIDTH = 960;
+/** The cells of the grid, the facts it shows at once. */
+const CELLS = 6;
+/**
  * The weekends, one calendar tile each, flipping past the line where each one
  * is crossed out. They ease from rest up to a pace a cross can be watched
  * drawing at, this many tiles a second, over the first `WEEKENDS_EASE`
@@ -125,6 +162,14 @@ const CROSS_LATE_MS = 125;
 const TILE_WIDTH = 64;
 const TILE_HEIGHT = 76;
 const TILE_PITCH = 72;
+/**
+ * The weekends are drawn in pixels of a box this wide, the deck's own, and
+ * scale with the cell they stand in as the other five drawings do: each of
+ * their lengths is set as its share of the box's width, this much of it a
+ * pixel.
+ */
+const STRIP_WIDTH = 320;
+const STRIP_UNIT = 100 / STRIP_WIDTH;
 /** The tiles drawn either side of the line, enough to run past both faded edges. */
 const TILE_REACH = 5;
 /**
@@ -192,6 +237,20 @@ const cueFall = keyframes({
   to: { transform: `translateY(${CUE_HEIGHT}px)` },
 });
 
+/**
+ * A fact swapped into the grid comes on the way the six did, rising into
+ * focus as it fades in; the one it takes the place of fades out of focus
+ * where it stands, as quietly as a beat leaves.
+ */
+const cellRise = keyframes({
+  from: { filter: `blur(${blur.medium})`, opacity: 0, transform: `translateY(${distance.medium})` },
+  to: { filter: 'none', opacity: 1, transform: 'none' },
+});
+const cellFade = keyframes({
+  from: { filter: 'none', opacity: 1 },
+  to: { filter: `blur(${blur.medium})`, opacity: 0 },
+});
+
 const styles = create({
   // One sentence of the story. They all stand in the same cell, so the stage
   // is as tall as the tallest and nothing moves when one takes over from the
@@ -236,15 +295,144 @@ const styles = create({
       default: duration.verySlow,
     },
   },
+  // The beats' one column is the stage's width, whatever stands wider in a
+  // beat, so every beat is centred on the stage.
   beats: {
     alignItems: 'center',
     display: 'grid',
+    gridTemplateColumns: 'minmax(0, 1fr)',
     justifyItems: 'center',
     rowGap: {
       '@media (prefers-reduced-motion: reduce)': spacing.s16,
       default: 0,
     },
     width: '100%',
+  },
+  // What one of the six stands for, under its drawing: the end of the line
+  // over them, small, with its figure in orange.
+  caption: {
+    color: colors.fg,
+    fontSize: {
+      '@media (min-width: 640px)': font.sizeMd,
+      default: font.sizeSm,
+    },
+    lineHeight: 1.35,
+    margin: 0,
+    textWrap: 'balance',
+  },
+  // One of the six: its drawing over its caption. Off the stage it waits out
+  // of sight, a little low and out of focus, put there once its beat has
+  // faded out, and keeps its place in the grid, so nothing moves as the others
+  // come on. With less motion all six stand from the start.
+  cell: {
+    alignItems: 'center',
+    display: 'flex',
+    filter: {
+      '@media (prefers-reduced-motion: reduce)': 'none',
+      default: `blur(${blur.medium})`,
+    },
+    flexDirection: 'column',
+    gap: spacing.s2,
+    minWidth: 0,
+    opacity: {
+      '@media (prefers-reduced-motion: reduce)': 1,
+      default: 0,
+    },
+    transform: {
+      '@media (prefers-reduced-motion: reduce)': 'none',
+      default: `translateY(${distance.medium})`,
+    },
+    transitionDelay: duration.quick,
+    transitionDuration: '0s',
+    transitionProperty: 'opacity, transform, filter',
+  },
+  // On the stage the six rise into focus as they fade in, one after another,
+  // the first a step after the line over them.
+  cellOn: {
+    filter: 'none',
+    opacity: 1,
+    transform: 'none',
+    transitionDuration: duration.verySlow,
+    transitionTimingFunction: easing.inOut,
+  },
+  cellStagger: (place: number) => ({
+    transitionDelay: `${(place + 1) * drawing.gridStagger}s`,
+  }),
+  // A fact swapped in, and one on its way out. The one swapped in stands on
+  // the end of its rise until the grid goes back to the six it opens on, so
+  // it fades out with the beat as the six do.
+  cellIn: {
+    animationDuration: duration.verySlow,
+    animationFillMode: 'both',
+    animationName: cellRise,
+    animationTimingFunction: easing.inOut,
+  },
+  cellOut: {
+    animationDuration: duration.quick,
+    animationFillMode: 'both',
+    animationName: cellFade,
+    animationTimingFunction: easing.inOut,
+    pointerEvents: 'none',
+  },
+  // The drawing's box, across the cell and no taller than the window leaves
+  // room for.
+  cellArt: {
+    display: 'flex',
+    justifyContent: 'center',
+    maxHeight: {
+      '@media (min-width: 640px)': `calc((100dvh - ${wip.height} - 2 * ${spacing.s16} - ${WIDE_GRID_ROOM}px) / 2)`,
+      default: `calc((100dvh - ${wip.height} - 2 * ${spacing.s16} - ${NARROW_GRID_ROOM}px) / 3)`,
+    },
+    width: '100%',
+  },
+  // The drawing in it, the same shape and as large as the box holds: a button
+  // that plays it again, with nothing of a button to see but the ring the
+  // keyboard puts round it.
+  cellDrawing: {
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderRadius: radius.base,
+    borderStyle: 'none',
+    borderWidth: 0,
+    color: 'inherit',
+    cursor: 'pointer',
+    display: 'flex',
+    fontFamily: 'inherit',
+    fontSize: 'inherit',
+    height: '100%',
+    justifyContent: 'center',
+    margin: 0,
+    maxWidth: '100%',
+    outlineColor: colors.fg,
+    outlineOffset: 2,
+    outlineStyle: {
+      ':focus-visible': 'solid',
+      default: 'none',
+    },
+    outlineWidth: 2,
+    padding: 0,
+    WebkitTapHighlightColor: 'transparent',
+  },
+  // The six, three across and two down, or two across and three down on a
+  // phone.
+  could: {
+    columnGap: {
+      '@media (min-width: 640px)': spacing.s6,
+      default: spacing.s3,
+    },
+    display: 'grid',
+    gridTemplateColumns: {
+      '@media (min-width: 640px)': 'repeat(3, minmax(0, 1fr))',
+      default: 'repeat(2, minmax(0, 1fr))',
+    },
+    listStyle: 'none',
+    margin: 0,
+    padding: 0,
+    rowGap: {
+      '@media (min-width: 640px)': spacing.s6,
+      default: spacing.s4,
+    },
+    width: `min(${GRID_WIDTH}px, 100vw - 2 * ${spacing.s4})`,
   },
   // The way on, pinned with the stage just over the progress rail. It stands
   // while the first beat does and trades places with the rail as the second
@@ -440,16 +628,24 @@ const styles = create({
     transitionDuration: '0s',
     transitionProperty: 'opacity',
   },
+  // A square and what it stands for, on one line: the square a space from the
+  // words, as the words are from each other.
   legendItem: {
-    alignItems: 'center',
-    display: 'inline-flex',
-    gap: spacing.s2,
+    whiteSpace: 'nowrap',
   },
   legendOn: {
     opacity: 1,
     transitionDelay: `${drawing.delay}s`,
     transitionDuration: duration.slow,
     transitionTimingFunction: easing.smoothOut,
+  },
+  // The line over the six, a size under the story's sentences, so the six
+  // have the room.
+  lead: {
+    fontSize: {
+      '@media (min-width: 640px)': 'clamp(28px, 3.4vw, 40px)',
+      default: 'clamp(24px, 6.5vw, 28px)',
+    },
   },
   // Large and light: the story is read one sentence a screen, so each one is
   // set as big as the first screen's claim and a weight under it.
@@ -544,8 +740,8 @@ const styles = create({
     transitionDelay: duration.stagger,
   },
   // How far along the story is, a hairline at the foot of the stage. It fades
-  // out on the last beat, where the turn stands on its own, and back in on
-  // the way up.
+  // out on the last beat, where the button down to the way out stands on its
+  // own, and back in on the way up.
   rail: {
     backgroundColor: colors.border,
     borderRadius: 999,
@@ -639,19 +835,16 @@ const styles = create({
       default: 0,
     },
   },
-  // A square of the legend, drawn as the grid draws a week. Centered on the
-  // line it sits a pixel under the middle of the figures beside it, as the
-  // line keeps room for descenders the words hardly use, so it is lifted to
-  // stand level with them.
+  // A square of the legend, drawn as the grid draws a week. It stands on the
+  // baseline like a letter, about as tall as the figures beside it, so its
+  // middle is level with theirs.
   swatch: {
     borderColor: colors.border,
     borderStyle: 'solid',
     borderWidth: 1,
     boxSizing: 'border-box',
-    display: 'block',
-    flexShrink: 0,
+    display: 'inline-block',
     height: SWATCH_SIZE,
-    transform: 'translateY(-1px)',
     width: SWATCH_SIZE,
   },
   swatchSpent: {
@@ -678,13 +871,13 @@ const styles = create({
     flexDirection: 'column',
     height: '100%',
     insetBlockStart: 0,
-    insetInlineStart: `calc(50% - ${TILE_WIDTH / 2}px)`,
+    insetInlineStart: `calc(50% - ${(TILE_WIDTH / 2) * STRIP_UNIT}cqw)`,
     position: 'absolute',
-    width: TILE_WIDTH,
+    width: `${TILE_WIDTH * STRIP_UNIT}cqw`,
   },
   tileDate: {
     color: colors.fg,
-    fontSize: 18,
+    fontSize: `${18 * STRIP_UNIT}cqw`,
     fontVariantNumeric: 'tabular-nums',
     lineHeight: 1,
   },
@@ -692,7 +885,7 @@ const styles = create({
     alignItems: 'center',
     display: 'flex',
     flexDirection: 'column',
-    gap: spacing.s1,
+    gap: `${4 * STRIP_UNIT}cqw`,
   },
   tileDays: {
     alignItems: 'center',
@@ -706,10 +899,10 @@ const styles = create({
     borderBlockEndStyle: 'solid',
     borderBlockEndWidth: 1,
     color: colors.muted,
-    fontSize: 10,
+    fontSize: `${10 * STRIP_UNIT}cqw`,
     lineHeight: 1,
     overflow: 'hidden',
-    paddingBlock: spacing.s1,
+    paddingBlock: `${4 * STRIP_UNIT}cqw`,
     textAlign: 'center',
     whiteSpace: 'nowrap',
   },
@@ -719,15 +912,15 @@ const styles = create({
   },
   tileWeekday: {
     color: colors.muted,
-    fontSize: 9,
+    fontSize: `${9 * STRIP_UNIT}cqw`,
     letterSpacing: '0.06em',
     lineHeight: 1,
     textTransform: 'uppercase',
   },
   // The first beat's sentence, alone on the first screen: larger than the
   // ones after it, and smaller on a short window. On a wide screen it reaches
-  // past the column, twelve times its size across, so it breaks into three
-  // lines rather than five.
+  // past the column, twelve times its size across, so it breaks into two or
+  // three lines rather than five.
   title: {
     alignSelf: 'stretch',
     fontSize: 'clamp(40px, min(10.5vw, 11vh), 88px)',
@@ -736,9 +929,10 @@ const styles = create({
     marginInline: `min(0px, 50% - min(6em, 50vw - ${spacing.s4}))`,
     maxWidth: 'none',
   },
-  // The last beat, the sentence the story turns on: it is not the reader, it
-  // is the apps. Larger than the sentences before it, and wider than the
-  // column on a wide screen, so each of its two lines stays one line.
+  // The sentence the story turns on: it is not our fault, it is the apps and
+  // the people behind them. Larger than the sentences before it, and wider
+  // than the column on a wide screen, so its long second line takes as few
+  // lines as it can.
   turn: {
     alignSelf: 'stretch',
     fontSize: {
@@ -748,8 +942,9 @@ const styles = create({
     marginInline: `min(0px, 50% - min(8.5em, 50vw - ${spacing.s4}))`,
     maxWidth: 'none',
   },
-  // A line of the turn, a part that fades in as it rises, so the second line
-  // can wait for the first. With less motion both stand from the start.
+  // A line of the turn, or the button under the last beat's line: a part that
+  // fades in as it rises, so it can wait for the line over it. With less
+  // motion both stand from the start.
   turnLine: {
     display: 'block',
     opacity: {
@@ -761,7 +956,7 @@ const styles = create({
   turnLineOn: {
     opacity: 1,
   },
-  // The second line comes on once the first has, so the two are read apart.
+  // The second comes on once the first has, so the two are read apart.
   turnLineSecond: {
     transitionDelay: duration.verySlow,
   },
@@ -801,12 +996,13 @@ const styles = create({
     stroke: colors.border,
     strokeWidth: 1,
   },
-  // The weekends and their legend, under each other.
+  // The weekends, their strip across the middle of the box, which their
+  // lengths are measured against.
   weekends: {
     alignItems: 'center',
+    containerType: 'inline-size',
     display: 'flex',
     flexDirection: 'column',
-    gap: spacing.s3,
     width: '100%',
   },
   // The line the weekends are stamped at, showing above and below the strip
@@ -819,7 +1015,7 @@ const styles = create({
     width: 1,
   },
   weekendsStrip: {
-    height: TILE_HEIGHT,
+    height: `${TILE_HEIGHT * STRIP_UNIT}cqw`,
     maskImage: STRIP_MASK,
     overflow: 'hidden',
     position: 'relative',
@@ -827,8 +1023,7 @@ const styles = create({
   },
   weekendsTrack: {
     boxSizing: 'border-box',
-    maxWidth: 520,
-    paddingBlock: spacing.s2,
+    paddingBlock: `${8 * STRIP_UNIT}cqw`,
     position: 'relative',
     width: '100%',
   },
@@ -875,6 +1070,19 @@ function lessMotionOnServer(): boolean {
  */
 export function useLessMotion(): boolean {
   return useSyncExternalStore(subscribeLessMotion, prefersLessMotion, lessMotionOnServer);
+}
+
+function subscribeVisibility(onChange: () => void): () => void {
+  document.addEventListener('visibilitychange', onChange);
+  return () => document.removeEventListener('visibilitychange', onChange);
+}
+
+function tabHidden(): boolean {
+  return document.visibilityState === 'hidden';
+}
+
+function hiddenOnServer(): boolean {
+  return false;
 }
 
 /** Whether an event comes from inside a dialog, which keeps its own wheel and keys. */
@@ -965,19 +1173,21 @@ export function Figure({ decimals = 0, value }: { decimals?: number; value: numb
   return <span {...props(styles.figure)}>{format.format(value)}</span>;
 }
 
-/** The small i after a figure, and how it is counted. */
+/** The small i after a figure, `size` to the sentence's text, and how it is counted. */
 export function Mark({
   children,
   label,
   onOpenChange,
+  size,
 }: {
   children: ReactNode;
   label: string;
   onOpenChange?: (open: boolean) => void;
+  size?: 'large' | 'small';
 }) {
   return (
     <span {...props(styles.mark)}>
-      <InfoTip label={label} onOpenChange={onOpenChange}>
+      <InfoTip label={label} onOpenChange={onOpenChange} size={size}>
         {children}
       </InfoTip>
     </span>
@@ -985,32 +1195,41 @@ export function Mark({
 }
 
 /**
- * How far a drawing has played, from 0 to 1: over `seconds` each time its beat
- * comes on, once the sentence has risen into place, and back to the start
- * once the beat has faded out, so it plays again when the reader comes back
- * to it. It stands done until the page has come alive, and for good with less
- * motion.
+ * How far a drawing has played, from 0 to 1: once over `seconds` each time
+ * its beat comes on, once the sentence has risen into place and `after`
+ * seconds more, then on its end; and back to the start once the beat has
+ * faded out, cut short if it was being played again, so it plays again when
+ * the reader comes back to it. It stands at `from` until then: done, so the
+ * page shows every drawing whole until it has come alive, and for good with
+ * less motion. A drawing put on the page while its beat is on starts from
+ * nothing instead, so it is never seen whole before it has played.
  */
 function usePlayed(
   run: boolean,
   seconds: number,
-  ease: [number, number, number, number] | 'linear',
+  ease: EasingDefinition,
+  after = 0,
+  from = 1,
 ): MotionValue<number> {
   const reduced = useLessMotion();
-  const played = useMotionValue(1);
+  const played = useMotionValue(from);
   useEffect(() => {
     if (reduced) {
       played.set(1);
       return;
     }
     if (!run) {
-      const timer = setTimeout(() => played.set(0), FADE_OUT_MS);
+      const timer = setTimeout(() => played.jump(0), FADE_OUT_MS);
       return () => clearTimeout(timer);
     }
     played.set(0);
-    const controls = animate(played, 1, { delay: drawing.delay, duration: seconds, ease });
+    const controls = animate(played, 1, {
+      delay: drawing.delay + after,
+      duration: seconds,
+      ease,
+    });
     return () => controls.stop();
-  }, [ease, played, reduced, run, seconds]);
+  }, [after, ease, played, reduced, run, seconds]);
   return played;
 }
 
@@ -1167,12 +1386,10 @@ function Weeks({
       <WeekGrid filled={shown} layout={NARROW_WEEKS} style={styles.weeksNarrow} />
       <p aria-hidden="true" {...props(styles.legend, on && styles.legendOn)}>
         <span {...props(styles.legendItem)}>
-          <span {...props(styles.swatch)} />
-          {m.home_cost_weeks_legend()}
+          <span {...props(styles.swatch)} /> {m.home_cost_weeks_legend()}
         </span>
         <span {...props(styles.legendItem)}>
-          <span {...props(styles.swatch, styles.swatchSpent)} />
-          {m.home_cost_weeks_legend_screen()}
+          <span {...props(styles.swatch, styles.swatchSpent)} /> {m.home_cost_weeks_legend_screen()}
         </span>
       </p>
     </div>
@@ -1273,19 +1490,11 @@ function comingSaturday(today: Date): number {
 
 /**
  * Every weekend in the next twenty years, a calendar tile each, flipping past
- * a line once the beat comes on. The first few and the last few are crossed
- * out stroke by stroke as they reach it; the ones that rush past between are
- * crossed whole. With less motion they stand all crossed out.
+ * a line as it plays. The first few and the last few are crossed out stroke
+ * by stroke as they reach it; the ones that rush past between are crossed
+ * whole. With less motion they stand all crossed out.
  */
-function Weekends({
-  drawn,
-  on,
-  style,
-}: {
-  drawn: MotionValue<number>;
-  on: boolean;
-  style: StyleXStyles;
-}) {
+function Weekends({ drawn }: { drawn: MotionValue<number> }) {
   const reduced = useLessMotion();
   const [passed, setPassed] = useState(0);
   // The tiles start this weekend, which only the reader's own clock knows, so
@@ -1311,7 +1520,7 @@ function Weekends({
   const to = Math.min(HORIZON_WEEKS - 1, stamped + TILE_REACH);
 
   return (
-    <div aria-hidden="true" {...props(styles.weekends, style)}>
+    <div aria-hidden="true" {...props(styles.weekends)}>
       <div {...props(styles.weekendsTrack)}>
         <span {...props(styles.weekendsLine)} />
         <div {...props(styles.weekendsStrip)}>
@@ -1323,7 +1532,9 @@ function Weekends({
             return (
               <div
                 key={index}
-                style={{ transform: `translateX(${(index + 0.5 - at) * TILE_PITCH}px)` }}
+                style={{
+                  transform: `translateX(${(index + 0.5 - at) * TILE_PITCH * STRIP_UNIT}cqw)`,
+                }}
                 {...props(styles.tile)}
               >
                 <span {...props(styles.tileMonth, spent && styles.tileSpent)}>
@@ -1367,7 +1578,6 @@ function Weekends({
           })}
         </div>
       </div>
-      <p {...props(styles.legend, on && styles.legendOn)}>{m.home_cost_weekends_legend()}</p>
     </div>
   );
 }
@@ -1471,19 +1681,10 @@ function strideAt(walked: number): number {
 
 /**
  * The Earth, the Moon and the dotted way between them. The hours walk the way
- * once the beat comes on, as far as they reach, and the walker stops there
- * with the rest of the way faint ahead of it. With less motion the walk
- * stands done.
+ * as it plays, as far as they reach, and the walker stops there with the rest
+ * of the way faint ahead of it. With less motion the walk stands done.
  */
-function Moon({
-  share,
-  style,
-  walked,
-}: {
-  share: number;
-  style: StyleXStyles;
-  walked: MotionValue<number>;
-}) {
+function Moon({ share, walked }: { share: number; walked: MotionValue<number> }) {
   const reduced = useLessMotion();
   const reach = Math.min(1, share);
   const way = useTransform(walked, (latest) => walkedTo(latest * reach));
@@ -1494,7 +1695,7 @@ function Moon({
   const headY = useTransform(walked, (latest) => wayAt(latest * reach).point.y - WALKER_HEAD);
   const end = wayAt(reach).point;
   return (
-    <div {...props(styles.drawing, style)}>
+    <div {...props(styles.drawing)}>
       <svg aria-hidden="true" viewBox={`0 0 ${SKY_WIDTH} ${SKY_HEIGHT}`} {...props(styles.sky)}>
         <circle cx={SKY_EARTH.x} cy={SKY_EARTH.y} r={SKY_EARTH.radius} {...props(styles.globe)} />
         <ellipse
@@ -1540,12 +1741,283 @@ function Moon({
 }
 
 /**
- * Act one: what the average day costs, told one sentence a screen. The stage
- * stands pinned while the section scrolls under it, the page comes to rest on
- * one beat at a time, and each beat's drawing plays as it comes on. It ends
- * on the turn: it is not the reader's willpower, it is the apps.
+ * One thing the hours could have been, as the grid shows it: its drawing,
+ * drawn as far as `played` says, the line under it, telling `onTip` as its
+ * tip opens and closes, and how long and on what curve the drawing plays.
  */
-export function CostStory({ id }: { id: string }) {
+type Fact = {
+  art: (played: MotionValue<number>) => ReactNode;
+  caption: (onTip: (open: boolean) => void) => ReactNode;
+  ease: EasingDefinition;
+  key: string;
+  seconds: number;
+};
+
+/** A cell of the grid: the fact in it, and the swap that put it there, none for the six it opens on. */
+type Cell = { fact: string; swap: number };
+
+/**
+ * The next swap: a cell other than the one the last swap was made in and
+ * none the reader is `using`, and a fact off the grid to put in it, one the
+ * grid has not shown since it came on while any is left, so in time every
+ * fact in `pool` comes up.
+ */
+function nextSwap(
+  cells: ReadonlyArray<Cell>,
+  pool: ReadonlyArray<string>,
+  shown: ReadonlySet<string>,
+  using: (cell: Cell, place: number) => boolean,
+): { cell: number; fact: string } | null {
+  const latest = Math.max(...cells.map((cell) => cell.swap));
+  const places = cells.flatMap((cell, index) =>
+    (latest > 0 && cell.swap === latest) || using(cell, index) ? [] : [index],
+  );
+  const off = pool.filter((fact) => cells.every((cell) => cell.fact !== fact));
+  const fresh = off.filter((fact) => !shown.has(fact));
+  const from = fresh.length > 0 ? fresh : off;
+  const cell = places[Math.floor(Math.random() * places.length)];
+  const fact = from[Math.floor(Math.random() * from.length)];
+  return cell === undefined || fact === undefined ? null : { cell, fact };
+}
+
+/**
+ * One cell of the grid, a fact's drawing over its line. The six the grid
+ * opens on rise into place one after another while it is `staged`, the one
+ * at `place` that many steps after the line over them; a fact `swapped` in
+ * rises on its own, once the one before it has faded out. Either way its
+ * drawing plays once as it lands, while the grid is `on`, and stands on its
+ * end. Clicked, the drawing plays once more from the start, even halfway
+ * through, and the grid hears of it through `onReplay`, as it does of its tip
+ * through `onTip`. With less motion it stands as it is.
+ */
+function FactCell({
+  fact,
+  leaving,
+  on,
+  onReplay,
+  onTip,
+  place,
+  staged,
+  swapped,
+}: {
+  fact: Fact;
+  leaving: boolean;
+  on: boolean;
+  onReplay: () => void;
+  onTip: (open: boolean) => void;
+  place: number;
+  staged: boolean;
+  swapped: boolean;
+}) {
+  const reduced = useLessMotion();
+  const played = usePlayed(
+    on,
+    fact.seconds,
+    fact.ease,
+    swapped ? 0 : (place + 1) * drawing.gridStagger,
+    swapped ? 0 : 1,
+  );
+  // Each time the drawing is played again it is put on the page anew, so
+  // nothing of the end it stood on is left over when it starts.
+  const [take, setTake] = useState(0);
+
+  function replay() {
+    played.jump(0);
+    setTake(take + 1);
+    animate(played, 1, { duration: fact.seconds, ease: fact.ease });
+    onReplay();
+  }
+
+  return (
+    <li
+      {...props(
+        styles.cell,
+        staged && [styles.cellOn, !swapped && styles.cellStagger(place)],
+        swapped && styles.cellIn,
+        leaving && styles.cellOut,
+      )}
+    >
+      <div style={{ aspectRatio: ART_RATIO }} {...props(styles.cellArt)}>
+        <button
+          aria-label={m.home_cost_replay()}
+          inert={reduced}
+          onClick={replay}
+          style={{ aspectRatio: ART_RATIO }}
+          type="button"
+          {...props(styles.cellDrawing)}
+        >
+          <Fragment key={take}>{fact.art(played)}</Fragment>
+        </button>
+      </div>
+      <p {...props(styles.caption)}>{fact.caption(onTip)}</p>
+    </li>
+  );
+}
+
+/**
+ * The grid of what else the hours could have been: the first six `facts`, in
+ * order, each drawn once as it comes on. Once all six have played it stands
+ * `drawing.gridShuffle`, then one cell trades its fact for one of the rest,
+ * and so on for as long as the grid is `on`: never the same cell twice
+ * running, and never a fact twice at once. It holds still while the reader
+ * is at it, and the wait starts over once they let it go. Off the stage it
+ * goes back to the six it opens on, so every visit starts the same. With less
+ * motion the six stand drawn and nothing is swapped.
+ */
+function FactGrid({
+  facts,
+  on,
+  staged,
+}: {
+  facts: ReadonlyArray<Fact>;
+  on: boolean;
+  staged: boolean;
+}) {
+  const reduced = useLessMotion();
+  const opening = facts.slice(0, CELLS).map((fact) => ({ fact: fact.key, swap: 0 }));
+  const [cells, setCells] = useState<ReadonlyArray<Cell>>(opening);
+  // Every fact the grid has shown since it came on.
+  const [shown, setShown] = useState<ReadonlySet<string>>(
+    () => new Set(opening.map((cell) => cell.fact)),
+  );
+  // The cell on its way out, and the fact that takes its place once it has gone.
+  const [leaving, setLeaving] = useState<{ cell: number; fact: string } | null>(null);
+  // How many times a drawing has been played again. Each time starts the wait
+  // over, and the wait outlasts any one drawing, so a drawing played again is
+  // never swapped out before it has played to its end.
+  const [replays, setReplays] = useState(0);
+  // What holds the grid where it is: the reader's pointer or keyboard on it,
+  // a tip of it open, or the tab put away.
+  const [pointing, setPointing] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [tips, setTips] = useState<ReadonlySet<string>>(() => new Set());
+  const hidden = useSyncExternalStore(subscribeVisibility, tabHidden, hiddenOnServer);
+  const held = pointing || focused || tips.size > 0 || hidden;
+  const list = useRef<HTMLUListElement>(null);
+  const running = on && !reduced;
+  const latest = Math.max(...cells.map((cell) => cell.swap));
+  const changed = latest > 0 || leaving !== null;
+  const secondsOf = (key: string) => facts.find((fact) => fact.key === key)?.seconds ?? 0;
+  // How long the grid stands before its next swap: until the drawings that
+  // came on last have played, the six it opens on or the fact swapped in
+  // last, and a rest after.
+  const wait =
+    drawing.delay +
+    drawing.gridShuffle +
+    Math.max(
+      ...cells.map((cell, place) =>
+        cell.swap < latest
+          ? 0
+          : (cell.swap === 0 ? (place + 1) * drawing.gridStagger : 0) + secondsOf(cell.fact),
+      ),
+    );
+
+  // A cell with focus in it or its tip open is never the one swapped out.
+  const swapOut = useEffectEvent(() =>
+    setLeaving(
+      nextSwap(
+        cells,
+        facts.map((fact) => fact.key),
+        shown,
+        (cell, place) =>
+          tips.has(cell.fact) ||
+          list.current?.children[place]?.contains(document.activeElement) === true,
+      ),
+    ),
+  );
+  const swapIn = useEffectEvent(() => {
+    if (leaving === null) {
+      return;
+    }
+    setCells(
+      cells.map((cell, index) =>
+        index === leaving.cell ? { fact: leaving.fact, swap: latest + 1 } : cell,
+      ),
+    );
+    setShown(new Set([...shown, leaving.fact]));
+    setLeaving(null);
+  });
+  const reset = useEffectEvent(() => {
+    setCells(opening);
+    setShown(new Set(opening.map((cell) => cell.fact)));
+    setLeaving(null);
+    setTips(new Set());
+  });
+
+  // While the grid is on, a cell fades out once the wait is over and its new
+  // fact comes in once it has gone. The wait does not run while the grid is
+  // held. Off, the grid goes back to the six it opens on as soon as the beat
+  // has faded out.
+  useEffect(() => {
+    if (!running) {
+      if (!changed) {
+        return;
+      }
+      const timer = setTimeout(() => reset(), FADE_OUT_MS);
+      return () => clearTimeout(timer);
+    }
+    if (held && leaving === null) {
+      return;
+    }
+    const timer =
+      leaving === null
+        ? setTimeout(() => swapOut(), wait * 1000)
+        : setTimeout(() => swapIn(), FADE_OUT_MS);
+    return () => clearTimeout(timer);
+  }, [changed, held, leaving, replays, running, wait]);
+
+  // A pointer moved onto the grid holds it, one left standing where the grid
+  // scrolls in under it does not, and neither does a finger. Keyboard focus
+  // holds it, the focus a click leaves does not.
+  return (
+    <ul
+      onBlur={() => setFocused(false)}
+      onFocus={(event) => setFocused(event.target.matches(':focus-visible'))}
+      onPointerLeave={() => setPointing(false)}
+      onPointerMove={(event) => setPointing(event.pointerType !== 'touch')}
+      ref={list}
+      {...props(styles.could)}
+    >
+      {cells.map((cell, place) => {
+        const fact = facts.find((candidate) => candidate.key === cell.fact);
+        return fact === undefined ? null : (
+          <FactCell
+            fact={fact}
+            key={cell.fact}
+            leaving={leaving?.cell === place}
+            on={on}
+            onReplay={() => setReplays(replays + 1)}
+            onTip={(open) =>
+              setTips((current) => {
+                const next = new Set(current);
+                if (open) {
+                  next.add(cell.fact);
+                } else {
+                  next.delete(cell.fact);
+                }
+                return next;
+              })
+            }
+            place={place}
+            staged={staged}
+            swapped={cell.swap > 0}
+          />
+        );
+      })}
+    </ul>
+  );
+}
+
+/**
+ * Act one: what the average day costs, told one sentence a screen and as
+ * "we", the one telling it on the reader's side. The stage stands pinned
+ * while the section scrolls under it, the page comes to rest on one beat at a
+ * time, and each beat's drawing plays as it comes on. It ends on the turn, a
+ * beat at a time: it is not our fault, it is the apps and the people behind
+ * them; and the only way to win is not to play, with a button down to
+ * `wayOut`, the id of the section where the Mac app comes in.
+ */
+export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
   const story = useRef<HTMLElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   // Where the page comes to rest for each beat, and past the story's foot.
@@ -1563,13 +2035,19 @@ export function CostStory({ id }: { id: string }) {
   const [told, setTold] = useState(false);
   const on = (index: number) => seen && active === index;
   const weeksDrawn = usePlayed(on(WEEKS_BEAT), drawing.weeks, SMOOTH_OUT);
-  const weekendsDrawn = usePlayed(on(WEEKENDS_BEAT), drawing.weekends, 'linear');
   const walked = usePlayed(on(EARTH_BEAT), drawing.earth, SMOOTH_OUT);
-  const moonWalked = usePlayed(on(MOON_BEAT), drawing.moon, SMOOTH_OUT);
 
   const metrics = heroMetrics(AVERAGE_HOURS);
   const amountOf = (key: string) => metrics.find((metric) => metric.key === key)?.amount ?? 0;
   const earth = amountOf('earth');
+  const books = amountOf('books');
+  const languages = amountOf('languages');
+  const marathons = amountOf('marathons');
+  const trips = amountOf('travel');
+  const instruments = amountOf('instruments');
+  const degrees = amountOf('degrees');
+  const novels = amountOf('novels');
+  const skills = amountOf('skills');
   // The waking years, as the page prints them.
   const years = Number(formatYears(AVERAGE_HOURS));
   const number = new Intl.NumberFormat(getLocale());
@@ -1808,6 +2286,24 @@ export function CostStory({ id }: { id: string }) {
     rests.current[index]?.scrollIntoView({ block: 'start' });
   }
 
+  // A plain click scrolls to the way out in place: a hash left in the history
+  // would make Back climb the whole story again from the top.
+  function toWayOut(event: MouseEvent<HTMLElement>) {
+    const target = document.getElementById(wayOut);
+    if (
+      target === null ||
+      event.button !== 0 ||
+      event.altKey ||
+      event.ctrlKey ||
+      event.metaKey ||
+      event.shiftKey
+    ) {
+      return;
+    }
+    event.preventDefault();
+    target.scrollIntoView({ block: 'start' });
+  }
+
   function beat(index: number, style?: StyleXStyles) {
     return {
       onFocus: () => reveal(index),
@@ -1822,7 +2318,211 @@ export function CostStory({ id }: { id: string }) {
   }
 
   const tipLabel = m.home_receipt_tip_label();
-  const turning = active === TURN_BEAT;
+  const turning = active === FAULT_BEAT;
+  const closing = active === PLAY_BEAT;
+
+  // Every fact the grid can show, each eased the way it is on its own. It
+  // opens on the first six, in this order, and swaps the rest in over time.
+  const facts: ReadonlyArray<Fact> = [
+    {
+      art: (played) => <InstrumentsGraphic amount={instruments} play={played} />,
+      caption: (onTip) => (
+        <Sentence
+          figures={[<Figure key="instruments" value={instruments} />]}
+          mark={
+            <Mark label={tipLabel} onOpenChange={onTip}>
+              {m.home_receipt_instruments_tip()}
+            </Mark>
+          }
+          text={m.home_cost_could_instruments({ count: slot(0) })}
+        />
+      ),
+      ease: 'linear',
+      key: 'instruments',
+      seconds: drawing.instruments,
+    },
+    {
+      art: (played) => <BooksGraphic play={played} />,
+      caption: (onTip) => (
+        <Sentence
+          figures={[<Figure key="books" value={books} />]}
+          mark={
+            <Mark label={tipLabel} onOpenChange={onTip}>
+              {m.home_receipt_books_tip()}
+            </Mark>
+          }
+          text={m.home_cost_could_books({ count: slot(0) })}
+        />
+      ),
+      ease: 'easeInOut',
+      key: 'books',
+      seconds: drawing.deck,
+    },
+    {
+      art: (played) => <LanguagesGraphic amount={languages} play={played} />,
+      caption: (onTip) => (
+        <Sentence
+          figures={[<Figure key="languages" value={languages} />]}
+          mark={
+            <Mark label={tipLabel} onOpenChange={onTip}>
+              {m.home_receipt_languages_tip()}
+            </Mark>
+          }
+          text={m.home_cost_could_languages({ count: slot(0) })}
+        />
+      ),
+      ease: 'easeInOut',
+      key: 'languages',
+      seconds: drawing.deck,
+    },
+    {
+      art: (played) => <MarathonsGraphic play={played} />,
+      caption: (onTip) => (
+        <Sentence
+          figures={[<Figure key="marathons" value={marathons} />]}
+          mark={
+            <Mark label={tipLabel} onOpenChange={onTip}>
+              {m.home_receipt_marathons_tip()}
+            </Mark>
+          }
+          text={m.home_cost_could_marathons({ count: slot(0) })}
+        />
+      ),
+      ease: 'linear',
+      key: 'marathons',
+      seconds: drawing.deck,
+    },
+    {
+      art: (played) => <TripsGraphic play={played} />,
+      caption: (onTip) => (
+        <Sentence
+          figures={[<Figure key="trips" value={trips} />]}
+          mark={
+            <Mark label={tipLabel} onOpenChange={onTip}>
+              {m.home_receipt_travel_tip()}
+            </Mark>
+          }
+          text={m.home_cost_could_travel({ count: slot(0) })}
+        />
+      ),
+      ease: 'linear',
+      key: 'trips',
+      seconds: drawing.deck,
+    },
+    {
+      art: (played) => <DegreesGraphic amount={degrees} play={played} />,
+      caption: (onTip) => (
+        <Sentence
+          figures={[<Figure key="degrees" value={degrees} />]}
+          mark={
+            <Mark label={tipLabel} onOpenChange={onTip}>
+              {m.home_receipt_degrees_tip()}
+            </Mark>
+          }
+          text={m.home_cost_could_degrees({ count: slot(0) })}
+        />
+      ),
+      ease: 'linear',
+      key: 'degrees',
+      seconds: drawing.deck,
+    },
+    {
+      art: (played) => <Moon share={toMoon} walked={played} />,
+      caption: (onTip) => (
+        <Sentence
+          figures={[]}
+          mark={
+            <Mark label={tipLabel} onOpenChange={onTip}>
+              {m.home_receipt_moon_tip({
+                hours: number.format(MOON_WALK_HOURS),
+                km: number.format(MOON_KM),
+                percent: toMoonPercent,
+                speed: WALKING_KMH,
+              })}
+            </Mark>
+          }
+          text={
+            toMoon >= HALFWAY
+              ? m.home_cost_could_moon_half()
+              : m.home_cost_could_moon_part({ percent: toMoonPercent })
+          }
+        />
+      ),
+      ease: SMOOTH_OUT,
+      key: 'moon',
+      seconds: drawing.moon,
+    },
+    {
+      art: (played) => <Weekends drawn={played} />,
+      caption: (onTip) => (
+        <Sentence
+          figures={[]}
+          mark={
+            <Mark label={tipLabel} onOpenChange={onTip}>
+              {m.home_receipt_weekends_tip({
+                daily: AVERAGE_HOURS,
+                waking: WAKING_HOURS,
+                weekend: WEEKEND_HOURS,
+                weekly: weeklyHours(AVERAGE_HOURS),
+              })}
+            </Mark>
+          }
+          text={m.home_cost_could_weekends()}
+        />
+      ),
+      ease: 'linear',
+      key: 'weekends',
+      seconds: drawing.weekends,
+    },
+    {
+      art: (played) => <NovelsGraphic amount={novels} play={played} />,
+      caption: (onTip) => (
+        <Sentence
+          figures={[<Figure key="novels" value={novels} />]}
+          mark={
+            <Mark label={tipLabel} onOpenChange={onTip}>
+              {m.home_receipt_novels_tip()}
+            </Mark>
+          }
+          text={m.home_cost_could_novels({ count: slot(0) })}
+        />
+      ),
+      ease: 'linear',
+      key: 'novels',
+      seconds: drawing.deck,
+    },
+    {
+      art: (played) => (
+        <SkillsGraphic
+          amount={skills}
+          labels={{
+            hours: m.home_cost_skills_hours({ hours: number.format(HOURS_PER_SKILL) }),
+            names: [
+              m.home_cost_skills_software(),
+              m.home_cost_skills_drawing(),
+              m.home_cost_skills_photography(),
+              m.home_cost_skills_chess(),
+            ],
+          }}
+          play={played}
+        />
+      ),
+      caption: (onTip) => (
+        <Sentence
+          figures={[<Figure key="skills" value={skills} />]}
+          mark={
+            <Mark label={tipLabel} onOpenChange={onTip}>
+              {m.home_receipt_skills_tip()}
+            </Mark>
+          }
+          text={m.home_cost_could_skills({ count: slot(0) })}
+        />
+      ),
+      ease: 'linear',
+      key: 'skills',
+      seconds: drawing.deck,
+    },
+  ];
 
   return (
     <section id={id} ref={story} {...props(styles.story)}>
@@ -1871,7 +2571,7 @@ export function CostStory({ id }: { id: string }) {
                   <Figure decimals={Number.isInteger(years) ? 0 : 1} key="years" value={years} />,
                 ]}
                 mark={
-                  <Mark label={tipLabel}>
+                  <Mark label={tipLabel} size="large">
                     {m.home_receipt_total_tip({
                       hours: AVERAGE_HOURS,
                       percent: share.format((AVERAGE_HOURS / WAKING_HOURS) * 100),
@@ -1884,73 +2584,36 @@ export function CostStory({ id }: { id: string }) {
             </p>
           </div>
 
-          <div {...beat(WEEKENDS_BEAT)}>
-            <Weekends
-              drawn={weekendsDrawn}
-              on={on(WEEKENDS_BEAT)}
-              style={partOf(WEEKENDS_BEAT, 0)}
-            />
-            <p {...props(partOf(WEEKENDS_BEAT, 1, styles.line))}>
-              <Sentence
-                figures={[]}
-                mark={
-                  <Mark label={tipLabel}>
-                    {m.home_receipt_weekends_tip({
-                      daily: AVERAGE_HOURS,
-                      waking: WAKING_HOURS,
-                      weekend: WEEKEND_HOURS,
-                      weekly: weeklyHours(AVERAGE_HOURS),
-                    })}
-                  </Mark>
-                }
-                text={m.home_cost_weekends()}
-              />
-            </p>
-          </div>
-
           <div {...beat(EARTH_BEAT)}>
             <Orbit laps={earth} style={partOf(EARTH_BEAT, 0)} walked={walked} />
             <p {...props(partOf(EARTH_BEAT, 1, styles.line))}>
               <Sentence
                 figures={[<Figure key="earth" value={earth} />]}
-                mark={<Mark label={tipLabel}>{m.home_receipt_earth_tip()}</Mark>}
+                mark={
+                  <Mark label={tipLabel} size="large">
+                    {m.home_receipt_earth_tip()}
+                  </Mark>
+                }
                 text={m.home_cost_earth({ count: slot(0) })}
               />
             </p>
           </div>
 
-          <div {...beat(MOON_BEAT)}>
-            <Moon share={toMoon} style={partOf(MOON_BEAT, 0)} walked={moonWalked} />
-            <p {...props(partOf(MOON_BEAT, 1, styles.line))}>
-              <Sentence
-                figures={[]}
-                mark={
-                  <Mark label={tipLabel}>
-                    {m.home_receipt_moon_tip({
-                      hours: number.format(MOON_WALK_HOURS),
-                      km: number.format(MOON_KM),
-                      percent: toMoonPercent,
-                      speed: WALKING_KMH,
-                    })}
-                  </Mark>
-                }
-                text={
-                  toMoon >= HALFWAY
-                    ? m.home_cost_moon_half()
-                    : m.home_cost_moon_part({ percent: toMoonPercent })
-                }
-              />
-            </p>
+          <div {...beat(GRID_BEAT)}>
+            <p {...props(partOf(GRID_BEAT, 0, [styles.line, styles.lead]))}>{m.home_cost_or()}</p>
+            <FactGrid facts={facts} on={on(GRID_BEAT)} staged={active === GRID_BEAT} />
           </div>
 
-          <div {...beat(TURN_BEAT)}>
+          <div {...beat(FAULT_BEAT)}>
             <h2 {...props(styles.line, styles.turn)}>
-              <span {...props(partOf(TURN_BEAT, 0, styles.turnLine), turning && styles.turnLineOn)}>
-                {m.home_turn_willpower()}
+              <span
+                {...props(partOf(FAULT_BEAT, 0, styles.turnLine), turning && styles.turnLineOn)}
+              >
+                {m.home_turn_fault()}
               </span>{' '}
               <span
                 {...props(
-                  partOf(TURN_BEAT, 1, styles.turnLine),
+                  partOf(FAULT_BEAT, 1, styles.turnLine),
                   turning && [styles.turnLineOn, styles.turnLineSecond],
                 )}
               >
@@ -1961,6 +2624,20 @@ export function CostStory({ id }: { id: string }) {
                 />
               </span>
             </h2>
+          </div>
+
+          <div {...beat(PLAY_BEAT)}>
+            <p {...props(partOf(PLAY_BEAT, 0, styles.line))}>{m.home_turn_play()}</p>
+            <div
+              {...props(
+                partOf(PLAY_BEAT, 1, styles.turnLine),
+                closing && [styles.turnLineOn, styles.turnLineSecond],
+              )}
+            >
+              <Button onClick={toWayOut} render={<a href={`#${wayOut}`} />}>
+                {m.home_turn_cta()}
+              </Button>
+            </div>
           </div>
         </div>
         <span aria-hidden="true" {...props(styles.cue, styles.swap, active > 0 && styles.gone)}>
@@ -1991,7 +2668,7 @@ export function CostStory({ id }: { id: string }) {
         </div>
         <span
           aria-hidden="true"
-          {...props(styles.rail, styles.swap, (active === 0 || turning) && styles.gone)}
+          {...props(styles.rail, styles.swap, (active === 0 || closing) && styles.gone)}
         >
           <motion.span {...props(styles.railFill)} style={{ scaleX: scrollYProgress }} />
         </span>

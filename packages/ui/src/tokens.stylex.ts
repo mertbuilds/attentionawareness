@@ -46,7 +46,7 @@ export const spacing = defineVars({
 });
 
 export const font = defineVars({
-  family: "'Suisse Intl', 'Inter Variable', system-ui, sans-serif",
+  family: "'Suisse Intl', 'Suisse Intl Fallback', 'Inter Variable', system-ui, sans-serif",
   sizeLg: '20px',
   sizeMd: '16px',
   sizeSm: '14px',

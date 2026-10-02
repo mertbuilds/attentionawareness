@@ -6,7 +6,9 @@
     ".": "./src/index.ts",
     "./accent.stylex": "./src/accent.stylex.ts",
     "./brand": "./src/brand.ts",
+    "./fonts": "./src/fonts.ts",
     "./fonts.css": "./src/fonts.css",
+    "./fonts-optional.css": "./src/fonts-optional.css",
     "./theme.css": "./src/theme.css",
     "./tokens.stylex": "./src/tokens.stylex.ts"
   },

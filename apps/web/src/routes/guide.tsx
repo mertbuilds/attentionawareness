@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { brandBar } from '../lib/brand-bar.stylex.ts';
+import { footPaper } from '../lib/foot-paper.stylex.ts';
 import { layout } from '../lib/layout.ts';
 import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
@@ -37,6 +38,12 @@ const APP_PATH = '/#way-out';
  * around it keep their own order and spacing in every language.
  */
 const LINK_SLOT = '\u0000';
+/**
+ * The guide's graph paper, top to bottom: it comes in over the first four
+ * squares, then goes out across the footer strip's own fade as the strip comes
+ * in, so where the two meet they add up to one grid.
+ */
+const PAPER_MASK = `linear-gradient(to bottom, transparent, black 160px, black calc(100% - ${footPaper.height}), transparent calc(100% - ${footPaper.height} + ${footPaper.fadeIn}))`;
 
 const styles = create({
   body: {
@@ -60,6 +67,15 @@ const styles = create({
     fontSize: font.sizeSm,
     margin: 0,
     textWrap: 'pretty',
+  },
+  // The whole page stands on the paper, as the home page's story does, and the
+  // paper scrolls with the words. It is ruled up from the page's foot, on the
+  // footer strip's own lines, so the hand-over draws no second grid.
+  grid: {
+    backgroundPosition: 'left bottom',
+    height: '100%',
+    maskImage: PAPER_MASK,
+    WebkitMaskImage: PAPER_MASK,
   },
   // Same column as `content`, so the hero and every section share a left edge.
   hero: {
@@ -147,23 +163,23 @@ const styles = create({
     margin: 0,
     textWrap: 'balance',
   },
-  // Where a screenshot goes once it is taken. Desktop-window shaped, dashed
-  // until then, the same way the screen time popover waits for its clip.
-  shot: {
-    alignItems: 'center',
-    aspectRatio: '16 / 10',
-    borderColor: colors.border,
-    borderRadius: radius.base,
-    borderStyle: 'dashed',
-    borderWidth: '1px',
-    boxSizing: 'border-box',
-    color: colors.muted,
-    display: 'flex',
-    fontSize: font.sizeSm,
-    justifyContent: 'center',
-    margin: 0,
+  // A Mac window brings its own rounded corners and the page shows through
+  // them, so the picture needs no frame of its own.
+  shotImage: {
+    display: 'block',
+    height: 'auto',
     marginBlockStart: spacing.s2,
-    width: '100%',
+    marginInline: 'auto',
+    maxWidth: '100%',
+  },
+  // An iPhone screen, cut to a phone's rounded corners.
+  shotPhone: {
+    borderColor: colors.border,
+    borderRadius: 24,
+    borderStyle: 'solid',
+    borderWidth: 1,
+    boxSizing: 'border-box',
+    cornerShape: 'squircle',
   },
   step: {
     display: 'flex',
@@ -208,14 +224,34 @@ function Step({ children, number, title }: { children: ReactNode; number: number
 }
 
 /**
- * A slot for a screenshot that has not been taken yet. `name` says which one
- * belongs here, so the image can be dropped in without reading the copy.
+ * A screenshot from `public/media/guide/<name>.webp`. `width` and `height` are
+ * its size on the page, for a Mac window half its pixels since it was taken on
+ * a retina screen; a narrower column scales it down. `phone` is for an iPhone
+ * screen.
  */
-function ShotSlot({ name }: { name: string }) {
+function Shot({
+  alt,
+  height,
+  name,
+  phone = false,
+  width,
+}: {
+  alt: string;
+  height: number;
+  name: string;
+  phone?: boolean;
+  width: number;
+}) {
   return (
-    <figure data-shot={name} {...props(styles.shot)}>
-      <figcaption>{m.guide_shot_soon()}</figcaption>
-    </figure>
+    <img
+      alt={alt}
+      decoding="async"
+      height={height}
+      loading="lazy"
+      src={`/media/guide/${name}.webp`}
+      width={width}
+      {...props(styles.shotImage, phone && styles.shotPhone)}
+    />
   );
 }
 
@@ -231,7 +267,7 @@ function Guide() {
 
   return (
     <main {...props(styles.page)}>
-      <GridTexture />
+      <GridTexture style={styles.grid} />
       <header {...props(styles.hero)}>
         <h1 {...props(styles.heroTitle)}>{m.guide_title()}</h1>
         <p {...props(styles.lead)}>{m.guide_lead()}</p>
@@ -270,18 +306,15 @@ function Guide() {
               <li>{m.guide_step_backup_finder()}</li>
             </ul>
             <p {...props(styles.body)}>{m.guide_step_backup_note()}</p>
-            {/* Finder, the iPhone selected, General tab with Back Up Now. */}
-            <ShotSlot name="backup-finder" />
+            <Shot
+              alt={m.guide_shot_backup_finder()}
+              height={501}
+              name="backup-finder"
+              width={800}
+            />
           </Step>
 
-          <Step number={2} title={m.guide_step_erase_title()}>
-            <p {...props(styles.body)}>{m.guide_step_erase_body()}</p>
-            <p {...props(styles.body)}>{m.guide_step_erase_hello()}</p>
-            {/* iPhone: Transfer or Reset iPhone, Erase All Content and Settings. */}
-            <ShotSlot name="erase-iphone" />
-          </Step>
-
-          <Step number={3} title={m.guide_step_configurator_title()}>
+          <Step number={2} title={m.guide_step_configurator_title()}>
             <p {...props(styles.body)}>
               {configuratorBefore}
               <a href={CONFIGURATOR_URL} rel="noreferrer" target="_blank">
@@ -289,8 +322,25 @@ function Guide() {
               </a>
               {configuratorAfter}
             </p>
-            {/* Apple Configurator's first window, with Get Started. */}
-            <ShotSlot name="configurator-open" />
+            <Shot
+              alt={m.guide_shot_configurator_open()}
+              height={466}
+              name="configurator-open"
+              width={800}
+            />
+          </Step>
+
+          <Step number={3} title={m.guide_step_erase_title()}>
+            <p {...props(styles.body)}>{m.guide_step_erase_body()}</p>
+            <p {...props(styles.body)}>{m.guide_step_erase_stolen()}</p>
+            <p {...props(styles.body)}>{m.guide_step_erase_hello()}</p>
+            <Shot
+              alt={m.guide_shot_erase_iphone()}
+              height={569}
+              name="erase-iphone"
+              phone
+              width={320}
+            />
           </Step>
 
           <Step number={4} title={m.guide_step_prepare_title()}>
@@ -301,20 +351,37 @@ function Guide() {
               <li>{m.guide_step_prepare_org()}</li>
               <li>{m.guide_step_prepare_setup()}</li>
             </ul>
-            {/* Prepare: Manual Configuration with Supervise devices ticked. */}
-            <ShotSlot name="prepare-manual" />
-            {/* Prepare: Setup Assistant set to Don't show any of these steps. */}
-            <ShotSlot name="prepare-setup-assistant" />
+            <Shot
+              alt={m.guide_shot_prepare_manual()}
+              height={413}
+              name="prepare-manual"
+              width={550}
+            />
+            <Shot
+              alt={m.guide_shot_prepare_setup_assistant()}
+              height={691}
+              name="prepare-setup-assistant"
+              width={624}
+            />
             <p {...props(styles.body)}>{m.guide_step_prepare_done()}</p>
           </Step>
 
           <Step number={5} title={m.guide_step_setup_title()}>
+            <p {...props(styles.body)}>{m.guide_step_setup_home()}</p>
             <p {...props(styles.body)}>{m.guide_step_setup_no_restore()}</p>
             <p {...props(styles.body)}>{m.guide_step_setup_account()}</p>
+            <p {...props(styles.body)}>{m.guide_step_setup_find_my()}</p>
             <p {...props(styles.body)}>{m.guide_step_setup_apps()}</p>
             <p {...props(styles.body)}>{m.guide_step_setup_check()}</p>
+            <p {...props(styles.body)}>{m.guide_step_setup_managed()}</p>
             {/* iPhone Settings, the supervised line under the name. */}
-            <ShotSlot name="settings-supervised" />
+            <Shot
+              alt={m.guide_shot_settings_supervised()}
+              height={149}
+              name="settings-supervised"
+              phone
+              width={320}
+            />
           </Step>
 
           <Step number={6} title={m.guide_step_build_title()}>
@@ -323,17 +390,15 @@ function Guide() {
               <a href={BUILD_PATH}>{m.guide_step_build_link()}</a>
               {builderAfter}
             </p>
+            <p {...props(styles.body)}>{m.guide_step_build_trial()}</p>
             <p {...props(styles.body)}>{m.guide_step_build_by_hand()}</p>
-            {/* The profile builder with a few apps picked. */}
-            <ShotSlot name="build-profile" />
           </Step>
 
           <Step number={7} title={m.guide_step_install_title()}>
             <p {...props(styles.body)}>{m.guide_step_install_body()}</p>
             <p {...props(styles.body)}>{m.guide_step_install_done()}</p>
             <p {...props(styles.body)}>{m.guide_step_install_more()}</p>
-            {/* Configurator: right-click the iPhone, Add > Profiles. */}
-            <ShotSlot name="add-profile" />
+            <Shot alt={m.guide_shot_add_profile()} height={502} name="add-profile" width={800} />
           </Step>
         </ol>
 

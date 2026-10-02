@@ -5,10 +5,12 @@ import { create, defaultMarker, props, when } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { useId, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
+import { AngleDown, Check } from 'reicon-react';
 import { CostStory } from '../components/cost-story.tsx';
-import { Facts } from '../components/facts.tsx';
 import { HowItWorks } from '../components/how-it-works.tsx';
 import { MacDownload } from '../components/mac-download.tsx';
+import { ScreenShots } from '../components/screen-shots.tsx';
+import { Signature } from '../components/signature.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { blur, duration, easing } from '../lib/motion.stylex.ts';
 import { wip } from '../lib/wip.stylex.ts';
@@ -43,6 +45,12 @@ const STORY_URL = 'https://stopa.io/post/297';
  * pieces.
  */
 const LINK_SLOT = '\u0000';
+/** The chevron at the end of a question, in pixels. */
+const CHEVRON_SIZE = 16;
+/** A 1.5px line at that size, in the icon's own 24-unit grid. */
+const CHEVRON_STROKE = 2.25;
+/** The tick before a promise, in pixels, drawn with the chevron's line. */
+const CHECK_SIZE = 16;
 
 const styles = create({
   // Everything under the story, as one place the page can rest anywhere in.
@@ -70,10 +78,6 @@ const styles = create({
     gap: spacing.s6,
     paddingBlock: spacing.s16,
     textAlign: 'center',
-  },
-  // A phone's note and its button stand in the middle too, under the line.
-  closingDownload: {
-    alignItems: 'center',
   },
   closingNote: {
     color: colors.muted,
@@ -104,6 +108,29 @@ const styles = create({
     gap: SECTION_GAP,
     maxWidth: 760,
     width: '100%',
+  },
+  // The free way, under the or: one quiet line and its button, in the middle
+  // like the price above it.
+  diy: {
+    alignItems: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s3,
+    textAlign: 'center',
+  },
+  // The free way's one line, quiet: one line where it fits, even lines where
+  // it wraps.
+  diyLine: {
+    color: colors.muted,
+    fontSize: font.sizeSm,
+    lineHeight: 1.5,
+    margin: 0,
+    textWrap: 'balance',
+  },
+  // A phone's note and its button stand in the middle, under the words above
+  // them.
+  downloadCentered: {
+    alignItems: 'center',
   },
   // The track an answer grows and shrinks in, from no height to its own. It
   // takes no padding, or a closed answer would keep a strip of it.
@@ -149,7 +176,7 @@ const styles = create({
       default: '1px',
     },
   },
-  // Quieter than the question, and clear of the plus above it.
+  // Quieter than the question, and clear of the chevron above it.
   faqText: {
     color: colors.muted,
     lineHeight: 1.5,
@@ -158,23 +185,26 @@ const styles = create({
     paddingInlineEnd: spacing.s8,
     textWrap: 'pretty',
   },
-  // The plus at the end of the row. It waits in the muted ink and darkens when
-  // the row is pointed at or its answer is open.
-  faqPlus: {
+  // The chevron at the end of the row. It waits in the muted ink, pointing
+  // down, and darkens when the row is pointed at; an open answer turns it
+  // over to point up.
+  faqChevron: {
     color: {
       default: colors.muted,
       [when.ancestor(':hover')]: colors.fg,
     },
-    fill: 'none',
     flexShrink: 0,
-    height: 16,
-    stroke: 'currentColor',
-    strokeLinecap: 'round',
-    strokeWidth: 1.5,
-    width: 16,
+    transform: 'none',
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: duration.fast,
+    },
+    transitionProperty: 'transform',
+    transitionTimingFunction: easing.smoothOut,
   },
-  faqPlusOpen: {
+  faqChevronOpen: {
     color: colors.fg,
+    transform: 'rotate(180deg)',
   },
   // The whole row is the button, so the question is pressed wherever it is
   // touched.
@@ -207,27 +237,70 @@ const styles = create({
     textWrap: 'pretty',
     width: '100%',
   },
-  // The upright stroke of the plus. It turns a quarter onto the level one and
-  // fades as it goes, which leaves the minus.
-  faqTurn: {
-    opacity: 1,
-    transform: 'none',
-    transformBox: 'fill-box',
-    transformOrigin: 'center',
-    transitionDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: duration.fast,
-    },
-    transitionProperty: 'opacity, transform',
-    transitionTimingFunction: easing.smoothOut,
-  },
-  faqTurnOpen: {
-    opacity: 0,
-    transform: 'rotate(90deg)',
-  },
   // Not on the page yet, and taking no room in it either.
   gone: {
     display: 'none',
+  },
+  // The app's offer under the steps: the price and what it buys, then the
+  // download, all in the middle. The app is the way the page recommends, so
+  // its card carries the orange. It takes the column on a phone and stands
+  // narrower in the middle of it on a wide one.
+  offer: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    backgroundColor: `color-mix(in srgb, ${accent.base} 6%, ${colors.bg})`,
+    borderColor: accent.base,
+    borderRadius: radius.base,
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    boxSizing: 'border-box',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s6,
+    maxWidth: 560,
+    padding: spacing.s6,
+    textAlign: 'center',
+    width: '100%',
+  },
+  // The price, and the promises close under it.
+  offerHead: {
+    alignItems: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s4,
+  },
+  // The price is in the card's orange.
+  offerPrice: {
+    color: accent.base,
+    fontSize: font.sizeLg,
+    fontVariantNumeric: 'tabular-nums',
+    fontWeight: font.weightMedium,
+    letterSpacing: '-0.01em',
+    lineHeight: 1.2,
+    margin: 0,
+  },
+  // The rule between the two ways, broken in its middle by the word that
+  // tells the reader to pick one.
+  or: {
+    '::after': {
+      backgroundColor: colors.border,
+      content: '""',
+      flexGrow: 1,
+      height: 1,
+    },
+    '::before': {
+      backgroundColor: colors.border,
+      content: '""',
+      flexGrow: 1,
+      height: 1,
+    },
+    alignItems: 'center',
+    color: colors.muted,
+    display: 'flex',
+    fontSize: font.sizeSm,
+    gap: spacing.s4,
+    lineHeight: 1.5,
+    margin: 0,
   },
   page: {
     alignItems: 'center',
@@ -249,6 +322,33 @@ const styles = create({
     paddingInline: spacing.s4,
     // The containing block the footer's graph paper measures itself against.
     position: 'relative',
+  },
+  // One promise: its tick, then its words, wrapping clear of the tick in even
+  // lines.
+  promise: {
+    alignItems: 'flex-start',
+    display: 'flex',
+    gap: spacing.s2,
+    textAlign: 'start',
+    textWrap: 'balance',
+  },
+  // The tick sits in the middle of the first line of its words, 24px tall,
+  // in the price's orange.
+  promiseCheck: {
+    color: accent.base,
+    flexShrink: 0,
+    marginBlockStart: 4,
+  },
+  // The promises stand in the middle as one block, their ticks in a column.
+  promises: {
+    display: 'flex',
+    flexDirection: 'column',
+    fontSize: font.sizeMd,
+    gap: spacing.s2,
+    lineHeight: 1.5,
+    listStyle: 'none',
+    margin: 0,
+    padding: 0,
   },
   section: {
     display: 'flex',
@@ -297,85 +397,6 @@ const styles = create({
     flexDirection: 'column',
     gap: spacing.s4,
   },
-  // Who wrote it, and from where. It is a signature, so it is the quietest
-  // line in the section.
-  storySign: {
-    color: colors.muted,
-    fontSize: font.sizeSm,
-    lineHeight: 1.5,
-    margin: 0,
-  },
-  // One of the two ways out: what it is, what it costs, what it does to the
-  // phone, and the button at the foot, level with the other card's.
-  way: {
-    borderColor: colors.border,
-    borderRadius: radius.base,
-    borderStyle: 'solid',
-    borderWidth: '1px',
-    boxSizing: 'border-box',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s4,
-    padding: spacing.s6,
-  },
-  // The app is the way the page recommends, so its card carries the orange.
-  wayAccent: {
-    backgroundColor: `color-mix(in srgb, ${accent.base} 6%, ${colors.bg})`,
-    borderColor: accent.base,
-  },
-  wayAction: {
-    marginBlockStart: 'auto',
-    paddingBlockStart: spacing.s2,
-  },
-  wayBody: {
-    color: colors.muted,
-    fontSize: font.sizeSm,
-    lineHeight: 1.5,
-    margin: 0,
-    textWrap: 'pretty',
-  },
-  wayHead: {
-    alignItems: 'baseline',
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: spacing.s2,
-    justifyContent: 'space-between',
-  },
-  // What happens to the phone: the one difference between the two ways, so
-  // it is the loudest line on each card.
-  wayLead: {
-    fontSize: font.sizeMd,
-    fontWeight: font.weightMedium,
-    lineHeight: 1.5,
-    margin: 0,
-    textWrap: 'pretty',
-  },
-  wayPrice: {
-    fontSize: font.sizeMd,
-    fontVariantNumeric: 'tabular-nums',
-    fontWeight: font.weightMedium,
-    margin: 0,
-  },
-  wayPriceAccent: {
-    color: accent.base,
-  },
-  wayTitle: {
-    fontSize: font.sizeLg,
-    fontWeight: font.weightMedium,
-    letterSpacing: '-0.01em',
-    lineHeight: 1.2,
-    margin: 0,
-  },
-  // The recommended way a little wider than the other, side by side once
-  // there is room for both.
-  ways: {
-    display: 'grid',
-    gap: spacing.s4,
-    gridTemplateColumns: {
-      '@media (min-width: 640px)': 'minmax(0, 6fr) minmax(0, 5fr)',
-      default: 'minmax(0, 1fr)',
-    },
-  },
 });
 
 /**
@@ -402,20 +423,12 @@ function Question({ answer, question }: { answer: string; question: string }) {
           {...props(styles.faqQuestion, defaultMarker())}
         >
           <span>{question}</span>
-          <svg
+          <AngleDown
             aria-hidden="true"
-            viewBox="0 0 16 16"
-            {...props(styles.faqPlus, open && styles.faqPlusOpen)}
-          >
-            <line x1={3} x2={13} y1={8} y2={8} />
-            <line
-              x1={8}
-              x2={8}
-              y1={3}
-              y2={13}
-              {...props(styles.faqTurn, open && styles.faqTurnOpen)}
-            />
-          </svg>
+            size={CHEVRON_SIZE}
+            strokeWidth={CHEVRON_STROKE}
+            {...props(styles.faqChevron, open && styles.faqChevronOpen)}
+          />
         </button>
       </h3>
       <div
@@ -458,8 +471,16 @@ function HomePage() {
     .home_computer_body({ extension: LINK_SLOT })
     .split(LINK_SLOT);
 
+  // What the price buys, each with its tick.
+  const promises = [
+    m.home_how_promise_keep(),
+    m.home_how_promise_trial(),
+    m.home_how_promise_add(),
+  ];
+
   const objections = [
     { desc: m.home_faq_supervision_desc(), term: m.home_faq_supervision_term() },
+    { desc: m.home_faq_trial_desc(), term: m.home_faq_trial_term() },
     { desc: m.home_faq_choice_desc(), term: m.home_faq_choice_term() },
     { desc: m.home_faq_data_desc(), term: m.home_faq_data_term() },
     { desc: m.home_faq_fail_desc(), term: m.home_faq_fail_term() },
@@ -474,48 +495,44 @@ function HomePage() {
     <main {...props(styles.page)}>
       <div {...props(styles.content)}>
         {/* Act one, the problem, and the first screen: what an average day
-        adds up to, told one sentence a screen, and then whose doing it is. */}
-        <CostStory id={COST_ID} />
+        adds up to, told one sentence a screen, then whose doing it is, and
+        that the only way to win is not to play. */}
+        <CostStory id={COST_ID} wayOut={WAY_OUT_ID} />
 
         <div {...props(styles.afterStory)}>
-          {/* Act two, the way out: how it works, in three steps, then the app
-          that keeps the phone as it is and the manual way that starts it over. */}
+          {/* Act two, the way out: where the Mac app comes in and what it does,
+          then how it works, in three steps, what the app costs and promises,
+          and under it, past an or, the manual way that starts the phone over. */}
           <section {...props(styles.section, styles.anchor)} id={WAY_OUT_ID}>
             <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
-            <p {...props(styles.sectionBody)}>{m.home_how_body()}</p>
+            <p {...props(styles.sectionBody)}>{m.home_how_lead()}</p>
             <HowItWorks />
-            <div {...props(styles.ways)}>
-              <article {...props(styles.way, styles.wayAccent)}>
-                <div {...props(styles.wayHead)}>
-                  <h3 {...props(styles.wayTitle)}>{m.home_how_app_title()}</h3>
-                  <p {...props(styles.wayPrice, styles.wayPriceAccent)}>{m.home_how_app_price()}</p>
-                </div>
-                <p {...props(styles.wayLead)}>{m.home_how_app_lead()}</p>
-                <p {...props(styles.wayBody)}>{m.home_how_app_body()}</p>
-                <p {...props(styles.wayBody)}>{m.home_how_app_fail()}</p>
-                <div {...props(styles.wayAction)}>
-                  <MacDownload />
-                </div>
-              </article>
-              <article {...props(styles.way)}>
-                <div {...props(styles.wayHead)}>
-                  <h3 {...props(styles.wayTitle)}>{m.home_how_diy_title()}</h3>
-                  <p {...props(styles.wayPrice)}>{m.home_how_diy_price()}</p>
-                </div>
-                <p {...props(styles.wayLead)}>{m.home_how_diy_lead()}</p>
-                <p {...props(styles.wayBody)}>{m.home_how_diy_body()}</p>
-                <div {...props(styles.wayAction)}>
-                  <Button render={<a href={GUIDE_URL} />} variant="outline">
-                    {m.home_how_diy_cta()}
-                  </Button>
-                </div>
-              </article>
+            <div {...props(styles.offer)}>
+              <div {...props(styles.offerHead)}>
+                <p {...props(styles.offerPrice)}>{m.home_how_app_price()}</p>
+                <ul {...props(styles.promises)}>
+                  {promises.map((promise) => (
+                    <li key={promise} {...props(styles.promise)}>
+                      <Check
+                        aria-hidden="true"
+                        size={CHECK_SIZE}
+                        strokeWidth={CHEVRON_STROKE}
+                        {...props(styles.promiseCheck)}
+                      />
+                      {promise}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <MacDownload style={styles.downloadCentered} />
             </div>
-          </section>
-
-          <section {...props(styles.section)}>
-            <h2 {...props(styles.sectionTitle)}>{m.home_facts_title()}</h2>
-            <Facts />
+            <p {...props(styles.or)}>{m.home_how_or()}</p>
+            <div {...props(styles.diy)}>
+              <p {...props(styles.diyLine)}>{m.home_how_diy()}</p>
+              <Button render={<a href={GUIDE_URL} />} variant="outline">
+                {m.home_how_diy_cta()}
+              </Button>
+            </div>
           </section>
 
           {/* Act three, support. Who made this and why, told rather than argued:
@@ -532,12 +549,45 @@ function HomePage() {
               </p>
               <p {...props(styles.storyLine)}>{m.home_story_2()}</p>
               <p {...props(styles.storyLine)}>{m.home_story_3()}</p>
+              <ScreenShots
+                shots={[
+                  {
+                    alt: m.home_story_shot_friend_1(),
+                    height: 640,
+                    src: '/media/screentime-friends/friend-1-week-sep-14.webp',
+                    width: 800,
+                  },
+                  {
+                    alt: m.home_story_shot_friend_2(),
+                    height: 640,
+                    src: '/media/screentime-friends/friend-2-week-sep-07.webp',
+                    width: 800,
+                  },
+                ]}
+              />
               {/* The button comes after the rest, so it stands under the third
               paragraph while the rest is folded and under the last once it is
               open, without ever leaving its place in the page. */}
               <div id={STORY_REST_ID} {...props(styles.storyRest, !storyOpen && styles.gone)}>
                 <p {...props(styles.storyLine)}>{m.home_story_4()}</p>
                 <p {...props(styles.storyLine)}>{m.home_story_5()}</p>
+                <ScreenShots
+                  caption={m.home_story_shot_mine_caption()}
+                  shots={[
+                    {
+                      alt: m.home_story_shot_mine_time(),
+                      height: 684,
+                      src: '/media/screentime-mert/mert-after-screen-time.webp',
+                      width: 800,
+                    },
+                    {
+                      alt: m.home_story_shot_mine_pickups(),
+                      height: 511,
+                      src: '/media/screentime-mert/mert-after-pickups.webp',
+                      width: 800,
+                    },
+                  ]}
+                />
                 <p {...props(styles.storyLine)}>{m.home_story_6()}</p>
                 <p {...props(styles.storyLine)}>{m.home_story_7()}</p>
                 <p {...props(styles.storyLine)}>{m.home_story_8()}</p>
@@ -553,7 +603,7 @@ function HomePage() {
               >
                 {storyOpen ? m.home_story_less() : m.home_story_more()}
               </Button>
-              <p {...props(styles.storySign)}>{m.home_story_sign()}</p>
+              <Signature />
             </div>
           </section>
 
@@ -581,7 +631,7 @@ function HomePage() {
 
           <section {...props(styles.closing)}>
             <h2 {...props(styles.closingTitle)}>{m.home_close_title()}</h2>
-            <MacDownload style={styles.closingDownload} />
+            <MacDownload style={styles.downloadCentered} />
             <p {...props(styles.closingNote)}>
               <span>{m.home_how_app_price()}</span>
               <a href={GUIDE_URL}>{m.home_close_diy()}</a>

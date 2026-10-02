@@ -1,14 +1,13 @@
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
-import { animate, useMotionValue, useMotionValueEvent } from 'motion/react';
-import { useEffect, useState } from 'react';
-import { drawing, easing } from '../../lib/motion.stylex.ts';
+import { useMotionValueEvent } from 'motion/react';
+import type { MotionValue } from 'motion/react';
+import { useState } from 'react';
+import { easing } from '../../lib/motion.stylex.ts';
 import { useLessMotion } from '../cost-story.tsx';
 import { HEIGHT, WIDTH } from './box.ts';
 
-/** The drawing plays once over this long each time it comes on. */
-const PLAY_SECONDS = drawing.deck;
 /**
  * The land, a mark for every five degrees of longitude and latitude that is
  * mostly land, from 80 degrees north to 55 south: the Antarctic is left off.
@@ -107,25 +106,13 @@ const styles = create({
 });
 
 /**
- * How far the drawing has played, from 0 to 1. It plays from the start each
- * time `play` turns on, and goes back to the start when it turns off. For a
- * reader who asked for less motion it stands at the end.
+ * How far the drawing has played, from 0 to 1, as `play` says. For a reader
+ * who asked for less motion it stands at the end.
  */
-function usePlayhead(play: boolean): number {
+function usePlayhead(play: MotionValue<number>): number {
   const reduced = useLessMotion();
-  const clock = useMotionValue(0);
   const [at, setAt] = useState(0);
-  useMotionValueEvent(clock, 'change', setAt);
-
-  useEffect(() => {
-    clock.set(0);
-    if (!play || reduced) {
-      return;
-    }
-    const controls = animate(clock, 1, { duration: PLAY_SECONDS, ease: 'linear' });
-    return () => controls.stop();
-  }, [clock, play, reduced]);
-
+  useMotionValueEvent(play, 'change', setAt);
   return reduced ? 1 : at;
 }
 
@@ -271,11 +258,11 @@ function flown(way: Route, share: number): { path: string; point: Point } {
 /**
  * A dotted map of the world, and flights drawn across it one after another,
  * each from one city to another and down on a small mark. A flight steps back
- * once it has landed, so the one in the air leads. It plays once each time
- * `play` turns on and stands empty while it is off. For a reader who asked for
- * less motion it stands finished.
+ * once it has landed, so the one in the air leads. It flies as far as `play`
+ * says, from 0 to 1. For a reader who asked for less motion it stands
+ * finished.
  */
-export function TripsGraphic({ play }: { play: boolean }) {
+export function TripsGraphic({ play }: { play: MotionValue<number> }) {
   const reduced = useLessMotion();
   const at = usePlayhead(play);
   const flights = ROUTES.map((flight, index) => {

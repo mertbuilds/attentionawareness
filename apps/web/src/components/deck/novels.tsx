@@ -1,14 +1,11 @@
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
-import { animate, useMotionValue, useMotionValueEvent } from 'motion/react';
-import { useLayoutEffect, useState } from 'react';
-import { drawing } from '../../lib/motion.stylex.ts';
-import { useLessMotion } from '../cost-story.tsx';
+import { useMotionValueEvent } from 'motion/react';
+import type { MotionValue } from 'motion/react';
+import { useState } from 'react';
 import { HEIGHT, WIDTH } from './box.ts';
 
-/** The whole run, from the first word to the last page done. */
-const RUN_SECONDS = drawing.deck;
 /**
  * How long each page takes, before the run is scaled to its length: every
  * page quicker than the one before, and the last few slowing again, so the
@@ -216,42 +213,20 @@ function headAt(written: number): { x: number; y: number } {
   return { x: Math.min(line.end, line.start + ahead - line.before), y: line.y };
 }
 
-/**
- * The run's progress, from 0 to 1. It plays once from the start each time
- * `play` turns on, and goes back to the start when it turns off. It stands at
- * the end for a reader who asked for less motion, and for a page that has not
- * run its script.
- */
-function useRun(play: boolean): number {
-  const reduced = useLessMotion();
-  const progress = useMotionValue(1);
-  const [run, setRun] = useState(1);
-  useMotionValueEvent(progress, 'change', setRun);
-
-  // Before the browser paints, so a drawing put on the page never shows its
-  // end for a frame before it starts.
-  useLayoutEffect(() => {
-    if (reduced) {
-      progress.set(1);
-      return;
-    }
-    progress.set(0);
-    if (!play) {
-      return;
-    }
-    const controls = animate(progress, 1, { duration: RUN_SECONDS, ease: 'linear' });
-    return () => controls.stop();
-  }, [play, progress, reduced]);
-
+/** The run's progress, from 0 to 1, as `play` says. */
+function useRun(play: MotionValue<number>): number {
+  const [run, setRun] = useState(() => play.get());
+  useMotionValueEvent(play, 'change', setRun);
   return run;
 }
 
 /**
  * A manuscript writing itself: lines of words typed in left to right, the page
  * turned over when it is full and the next one started, faster and faster.
- * Every finished page drops onto the pile beside it, in orange.
+ * Every finished page drops onto the pile beside it, in orange. It is written
+ * as far as `play` says, from 0 to 1.
  */
-export function NovelsGraphic({ amount, play }: { amount: number; play: boolean }) {
+export function NovelsGraphic({ amount, play }: { amount: number; play: MotionValue<number> }) {
   const run = useRun(play);
   const pages = Math.max(0, Math.min(PILE_MAX, amount));
   const at = pagesAt(run, pageWeights(pages));

@@ -1,6 +1,6 @@
 /**
- * Every drawing's own box, the same for each answer, so the words beside it
- * stay put while one answer trades places with the next.
+ * Every drawing's own box, the same for each fact, so a fact swapped into a
+ * cell of the grid takes the same room as the one before it.
  */
 export const WIDTH = 320;
 export const HEIGHT = 216;
