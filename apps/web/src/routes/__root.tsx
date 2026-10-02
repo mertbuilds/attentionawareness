@@ -9,7 +9,7 @@ import { WipBanner } from '../components/wip-banner.tsx';
 import { AVERAGE_HOURS, formatYears } from '../lib/attention-math.ts';
 import { clientEnv } from '../lib/env.ts';
 import { m } from '../paraglide/messages.js';
-import '@attentionawareness/ui/fonts.css';
+import fontsStylesheet from '@attentionawareness/ui/fonts-optional.css?url';
 import '@attentionawareness/ui/theme.css';
 import '../app.css';
 
@@ -73,9 +73,16 @@ export const Route = createRootRoute({
         { href: `/favicon${ICON_SUFFIX}.png`, rel: 'icon', sizes: '32x32', type: 'image/png' },
         { href: `/apple-touch-icon${ICON_SUFFIX}.png`, rel: 'apple-touch-icon' },
         // The fonts load with the document instead of after the stylesheet
-        // asks for them, so the first paint is mostly in Suisse already.
+        // asks for them, so they are in by the first paint, which
+        // `font-display: optional` needs to use them at all.
         // Fonts are fetched in CORS mode, so the preload has to be as well
         // or the stylesheet cannot reuse it.
+        // The @font-face rules are linked rather than imported: in dev an
+        // imported stylesheet is applied a second time around hydration, and
+        // the second copy's faces, new after the first paint, would draw the
+        // rest of the visit in the fallback. `precedence` for the same reason
+        // as the dev StyleX link below.
+        { href: fontsStylesheet, precedence: 'default', rel: 'stylesheet' },
         ...fontUrls.map((href) => ({
           as: 'font',
           crossOrigin: 'anonymous' as const,

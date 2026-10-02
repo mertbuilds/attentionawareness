@@ -1,0 +1,24 @@
+/*
+ * The site's Suisse Intl, for a page that preloads the files (`./fonts.ts`).
+ * `optional`: the text is drawn in Suisse when the files are in by the first
+ * paint, and in the fallback for the whole visit when they are not, so it
+ * never changes face on screen. A page that does not preload them would get
+ * the fallback every time, which is why the extension keeps `./fonts.css`.
+ */
+@import './fonts-fallback.css';
+
+@font-face {
+  font-display: optional;
+  font-family: 'Suisse Intl';
+  font-style: normal;
+  font-weight: 400;
+  src: url('../fonts/SuisseIntl-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-display: optional;
+  font-family: 'Suisse Intl';
+  font-style: normal;
+  font-weight: 500;
+  src: url('../fonts/SuisseIntl-Medium.woff2') format('woff2');
+}
