@@ -4,7 +4,7 @@ import { create, props } from '@stylexjs/stylex';
 import { easeInOut } from 'motion/react';
 import { drawing } from '../../lib/motion.stylex.ts';
 import { HEIGHT, WIDTH } from './box.ts';
-import { AppSquare, FEEDS, FeedIcon, ICON } from './phone.tsx';
+import { AppGlyph, AppSquare, FEEDS, FeedIcon, type Glyph, ICON } from './phone.tsx';
 import { stretch, usePlayhead } from './playhead.ts';
 
 /** The Mac app's window, the bar along its top, and the three buttons at the bar's left. */
@@ -25,6 +25,11 @@ const WASH = 0.12;
 
 /** The rows ticked, in the order they are ticked, each the next of the feeds. */
 const PICKS = [0, 2, 3, 5];
+/** The rows left as they are, by the app the reader keeps that each is. */
+const KEPT: ReadonlyMap<number, Glyph> = new Map([
+  [1, 'messages'],
+  [4, 'maps'],
+]);
 /** When the pointer sets off for the first, and how long after it for each next one. */
 const FIRST = 0.04;
 const NEXT = 0.2;
@@ -164,11 +169,13 @@ export function ChooseGraphic({ play }: { play: boolean }) {
       ))}
       {NAMES.map((name, row) => {
         const pick = picks.get(row);
+        const kept = KEPT.get(row);
         const y = rowY(row);
         return (
           <g key={row}>
             <g transform={`translate(${SQUARE_X} ${y})`}>
               {pick?.feed === undefined ? <AppSquare /> : <FeedIcon bundleId={pick.feed} />}
+              {kept === undefined ? null : <AppGlyph glyph={kept} />}
             </g>
             <path d={`M${NAME_X} ${y} h${name}`} {...props(styles.faint)} />
             <g transform={`translate(${BOX_X} ${y})`}>

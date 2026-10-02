@@ -6,32 +6,41 @@ import { drawing, easing } from '../../lib/motion.stylex.ts';
 import { HEIGHT, WIDTH } from './box.ts';
 import { Cable } from './cable.tsx';
 import { Laptop, MAC_PLUG } from './laptop.tsx';
-import { APPS, AppSquare, FEEDS, FeedIcon, PHONE, PhoneFrame } from './phone.tsx';
+import {
+  APPS,
+  AppGlyph,
+  AppSquare,
+  FEEDS,
+  FeedIcon,
+  type Glyph,
+  PHONE,
+  PhoneFrame,
+} from './phone.tsx';
 import { stretch, usePlayhead } from './playhead.ts';
 
-/** What is drawn on an app's square: something of the reader's own that it holds. */
-type Glyph = 'message' | 'notes' | 'person' | 'photo';
-
-/** The apps that hold something, by their place on the home screen; the rest are plain. */
+/** Every app the reader keeps, by its place on the home screen; the rest are the feeds. */
 const GLYPHS: ReadonlyMap<number, Glyph> = new Map([
-  [0, 'photo'],
-  [1, 'message'],
-  [3, 'notes'],
-  [6, 'person'],
-  [9, 'photo'],
-  [12, 'message'],
-  [14, 'notes'],
-  [21, 'photo'],
+  [0, 'facetime'],
+  [1, 'calendar'],
+  [3, 'photos'],
+  [5, 'camera'],
+  [6, 'mail'],
+  [7, 'clock'],
+  [8, 'maps'],
+  [9, 'weather'],
+  [10, 'notes'],
+  [12, 'contacts'],
+  [14, 'books'],
+  [15, 'calculator'],
+  [16, 'health'],
+  [17, 'home'],
+  [18, 'wallet'],
+  [19, 'settings'],
+  [20, 'phone'],
+  [21, 'messages'],
+  [22, 'safari'],
+  [23, 'music'],
 ]);
-const GLYPH_PATHS: Record<Glyph, string> = {
-  message:
-    'M-3.6 -0.6 C-3.6 -2.4 -1.9 -3.4 0 -3.4 C1.9 -3.4 3.6 -2.4 3.6 -0.6 C3.6 1.2 1.9 2.2 0 2.2 C-0.6 2.2 -1.2 2.1 -1.7 1.9 L-3.4 3 L-2.8 1.2 C-3.3 0.7 -3.6 0.1 -3.6 -0.6 Z',
-  notes: 'M-3.5 -2.5 H3.5 M-3.5 0 H3.5 M-3.5 2.5 H1',
-  person:
-    'M1.6 -1.8 A1.6 1.6 0 1 1 -1.6 -1.8 A1.6 1.6 0 1 1 1.6 -1.8 Z M-3.4 3.6 C-3.4 1.4 -1.8 0.6 0 0.6 C1.8 0.6 3.4 1.4 3.4 3.6',
-  photo:
-    'M-4 3.4 L-1.2 0 L0.8 2 L2 0.8 L4 3.4 M3.4 -2.4 A1.1 1.1 0 1 1 1.2 -2.4 A1.1 1.1 0 1 1 3.4 -2.4 Z',
-};
 /** The feeds chosen on the Mac, by their place on the home screen, in the order they go. */
 const PICKS = [2, 4, 11, 13];
 
@@ -88,14 +97,6 @@ const ripple = keyframes({
 });
 
 const styles = create({
-  glyph: {
-    fill: 'none',
-    opacity: 0.7,
-    stroke: colors.muted,
-    strokeLinecap: 'round',
-    strokeLinejoin: 'round',
-    strokeWidth: 0.8,
-  },
   graphic: {
     display: 'block',
     height: 'auto',
@@ -145,7 +146,7 @@ const styles = create({
 /**
  * A small Mac on the left, the iPhone on the right and the cable between
  * them, the feeds chosen on the Mac by their own icons on the phone's home
- * screen among the reader's photos, messages and notes: a pulse runs down the
+ * screen among the apps the reader keeps: a pulse runs down the
  * cable, the chosen feeds go one after another while everything else stays,
  * and an orange lock comes up over the phone's corner and shuts. It plays
  * once each time `play` turns on and stands with the chosen feeds still there
@@ -177,9 +178,7 @@ export function StaysGraphic({ play }: { play: boolean }) {
               transform={`translate(${app.x} ${app.y}) scale(${1 - GONE_SCALE * gone})`}
             >
               {feed === undefined ? <AppSquare /> : <FeedIcon bundleId={feed} />}
-              {glyph === undefined ? null : (
-                <path d={GLYPH_PATHS[glyph]} {...props(styles.glyph)} />
-              )}
+              {glyph === undefined ? null : <AppGlyph glyph={glyph} />}
             </g>
           ) : null;
         })}
