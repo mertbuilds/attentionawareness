@@ -1,6 +1,7 @@
 import handler from '@tanstack/react-start/server-entry';
 import { initWorkersLogger } from 'evlog/workers';
 import { canonicalRedirect } from './lib/canonical.ts';
+import { macFileEvent, sendMacEvent } from './lib/mac-analytics.ts';
 import { macFileResponse } from './lib/mac-files.ts';
 import type { MacFilesBucket } from './lib/mac-files.ts';
 import { removedPathRedirect } from './lib/redirects.ts';
@@ -11,6 +12,8 @@ interface WorkerEnv {
   AXIOM_DATASET?: string;
   AXIOM_TOKEN?: string;
   MAC_FILES: MacFilesBucket;
+  OPENPANEL_CLIENT_ID?: string;
+  OPENPANEL_CLIENT_SECRET?: string;
   SIGNING_CERT_PEM?: string;
   SIGNING_CHAIN_PEM?: string;
   SIGNING_KEY_PKCS8_PEM?: string;
@@ -58,6 +61,10 @@ export default {
         (await macFileResponse(request, url, env.MAC_FILES)) ??
         (await paraglideMiddleware(request, () => handler.fetch(request)));
       log.set({ status: response.status });
+      const event = macFileEvent(request, url, response);
+      if (event !== null) {
+        ctx.waitUntil(sendMacEvent(event, request, env));
+      }
       return response;
     } catch (error) {
       log.error(error instanceof Error ? error : String(error));

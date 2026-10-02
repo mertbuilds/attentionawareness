@@ -28,6 +28,11 @@ export default defineConfig({
       // path without its leading slash: /mac/appcast.xml is `mac/appcast.xml`.
       // `vite dev` reads a local simulation under .cloudflare/state instead.
       MAC_FILES: bindings.r2({ name: 'attentionawareness-mac' }),
+      // A write client of the site's OpenPanel project, for the Mac download
+      // and feed check events sent by src/lib/mac-analytics.ts. The browser's
+      // client id has no secret we hold. Without both, nothing is sent.
+      OPENPANEL_CLIENT_ID: bindings.secret(),
+      OPENPANEL_CLIENT_SECRET: bindings.secret(),
       // Profile signing (docs/signing.md). The v2 Vite plugin binds only declared
       // names, and `cf deploy` fails until each declared secret is set.
       SIGNING_CERT_PEM: bindings.secret(),
