@@ -40,9 +40,15 @@ export default defineConfig({
       SIGNING_KEY_PKCS8_PEM: bindings.secret(),
     },
     name: 'attentionawareness-web',
-    // evlog ships logs itself; Workers observability would duplicate them.
+    // evlog drains to Axiom only when AXIOM_TOKEN and AXIOM_DATASET are bound,
+    // and they are not declared above, so in production it writes to the
+    // console only. Workers observability is what keeps those logs.
     observability: {
-      enabled: false,
+      enabled: true,
+      logs: {
+        enabled: true,
+        headSamplingRate: 1,
+      },
     },
   },
 });

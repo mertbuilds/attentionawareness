@@ -36,6 +36,7 @@
     "@attentionawareness/config": "workspace:*",
     "@cloudflare/vite-plugin": "2.0.0-beta.sha-ad79608dd",
     "@inlang/paraglide-js": "^2.25.0",
+    "@inlang/plugin-message-format": "4.4.4",
     "@stylexjs/unplugin": "^0.19.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
