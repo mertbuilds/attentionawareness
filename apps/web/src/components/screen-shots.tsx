@@ -38,15 +38,20 @@ const styles = create({
       default: 'minmax(0, 1fr)',
     },
   },
-  // The phone's own card corners, clipped round so a light card's square
-  // corners do not show on a dark page, and the other way around.
-  shot: {
+  // A squircle window onto the card, zoomed past the phone's own margin and
+  // corners so only the card itself shows, at the same shape for every shot.
+  frame: {
     borderColor: colors.border,
-    borderRadius: 16,
+    borderRadius: 32,
     borderStyle: 'solid',
     borderWidth: 1,
+    cornerShape: 'squircle',
+    overflow: 'hidden',
+  },
+  shot: {
     display: 'block',
     height: 'auto',
+    transform: 'scale(1.06)',
     width: '100%',
   },
 });
@@ -60,16 +65,17 @@ export function ScreenShots({ caption, shots }: { caption?: string; shots: Reado
     <figure {...props(styles.figure)}>
       <div {...props(styles.row)}>
         {shots.map((shot) => (
-          <img
-            alt={shot.alt}
-            decoding="async"
-            height={shot.height}
-            key={shot.src}
-            loading="lazy"
-            src={shot.src}
-            width={shot.width}
-            {...props(styles.shot)}
-          />
+          <div key={shot.src} {...props(styles.frame)}>
+            <img
+              alt={shot.alt}
+              decoding="async"
+              height={shot.height}
+              loading="lazy"
+              src={shot.src}
+              width={shot.width}
+              {...props(styles.shot)}
+            />
+          </div>
         ))}
       </div>
       {caption === undefined ? null : <figcaption {...props(styles.caption)}>{caption}</figcaption>}
