@@ -54,15 +54,16 @@ export const scale = defineConsts({
  * token above fits them; they are kept together here so the whole story can
  * be slowed or quickened at once. Each starts `delay` after its beat comes on,
  * once the sentence has risen into place: `duration.verySlow` and a stagger.
- * The grid of what the hours could have been plays six of them at once, each
- * at `gridPace` of its own time: it stands `gridHold` on its end and starts
- * over, for as long as the grid is on, and each starts `gridStagger` after
- * the one before it. Past the story, the deck of other facts opens on the
- * thumb, which climbs to a day's scroll over `thumb` and stands `thumbHold`
- * on it. Every other fact in it draws over `deck` and stands `deckHold` on
- * its finished drawing before the next takes its place; the instruments take
- * twice that time, a scene at a time. Further down, the way out's three steps
- * play over `stepPlug`, `stepChoose` and `stepStays`, one after another.
+ * The grid of what else the hours could have been brings its six on one
+ * after another, `gridStagger` apart and the first that long after its line,
+ * and each, once risen, plays over its own time, stands `gridHold` on its end
+ * and starts over, for as long as the grid is on. Past the story, the deck of
+ * other facts opens on the thumb, which climbs to a day's scroll over `thumb`
+ * and stands `thumbHold` on it. Every other fact in it draws over `deck` and
+ * stands `deckHold` on its finished drawing before the next takes its place;
+ * the instruments take twice that time, a scene at a time. Further down, the
+ * way out's three steps play over `stepPlug`, `stepChoose` and `stepStays`,
+ * one after another.
  */
 export const drawing = defineConsts({
   deck: 4,
@@ -70,8 +71,7 @@ export const drawing = defineConsts({
   delay: 0.54,
   earth: 4.2,
   gridHold: 1.2,
-  gridPace: 0.5,
-  gridStagger: 0.3,
+  gridStagger: 0.33,
   instruments: 8,
   moon: 3.8,
   stepChoose: 3.2,
