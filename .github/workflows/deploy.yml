@@ -26,6 +26,11 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           FONT_BUCKET: ${{ vars.FONT_BUCKET }}
       - run: pnpm --filter @attentionawareness/web build
+        env:
+          # Public by design, so repository variables rather than secrets. Vite
+          # bakes them into the client bundle; unset, the site ships without PostHog.
+          VITE_POSTHOG_KEY: ${{ vars.VITE_POSTHOG_KEY }}
+          VITE_POSTHOG_HOST: ${{ vars.VITE_POSTHOG_HOST }}
       - name: Smoke-test the built Worker
         # Serves the build with the production preview; / and /guide must render.
         run: bash scripts/smoke-web.sh

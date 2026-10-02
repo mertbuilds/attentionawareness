@@ -1,5 +1,6 @@
 import { Button } from '@attentionawareness/ui';
 import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
+import { usePostHog } from '@posthog/react';
 import { create, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { useEffect, useState, useSyncExternalStore } from 'react';
@@ -140,6 +141,7 @@ function useIsAppleMobile(): boolean {
  * AirDrop or a message; without one, the link goes to the clipboard.
  */
 function SendToMac() {
+  const posthog = usePostHog();
   const [copied, setCopied] = useState(false);
   const canShare = 'share' in navigator;
 
@@ -148,6 +150,7 @@ function SendToMac() {
     if (canShare) {
       try {
         await navigator.share({ url });
+        posthog.capture('mac_download_link_shared', { share_method: 'share_sheet' });
       } catch {
         // The sheet was closed. Nothing to say.
       }
@@ -156,6 +159,7 @@ function SendToMac() {
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
+      posthog.capture('mac_download_link_shared', { share_method: 'clipboard' });
     } catch {
       // The clipboard refused. The button keeps offering it.
     }
@@ -183,6 +187,7 @@ function SendToMac() {
  * page says where to open it instead.
  */
 export function MacDownload({ style }: { style?: StyleXStyles }) {
+  const posthog = usePostHog();
   const release = useLatestRelease();
   const appleMobile = useIsAppleMobile();
 
@@ -203,7 +208,14 @@ export function MacDownload({ style }: { style?: StyleXStyles }) {
   } else if (release === undefined) {
     action = <Button disabled>{cta}</Button>;
   } else {
-    action = <Button render={<a download href={release.url} />}>{cta}</Button>;
+    action = (
+      <Button
+        onClick={() => posthog.capture('mac_download_started')}
+        render={<a download href={release.url} />}
+      >
+        {cta}
+      </Button>
+    );
   }
 
   return <div {...props(styles.download, style)}>{action}</div>;

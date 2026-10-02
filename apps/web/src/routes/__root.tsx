@@ -147,18 +147,27 @@ function Providers({ children }: { children: ReactNode }) {
       {children}
     </Tooltip.Provider>
   );
-  if (!clientEnv.VITE_POSTHOG_KEY) {
+  if (!clientEnv.VITE_POSTHOG_KEY || !clientEnv.VITE_POSTHOG_HOST) {
     return tips;
   }
   return (
     <PostHogProvider
       apiKey={clientEnv.VITE_POSTHOG_KEY}
       options={{
-        api_host: '/ingest',
+        api_host: clientEnv.VITE_POSTHOG_HOST,
+        capture_exceptions: {
+          capture_console_errors: false,
+          capture_unhandled_errors: true,
+          capture_unhandled_rejections: true,
+        },
         capture_heatmaps: true,
         defaults: '2026-05-30',
-        session_recording: { maskAllInputs: true },
-        ui_host: 'https://eu.posthog.com',
+        logs: {
+          environment: import.meta.env.MODE,
+          serviceName: 'attentionawareness-web',
+        },
+        session_recording: { maskAllInputs: true, maskTextSelector: '*' },
+        ui_host: clientEnv.VITE_POSTHOG_HOST.replace('.i.', '.'),
       }}
     >
       {tips}

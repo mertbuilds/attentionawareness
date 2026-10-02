@@ -8,7 +8,7 @@ Opinionated monorepo boilerplate. Every product starts as a copy of this repo. K
 apps/
   web/    TanStack Start (React 19, React Compiler) → Cloudflare Workers.
           Mostly client-only: SSR, routes, PostHog, Sentry, Paraglide i18n.
-          No auth, no database. Server routes: the PostHog ingest proxy and
+          No auth, no database. Server routes: the OpenPanel proxy and
           `/api/sign`, which signs the profile with the Developer ID key.
           Callers: the Mac app and the `/build` page.
   extension/
@@ -73,7 +73,7 @@ Web app (`apps/web`): `pnpm --filter @attentionawareness/web dev` (:3000 standal
 - TanStack Start on Cloudflare Workers. Custom entry `src/server.ts` (`worker.entrypoint` in `cloudflare.config.ts`) wraps the Start handler with `paraglideMiddleware` and an evlog wide event per request (Axiom drain when `AXIOM_TOKEN`+`AXIOM_DATASET` are declared in `cloudflare.config.ts` and set; they are not today); with no Axiom drain bound, evlog writes to the console only, so Workers `observability` is on (logs, sampling 1) to keep those logs.
 - React Compiler is on (`react({ compiler: true })` via `oxc-transform-react`). react-grab loads in dev only.
 - i18n: Paraglide v2, English only (`locales: ["en"]`, `strategy: ['baseLocale']`). `messages/tr.json` stays on disk, unlisted and uncompiled, for the day Turkish comes back. Generated `src/paraglide/` and `src/routeTree.gen.ts` are gitignored build output — never edit them, they regenerate on `vite dev`/`build`. All user-facing strings go through `m.*()`.
-- Analytics: PostHog only when `VITE_POSTHOG_KEY` is set — provider in `__root.tsx` (defaults `2026-05-30`, heatmaps on, inputs masked), ingest reverse-proxied through the `/ingest/$` server route to PostHog EU so adblockers don't drop events.
+- Analytics: PostHog only when `VITE_POSTHOG_KEY` and `VITE_POSTHOG_HOST` are set (`.env` locally; GitHub repository variables for the `deploy.yml` build, since Vite bakes them in at build time; previews and CI build without them). Provider in `__root.tsx` (defaults `2026-05-30`, heatmaps, exception capture, logs, replay with inputs and text masked) sends straight to `VITE_POSTHOG_HOST` (`https://eu.i.posthog.com`), with no proxy route. Without the provider, `usePostHog()` returns the uninitialized posthog-js singleton, whose `capture` is a no-op. Events: `mac_download_started`, `mac_download_link_shared` (`share_method`), `app_block_added`/`app_block_removed` (`total_blocked_apps`), `web_filter_mode_changed` (`web_filter_mode`), `profile_downloaded` (counts and modes, never the apps or sites themselves).
 - Session replay: OpenPanel records one visit in ten, inputs and text masked; the `/op/$` proxy serves the recorder as `/op/op1-replay.js`, pinned from jsDelivr. Why and the version floor: `docs/adr/0003-session-replay.md`.
 - Sentry: client init in `__root.tsx` only when `VITE_SENTRY_DSN` is set.
 - StyleX in routes: import `../app.css` (build injection target) — there is no importable `virtual:stylex.css` module; in dev the plugin middleware serves the CSS itself.
@@ -121,7 +121,7 @@ No automated tests yet on the web side (decision 2026-09-13: iterate on the prod
 ## Rules
 
 - Never edit generated directories: `apps/web/src/paraglide/`, `apps/web/src/routeTree.gen.ts`.
-- The site stays client-first: no auth, no database, no billing. Server code is the exception, not the pattern: today the PostHog ingest proxy and the profile signer, which exists only because the signing key must never reach the browser.
+- The site stays client-first: no auth, no database, no billing. Server code is the exception, not the pattern: today the OpenPanel proxy and the profile signer, which exists only because the signing key must never reach the browser.
 - No new dependencies, components, or abstractions without a concrete current need.
 - Secrets never enter git. Local uses `.env` (from `.env.example`) and, for Worker bindings, the repo-root `.dev.vars` (from `.dev.vars.example`); prod uses `cf workers secrets update`. The signing certificate and its private key (`SIGNING_CERT_PEM`, `SIGNING_CHAIN_PEM`, `SIGNING_KEY_PKCS8_PEM`) live there and nowhere else.
 - Conventional commits, enforced by commitlint. PRs only against `main`; CI must be green.

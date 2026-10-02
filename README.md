@@ -48,7 +48,7 @@ See [apps/extension/README.md](apps/extension/README.md).
 | Extension   | Chromium MV3, React 19 popup, three Vite builds                          |
 | Styling     | StyleX tokens (black/white, 4px radius) + Base UI components + Storybook |
 | i18n        | Paraglide v2 (English + Turkish catalogs)                                |
-| Analytics   | PostHog EU (replay + heatmaps, `/ingest` reverse proxy)                  |
+| Analytics   | PostHog EU (replay + heatmaps) and OpenPanel (`/op` proxy)               |
 | Errors      | Sentry                                                                   |
 | Logging     | evlog wide events to an Axiom drain                                      |
 | Lint/format | oxlint (`@nkzw/oxlint-config`, type-aware) + oxfmt, no ESLint/Prettier   |
