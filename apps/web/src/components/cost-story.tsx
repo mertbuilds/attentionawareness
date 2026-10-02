@@ -14,7 +14,7 @@ import {
 } from 'motion/react';
 import type { MotionValue } from 'motion/react';
 import { Fragment, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
-import type { ReactNode } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import {
   AVERAGE_HOURS,
   formatYears,
@@ -1832,6 +1832,24 @@ export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
     rests.current[index]?.scrollIntoView({ block: 'start' });
   }
 
+  // A plain click scrolls to the way out in place: a hash left in the history
+  // would make Back climb the whole story again from the top.
+  function toWayOut(event: MouseEvent<HTMLElement>) {
+    const target = document.getElementById(wayOut);
+    if (
+      target === null ||
+      event.button !== 0 ||
+      event.altKey ||
+      event.ctrlKey ||
+      event.metaKey ||
+      event.shiftKey
+    ) {
+      return;
+    }
+    event.preventDefault();
+    target.scrollIntoView({ block: 'start' });
+  }
+
   function beat(index: number, style?: StyleXStyles) {
     return {
       onFocus: () => reveal(index),
@@ -1992,7 +2010,9 @@ export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
               )}
             >
               <p {...props(styles.onwardLine)}>{m.home_turn_onward()}</p>
-              <Button render={<a href={`#${wayOut}`} />}>{m.home_turn_cta()}</Button>
+              <Button onClick={toWayOut} render={<a href={`#${wayOut}`} />}>
+                {m.home_turn_cta()}
+              </Button>
             </div>
           </div>
         </div>
