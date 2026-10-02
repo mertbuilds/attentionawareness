@@ -73,7 +73,7 @@ export const drawing = defineConsts({
   gridStagger: 0.33,
   instruments: 7.2,
   moon: 3.8,
-  signature: 2.5,
+  signature: 3,
   stepChoose: 3.2,
   stepPlug: 3.4,
   stepStays: 3,
