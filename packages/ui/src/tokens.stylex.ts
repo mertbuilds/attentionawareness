@@ -1,14 +1,11 @@
 import { defineConsts, defineVars } from '@stylexjs/stylex';
 
 /**
- * Raw palette. Black, white, and three grays. Do not use these directly in
- * components: use the semantic `colors` below so dark mode keeps working.
+ * Raw palette: white, for what stays white in both themes. Do not use it for
+ * anything that should follow the theme: use the semantic `colors` below so
+ * dark mode keeps working.
  */
 export const palette = defineVars({
-  black: '#000000',
-  gray300: '#d4d4d4',
-  gray500: '#8a8a8a',
-  gray700: '#3f3f3f',
   white: '#ffffff',
 });
 
@@ -21,11 +18,9 @@ export const palette = defineVars({
 export const colors = defineConsts({
   bg: 'var(--kya-bg)',
   border: 'var(--kya-border)',
-  disabled: 'var(--kya-disabled)',
   error: 'var(--kya-error)',
   fg: 'var(--kya-fg)',
   muted: 'var(--kya-muted)',
-  warning: 'var(--kya-warning)',
 });
 
 /** Single radius token. 4px everywhere. */

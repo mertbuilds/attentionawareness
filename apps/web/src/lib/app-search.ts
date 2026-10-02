@@ -50,7 +50,7 @@ type SoftwareResult = {
  * status so callers can tell a rate limit from an outage. Identify it by
  * `name === 'AppSearchError'`, not `instanceof`.
  */
-export class AppSearchError extends Error {
+class AppSearchError extends Error {
   readonly status: number;
 
   constructor(status: number) {

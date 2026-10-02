@@ -15,7 +15,7 @@ const DICT_INDENT = '    ';
 
 const KEY_INDENT = '      ';
 
-export class InvalidProfileIdentifierError extends Error {
+class InvalidProfileIdentifierError extends Error {
   readonly identifier: string;
 
   constructor(identifier: string) {
