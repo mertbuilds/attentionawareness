@@ -1,7 +1,5 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
-  "app_name": "attentionawareness",
-  "nav_back_home": "Back to the start",
   "site_name": "attention awareness",
   "site_wip": "Work in progress. Things change daily, some of it breaks.",
   "site_wip_dismiss": "Dismiss",
