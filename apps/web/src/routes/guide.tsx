@@ -181,6 +181,24 @@ const styles = create({
     marginBlockStart: spacing.s2,
     width: '100%',
   },
+  // A Mac window brings its own rounded corners and the page shows through
+  // them, so the picture needs no frame of its own.
+  shotImage: {
+    display: 'block',
+    height: 'auto',
+    marginBlockStart: spacing.s2,
+    marginInline: 'auto',
+    maxWidth: '100%',
+  },
+  // An iPhone screen, cut to a phone's rounded corners.
+  shotPhone: {
+    borderColor: colors.border,
+    borderRadius: 24,
+    borderStyle: 'solid',
+    borderWidth: 1,
+    boxSizing: 'border-box',
+    cornerShape: 'squircle',
+  },
   step: {
     display: 'flex',
     flexDirection: 'column',
@@ -235,6 +253,38 @@ function ShotSlot({ name }: { name: string }) {
   );
 }
 
+/**
+ * A screenshot from `public/media/guide/<name>.webp`. `width` and `height` are
+ * its size on the page, for a Mac window half its pixels since it was taken on
+ * a retina screen; a narrower column scales it down. `phone` is for an iPhone
+ * screen.
+ */
+function Shot({
+  alt,
+  height,
+  name,
+  phone = false,
+  width,
+}: {
+  alt: string;
+  height: number;
+  name: string;
+  phone?: boolean;
+  width: number;
+}) {
+  return (
+    <img
+      alt={alt}
+      decoding="async"
+      height={height}
+      loading="lazy"
+      src={`/media/guide/${name}.webp`}
+      width={width}
+      {...props(styles.shotImage, phone && styles.shotPhone)}
+    />
+  );
+}
+
 function Guide() {
   const [creditBefore, creditAfter] = m.guide_credit({ post: LINK_SLOT }).split(LINK_SLOT);
   const [appBefore, appAfter] = m.guide_erase_app({ app: LINK_SLOT }).split(LINK_SLOT);
@@ -286,15 +336,24 @@ function Guide() {
               <li>{m.guide_step_backup_finder()}</li>
             </ul>
             <p {...props(styles.body)}>{m.guide_step_backup_note()}</p>
-            {/* Finder, the iPhone selected, General tab with Back Up Now. */}
-            <ShotSlot name="backup-finder" />
+            <Shot
+              alt={m.guide_shot_backup_finder()}
+              height={501}
+              name="backup-finder"
+              width={800}
+            />
           </Step>
 
           <Step number={2} title={m.guide_step_erase_title()}>
             <p {...props(styles.body)}>{m.guide_step_erase_body()}</p>
             <p {...props(styles.body)}>{m.guide_step_erase_hello()}</p>
-            {/* iPhone: Transfer or Reset iPhone, Erase All Content and Settings. */}
-            <ShotSlot name="erase-iphone" />
+            <Shot
+              alt={m.guide_shot_erase_iphone()}
+              height={569}
+              name="erase-iphone"
+              phone
+              width={320}
+            />
           </Step>
 
           <Step number={3} title={m.guide_step_configurator_title()}>
@@ -305,8 +364,14 @@ function Guide() {
               </a>
               {configuratorAfter}
             </p>
-            {/* Apple Configurator's first window, with Get Started. */}
-            <ShotSlot name="configurator-open" />
+            {/* The Mac App Store page for Apple Configurator, with its Get button. */}
+            <ShotSlot name="install-configurator" />
+            <Shot
+              alt={m.guide_shot_configurator_open()}
+              height={466}
+              name="configurator-open"
+              width={800}
+            />
           </Step>
 
           <Step number={4} title={m.guide_step_prepare_title()}>
@@ -317,10 +382,18 @@ function Guide() {
               <li>{m.guide_step_prepare_org()}</li>
               <li>{m.guide_step_prepare_setup()}</li>
             </ul>
-            {/* Prepare: Manual Configuration with Supervise devices ticked. */}
-            <ShotSlot name="prepare-manual" />
-            {/* Prepare: Setup Assistant set to Don't show any of these steps. */}
-            <ShotSlot name="prepare-setup-assistant" />
+            <Shot
+              alt={m.guide_shot_prepare_manual()}
+              height={413}
+              name="prepare-manual"
+              width={550}
+            />
+            <Shot
+              alt={m.guide_shot_prepare_setup_assistant()}
+              height={691}
+              name="prepare-setup-assistant"
+              width={624}
+            />
             <p {...props(styles.body)}>{m.guide_step_prepare_done()}</p>
           </Step>
 
@@ -340,16 +413,13 @@ function Guide() {
               {builderAfter}
             </p>
             <p {...props(styles.body)}>{m.guide_step_build_by_hand()}</p>
-            {/* The profile builder with a few apps picked. */}
-            <ShotSlot name="build-profile" />
           </Step>
 
           <Step number={7} title={m.guide_step_install_title()}>
             <p {...props(styles.body)}>{m.guide_step_install_body()}</p>
             <p {...props(styles.body)}>{m.guide_step_install_done()}</p>
             <p {...props(styles.body)}>{m.guide_step_install_more()}</p>
-            {/* Configurator: right-click the iPhone, Add > Profiles. */}
-            <ShotSlot name="add-profile" />
+            <Shot alt={m.guide_shot_add_profile()} height={502} name="add-profile" width={800} />
           </Step>
         </ol>
 
