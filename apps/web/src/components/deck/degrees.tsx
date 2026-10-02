@@ -1,9 +1,9 @@
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
-import { animate, clamp, easeOut, motion, useMotionValue, useTransform } from 'motion/react';
+import { clamp, easeOut, motion, useMotionValueEvent, useTransform } from 'motion/react';
 import type { MotionValue } from 'motion/react';
-import { useEffect, useId } from 'react';
+import { useId, useState } from 'react';
 import { drawing } from '../../lib/motion.stylex.ts';
 import { useLessMotion } from '../cost-story.tsx';
 import { HEIGHT, WIDTH } from './box.ts';
@@ -102,7 +102,6 @@ const styles = create({
     strokeWidth: 1,
   },
   swing: {
-    animationDelay: `${drawing.deck}s`,
     animationDuration: '3s',
     animationIterationCount: 'infinite',
     animationName: {
@@ -331,30 +330,18 @@ function Cap({
 /**
  * The degrees the hours would have bought: a mortarboard for each, tossed up
  * one at a time, turning once in the air and landing in rows on a shelf, the
- * last one orange. When `play` turns on it plays once from the start; when it
- * turns off the caps are back out of sight. With less motion the rows stand
- * done.
+ * last one orange. It plays as far as `play` says, from 0 to 1, and once it
+ * has played to the end the orange cap's tassel swings. With less motion the
+ * rows stand done.
  */
-export function DegreesGraphic({ amount, play }: { amount: number; play: boolean }) {
+export function DegreesGraphic({ amount, play }: { amount: number; play: MotionValue<number> }) {
   const reduced = useLessMotion();
-  // Done until the page says otherwise, so a page that has not run its script
-  // shows the whole row.
-  const clock = useMotionValue(SECONDS);
+  const clock = useTransform(play, (t) => t * SECONDS);
+  const [landed, setLanded] = useState(false);
+  useMotionValueEvent(play, 'change', (t) => setLanded(t >= 1));
   const above = `${useId()}-above`;
   const throws = throwsFor(amount);
   const last = throws.length - 1;
-
-  useEffect(() => {
-    if (reduced) {
-      return;
-    }
-    clock.set(0);
-    if (!play) {
-      return;
-    }
-    const controls = animate(clock, SECONDS, { duration: SECONDS, ease: 'linear' });
-    return () => controls.stop();
-  }, [clock, play, reduced]);
 
   return (
     <svg aria-hidden="true" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} {...props(styles.graphic)}>
@@ -375,7 +362,7 @@ export function DegreesGraphic({ amount, play }: { amount: number; play: boolean
             key={index}
             last={index === last}
             reduced={reduced}
-            swinging={play && !reduced && index === last}
+            swinging={landed && !reduced && index === last}
           />
         ))}
       </g>

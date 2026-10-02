@@ -9,9 +9,19 @@ import { Tip } from './tip.tsx';
  * words and nothing else.
  */
 const GLYPH = '"i"';
+/**
+ * Where the button's unseen hit area ends: 7px past the ring on every side,
+ * so a 10px ring still takes a 24px press.
+ */
+const HIT_INSET = -7;
 
 const styles = create({
   button: {
+    '::after': {
+      content: '""',
+      inset: HIT_INSET,
+      position: 'absolute',
+    },
     alignItems: 'center',
     backgroundColor: 'transparent',
     borderColor: colors.border,
@@ -26,11 +36,12 @@ const styles = create({
     cursor: 'pointer',
     display: 'inline-flex',
     flexShrink: 0,
-    height: 20,
+    height: 10,
     justifyContent: 'center',
     padding: 0,
+    position: 'relative',
     verticalAlign: 'middle',
-    width: 20,
+    width: 10,
   },
   // A book-face italic i, the way a printed note marks one.
   glyph: {
@@ -38,11 +49,10 @@ const styles = create({
       content: GLYPH,
     },
     fontFamily: "Georgia, 'Times New Roman', serif",
-    fontSize: 12,
+    fontSize: 7,
     fontStyle: 'italic',
     fontWeight: font.weightRegular,
     lineHeight: 1,
-    marginBlockStart: -1,
     textTransform: 'none',
   },
 });

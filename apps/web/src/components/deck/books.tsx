@@ -1,11 +1,10 @@
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
-import { animate, useMotionValue, useMotionValueEvent } from 'motion/react';
+import { useMotionValueEvent } from 'motion/react';
 import type { MotionValue } from 'motion/react';
-import { useEffect, useState } from 'react';
-import { drawing, easing } from '../../lib/motion.stylex.ts';
-import { useLessMotion } from '../cost-story.tsx';
+import { useState } from 'react';
+import { easing } from '../../lib/motion.stylex.ts';
 import { HEIGHT, WIDTH } from './box.ts';
 
 const CENTER = WIDTH / 2;
@@ -29,8 +28,6 @@ const DROP_MS = 600;
 /** Where a band or a title sits on a spine. */
 const BAND_INSET = 5;
 const TITLE_SPAN = 0.15;
-/** The whole pile, slow at both ends and a blur in the middle. */
-const SECONDS = drawing.deck;
 /** The top of the drawing fades out, and the tower goes on past it. */
 const FADE = 'linear-gradient(to bottom, transparent, black 40%)';
 
@@ -145,34 +142,12 @@ function Detail({ book }: { book: Book }) {
 /**
  * Book spines piling up on a shelf, a few bound in orange, one at a time at
  * first, then faster than they can be told apart, until the tower runs out
- * past the top edge and fades there. It plays once each time `play` comes on
- * and starts over when it goes off, or stands as far as `play` says when it is
- * played from outside; with less motion it stands piled high.
+ * past the top edge and fades there. It stands as far as `play` says, from 0
+ * to 1.
  */
-export function BooksGraphic({ play }: { play: boolean | MotionValue<number> }) {
-  const reduced = useLessMotion();
-  // Done until the page says otherwise, so a page that has not run its script
-  // shows the whole pile.
-  const own = useMotionValue(1);
-  const progress = typeof play === 'boolean' ? own : play;
-  const [landed, setLanded] = useState(BOOKS.length);
-  useMotionValueEvent(progress, 'change', (t) => setLanded(Math.ceil(t * BOOKS.length)));
-
-  useEffect(() => {
-    if (typeof play !== 'boolean') {
-      return;
-    }
-    if (reduced) {
-      own.set(1);
-      return;
-    }
-    own.set(0);
-    if (!play) {
-      return;
-    }
-    const controls = animate(own, 1, { duration: SECONDS, ease: 'easeInOut' });
-    return () => controls.stop();
-  }, [own, play, reduced]);
+export function BooksGraphic({ play }: { play: MotionValue<number> }) {
+  const [landed, setLanded] = useState(() => Math.ceil(play.get() * BOOKS.length));
+  useMotionValueEvent(play, 'change', (t) => setLanded(Math.ceil(t * BOOKS.length)));
 
   return (
     <svg aria-hidden="true" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} {...props(styles.graphic)}>

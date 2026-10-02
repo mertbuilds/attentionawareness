@@ -1,11 +1,10 @@
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
-import { animate, motion, useMotionValue, useMotionValueEvent, useTransform } from 'motion/react';
+import { motion, useMotionValueEvent, useTransform } from 'motion/react';
 import type { MotionValue } from 'motion/react';
-import { useEffect, useState } from 'react';
-import { blur, distance, drawing } from '../../lib/motion.stylex.ts';
-import { useLessMotion } from '../cost-story.tsx';
+import { useState } from 'react';
+import { blur, distance } from '../../lib/motion.stylex.ts';
 import { HEIGHT, WIDTH } from './box.ts';
 
 /**
@@ -61,8 +60,6 @@ const SWAP_RISE = Number.parseFloat(distance.micro);
 const SWAP_BLUR = Number.parseFloat(blur.small);
 /** A tick for every language under the bubble, as much air under them as over the bubble. */
 const TICKS = { bottom: 184, left: 48, right: 272, top: 174 };
-/** The whole run, slow at both ends and a blur in the middle. */
-const SECONDS = drawing.deck;
 /** How much of its turn a word stands still before it flips to the next. */
 const HOLD = 0.5;
 
@@ -141,24 +138,11 @@ function flipOf(at: number): number {
 /**
  * "Hello" in a speech bubble, flipping through one language after another,
  * slowly at first, then in a blur, then slowly onto the last. Under it a tick
- * for every language turns orange as it is counted. It plays once each time
- * `play` comes on and starts over when it goes off, or stands as far as
- * `play` says when it is played from outside; with less motion it stands on
- * the last word with every tick counted.
+ * for every language turns orange as it is counted. It stands as far as
+ * `play` says, from 0 to 1.
  */
-export function LanguagesGraphic({
-  amount,
-  play,
-}: {
-  amount: number;
-  play: boolean | MotionValue<number>;
-}) {
-  const reduced = useLessMotion();
-  // Done until the page says otherwise, so a page that has not run its script
-  // shows the last word.
-  const own = useMotionValue(1);
-  const progress = typeof play === 'boolean' ? own : play;
-  const reel = useTransform(progress, (t) => reelAt(t, amount));
+export function LanguagesGraphic({ amount, play }: { amount: number; play: MotionValue<number> }) {
+  const reel = useTransform(play, (t) => reelAt(t, amount));
   // How far into the swap the word is: none while it stands, all of it at the
   // turn, where the old word is gone and the new one not yet come.
   const away = useTransform(reel, (at) => 1 - Math.abs(1 - 2 * flipOf(at)));
@@ -170,24 +154,8 @@ export function LanguagesGraphic({
   );
   const wordOpacity = useTransform(away, (t) => 1 - t);
   const wordFilter = useTransform(away, (t) => `blur(${(SWAP_BLUR * t).toFixed(2)}px)`);
-  const [counted, setCounted] = useState(amount);
+  const [counted, setCounted] = useState(() => Math.round(reelAt(play.get(), amount)));
   useMotionValueEvent(reel, 'change', (at) => setCounted(Math.round(at)));
-
-  useEffect(() => {
-    if (typeof play !== 'boolean') {
-      return;
-    }
-    if (reduced) {
-      own.set(1);
-      return;
-    }
-    own.set(0);
-    if (!play) {
-      return;
-    }
-    const controls = animate(own, 1, { duration: SECONDS, ease: 'easeInOut' });
-    return () => controls.stop();
-  }, [own, play, reduced]);
 
   return (
     <svg aria-hidden="true" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} {...props(styles.graphic)}>

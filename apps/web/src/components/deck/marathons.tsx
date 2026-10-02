@@ -1,15 +1,13 @@
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
-import { animate, useMotionValue, useMotionValueEvent } from 'motion/react';
+import { useMotionValueEvent } from 'motion/react';
 import type { MotionValue } from 'motion/react';
-import { useEffect, useState } from 'react';
-import { drawing, easing } from '../../lib/motion.stylex.ts';
+import { useState } from 'react';
+import { easing } from '../../lib/motion.stylex.ts';
 import { useLessMotion } from '../cost-story.tsx';
 import { HEIGHT, WIDTH } from './box.ts';
 
-/** The drawing plays once over this long each time it comes on. */
-const PLAY_SECONDS = drawing.deck;
 /** The inner kerb, and the lanes outside it. */
 const KERB = 56;
 const LANES = 4;
@@ -94,30 +92,13 @@ const styles = create({
 });
 
 /**
- * How far the drawing has played, from 0 to 1. It plays from the start each
- * time `play` turns on, and goes back to the start when it turns off; played
- * from outside, it is as far as `play` says. For a reader who asked for less
- * motion it stands at the end.
+ * How far the drawing has played, from 0 to 1, as `play` says. For a reader
+ * who asked for less motion it stands at the end.
  */
-function usePlayhead(play: boolean | MotionValue<number>): number {
+function usePlayhead(play: MotionValue<number>): number {
   const reduced = useLessMotion();
-  const own = useMotionValue(0);
-  const clock = typeof play === 'boolean' ? own : play;
   const [at, setAt] = useState(0);
-  useMotionValueEvent(clock, 'change', setAt);
-
-  useEffect(() => {
-    if (typeof play !== 'boolean') {
-      return;
-    }
-    own.set(0);
-    if (!play || reduced) {
-      return;
-    }
-    const controls = animate(own, 1, { duration: PLAY_SECONDS, ease: 'linear' });
-    return () => controls.stop();
-  }, [own, play, reduced]);
-
+  useMotionValueEvent(play, 'change', setAt);
   return reduced ? 1 : at;
 }
 
@@ -197,11 +178,10 @@ const FINISH = `M${CENTER_X + HALF_STRAIGHT} ${CENTER_Y + KERB} L${CENTER_X + HA
 /**
  * A running track seen from above, and a runner lapping it: off the line at
  * a run, then so fast the tail behind it rings the lane, then easing back
- * over the line. It plays once each time `play` turns on and stands at the
- * start while it is off, or runs as far as `play` says when it is played from
- * outside. For a reader who asked for less motion it stands finished.
+ * over the line. It runs as far as `play` says, from 0 to 1. For a reader who
+ * asked for less motion it stands finished.
  */
-export function MarathonsGraphic({ play }: { play: boolean | MotionValue<number> }) {
+export function MarathonsGraphic({ play }: { play: MotionValue<number> }) {
   const reduced = useLessMotion();
   const at = usePlayhead(play);
   const ran = lapsBy(at);

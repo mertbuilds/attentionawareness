@@ -4,13 +4,15 @@ import { useInView } from 'motion/react';
 import { useEffect, useRef, useState } from 'react';
 import { drawing } from '../lib/motion.stylex.ts';
 import { m } from '../paraglide/messages.js';
+import { Mark, Sentence } from './cost-story.tsx';
 import { ChooseGraphic, PlugGraphic, StaysGraphic } from './steps/index.ts';
 
 /** How much of a step has to be on screen before its drawing plays. */
 const SEEN = 0.6;
 /**
- * The steps in their order: the drawing, how long it plays, and its words,
- * read in the reader's language when the step is drawn.
+ * The steps in their order: the drawing, how long it plays, its words, and
+ * the small i after a line that needs one, read in the reader's language when
+ * the step is drawn.
  */
 const STEPS = [
   {
@@ -18,6 +20,7 @@ const STEPS = [
     Graphic: PlugGraphic,
     key: 'plug',
     seconds: drawing.stepPlug,
+    tip: { label: m.home_how_plug_tip_label, text: m.home_how_plug_tip },
     title: m.home_how_plug_title,
   },
   {
@@ -153,7 +156,17 @@ export function HowItWorks() {
             <h4 {...props(styles.stepTitle)}>
               <span {...props(styles.number)}>{index + 1}</span> {step.title()}
             </h4>
-            <p {...props(styles.stepBody)}>{step.body()}</p>
+            <p {...props(styles.stepBody)}>
+              <Sentence
+                figures={[]}
+                mark={
+                  step.tip === undefined ? null : (
+                    <Mark label={step.tip.label()}>{step.tip.text()}</Mark>
+                  )
+                }
+                text={step.body()}
+              />
+            </p>
           </li>
         ))}
       </ol>

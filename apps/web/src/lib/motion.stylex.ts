@@ -7,7 +7,7 @@ import { defineConsts } from '@stylexjs/stylex';
  * crossfade slow, a text reveal very slow.
  */
 export const duration = defineConsts({
-  // An answer opening or closing under its question, and its plus turning.
+  // An answer opening or closing under its question, and its chevron turning.
   fast: '250ms',
   // The wait before a tooltip appears.
   micro: '80ms',
@@ -56,29 +56,25 @@ export const scale = defineConsts({
  * once the sentence has risen into place: `duration.verySlow` and a stagger.
  * The grid of what else the hours could have been brings its six on one
  * after another, `gridStagger` apart and the first that long after its line,
- * and each, once risen, plays over its own time, stands `gridHold` on its end
- * and starts over, for as long as the grid is on. Past the story, the deck of
- * other facts opens on the thumb, which climbs to a day's scroll over `thumb`
- * and stands `thumbHold` on it. Every other fact in it draws over `deck` and
- * stands `deckHold` on its finished drawing before the next takes its place;
- * the instruments take twice that time, a scene at a time. Further down, the
- * way out's three steps play over `stepPlug`, `stepChoose` and `stepStays`,
- * one after another.
+ * and each, once risen, plays once over its own time and stands on its end.
+ * The drawings kept in `deck/` draw over `deck`, the instruments over twice
+ * that, a scene at a time. Once every drawing up has played, the grid stands
+ * `gridShuffle` before one of its cells trades its fact for another, and as
+ * long after each fact swapped in has played. Further down, the way out's
+ * three steps play over `stepPlug`, `stepChoose` and `stepStays`, one after
+ * another.
  */
 export const drawing = defineConsts({
   deck: 4,
-  deckHold: 1.5,
   delay: 0.54,
   earth: 4.2,
-  gridHold: 1.2,
+  gridShuffle: 4.5,
   gridStagger: 0.33,
   instruments: 8,
   moon: 3.8,
   stepChoose: 3.2,
   stepPlug: 3.4,
   stepStays: 3,
-  thumb: 11,
-  thumbHold: 2.4,
   weekends: 4.5,
   weeks: 3.4,
 });

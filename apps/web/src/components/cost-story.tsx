@@ -13,7 +13,15 @@ import {
   useTransform,
 } from 'motion/react';
 import type { EasingDefinition, MotionValue } from 'motion/react';
-import { Fragment, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
+import {
+  Fragment,
+  useEffect,
+  useEffectEvent,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import type { MouseEvent, ReactNode } from 'react';
 import {
   AVERAGE_HOURS,
@@ -21,6 +29,7 @@ import {
   heroMetrics,
   HORIZON_WEEKS,
   HORIZON_YEARS,
+  HOURS_PER_SKILL,
   MOON_KM,
   MOON_WALK_HOURS,
   moonShare,
@@ -39,8 +48,12 @@ import { AppFan } from './app-fan.tsx';
 import { BillFilters } from './bill-paper.tsx';
 import { BooksGraphic } from './deck/books.tsx';
 import { HEIGHT, WIDTH } from './deck/box.ts';
+import { DegreesGraphic } from './deck/degrees.tsx';
+import { InstrumentsGraphic } from './deck/instruments.tsx';
 import { LanguagesGraphic } from './deck/languages.tsx';
 import { MarathonsGraphic } from './deck/marathons.tsx';
+import { NovelsGraphic } from './deck/novels.tsx';
+import { SkillsGraphic } from './deck/skills.tsx';
 import { TripsGraphic } from './deck/trips.tsx';
 import { GridTexture } from './grid-texture.tsx';
 import { InfoTip } from './info-tip.tsx';
@@ -129,6 +142,8 @@ const WIDE_GRID_ROOM = 204;
 const NARROW_GRID_ROOM = 264;
 /** How wide the six stand on a wide screen: past the column, so each is drawn large enough to read. */
 const GRID_WIDTH = 960;
+/** The cells of the grid, the facts it shows at once. */
+const CELLS = 6;
 /**
  * The weekends, one calendar tile each, flipping past the line where each one
  * is crossed out. They ease from rest up to a pace a cross can be watched
@@ -219,6 +234,20 @@ const CUE_BOTTOM = `calc(${spacing.s8} + ${spacing.s4})`;
 const cueFall = keyframes({
   from: { transform: `translateY(-${CUE_DROP}px)` },
   to: { transform: `translateY(${CUE_HEIGHT}px)` },
+});
+
+/**
+ * A fact swapped into the grid comes on the way the six did, rising into
+ * focus as it fades in; the one it takes the place of fades out of focus
+ * where it stands, as quietly as a beat leaves.
+ */
+const cellRise = keyframes({
+  from: { filter: `blur(${blur.medium})`, opacity: 0, transform: `translateY(${distance.medium})` },
+  to: { filter: 'none', opacity: 1, transform: 'none' },
+});
+const cellFade = keyframes({
+  from: { filter: 'none', opacity: 1 },
+  to: { filter: `blur(${blur.medium})`, opacity: 0 },
 });
 
 const styles = create({
@@ -328,6 +357,22 @@ const styles = create({
   cellStagger: (place: number) => ({
     transitionDelay: `${(place + 1) * drawing.gridStagger}s`,
   }),
+  // A fact swapped in, and one on its way out. The one swapped in stands on
+  // the end of its rise until the grid goes back to the six it opens on, so
+  // it fades out with the beat as the six do.
+  cellIn: {
+    animationDuration: duration.verySlow,
+    animationFillMode: 'both',
+    animationName: cellRise,
+    animationTimingFunction: easing.inOut,
+  },
+  cellOut: {
+    animationDuration: duration.quick,
+    animationFillMode: 'both',
+    animationName: cellFade,
+    animationTimingFunction: easing.inOut,
+    pointerEvents: 'none',
+  },
   // The drawing's box, across the cell and no taller than the window leaves
   // room for.
   cellArt: {
@@ -1137,52 +1182,24 @@ export function Mark({
 }
 
 /**
- * How far a drawing has played, from 0 to 1: over `seconds` each time its beat
- * comes on, once the sentence has risen into place, and back to the start
- * once the beat has faded out, so it plays again when the reader comes back
- * to it. It stands done until the page has come alive, and for good with less
- * motion.
+ * How far a drawing has played, from 0 to 1: once over `seconds` each time
+ * its beat comes on, once the sentence has risen into place and `after`
+ * seconds more, then on its end; and back to the start once the beat has
+ * faded out, so it plays again when the reader comes back to it. It stands
+ * at `from` until then: done, so the page shows every drawing whole until it
+ * has come alive, and for good with less motion. A drawing put on the page
+ * while its beat is on starts from nothing instead, so it is never seen whole
+ * before it has played.
  */
 function usePlayed(
   run: boolean,
   seconds: number,
-  ease: [number, number, number, number] | 'linear',
-): MotionValue<number> {
-  const reduced = useLessMotion();
-  const played = useMotionValue(1);
-  useEffect(() => {
-    if (reduced) {
-      played.set(1);
-      return;
-    }
-    if (!run) {
-      const timer = setTimeout(() => played.set(0), FADE_OUT_MS);
-      return () => clearTimeout(timer);
-    }
-    played.set(0);
-    const controls = animate(played, 1, { delay: drawing.delay, duration: seconds, ease });
-    return () => controls.stop();
-  }, [ease, played, reduced, run, seconds]);
-  return played;
-}
-
-/**
- * How far one of the six drawings in the grid has played, from 0 to 1, over
- * and over while its beat is on: over its own `seconds` once its cell has
- * risen into place, `drawing.gridStagger` later for each cell up to its
- * `place`, then a stand of `drawing.gridHold` on its end, and from the start
- * again. Off the beat it stops, and is back at the start once the beat has
- * faded out. It stands done until the page has come alive, and for good with
- * less motion.
- */
-function useLooped(
-  run: boolean,
-  seconds: number,
   ease: EasingDefinition,
-  place: number,
+  after = 0,
+  from = 1,
 ): MotionValue<number> {
   const reduced = useLessMotion();
-  const played = useMotionValue(1);
+  const played = useMotionValue(from);
   useEffect(() => {
     if (reduced) {
       played.set(1);
@@ -1193,16 +1210,13 @@ function useLooped(
       return () => clearTimeout(timer);
     }
     played.set(0);
-    const round = seconds + drawing.gridHold;
-    const controls = animate(played, [0, 1, 1], {
-      delay: (place + 1) * drawing.gridStagger + drawing.delay,
-      duration: round,
-      ease: [ease, 'linear'],
-      repeat: Infinity,
-      times: [0, seconds / round, 1],
+    const controls = animate(played, 1, {
+      delay: drawing.delay + after,
+      duration: seconds,
+      ease,
     });
     return () => controls.stop();
-  }, [ease, place, played, reduced, run, seconds]);
+  }, [after, ease, played, reduced, run, seconds]);
   return played;
 }
 
@@ -1716,6 +1730,203 @@ function Moon({ share, walked }: { share: number; walked: MotionValue<number> })
 }
 
 /**
+ * One thing the hours could have been, as the grid shows it: its drawing,
+ * drawn as far as `played` says, the line under it, and how long and on what
+ * curve the drawing plays.
+ */
+type Fact = {
+  art: (played: MotionValue<number>) => ReactNode;
+  caption: ReactNode;
+  ease: EasingDefinition;
+  key: string;
+  seconds: number;
+};
+
+/** A cell of the grid: the fact in it, and the swap that put it there, none for the six it opens on. */
+type Cell = { fact: string; swap: number };
+
+/**
+ * The next swap: a cell other than the one the last swap was made in, and a
+ * fact off the grid to put in it, one the grid has not shown since it came on
+ * while any is left, so in time every fact in `pool` comes up.
+ */
+function nextSwap(
+  cells: ReadonlyArray<Cell>,
+  pool: ReadonlyArray<string>,
+  shown: ReadonlySet<string>,
+): { cell: number; fact: string } | null {
+  const latest = Math.max(...cells.map((cell) => cell.swap));
+  const places = cells.flatMap((cell, index) =>
+    latest > 0 && cell.swap === latest ? [] : [index],
+  );
+  const off = pool.filter((fact) => cells.every((cell) => cell.fact !== fact));
+  const fresh = off.filter((fact) => !shown.has(fact));
+  const from = fresh.length > 0 ? fresh : off;
+  const cell = places[Math.floor(Math.random() * places.length)];
+  const fact = from[Math.floor(Math.random() * from.length)];
+  return cell === undefined || fact === undefined ? null : { cell, fact };
+}
+
+/**
+ * One cell of the grid, a fact's drawing over its line. The six the grid
+ * opens on rise into place one after another while it is `staged`, the one
+ * at `place` that many steps after the line over them; a fact `swapped` in
+ * rises on its own, once the one before it has faded out. Either way its
+ * drawing plays once as it lands, while the grid is `on`, and stands on its
+ * end.
+ */
+function FactCell({
+  fact,
+  leaving,
+  on,
+  place,
+  staged,
+  swapped,
+}: {
+  fact: Fact;
+  leaving: boolean;
+  on: boolean;
+  place: number;
+  staged: boolean;
+  swapped: boolean;
+}) {
+  const played = usePlayed(
+    on,
+    fact.seconds,
+    fact.ease,
+    swapped ? 0 : (place + 1) * drawing.gridStagger,
+    swapped ? 0 : 1,
+  );
+  return (
+    <li
+      {...props(
+        styles.cell,
+        staged && [styles.cellOn, !swapped && styles.cellStagger(place)],
+        swapped && styles.cellIn,
+        leaving && styles.cellOut,
+      )}
+    >
+      <div style={{ aspectRatio: ART_RATIO }} {...props(styles.cellArt)}>
+        <div style={{ aspectRatio: ART_RATIO }} {...props(styles.cellDrawing)}>
+          {fact.art(played)}
+        </div>
+      </div>
+      <p {...props(styles.caption)}>{fact.caption}</p>
+    </li>
+  );
+}
+
+/**
+ * The grid of what else the hours could have been: the first six `facts`, in
+ * order, each drawn once as it comes on. Once all six have played it stands
+ * `drawing.gridShuffle`, then one cell trades its fact for one of the rest,
+ * and so on for as long as the grid is `on`: never the same cell twice
+ * running, and never a fact twice at once. Off the stage it goes back to the
+ * six it opens on, so every visit starts the same. With less motion the six
+ * stand drawn and nothing is swapped.
+ */
+function FactGrid({
+  facts,
+  on,
+  staged,
+}: {
+  facts: ReadonlyArray<Fact>;
+  on: boolean;
+  staged: boolean;
+}) {
+  const reduced = useLessMotion();
+  const opening = facts.slice(0, CELLS).map((fact) => ({ fact: fact.key, swap: 0 }));
+  const [cells, setCells] = useState<ReadonlyArray<Cell>>(opening);
+  // Every fact the grid has shown since it came on.
+  const [shown, setShown] = useState<ReadonlySet<string>>(
+    () => new Set(opening.map((cell) => cell.fact)),
+  );
+  // The cell on its way out, and the fact that takes its place once it has gone.
+  const [leaving, setLeaving] = useState<{ cell: number; fact: string } | null>(null);
+  const running = on && !reduced;
+  const latest = Math.max(...cells.map((cell) => cell.swap));
+  const changed = latest > 0 || leaving !== null;
+  const secondsOf = (key: string) => facts.find((fact) => fact.key === key)?.seconds ?? 0;
+  // How long the grid stands before its next swap: until the drawings that
+  // came on last have played, the six it opens on or the fact swapped in
+  // last, and a rest after.
+  const wait =
+    drawing.delay +
+    drawing.gridShuffle +
+    Math.max(
+      ...cells.map((cell, place) =>
+        cell.swap < latest
+          ? 0
+          : (cell.swap === 0 ? (place + 1) * drawing.gridStagger : 0) + secondsOf(cell.fact),
+      ),
+    );
+
+  const swapOut = useEffectEvent(() =>
+    setLeaving(
+      nextSwap(
+        cells,
+        facts.map((fact) => fact.key),
+        shown,
+      ),
+    ),
+  );
+  const swapIn = useEffectEvent(() => {
+    if (leaving === null) {
+      return;
+    }
+    setCells(
+      cells.map((cell, index) =>
+        index === leaving.cell ? { fact: leaving.fact, swap: latest + 1 } : cell,
+      ),
+    );
+    setShown(new Set([...shown, leaving.fact]));
+    setLeaving(null);
+  });
+  const reset = useEffectEvent(() => {
+    setCells(opening);
+    setShown(new Set(opening.map((cell) => cell.fact)));
+    setLeaving(null);
+  });
+
+  // While the grid is on, a cell fades out once the wait is over and its new
+  // fact comes in once it has gone. Off, the grid goes back to the six it
+  // opens on as soon as the beat has faded out.
+  useEffect(() => {
+    if (!running) {
+      if (!changed) {
+        return;
+      }
+      const timer = setTimeout(() => reset(), FADE_OUT_MS);
+      return () => clearTimeout(timer);
+    }
+    const timer =
+      leaving === null
+        ? setTimeout(() => swapOut(), wait * 1000)
+        : setTimeout(() => swapIn(), FADE_OUT_MS);
+    return () => clearTimeout(timer);
+  }, [changed, leaving, running, wait]);
+
+  return (
+    <ul {...props(styles.could)}>
+      {cells.map((cell, place) => {
+        const fact = facts.find((candidate) => candidate.key === cell.fact);
+        return fact === undefined ? null : (
+          <FactCell
+            fact={fact}
+            key={cell.fact}
+            leaving={leaving?.cell === place}
+            on={on}
+            place={place}
+            staged={staged}
+            swapped={cell.swap > 0}
+          />
+        );
+      })}
+    </ul>
+  );
+}
+
+/**
  * Act one: what the average day costs, told one sentence a screen. The stage
  * stands pinned while the section scrolls under it, the page comes to rest on
  * one beat at a time, and each beat's drawing plays as it comes on. It ends
@@ -1741,13 +1952,6 @@ export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
   const on = (index: number) => seen && active === index;
   const weeksDrawn = usePlayed(on(WEEKS_BEAT), drawing.weeks, SMOOTH_OUT);
   const walked = usePlayed(on(EARTH_BEAT), drawing.earth, SMOOTH_OUT);
-  // The six in the grid, in their places, each eased the way it is on its own.
-  const weekendsDrawn = useLooped(on(GRID_BEAT), drawing.weekends, 'linear', 0);
-  const moonWalked = useLooped(on(GRID_BEAT), drawing.moon, SMOOTH_OUT, 1);
-  const booksPiled = useLooped(on(GRID_BEAT), drawing.deck, 'easeInOut', 2);
-  const languagesSaid = useLooped(on(GRID_BEAT), drawing.deck, 'easeInOut', 3);
-  const marathonsRun = useLooped(on(GRID_BEAT), drawing.deck, 'linear', 4);
-  const tripsFlown = useLooped(on(GRID_BEAT), drawing.deck, 'linear', 5);
 
   const metrics = heroMetrics(AVERAGE_HOURS);
   const amountOf = (key: string) => metrics.find((metric) => metric.key === key)?.amount ?? 0;
@@ -1756,6 +1960,10 @@ export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
   const languages = amountOf('languages');
   const marathons = amountOf('marathons');
   const trips = amountOf('travel');
+  const instruments = amountOf('instruments');
+  const degrees = amountOf('degrees');
+  const novels = amountOf('novels');
+  const skills = amountOf('skills');
   // The waking years, as the page prints them.
   const years = Number(formatYears(AVERAGE_HOURS));
   const number = new Intl.NumberFormat(getLocale());
@@ -2028,6 +2236,177 @@ export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
   const tipLabel = m.home_receipt_tip_label();
   const turning = active === TURN_BEAT;
 
+  // Every fact the grid can show, each eased the way it is on its own. It
+  // opens on the first six, in this order, and swaps the rest in over time.
+  const facts: ReadonlyArray<Fact> = [
+    {
+      art: (played) => <InstrumentsGraphic amount={instruments} play={played} />,
+      caption: (
+        <Sentence
+          figures={[<Figure key="instruments" value={instruments} />]}
+          mark={<Mark label={tipLabel}>{m.home_receipt_instruments_tip()}</Mark>}
+          text={m.home_cost_could_instruments({ count: slot(0) })}
+        />
+      ),
+      ease: 'linear',
+      key: 'instruments',
+      seconds: drawing.instruments,
+    },
+    {
+      art: (played) => <Moon share={toMoon} walked={played} />,
+      caption: (
+        <Sentence
+          figures={[]}
+          mark={
+            <Mark label={tipLabel}>
+              {m.home_receipt_moon_tip({
+                hours: number.format(MOON_WALK_HOURS),
+                km: number.format(MOON_KM),
+                percent: toMoonPercent,
+                speed: WALKING_KMH,
+              })}
+            </Mark>
+          }
+          text={
+            toMoon >= HALFWAY
+              ? m.home_cost_could_moon_half()
+              : m.home_cost_could_moon_part({ percent: toMoonPercent })
+          }
+        />
+      ),
+      ease: SMOOTH_OUT,
+      key: 'moon',
+      seconds: drawing.moon,
+    },
+    {
+      art: (played) => <BooksGraphic play={played} />,
+      caption: (
+        <Sentence
+          figures={[<Figure key="books" value={books} />]}
+          mark={<Mark label={tipLabel}>{m.home_receipt_books_tip()}</Mark>}
+          text={m.home_cost_could_books({ count: slot(0) })}
+        />
+      ),
+      ease: 'easeInOut',
+      key: 'books',
+      seconds: drawing.deck,
+    },
+    {
+      art: (played) => <LanguagesGraphic amount={languages} play={played} />,
+      caption: (
+        <Sentence
+          figures={[<Figure key="languages" value={languages} />]}
+          mark={<Mark label={tipLabel}>{m.home_receipt_languages_tip()}</Mark>}
+          text={m.home_cost_could_languages({ count: slot(0) })}
+        />
+      ),
+      ease: 'easeInOut',
+      key: 'languages',
+      seconds: drawing.deck,
+    },
+    {
+      art: (played) => <MarathonsGraphic play={played} />,
+      caption: (
+        <Sentence
+          figures={[<Figure key="marathons" value={marathons} />]}
+          mark={<Mark label={tipLabel}>{m.home_receipt_marathons_tip()}</Mark>}
+          text={m.home_cost_could_marathons({ count: slot(0) })}
+        />
+      ),
+      ease: 'linear',
+      key: 'marathons',
+      seconds: drawing.deck,
+    },
+    {
+      art: (played) => <TripsGraphic play={played} />,
+      caption: (
+        <Sentence
+          figures={[<Figure key="trips" value={trips} />]}
+          mark={<Mark label={tipLabel}>{m.home_receipt_travel_tip()}</Mark>}
+          text={m.home_cost_could_travel({ count: slot(0) })}
+        />
+      ),
+      ease: 'linear',
+      key: 'trips',
+      seconds: drawing.deck,
+    },
+    {
+      art: (played) => <Weekends drawn={played} />,
+      caption: (
+        <Sentence
+          figures={[]}
+          mark={
+            <Mark label={tipLabel}>
+              {m.home_receipt_weekends_tip({
+                daily: AVERAGE_HOURS,
+                waking: WAKING_HOURS,
+                weekend: WEEKEND_HOURS,
+                weekly: weeklyHours(AVERAGE_HOURS),
+              })}
+            </Mark>
+          }
+          text={m.home_cost_could_weekends()}
+        />
+      ),
+      ease: 'linear',
+      key: 'weekends',
+      seconds: drawing.weekends,
+    },
+    {
+      art: (played) => <DegreesGraphic amount={degrees} play={played} />,
+      caption: (
+        <Sentence
+          figures={[<Figure key="degrees" value={degrees} />]}
+          mark={<Mark label={tipLabel}>{m.home_receipt_degrees_tip()}</Mark>}
+          text={m.home_cost_could_degrees({ count: slot(0) })}
+        />
+      ),
+      ease: 'linear',
+      key: 'degrees',
+      seconds: drawing.deck,
+    },
+    {
+      art: (played) => <NovelsGraphic amount={novels} play={played} />,
+      caption: (
+        <Sentence
+          figures={[<Figure key="novels" value={novels} />]}
+          mark={<Mark label={tipLabel}>{m.home_receipt_novels_tip()}</Mark>}
+          text={m.home_cost_could_novels({ count: slot(0) })}
+        />
+      ),
+      ease: 'linear',
+      key: 'novels',
+      seconds: drawing.deck,
+    },
+    {
+      art: (played) => (
+        <SkillsGraphic
+          amount={skills}
+          labels={{
+            hours: m.home_cost_skills_hours({ hours: number.format(HOURS_PER_SKILL) }),
+            names: [
+              m.home_cost_skills_software(),
+              m.home_cost_skills_drawing(),
+              m.home_cost_skills_photography(),
+              m.home_cost_skills_chess(),
+            ],
+          }}
+          play={played}
+        />
+      ),
+      caption: (
+        <Sentence
+          figures={[<Figure key="skills" value={skills} />]}
+          mark={<Mark label={tipLabel}>{m.home_receipt_skills_tip()}</Mark>}
+          text={m.home_cost_could_skills({ count: slot(0) })}
+        />
+      ),
+      ease: 'linear',
+      key: 'skills',
+      seconds: drawing.deck,
+    },
+  ];
+
   return (
     <section id={id} ref={story} {...props(styles.story)}>
       <BillFilters />
@@ -2101,113 +2480,7 @@ export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
 
           <div {...beat(GRID_BEAT)}>
             <p {...props(partOf(GRID_BEAT, 0, [styles.line, styles.lead]))}>{m.home_cost_or()}</p>
-            <ul {...props(styles.could)}>
-              {[
-                {
-                  art: <Weekends drawn={weekendsDrawn} />,
-                  caption: (
-                    <Sentence
-                      figures={[]}
-                      mark={
-                        <Mark label={tipLabel}>
-                          {m.home_receipt_weekends_tip({
-                            daily: AVERAGE_HOURS,
-                            waking: WAKING_HOURS,
-                            weekend: WEEKEND_HOURS,
-                            weekly: weeklyHours(AVERAGE_HOURS),
-                          })}
-                        </Mark>
-                      }
-                      text={m.home_cost_could_weekends()}
-                    />
-                  ),
-                  key: 'weekends',
-                },
-                {
-                  art: <Moon share={toMoon} walked={moonWalked} />,
-                  caption: (
-                    <Sentence
-                      figures={[]}
-                      mark={
-                        <Mark label={tipLabel}>
-                          {m.home_receipt_moon_tip({
-                            hours: number.format(MOON_WALK_HOURS),
-                            km: number.format(MOON_KM),
-                            percent: toMoonPercent,
-                            speed: WALKING_KMH,
-                          })}
-                        </Mark>
-                      }
-                      text={
-                        toMoon >= HALFWAY
-                          ? m.home_cost_could_moon_half()
-                          : m.home_cost_could_moon_part({ percent: toMoonPercent })
-                      }
-                    />
-                  ),
-                  key: 'moon',
-                },
-                {
-                  art: <BooksGraphic play={booksPiled} />,
-                  caption: (
-                    <Sentence
-                      figures={[<Figure key="books" value={books} />]}
-                      mark={<Mark label={tipLabel}>{m.home_receipt_books_tip()}</Mark>}
-                      text={m.home_cost_could_books({ count: slot(0) })}
-                    />
-                  ),
-                  key: 'books',
-                },
-                {
-                  art: <LanguagesGraphic amount={languages} play={languagesSaid} />,
-                  caption: (
-                    <Sentence
-                      figures={[<Figure key="languages" value={languages} />]}
-                      mark={<Mark label={tipLabel}>{m.home_receipt_languages_tip()}</Mark>}
-                      text={m.home_cost_could_languages({ count: slot(0) })}
-                    />
-                  ),
-                  key: 'languages',
-                },
-                {
-                  art: <MarathonsGraphic play={marathonsRun} />,
-                  caption: (
-                    <Sentence
-                      figures={[<Figure key="marathons" value={marathons} />]}
-                      mark={<Mark label={tipLabel}>{m.home_receipt_marathons_tip()}</Mark>}
-                      text={m.home_cost_could_marathons({ count: slot(0) })}
-                    />
-                  ),
-                  key: 'marathons',
-                },
-                {
-                  art: <TripsGraphic play={tripsFlown} />,
-                  caption: (
-                    <Sentence
-                      figures={[<Figure key="trips" value={trips} />]}
-                      mark={<Mark label={tipLabel}>{m.home_receipt_travel_tip()}</Mark>}
-                      text={m.home_cost_could_travel({ count: slot(0) })}
-                    />
-                  ),
-                  key: 'trips',
-                },
-              ].map(({ art, caption, key }, place) => (
-                <li
-                  key={key}
-                  {...props(
-                    styles.cell,
-                    active === GRID_BEAT && [styles.cellOn, styles.cellStagger(place)],
-                  )}
-                >
-                  <div style={{ aspectRatio: ART_RATIO }} {...props(styles.cellArt)}>
-                    <div style={{ aspectRatio: ART_RATIO }} {...props(styles.cellDrawing)}>
-                      {art}
-                    </div>
-                  </div>
-                  <p {...props(styles.caption)}>{caption}</p>
-                </li>
-              ))}
-            </ul>
+            <FactGrid facts={facts} on={on(GRID_BEAT)} staged={active === GRID_BEAT} />
           </div>
 
           <div {...beat(TURN_BEAT)}>

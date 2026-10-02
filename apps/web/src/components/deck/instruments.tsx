@@ -1,10 +1,10 @@
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
-import { animate, useMotionValue, useMotionValueEvent } from 'motion/react';
-import { useLayoutEffect, useState } from 'react';
+import { useMotionValueEvent } from 'motion/react';
+import type { MotionValue } from 'motion/react';
+import { useState } from 'react';
 import { drawing } from '../../lib/motion.stylex.ts';
-import { useLessMotion } from '../cost-story.tsx';
 import { HEIGHT, WIDTH } from './box.ts';
 
 /** The whole run, from the first sound to the last: twice an answer's time, so no scene is rushed. */
@@ -377,42 +377,26 @@ function outline({ bow, height, rx, ry, width, x, y }: Part): string {
   ].join(' ');
 }
 
-/**
- * The run's progress, from 0 to 1. It plays once from the start each time
- * `play` turns on, and goes back to the start when it turns off. It stands at
- * the end for a reader who asked for less motion, and for a page that has not
- * run its script.
- */
-function useRun(play: boolean): number {
-  const reduced = useLessMotion();
-  const progress = useMotionValue(1);
-  const [run, setRun] = useState(1);
-  useMotionValueEvent(progress, 'change', setRun);
-
-  // Before the browser paints, so a drawing put on the page never shows its
-  // end for a frame before it starts.
-  useLayoutEffect(() => {
-    if (reduced) {
-      progress.set(1);
-      return;
-    }
-    progress.set(0);
-    if (!play) {
-      return;
-    }
-    const controls = animate(progress, 1, { duration: RUN_SECONDS, ease: 'linear' });
-    return () => controls.stop();
-  }, [play, progress, reduced]);
-
+/** The run's progress, from 0 to 1, as `play` says. */
+function useRun(play: MotionValue<number>): number {
+  const [run, setRun] = useState(() => play.get());
+  useMotionValueEvent(play, 'change', setRun);
   return run;
 }
 
 /**
  * A sound that turns into one instrument after another: piano keys lit in a
  * run, guitar strings strummed, a drum struck and rippling, round and round,
- * faster each time. It ends as the sound it started from, in orange.
+ * faster each time. It ends as the sound it started from, in orange. It plays
+ * as far as `play` says, from 0 to 1.
  */
-export function InstrumentsGraphic({ amount, play }: { amount: number; play: boolean }) {
+export function InstrumentsGraphic({
+  amount,
+  play,
+}: {
+  amount: number;
+  play: MotionValue<number>;
+}) {
   const run = useRun(play);
   const shown = Math.max(0, Math.min(SHOWN_MAX, amount));
   const scenes: ReadonlyArray<Scene> = [

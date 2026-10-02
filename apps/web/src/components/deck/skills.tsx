@@ -1,17 +1,9 @@
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
-import {
-  animate,
-  clamp,
-  easeInOut,
-  motion,
-  useMotionValue,
-  useMotionValueEvent,
-  useTransform,
-} from 'motion/react';
+import { clamp, easeInOut, motion, useMotionValueEvent, useTransform } from 'motion/react';
 import type { MotionValue } from 'motion/react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { drawing, duration, easing } from '../../lib/motion.stylex.ts';
 import { useLessMotion } from '../cost-story.tsx';
 import { HEIGHT, WIDTH } from './box.ts';
@@ -145,8 +137,7 @@ function Track({
 }) {
   const filled = useTransform(clock, (seconds) => filledAt(index, count, seconds));
   const bar = useTransform(filled, (share) => fillPath(y, share));
-  // Full until the page says otherwise, as the track is.
-  const [full, setFull] = useState(true);
+  const [full, setFull] = useState(() => filledAt(index, count, clock.get()) >= 1);
   useMotionValueEvent(clock, 'change', (seconds) => setFull(filledAt(index, count, seconds) >= 1));
   const labelY = y - TRACK / 2 - RULER_GAP - LONG_LENGTH - LABEL_GAP;
   return (
@@ -176,8 +167,8 @@ function Track({
 /**
  * The world-class skills the hours would have bought: a ten-thousand-hour
  * track for each, named after a skill from `labels`, filling orange one after
- * another. When `play` turns on it plays once from the start; when it turns
- * off the tracks are empty again. With less motion they stand full.
+ * another as far as `play` says, from 0 to 1. With less motion they stand
+ * full.
  */
 export function SkillsGraphic({
   amount,
@@ -186,25 +177,11 @@ export function SkillsGraphic({
 }: {
   amount: number;
   labels?: SkillLabels | undefined;
-  play: boolean;
+  play: MotionValue<number>;
 }) {
   const reduced = useLessMotion();
-  // Done until the page says otherwise, so a page that has not run its script
-  // shows every track full.
-  const clock = useMotionValue(SECONDS);
+  const clock = useTransform(play, (t) => t * SECONDS);
   const rows = rowsFor(amount);
-
-  useEffect(() => {
-    if (reduced) {
-      return;
-    }
-    clock.set(0);
-    if (!play) {
-      return;
-    }
-    const controls = animate(clock, SECONDS, { duration: SECONDS, ease: 'linear' });
-    return () => controls.stop();
-  }, [clock, play, reduced]);
 
   return (
     <svg aria-hidden="true" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} {...props(styles.graphic)}>

@@ -5,8 +5,8 @@ import { create, defaultMarker, props, when } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { useId, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
+import { AngleDown } from 'reicon-react';
 import { CostStory } from '../components/cost-story.tsx';
-import { Facts } from '../components/facts.tsx';
 import { HowItWorks } from '../components/how-it-works.tsx';
 import { MacDownload } from '../components/mac-download.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
@@ -43,6 +43,10 @@ const STORY_URL = 'https://stopa.io/post/297';
  * pieces.
  */
 const LINK_SLOT = '\u0000';
+/** The chevron at the end of a question, in pixels. */
+const CHEVRON_SIZE = 16;
+/** A 1.5px line at that size, in the icon's own 24-unit grid. */
+const CHEVRON_STROKE = 2.25;
 
 const styles = create({
   // Everything under the story, as one place the page can rest anywhere in.
@@ -149,7 +153,7 @@ const styles = create({
       default: '1px',
     },
   },
-  // Quieter than the question, and clear of the plus above it.
+  // Quieter than the question, and clear of the chevron above it.
   faqText: {
     color: colors.muted,
     lineHeight: 1.5,
@@ -158,23 +162,26 @@ const styles = create({
     paddingInlineEnd: spacing.s8,
     textWrap: 'pretty',
   },
-  // The plus at the end of the row. It waits in the muted ink and darkens when
-  // the row is pointed at or its answer is open.
-  faqPlus: {
+  // The chevron at the end of the row. It waits in the muted ink, pointing
+  // down, and darkens when the row is pointed at; an open answer turns it
+  // over to point up.
+  faqChevron: {
     color: {
       default: colors.muted,
       [when.ancestor(':hover')]: colors.fg,
     },
-    fill: 'none',
     flexShrink: 0,
-    height: 16,
-    stroke: 'currentColor',
-    strokeLinecap: 'round',
-    strokeWidth: 1.5,
-    width: 16,
+    transform: 'none',
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: duration.fast,
+    },
+    transitionProperty: 'transform',
+    transitionTimingFunction: easing.smoothOut,
   },
-  faqPlusOpen: {
+  faqChevronOpen: {
     color: colors.fg,
+    transform: 'rotate(180deg)',
   },
   // The whole row is the button, so the question is pressed wherever it is
   // touched.
@@ -206,24 +213,6 @@ const styles = create({
     textAlign: 'start',
     textWrap: 'pretty',
     width: '100%',
-  },
-  // The upright stroke of the plus. It turns a quarter onto the level one and
-  // fades as it goes, which leaves the minus.
-  faqTurn: {
-    opacity: 1,
-    transform: 'none',
-    transformBox: 'fill-box',
-    transformOrigin: 'center',
-    transitionDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: duration.fast,
-    },
-    transitionProperty: 'opacity, transform',
-    transitionTimingFunction: easing.smoothOut,
-  },
-  faqTurnOpen: {
-    opacity: 0,
-    transform: 'rotate(90deg)',
   },
   // Not on the page yet, and taking no room in it either.
   gone: {
@@ -402,20 +391,12 @@ function Question({ answer, question }: { answer: string; question: string }) {
           {...props(styles.faqQuestion, defaultMarker())}
         >
           <span>{question}</span>
-          <svg
+          <AngleDown
             aria-hidden="true"
-            viewBox="0 0 16 16"
-            {...props(styles.faqPlus, open && styles.faqPlusOpen)}
-          >
-            <line x1={3} x2={13} y1={8} y2={8} />
-            <line
-              x1={8}
-              x2={8}
-              y1={3}
-              y2={13}
-              {...props(styles.faqTurn, open && styles.faqTurnOpen)}
-            />
-          </svg>
+            size={CHEVRON_SIZE}
+            strokeWidth={CHEVRON_STROKE}
+            {...props(styles.faqChevron, open && styles.faqChevronOpen)}
+          />
         </button>
       </h3>
       <div
@@ -513,11 +494,6 @@ function HomePage() {
                 </div>
               </article>
             </div>
-          </section>
-
-          <section {...props(styles.section)}>
-            <h2 {...props(styles.sectionTitle)}>{m.home_facts_title()}</h2>
-            <Facts />
           </section>
 
           {/* Act three, support. Who made this and why, told rather than argued:

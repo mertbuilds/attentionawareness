@@ -56,14 +56,6 @@ export const MOON_WALK_HOURS = Math.round(HOURS_TO_MOON / HOURS_ROUNDING) * HOUR
  */
 export const AVERAGE_HOURS = 6;
 
-/**
- * How far a thumb scrolls a day, in meters: 300 feet of mobile content for
- * the average person, the height of the Statue of Liberty, as Facebook's
- * global creative director put it in 2017 (The Drum). Facebook gave no hours
- * behind it, so it is not scaled to the day above.
- */
-export const SCROLL_METERS = 90;
-
 /** One thing the hours would have bought: what it is, and how many. */
 export type HeroMetric = { amount: number; key: string };
 
