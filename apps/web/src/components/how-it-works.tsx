@@ -82,19 +82,9 @@ const styles = create({
     marginBlock: `${spacing.s2} 0`,
     textWrap: 'balance',
   },
-  // A step clear of the cards under it, as well as of the line over it.
+  // The steps clear of the cards under them.
   steps: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s6,
     paddingBlockEnd: spacing.s6,
-  },
-  title: {
-    color: colors.muted,
-    fontSize: font.sizeSm,
-    fontWeight: font.weightMedium,
-    lineHeight: 1.5,
-    margin: 0,
   },
 });
 
@@ -148,14 +138,13 @@ export function HowItWorks() {
 
   return (
     <div {...props(styles.steps)}>
-      <h3 {...props(styles.title)}>{m.home_how_steps_title()}</h3>
       <ol {...props(styles.list)}>
         {STEPS.map(({ Graphic, ...step }, index) => (
           <li key={step.key} ref={items[index]} {...props(styles.step)}>
             <Graphic play={playing[index] === true} />
-            <h4 {...props(styles.stepTitle)}>
+            <h3 {...props(styles.stepTitle)}>
               <span {...props(styles.number)}>{index + 1}</span> {step.title()}
-            </h4>
+            </h3>
             <p {...props(styles.stepBody)}>
               <Sentence
                 figures={[]}

@@ -384,13 +384,33 @@ const styles = create({
     },
     width: '100%',
   },
-  // The drawing in it, the same shape and as large as the box holds.
+  // The drawing in it, the same shape and as large as the box holds: a button
+  // that plays it again, with nothing of a button to see but the ring the
+  // keyboard puts round it.
   cellDrawing: {
     alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderRadius: radius.base,
+    borderStyle: 'none',
+    borderWidth: 0,
+    color: 'inherit',
+    cursor: 'pointer',
     display: 'flex',
+    fontFamily: 'inherit',
+    fontSize: 'inherit',
     height: '100%',
     justifyContent: 'center',
+    margin: 0,
     maxWidth: '100%',
+    outlineColor: colors.fg,
+    outlineOffset: 2,
+    outlineStyle: {
+      ':focus-visible': 'solid',
+      default: 'none',
+    },
+    outlineWidth: 2,
+    padding: 0,
+    WebkitTapHighlightColor: 'transparent',
   },
   // The six, three across and two down, or two across and three down on a
   // phone.
@@ -607,10 +627,10 @@ const styles = create({
     transitionDuration: '0s',
     transitionProperty: 'opacity',
   },
+  // A square and what it stands for, on one line: the square a space from the
+  // words, as the words are from each other.
   legendItem: {
-    alignItems: 'center',
-    display: 'inline-flex',
-    gap: spacing.s2,
+    whiteSpace: 'nowrap',
   },
   legendOn: {
     opacity: 1,
@@ -832,19 +852,16 @@ const styles = create({
       default: 0,
     },
   },
-  // A square of the legend, drawn as the grid draws a week. Centered on the
-  // line it sits a pixel under the middle of the figures beside it, as the
-  // line keeps room for descenders the words hardly use, so it is lifted to
-  // stand level with them.
+  // A square of the legend, drawn as the grid draws a week. It stands on the
+  // baseline like a letter, about as tall as the figures beside it, so its
+  // middle is level with theirs.
   swatch: {
     borderColor: colors.border,
     borderStyle: 'solid',
     borderWidth: 1,
     boxSizing: 'border-box',
-    display: 'block',
-    flexShrink: 0,
+    display: 'inline-block',
     height: SWATCH_SIZE,
-    transform: 'translateY(-1px)',
     width: SWATCH_SIZE,
   },
   swatchSpent: {
@@ -1162,19 +1179,21 @@ export function Figure({ decimals = 0, value }: { decimals?: number; value: numb
   return <span {...props(styles.figure)}>{format.format(value)}</span>;
 }
 
-/** The small i after a figure, and how it is counted. */
+/** The small i after a figure, `size` to the sentence's text, and how it is counted. */
 export function Mark({
   children,
   label,
   onOpenChange,
+  size,
 }: {
   children: ReactNode;
   label: string;
   onOpenChange?: (open: boolean) => void;
+  size?: 'large' | 'small';
 }) {
   return (
     <span {...props(styles.mark)}>
-      <InfoTip label={label} onOpenChange={onOpenChange}>
+      <InfoTip label={label} onOpenChange={onOpenChange} size={size}>
         {children}
       </InfoTip>
     </span>
@@ -1185,11 +1204,11 @@ export function Mark({
  * How far a drawing has played, from 0 to 1: once over `seconds` each time
  * its beat comes on, once the sentence has risen into place and `after`
  * seconds more, then on its end; and back to the start once the beat has
- * faded out, so it plays again when the reader comes back to it. It stands
- * at `from` until then: done, so the page shows every drawing whole until it
- * has come alive, and for good with less motion. A drawing put on the page
- * while its beat is on starts from nothing instead, so it is never seen whole
- * before it has played.
+ * faded out, cut short if it was being played again, so it plays again when
+ * the reader comes back to it. It stands at `from` until then: done, so the
+ * page shows every drawing whole until it has come alive, and for good with
+ * less motion. A drawing put on the page while its beat is on starts from
+ * nothing instead, so it is never seen whole before it has played.
  */
 function usePlayed(
   run: boolean,
@@ -1206,7 +1225,7 @@ function usePlayed(
       return;
     }
     if (!run) {
-      const timer = setTimeout(() => played.set(0), FADE_OUT_MS);
+      const timer = setTimeout(() => played.jump(0), FADE_OUT_MS);
       return () => clearTimeout(timer);
     }
     played.set(0);
@@ -1373,12 +1392,10 @@ function Weeks({
       <WeekGrid filled={shown} layout={NARROW_WEEKS} style={styles.weeksNarrow} />
       <p aria-hidden="true" {...props(styles.legend, on && styles.legendOn)}>
         <span {...props(styles.legendItem)}>
-          <span {...props(styles.swatch)} />
-          {m.home_cost_weeks_legend()}
+          <span {...props(styles.swatch)} /> {m.home_cost_weeks_legend()}
         </span>
         <span {...props(styles.legendItem)}>
-          <span {...props(styles.swatch, styles.swatchSpent)} />
-          {m.home_cost_weeks_legend_screen()}
+          <span {...props(styles.swatch, styles.swatchSpent)} /> {m.home_cost_weeks_legend_screen()}
         </span>
       </p>
     </div>
@@ -1773,12 +1790,15 @@ function nextSwap(
  * at `place` that many steps after the line over them; a fact `swapped` in
  * rises on its own, once the one before it has faded out. Either way its
  * drawing plays once as it lands, while the grid is `on`, and stands on its
- * end.
+ * end. Clicked, the drawing plays once more from the start, even halfway
+ * through, and the grid hears of it through `onReplay`. With less motion it
+ * stands as it is.
  */
 function FactCell({
   fact,
   leaving,
   on,
+  onReplay,
   place,
   staged,
   swapped,
@@ -1786,10 +1806,12 @@ function FactCell({
   fact: Fact;
   leaving: boolean;
   on: boolean;
+  onReplay: () => void;
   place: number;
   staged: boolean;
   swapped: boolean;
 }) {
+  const reduced = useLessMotion();
   const played = usePlayed(
     on,
     fact.seconds,
@@ -1797,6 +1819,17 @@ function FactCell({
     swapped ? 0 : (place + 1) * drawing.gridStagger,
     swapped ? 0 : 1,
   );
+  // Each time the drawing is played again it is put on the page anew, so
+  // nothing of the end it stood on is left over when it starts.
+  const [take, setTake] = useState(0);
+
+  function replay() {
+    played.jump(0);
+    setTake(take + 1);
+    animate(played, 1, { duration: fact.seconds, ease: fact.ease });
+    onReplay();
+  }
+
   return (
     <li
       {...props(
@@ -1807,9 +1840,16 @@ function FactCell({
       )}
     >
       <div style={{ aspectRatio: ART_RATIO }} {...props(styles.cellArt)}>
-        <div style={{ aspectRatio: ART_RATIO }} {...props(styles.cellDrawing)}>
-          {fact.art(played)}
-        </div>
+        <button
+          aria-label={m.home_cost_replay()}
+          inert={reduced}
+          onClick={replay}
+          style={{ aspectRatio: ART_RATIO }}
+          type="button"
+          {...props(styles.cellDrawing)}
+        >
+          <Fragment key={take}>{fact.art(played)}</Fragment>
+        </button>
       </div>
       <p {...props(styles.caption)}>{fact.caption}</p>
     </li>
@@ -1843,6 +1883,10 @@ function FactGrid({
   );
   // The cell on its way out, and the fact that takes its place once it has gone.
   const [leaving, setLeaving] = useState<{ cell: number; fact: string } | null>(null);
+  // How many times a drawing has been played again. Each time starts the wait
+  // over, and the wait outlasts any one drawing, so a drawing played again is
+  // never swapped out before it has played to its end.
+  const [replays, setReplays] = useState(0);
   const running = on && !reduced;
   const latest = Math.max(...cells.map((cell) => cell.swap));
   const changed = latest > 0 || leaving !== null;
@@ -1904,7 +1948,7 @@ function FactGrid({
         ? setTimeout(() => swapOut(), wait * 1000)
         : setTimeout(() => swapIn(), FADE_OUT_MS);
     return () => clearTimeout(timer);
-  }, [changed, leaving, running, wait]);
+  }, [changed, leaving, replays, running, wait]);
 
   return (
     <ul {...props(styles.could)}>
@@ -1916,6 +1960,7 @@ function FactGrid({
             key={cell.fact}
             leaving={leaving?.cell === place}
             on={on}
+            onReplay={() => setReplays(replays + 1)}
             place={place}
             staged={staged}
             swapped={cell.swap > 0}
@@ -2454,7 +2499,7 @@ export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
                   <Figure decimals={Number.isInteger(years) ? 0 : 1} key="years" value={years} />,
                 ]}
                 mark={
-                  <Mark label={tipLabel}>
+                  <Mark label={tipLabel} size="large">
                     {m.home_receipt_total_tip({
                       hours: AVERAGE_HOURS,
                       percent: share.format((AVERAGE_HOURS / WAKING_HOURS) * 100),
@@ -2472,7 +2517,11 @@ export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
             <p {...props(partOf(EARTH_BEAT, 1, styles.line))}>
               <Sentence
                 figures={[<Figure key="earth" value={earth} />]}
-                mark={<Mark label={tipLabel}>{m.home_receipt_earth_tip()}</Mark>}
+                mark={
+                  <Mark label={tipLabel} size="large">
+                    {m.home_receipt_earth_tip()}
+                  </Mark>
+                }
                 text={m.home_cost_earth({ count: slot(0) })}
               />
             </p>

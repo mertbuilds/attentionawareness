@@ -464,7 +464,6 @@ function HomePage() {
           that keeps the phone as it is and the manual way that starts it over. */}
           <section {...props(styles.section, styles.anchor)} id={WAY_OUT_ID}>
             <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
-            <p {...props(styles.sectionBody)}>{m.home_how_body()}</p>
             <HowItWorks />
             <div {...props(styles.ways)}>
               <article {...props(styles.way, styles.wayAccent)}>
