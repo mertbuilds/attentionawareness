@@ -10,11 +10,11 @@ from the site.
 
 ### `apps/web`
 
-The site. A math-first landing page that prices a scrolling habit in years,
-the download for the Mac app, and the guide to the extension. It also signs
-the configuration profile: `POST /api/sign` is what the Mac app asks for the
-profile it installs. TanStack Start on Cloudflare Workers; the founding stack
-decisions are in [docs/adr/0001-stack.md](docs/adr/0001-stack.md).
+The site. A landing page, the download for the Mac app, and the guide to the
+extension. It also signs the configuration profile: `POST /api/sign` is what
+the Mac app asks for the profile it installs. TanStack Start on Cloudflare
+Workers; the founding stack decisions are in
+[docs/adr/0001-stack.md](docs/adr/0001-stack.md).
 
 ### `apps/extension`
 

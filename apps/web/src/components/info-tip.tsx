@@ -10,18 +10,17 @@ import { Tip } from './tip.tsx';
  */
 const GLYPH = '"i"';
 /**
- * The ring across: large next to one of the story's display lines, smaller
- * next to a caption or a step's words. Either way the button's unseen hit
- * area reaches past the ring on every side to a 24px press.
+ * The ring across, small next to a step's words. The button's unseen hit area
+ * reaches past the ring on every side to a 24px press.
  */
-const LARGE = 20;
-const SMALL = 12;
+const RING = 12;
 const HIT = 24;
 
 const styles = create({
   button: {
     '::after': {
       content: '""',
+      inset: (RING - HIT) / 2,
       position: 'absolute',
     },
     alignItems: 'center',
@@ -38,24 +37,12 @@ const styles = create({
     cursor: 'pointer',
     display: 'inline-flex',
     flexShrink: 0,
+    height: RING,
     justifyContent: 'center',
     padding: 0,
     position: 'relative',
     verticalAlign: 'middle',
-  },
-  large: {
-    '::after': {
-      inset: (LARGE - HIT) / 2,
-    },
-    height: LARGE,
-    width: LARGE,
-  },
-  small: {
-    '::after': {
-      inset: (SMALL - HIT) / 2,
-    },
-    height: SMALL,
-    width: SMALL,
+    width: RING,
   },
   // A book-face italic i, the way a printed note marks one.
   glyph: {
@@ -63,44 +50,23 @@ const styles = create({
       content: GLYPH,
     },
     fontFamily: "Georgia, 'Times New Roman', serif",
+    fontSize: 8,
     fontStyle: 'italic',
     fontWeight: font.weightRegular,
     lineHeight: 1,
     textTransform: 'none',
   },
-  // In the large ring the i sits a pixel high, where the eye puts its middle.
-  glyphLarge: {
-    fontSize: 12,
-    marginBlockStart: -1,
-  },
-  glyphSmall: {
-    fontSize: 8,
-  },
 });
 
-/** A small "i" beside a line, `size` to the line's text, and the explanation behind it. */
-export function InfoTip({
-  children,
-  label,
-  onOpenChange,
-  size = 'small',
-}: {
-  children: ReactNode;
-  label: string;
-  onOpenChange?: ((open: boolean) => void) | undefined;
-  size?: 'large' | 'small' | undefined;
-}) {
+/** A small "i" beside a line, and the explanation behind it. */
+export function InfoTip({ children, label }: { children: ReactNode; label: string }) {
   return (
     <Tip
-      onOpenChange={onOpenChange}
       paper
       title={label}
       trigger={
-        <button aria-label={label} type="button" {...props(styles.button, styles[size])}>
-          <span
-            aria-hidden="true"
-            {...props(styles.glyph, size === 'large' ? styles.glyphLarge : styles.glyphSmall)}
-          />
+        <button aria-label={label} type="button" {...props(styles.button)}>
+          <span aria-hidden="true" {...props(styles.glyph)} />
         </button>
       }
     >

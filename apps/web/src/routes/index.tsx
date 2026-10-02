@@ -6,7 +6,6 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useId, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { AngleDown, Check } from 'reicon-react';
-import { CostStory } from '../components/cost-story.tsx';
 import { HowItWorks } from '../components/how-it-works.tsx';
 import { MacDownload } from '../components/mac-download.tsx';
 import { ScreenShots } from '../components/screen-shots.tsx';
@@ -27,7 +26,6 @@ export const Route = createFileRoute('/')({
  */
 const SECTION_GAP = '96px';
 /** The places on the page that can be linked to, and the ids they use. */
-const COST_ID = 'cost';
 const WAY_OUT_ID = 'way-out';
 const STORY_ID = 'story';
 const STORY_REST_ID = 'story-rest';
@@ -53,17 +51,6 @@ const CHEVRON_STROKE = 2.25;
 const CHECK_SIZE = 16;
 
 const styles = create({
-  // Everything under the story, as one place the page can rest anywhere in.
-  // It is taller than the window, so while the story holds the page to its
-  // beats a find, a link or a focus that lands down here stays where it lands
-  // instead of being pulled back to the story's foot.
-  afterStory: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: SECTION_GAP,
-    scrollMarginBlockStart: SECTION_GAP,
-    scrollSnapAlign: 'start',
-  },
   // A section the page links down to. The scroll stops short of its heading,
   // clear of the brand bar fixed over the top of the window.
   anchor: {
@@ -88,7 +75,6 @@ const styles = create({
     lineHeight: 1.5,
     margin: 0,
   },
-  // Set at the turn's size, so the page closes on the voice it turned in.
   closingTitle: {
     fontSize: {
       '@media (min-width: 640px)': 'clamp(40px, 5vw, 64px)',
@@ -310,13 +296,11 @@ const styles = create({
     flexDirection: 'column',
     fontFamily: font.family,
     gap: SECTION_GAP,
-    // The stacking context that keeps the story's grid above the page's own
-    // background instead of behind it.
+    // The stacking context that keeps the footer's graph paper above the page's
+    // own background instead of behind it.
     isolation: 'isolate',
     minHeight: `calc(100vh - ${wip.height})`,
-    // The story's grid runs the whole width of the window; anything past the
-    // window's edge is cut, so nothing scrolls sideways. `clip` keeps the
-    // story's stage sticky, where `hidden` would not.
+    // Anything past the window's edge is cut, so nothing scrolls sideways.
     overflowX: 'clip',
     paddingBlockEnd: spacing.s16,
     paddingInline: spacing.s4,
@@ -494,152 +478,145 @@ function HomePage() {
   return (
     <main {...props(styles.page)}>
       <div {...props(styles.content)}>
-        {/* Act one, the problem, and the first screen: what an average day
-        adds up to, told one sentence a screen, then whose doing it is, and
-        that the only way to win is not to play. */}
-        <CostStory id={COST_ID} wayOut={WAY_OUT_ID} />
-
-        <div {...props(styles.afterStory)}>
-          {/* Act two, the way out: where the Mac app comes in and what it does,
-          then how it works, in three steps, what the app costs and promises,
-          and under it, past an or, the manual way that starts the phone over. */}
-          <section {...props(styles.section, styles.anchor)} id={WAY_OUT_ID}>
-            <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
-            <p {...props(styles.sectionBody)}>{m.home_how_lead()}</p>
-            <HowItWorks />
-            <div {...props(styles.offer)}>
-              <div {...props(styles.offerHead)}>
-                <p {...props(styles.offerPrice)}>{m.home_how_app_price()}</p>
-                <ul {...props(styles.promises)}>
-                  {promises.map((promise) => (
-                    <li key={promise} {...props(styles.promise)}>
-                      <Check
-                        aria-hidden="true"
-                        size={CHECK_SIZE}
-                        strokeWidth={CHEVRON_STROKE}
-                        {...props(styles.promiseCheck)}
-                      />
-                      {promise}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <MacDownload style={styles.downloadCentered} />
+        {/* Act two, the way out: where the Mac app comes in and what it does,
+        then how it works, in three steps, what the app costs and promises,
+        and under it, past an or, the manual way that starts the phone over. */}
+        <section {...props(styles.section, styles.anchor)} id={WAY_OUT_ID}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
+          <p {...props(styles.sectionBody)}>{m.home_how_lead()}</p>
+          <HowItWorks />
+          <div {...props(styles.offer)}>
+            <div {...props(styles.offerHead)}>
+              <p {...props(styles.offerPrice)}>{m.home_how_app_price()}</p>
+              <ul {...props(styles.promises)}>
+                {promises.map((promise) => (
+                  <li key={promise} {...props(styles.promise)}>
+                    <Check
+                      aria-hidden="true"
+                      size={CHECK_SIZE}
+                      strokeWidth={CHEVRON_STROKE}
+                      {...props(styles.promiseCheck)}
+                    />
+                    {promise}
+                  </li>
+                ))}
+              </ul>
             </div>
-            <p {...props(styles.or)}>{m.home_how_or()}</p>
-            <div {...props(styles.diy)}>
-              <p {...props(styles.diyLine)}>{m.home_how_diy()}</p>
-              <Button render={<a href={GUIDE_URL} />} variant="outline">
-                {m.home_how_diy_cta()}
-              </Button>
-            </div>
-          </section>
+            <MacDownload style={styles.downloadCentered} />
+          </div>
+          <p {...props(styles.or)}>{m.home_how_or()}</p>
+          <div {...props(styles.diy)}>
+            <p {...props(styles.diyLine)}>{m.home_how_diy()}</p>
+            <Button render={<a href={GUIDE_URL} />} variant="outline">
+              {m.home_how_diy_cta()}
+            </Button>
+          </div>
+        </section>
 
-          {/* Act three, support. Who made this and why, told rather than argued:
-          the only place on the page that speaks in the first person. */}
-          <section {...props(styles.section, styles.anchor)} id={STORY_ID} ref={storySection}>
-            <h2 {...props(styles.sectionTitle)}>{m.home_story_title()}</h2>
-            <div {...props(styles.story)}>
-              <p {...props(styles.storyLine)}>
-                {storyBefore}
-                <a href={STORY_URL} rel="noreferrer" target="_blank">
-                  {m.home_story_2_link()}
-                </a>
-                {storyAfter}
-              </p>
-              <p {...props(styles.storyLine)}>{m.home_story_2()}</p>
-              <p {...props(styles.storyLine)}>{m.home_story_3()}</p>
+        {/* Act three, support. Who made this and why, told rather than argued:
+        the only place on the page that speaks in the first person. */}
+        <section {...props(styles.section, styles.anchor)} id={STORY_ID} ref={storySection}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_story_title()}</h2>
+          <div {...props(styles.story)}>
+            <p {...props(styles.storyLine)}>
+              {storyBefore}
+              <a href={STORY_URL} rel="noreferrer" target="_blank">
+                {m.home_story_2_link()}
+              </a>
+              {storyAfter}
+            </p>
+            <p {...props(styles.storyLine)}>{m.home_story_2()}</p>
+            <p {...props(styles.storyLine)}>{m.home_story_3()}</p>
+            <ScreenShots
+              shots={[
+                {
+                  alt: m.home_story_shot_friend_1(),
+                  height: 640,
+                  src: '/media/screentime-friends/friend-1-week-sep-14.webp',
+                  width: 800,
+                },
+                {
+                  alt: m.home_story_shot_friend_2(),
+                  height: 640,
+                  src: '/media/screentime-friends/friend-2-week-sep-07.webp',
+                  width: 800,
+                },
+              ]}
+            />
+            {/* The button comes after the rest, so it stands under the third
+            paragraph while the rest is folded and under the last once it is
+            open, without ever leaving its place in the page. */}
+            <div id={STORY_REST_ID} {...props(styles.storyRest, !storyOpen && styles.gone)}>
+              <p {...props(styles.storyLine)}>{m.home_story_4()}</p>
+              <p {...props(styles.storyLine)}>{m.home_story_5()}</p>
               <ScreenShots
+                caption={m.home_story_shot_mine_caption()}
                 shots={[
                   {
-                    alt: m.home_story_shot_friend_1(),
-                    height: 640,
-                    src: '/media/screentime-friends/friend-1-week-sep-14.webp',
+                    alt: m.home_story_shot_mine_time(),
+                    height: 684,
+                    src: '/media/screentime-mert/mert-after-screen-time.webp',
                     width: 800,
                   },
                   {
-                    alt: m.home_story_shot_friend_2(),
-                    height: 640,
-                    src: '/media/screentime-friends/friend-2-week-sep-07.webp',
+                    alt: m.home_story_shot_mine_pickups(),
+                    height: 511,
+                    src: '/media/screentime-mert/mert-after-pickups.webp',
                     width: 800,
                   },
                 ]}
               />
-              {/* The button comes after the rest, so it stands under the third
-              paragraph while the rest is folded and under the last once it is
-              open, without ever leaving its place in the page. */}
-              <div id={STORY_REST_ID} {...props(styles.storyRest, !storyOpen && styles.gone)}>
-                <p {...props(styles.storyLine)}>{m.home_story_4()}</p>
-                <p {...props(styles.storyLine)}>{m.home_story_5()}</p>
-                <ScreenShots
-                  caption={m.home_story_shot_mine_caption()}
-                  shots={[
-                    {
-                      alt: m.home_story_shot_mine_time(),
-                      height: 684,
-                      src: '/media/screentime-mert/mert-after-screen-time.webp',
-                      width: 800,
-                    },
-                    {
-                      alt: m.home_story_shot_mine_pickups(),
-                      height: 511,
-                      src: '/media/screentime-mert/mert-after-pickups.webp',
-                      width: 800,
-                    },
-                  ]}
-                />
-                <p {...props(styles.storyLine)}>{m.home_story_6()}</p>
-                <p {...props(styles.storyLine)}>{m.home_story_7()}</p>
-                <p {...props(styles.storyLine)}>{m.home_story_8()}</p>
-                <p {...props(styles.storyLine)}>{m.home_story_9()}</p>
-                <p {...props(styles.storyLine)}>{m.home_story_10()}</p>
-              </div>
-              <Button
-                aria-controls={STORY_REST_ID}
-                aria-expanded={storyOpen}
-                onClick={toggleStory}
-                style={styles.storyMore}
-                variant="outline"
-              >
-                {storyOpen ? m.home_story_less() : m.home_story_more()}
-              </Button>
-              <Signature />
+              <p {...props(styles.storyLine)}>{m.home_story_6()}</p>
+              <p {...props(styles.storyLine)}>{m.home_story_7()}</p>
+              <p {...props(styles.storyLine)}>{m.home_story_8()}</p>
+              <p {...props(styles.storyLine)}>{m.home_story_9()}</p>
+              <p {...props(styles.storyLine)}>{m.home_story_10()}</p>
             </div>
-          </section>
+            <Button
+              aria-controls={STORY_REST_ID}
+              aria-expanded={storyOpen}
+              onClick={toggleStory}
+              style={styles.storyMore}
+              variant="outline"
+            >
+              {storyOpen ? m.home_story_less() : m.home_story_more()}
+            </Button>
+            <Signature />
+          </div>
+        </section>
 
-          {/* The browser half of the same idea, on its own so the way out reads
-          as the phone and the computer as one more place the feeds are shut off. */}
-          <section {...props(styles.section)}>
-            <h2 {...props(styles.sectionTitle)}>{m.home_computer_title()}</h2>
-            <p {...props(styles.sectionBody)}>
-              {computerBefore}
-              <a href={STORE_URL} rel="noreferrer" target="_blank">
-                {m.home_computer_link()}
-              </a>
-              {computerAfter}
-            </p>
-          </section>
+        {/* The browser half of the same idea, on its own so the way out reads
+        as the phone and the computer as one more place the feeds are shut off. */}
+        <section {...props(styles.section)}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_computer_title()}</h2>
+          <p {...props(styles.sectionBody)}>
+            {computerBefore}
+            <a href={STORE_URL} rel="noreferrer" target="_blank">
+              {m.home_computer_link()}
+            </a>
+            {computerAfter}
+          </p>
+        </section>
 
-          <section {...props(styles.section)}>
-            <h2 {...props(styles.sectionTitle)}>{m.home_faq_title()}</h2>
-            <div>
-              {objections.map((objection) => (
-                <Question answer={objection.desc} key={objection.term} question={objection.term} />
-              ))}
-            </div>
-          </section>
+        <section {...props(styles.section)}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_faq_title()}</h2>
+          <div>
+            {objections.map((objection) => (
+              <Question answer={objection.desc} key={objection.term} question={objection.term} />
+            ))}
+          </div>
+        </section>
 
-          <section {...props(styles.closing)}>
-            <h2 {...props(styles.closingTitle)}>{m.home_close_title()}</h2>
-            <MacDownload style={styles.downloadCentered} />
-            <p {...props(styles.closingNote)}>
-              <span>{m.home_how_app_price()}</span>
-              <a href={GUIDE_URL}>{m.home_close_diy()}</a>
-            </p>
-          </section>
+        <section {...props(styles.closing)}>
+          <h2 {...props(styles.closingTitle)}>{m.home_close_title()}</h2>
+          <MacDownload style={styles.downloadCentered} />
+          <p {...props(styles.closingNote)}>
+            <span>{m.home_how_app_price()}</span>
+            <a href={GUIDE_URL}>{m.home_close_diy()}</a>
+          </p>
+        </section>
 
-          <SiteFooter />
-        </div>
+        <SiteFooter />
       </div>
     </main>
   );

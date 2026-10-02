@@ -2,13 +2,17 @@ import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { useInView } from 'motion/react';
 import { useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import { drawing } from '../lib/motion.stylex.ts';
 import { m } from '../paraglide/messages.js';
-import { Mark, Sentence } from './cost-story.tsx';
+import { BillFilters } from './bill-paper.tsx';
+import { InfoTip } from './info-tip.tsx';
 import { ChooseGraphic, PlugGraphic, StaysGraphic } from './steps/index.ts';
 
 /** How much of a step has to be on screen before its drawing plays. */
 const SEEN = 0.6;
+/** The last run of non-blank characters in a title: its last word. */
+const LAST_WORD = /\S*$/u;
 /**
  * The steps in their order: the drawing, how long it plays, its words, and
  * the small i after a title that needs one, read in the reader's language
@@ -54,6 +58,16 @@ const styles = create({
     listStyle: 'none',
     margin: 0,
     padding: 0,
+  },
+  // The small i after a title, a breath away from the word before it.
+  mark: {
+    display: 'inline-flex',
+    marginInlineStart: '0.3em',
+    verticalAlign: 'middle',
+  },
+  // The i and the word before it, never split across two lines.
+  markWord: {
+    whiteSpace: 'nowrap',
   },
   // The step's place in the order, quieter than its title.
   number: {
@@ -117,6 +131,23 @@ function useInTurn(
 }
 
 /**
+ * A step's title and the small i after it, if the step has one. The i holds
+ * on to the title's last word: a browser would otherwise start a line with it.
+ */
+function StepTitle({ mark, text }: { mark: ReactNode; text: string }) {
+  const cut = text.search(LAST_WORD);
+  return (
+    <>
+      {text.slice(0, cut)}
+      <span {...props(styles.markWord)}>
+        {text.slice(cut)}
+        {mark === null ? null : <span {...props(styles.mark)}>{mark}</span>}
+      </span>
+    </>
+  );
+}
+
+/**
  * How the Mac app works, in three steps, each with its drawing over its
  * title and line. A drawing plays as its step comes on screen, and steps on
  * screen together play in order.
@@ -138,17 +169,18 @@ export function HowItWorks() {
 
   return (
     <div {...props(styles.steps)}>
+      {/* The dies the i's scrap of paper is cut and printed with. */}
+      <BillFilters />
       <ol {...props(styles.list)}>
         {STEPS.map(({ Graphic, ...step }, index) => (
           <li key={step.key} ref={items[index]} {...props(styles.step)}>
             <Graphic play={playing[index] === true} />
             <h3 {...props(styles.stepTitle)}>
               <span {...props(styles.number)}>{index + 1}</span>{' '}
-              <Sentence
-                figures={[]}
+              <StepTitle
                 mark={
                   step.tip === undefined ? null : (
-                    <Mark label={step.tip.label()}>{step.tip.text()}</Mark>
+                    <InfoTip label={step.tip.label()}>{step.tip.text()}</InfoTip>
                   )
                 }
                 text={step.title()}

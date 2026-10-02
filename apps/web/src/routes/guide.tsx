@@ -68,9 +68,9 @@ const styles = create({
     margin: 0,
     textWrap: 'pretty',
   },
-  // The whole page stands on the paper, as the home page's story does, and the
-  // paper scrolls with the words. It is ruled up from the page's foot, on the
-  // footer strip's own lines, so the hand-over draws no second grid.
+  // The whole page stands on the paper, and the paper scrolls with the words.
+  // It is ruled up from the page's foot, on the footer strip's own lines, so
+  // the hand-over draws no second grid.
   grid: {
     backgroundPosition: 'left bottom',
     height: '100%',
