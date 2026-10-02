@@ -23,6 +23,21 @@ export default defineConfig(({ command, mode }) => {
   }
 
   return {
+    build: {
+      rolldownOptions: {
+        // Rolldown only warns when an import has no matching export, and the build still
+        // exits 0. If the inlang plugin fails to load, paraglide compiles no messages,
+        // every `m.*()` import is such an import, and every page throws at render. So an
+        // undefined import in our own code fails the build. Vite's handler only logs
+        // errors, so this throws.
+        onLog(level, log, handler) {
+          if (log.code === 'IMPORT_IS_UNDEFINED' && !log.id?.includes('/node_modules/')) {
+            throw new Error(log.message);
+          }
+          handler(level, log);
+        },
+      },
+    },
     // VITE_* vars live in the repo-root .env (single env file for the whole monorepo).
     envDir: '../..',
     plugins: [
