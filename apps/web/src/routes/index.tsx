@@ -54,6 +54,10 @@ const STORY_URL = 'https://stopa.io/post/297';
  * pieces.
  */
 const LINK_SLOT = '\u0000';
+/** A second orange word in the same sentence, told apart from the first. */
+const SECOND_SLOT = '\u0001';
+/** Both slots, kept when a sentence is split on them, so each word goes back where it stood. */
+const SLOTS = new RegExp(`(${LINK_SLOT}|${SECOND_SLOT})`);
 /** The chevron at the end of a question, in pixels. */
 const CHEVRON_SIZE = 16;
 /** A 1.5px line at that size, in the icon's own 24-unit grid. */
@@ -257,8 +261,8 @@ const styles = create({
     rowGap: spacing.s12,
     width: '100%',
   },
-  // The word the claim turns on, in the one orange.
-  heroAccent: {
+  // A word a sentence turns on, in the one orange.
+  accentWord: {
     color: accent.base,
   },
   // The download and its price, close under it.
@@ -502,6 +506,16 @@ function HomePage() {
   // it, so the words around it keep their own order in every language.
   const [storyBefore, storyAfter] = m.home_story_path({ post: LINK_SLOT }).split(LINK_SLOT);
 
+  // The two words the story's turn rests on, in orange wherever a language
+  // puts them in the sentence.
+  const attentionWords = new Map([
+    [LINK_SLOT, m.home_story_attention_aware()],
+    [SECOND_SLOT, m.home_story_attention_attention()],
+  ]);
+  const attentionParts = m
+    .home_story_attention({ attention: SECOND_SLOT, aware: LINK_SLOT })
+    .split(SLOTS);
+
   // What the price buys, each with its tick.
   const promises = [
     m.home_how_promise_subscription(),
@@ -534,7 +548,7 @@ function HomePage() {
         <div {...props(styles.heroText)}>
           <h1 {...props(styles.displayTitle)}>
             {titleBefore}
-            <span {...props(styles.heroAccent)}>{m.home_hero_title_accent()}</span>
+            <span {...props(styles.accentWord)}>{m.home_hero_title_accent()}</span>
             {titleAfter}
           </h1>
           <p {...props(styles.heroSub)}>{m.home_hero_sub()}</p>
@@ -590,22 +604,14 @@ function HomePage() {
           </div>
         </section>
 
-        {/* That it works, once the way is told: a friend's week as the before
-        and my own screen time after. */}
+        {/* That it works, once the way is told: the before in words, my own
+        screen time after. */}
         <section {...props(styles.section, styles.anchor)} id={PROOF_ID}>
           <h2 {...props(styles.displayTitle, styles.stat)}>{m.home_proof_title()}</h2>
           <p {...props(styles.sectionBody)}>{m.home_proof_lead()}</p>
           <ScreenShots
             caption={m.home_proof_caption()}
             shots={[
-              // A friend's week, not mine: the label under it says so.
-              {
-                alt: m.home_proof_shot_friend(),
-                height: 640,
-                label: m.home_proof_shot_friend(),
-                src: '/media/screentime-friends/friend-1-week-sep-14.webp',
-                width: 800,
-              },
               {
                 alt: m.home_proof_shot_time(),
                 height: 684,
@@ -653,14 +659,25 @@ function HomePage() {
             <ScreenShots
               shots={[
                 {
-                  alt: m.home_story_shot_friend_2(),
+                  alt: m.home_story_shot_friend_1(),
                   height: 640,
-                  src: '/media/screentime-friends/friend-2-week-sep-07.webp',
+                  src: '/media/screentime-friends/friend-1-week-sep-14.webp',
                   width: 800,
                 },
               ]}
             />
-            <p {...props(styles.storyLine)}>{m.home_story_attention()}</p>
+            <p {...props(styles.storyLine)}>
+              {attentionParts.map((part) => {
+                const word = attentionWords.get(part);
+                return word === undefined ? (
+                  part
+                ) : (
+                  <span key={part} {...props(styles.accentWord)}>
+                    {word}
+                  </span>
+                );
+              })}
+            </p>
             <p {...props(styles.storyLine)}>
               {storyBefore}
               <a href={STORY_URL} rel="noreferrer" target="_blank">

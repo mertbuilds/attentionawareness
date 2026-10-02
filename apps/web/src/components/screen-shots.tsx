@@ -4,13 +4,11 @@ import { create, props } from '@stylexjs/stylex';
 /**
  * One real screenshot, cropped to the card itself, so no name, device, status
  * bar or app list is in the picture. Another one is a file in `public/media/`
- * and a line in the list it stands in. One the caption under the row does not
- * speak for, such as someone else's, says whose it is in a `label` under it.
+ * and a line in the list it stands in.
  */
 export type Shot = {
   alt: string;
   height: number;
-  label?: string;
   src: string;
   width: number;
 };
@@ -55,12 +53,6 @@ const styles = create({
     },
     maxWidth,
   }),
-  // One shot and its label, close under it.
-  item: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s2,
-  },
   // A squircle window onto the card, zoomed past the phone's own margin and
   // corners so only the card itself shows, at the same shape for every shot.
   frame: {
@@ -92,24 +84,16 @@ export function ScreenShots({ caption, shots }: { caption?: string; shots: Reado
     <figure {...props(styles.figure)}>
       <div {...props(styles.row, styles.rowFit(columns, widest + GAP * (shots.length - 1)))}>
         {shots.map((shot) => (
-          <div key={shot.src} {...props(styles.item)}>
-            <div {...props(styles.frame)}>
-              <img
-                alt={shot.alt}
-                decoding="async"
-                height={shot.height}
-                loading="lazy"
-                src={shot.src}
-                width={shot.width}
-                {...props(styles.shot)}
-              />
-            </div>
-            {/* The label repeats the alt, so it is read once. */}
-            {shot.label === undefined ? null : (
-              <span aria-hidden="true" {...props(styles.caption)}>
-                {shot.label}
-              </span>
-            )}
+          <div key={shot.src} {...props(styles.frame)}>
+            <img
+              alt={shot.alt}
+              decoding="async"
+              height={shot.height}
+              loading="lazy"
+              src={shot.src}
+              width={shot.width}
+              {...props(styles.shot)}
+            />
           </div>
         ))}
       </div>
