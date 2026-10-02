@@ -559,7 +559,7 @@ function HomePage() {
                   },
                   {
                     alt: m.home_story_shot_friend_2(),
-                    height: 670,
+                    height: 640,
                     src: '/media/screentime-friends/friend-2-week-sep-07.webp',
                     width: 800,
                   },
