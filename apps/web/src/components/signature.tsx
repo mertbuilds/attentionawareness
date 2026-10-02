@@ -1,11 +1,10 @@
 import { colors, font } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
-import { useInView } from 'motion/react';
-import { useRef } from 'react';
+import { cubicBezier, useInView } from 'motion/react';
+import { useId, useRef } from 'react';
 import { drawing } from '../lib/motion.stylex.ts';
 import { m } from '../paraglide/messages.js';
-import { SIGNATURES } from './signature-strokes.ts';
-import type { Stroke } from './signature-strokes.ts';
+import { SIGNATURES } from './signature-glyphs.ts';
 import { stretch, usePlayhead } from './steps/playhead.ts';
 
 /** The name is written as large as type this many pixels tall. */
@@ -13,25 +12,30 @@ const SIZE = 48;
 /** How much of the signature has to be on screen before the pen starts. */
 const SEEN = 0.8;
 /**
- * The pen lifting between two strokes, as long as it takes to write this
- * many units of line.
+ * The share of the writing the name takes. The pen lifts, then writes the
+ * place and date from `PLACE_FROM` to the end.
  */
-const LIFT = 600;
-/** Constant pen speed: a stroke is drawn evenly from its start to its end. */
-const even = (share: number) => share;
+const NAME_TO = 0.64;
+const PLACE_FROM = 0.7;
+/** How wide the ink at the pen's tip fades in, in the signature's units. */
+const TIP = 160;
+/** A hand's pace: it sets off slowly, writes evenly, and settles at the end. */
+const pen = cubicBezier(0.4, 0.1, 0.45, 1);
 
 const styles = create({
+  // Only how opaque the mask is counts, not its colour.
+  mask: {
+    maskType: 'alpha',
+  },
   // The name in the page's ink, the place and date under it in the muted
   // one, both from the same pen.
   name: {
-    stroke: colors.fg,
-    strokeWidth: 30,
+    fill: colors.fg,
   },
   place: {
-    stroke: colors.muted,
-    strokeWidth: 24,
+    fill: colors.muted,
   },
-  // Without strokes for its words, the signature is set as a quiet line.
+  // Without outlines for its words, the signature is set as a quiet line.
   plain: {
     color: colors.muted,
     fontSize: font.sizeSm,
@@ -58,35 +62,16 @@ const styles = create({
   },
   written: {
     display: 'block',
-    fill: 'none',
     height: 'auto',
     maxWidth: '100%',
-    strokeLinecap: 'round',
-    strokeLinejoin: 'round',
   },
 });
 
 /**
- * Each stroke's stretch of the writing, as shares of it from 0 to 1: one
- * after another at one pen speed, with a lift of the pen between two.
- */
-function timeline(strokes: ReadonlyArray<Stroke>) {
-  const total =
-    strokes.reduce((sum, stroke) => sum + stroke.length, 0) + LIFT * (strokes.length - 1);
-  let at = 0;
-  return strokes.map((stroke) => {
-    const from = at / total;
-    at += stroke.length;
-    const to = at / total;
-    at += LIFT;
-    return { ...stroke, from, to };
-  });
-}
-
-/**
- * Who wrote the story, from where and when, in handwriting that writes
- * itself the first time it comes on screen. A reader who asked for less
- * motion, and a page that has not run its script, get it already written.
+ * Who wrote the story, from where and when, in handwriting that is written
+ * from left to right the first time it comes on screen. A reader who asked
+ * for less motion, and a page that has not run its script, get it already
+ * written.
  */
 export function Signature() {
   const text = m.home_story_sign();
@@ -94,12 +79,16 @@ export function Signature() {
   const sign = useRef<HTMLParagraphElement>(null);
   const seen = useInView(sign, { amount: SEEN, once: true });
   const at = usePlayhead(seen, drawing.signature);
+  const id = useId();
 
   if (signature === undefined) {
     return <p {...props(styles.plain)}>{text}</p>;
   }
 
-  const strokes = timeline([...signature.name, ...signature.place]);
+  const lines = [
+    { line: signature.name, style: styles.name, written: stretch(at, 0, NAME_TO, pen) },
+    { line: signature.place, style: styles.place, written: stretch(at, PLACE_FROM, 1, pen) },
+  ];
   return (
     <p ref={sign} {...props(styles.sign)}>
       <span {...props(styles.spoken)}>{text}</span>
@@ -110,18 +99,30 @@ export function Signature() {
         width={(signature.width * SIZE) / 1000}
         {...props(styles.written)}
       >
-        {strokes.map((stroke, index) => {
-          const drawn = stretch(at, stroke.from, stroke.to, even);
-          return drawn > 0 ? (
-            <path
-              d={stroke.d}
-              key={stroke.d}
-              pathLength={1}
-              strokeDasharray="1 1"
-              strokeDashoffset={1 - drawn}
-              {...props(index < signature.name.length ? styles.name : styles.place)}
-            />
-          ) : null;
+        {lines.map(({ line, style, written }, index) => {
+          // The ink shows up to the pen's tip, which crosses the line from
+          // its first letter until the tip's fade has passed its last.
+          const tip = line.left + written * (line.right - line.left + TIP);
+          const ink = `${id}-ink-${index}`;
+          return (
+            <g key={ink}>
+              <linearGradient
+                gradientUnits="userSpaceOnUse"
+                id={`${ink}-tip`}
+                x1={tip - TIP}
+                x2={tip}
+                y1={0}
+                y2={0}
+              >
+                <stop offset={0} />
+                <stop offset={1} stopOpacity={0} />
+              </linearGradient>
+              <mask id={ink} {...props(styles.mask)}>
+                <rect fill={`url(#${ink}-tip)`} height="100%" width="100%" />
+              </mask>
+              <path d={line.d} mask={`url(#${ink})`} {...props(style)} />
+            </g>
+          );
         })}
       </svg>
     </p>
