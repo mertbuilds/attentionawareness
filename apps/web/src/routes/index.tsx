@@ -615,19 +615,20 @@ function HomePage() {
           <p {...props(styles.sectionBody)}>{m.home_uses_close()}</p>
         </section>
 
-        {/* That it works: my own screen time before and after, what the hours
-        went to instead, and one more person it worked for. */}
+        {/* That it works: a friend's week as the before, my own screen time
+        after, and what the hours went to instead. */}
         <section {...props(styles.section, styles.anchor)} id={PROOF_ID}>
           <h2 {...props(styles.displayTitle, styles.stat)}>{m.home_proof_title()}</h2>
           <p {...props(styles.sectionBody)}>{m.home_proof_lead()}</p>
           <ScreenShots
             caption={m.home_proof_caption()}
             shots={[
-              // TODO(mert): replace with real screenshot
+              // A friend's week, not mine: the label under it says so.
               {
-                alt: m.home_proof_shot_before(),
+                alt: m.home_proof_shot_friend(),
                 height: 640,
-                todo: m.home_proof_shot_todo(),
+                label: m.home_proof_shot_friend(),
+                src: '/media/screentime-friends/friend-1-week-sep-14.webp',
                 width: 800,
               },
               {
@@ -662,7 +663,6 @@ function HomePage() {
               },
             ]}
           />
-          <p {...props(styles.sectionBody)}>{m.home_proof_sister()}</p>
         </section>
 
         {/* Not against the networks, only their feeds, and the browser half
@@ -730,12 +730,6 @@ function HomePage() {
             <p {...props(styles.storyLine)}>{m.home_story_people()}</p>
             <ScreenShots
               shots={[
-                {
-                  alt: m.home_story_shot_friend_1(),
-                  height: 640,
-                  src: '/media/screentime-friends/friend-1-week-sep-14.webp',
-                  width: 800,
-                },
                 {
                   alt: m.home_story_shot_friend_2(),
                   height: 640,
