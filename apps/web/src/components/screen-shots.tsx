@@ -14,8 +14,8 @@ export type Shot = {
 };
 
 /**
- * No row of shots stands taller than this, in pixels, so one shot alone stays
- * a picture in the prose rather than a wall.
+ * No shot stands taller than this, in pixels, side by side or one under the
+ * other, so one shot alone stays a picture in the prose rather than a wall.
  */
 const MAX_HEIGHT = 320;
 /** The gap between two shots, in pixels: `spacing.s3`. */
@@ -60,9 +60,18 @@ const styles = create({
     borderRadius: 32,
     borderStyle: 'solid',
     borderWidth: 1,
+    boxSizing: 'border-box',
     cornerShape: 'squircle',
     overflow: 'hidden',
   },
+  // No wider than the shot is at `MAX_HEIGHT`, so one under the other it
+  // stops growing at that height and stands in the middle of the column. Side
+  // by side its column is never wider, so the row is unchanged.
+  frameFit: (maxWidth: number) => ({
+    justifySelf: 'center',
+    maxWidth,
+    width: '100%',
+  }),
   shot: {
     display: 'block',
     height: 'auto',
@@ -84,7 +93,10 @@ export function ScreenShots({ caption, shots }: { caption?: string; shots: Reado
     <figure {...props(styles.figure)}>
       <div {...props(styles.row, styles.rowFit(columns, widest + GAP * (shots.length - 1)))}>
         {shots.map((shot) => (
-          <div key={shot.src} {...props(styles.frame)}>
+          <div
+            key={shot.src}
+            {...props(styles.frame, styles.frameFit((MAX_HEIGHT * shot.width) / shot.height))}
+          >
             <img
               alt={shot.alt}
               decoding="async"
