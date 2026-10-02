@@ -193,6 +193,7 @@
   "guide_shot_soon": "Screenshot coming",
   "guide_shot_backup_finder": "Finder with the iPhone selected, on the General tab, with Back Up Now under Backups",
   "guide_shot_erase_iphone": "The iPhone's Transfer or Reset iPhone screen, with Erase All Content and Settings",
+  "guide_shot_settings_supervised": "The top of iPhone Settings, with the line “This iPhone is supervised and managed”",
   "guide_shot_configurator_open": "Apple Configurator's All Devices window with the iPhone plugged in",
   "guide_shot_prepare_manual": "The Prepare Devices sheet set to Manual Configuration, with Supervise devices ticked",
   "guide_shot_prepare_setup_assistant": "The Setup Assistant sheet set to Don't show any of these steps",

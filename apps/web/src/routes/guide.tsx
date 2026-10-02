@@ -403,7 +403,13 @@ function Guide() {
             <p {...props(styles.body)}>{m.guide_step_setup_apps()}</p>
             <p {...props(styles.body)}>{m.guide_step_setup_check()}</p>
             {/* iPhone Settings, the supervised line under the name. */}
-            <ShotSlot name="settings-supervised" />
+            <Shot
+              alt={m.guide_shot_settings_supervised()}
+              height={149}
+              name="settings-supervised"
+              phone
+              width={320}
+            />
           </Step>
 
           <Step number={6} title={m.guide_step_build_title()}>
