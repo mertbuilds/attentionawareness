@@ -571,6 +571,23 @@ function HomePage() {
               <div id={STORY_REST_ID} {...props(styles.storyRest, !storyOpen && styles.gone)}>
                 <p {...props(styles.storyLine)}>{m.home_story_4()}</p>
                 <p {...props(styles.storyLine)}>{m.home_story_5()}</p>
+                <ScreenShots
+                  caption={m.home_story_shot_mine_caption()}
+                  shots={[
+                    {
+                      alt: m.home_story_shot_mine_time(),
+                      height: 684,
+                      src: '/media/screentime-mert/mert-after-screen-time.webp',
+                      width: 800,
+                    },
+                    {
+                      alt: m.home_story_shot_mine_pickups(),
+                      height: 511,
+                      src: '/media/screentime-mert/mert-after-pickups.webp',
+                      width: 800,
+                    },
+                  ]}
+                />
                 <p {...props(styles.storyLine)}>{m.home_story_6()}</p>
                 <p {...props(styles.storyLine)}>{m.home_story_7()}</p>
                 <p {...props(styles.storyLine)}>{m.home_story_8()}</p>
