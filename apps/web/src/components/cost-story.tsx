@@ -1,3 +1,4 @@
+import { Button } from '@attentionawareness/ui';
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, firstThatWorks, keyframes, props } from '@stylexjs/stylex';
@@ -501,6 +502,24 @@ const styles = create({
     textDecorationThickness: '0.03em',
     textUnderlineOffset: '0.1em',
   },
+  // What the turn leads to: the line that answers it and the button down to
+  // the way out, under the turn and quieter than it.
+  onward: {
+    alignItems: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s4,
+  },
+  onwardLine: {
+    color: colors.muted,
+    fontSize: {
+      '@media (min-width: 640px)': font.sizeLg,
+      default: font.sizeMd,
+    },
+    lineHeight: 1.5,
+    margin: 0,
+    textWrap: 'balance',
+  },
   orbit: {
     display: 'block',
     height: 'auto',
@@ -764,6 +783,10 @@ const styles = create({
   // The second line comes on once the first has, so the two are read apart.
   turnLineSecond: {
     transitionDelay: duration.verySlow,
+  },
+  // What it leads to comes on once the second line has.
+  turnLineThird: {
+    transitionDelay: `calc(${duration.verySlow} * 2)`,
   },
   walker: {
     fill: accent.base,
@@ -1543,9 +1566,10 @@ function Moon({
  * Act one: what the average day costs, told one sentence a screen. The stage
  * stands pinned while the section scrolls under it, the page comes to rest on
  * one beat at a time, and each beat's drawing plays as it comes on. It ends
- * on the turn: it is not the reader's willpower, it is the apps.
+ * on the turn: it is not the reader's willpower, it is the apps, and a button
+ * down to `wayOut`, the id of the section that answers it.
  */
-export function CostStory({ id }: { id: string }) {
+export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
   const story = useRef<HTMLElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   // Where the page comes to rest for each beat, and past the story's foot.
@@ -1961,6 +1985,15 @@ export function CostStory({ id }: { id: string }) {
                 />
               </span>
             </h2>
+            <div
+              {...props(
+                partOf(TURN_BEAT, 2, [styles.turnLine, styles.onward]),
+                turning && [styles.turnLineOn, styles.turnLineThird],
+              )}
+            >
+              <p {...props(styles.onwardLine)}>{m.home_turn_onward()}</p>
+              <Button render={<a href={`#${wayOut}`} />}>{m.home_turn_cta()}</Button>
+            </div>
           </div>
         </div>
         <span aria-hidden="true" {...props(styles.cue, styles.swap, active > 0 && styles.gone)}>

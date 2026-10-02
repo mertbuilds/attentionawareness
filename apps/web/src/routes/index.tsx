@@ -460,6 +460,7 @@ function HomePage() {
 
   const objections = [
     { desc: m.home_faq_supervision_desc(), term: m.home_faq_supervision_term() },
+    { desc: m.home_faq_trial_desc(), term: m.home_faq_trial_term() },
     { desc: m.home_faq_choice_desc(), term: m.home_faq_choice_term() },
     { desc: m.home_faq_data_desc(), term: m.home_faq_data_term() },
     { desc: m.home_faq_fail_desc(), term: m.home_faq_fail_term() },
@@ -475,7 +476,7 @@ function HomePage() {
       <div {...props(styles.content)}>
         {/* Act one, the problem, and the first screen: what an average day
         adds up to, told one sentence a screen, and then whose doing it is. */}
-        <CostStory id={COST_ID} />
+        <CostStory id={COST_ID} wayOut={WAY_OUT_ID} />
 
         <div {...props(styles.afterStory)}>
           {/* Act two, the way out: how it works, in three steps, then the app
@@ -493,6 +494,7 @@ function HomePage() {
                 <p {...props(styles.wayLead)}>{m.home_how_app_lead()}</p>
                 <p {...props(styles.wayBody)}>{m.home_how_app_body()}</p>
                 <p {...props(styles.wayBody)}>{m.home_how_app_fail()}</p>
+                <p {...props(styles.wayBody)}>{m.home_how_app_trial()}</p>
                 <div {...props(styles.wayAction)}>
                   <MacDownload />
                 </div>
