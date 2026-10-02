@@ -3,9 +3,9 @@ import { createFileRoute } from '@tanstack/react-router';
 /** The self-hosted OpenPanel: its API under `/api`, the script at the root. */
 const ANALYTICS_HOST = 'https://analytics.vinena.studio';
 const SCRIPT = '/op1.js';
-/** The session replay script, which the self-host does not serve. */
 const REPLAY_SCRIPT = '/op1-replay.js';
-const REPLAY_HOST = 'https://openpanel.dev';
+/** Pinned; must stay at 1.3.0 or newer, since 1.1.0 ignores `maskAllText`. */
+const REPLAY_URL = 'https://cdn.jsdelivr.net/npm/@openpanel/web@1.4.1/dist/src/replay.global.js';
 /**
  * Crawlers that run JavaScript reach this proxy too, and their visits inflate
  * every count. Their events are dropped before they reach OpenPanel; 200 so
@@ -29,7 +29,13 @@ async function proxy({ request }: { request: Request }): Promise<Response> {
     }
   }
   if (path === REPLAY_SCRIPT) {
-    return fetch(`${REPLAY_HOST}${REPLAY_SCRIPT}`);
+    const recorder = await fetch(REPLAY_URL);
+    if (!recorder.ok) {
+      return recorder;
+    }
+    const response = new Response(recorder.body, recorder);
+    response.headers.set('cache-control', 'public, max-age=14400');
+    return response;
   }
   const upstream = new URL(
     path === SCRIPT ? `${ANALYTICS_HOST}${SCRIPT}` : `${ANALYTICS_HOST}/api${path}${url.search}`,
