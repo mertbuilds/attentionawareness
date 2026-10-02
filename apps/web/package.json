@@ -41,7 +41,7 @@
     "@types/react-dom": "^19.2.5",
     "@vitejs/plugin-react": "^6.1.1",
     "cf": "1.0.0-beta.5",
-    "devknobs": "0.0.3-next.0",
+    "devknobs": "0.0.3-next.1",
     "oxc-transform-react": "^0.148.0",
     "react-grab": "^0.2.0",
     "typescript": "^7.0.2",
