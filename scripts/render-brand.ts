@@ -82,8 +82,19 @@ body { background: ${bg}; }
   width: ${size}px;
 }</style><div class="mark">${MARK}</div>`;
 
-/** The question the share card asks, with the two words that carry it. */
-const OG_QUESTION = `Are you <em>aware</em> of where your <em>attention</em> goes?`;
+/**
+ * The hero's headline, read from its own messages (`home_hero_title` and
+ * `home_hero_title_accent`), so the share card never drifts from the page.
+ * Only the accent word is orange.
+ */
+const hero = JSON.parse(readFileSync(path.join(root, 'apps/web/messages/en.json'), 'utf8')) as {
+  home_hero_title: string;
+  home_hero_title_accent: string;
+};
+const OG_TITLE = hero.home_hero_title.replace(
+  '{algorithms}',
+  `<em>${hero.home_hero_title_accent}</em>`,
+);
 const ORANGE = '#ff4f00';
 /** The page's graph paper: the same 40px ruling, the same faint white line. */
 const OG_LINE = 'rgba(255, 255, 255, 0.08)';
@@ -99,9 +110,9 @@ body { height: 630px; overflow: hidden; position: relative; width: 1200px; }
 }
 .brand { align-items: center; color: ${GRAY}; display: flex; font-size: 26px; gap: 14px; left: 80px; position: absolute; top: 72px; }
 .mark { align-items: center; background: ${WHITE}; border-radius: 6px; color: ${BLACK}; display: flex; font-size: 22px; height: 40px; justify-content: center; letter-spacing: -0.02em; width: 40px; }
-.question { bottom: 96px; font-size: 84px; left: 80px; letter-spacing: -0.03em; line-height: 1.08; position: absolute; right: 80px; text-wrap: balance; }
+.title { bottom: 96px; font-size: 84px; left: 80px; letter-spacing: -0.03em; line-height: 1.08; position: absolute; right: 80px; text-wrap: balance; }
 em { color: ${ORANGE}; font-style: normal; }
-</style><div class="grid"></div><div class="brand"><div class="mark">${MARK}</div>attentionawareness.com</div><div class="question">${OG_QUESTION}</div>`;
+</style><div class="grid"></div><div class="brand"><div class="mark">${MARK}</div>attentionawareness.com</div><div class="title">${OG_TITLE}</div>`;
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ deviceScaleFactor: 1 });

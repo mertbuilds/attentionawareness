@@ -1,7 +1,6 @@
 import { spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import type { ReactNode } from 'react';
-import { footPaper } from '../lib/foot-paper.stylex.ts';
 import { layout } from '../lib/layout.ts';
 import { m } from '../paraglide/messages.js';
 import { GridTexture } from './grid-texture.tsx';
@@ -23,8 +22,10 @@ const LINK_SLOT = '\u0000';
 const PAPER_SIDES = 'linear-gradient(to right, black, transparent 35%, transparent 65%, black)';
 const PAPER_SIDES_NARROW =
   'linear-gradient(to right, rgb(0 0 0 / 0.4), transparent 25%, transparent 75%, rgb(0 0 0 / 0.4))';
+/** The strip of paper at the foot of the page: six squares tall. */
+const PAPER_HEIGHT = '240px';
 /** No hard line where the paper starts: it comes in out of nothing at its top. */
-const PAPER_TOP = `linear-gradient(to bottom, transparent, black ${footPaper.fadeIn})`;
+const PAPER_TOP = 'linear-gradient(to bottom, transparent, black 144px)';
 
 const styles = create({
   footer: {
@@ -44,12 +45,12 @@ const styles = create({
   line: {
     margin: 0,
   },
-  // The story's graph paper, under the foot of the page. The footer is not
+  // The graph paper, under the foot of the page. The footer is not
   // positioned, so the paper hangs from the page root every page positions:
   // the window's whole width without pushing it sideways, standing on the
   // page's bottom edge. The two masks are both applied, the sides and the top.
   paper: {
-    height: footPaper.height,
+    height: PAPER_HEIGHT,
     insetBlockEnd: 0,
     insetBlockStart: 'auto',
     maskComposite: 'intersect',

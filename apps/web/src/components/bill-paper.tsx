@@ -197,8 +197,8 @@ function PaperSurface({ theme }: { theme: PaperTheme }) {
 
 /**
  * The dies every sheet on the page shares, drawn at nothing and pointed at by
- * id. The story renders them once, and every scrap a tip opens on refers to
- * them.
+ * id. The steps of the way out render them once, and every scrap a tip opens
+ * on refers to them.
  *
  * `bill-edge` cuts the paper: low fractal noise pushed through a displacement
  * map, so the outline wanders a few pixels the way a torn edge does. It is put

@@ -3,15 +3,16 @@ import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, defaultMarker, props, when } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
-import { useId, useRef, useState } from 'react';
-import { flushSync } from 'react-dom';
+import { useId, useState } from 'react';
 import { AngleDown, Check } from 'reicon-react';
-import { CostStory } from '../components/cost-story.tsx';
+import { GridTexture } from '../components/grid-texture.tsx';
+import { HeroPhone } from '../components/hero-phone.tsx';
 import { HowItWorks } from '../components/how-it-works.tsx';
 import { MacDownload } from '../components/mac-download.tsx';
 import { ScreenShots } from '../components/screen-shots.tsx';
 import { Signature } from '../components/signature.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
+import { UsesGrid } from '../components/uses-grid.tsx';
 import { blur, duration, easing } from '../lib/motion.stylex.ts';
 import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
@@ -26,11 +27,19 @@ export const Route = createFileRoute('/')({
  * them, so the page's widest gap is the one measure written out here.
  */
 const SECTION_GAP = '96px';
+/** The column every section stands in, and the first screen too once it is stacked. */
+const COLUMN_WIDTH = 760;
+/**
+ * The first screen side by side: wider than the column, so the words keep a
+ * readable measure next to the phone.
+ */
+const HERO_WIDTH = 1040;
+/** The phone's column beside the words, as wide as the phone is drawn there. */
+const HERO_PHONE_WIDTH = 320;
 /** The places on the page that can be linked to, and the ids they use. */
-const COST_ID = 'cost';
+const PROOF_ID = 'proof';
 const WAY_OUT_ID = 'way-out';
 const STORY_ID = 'story';
-const STORY_REST_ID = 'story-rest';
 /** The manual way out, on a page of its own. */
 const GUIDE_URL = '/guide';
 /** Every link off this site carries utm tags, so the visit is traced to this page. */
@@ -39,12 +48,16 @@ const STORE_URL =
 /** The post this started from, linked out of the paragraph that tells it. */
 const STORY_URL = 'https://stopa.io/post/297';
 /**
- * Where a link or a figure stands inside a sentence. The message is written
+ * Where a link or an orange word stands inside a sentence. The message is written
  * with it as a placeholder and split on it, so the words around it keep their
  * own order and spacing in every language instead of being stitched from
  * pieces.
  */
 const LINK_SLOT = '\u0000';
+/** A second orange word in the same sentence, told apart from the first. */
+const SECOND_SLOT = '\u0001';
+/** Both slots, kept when a sentence is split on them, so each word goes back where it stood. */
+const SLOTS = new RegExp(`(${LINK_SLOT}|${SECOND_SLOT})`);
 /** The chevron at the end of a question, in pixels. */
 const CHEVRON_SIZE = 16;
 /** A 1.5px line at that size, in the icon's own 24-unit grid. */
@@ -53,17 +66,6 @@ const CHEVRON_STROKE = 2.25;
 const CHECK_SIZE = 16;
 
 const styles = create({
-  // Everything under the story, as one place the page can rest anywhere in.
-  // It is taller than the window, so while the story holds the page to its
-  // beats a find, a link or a focus that lands down here stays where it lands
-  // instead of being pulled back to the story's foot.
-  afterStory: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: SECTION_GAP,
-    scrollMarginBlockStart: SECTION_GAP,
-    scrollSnapAlign: 'start',
-  },
   // A section the page links down to. The scroll stops short of its heading,
   // clear of the brand bar fixed over the top of the window.
   anchor: {
@@ -88,8 +90,18 @@ const styles = create({
     lineHeight: 1.5,
     margin: 0,
   },
-  // Set at the turn's size, so the page closes on the voice it turned in.
-  closingTitle: {
+  content: {
+    display: 'flex',
+    flexDirection: 'column',
+    // Nothing is drawn between the sections, so the gap carries the rhythm on
+    // its own at every width.
+    gap: SECTION_GAP,
+    maxWidth: COLUMN_WIDTH,
+    width: '100%',
+  },
+  // The page's largest words, at one size: the claim it opens on, the numbers
+  // that back it and the line it closes on.
+  displayTitle: {
     fontSize: {
       '@media (min-width: 640px)': 'clamp(40px, 5vw, 64px)',
       default: 'clamp(32px, 9vw, 40px)',
@@ -99,15 +111,6 @@ const styles = create({
     lineHeight: 1.15,
     margin: 0,
     textWrap: 'balance',
-  },
-  content: {
-    display: 'flex',
-    flexDirection: 'column',
-    // Nothing is drawn between the sections, so the gap carries the rhythm on
-    // its own at every width.
-    gap: SECTION_GAP,
-    maxWidth: 760,
-    width: '100%',
   },
   // The free way, under the or: one quiet line and its button, in the middle
   // like the price above it.
@@ -237,9 +240,60 @@ const styles = create({
     textWrap: 'pretty',
     width: '100%',
   },
-  // Not on the page yet, and taking no room in it either.
-  gone: {
-    display: 'none',
+  // The first screen: the claim, the reason and the download beside the phone
+  // the feeds leave. Too narrow for two columns, the phone stands under the
+  // words and the hero narrows to the column, so every left edge lines up.
+  hero: {
+    alignItems: 'center',
+    columnGap: spacing.s16,
+    display: 'grid',
+    gridTemplateColumns: {
+      '@media (min-width: 900px)': `minmax(0, 1fr) ${HERO_PHONE_WIDTH}px`,
+      default: 'minmax(0, 1fr)',
+    },
+    maxWidth: {
+      '@media (min-width: 900px)': HERO_WIDTH,
+      default: COLUMN_WIDTH,
+    },
+    // Clear of the name: the strip a phone keeps it in, and the corner a wider
+    // window keeps it in.
+    paddingBlockStart: spacing.s16,
+    rowGap: spacing.s12,
+    width: '100%',
+  },
+  // A word a sentence turns on, in the one orange.
+  accentWord: {
+    color: accent.base,
+  },
+  // The download and its price, close under it.
+  heroAction: {
+    alignItems: 'flex-start',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s3,
+  },
+  heroPrice: {
+    color: colors.muted,
+    fontSize: font.sizeSm,
+    lineHeight: 1.5,
+    margin: 0,
+  },
+  // The reason under the claim, a step quieter and a step smaller on a phone.
+  heroSub: {
+    color: colors.muted,
+    fontSize: {
+      '@media (min-width: 640px)': font.sizeLg,
+      default: font.sizeMd,
+    },
+    lineHeight: 1.5,
+    margin: 0,
+    maxWidth: '46ch',
+    textWrap: 'pretty',
+  },
+  heroText: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s6,
   },
   // The app's offer under the steps: the price and what it buys, then the
   // download, all in the middle. The app is the way the page recommends, so
@@ -310,13 +364,11 @@ const styles = create({
     flexDirection: 'column',
     fontFamily: font.family,
     gap: SECTION_GAP,
-    // The stacking context that keeps the story's grid above the page's own
-    // background instead of behind it.
+    // The stacking context that keeps the footer's graph paper above the page's
+    // own background instead of behind it.
     isolation: 'isolate',
     minHeight: `calc(100vh - ${wip.height})`,
-    // The story's grid runs the whole width of the window; anything past the
-    // window's edge is cut, so nothing scrolls sideways. `clip` keeps the
-    // story's stage sticky, where `hidden` would not.
+    // Anything past the window's edge is cut, so nothing scrolls sideways.
     overflowX: 'clip',
     paddingBlockEnd: spacing.s16,
     paddingInline: spacing.s4,
@@ -372,30 +424,23 @@ const styles = create({
     margin: 0,
     textWrap: 'balance',
   },
+  // Two times at the display size, their digits at one width.
+  stat: {
+    fontVariantNumeric: 'tabular-nums',
+  },
   story: {
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s4,
     maxWidth: 640,
   },
-  // Ten paragraphs of prose, so the ink is pulled a step toward the page.
+  // Paragraphs of prose, so the ink is pulled a step toward the page.
   storyLine: {
     color: `color-mix(in srgb, ${colors.fg} 80%, ${colors.bg})`,
     fontSize: 18,
     lineHeight: 1.7,
     margin: 0,
     textWrap: 'pretty',
-  },
-  // The way into the rest of the story, at the start of the line like the
-  // paragraphs around it.
-  storyMore: {
-    alignSelf: 'flex-start',
-  },
-  // The part of the story behind the button, spaced like the part before it.
-  storyRest: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s4,
   },
 });
 
@@ -447,38 +492,40 @@ function Question({ answer, question }: { answer: string; question: string }) {
 }
 
 function HomePage() {
-  const storySection = useRef<HTMLElement>(null);
-  const [storyOpen, setStoryOpen] = useState(false);
-
-  // Folding the story from its last paragraph would leave the reader far
-  // below it, so once it is folded the page goes back to where it starts.
-  function toggleStory() {
-    if (!storyOpen) {
-      setStoryOpen(true);
-      return;
-    }
-    flushSync(() => setStoryOpen(false));
-    storySection.current?.scrollIntoView({ block: 'start' });
-  }
-
-  // The post the story links out to, in the middle of the sentence that tells
-  // it, so the words around it keep their own order in every language.
-  const [storyBefore, storyAfter] = m.home_story_1({ post: LINK_SLOT }).split(LINK_SLOT);
+  // The word the claim turns on, in the middle of it, so the words around it
+  // keep their own order in every language.
+  const [titleBefore, titleAfter] = m.home_hero_title({ algorithms: LINK_SLOT }).split(LINK_SLOT);
 
   // The browser half: the extension, in the middle of the sentence, and the
   // store it is added from.
-  const [computerBefore, computerAfter] = m
-    .home_computer_body({ extension: LINK_SLOT })
+  const [socialBefore, socialAfter] = m
+    .home_social_computer({ extension: LINK_SLOT })
     .split(LINK_SLOT);
+
+  // The post the story links out to, in the middle of the sentence that tells
+  // it, so the words around it keep their own order in every language.
+  const [storyBefore, storyAfter] = m.home_story_path({ post: LINK_SLOT }).split(LINK_SLOT);
+
+  // The two words the story's turn rests on, in orange wherever a language
+  // puts them in the sentence.
+  const attentionWords = new Map([
+    [LINK_SLOT, m.home_story_attention_aware()],
+    [SECOND_SLOT, m.home_story_attention_attention()],
+  ]);
+  const attentionParts = m
+    .home_story_attention({ attention: SECOND_SLOT, aware: LINK_SLOT })
+    .split(SLOTS);
 
   // What the price buys, each with its tick.
   const promises = [
+    m.home_how_promise_subscription(),
     m.home_how_promise_keep(),
     m.home_how_promise_trial(),
     m.home_how_promise_add(),
   ];
 
   const objections = [
+    { desc: m.home_faq_screen_time_desc(), term: m.home_faq_screen_time_term() },
     { desc: m.home_faq_supervision_desc(), term: m.home_faq_supervision_term() },
     { desc: m.home_faq_trial_desc(), term: m.home_faq_trial_term() },
     { desc: m.home_faq_choice_desc(), term: m.home_faq_choice_term() },
@@ -488,158 +535,170 @@ function HomePage() {
     { desc: m.home_faq_undo_desc(), term: m.home_faq_undo_term() },
     { desc: m.home_faq_mac_desc(), term: m.home_faq_mac_term() },
     { desc: m.home_faq_other_platforms_desc(), term: m.home_faq_other_platforms_term() },
-    { desc: m.home_faq_who_desc(), term: m.home_faq_who_term() },
   ];
 
   return (
     <main {...props(styles.page)}>
-      <div {...props(styles.content)}>
-        {/* Act one, the problem, and the first screen: what an average day
-        adds up to, told one sentence a screen, then whose doing it is, and
-        that the only way to win is not to play. */}
-        <CostStory id={COST_ID} wayOut={WAY_OUT_ID} />
-
-        <div {...props(styles.afterStory)}>
-          {/* Act two, the way out: where the Mac app comes in and what it does,
-          then how it works, in three steps, what the app costs and promises,
-          and under it, past an or, the manual way that starts the phone over. */}
-          <section {...props(styles.section, styles.anchor)} id={WAY_OUT_ID}>
-            <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
-            <p {...props(styles.sectionBody)}>{m.home_how_lead()}</p>
-            <HowItWorks />
-            <div {...props(styles.offer)}>
-              <div {...props(styles.offerHead)}>
-                <p {...props(styles.offerPrice)}>{m.home_how_app_price()}</p>
-                <ul {...props(styles.promises)}>
-                  {promises.map((promise) => (
-                    <li key={promise} {...props(styles.promise)}>
-                      <Check
-                        aria-hidden="true"
-                        size={CHECK_SIZE}
-                        strokeWidth={CHEVRON_STROKE}
-                        {...props(styles.promiseCheck)}
-                      />
-                      {promise}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <MacDownload style={styles.downloadCentered} />
-            </div>
-            <p {...props(styles.or)}>{m.home_how_or()}</p>
-            <div {...props(styles.diy)}>
-              <p {...props(styles.diyLine)}>{m.home_how_diy()}</p>
-              <Button render={<a href={GUIDE_URL} />} variant="outline">
-                {m.home_how_diy_cta()}
-              </Button>
-            </div>
-          </section>
-
-          {/* Act three, support. Who made this and why, told rather than argued:
-          the only place on the page that speaks in the first person. */}
-          <section {...props(styles.section, styles.anchor)} id={STORY_ID} ref={storySection}>
-            <h2 {...props(styles.sectionTitle)}>{m.home_story_title()}</h2>
-            <div {...props(styles.story)}>
-              <p {...props(styles.storyLine)}>
-                {storyBefore}
-                <a href={STORY_URL} rel="noreferrer" target="_blank">
-                  {m.home_story_2_link()}
-                </a>
-                {storyAfter}
-              </p>
-              <p {...props(styles.storyLine)}>{m.home_story_2()}</p>
-              <p {...props(styles.storyLine)}>{m.home_story_3()}</p>
-              <ScreenShots
-                shots={[
-                  {
-                    alt: m.home_story_shot_friend_1(),
-                    height: 640,
-                    src: '/media/screentime-friends/friend-1-week-sep-14.webp',
-                    width: 800,
-                  },
-                  {
-                    alt: m.home_story_shot_friend_2(),
-                    height: 640,
-                    src: '/media/screentime-friends/friend-2-week-sep-07.webp',
-                    width: 800,
-                  },
-                ]}
-              />
-              {/* The button comes after the rest, so it stands under the third
-              paragraph while the rest is folded and under the last once it is
-              open, without ever leaving its place in the page. */}
-              <div id={STORY_REST_ID} {...props(styles.storyRest, !storyOpen && styles.gone)}>
-                <p {...props(styles.storyLine)}>{m.home_story_4()}</p>
-                <p {...props(styles.storyLine)}>{m.home_story_5()}</p>
-                <ScreenShots
-                  caption={m.home_story_shot_mine_caption()}
-                  shots={[
-                    {
-                      alt: m.home_story_shot_mine_time(),
-                      height: 684,
-                      src: '/media/screentime-mert/mert-after-screen-time.webp',
-                      width: 800,
-                    },
-                    {
-                      alt: m.home_story_shot_mine_pickups(),
-                      height: 511,
-                      src: '/media/screentime-mert/mert-after-pickups.webp',
-                      width: 800,
-                    },
-                  ]}
-                />
-                <p {...props(styles.storyLine)}>{m.home_story_6()}</p>
-                <p {...props(styles.storyLine)}>{m.home_story_7()}</p>
-                <p {...props(styles.storyLine)}>{m.home_story_8()}</p>
-                <p {...props(styles.storyLine)}>{m.home_story_9()}</p>
-                <p {...props(styles.storyLine)}>{m.home_story_10()}</p>
-              </div>
-              <Button
-                aria-controls={STORY_REST_ID}
-                aria-expanded={storyOpen}
-                onClick={toggleStory}
-                style={styles.storyMore}
-                variant="outline"
-              >
-                {storyOpen ? m.home_story_less() : m.home_story_more()}
-              </Button>
-              <Signature />
-            </div>
-          </section>
-
-          {/* The browser half of the same idea, on its own so the way out reads
-          as the phone and the computer as one more place the feeds are shut off. */}
-          <section {...props(styles.section)}>
-            <h2 {...props(styles.sectionTitle)}>{m.home_computer_title()}</h2>
-            <p {...props(styles.sectionBody)}>
-              {computerBefore}
-              <a href={STORE_URL} rel="noreferrer" target="_blank">
-                {m.home_computer_link()}
-              </a>
-              {computerAfter}
-            </p>
-          </section>
-
-          <section {...props(styles.section)}>
-            <h2 {...props(styles.sectionTitle)}>{m.home_faq_title()}</h2>
-            <div>
-              {objections.map((objection) => (
-                <Question answer={objection.desc} key={objection.term} question={objection.term} />
-              ))}
-            </div>
-          </section>
-
-          <section {...props(styles.closing)}>
-            <h2 {...props(styles.closingTitle)}>{m.home_close_title()}</h2>
-            <MacDownload style={styles.downloadCentered} />
-            <p {...props(styles.closingNote)}>
-              <span>{m.home_how_app_price()}</span>
-              <a href={GUIDE_URL}>{m.home_close_diy()}</a>
-            </p>
-          </section>
-
-          <SiteFooter />
+      {/* The graph paper the first screen stands on, fading out before the
+      first section. */}
+      <GridTexture />
+      {/* The first screen: the claim, why willpower cannot win it, and the
+      download with its price, beside the phone the feeds leave. */}
+      <header {...props(styles.hero)}>
+        <div {...props(styles.heroText)}>
+          <h1 {...props(styles.displayTitle)}>
+            {titleBefore}
+            <span {...props(styles.accentWord)}>{m.home_hero_title_accent()}</span>
+            {titleAfter}
+          </h1>
+          <p {...props(styles.heroSub)}>{m.home_hero_sub()}</p>
+          <div {...props(styles.heroAction)}>
+            <MacDownload />
+            <p {...props(styles.heroPrice)}>{m.home_hero_price()}</p>
+          </div>
         </div>
+        <HeroPhone />
+      </header>
+
+      <div {...props(styles.content)}>
+        {/* What the phone is for once the feeds are off it: everything else
+        it does, which is why the rest of it stays. */}
+        <section {...props(styles.section)}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_uses_title()}</h2>
+          <UsesGrid />
+          <p {...props(styles.sectionBody)}>{m.home_uses_close()}</p>
+        </section>
+
+        {/* How it works: what the Mac app does, in three steps, what it costs
+        and promises, and under it, past an or, the manual way that starts the
+        phone over. */}
+        <section {...props(styles.section, styles.anchor)} id={WAY_OUT_ID}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
+          <p {...props(styles.sectionBody)}>{m.home_how_lead()}</p>
+          <HowItWorks />
+          <div {...props(styles.offer)}>
+            <div {...props(styles.offerHead)}>
+              <p {...props(styles.offerPrice)}>{m.home_how_app_price()}</p>
+              <ul {...props(styles.promises)}>
+                {promises.map((promise) => (
+                  <li key={promise} {...props(styles.promise)}>
+                    <Check
+                      aria-hidden="true"
+                      size={CHECK_SIZE}
+                      strokeWidth={CHEVRON_STROKE}
+                      {...props(styles.promiseCheck)}
+                    />
+                    {promise}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <MacDownload style={styles.downloadCentered} />
+          </div>
+          <p {...props(styles.or)}>{m.home_how_or()}</p>
+          <div {...props(styles.diy)}>
+            <p {...props(styles.diyLine)}>{m.home_how_diy()}</p>
+            <Button render={<a href={GUIDE_URL} />} variant="outline">
+              {m.home_how_diy_cta()}
+            </Button>
+          </div>
+        </section>
+
+        {/* That it works, once the way is told: the before in words, my own
+        screen time after. */}
+        <section {...props(styles.section, styles.anchor)} id={PROOF_ID}>
+          <h2 {...props(styles.displayTitle, styles.stat)}>{m.home_proof_title()}</h2>
+          <p {...props(styles.sectionBody)}>{m.home_proof_lead()}</p>
+          <ScreenShots
+            caption={m.home_proof_caption()}
+            shots={[
+              {
+                alt: m.home_proof_shot_time(),
+                height: 684,
+                src: '/media/screentime-mert/mert-after-screen-time.webp',
+                width: 800,
+              },
+              {
+                alt: m.home_proof_shot_pickups(),
+                height: 511,
+                src: '/media/screentime-mert/mert-after-pickups.webp',
+                width: 800,
+              },
+            ]}
+          />
+        </section>
+
+        {/* Not against the networks, only their feeds, and the browser half
+        of the same idea: the extension that takes the feeds off the computer. */}
+        <section {...props(styles.section)}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_social_title()}</h2>
+          <p {...props(styles.sectionBody)}>{m.home_social_body()}</p>
+          <p {...props(styles.sectionBody)}>
+            {socialBefore}
+            <a href={STORE_URL} rel="noreferrer" target="_blank">
+              {m.home_social_link()}
+            </a>
+            {socialAfter}
+          </p>
+        </section>
+
+        <section {...props(styles.section)}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_faq_title()}</h2>
+          <div>
+            {objections.map((objection) => (
+              <Question answer={objection.desc} key={objection.term} question={objection.term} />
+            ))}
+          </div>
+        </section>
+
+        {/* Who made this and why, told rather than argued. */}
+        <section {...props(styles.section, styles.anchor)} id={STORY_ID}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_story_title()}</h2>
+          <div {...props(styles.story)}>
+            <p {...props(styles.storyLine)}>{m.home_story_people()}</p>
+            <ScreenShots
+              shots={[
+                {
+                  alt: m.home_story_shot_friend_1(),
+                  height: 640,
+                  src: '/media/screentime-friends/friend-1-week-sep-14.webp',
+                  width: 800,
+                },
+              ]}
+            />
+            <p {...props(styles.storyLine)}>
+              {attentionParts.map((part) => {
+                const word = attentionWords.get(part);
+                return word === undefined ? (
+                  part
+                ) : (
+                  <span key={part} {...props(styles.accentWord)}>
+                    {word}
+                  </span>
+                );
+              })}
+            </p>
+            <p {...props(styles.storyLine)}>
+              {storyBefore}
+              <a href={STORY_URL} rel="noreferrer" target="_blank">
+                {m.home_story_path_link()}
+              </a>
+              {storyAfter}
+            </p>
+            <Signature />
+          </div>
+        </section>
+
+        <section {...props(styles.closing)}>
+          <h2 {...props(styles.displayTitle)}>{m.home_close_title()}</h2>
+          <MacDownload style={styles.downloadCentered} />
+          <p {...props(styles.closingNote)}>
+            <span>{m.home_how_app_price()}</span>
+            <a href={GUIDE_URL}>{m.home_close_diy()}</a>
+          </p>
+        </section>
+
+        <SiteFooter />
       </div>
     </main>
   );
