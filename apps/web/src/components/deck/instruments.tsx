@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { drawing } from '../../lib/motion.stylex.ts';
 import { HEIGHT, WIDTH } from './box.ts';
 
-/** The whole run, from the first sound to the last: twice an answer's time, so no scene is rushed. */
+/** The whole run, from the first sound to the last: nearly twice an answer's time, so no scene is rushed. */
 const RUN_SECONDS = drawing.instruments;
 /**
  * How long each step takes, before the run is scaled to its length: every
@@ -22,7 +22,7 @@ const PLAYING = 0.55;
 /** The parts morph from left to right: the last starts this share of the morph after the first. */
 const STAGGER = 0.3;
 /** The instruments played in turn, up to this many. Past it, one stands for more than one. */
-const SHOWN_MAX = 9;
+const SHOWN_MAX = 6;
 const INSTRUMENTS = ['piano', 'guitar', 'drum'] as const;
 /**
  * The drawing is twelve parts, one for each key of an octave: the white keys

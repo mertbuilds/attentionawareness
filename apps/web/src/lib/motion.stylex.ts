@@ -57,8 +57,8 @@ export const scale = defineConsts({
  * The grid of what else the hours could have been brings its six on one
  * after another, `gridStagger` apart and the first that long after its line,
  * and each, once risen, plays once over its own time and stands on its end.
- * The drawings kept in `deck/` draw over `deck`, the instruments over twice
- * that, a scene at a time. Once every drawing up has played, the grid stands
+ * The drawings kept in `deck/` draw over `deck`, the instruments over nearly
+ * twice that, a scene at a time. Once every drawing up has played, the grid stands
  * `gridShuffle` before one of its cells trades its fact for another, and as
  * long after each fact swapped in has played. Further down, the way out's
  * three steps play over `stepPlug`, `stepChoose` and `stepStays`, one after
@@ -70,7 +70,7 @@ export const drawing = defineConsts({
   earth: 4.2,
   gridShuffle: 4.5,
   gridStagger: 0.33,
-  instruments: 8,
+  instruments: 7.2,
   moon: 3.8,
   stepChoose: 3.2,
   stepPlug: 3.4,
