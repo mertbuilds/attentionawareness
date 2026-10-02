@@ -123,8 +123,6 @@ await page.evaluate(() => document.fonts.ready);
 await page.screenshot({ path: path.join(out, 'og.png') });
 process.stdout.write('render-brand: og.png (1200x630)\n');
 
-await browser.close();
-
 /**
  * The same mark as outlines. Type in an SVG would mean shipping the font, and
  * the font is licensed, so the letters travel as the shapes they draw.
@@ -223,3 +221,26 @@ const devSvg = svg.replace(
 );
 writeFileSync(path.join(out, 'favicon-dev.svg'), `${devSvg}\n`);
 process.stdout.write(`render-brand: favicon.svg (${svg.length} bytes)\n`);
+
+// Fixed-theme copies for partner sites, since favicon.svg follows the viewer's
+// OS theme: the black tile for light pages, the white tile for dark ones.
+const logos = [
+  { file: 'logo-light', style: '.bg{fill:#000}.fg{fill:#fff}' },
+  { file: 'logo-dark', style: '.bg{fill:#fff}.fg{fill:#000}' },
+];
+
+await page.setViewportSize({ height: SVG_SIZE, width: SVG_SIZE });
+
+for (const logo of logos) {
+  const logoSvg = svg.replace(/<style>.*?<\/style>/u, `<style>${logo.style}</style>`);
+  writeFileSync(path.join(out, `${logo.file}.svg`), `${logoSvg}\n`);
+  await page.setContent(
+    `<style>* { margin: 0; } body { background: transparent; } svg { display: block; height: ${SVG_SIZE}px; width: ${SVG_SIZE}px; }</style>${logoSvg}`,
+  );
+  await page.screenshot({ omitBackground: true, path: path.join(out, `${logo.file}.png`) });
+  process.stdout.write(
+    `render-brand: ${logo.file}.svg, ${logo.file}.png (${SVG_SIZE}x${SVG_SIZE})\n`,
+  );
+}
+
+await browser.close();
