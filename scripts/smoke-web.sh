@@ -22,7 +22,7 @@ fi
 # stops the vite and workerd processes that pnpm starts under it.
 set -m
 cd "$ROOT/apps/web"
-WRANGLER_DOCKER_BIN=/usr/bin/false pnpm exec vite preview --port "$PORT" --strictPort >"$LOG" 2>&1 &
+WRANGLER_DOCKER_BIN=/usr/bin/false pnpm exec vite preview --port "$PORT" --strictPort </dev/null >"$LOG" 2>&1 &
 server=$!
 cleanup() {
   kill -TERM -- "-$server" 2>/dev/null || true
