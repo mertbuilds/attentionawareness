@@ -5,11 +5,14 @@ import { create, props } from '@stylexjs/stylex';
  * One real screenshot, cropped to the card itself, so no name, device, status
  * bar or app list is in the picture. Another one is a file in `public/media/`
  * and a line in the list it stands in. One that is not in yet takes a `todo`
- * note instead of its `src`, and a marked box its size stands in for it.
+ * note instead of its `src`, and a marked box its size stands in for it. One
+ * the caption under the row does not speak for, such as someone else's, says
+ * whose it is in a `label` under it.
  */
 export type Shot = {
   alt: string;
   height: number;
+  label?: string;
   width: number;
 } & ({ src: string } | { todo: string });
 
@@ -37,6 +40,12 @@ const styles = create({
       '@media (min-width: 560px)': 'repeat(2, minmax(0, 1fr))',
       default: 'minmax(0, 1fr)',
     },
+  },
+  // One shot and its label, close under it.
+  item: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s2,
   },
   // A squircle window onto the card, zoomed past the phone's own margin and
   // corners so only the card itself shows, at the same shape for every shot.
@@ -109,16 +118,24 @@ export function ScreenShots({ caption, shots }: { caption?: string; shots: Reado
         {shots.map((shot, index) => {
           const lone = shots.length % 2 === 1 && index === shots.length - 1;
           return 'src' in shot ? (
-            <div key={shot.src} {...props(styles.frame, lone && styles.lone)}>
-              <img
-                alt={shot.alt}
-                decoding="async"
-                height={shot.height}
-                loading="lazy"
-                src={shot.src}
-                width={shot.width}
-                {...props(styles.shot)}
-              />
+            <div key={shot.src} {...props(styles.item, lone && styles.lone)}>
+              <div {...props(styles.frame)}>
+                <img
+                  alt={shot.alt}
+                  decoding="async"
+                  height={shot.height}
+                  loading="lazy"
+                  src={shot.src}
+                  width={shot.width}
+                  {...props(styles.shot)}
+                />
+              </div>
+              {/* The label repeats the alt, so it is read once. */}
+              {shot.label === undefined ? null : (
+                <span aria-hidden="true" {...props(styles.caption)}>
+                  {shot.label}
+                </span>
+              )}
             </div>
           ) : (
             <div
