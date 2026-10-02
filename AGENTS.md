@@ -70,7 +70,7 @@ Web app (`apps/web`): `pnpm --filter @attentionawareness/web dev` (:3000 standal
 
 ## Web (`apps/web`)
 
-- TanStack Start on Cloudflare Workers. Custom entry `src/server.ts` (`worker.entrypoint` in `cloudflare.config.ts`) wraps the Start handler with `paraglideMiddleware` and an evlog wide event per request (Axiom drain when `AXIOM_TOKEN`+`AXIOM_DATASET` are declared in `cloudflare.config.ts` and set; they are not today); Workers `observability` stays disabled so logs are not duplicated.
+- TanStack Start on Cloudflare Workers. Custom entry `src/server.ts` (`worker.entrypoint` in `cloudflare.config.ts`) wraps the Start handler with `paraglideMiddleware` and an evlog wide event per request (Axiom drain when `AXIOM_TOKEN`+`AXIOM_DATASET` are declared in `cloudflare.config.ts` and set; they are not today); with no Axiom drain bound, evlog writes to the console only, so Workers `observability` is on (logs, sampling 1) to keep those logs.
 - React Compiler is on (`react({ compiler: true })` via `oxc-transform-react`). react-grab loads in dev only.
 - i18n: Paraglide v2, English only (`locales: ["en"]`, `strategy: ['baseLocale']`). `messages/tr.json` stays on disk, unlisted and uncompiled, for the day Turkish comes back. Generated `src/paraglide/` and `src/routeTree.gen.ts` are gitignored build output — never edit them, they regenerate on `vite dev`/`build`. All user-facing strings go through `m.*()`.
 - Analytics: PostHog only when `VITE_POSTHOG_KEY` is set — provider in `__root.tsx` (defaults `2026-05-30`, heatmaps on, inputs masked), ingest reverse-proxied through the `/ingest/$` server route to PostHog EU so adblockers don't drop events.
