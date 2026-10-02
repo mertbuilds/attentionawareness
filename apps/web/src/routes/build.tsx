@@ -13,6 +13,7 @@ import {
   Skeleton,
 } from '@attentionawareness/ui';
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
+import { usePostHog } from '@posthog/react';
 import { create, keyframes, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
@@ -1097,6 +1098,7 @@ function SiteHostField({
 }
 
 function BuildPage() {
+  const posthog = usePostHog();
   const [config, setConfig] = useState<ProfileConfig>(presets.mert);
   // The user's own urls, the derived ones they turned off, and the derived ones
   // they deleted. Everything else in the deny list comes from the blocked apps.
@@ -1381,6 +1383,13 @@ function BuildPage() {
         { bundleId: app.bundleId, name: shortAppName(app.name), sellerUrl: app.sellerUrl },
       ],
     });
+    posthog.capture('app_block_added', {
+      total_blocked_apps: config.blockedApps.length + 1,
+    });
+    posthog.logger.info('profile blocklist updated', {
+      action: 'added',
+      total_blocked_apps: config.blockedApps.length + 1,
+    });
   }
 
   // Removing is one click away from undoable and one click away from gone, so
@@ -1391,6 +1400,13 @@ function BuildPage() {
       setConfig({
         ...config,
         blockedApps: config.blockedApps.filter((app) => app.bundleId !== bundleId),
+      });
+      posthog.capture('app_block_removed', {
+        total_blocked_apps: config.blockedApps.length - 1,
+      });
+      posthog.logger.info('profile blocklist updated', {
+        action: 'removed',
+        total_blocked_apps: config.blockedApps.length - 1,
       });
       return;
     }
@@ -1413,6 +1429,7 @@ function BuildPage() {
   // list, the everyday tools for an allow list. Unticked rows belong to the
   // list that is being left, so they go with it.
   function setWebMode(mode: WebMode) {
+    posthog.capture('web_filter_mode_changed', { web_filter_mode: mode });
     setExcludedEntries([]);
     if (mode === 'deny') {
       setConfig({
@@ -1586,6 +1603,25 @@ function BuildPage() {
         return;
       }
       save(await response.arrayBuffer());
+      const webFilterSiteCount =
+        effectiveConfig.webFilter.mode === 'deny'
+          ? effectiveConfig.webFilter.deniedUrls.length
+          : effectiveConfig.webFilter.mode === 'allow'
+            ? effectiveConfig.webFilter.allowedUrls.length
+            : 0;
+      const profileMode = effectiveConfig.lockRemoval ? 'permanent' : 'trial';
+      posthog.capture('profile_downloaded', {
+        blocked_apps_count: effectiveConfig.blockedApps.length,
+        profile_mode: profileMode,
+        web_filter_mode: effectiveConfig.webFilter.mode,
+        web_filter_site_count: webFilterSiteCount,
+      });
+      posthog.logger.info('signed profile downloaded', {
+        blocked_apps_count: effectiveConfig.blockedApps.length,
+        profile_mode: profileMode,
+        web_filter_mode: effectiveConfig.webFilter.mode,
+        web_filter_site_count: webFilterSiteCount,
+      });
     } catch {
       setSignFailure(m.gen_sign_unavailable());
     } finally {

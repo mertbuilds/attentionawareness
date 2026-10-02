@@ -2,6 +2,8 @@
 
 Date: 2026-10-02. Status: accepted.
 
+Amended by ADR-0004: PostHog replay runs alongside this one, and on `/build` attributes do carry visitor data (the apps and sites they block), which this recorder does not mask.
+
 ## Why
 
 Page views say where visitors drop off, not why. A recording of the visit shows what they read and where they stopped.
