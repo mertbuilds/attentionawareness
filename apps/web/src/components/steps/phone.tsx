@@ -1,8 +1,12 @@
+import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { WIDTH } from './box.ts';
 
-/** The iPhone the home-screen steps draw, upright in the middle of the box. */
+/**
+ * The iPhone the last step draws, upright in the middle of the box, from
+ * where that step moves it aside to make room for the Mac.
+ */
 export const PHONE = { height: 160, radius: 14, width: 80, x: (WIDTH - 80) / 2, y: 10 };
 /** The screen sits this far inside the body, its corners concentric with the body's. */
 const BEZEL = 3;
@@ -26,21 +30,16 @@ const SCREEN = {
   y: PHONE.y + BEZEL,
 };
 
-/** One app on the home screen: the middle of its square, and its row from the top. */
-export type App = { row: number; x: number; y: number };
+/** One app on the home screen: the middle of its square. */
+export type App = { x: number; y: number };
 
-/** Every app, a row at a time from the top, and the dock's last, as a row of their own. */
+/** Every app, a row at a time from the top, and the dock's last. */
 export const APPS: ReadonlyArray<App> = [
-  ...Array.from({ length: ROWS * COLUMNS }, (_, index) => {
-    const row = Math.floor(index / COLUMNS);
-    return {
-      row,
-      x: GRID_LEFT + (index % COLUMNS) * PITCH.x + ICON / 2,
-      y: GRID_TOP + row * PITCH.y + ICON / 2,
-    };
-  }),
+  ...Array.from({ length: ROWS * COLUMNS }, (_, index) => ({
+    x: GRID_LEFT + (index % COLUMNS) * PITCH.x + ICON / 2,
+    y: GRID_TOP + Math.floor(index / COLUMNS) * PITCH.y + ICON / 2,
+  })),
   ...Array.from({ length: COLUMNS }, (_, column) => ({
-    row: ROWS,
     x: GRID_LEFT + column * PITCH.x + ICON / 2,
     y: DOCK.y + DOCK.inset + ICON / 2,
   })),
@@ -56,6 +55,10 @@ const styles = create({
     fill: 'none',
     stroke: colors.muted,
     strokeWidth: 1,
+  },
+  // An app chosen to be blocked.
+  appPicked: {
+    stroke: accent.base,
   },
   dock: {
     fill: 'none',
@@ -112,8 +115,11 @@ export function PhoneFrame() {
   );
 }
 
-/** An app's square, around the origin, for a group placed at the app's middle. */
-export function AppSquare() {
+/**
+ * An app's square, around the origin, for a group placed at the app's middle,
+ * in orange once it is `picked` to be blocked.
+ */
+export function AppSquare({ picked = false }: { picked?: boolean }) {
   return (
     <rect
       height={ICON}
@@ -121,7 +127,7 @@ export function AppSquare() {
       width={ICON}
       x={-ICON / 2}
       y={-ICON / 2}
-      {...props(styles.app)}
+      {...props(styles.app, picked && styles.appPicked)}
     />
   );
 }
