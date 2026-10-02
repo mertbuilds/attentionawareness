@@ -12,7 +12,7 @@ import {
   useScroll,
   useTransform,
 } from 'motion/react';
-import type { MotionValue } from 'motion/react';
+import type { EasingDefinition, MotionValue } from 'motion/react';
 import { Fragment, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
 import type { MouseEvent, ReactNode } from 'react';
 import {
@@ -37,18 +37,20 @@ import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
 import { AppFan } from './app-fan.tsx';
 import { BillFilters } from './bill-paper.tsx';
+import { BooksGraphic } from './deck/books.tsx';
+import { HEIGHT, WIDTH } from './deck/box.ts';
+import { LanguagesGraphic } from './deck/languages.tsx';
+import { MarathonsGraphic } from './deck/marathons.tsx';
 import { GridTexture } from './grid-texture.tsx';
 import { InfoTip } from './info-tip.tsx';
 
 /** The report the average day is taken from. */
 const SOURCE_URL = 'https://datareportal.com/reports/digital-2024-global-overview-report';
 /** The story's sentences, in the order the scroll plays them, and where each drawing's beat stands. */
-const BEATS = 6;
+const BEATS = 4;
 const WEEKS_BEAT = 1;
-const WEEKENDS_BEAT = 2;
-const EARTH_BEAT = 3;
-const MOON_BEAT = 4;
-const TURN_BEAT = 5;
+const GRID_BEAT = 2;
+const TURN_BEAT = 3;
 /** How much of the stage has to be on screen before a drawing plays. */
 const SEEN = 0.6;
 /** `easing.smoothOut`, the curve things move into place on, as motion takes a curve. */
@@ -110,12 +112,29 @@ const NARROW_WEEKS = { columns: 26, size: 6 };
 /** A square of the grid's legend, a touch bigger than the grid's own so it reads at text size. */
 const SWATCH_SIZE = 8;
 /**
+ * The six things the hours could have been, each drawn in the deck's own box.
+ * The box is set on the element, as the stylesheet reads no constant from
+ * another module.
+ */
+const ART_RATIO = `${WIDTH} / ${HEIGHT}`;
+/**
+ * The six share the window's height with the rest of the stage: its padding,
+ * and this much more for the line over them and the captions under them, two
+ * rows of them on a wide screen and three on a phone. On a window too short
+ * for them at their full size, they are drawn smaller.
+ */
+const WIDE_GRID_ROOM = 204;
+const NARROW_GRID_ROOM = 264;
+/** How wide the six stand on a wide screen: past the column, so each is drawn large enough to read. */
+const GRID_WIDTH = 960;
+/**
  * The weekends, one calendar tile each, flipping past the line where each one
  * is crossed out. They ease from rest up to a pace a cross can be watched
  * drawing at, this many tiles a second, over the first `WEEKENDS_EASE`
  * seconds of the run, and hold it while the first few are crossed out; gather
  * speed over `WEEKENDS_RAMP` into a rush through the years; lose it over as
- * long; and end the way they began.
+ * long; and end the way they began. The run is timed here at its own pace,
+ * and the grid plays it at `drawing.gridPace` of it.
  */
 const WEEKENDS_PACE = 2.8;
 const WEEKENDS_EASE = 0.4;
@@ -246,6 +265,66 @@ const styles = create({
       default: 0,
     },
     width: '100%',
+  },
+  // What one of the six stands for, under its drawing: the end of the line
+  // over them, small, with its figure in orange.
+  caption: {
+    color: colors.fg,
+    fontSize: {
+      '@media (min-width: 640px)': font.sizeMd,
+      default: font.sizeSm,
+    },
+    lineHeight: 1.35,
+    margin: 0,
+    textWrap: 'balance',
+  },
+  // One of the six: its drawing over its caption.
+  cell: {
+    alignItems: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s2,
+    minWidth: 0,
+  },
+  // The drawing's box, across the cell and no taller than the window leaves
+  // room for.
+  cellArt: {
+    display: 'flex',
+    justifyContent: 'center',
+    maxHeight: {
+      '@media (min-width: 640px)': `calc((100dvh - ${wip.height} - 2 * ${spacing.s16} - ${WIDE_GRID_ROOM}px) / 2)`,
+      default: `calc((100dvh - ${wip.height} - 2 * ${spacing.s16} - ${NARROW_GRID_ROOM}px) / 3)`,
+    },
+    width: '100%',
+  },
+  // The drawing in it, the same shape and as large as the box holds.
+  cellDrawing: {
+    alignItems: 'center',
+    display: 'flex',
+    height: '100%',
+    justifyContent: 'center',
+    maxWidth: '100%',
+  },
+  // The six, three across and two down, or two across and three down on a
+  // phone.
+  could: {
+    columnGap: {
+      '@media (min-width: 640px)': spacing.s6,
+      default: spacing.s3,
+    },
+    display: 'grid',
+    gridTemplateColumns: {
+      '@media (min-width: 640px)': 'repeat(3, minmax(0, 1fr))',
+      default: 'repeat(2, minmax(0, 1fr))',
+    },
+    listStyle: 'none',
+    margin: 0,
+    padding: 0,
+    rowGap: {
+      '@media (min-width: 640px)': spacing.s6,
+      default: spacing.s4,
+    },
+    width: `min(${GRID_WIDTH}px, 100vw - 2 * ${spacing.s4})`,
   },
   // The way on, pinned with the stage just over the progress rail. It stands
   // while the first beat does and trades places with the rail as the second
@@ -452,6 +531,14 @@ const styles = create({
     transitionDuration: duration.slow,
     transitionTimingFunction: easing.smoothOut,
   },
+  // The line over the six, a size under the story's sentences, so the six
+  // have the room.
+  lead: {
+    fontSize: {
+      '@media (min-width: 640px)': 'clamp(28px, 3.4vw, 40px)',
+      default: 'clamp(24px, 6.5vw, 28px)',
+    },
+  },
   // Large and light: the story is read one sentence a screen, so each one is
   // set as big as the first screen's claim and a weight under it.
   line: {
@@ -520,14 +607,12 @@ const styles = create({
     margin: 0,
     textWrap: 'balance',
   },
+  // The globe and its walks, as large as their box holds.
   orbit: {
     display: 'block',
-    height: 'auto',
+    height: '100%',
     overflow: 'visible',
-    width: {
-      '@media (min-width: 640px)': 200,
-      default: 160,
-    },
+    width: '100%',
   },
   orbitLine: {
     fill: 'none',
@@ -824,12 +909,11 @@ const styles = create({
     stroke: colors.border,
     strokeWidth: 1,
   },
-  // The weekends and their legend, under each other.
+  // The weekends, their strip in the middle of the box.
   weekends: {
     alignItems: 'center',
     display: 'flex',
     flexDirection: 'column',
-    gap: spacing.s3,
     width: '100%',
   },
   // The line the weekends are stamped at, showing above and below the strip
@@ -1037,6 +1121,47 @@ function usePlayed(
   return played;
 }
 
+/**
+ * How far one of the six drawings in the grid has played, from 0 to 1, over
+ * and over while its beat is on: at `drawing.gridPace` of its own `seconds`,
+ * a stand on its end, and from the start again. The first time, it waits as a
+ * beat's drawing does and `drawing.gridStagger` more for each drawing before
+ * its `place` in the grid, so the six do not start over together. Off the
+ * beat it stops, and is back at the start once the beat has faded out. It
+ * stands done until the page has come alive, and for good with less motion.
+ */
+function useLooped(
+  run: boolean,
+  seconds: number,
+  ease: EasingDefinition,
+  place: number,
+): MotionValue<number> {
+  const reduced = useLessMotion();
+  const played = useMotionValue(1);
+  useEffect(() => {
+    if (reduced) {
+      played.set(1);
+      return;
+    }
+    if (!run) {
+      const timer = setTimeout(() => played.set(0), FADE_OUT_MS);
+      return () => clearTimeout(timer);
+    }
+    played.set(0);
+    const drawn = seconds * drawing.gridPace;
+    const round = drawn + drawing.gridHold;
+    const controls = animate(played, [0, 1, 1], {
+      delay: drawing.delay + place * drawing.gridStagger,
+      duration: round,
+      ease: [ease, 'linear'],
+      repeat: Infinity,
+      times: [0, drawn / round, 1],
+    });
+    return () => controls.stop();
+  }, [ease, place, played, reduced, run, seconds]);
+  return played;
+}
+
 /** Where the walk is `t` of the way along: one lap a trip, spiralling out. */
 function orbitPoint(laps: number, t: number): { x: number; y: number } {
   const angle = t * laps * 2 * Math.PI - Math.PI / 2;
@@ -1062,28 +1187,20 @@ function orbitPath(laps: number, t: number): string {
 }
 
 /**
- * A plain globe, and the walks around it drawn once the beat comes on: one lap
- * for every trip around the Earth, with the walker at the head of the line.
- * The line and the walker are both drawn from how far it has walked, so the
- * walker never runs ahead of the line or falls behind it. With less motion
- * the walk stands drawn whole.
+ * A plain globe, and the walks around it drawn as it plays: one lap for every
+ * trip around the Earth, with the walker at the head of the line. The line
+ * and the walker are both drawn from how far it has walked, so the walker
+ * never runs ahead of the line or falls behind it. With less motion the walk
+ * stands drawn whole.
  */
-function Orbit({
-  laps,
-  style,
-  walked,
-}: {
-  laps: number;
-  style: StyleXStyles;
-  walked: MotionValue<number>;
-}) {
+function Orbit({ laps, walked }: { laps: number; walked: MotionValue<number> }) {
   const reduced = useLessMotion();
   const line = useTransform(walked, (t) => orbitPath(laps, t));
   const walkerX = useTransform(walked, (t) => orbitPoint(laps, t).x);
   const walkerY = useTransform(walked, (t) => orbitPoint(laps, t).y);
   const walkerOpacity = useTransform(walked, [0, 0.02], [0, 1]);
   return (
-    <svg aria-hidden="true" viewBox={`0 0 ${BOX} ${BOX}`} {...props(styles.orbit, style)}>
+    <svg aria-hidden="true" viewBox={`0 0 ${BOX} ${BOX}`} {...props(styles.orbit)}>
       <circle cx={CENTER} cy={CENTER} r={GLOBE_RADIUS} {...props(styles.globe)} />
       <ellipse
         cx={CENTER}
@@ -1296,19 +1413,11 @@ function comingSaturday(today: Date): number {
 
 /**
  * Every weekend in the next twenty years, a calendar tile each, flipping past
- * a line once the beat comes on. The first few and the last few are crossed
- * out stroke by stroke as they reach it; the ones that rush past between are
- * crossed whole. With less motion they stand all crossed out.
+ * a line as it plays. The first few and the last few are crossed out stroke
+ * by stroke as they reach it; the ones that rush past between are crossed
+ * whole. With less motion they stand all crossed out.
  */
-function Weekends({
-  drawn,
-  on,
-  style,
-}: {
-  drawn: MotionValue<number>;
-  on: boolean;
-  style: StyleXStyles;
-}) {
+function Weekends({ drawn }: { drawn: MotionValue<number> }) {
   const reduced = useLessMotion();
   const [passed, setPassed] = useState(0);
   // The tiles start this weekend, which only the reader's own clock knows, so
@@ -1334,7 +1443,7 @@ function Weekends({
   const to = Math.min(HORIZON_WEEKS - 1, stamped + TILE_REACH);
 
   return (
-    <div aria-hidden="true" {...props(styles.weekends, style)}>
+    <div aria-hidden="true" {...props(styles.weekends)}>
       <div {...props(styles.weekendsTrack)}>
         <span {...props(styles.weekendsLine)} />
         <div {...props(styles.weekendsStrip)}>
@@ -1390,7 +1499,6 @@ function Weekends({
           })}
         </div>
       </div>
-      <p {...props(styles.legend, on && styles.legendOn)}>{m.home_cost_weekends_legend()}</p>
     </div>
   );
 }
@@ -1494,19 +1602,10 @@ function strideAt(walked: number): number {
 
 /**
  * The Earth, the Moon and the dotted way between them. The hours walk the way
- * once the beat comes on, as far as they reach, and the walker stops there
- * with the rest of the way faint ahead of it. With less motion the walk
- * stands done.
+ * as it plays, as far as they reach, and the walker stops there with the rest
+ * of the way faint ahead of it. With less motion the walk stands done.
  */
-function Moon({
-  share,
-  style,
-  walked,
-}: {
-  share: number;
-  style: StyleXStyles;
-  walked: MotionValue<number>;
-}) {
+function Moon({ share, walked }: { share: number; walked: MotionValue<number> }) {
   const reduced = useLessMotion();
   const reach = Math.min(1, share);
   const way = useTransform(walked, (latest) => walkedTo(latest * reach));
@@ -1517,7 +1616,7 @@ function Moon({
   const headY = useTransform(walked, (latest) => wayAt(latest * reach).point.y - WALKER_HEAD);
   const end = wayAt(reach).point;
   return (
-    <div {...props(styles.drawing, style)}>
+    <div {...props(styles.drawing)}>
       <svg aria-hidden="true" viewBox={`0 0 ${SKY_WIDTH} ${SKY_HEIGHT}`} {...props(styles.sky)}>
         <circle cx={SKY_EARTH.x} cy={SKY_EARTH.y} r={SKY_EARTH.radius} {...props(styles.globe)} />
         <ellipse
@@ -1587,13 +1686,20 @@ export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
   const [told, setTold] = useState(false);
   const on = (index: number) => seen && active === index;
   const weeksDrawn = usePlayed(on(WEEKS_BEAT), drawing.weeks, SMOOTH_OUT);
-  const weekendsDrawn = usePlayed(on(WEEKENDS_BEAT), drawing.weekends, 'linear');
-  const walked = usePlayed(on(EARTH_BEAT), drawing.earth, SMOOTH_OUT);
-  const moonWalked = usePlayed(on(MOON_BEAT), drawing.moon, SMOOTH_OUT);
+  // The six in the grid, in their places, each eased the way it is on its own.
+  const weekendsDrawn = useLooped(on(GRID_BEAT), drawing.weekends, 'linear', 0);
+  const walked = useLooped(on(GRID_BEAT), drawing.earth, SMOOTH_OUT, 1);
+  const moonWalked = useLooped(on(GRID_BEAT), drawing.moon, SMOOTH_OUT, 2);
+  const booksPiled = useLooped(on(GRID_BEAT), drawing.deck, 'easeInOut', 3);
+  const languagesSaid = useLooped(on(GRID_BEAT), drawing.deck, 'easeInOut', 4);
+  const marathonsRun = useLooped(on(GRID_BEAT), drawing.deck, 'linear', 5);
 
   const metrics = heroMetrics(AVERAGE_HOURS);
   const amountOf = (key: string) => metrics.find((metric) => metric.key === key)?.amount ?? 0;
   const earth = amountOf('earth');
+  const books = amountOf('books');
+  const languages = amountOf('languages');
+  const marathons = amountOf('marathons');
   // The waking years, as the page prints them.
   const years = Number(formatYears(AVERAGE_HOURS));
   const number = new Intl.NumberFormat(getLocale());
@@ -1926,63 +2032,111 @@ export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
             </p>
           </div>
 
-          <div {...beat(WEEKENDS_BEAT)}>
-            <Weekends
-              drawn={weekendsDrawn}
-              on={on(WEEKENDS_BEAT)}
-              style={partOf(WEEKENDS_BEAT, 0)}
-            />
-            <p {...props(partOf(WEEKENDS_BEAT, 1, styles.line))}>
-              <Sentence
-                figures={[]}
-                mark={
-                  <Mark label={tipLabel}>
-                    {m.home_receipt_weekends_tip({
-                      daily: AVERAGE_HOURS,
-                      waking: WAKING_HOURS,
-                      weekend: WEEKEND_HOURS,
-                      weekly: weeklyHours(AVERAGE_HOURS),
-                    })}
-                  </Mark>
-                }
-                text={m.home_cost_weekends()}
-              />
+          <div {...beat(GRID_BEAT)}>
+            <p {...props(partOf(GRID_BEAT, 0, [styles.line, styles.lead]))}>
+              {m.home_cost_could()}
             </p>
-          </div>
-
-          <div {...beat(EARTH_BEAT)}>
-            <Orbit laps={earth} style={partOf(EARTH_BEAT, 0)} walked={walked} />
-            <p {...props(partOf(EARTH_BEAT, 1, styles.line))}>
-              <Sentence
-                figures={[<Figure key="earth" value={earth} />]}
-                mark={<Mark label={tipLabel}>{m.home_receipt_earth_tip()}</Mark>}
-                text={m.home_cost_earth({ count: slot(0) })}
-              />
-            </p>
-          </div>
-
-          <div {...beat(MOON_BEAT)}>
-            <Moon share={toMoon} style={partOf(MOON_BEAT, 0)} walked={moonWalked} />
-            <p {...props(partOf(MOON_BEAT, 1, styles.line))}>
-              <Sentence
-                figures={[]}
-                mark={
-                  <Mark label={tipLabel}>
-                    {m.home_receipt_moon_tip({
-                      hours: number.format(MOON_WALK_HOURS),
-                      km: number.format(MOON_KM),
-                      percent: toMoonPercent,
-                      speed: WALKING_KMH,
-                    })}
-                  </Mark>
-                }
-                text={
-                  toMoon >= HALFWAY
-                    ? m.home_cost_moon_half()
-                    : m.home_cost_moon_part({ percent: toMoonPercent })
-                }
-              />
-            </p>
+            <ul {...props(partOf(GRID_BEAT, 1, styles.could))}>
+              {[
+                {
+                  art: <Weekends drawn={weekendsDrawn} />,
+                  caption: (
+                    <Sentence
+                      figures={[]}
+                      mark={
+                        <Mark label={tipLabel}>
+                          {m.home_receipt_weekends_tip({
+                            daily: AVERAGE_HOURS,
+                            waking: WAKING_HOURS,
+                            weekend: WEEKEND_HOURS,
+                            weekly: weeklyHours(AVERAGE_HOURS),
+                          })}
+                        </Mark>
+                      }
+                      text={m.home_cost_could_weekends()}
+                    />
+                  ),
+                  key: 'weekends',
+                },
+                {
+                  art: <Orbit laps={earth} walked={walked} />,
+                  caption: (
+                    <Sentence
+                      figures={[<Figure key="earth" value={earth} />]}
+                      mark={<Mark label={tipLabel}>{m.home_receipt_earth_tip()}</Mark>}
+                      text={m.home_cost_could_earth({ count: slot(0) })}
+                    />
+                  ),
+                  key: 'earth',
+                },
+                {
+                  art: <Moon share={toMoon} walked={moonWalked} />,
+                  caption: (
+                    <Sentence
+                      figures={[]}
+                      mark={
+                        <Mark label={tipLabel}>
+                          {m.home_receipt_moon_tip({
+                            hours: number.format(MOON_WALK_HOURS),
+                            km: number.format(MOON_KM),
+                            percent: toMoonPercent,
+                            speed: WALKING_KMH,
+                          })}
+                        </Mark>
+                      }
+                      text={
+                        toMoon >= HALFWAY
+                          ? m.home_cost_could_moon_half()
+                          : m.home_cost_could_moon_part({ percent: toMoonPercent })
+                      }
+                    />
+                  ),
+                  key: 'moon',
+                },
+                {
+                  art: <BooksGraphic play={booksPiled} />,
+                  caption: (
+                    <Sentence
+                      figures={[<Figure key="books" value={books} />]}
+                      mark={<Mark label={tipLabel}>{m.home_receipt_books_tip()}</Mark>}
+                      text={m.home_cost_could_books({ count: slot(0) })}
+                    />
+                  ),
+                  key: 'books',
+                },
+                {
+                  art: <LanguagesGraphic amount={languages} play={languagesSaid} />,
+                  caption: (
+                    <Sentence
+                      figures={[<Figure key="languages" value={languages} />]}
+                      mark={<Mark label={tipLabel}>{m.home_receipt_languages_tip()}</Mark>}
+                      text={m.home_cost_could_languages({ count: slot(0) })}
+                    />
+                  ),
+                  key: 'languages',
+                },
+                {
+                  art: <MarathonsGraphic play={marathonsRun} />,
+                  caption: (
+                    <Sentence
+                      figures={[<Figure key="marathons" value={marathons} />]}
+                      mark={<Mark label={tipLabel}>{m.home_receipt_marathons_tip()}</Mark>}
+                      text={m.home_cost_could_marathons({ count: slot(0) })}
+                    />
+                  ),
+                  key: 'marathons',
+                },
+              ].map(({ art, caption, key }) => (
+                <li key={key} {...props(styles.cell)}>
+                  <div style={{ aspectRatio: ART_RATIO }} {...props(styles.cellArt)}>
+                    <div style={{ aspectRatio: ART_RATIO }} {...props(styles.cellDrawing)}>
+                      {art}
+                    </div>
+                  </div>
+                  <p {...props(styles.caption)}>{caption}</p>
+                </li>
+              ))}
+            </ul>
           </div>
 
           <div {...beat(TURN_BEAT)}>

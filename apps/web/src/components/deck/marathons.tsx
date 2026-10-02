@@ -2,6 +2,7 @@ import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
 import { animate, useMotionValue, useMotionValueEvent } from 'motion/react';
+import type { MotionValue } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { drawing, easing } from '../../lib/motion.stylex.ts';
 import { useLessMotion } from '../cost-story.tsx';
@@ -94,23 +95,28 @@ const styles = create({
 
 /**
  * How far the drawing has played, from 0 to 1. It plays from the start each
- * time `play` turns on, and goes back to the start when it turns off. For a
- * reader who asked for less motion it stands at the end.
+ * time `play` turns on, and goes back to the start when it turns off; played
+ * from outside, it is as far as `play` says. For a reader who asked for less
+ * motion it stands at the end.
  */
-function usePlayhead(play: boolean): number {
+function usePlayhead(play: boolean | MotionValue<number>): number {
   const reduced = useLessMotion();
-  const clock = useMotionValue(0);
+  const own = useMotionValue(0);
+  const clock = typeof play === 'boolean' ? own : play;
   const [at, setAt] = useState(0);
   useMotionValueEvent(clock, 'change', setAt);
 
   useEffect(() => {
-    clock.set(0);
+    if (typeof play !== 'boolean') {
+      return;
+    }
+    own.set(0);
     if (!play || reduced) {
       return;
     }
-    const controls = animate(clock, 1, { duration: PLAY_SECONDS, ease: 'linear' });
+    const controls = animate(own, 1, { duration: PLAY_SECONDS, ease: 'linear' });
     return () => controls.stop();
-  }, [clock, play, reduced]);
+  }, [own, play, reduced]);
 
   return reduced ? 1 : at;
 }
@@ -192,10 +198,10 @@ const FINISH = `M${CENTER_X + HALF_STRAIGHT} ${CENTER_Y + KERB} L${CENTER_X + HA
  * A running track seen from above, and a runner lapping it: off the line at
  * a run, then so fast the tail behind it rings the lane, then easing back
  * over the line. It plays once each time `play` turns on and stands at the
- * start while it is off. For a reader who asked for less motion it stands
- * finished.
+ * start while it is off, or runs as far as `play` says when it is played from
+ * outside. For a reader who asked for less motion it stands finished.
  */
-export function MarathonsGraphic({ play }: { play: boolean }) {
+export function MarathonsGraphic({ play }: { play: boolean | MotionValue<number> }) {
   const reduced = useLessMotion();
   const at = usePlayhead(play);
   const ran = lapsBy(at);

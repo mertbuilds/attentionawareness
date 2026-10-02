@@ -2,6 +2,7 @@ import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { animate, motion, useMotionValue, useMotionValueEvent, useTransform } from 'motion/react';
+import type { MotionValue } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { blur, distance, drawing } from '../../lib/motion.stylex.ts';
 import { useLessMotion } from '../cost-story.tsx';
@@ -141,14 +142,22 @@ function flipOf(at: number): number {
  * "Hello" in a speech bubble, flipping through one language after another,
  * slowly at first, then in a blur, then slowly onto the last. Under it a tick
  * for every language turns orange as it is counted. It plays once each time
- * `play` comes on and starts over when it goes off; with less motion it stands
- * on the last word with every tick counted.
+ * `play` comes on and starts over when it goes off, or stands as far as
+ * `play` says when it is played from outside; with less motion it stands on
+ * the last word with every tick counted.
  */
-export function LanguagesGraphic({ amount, play }: { amount: number; play: boolean }) {
+export function LanguagesGraphic({
+  amount,
+  play,
+}: {
+  amount: number;
+  play: boolean | MotionValue<number>;
+}) {
   const reduced = useLessMotion();
   // Done until the page says otherwise, so a page that has not run its script
   // shows the last word.
-  const progress = useMotionValue(1);
+  const own = useMotionValue(1);
+  const progress = typeof play === 'boolean' ? own : play;
   const reel = useTransform(progress, (t) => reelAt(t, amount));
   // How far into the swap the word is: none while it stands, all of it at the
   // turn, where the old word is gone and the new one not yet come.
@@ -165,17 +174,20 @@ export function LanguagesGraphic({ amount, play }: { amount: number; play: boole
   useMotionValueEvent(reel, 'change', (at) => setCounted(Math.round(at)));
 
   useEffect(() => {
-    if (reduced) {
-      progress.set(1);
+    if (typeof play !== 'boolean') {
       return;
     }
-    progress.set(0);
+    if (reduced) {
+      own.set(1);
+      return;
+    }
+    own.set(0);
     if (!play) {
       return;
     }
-    const controls = animate(progress, 1, { duration: SECONDS, ease: 'easeInOut' });
+    const controls = animate(own, 1, { duration: SECONDS, ease: 'easeInOut' });
     return () => controls.stop();
-  }, [play, progress, reduced]);
+  }, [own, play, reduced]);
 
   return (
     <svg aria-hidden="true" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} {...props(styles.graphic)}>
