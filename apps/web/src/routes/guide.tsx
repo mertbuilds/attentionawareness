@@ -163,24 +163,6 @@ const styles = create({
     margin: 0,
     textWrap: 'balance',
   },
-  // Where a screenshot goes once it is taken. Desktop-window shaped, dashed
-  // until then, the same way the screen time popover waits for its clip.
-  shot: {
-    alignItems: 'center',
-    aspectRatio: '16 / 10',
-    borderColor: colors.border,
-    borderRadius: radius.base,
-    borderStyle: 'dashed',
-    borderWidth: '1px',
-    boxSizing: 'border-box',
-    color: colors.muted,
-    display: 'flex',
-    fontSize: font.sizeSm,
-    justifyContent: 'center',
-    margin: 0,
-    marginBlockStart: spacing.s2,
-    width: '100%',
-  },
   // A Mac window brings its own rounded corners and the page shows through
   // them, so the picture needs no frame of its own.
   shotImage: {
@@ -238,18 +220,6 @@ function Step({ children, number, title }: { children: ReactNode; number: number
       </h2>
       {children}
     </li>
-  );
-}
-
-/**
- * A slot for a screenshot that has not been taken yet. `name` says which one
- * belongs here, so the image can be dropped in without reading the copy.
- */
-function ShotSlot({ name }: { name: string }) {
-  return (
-    <figure data-shot={name} {...props(styles.shot)}>
-      <figcaption>{m.guide_shot_soon()}</figcaption>
-    </figure>
   );
 }
 
@@ -344,19 +314,7 @@ function Guide() {
             />
           </Step>
 
-          <Step number={2} title={m.guide_step_erase_title()}>
-            <p {...props(styles.body)}>{m.guide_step_erase_body()}</p>
-            <p {...props(styles.body)}>{m.guide_step_erase_hello()}</p>
-            <Shot
-              alt={m.guide_shot_erase_iphone()}
-              height={569}
-              name="erase-iphone"
-              phone
-              width={320}
-            />
-          </Step>
-
-          <Step number={3} title={m.guide_step_configurator_title()}>
+          <Step number={2} title={m.guide_step_configurator_title()}>
             <p {...props(styles.body)}>
               {configuratorBefore}
               <a href={CONFIGURATOR_URL} rel="noreferrer" target="_blank">
@@ -364,13 +322,24 @@ function Guide() {
               </a>
               {configuratorAfter}
             </p>
-            {/* The Mac App Store page for Apple Configurator, with its Get button. */}
-            <ShotSlot name="install-configurator" />
             <Shot
               alt={m.guide_shot_configurator_open()}
               height={466}
               name="configurator-open"
               width={800}
+            />
+          </Step>
+
+          <Step number={3} title={m.guide_step_erase_title()}>
+            <p {...props(styles.body)}>{m.guide_step_erase_body()}</p>
+            <p {...props(styles.body)}>{m.guide_step_erase_stolen()}</p>
+            <p {...props(styles.body)}>{m.guide_step_erase_hello()}</p>
+            <Shot
+              alt={m.guide_shot_erase_iphone()}
+              height={569}
+              name="erase-iphone"
+              phone
+              width={320}
             />
           </Step>
 
@@ -398,10 +367,13 @@ function Guide() {
           </Step>
 
           <Step number={5} title={m.guide_step_setup_title()}>
+            <p {...props(styles.body)}>{m.guide_step_setup_home()}</p>
             <p {...props(styles.body)}>{m.guide_step_setup_no_restore()}</p>
             <p {...props(styles.body)}>{m.guide_step_setup_account()}</p>
+            <p {...props(styles.body)}>{m.guide_step_setup_find_my()}</p>
             <p {...props(styles.body)}>{m.guide_step_setup_apps()}</p>
             <p {...props(styles.body)}>{m.guide_step_setup_check()}</p>
+            <p {...props(styles.body)}>{m.guide_step_setup_managed()}</p>
             {/* iPhone Settings, the supervised line under the name. */}
             <Shot
               alt={m.guide_shot_settings_supervised()}
@@ -418,6 +390,7 @@ function Guide() {
               <a href={BUILD_PATH}>{m.guide_step_build_link()}</a>
               {builderAfter}
             </p>
+            <p {...props(styles.body)}>{m.guide_step_build_trial()}</p>
             <p {...props(styles.body)}>{m.guide_step_build_by_hand()}</p>
           </Step>
 
