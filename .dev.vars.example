@@ -6,3 +6,7 @@
 SIGNING_CERT_PEM="-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----\n"
 SIGNING_CHAIN_PEM="-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----\n"
 SIGNING_KEY_PKCS8_PEM="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+# Optional. The OpenPanel write client for the Mac download events
+# (apps/web/src/lib/mac-analytics.ts). Left empty, nothing is sent.
+OPENPANEL_CLIENT_ID=""
+OPENPANEL_CLIENT_SECRET=""
