@@ -1,6 +1,7 @@
 import { spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import type { ReactNode } from 'react';
+import { footPaper } from '../lib/foot-paper.stylex.ts';
 import { layout } from '../lib/layout.ts';
 import { m } from '../paraglide/messages.js';
 import { GridTexture } from './grid-texture.tsx';
@@ -15,8 +16,6 @@ const BUILDER_URL =
  * order and spacing in every language instead of being stitched from pieces.
  */
 const LINK_SLOT = '\u0000';
-/** The strip of graph paper at the foot of every page: the footer and the room around it. */
-const PAPER_HEIGHT = 240;
 /**
  * Ruled at the window's sides and clear in the middle, where the footer's words
  * stand. On a phone the words run nearly edge to edge, so the sides stay faint.
@@ -25,7 +24,7 @@ const PAPER_SIDES = 'linear-gradient(to right, black, transparent 35%, transpare
 const PAPER_SIDES_NARROW =
   'linear-gradient(to right, rgb(0 0 0 / 0.4), transparent 25%, transparent 75%, rgb(0 0 0 / 0.4))';
 /** No hard line where the paper starts: it comes in out of nothing at its top. */
-const PAPER_TOP = 'linear-gradient(to bottom, transparent, black 60%)';
+const PAPER_TOP = `linear-gradient(to bottom, transparent, black ${footPaper.fadeIn})`;
 
 const styles = create({
   footer: {
@@ -50,7 +49,7 @@ const styles = create({
   // the window's whole width without pushing it sideways, standing on the
   // page's bottom edge. The two masks are both applied, the sides and the top.
   paper: {
-    height: PAPER_HEIGHT,
+    height: footPaper.height,
     insetBlockEnd: 0,
     insetBlockStart: 'auto',
     maskComposite: 'intersect',

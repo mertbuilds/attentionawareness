@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { brandBar } from '../lib/brand-bar.stylex.ts';
+import { footPaper } from '../lib/foot-paper.stylex.ts';
 import { layout } from '../lib/layout.ts';
 import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
@@ -37,6 +38,12 @@ const APP_PATH = '/#way-out';
  * around it keep their own order and spacing in every language.
  */
 const LINK_SLOT = '\u0000';
+/**
+ * The guide's graph paper, top to bottom: it comes in over the first four
+ * squares, then goes out across the footer strip's own fade as the strip comes
+ * in, so where the two meet they add up to one grid.
+ */
+const PAPER_MASK = `linear-gradient(to bottom, transparent, black 160px, black calc(100% - ${footPaper.height}), transparent calc(100% - ${footPaper.height} + ${footPaper.fadeIn}))`;
 
 const styles = create({
   body: {
@@ -60,6 +67,15 @@ const styles = create({
     fontSize: font.sizeSm,
     margin: 0,
     textWrap: 'pretty',
+  },
+  // The whole page stands on the paper, as the home page's story does, and the
+  // paper scrolls with the words. It is ruled up from the page's foot, on the
+  // footer strip's own lines, so the hand-over draws no second grid.
+  grid: {
+    backgroundPosition: 'left bottom',
+    height: '100%',
+    maskImage: PAPER_MASK,
+    WebkitMaskImage: PAPER_MASK,
   },
   // Same column as `content`, so the hero and every section share a left edge.
   hero: {
@@ -231,7 +247,7 @@ function Guide() {
 
   return (
     <main {...props(styles.page)}>
-      <GridTexture />
+      <GridTexture style={styles.grid} />
       <header {...props(styles.hero)}>
         <h1 {...props(styles.heroTitle)}>{m.guide_title()}</h1>
         <p {...props(styles.lead)}>{m.guide_lead()}</p>
