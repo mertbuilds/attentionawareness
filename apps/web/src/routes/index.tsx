@@ -560,7 +560,7 @@ function HomePage() {
 
   // What the price buys, each with its tick.
   const promises = [
-    m.home_how_promise_once(),
+    m.home_how_promise_subscription(),
     m.home_how_promise_keep(),
     m.home_how_promise_trial(),
     m.home_how_promise_add(),
