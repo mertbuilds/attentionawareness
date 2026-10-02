@@ -2,8 +2,8 @@ import { createRouter } from '@tanstack/react-router';
 import { routeTree } from './routeTree.gen.ts';
 
 export function getRouter() {
-  // Every load starts at the top: the first screen is the question, and a
-  // reload that lands halfway down the page skips it.
+  // Every load starts at the top: the first screen says what this is and
+  // what it costs, and a reload that lands halfway down the page skips it.
   if (typeof history !== 'undefined' && 'scrollRestoration' in history) {
     history.scrollRestoration = 'manual';
   }

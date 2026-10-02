@@ -3,8 +3,7 @@ import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, defaultMarker, props, when } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
-import { useId, useRef, useState } from 'react';
-import { flushSync } from 'react-dom';
+import { useId, useState } from 'react';
 import {
   AngleDown,
   BookOpen,
@@ -47,9 +46,9 @@ const HERO_WIDTH = 1040;
 /** The phone's column beside the words, as wide as the phone is drawn there. */
 const HERO_PHONE_WIDTH = 320;
 /** The places on the page that can be linked to, and the ids they use. */
+const PROOF_ID = 'proof';
 const WAY_OUT_ID = 'way-out';
 const STORY_ID = 'story';
-const STORY_REST_ID = 'story-rest';
 /** The manual way out, on a page of its own. */
 const GUIDE_URL = '/guide';
 /** Every link off this site carries utm tags, so the visit is traced to this page. */
@@ -107,8 +106,8 @@ const styles = create({
     maxWidth: COLUMN_WIDTH,
     width: '100%',
   },
-  // The page's largest words, at one size: the claim it opens on and the line
-  // it closes on.
+  // The page's largest words, at one size: the claim it opens on, the numbers
+  // that back it and the line it closes on.
   displayTitle: {
     fontSize: {
       '@media (min-width: 640px)': 'clamp(40px, 5vw, 64px)',
@@ -247,10 +246,6 @@ const styles = create({
     textAlign: 'start',
     textWrap: 'pretty',
     width: '100%',
-  },
-  // Not on the page yet, and taking no room in it either.
-  gone: {
-    display: 'none',
   },
   // The first screen: the claim, the reason and the download beside the phone
   // the feeds leave. Too narrow for two columns, the phone stands under the
@@ -436,30 +431,23 @@ const styles = create({
     margin: 0,
     textWrap: 'balance',
   },
+  // Two times at the display size, their digits at one width.
+  stat: {
+    fontVariantNumeric: 'tabular-nums',
+  },
   story: {
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s4,
     maxWidth: 640,
   },
-  // Ten paragraphs of prose, so the ink is pulled a step toward the page.
+  // Paragraphs of prose, so the ink is pulled a step toward the page.
   storyLine: {
     color: `color-mix(in srgb, ${colors.fg} 80%, ${colors.bg})`,
     fontSize: 18,
     lineHeight: 1.7,
     margin: 0,
     textWrap: 'pretty',
-  },
-  // The way into the rest of the story, at the start of the line like the
-  // paragraphs around it.
-  storyMore: {
-    alignSelf: 'flex-start',
-  },
-  // The part of the story behind the button, spaced like the part before it.
-  storyRest: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s4,
   },
   // One thing the phone is for: a quiet tile, its icon over its line.
   use: {
@@ -544,20 +532,6 @@ function Question({ answer, question }: { answer: string; question: string }) {
 }
 
 function HomePage() {
-  const storySection = useRef<HTMLElement>(null);
-  const [storyOpen, setStoryOpen] = useState(false);
-
-  // Folding the story from its last paragraph would leave the reader far
-  // below it, so once it is folded the page goes back to where it starts.
-  function toggleStory() {
-    if (!storyOpen) {
-      setStoryOpen(true);
-      return;
-    }
-    flushSync(() => setStoryOpen(false));
-    storySection.current?.scrollIntoView({ block: 'start' });
-  }
-
   // The word the claim turns on, in the middle of it, so the words around it
   // keep their own order in every language.
   const [titleBefore, titleAfter] = m.home_hero_title({ algorithms: LINK_SLOT }).split(LINK_SLOT);
@@ -574,24 +548,26 @@ function HomePage() {
     { Icon: Video, text: m.home_uses_video() },
   ];
 
-  // The post the story links out to, in the middle of the sentence that tells
-  // it, so the words around it keep their own order in every language.
-  const [storyBefore, storyAfter] = m.home_story_1({ post: LINK_SLOT }).split(LINK_SLOT);
-
   // The browser half: the extension, in the middle of the sentence, and the
   // store it is added from.
-  const [computerBefore, computerAfter] = m
-    .home_computer_body({ extension: LINK_SLOT })
+  const [socialBefore, socialAfter] = m
+    .home_social_computer({ extension: LINK_SLOT })
     .split(LINK_SLOT);
+
+  // The post the story links out to, in the middle of the sentence that tells
+  // it, so the words around it keep their own order in every language.
+  const [storyBefore, storyAfter] = m.home_story_path({ post: LINK_SLOT }).split(LINK_SLOT);
 
   // What the price buys, each with its tick.
   const promises = [
+    m.home_how_promise_once(),
     m.home_how_promise_keep(),
     m.home_how_promise_trial(),
     m.home_how_promise_add(),
   ];
 
   const objections = [
+    { desc: m.home_faq_screen_time_desc(), term: m.home_faq_screen_time_term() },
     { desc: m.home_faq_supervision_desc(), term: m.home_faq_supervision_term() },
     { desc: m.home_faq_trial_desc(), term: m.home_faq_trial_term() },
     { desc: m.home_faq_choice_desc(), term: m.home_faq_choice_term() },
@@ -640,9 +616,73 @@ function HomePage() {
           <p {...props(styles.sectionBody)}>{m.home_uses_close()}</p>
         </section>
 
-        {/* How it works: where the Mac app comes in and what it does, in
-        three steps, what the app costs and promises, and under it, past an
-        or, the manual way that starts the phone over. */}
+        {/* That it works: my own screen time before and after, what the hours
+        went to instead, and one more person it worked for. */}
+        <section {...props(styles.section, styles.anchor)} id={PROOF_ID}>
+          <h2 {...props(styles.displayTitle, styles.stat)}>{m.home_proof_title()}</h2>
+          <p {...props(styles.sectionBody)}>{m.home_proof_lead()}</p>
+          <ScreenShots
+            caption={m.home_proof_caption()}
+            shots={[
+              // TODO(mert): replace with real screenshot
+              {
+                alt: m.home_proof_shot_before(),
+                height: 640,
+                todo: m.home_proof_shot_todo(),
+                width: 800,
+              },
+              {
+                alt: m.home_proof_shot_time(),
+                height: 684,
+                src: '/media/screentime-mert/mert-after-screen-time.webp',
+                width: 800,
+              },
+              {
+                alt: m.home_proof_shot_pickups(),
+                height: 511,
+                src: '/media/screentime-mert/mert-after-pickups.webp',
+                width: 800,
+              },
+            ]}
+          />
+          <ScreenShots
+            shots={[
+              // TODO(mert): replace with real screenshot
+              {
+                alt: m.home_proof_shot_github(),
+                height: 640,
+                todo: m.home_proof_shot_todo(),
+                width: 800,
+              },
+              // TODO(mert): replace with real screenshot
+              {
+                alt: m.home_proof_shot_claude(),
+                height: 640,
+                todo: m.home_proof_shot_todo(),
+                width: 800,
+              },
+            ]}
+          />
+          <p {...props(styles.sectionBody)}>{m.home_proof_sister()}</p>
+        </section>
+
+        {/* Not against the networks, only their feeds, and the browser half
+        of the same idea: the extension that takes the feeds off the computer. */}
+        <section {...props(styles.section)}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_social_title()}</h2>
+          <p {...props(styles.sectionBody)}>{m.home_social_body()}</p>
+          <p {...props(styles.sectionBody)}>
+            {socialBefore}
+            <a href={STORE_URL} rel="noreferrer" target="_blank">
+              {m.home_social_link()}
+            </a>
+            {socialAfter}
+          </p>
+        </section>
+
+        {/* How it works: what the Mac app does, in three steps, what it costs
+        and promises, and under it, past an or, the manual way that starts the
+        phone over. */}
         <section {...props(styles.section, styles.anchor)} id={WAY_OUT_ID}>
           <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
           <p {...props(styles.sectionBody)}>{m.home_how_lead()}</p>
@@ -675,20 +715,20 @@ function HomePage() {
           </div>
         </section>
 
-        {/* Who made this and why, told rather than argued: the only place on
-        the page that speaks in the first person. */}
-        <section {...props(styles.section, styles.anchor)} id={STORY_ID} ref={storySection}>
+        <section {...props(styles.section)}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_faq_title()}</h2>
+          <div>
+            {objections.map((objection) => (
+              <Question answer={objection.desc} key={objection.term} question={objection.term} />
+            ))}
+          </div>
+        </section>
+
+        {/* Who made this and why, told rather than argued. */}
+        <section {...props(styles.section, styles.anchor)} id={STORY_ID}>
           <h2 {...props(styles.sectionTitle)}>{m.home_story_title()}</h2>
           <div {...props(styles.story)}>
-            <p {...props(styles.storyLine)}>
-              {storyBefore}
-              <a href={STORY_URL} rel="noreferrer" target="_blank">
-                {m.home_story_2_link()}
-              </a>
-              {storyAfter}
-            </p>
-            <p {...props(styles.storyLine)}>{m.home_story_2()}</p>
-            <p {...props(styles.storyLine)}>{m.home_story_3()}</p>
+            <p {...props(styles.storyLine)}>{m.home_story_people()}</p>
             <ScreenShots
               shots={[
                 {
@@ -705,67 +745,15 @@ function HomePage() {
                 },
               ]}
             />
-            {/* The button comes after the rest, so it stands under the third
-            paragraph while the rest is folded and under the last once it is
-            open, without ever leaving its place in the page. */}
-            <div id={STORY_REST_ID} {...props(styles.storyRest, !storyOpen && styles.gone)}>
-              <p {...props(styles.storyLine)}>{m.home_story_4()}</p>
-              <p {...props(styles.storyLine)}>{m.home_story_5()}</p>
-              <ScreenShots
-                caption={m.home_story_shot_mine_caption()}
-                shots={[
-                  {
-                    alt: m.home_story_shot_mine_time(),
-                    height: 684,
-                    src: '/media/screentime-mert/mert-after-screen-time.webp',
-                    width: 800,
-                  },
-                  {
-                    alt: m.home_story_shot_mine_pickups(),
-                    height: 511,
-                    src: '/media/screentime-mert/mert-after-pickups.webp',
-                    width: 800,
-                  },
-                ]}
-              />
-              <p {...props(styles.storyLine)}>{m.home_story_6()}</p>
-              <p {...props(styles.storyLine)}>{m.home_story_7()}</p>
-              <p {...props(styles.storyLine)}>{m.home_story_8()}</p>
-              <p {...props(styles.storyLine)}>{m.home_story_9()}</p>
-              <p {...props(styles.storyLine)}>{m.home_story_10()}</p>
-            </div>
-            <Button
-              aria-controls={STORY_REST_ID}
-              aria-expanded={storyOpen}
-              onClick={toggleStory}
-              style={styles.storyMore}
-              variant="outline"
-            >
-              {storyOpen ? m.home_story_less() : m.home_story_more()}
-            </Button>
+            <p {...props(styles.storyLine)}>{m.home_story_attention()}</p>
+            <p {...props(styles.storyLine)}>
+              {storyBefore}
+              <a href={STORY_URL} rel="noreferrer" target="_blank">
+                {m.home_story_path_link()}
+              </a>
+              {storyAfter}
+            </p>
             <Signature />
-          </div>
-        </section>
-
-        {/* The browser half of the same idea, on its own so the way out reads
-        as the phone and the computer as one more place the feeds are shut off. */}
-        <section {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_computer_title()}</h2>
-          <p {...props(styles.sectionBody)}>
-            {computerBefore}
-            <a href={STORE_URL} rel="noreferrer" target="_blank">
-              {m.home_computer_link()}
-            </a>
-            {computerAfter}
-          </p>
-        </section>
-
-        <section {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_faq_title()}</h2>
-          <div>
-            {objections.map((objection) => (
-              <Question answer={objection.desc} key={objection.term} question={objection.term} />
-            ))}
           </div>
         </section>
 
