@@ -167,7 +167,8 @@ function Providers({ children }: { children: ReactNode }) {
           serviceName: 'attentionawareness-web',
         },
         session_recording: { maskAllInputs: true, maskTextSelector: '*' },
-        ui_host: clientEnv.VITE_POSTHOG_HOST.replace('.i.', '.'),
+        // The project lives in PostHog EU; api_host may be our own proxy domain.
+        ui_host: 'https://eu.posthog.com',
       }}
     >
       {tips}
