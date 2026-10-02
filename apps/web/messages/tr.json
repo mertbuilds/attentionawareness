@@ -63,8 +63,6 @@
   "home_faq_android_desc": "Henüz yok. Android'de böyle bir ayar dosyası yok; kalıcı engelleme için küçük bir cihaz sahibi uygulaması gerekiyor, bu da ayrı bir çalışma. Eklemeyi planlıyoruz. O zamana kadar bu site sadece iPhone için; Dijital Denge sınırları ise hâlâ irade gücüne dayanıyor.",
   "home_faq_windows_term": "Windows bilgisayardan çalışır mı?",
   "home_faq_windows_desc": "Henüz değil. Uygulama bugün Mac'te çalışıyor. Windows aynı yedeği iTunes ile alıyor, o yüzden destek planlı. O zamana kadar bir kerelik bir Mac ödünç al; deneme modundan kalıcıya geçiş dışında telefonun sonrasında bilgisayara ihtiyacı yok.",
-  "home_faq_who_term": "Bunun arkasında kim var?",
-  "home_faq_who_desc": "Mert Duzgun, Antalya'da bir geliştirici. Kod herkese açık ve profil kendi Apple geliştirici sertifikamla imzalanıyor.",
   "home_close_title": "Dikkatini geri al",
   "home_close_diy": "ya da ücretsiz, kendin yap",
   "gen_footer_builder": "mertbuilds.com",

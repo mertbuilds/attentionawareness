@@ -75,8 +75,6 @@
   "home_faq_mac_desc": "Yes, for one afternoon. The app needs Apple Silicon and macOS 14 or newer. Borrow a friend's Mac: the app runs from Downloads and nothing stays on it. The phone needs no Mac afterwards; going from trial mode to permanent takes one more plug-in.",
   "home_faq_other_platforms_term": "What about Android or Windows?",
   "home_faq_other_platforms_desc": "iPhone only today, from a Mac. Windows support is planned, since the same copy works through iTunes. Android needs a different build, a small device-owner app, and is planned too.",
-  "home_faq_who_term": "Who is behind this?",
-  "home_faq_who_desc": "Mert Duzgun, a developer in Antalya. The code is public, and the profile is signed with my Apple developer certificate.",
   "home_story_title": "Why I built this",
   "home_story_people": "I meet a lot of people, and I help many of them with their work. Most people's problems come down to one thing: not being able to do hard things. When I checked their screen time, I mostly saw 6 hours and more.",
   "home_story_shot_friend_1": "A friend's Screen Time: 6 hours 38 minutes a day on average, September 14 to 21",

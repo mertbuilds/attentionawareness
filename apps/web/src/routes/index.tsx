@@ -577,7 +577,6 @@ function HomePage() {
     { desc: m.home_faq_undo_desc(), term: m.home_faq_undo_term() },
     { desc: m.home_faq_mac_desc(), term: m.home_faq_mac_term() },
     { desc: m.home_faq_other_platforms_desc(), term: m.home_faq_other_platforms_term() },
-    { desc: m.home_faq_who_desc(), term: m.home_faq_who_term() },
   ];
 
   return (
