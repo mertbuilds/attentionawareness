@@ -576,13 +576,13 @@ function HomePage() {
                   shots={[
                     {
                       alt: m.home_story_shot_mine_time(),
-                      height: 684,
+                      height: 1074,
                       src: '/media/screentime-mert/mert-after-screen-time.webp',
                       width: 800,
                     },
                     {
                       alt: m.home_story_shot_mine_pickups(),
-                      height: 511,
+                      height: 794,
                       src: '/media/screentime-mert/mert-after-pickups.webp',
                       width: 800,
                     },
