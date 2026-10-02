@@ -166,7 +166,20 @@ function Providers({ children }: { children: ReactNode }) {
           environment: import.meta.env.MODE,
           serviceName: 'attentionawareness-web',
         },
-        session_recording: { maskAllInputs: true, maskTextSelector: '*' },
+        // /build shows the apps and sites a visitor blocks in text, labels,
+        // titles, App Store icons and App Store requests; none of it may reach
+        // PostHog. Replay keeps `class`, which StyleX draws the page with.
+        mask_all_element_attributes: true,
+        mask_all_text: true,
+        session_recording: {
+          blockSelector: 'img[src*="mzstatic.com"]',
+          maskAllInputs: true,
+          maskAttributeFn: (name, value) =>
+            ['alt', 'aria-label', 'title'].includes(name) ? '*' : value,
+          maskCapturedNetworkRequestFn: (request) =>
+            /itunes\.apple\.com|mzstatic\.com/u.test(request.name) ? null : request,
+          maskTextSelector: '*',
+        },
         // The project lives in PostHog EU; api_host may be our own proxy domain.
         ui_host: 'https://eu.posthog.com',
       }}

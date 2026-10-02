@@ -2,6 +2,8 @@
 
 Date: 2026-09-02. Status: accepted.
 
+Superseded in part: the Analytics row's `/ingest/*` reverse proxy, by ADR-0004 (PostHog's managed proxy at `e.attentionawareness.com`).
+
 Full decision record from the founding grill session. One product = one copy of this repo (GitHub template, fork-and-diverge).
 
 ## Decisions
