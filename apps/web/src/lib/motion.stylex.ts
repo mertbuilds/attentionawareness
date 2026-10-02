@@ -62,7 +62,8 @@ export const scale = defineConsts({
  * `gridShuffle` before one of its cells trades its fact for another, and as
  * long after each fact swapped in has played. Further down, the way out's
  * three steps play over `stepPlug`, `stepChoose` and `stepStays`, one after
- * another.
+ * another, and at the foot of the story its signature writes itself over
+ * `signature`.
  */
 export const drawing = defineConsts({
   deck: 4,
@@ -72,6 +73,7 @@ export const drawing = defineConsts({
   gridStagger: 0.33,
   instruments: 7.2,
   moon: 3.8,
+  signature: 2.5,
   stepChoose: 3.2,
   stepPlug: 3.4,
   stepStays: 3,

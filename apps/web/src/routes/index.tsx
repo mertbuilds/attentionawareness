@@ -9,6 +9,7 @@ import { AngleDown, Check } from 'reicon-react';
 import { CostStory } from '../components/cost-story.tsx';
 import { HowItWorks } from '../components/how-it-works.tsx';
 import { MacDownload } from '../components/mac-download.tsx';
+import { Signature } from '../components/signature.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { blur, duration, easing } from '../lib/motion.stylex.ts';
 import { wip } from '../lib/wip.stylex.ts';
@@ -395,14 +396,6 @@ const styles = create({
     flexDirection: 'column',
     gap: spacing.s4,
   },
-  // Who wrote it, and from where. It is a signature, so it is the quietest
-  // line in the section.
-  storySign: {
-    color: colors.muted,
-    fontSize: font.sizeSm,
-    lineHeight: 1.5,
-    margin: 0,
-  },
 });
 
 /**
@@ -576,7 +569,7 @@ function HomePage() {
               >
                 {storyOpen ? m.home_story_less() : m.home_story_more()}
               </Button>
-              <p {...props(styles.storySign)}>{m.home_story_sign()}</p>
+              <Signature />
             </div>
           </section>
 
