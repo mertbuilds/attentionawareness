@@ -49,9 +49,6 @@ const ANALYTICS_SCRIPT =
   'sessionReplay:{enabled:true,sampleRate:0.1,maskAllInputs:true,maskAllText:true}});' +
   "var s=document.createElement('script');s.src='/op/op1.js';s.async=true;document.head.appendChild(s)}";
 const OG_IMAGE = `${SITE_URL}/og.png`;
-/** What the site promises, in one line. The share cards lead with it. */
-const TAGLINE = 'Stop fighting billion-dollar algorithms';
-const DESCRIPTION = `${SITE_NAME}. You can't win that fight with willpower. Lock the feeds off your iPhone for good, keep everything else, and spend your willpower on hard things.`;
 
 export const Route = createRootRoute({
   component: RootComponent,
@@ -60,6 +57,9 @@ export const Route = createRootRoute({
     // deepest match, which is the page itself. A path no route answers is
     // marked on the root match and has no address of its own.
     const url = match._notFound ? undefined : `${SITE_URL}${matches.at(-1)?.pathname ?? '/'}`;
+    // What the site promises, in the hero's own words. The share cards lead with it.
+    const tagline = m.home_hero_title({ algorithms: m.home_hero_title_accent() });
+    const description = `${SITE_NAME}. ${m.home_hero_sub()}`;
     return {
       links: [
         // The SVG first: it inverts with the browser's own theme. The PNG is
@@ -91,7 +91,7 @@ export const Route = createRootRoute({
         ...(url ? [{ href: url, rel: 'canonical' }] : []),
         // Dev-only: link the unplugin's compiled CSS so SSR HTML is styled on
         // first paint (the virtual:stylex:runtime import only injects after
-        // hydration — without this link every refresh flashes unstyled).
+        // hydration: without this link every refresh flashes unstyled).
         // Production CSS is emitted into app.css at build, so the link is
         // dev-only. `precedence` is required: React 19 hoists SSR stylesheets
         // with data-precedence, and a client link without the prop
@@ -107,10 +107,10 @@ export const Route = createRootRoute({
         { content: 'width=device-width, initial-scale=1', name: 'viewport' },
         // A path no route answers is marked on the root match, and the tab says so.
         { title: match._notFound ? `${m.not_found_head_title()} · ${SITE_NAME}` : SITE_NAME },
-        { content: DESCRIPTION, name: 'description' },
+        { content: description, name: 'description' },
         { content: SITE_NAME, property: 'og:site_name' },
-        { content: TAGLINE, property: 'og:title' },
-        { content: DESCRIPTION, property: 'og:description' },
+        { content: tagline, property: 'og:title' },
+        { content: description, property: 'og:description' },
         { content: 'website', property: 'og:type' },
         { content: url ?? SITE_URL, property: 'og:url' },
         { content: OG_IMAGE, property: 'og:image' },
