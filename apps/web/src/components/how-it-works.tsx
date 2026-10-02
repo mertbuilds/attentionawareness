@@ -11,8 +11,8 @@ import { ChooseGraphic, PlugGraphic, StaysGraphic } from './steps/index.ts';
 const SEEN = 0.6;
 /**
  * The steps in their order: the drawing, how long it plays, its words, and
- * the small i after a line that needs one, read in the reader's language when
- * the step is drawn.
+ * the small i after a title that needs one, read in the reader's language
+ * when the step is drawn.
  */
 const STEPS = [
   {
@@ -82,7 +82,7 @@ const styles = create({
     marginBlock: `${spacing.s2} 0`,
     textWrap: 'balance',
   },
-  // The steps clear of the cards under them.
+  // The steps clear of the price under them.
   steps: {
     paddingBlockEnd: spacing.s6,
   },
@@ -143,9 +143,7 @@ export function HowItWorks() {
           <li key={step.key} ref={items[index]} {...props(styles.step)}>
             <Graphic play={playing[index] === true} />
             <h3 {...props(styles.stepTitle)}>
-              <span {...props(styles.number)}>{index + 1}</span> {step.title()}
-            </h3>
-            <p {...props(styles.stepBody)}>
+              <span {...props(styles.number)}>{index + 1}</span>{' '}
               <Sentence
                 figures={[]}
                 mark={
@@ -153,9 +151,10 @@ export function HowItWorks() {
                     <Mark label={step.tip.label()}>{step.tip.text()}</Mark>
                   )
                 }
-                text={step.body()}
+                text={step.title()}
               />
-            </p>
+            </h3>
+            <p {...props(styles.stepBody)}>{step.body()}</p>
           </li>
         ))}
       </ol>
