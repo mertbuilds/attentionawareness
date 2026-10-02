@@ -40,7 +40,7 @@
   --sidebar-border: #d4d4d4;
   --sidebar-ring: #8a8a8a;
   --radius: 8px;
-  --font-sans: 'Suisse Intl', 'Inter Variable', system-ui, sans-serif;
+  --font-sans: 'Suisse Intl', 'Suisse Intl Fallback', 'Inter Variable', system-ui, sans-serif;
   --kya-bg: #ffffff;
   --kya-border: #d4d4d4;
   --kya-disabled: #8a8a8a;

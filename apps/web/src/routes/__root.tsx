@@ -1,3 +1,4 @@
+import { fontUrls } from '@attentionawareness/ui/fonts';
 import { Tooltip } from '@base-ui/react/tooltip';
 import { PostHogProvider } from '@posthog/react';
 import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-router';
@@ -71,6 +72,17 @@ export const Route = createRootRoute({
         { href: `/favicon${ICON_SUFFIX}.svg`, rel: 'icon', type: 'image/svg+xml' },
         { href: `/favicon${ICON_SUFFIX}.png`, rel: 'icon', sizes: '32x32', type: 'image/png' },
         { href: `/apple-touch-icon${ICON_SUFFIX}.png`, rel: 'apple-touch-icon' },
+        // The fonts load with the document instead of after the stylesheet
+        // asks for them, so the first paint is mostly in Suisse already.
+        // Fonts are fetched in CORS mode, so the preload has to be as well
+        // or the stylesheet cannot reuse it.
+        ...fontUrls.map((href) => ({
+          as: 'font',
+          crossOrigin: 'anonymous' as const,
+          href,
+          rel: 'preload',
+          type: 'font/woff2',
+        })),
         // Every page names its own address, so a query string or a trailing
         // slash is never indexed as a page of its own.
         ...(url ? [{ href: url, rel: 'canonical' }] : []),

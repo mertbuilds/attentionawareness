@@ -1,7 +1,6 @@
 /*
  * Suisse Intl is licensed — the woff2 files are gitignored and fetched via
- * `pnpm fonts` (scripts/fetch-fonts.sh). When the files are absent the
- * browser falls through to Inter Variable (bundled) then system-ui.
+ * `pnpm fonts` (scripts/fetch-fonts.sh). The app preloads them (`./fonts.ts`).
  */
 @font-face {
   font-display: swap;
@@ -17,4 +16,37 @@
   font-style: normal;
   font-weight: 500;
   src: url('../fonts/SuisseIntl-Medium.woff2') format('woff2');
+}
+
+/*
+ * Arial reshaped to Suisse Intl's measure, for the moment before Suisse lands
+ * (or for good, without the files). Same line height, same baseline, about the
+ * same width, so the text breaks into the same lines and nothing moves when
+ * Suisse swaps in. Arial is on macOS, iOS and Windows; elsewhere the stack
+ * goes on to the next family. The widths are the site's English copy set in
+ * each face with fontkit; the vertical metrics are Suisse's own (ascent 1174,
+ * descent 556, no line gap, on 1000 units), divided by the size adjustment
+ * the browser multiplies them by. Medium is wider than Regular, so it has a
+ * face of its own.
+ */
+@font-face {
+  ascent-override: 113.02%;
+  descent-override: 53.52%;
+  font-family: 'Suisse Intl Fallback';
+  font-style: normal;
+  font-weight: 400;
+  line-gap-override: 0%;
+  size-adjust: 103.88%;
+  src: local('Arial'), local('ArialMT');
+}
+
+@font-face {
+  ascent-override: 109.79%;
+  descent-override: 52%;
+  font-family: 'Suisse Intl Fallback';
+  font-style: normal;
+  font-weight: 500;
+  line-gap-override: 0%;
+  size-adjust: 106.93%;
+  src: local('Arial'), local('ArialMT');
 }
