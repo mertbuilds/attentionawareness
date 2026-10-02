@@ -25,7 +25,6 @@ export const curatedSites: Record<string, Array<string>> = {
   'com.9gag.ios.mobile': ['https://9gag.com'],
   'com.amazon.aiv.AIVApp': ['https://primevideo.com'],
   'com.atebits.Tweetie2': ['https://x.com', 'https://twitter.com', 'https://t.co'],
-  'com.bd.nproject': ['https://lemon8-app.com'],
   'com.burbn.barcelona': ['https://threads.net', 'https://threads.com'],
   'com.burbn.instagram': ['https://instagram.com'],
   'com.disney.disneyplus': ['https://disneyplus.com'],
@@ -42,7 +41,6 @@ export const curatedSites: Record<string, Array<string>> = {
   'com.hammerandchisel.discord': ['https://discord.com', 'https://discord.gg'],
   'com.hulu.plus': ['https://hulu.com'],
   'com.kick.mobile': ['https://kick.com'],
-  'com.kwai.intl': ['https://kwai.com'],
   'com.linkedin.LinkedIn': ['https://linkedin.com'],
   'com.netflix.Netflix': ['https://netflix.com'],
   'com.reddit.Reddit': ['https://reddit.com', 'https://redd.it', 'https://old.reddit.com'],
@@ -52,8 +50,6 @@ export const curatedSites: Record<string, Array<string>> = {
   imgurmobile: ['https://imgur.com'],
   pinterest: ['https://pinterest.com', 'https://pin.it'],
   'tv.twitch': ['https://twitch.tv'],
-  'video.like': ['https://likee.video', 'https://likee.com'],
-  'xyz.blueskyweb.app': ['https://bsky.app'],
 };
 
 /**

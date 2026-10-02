@@ -6,9 +6,8 @@ export const presets: Record<'mert' | 'stopa' | 'minimal', ProfileConfig> = {
     allowAppStore: true,
     allowPrivateBrowsing: true,
     autoFilterAdult: true,
-    // Only apps built around a vertical feed: the ten largest ordered by
-    // average time per user per day (Sensor Tower State of Mobile 2026,
-    // DataReportal Digital 2026), then six smaller feeds.
+    // Only apps built around a vertical feed, ordered by average time per user
+    // per day (Sensor Tower State of Mobile 2026, DataReportal Digital 2026).
     blockedApps: [
       { bundleId: 'com.zhiliaoapp.musically', name: 'TikTok' },
       { bundleId: 'com.google.ios.youtube', name: 'YouTube' },
@@ -20,12 +19,6 @@ export const presets: Record<'mert' | 'stopa' | 'minimal', ProfileConfig> = {
       { bundleId: 'pinterest', name: 'Pinterest' },
       { bundleId: 'com.burbn.barcelona', name: 'Threads' },
       { bundleId: 'com.linkedin.LinkedIn', name: 'LinkedIn' },
-      { bundleId: 'xyz.blueskyweb.app', name: 'Bluesky' },
-      { bundleId: 'com.tumblr.tumblr', name: 'Tumblr' },
-      { bundleId: 'com.9gag.ios.mobile', name: '9GAG' },
-      { bundleId: 'com.bd.nproject', name: 'Lemon8' },
-      { bundleId: 'com.kwai.intl', name: 'Kwai' },
-      { bundleId: 'video.like', name: 'Likee' },
     ],
     displayName: 'attentionawareness',
     identifier: 'com.attentionawareness.profile',
@@ -47,13 +40,6 @@ export const presets: Record<'mert' | 'stopa' | 'minimal', ProfileConfig> = {
         'https://threads.net',
         'https://www.threads.com',
         'https://linkedin.com',
-        'https://bsky.app',
-        'https://tumblr.com',
-        'https://9gag.com',
-        'https://lemon8-app.com',
-        'https://kwai.com',
-        'https://likee.video',
-        'https://likee.com',
       ],
       mode: 'deny',
       // Sign-in for YouTube on other devices still has to resolve.
