@@ -61,13 +61,12 @@ import { InfoTip } from './info-tip.tsx';
 /** The report the average day is taken from. */
 const SOURCE_URL = 'https://datareportal.com/reports/digital-2024-global-overview-report';
 /** The story's sentences, in the order the scroll plays them, and where each beat after the first stands. */
-const BEATS = 7;
+const BEATS = 6;
 const WEEKS_BEAT = 1;
 const EARTH_BEAT = 2;
 const GRID_BEAT = 3;
 const FAULT_BEAT = 4;
 const PLAY_BEAT = 5;
-const APP_BEAT = 6;
 /** How much of the stage has to be on screen before a drawing plays. */
 const SEEN = 0.6;
 /** `easing.smoothOut`, the curve things move into place on, as motion takes a curve. */
@@ -698,24 +697,6 @@ const styles = create({
     textDecorationThickness: '0.03em',
     textUnderlineOffset: '0.1em',
   },
-  // What the app does and the button down to the way out, under the line
-  // that brings the app in and quieter than it.
-  onward: {
-    alignItems: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s4,
-  },
-  onwardLine: {
-    color: colors.muted,
-    fontSize: {
-      '@media (min-width: 640px)': font.sizeLg,
-      default: font.sizeMd,
-    },
-    lineHeight: 1.5,
-    margin: 0,
-    textWrap: 'balance',
-  },
   orbit: {
     display: 'block',
     height: 'auto',
@@ -759,8 +740,8 @@ const styles = create({
     transitionDelay: duration.stagger,
   },
   // How far along the story is, a hairline at the foot of the stage. It fades
-  // out on the last beat, where the way out stands on its own, and back in on
-  // the way up.
+  // out on the last beat, where the button down to the way out stands on its
+  // own, and back in on the way up.
   rail: {
     backgroundColor: colors.border,
     borderRadius: 999,
@@ -961,9 +942,9 @@ const styles = create({
     marginInline: `min(0px, 50% - min(8.5em, 50vw - ${spacing.s4}))`,
     maxWidth: 'none',
   },
-  // A line of the turn, or what the app does under the line that brings it
-  // in: a part that fades in as it rises, so it can wait for the line over it.
-  // With less motion both stand from the start.
+  // A line of the turn, or the button under the last beat's line: a part that
+  // fades in as it rises, so it can wait for the line over it. With less
+  // motion both stand from the start.
   turnLine: {
     display: 'block',
     opacity: {
@@ -1977,9 +1958,8 @@ function FactGrid({
  * while the section scrolls under it, the page comes to rest on one beat at a
  * time, and each beat's drawing plays as it comes on. It ends on the turn, a
  * beat at a time: it is not our fault, it is the apps and the people behind
- * them; the only way to win is not to play; and that is where the Mac app
- * comes in, with a button down to `wayOut`, the id of the section that
- * answers it.
+ * them; and the only way to win is not to play, with a button down to
+ * `wayOut`, the id of the section where the Mac app comes in.
  */
 export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
   const story = useRef<HTMLElement>(null);
@@ -2283,7 +2263,7 @@ export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
 
   const tipLabel = m.home_receipt_tip_label();
   const turning = active === FAULT_BEAT;
-  const closing = active === APP_BEAT;
+  const closing = active === PLAY_BEAT;
 
   // Every fact the grid can show, each eased the way it is on its own. It
   // opens on the first six, in this order, and swaps the rest in over time.
@@ -2560,17 +2540,12 @@ export function CostStory({ id, wayOut }: { id: string; wayOut: string }) {
 
           <div {...beat(PLAY_BEAT)}>
             <p {...props(partOf(PLAY_BEAT, 0, styles.line))}>{m.home_turn_play()}</p>
-          </div>
-
-          <div {...beat(APP_BEAT)}>
-            <p {...props(partOf(APP_BEAT, 0, styles.line))}>{m.home_turn_app()}</p>
             <div
               {...props(
-                partOf(APP_BEAT, 1, [styles.turnLine, styles.onward]),
+                partOf(PLAY_BEAT, 1, styles.turnLine),
                 closing && [styles.turnLineOn, styles.turnLineSecond],
               )}
             >
-              <p {...props(styles.onwardLine)}>{m.home_turn_onward()}</p>
               <Button onClick={toWayOut} render={<a href={`#${wayOut}`} />}>
                 {m.home_turn_cta()}
               </Button>

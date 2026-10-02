@@ -456,14 +456,17 @@ function HomePage() {
     <main {...props(styles.page)}>
       <div {...props(styles.content)}>
         {/* Act one, the problem, and the first screen: what an average day
-        adds up to, told one sentence a screen, and then whose doing it is. */}
+        adds up to, told one sentence a screen, then whose doing it is, and
+        that the only way to win is not to play. */}
         <CostStory id={COST_ID} wayOut={WAY_OUT_ID} />
 
         <div {...props(styles.afterStory)}>
-          {/* Act two, the way out: how it works, in three steps, then the app
-          that keeps the phone as it is and the manual way that starts it over. */}
+          {/* Act two, the way out: where the Mac app comes in and what it does,
+          then how it works, in three steps, and the app that keeps the phone as
+          it is beside the manual way that starts it over. */}
           <section {...props(styles.section, styles.anchor)} id={WAY_OUT_ID}>
             <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
+            <p {...props(styles.sectionBody)}>{m.home_how_lead()}</p>
             <HowItWorks />
             <div {...props(styles.ways)}>
               <article {...props(styles.way, styles.wayAccent)}>
