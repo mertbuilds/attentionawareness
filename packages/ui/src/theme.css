@@ -4,6 +4,8 @@
  * system: pure black-on-white, grays only for borders/muted/disabled.
  * Destructive/error is the one chromatic exception: red. Radius: 8px surfaces
  * (cards, dialogs, popovers); pill controls (buttons, inputs) use radius.full.
+ * The `--kya-tint-*` hues colour the site's drawings and nothing else, never
+ * words or controls; src/accent.stylex.ts hands them out.
  *
  * Theme has three states. `:root` holds light. The dark values are written
  * twice: once behind the system preference (skipped when light is forced),
@@ -47,6 +49,9 @@
   --kya-error: #dc2626;
   --kya-fg: #000000;
   --kya-muted: #8a8a8a;
+  --kya-tint-gold: #f0a500;
+  --kya-tint-green: #22a559;
+  --kya-tint-sky: #3d9be9;
   --kya-warning: #d97706;
 }
 
@@ -84,6 +89,9 @@
     --kya-error: #f87171;
     --kya-fg: #ffffff;
     --kya-muted: #8a8a8a;
+    --kya-tint-gold: #ffc94d;
+    --kya-tint-green: #4fd08a;
+    --kya-tint-sky: #6cb8ff;
     --kya-warning: #fbbf24;
   }
 }
@@ -124,6 +132,9 @@
   --kya-error: #f87171;
   --kya-fg: #ffffff;
   --kya-muted: #8a8a8a;
+  --kya-tint-gold: #ffc94d;
+  --kya-tint-green: #4fd08a;
+  --kya-tint-sky: #6cb8ff;
   --kya-warning: #fbbf24;
 }
 

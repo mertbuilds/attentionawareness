@@ -1,4 +1,4 @@
-import { defineConsts } from '@stylexjs/stylex';
+import { defineConsts, defineVars } from '@stylexjs/stylex';
 
 /**
  * The motion scale every transition on the page is cut from, the one
@@ -52,15 +52,26 @@ export const scale = defineConsts({
  * above fits them; they are kept together here so they can be slowed or
  * quickened at once. The way out's three steps play over `stepPlug`,
  * `stepChoose` and `stepStays`, one after another, and at the foot of the
- * story its signature writes itself over `signature`. In the uses, a loss is
- * struck through over `strike` and the side project's bar fills over
- * `progress`.
+ * story its signature writes itself over `signature`. In the uses, a loss's
+ * icon moves and the loss is struck through over `loss`.
  */
 export const drawing = defineConsts({
-  progress: 1.2,
+  loss: 2.4,
   signature: 3,
   stepChoose: 3.2,
   stepPlug: 3.4,
   stepStays: 3,
-  strike: 0.7,
+});
+
+/**
+ * The clock a drawing in the uses keeps. Its parts all read the same values,
+ * so they keep time with each other: how long the drawing waits before it
+ * first plays and, for one that plays over and over, how long a turn takes
+ * and whether it runs. The drawing's tile sets the times and the grid says
+ * whether it runs; left alone, a drawing that plays over and over is held.
+ */
+export const clock = defineVars({
+  delay: '0ms',
+  every: '3.5s',
+  state: 'paused',
 });

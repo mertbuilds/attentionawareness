@@ -1,9 +1,10 @@
 import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { cancelFrame, easeInOut, frame, useInView } from 'motion/react';
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useLessMotion } from '../lib/use-less-motion.ts';
+import { useTabHidden } from '../lib/use-tab-hidden.ts';
 import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
 import { Cable } from './steps/cable.tsx';
@@ -236,19 +237,6 @@ const styles = create({
   },
 });
 
-function subscribeVisibility(onChange: () => void): () => void {
-  document.addEventListener('visibilitychange', onChange);
-  return () => document.removeEventListener('visibilitychange', onChange);
-}
-
-function tabHidden(): boolean {
-  return document.visibilityState === 'hidden';
-}
-
-function hiddenOnServer(): boolean {
-  return false;
-}
-
 /**
  * How far into its turn the loop is, in milliseconds. It moves with the clock
  * only while `running` and holds where it is otherwise, so it goes on from
@@ -354,7 +342,7 @@ function KeptIcon({ glyph }: { glyph: Glyph }) {
 export function HeroPhone() {
   const phone = useRef<HTMLDivElement>(null);
   const seen = useInView(phone);
-  const hidden = useSyncExternalStore(subscribeVisibility, tabHidden, hiddenOnServer);
+  const hidden = useTabHidden();
   const reduced = useLessMotion();
   const looped = useLoop(seen && !hidden && !reduced);
   const now = reduced ? REST : looped;

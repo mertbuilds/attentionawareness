@@ -13,3 +13,17 @@ export const accent = defineConsts({
   // meant to be the loudest. Matches the Mac app's focus ring.
   soft: '#ff8a51',
 });
+
+/**
+ * The three hues the site's drawings carry beside the accent, each for the
+ * thing it is the colour of: the sun and the moon, a call that went through
+ * and a tree's leaves, the sky. They are for drawings only, never for words
+ * or controls. Each wraps a CSS custom property in `src/theme.css`, deeper on
+ * the white page and lighter on the black one, so a thin line of it shows on
+ * both.
+ */
+export const tint = defineConsts({
+  gold: 'var(--kya-tint-gold)',
+  green: 'var(--kya-tint-green)',
+  sky: 'var(--kya-tint-sky)',
+});
