@@ -21,18 +21,21 @@ const HERO_HASH = '#download';
 const styles = create({
   // A strip across the window: it starts under the work-in-progress strip,
   // stays at the top once that has scrolled away, and gives its own room back
-  // through its margin, so the page under it starts where it did.
+  // through its margin, so the page under it starts where it did. The name
+  // stands at one edge and the download at the other, and the links in the
+  // middle of the strip between two equal sides. On a phone the links go
+  // over to the download, so the name keeps the room.
   bar: {
     alignItems: 'center',
-    borderBlockEndColor: 'transparent',
-    borderBlockEndStyle: 'solid',
-    borderBlockEndWidth: 1,
     boxSizing: 'border-box',
-    display: 'flex',
-    gap: spacing.s4,
+    columnGap: spacing.s4,
+    display: 'grid',
+    gridTemplateColumns: {
+      '@media (min-width: 640px)': 'minmax(0, 1fr) auto minmax(0, 1fr)',
+      default: 'minmax(0, 1fr) auto auto',
+    },
     height: brandBar.height,
     insetBlockStart: 0,
-    justifyContent: 'space-between',
     marginBlockEnd: `calc(-1 * ${brandBar.height})`,
     paddingInline: spacing.s4,
     position: 'sticky',
@@ -40,16 +43,16 @@ const styles = create({
       '@media (prefers-reduced-motion: reduce)': '0ms',
       default: duration.quick,
     },
-    transitionProperty: 'background-color, border-color, backdrop-filter',
+    transitionProperty: 'background-color, backdrop-filter',
     transitionTimingFunction: easing.out,
     zIndex: 30,
   },
   // Clear while the page is at its top, so the strip is only the name and the
-  // links over the grid. Once the page runs under it, the ground and the hairline.
+  // links over the grid. Once the page runs under it, the blurred ground, and
+  // no line under it.
   barScrolled: {
     backdropFilter: SURFACE_BLUR,
     backgroundColor: SURFACE,
-    borderBlockEndColor: colors.border,
     WebkitBackdropFilter: SURFACE_BLUR,
   },
   brand: {
@@ -60,8 +63,9 @@ const styles = create({
     },
     display: 'inline-flex',
     fontSize: font.sizeSm,
-    fontWeight: font.weightMedium,
+    fontWeight: font.weightRegular,
     gap: spacing.s2,
+    justifySelf: 'start',
     minWidth: 0,
     outlineColor: colors.muted,
     outlineOffset: 2,
@@ -73,13 +77,18 @@ const styles = create({
     textDecorationLine: 'none',
     textTransform: 'lowercase',
   },
+  // The button's label at the strip's one weight, at the far edge.
+  download: {
+    fontWeight: font.weightRegular,
+    justifySelf: 'end',
+  },
   link: {
     color: {
       ':hover': colors.fg,
       default: colors.muted,
     },
     fontSize: font.sizeSm,
-    fontWeight: font.weightMedium,
+    fontWeight: font.weightRegular,
     outlineColor: colors.muted,
     outlineOffset: 2,
     outlineStyle: {
@@ -109,7 +118,6 @@ const styles = create({
   nav: {
     alignItems: 'center',
     display: 'flex',
-    flexShrink: 0,
     gap: {
       '@media (min-width: 640px)': spacing.s6,
       default: spacing.s4,
@@ -134,10 +142,10 @@ function useScrolled(): boolean {
 }
 
 /**
- * The name, top left on every page and the way home, and across from it the
- * home page's two sections and the download. On the home page the download
- * goes back up to the first screen, where it stands; on any other page it
- * goes to how it works, which ends in it.
+ * The name, top left on every page and the way home, the home page's two
+ * sections in the middle and the download across from the name. On the home
+ * page the download goes back up to the first screen, where it stands; on any
+ * other page it goes to how it works, which ends in it.
  */
 export function SiteHeader() {
   const scrolled = useScrolled();
@@ -159,10 +167,14 @@ export function SiteHeader() {
         <a data-plain="" href={page + WHY_HASH} {...props(styles.link)}>
           {m.nav_why()}
         </a>
-        <Button render={<a href={home ? HERO_HASH : page + HOW_HASH} />} variant="outline">
-          {m.nav_download()}
-        </Button>
       </nav>
+      <Button
+        render={<a href={home ? HERO_HASH : page + HOW_HASH} />}
+        style={styles.download}
+        variant="outline"
+      >
+        {m.nav_download()}
+      </Button>
     </header>
   );
 }
