@@ -2,6 +2,7 @@ import { Button } from '@attentionawareness/ui';
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, defaultMarker, props, when } from '@stylexjs/stylex';
+import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { useId, useState } from 'react';
 import { AngleDown, Check } from 'reicon-react';
@@ -243,9 +244,10 @@ const styles = create({
     textWrap: 'pretty',
     width: '100%',
   },
-  // The first screen: the claim, the reason and the download beside the phone
-  // the feeds leave. Too narrow for two columns, the phone stands under the
-  // words and the hero narrows to the column, so every left edge lines up.
+  // The first screen: the claim, what makes it last and the download beside
+  // the phone the feeds leave. Too narrow for two columns, the phone stands
+  // under the words and the hero narrows to the column, so every left edge
+  // lines up.
   hero: {
     alignItems: 'center',
     columnGap: spacing.s16,
@@ -274,45 +276,15 @@ const styles = create({
     flexDirection: 'column',
     gap: spacing.s3,
   },
-  // What the product is, in one quiet line over the claim.
-  heroEyebrow: {
-    color: colors.muted,
-    fontSize: {
-      '@media (min-width: 640px)': font.sizeMd,
-      default: font.sizeSm,
-    },
-    lineHeight: 1.5,
-    margin: 0,
-  },
-  // The line naming the product and the claim under it, closer together than
-  // the rest of the first screen.
-  heroHead: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s3,
-  },
   heroPrice: {
     color: colors.muted,
     fontSize: font.sizeSm,
     lineHeight: 1.5,
     margin: 0,
   },
-  // The reason under the claim, a step quieter and a step smaller on a phone.
-  heroSub: {
+  // Why it lasts, under the claim: the price box's ticked list, a step quieter.
+  heroPromises: {
     color: colors.muted,
-    fontSize: {
-      '@media (min-width: 640px)': font.sizeLg,
-      default: font.sizeMd,
-    },
-    lineHeight: 1.5,
-    margin: 0,
-    maxWidth: '46ch',
-    textWrap: 'pretty',
-  },
-  // The answer to Screen Time, a line of its own under the reason.
-  heroSubLine: {
-    display: 'block',
-    marginBlockStart: spacing.s2,
   },
   heroText: {
     display: 'flex',
@@ -415,7 +387,7 @@ const styles = create({
     flexShrink: 0,
     marginBlockStart: 4,
   },
-  // The promises stand in the middle as one block, their ticks in a column.
+  // The promises stand as one block, their ticks in a column.
   promises: {
     display: 'flex',
     flexDirection: 'column',
@@ -515,10 +487,36 @@ function Question({ answer, question }: { answer: string; question: string }) {
   );
 }
 
+/** Promises in a list, each after its tick. */
+function Promises({ promises, style }: { promises: ReadonlyArray<string>; style?: StyleXStyles }) {
+  return (
+    <ul {...props(styles.promises, style)}>
+      {promises.map((promise) => (
+        <li key={promise} {...props(styles.promise)}>
+          <Check
+            aria-hidden="true"
+            size={CHECK_SIZE}
+            strokeWidth={CHEVRON_STROKE}
+            {...props(styles.promiseCheck)}
+          />
+          {promise}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function HomePage() {
-  // The word the claim turns on, in the middle of it, so the words around it
-  // keep their own order in every language.
-  const [titleBefore, titleAfter] = m.home_hero_title({ algorithms: LINK_SLOT }).split(LINK_SLOT);
+  // The word the claim turns on, wherever a language puts it, so the words
+  // around it keep their own order in every language.
+  const [titleBefore, titleAfter] = m.home_hero_title({ permanently: LINK_SLOT }).split(LINK_SLOT);
+
+  // Why the lock lasts, each with its tick.
+  const heroPromises = [
+    m.home_hero_promise_install(),
+    m.home_hero_promise_keep(),
+    m.home_hero_promise_sticks(),
+  ];
 
   // The browser half: the extension, in the middle of the sentence, and the
   // store it is added from.
@@ -566,22 +564,16 @@ function HomePage() {
       {/* The graph paper the first screen stands on, fading out before the
       first section. */}
       <GridTexture />
-      {/* The first screen: the claim, why willpower cannot win it, and the
-      download with its price, beside the phone the feeds leave. */}
+      {/* The first screen: the claim, why it lasts, and the download with its
+      price, beside the phone the feeds leave. */}
       <header id={DOWNLOAD_ID} {...props(styles.hero, styles.anchor)}>
         <div {...props(styles.heroText)}>
-          <div {...props(styles.heroHead)}>
-            <p {...props(styles.heroEyebrow)}>{m.home_hero_eyebrow()}</p>
-            <h1 {...props(styles.displayTitle)}>
-              {titleBefore}
-              <span {...props(styles.accentWord)}>{m.home_hero_title_accent()}</span>
-              {titleAfter}
-            </h1>
-          </div>
-          <p {...props(styles.heroSub)}>
-            {m.home_hero_sub()}
-            <span {...props(styles.heroSubLine)}>{m.home_hero_screen_time()}</span>
-          </p>
+          <h1 {...props(styles.displayTitle)}>
+            {titleBefore}
+            <span {...props(styles.accentWord)}>{m.home_hero_title_accent()}</span>
+            {titleAfter}
+          </h1>
+          <Promises promises={heroPromises} style={styles.heroPromises} />
           <div {...props(styles.heroAction)}>
             <MacDownload />
             <p {...props(styles.heroPrice)}>{m.home_hero_price()}</p>
@@ -609,19 +601,7 @@ function HomePage() {
           <div {...props(styles.offer)}>
             <div {...props(styles.offerHead)}>
               <p {...props(styles.offerPrice)}>{m.home_how_app_price()}</p>
-              <ul {...props(styles.promises)}>
-                {promises.map((promise) => (
-                  <li key={promise} {...props(styles.promise)}>
-                    <Check
-                      aria-hidden="true"
-                      size={CHECK_SIZE}
-                      strokeWidth={CHEVRON_STROKE}
-                      {...props(styles.promiseCheck)}
-                    />
-                    {promise}
-                  </li>
-                ))}
-              </ul>
+              <Promises promises={promises} />
             </div>
             <MacDownload style={styles.downloadCentered} />
           </div>

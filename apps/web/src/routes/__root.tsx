@@ -58,8 +58,8 @@ export const Route = createRootRoute({
     // marked on the root match and has no address of its own.
     const url = match._notFound ? undefined : `${SITE_URL}${matches.at(-1)?.pathname ?? '/'}`;
     // What the site promises, in the hero's own words. The share cards lead with it.
-    const tagline = m.home_hero_title({ algorithms: m.home_hero_title_accent() });
-    const description = `${SITE_NAME}. ${m.home_hero_sub()}`;
+    const tagline = m.home_hero_title({ permanently: m.home_hero_title_accent() });
+    const description = `${SITE_NAME}. ${m.home_meta_description()}`;
     return {
       links: [
         // The SVG first: it inverts with the browser's own theme. The PNG is

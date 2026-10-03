@@ -92,7 +92,7 @@ const hero = JSON.parse(readFileSync(path.join(root, 'apps/web/messages/en.json'
   home_hero_title_accent: string;
 };
 const OG_TITLE = hero.home_hero_title.replace(
-  '{algorithms}',
+  '{permanently}',
   `<em>${hero.home_hero_title_accent}</em>`,
 );
 const ORANGE = '#ff4f00';
