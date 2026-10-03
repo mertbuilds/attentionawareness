@@ -52,11 +52,15 @@ export const scale = defineConsts({
  * above fits them; they are kept together here so they can be slowed or
  * quickened at once. The way out's three steps play over `stepPlug`,
  * `stepChoose` and `stepStays`, one after another, and at the foot of the
- * story its signature writes itself over `signature`.
+ * story its signature writes itself over `signature`. In the uses, a loss is
+ * struck through over `strike` and the side project's bar fills over
+ * `progress`.
  */
 export const drawing = defineConsts({
+  progress: 1.2,
   signature: 3,
   stepChoose: 3.2,
   stepPlug: 3.4,
   stepStays: 3,
+  strike: 0.7,
 });

@@ -627,8 +627,8 @@ function HomePage() {
       </header>
 
       <div {...props(styles.content)}>
-        {/* What the phone is for once the feeds are off it: everything else
-        it does, which is why the rest of it stays. */}
+        {/* What the feeds take, and what the phone is for once they are off
+        it: everything else it does, which is why the rest of it stays. */}
         <section {...props(styles.section)}>
           <h2 {...props(styles.sectionTitle)}>{m.home_uses_title()}</h2>
           <UsesGrid />
