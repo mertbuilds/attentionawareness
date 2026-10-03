@@ -277,11 +277,20 @@ const styles = create({
   accentWord: {
     color: accent.base,
   },
-  // The download and its price, close under it.
+  // The download and the free way, and the price close under them.
   heroAction: {
     alignItems: 'flex-start',
     display: 'flex',
     flexDirection: 'column',
+    gap: spacing.s3,
+  },
+  // The download and the free way beside it, on their feet, so a phone's
+  // note over its button leaves the two buttons level. They stack where the
+  // row runs out.
+  heroButtons: {
+    alignItems: 'flex-end',
+    display: 'flex',
+    flexWrap: 'wrap',
     gap: spacing.s3,
   },
   heroPrice: {
@@ -573,7 +582,7 @@ function HomePage() {
       first section. */}
       <GridTexture />
       {/* The first screen: the claim, why it lasts, and the download with its
-      price, beside the phone the feeds leave. */}
+      price and the free way beside it, next to the phone the feeds leave. */}
       <header id={DOWNLOAD_ID} {...props(styles.hero, styles.anchor)}>
         <div {...props(styles.heroText)}>
           <h1 {...props(styles.displayTitle)}>
@@ -583,7 +592,12 @@ function HomePage() {
           </h1>
           <Promises promises={heroPromises} style={styles.heroPromises} />
           <div {...props(styles.heroAction)}>
-            <MacDownload />
+            <div {...props(styles.heroButtons)}>
+              <MacDownload />
+              <Button render={<a href={GUIDE_URL} />} variant="outline">
+                {m.home_hero_diy_cta()}
+              </Button>
+            </div>
             <p {...props(styles.heroPrice)}>{m.home_hero_price()}</p>
           </div>
         </div>
