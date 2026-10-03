@@ -2,6 +2,7 @@ import { colors, font } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { useInView } from 'motion/react';
 import { useId, useRef } from 'react';
+import { layout } from '../lib/layout.ts';
 import { drawing } from '../lib/motion.stylex.ts';
 import { m } from '../paraglide/messages.js';
 import { SIGNATURES } from './signature-glyphs.ts';
@@ -53,18 +54,6 @@ const styles = create({
     alignSelf: 'flex-end',
     margin: 0,
     maxWidth: '100%',
-  },
-  // Read by a screen reader and found by a search, never seen.
-  spoken: {
-    borderWidth: 0,
-    clip: 'rect(0, 0, 0, 0)',
-    height: '1px',
-    margin: '-1px',
-    overflow: 'hidden',
-    padding: 0,
-    position: 'absolute',
-    whiteSpace: 'nowrap',
-    width: '1px',
   },
   written: {
     display: 'block',
@@ -122,7 +111,7 @@ export function Signature() {
   const strokes = timeline(lines.map(({ line }) => line));
   return (
     <p ref={sign} {...props(styles.sign)}>
-      <span {...props(styles.spoken)}>{text}</span>
+      <span {...props(layout.spoken)}>{text}</span>
       <svg
         aria-hidden="true"
         height={(signature.height * SIZE) / 1000}

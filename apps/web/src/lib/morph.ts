@@ -1,4 +1,5 @@
 import { blur, duration, easing } from './motion.stylex.ts';
+import { prefersLessMotion } from './use-less-motion.ts';
 
 /**
  * One layout gathering into another: the header's open strip into its pill
@@ -37,7 +38,6 @@ const STAGGER = Number.parseFloat(duration.stagger);
 /** A word leaving or arriving, out of focus on the side where it is not. */
 const WORD_GONE = { filter: `blur(${blur.small})`, opacity: 0 };
 const WORD_HERE = { filter: 'blur(0)', opacity: 1 };
-const LESS_MOTION = '(prefers-reduced-motion: reduce)';
 /** The type of a view transition that opens the items back out. */
 const SPREADING = 'morph-spreading';
 
@@ -46,7 +46,7 @@ type Box = { opacity: string; radius: string; rect: DOMRect };
  * A marked item before the change: where it stood, its parent, and a copy of
  * it as it was drawn then, to leave in its place if it goes.
  */
-type Item = { copy: HTMLElement; element: HTMLElement; parent: HTMLElement | null; rect: DOMRect };
+type Item = { copy: HTMLElement; parent: HTMLElement | null; rect: DOMRect };
 /**
  * How long the items travel, how far apart they set off, and whether, carried
  * by a view transition, they run ahead of the surface.
@@ -187,13 +187,19 @@ function slide(root: HTMLElement, before: Map<string, Item>, order: Array<string
   }
 }
 
+/** Only a keyframe effect names a pseudo-element. */
+function isKeyframeEffect(effect: AnimationEffect | null): effect is KeyframeEffect {
+  return effect !== null && 'pseudoElement' in effect;
+}
+
 /** The view transition's own motion, set to the page's pace. */
 function retime(order: Array<string>, pace: Pace) {
-  const pictures = document.getAnimations().flatMap((animation) => {
-    // Only a keyframe effect names a pseudo-element.
-    const effect = animation.effect as KeyframeEffect | null;
-    const match = /^::view-transition-(group|old|new)\((.+)\)$/.exec(effect?.pseudoElement ?? '');
-    return effect === null || match?.[1] === undefined || match[2] === undefined
+  const pictures = document.getAnimations().flatMap(({ effect }) => {
+    if (!isKeyframeEffect(effect)) {
+      return [];
+    }
+    const match = /^::view-transition-(group|old|new)\((.+)\)$/.exec(effect.pseudoElement ?? '');
+    return match?.[1] === undefined || match[2] === undefined
       ? []
       : [{ effect, name: match[2], side: match[1] }];
   });
@@ -227,23 +233,14 @@ export function morph({
   surface: HTMLElement;
   update: () => void;
 }) {
-  if (window.matchMedia(LESS_MOTION).matches) {
+  if (prefersLessMotion()) {
     update();
     return;
   }
   const pace = gather ? GATHER : SPREAD;
   const from = surfaceBox(surface);
-  const before = new Map<string, Item>();
-  for (const [name, element] of marked(root)) {
-    before.set(name, {
-      // A deep copy of an element is an element of the same kind.
-      copy: element.cloneNode(true) as HTMLElement,
-      element,
-      parent: element.parentElement,
-      rect: settle(element),
-    });
-  }
-  const orderAfter = () => [...new Set([...before.keys(), ...marked(root).keys()])];
+  const standing = marked(root);
+  const orderAfter = () => [...new Set([...standing.keys(), ...marked(root).keys()])];
 
   if (typeof document.startViewTransition === 'function') {
     const transition = document.startViewTransition(update);
@@ -258,6 +255,14 @@ export function morph({
     return;
   }
 
+  const before = new Map<string, Item>();
+  for (const [name, element] of standing) {
+    before.set(name, {
+      copy: document.importNode(element, true),
+      parent: element.parentElement,
+      rect: settle(element),
+    });
+  }
   update();
   const order = orderAfter();
   slide(root, before, order, pace);

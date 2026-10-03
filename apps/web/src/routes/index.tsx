@@ -44,8 +44,6 @@ const WAY_OUT_ID = 'way-out';
 const STORY_ID = 'story';
 /** The two ways and their prices, which the header's pricing link goes down to. */
 const PRICING_ID = 'pricing';
-/** The first screen, which the header's download goes back up to. */
-const DOWNLOAD_ID = 'download';
 /** The manual way out, on a page of its own. */
 const GUIDE_URL = '/guide';
 /** Every link off this site carries utm tags, so the visit is traced to this page. */
@@ -605,7 +603,7 @@ function HomePage() {
       <GridTexture />
       {/* The first screen: the claim, why it lasts, and the download with its
       price and the free way beside it, next to the phone the feeds leave. */}
-      <header id={DOWNLOAD_ID} {...props(styles.hero, styles.anchor)}>
+      <header {...props(styles.hero)}>
         <div {...props(styles.heroText)}>
           <h1 {...props(styles.displayTitle)}>
             {titleBefore}

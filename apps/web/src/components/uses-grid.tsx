@@ -4,6 +4,7 @@ import { create, keyframes, props } from '@stylexjs/stylex';
 import { inView, useInView } from 'motion/react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ComponentType } from 'react';
+import { layout } from '../lib/layout.ts';
 import { blur, clock, distance, drawing, duration, easing } from '../lib/motion.stylex.ts';
 import { useLessMotion } from '../lib/use-less-motion.ts';
 import { useTabHidden } from '../lib/use-tab-hidden.ts';
@@ -258,17 +259,17 @@ const sink = keyframes({
 });
 /** The light of a video on the phone in bed. */
 const flicker = keyframes({
-  '00%': { fillOpacity: 0.35 },
-  '10%': { fillOpacity: 0.35 },
-  '14%': { fillOpacity: 0 },
-  '18%': { fillOpacity: 0.6 },
-  '22%': { fillOpacity: 0.1 },
-  '26%': { fillOpacity: 0.5 },
-  '30%': { fillOpacity: 0 },
-  '34%': { fillOpacity: 0.6 },
-  '38%': { fillOpacity: 0.15 },
-  '44%': { fillOpacity: 0.35 },
-  to: { fillOpacity: 0.35 },
+  '00%': { fillOpacity: '0.35' },
+  '10%': { fillOpacity: '0.35' },
+  '14%': { fillOpacity: '0' },
+  '18%': { fillOpacity: '0.6' },
+  '22%': { fillOpacity: '0.1' },
+  '26%': { fillOpacity: '0.5' },
+  '30%': { fillOpacity: '0' },
+  '34%': { fillOpacity: '0.6' },
+  '38%': { fillOpacity: '0.15' },
+  '44%': { fillOpacity: '0.35' },
+  to: { fillOpacity: '0.35' },
 });
 /** The play button asking to be pressed, twice. */
 const pulse = keyframes({
@@ -588,18 +589,6 @@ const styles = create({
     animationTimingFunction: 'linear',
     transformBox: 'fill-box',
     transformOrigin: 'center',
-  },
-  // Read by a screen reader, never seen.
-  spoken: {
-    borderWidth: 0,
-    clip: 'rect(0, 0, 0, 0)',
-    height: '1px',
-    margin: '-1px',
-    overflow: 'hidden',
-    padding: 0,
-    position: 'absolute',
-    whiteSpace: 'nowrap',
-    width: '1px',
   },
   // How long a tile's drawing waits before it first plays, in milliseconds.
   starts: (ms: number) => ({
@@ -1361,9 +1350,9 @@ function Loss({
         />
       </svg>
       <span>
-        {before ? <span {...props(styles.spoken)}>{before}</span> : null}
+        {before ? <span {...props(layout.spoken)}>{before}</span> : null}
         <span {...props(styles.struck, play && [styles.once, styles.strike])}>{text}</span>
-        {after ? <span {...props(styles.spoken)}>{after}</span> : null}
+        {after ? <span {...props(layout.spoken)}>{after}</span> : null}
       </span>
     </li>
   );
