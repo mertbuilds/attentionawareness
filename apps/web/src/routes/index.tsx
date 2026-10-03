@@ -309,6 +309,11 @@ const styles = create({
     maxWidth: '46ch',
     textWrap: 'pretty',
   },
+  // The answer to Screen Time, a line of its own under the reason.
+  heroSubLine: {
+    display: 'block',
+    marginBlockStart: spacing.s2,
+  },
   heroText: {
     display: 'flex',
     flexDirection: 'column',
@@ -573,7 +578,10 @@ function HomePage() {
               {titleAfter}
             </h1>
           </div>
-          <p {...props(styles.heroSub)}>{m.home_hero_sub()}</p>
+          <p {...props(styles.heroSub)}>
+            {m.home_hero_sub()}
+            <span {...props(styles.heroSubLine)}>{m.home_hero_screen_time()}</span>
+          </p>
           <div {...props(styles.heroAction)}>
             <MacDownload />
             <p {...props(styles.heroPrice)}>{m.home_hero_price()}</p>
