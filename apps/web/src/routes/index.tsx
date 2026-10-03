@@ -13,6 +13,7 @@ import { ScreenShots } from '../components/screen-shots.tsx';
 import { Signature } from '../components/signature.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { UsesGrid } from '../components/uses-grid.tsx';
+import { brandBar } from '../lib/brand-bar.stylex.ts';
 import { blur, duration, easing } from '../lib/motion.stylex.ts';
 import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
@@ -40,6 +41,8 @@ const HERO_PHONE_WIDTH = 320;
 const PROOF_ID = 'proof';
 const WAY_OUT_ID = 'way-out';
 const STORY_ID = 'story';
+/** The first screen, which the header's download goes back up to. */
+const DOWNLOAD_ID = 'download';
 /** The manual way out, on a page of its own. */
 const GUIDE_URL = '/guide';
 /** Every link off this site carries utm tags, so the visit is traced to this page. */
@@ -67,9 +70,9 @@ const CHECK_SIZE = 16;
 
 const styles = create({
   // A section the page links down to. The scroll stops short of its heading,
-  // clear of the brand bar fixed over the top of the window.
+  // clear of the header strip over the top of the window.
   anchor: {
-    scrollMarginBlockStart: `calc(${spacing.s16} + ${wip.height})`,
+    scrollMarginBlockStart: `calc(${brandBar.height} + ${spacing.s6})`,
   },
   // The last word before the footer: one line, the download under it, then
   // its price and the free way, all in the middle of the column.
@@ -255,8 +258,7 @@ const styles = create({
       '@media (min-width: 900px)': HERO_WIDTH,
       default: COLUMN_WIDTH,
     },
-    // Clear of the name: the strip a phone keeps it in, and the corner a wider
-    // window keeps it in.
+    // Clear of the header strip over the top of the window.
     paddingBlockStart: spacing.s16,
     rowGap: spacing.s12,
     width: '100%',
@@ -544,7 +546,7 @@ function HomePage() {
       <GridTexture />
       {/* The first screen: the claim, why willpower cannot win it, and the
       download with its price, beside the phone the feeds leave. */}
-      <header {...props(styles.hero)}>
+      <header id={DOWNLOAD_ID} {...props(styles.hero, styles.anchor)}>
         <div {...props(styles.heroText)}>
           <h1 {...props(styles.displayTitle)}>
             {titleBefore}

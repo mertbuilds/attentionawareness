@@ -4,7 +4,7 @@ import { PostHogProvider } from '@posthog/react';
 import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-router';
 import { useEffect, type ReactNode } from 'react';
 import { NotFound } from '../components/not-found.tsx';
-import { SiteBrand } from '../components/site-brand.tsx';
+import { SiteHeader } from '../components/site-header.tsx';
 import { WipBanner } from '../components/wip-banner.tsx';
 import { clientEnv } from '../lib/env.ts';
 import { m } from '../paraglide/messages.js';
@@ -197,7 +197,7 @@ function RootDocument({ children }: { children: ReactNode }) {
       <body>
         <Providers>
           <WipBanner />
-          <SiteBrand />
+          <SiteHeader />
           {children}
         </Providers>
         <Scripts />
