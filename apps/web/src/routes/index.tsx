@@ -615,7 +615,7 @@ function HomePage() {
           <Promises promises={heroPromises} style={styles.heroPromises} />
           <div {...props(styles.heroAction)}>
             <div {...props(styles.heroButtons)}>
-              <MacDownload />
+              <MacDownload placement="hero" />
               <Button render={<a href={GUIDE_URL} />} variant="outline">
                 {m.home_hero_diy_cta()}
               </Button>
@@ -654,7 +654,7 @@ function HomePage() {
                 </div>
                 <Promises promises={promises} />
               </div>
-              <MacDownload style={styles.planButton} />
+              <MacDownload placement="pricing" style={styles.planButton} />
             </div>
             <div {...props(styles.plan)}>
               <div {...props(styles.planBody)}>
@@ -763,7 +763,7 @@ function HomePage() {
             <span {...props(styles.accentWord)}>{m.home_close_title_accent()}</span>
             {closeAfter}
           </h2>
-          <MacDownload style={styles.downloadCentered} />
+          <MacDownload placement="closing" style={styles.downloadCentered} />
           <p {...props(styles.closingNote)}>
             <span>{m.home_how_app_price()}</span>
             <a href={GUIDE_URL}>{m.home_close_diy()}</a>

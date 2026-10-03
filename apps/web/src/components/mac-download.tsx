@@ -21,6 +21,20 @@ type Release = {
   url: string;
 };
 
+/** Where on the site a download stands, which its event carries. */
+type Placement = 'closing' | 'header' | 'hero' | 'pricing';
+
+/**
+ * What a download does: nothing before the first release, nothing yet while
+ * `latest.json` is read, send the link on to a Mac from a phone or a tablet,
+ * and on a computer start the file.
+ */
+type Download =
+  | { kind: 'unreleased' }
+  | { kind: 'reading' }
+  | { kind: 'send' }
+  | { kind: 'file'; start: () => void; url: string };
+
 const styles = create({
   // The Apple mark on the download button, sized to the label.
   appleMark: {
@@ -128,12 +142,16 @@ function useLatestRelease(): Release | null | undefined {
 }
 
 /**
- * An iPhone or an iPad. iPadOS asks for pages as a Mac does, so a Mac that
- * takes touch is counted as one too.
+ * A phone or a tablet, which cannot run the app: Android, an iPhone, an iPad,
+ * or any browser that calls itself mobile. iPadOS asks for pages as a Mac
+ * does, so a Mac that takes touch is counted as one too.
  */
-function isAppleMobile(): boolean {
+function isMobile(): boolean {
   const { maxTouchPoints, userAgent } = navigator;
-  return /iPhone|iPad|iPod/.test(userAgent) || (/Macintosh/.test(userAgent) && maxTouchPoints > 1);
+  return (
+    /Android|iPhone|iPad|iPod|Mobi/.test(userAgent) ||
+    (/Macintosh/.test(userAgent) && maxTouchPoints > 1)
+  );
 }
 
 /** The device does not change under the page, so there is nothing to listen to. */
@@ -142,12 +160,39 @@ function subscribeNever() {
 }
 
 /**
- * Whether the reader is on an iPhone or an iPad. The server cannot tell, so it
+ * Whether the reader is on a phone or a tablet. The server cannot tell, so it
  * and the first client render answer `false` and the page corrects itself
  * once it is up.
  */
-export function useIsAppleMobile(): boolean {
-  return useSyncExternalStore(subscribeNever, isAppleMobile, () => false);
+function useIsMobile(): boolean {
+  return useSyncExternalStore(subscribeNever, isMobile, () => false);
+}
+
+/**
+ * What the download at `placement` does, the same wherever it stands. The
+ * file is only offered once `latest.json` has been read, which happens after
+ * the page is up, and by then a phone or a tablet has been told apart: the
+ * server's page and a click before it comes alive carry no link to start.
+ */
+export function useMacDownload(placement: Placement): Download {
+  const posthog = usePostHog();
+  const release = useLatestRelease();
+  const mobile = useIsMobile();
+
+  if (release === null) {
+    return { kind: 'unreleased' };
+  }
+  if (mobile) {
+    return { kind: 'send' };
+  }
+  if (release === undefined) {
+    return { kind: 'reading' };
+  }
+  return {
+    kind: 'file',
+    start: () => posthog.capture('mac_download_started', { placement }),
+    url: release.url,
+  };
 }
 
 /**
@@ -213,26 +258,21 @@ function SendToMac() {
  * is no file to read, so the button says so and does nothing. On a phone, the
  * page says where to open it instead.
  */
-export function MacDownload({ style }: { style?: StyleXStyles }) {
-  const posthog = usePostHog();
-  const release = useLatestRelease();
-  const appleMobile = useIsAppleMobile();
+export function MacDownload({ placement, style }: { placement: Placement; style?: StyleXStyles }) {
+  const download = useMacDownload(placement);
 
   const cta = <MacCta label={m.mac_download_cta()} />;
 
   let action: ReactNode;
-  if (release === null) {
+  if (download.kind === 'unreleased') {
     action = <Button disabled>{m.mac_download_unreleased()}</Button>;
-  } else if (appleMobile) {
+  } else if (download.kind === 'send') {
     action = <SendToMac />;
-  } else if (release === undefined) {
+  } else if (download.kind === 'reading') {
     action = <Button disabled>{cta}</Button>;
   } else {
     action = (
-      <Button
-        onClick={() => posthog.capture('mac_download_started')}
-        render={<a download href={release.url} />}
-      >
+      <Button onClick={download.start} render={<a download href={download.url} />}>
         {cta}
       </Button>
     );

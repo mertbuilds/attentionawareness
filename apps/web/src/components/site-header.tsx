@@ -3,13 +3,14 @@ import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { useLocation } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import { brandBar } from '../lib/brand-bar.stylex.ts';
 import { morph } from '../lib/morph.ts';
 import { duration, easing } from '../lib/motion.stylex.ts';
 import { m } from '../paraglide/messages.js';
 import { BrandMark } from './brand-mark.tsx';
-import { MacCta, useIsAppleMobile, useSendToMac } from './mac-download.tsx';
+import { MacCta, useMacDownload, useSendToMac } from './mac-download.tsx';
 
 const MARK_SIZE = 24;
 /**
@@ -29,8 +30,6 @@ const OPEN_FROM = 16;
 const HOW_HASH = '#way-out';
 const PRICING_HASH = '#pricing';
 const WHY_HASH = '#story';
-/** The home page's first screen, which holds its download. */
-const HERO_HASH = '#download';
 
 const styles = create({
   // The row of items, laid out as the open strip or as the pill. Every item
@@ -210,11 +209,9 @@ const styles = create({
  * The name, top left on every page and the way home, the home page's two
  * sections and its price in the middle, and the download across from the
  * name. Once the page has run a little way under it, the same items gather
- * into a pill in the middle, the mark alone for the name. On the home page
- * the download goes back up to the first screen, where it stands; on any
- * other page it goes to how it works, which ends in it. On an iPhone or an
- * iPad, which cannot run the app, it sends the link on to a Mac instead, as
- * every download on the site does there.
+ * into a pill in the middle, the mark alone for the name. The download starts
+ * the file at once, as every download on the site does; on a phone or a
+ * tablet, which cannot run the app, it sends the link on to a Mac instead.
  */
 export function SiteHeader() {
   const [pill, setPill] = useState(false);
@@ -224,8 +221,7 @@ export function SiteHeader() {
   // On the home page a bare hash scrolls in place; with the path in front the
   // browser would load the page again and drop its query.
   const page = home ? '' : '/';
-  const downloadHref = home ? HERO_HASH : page + HOW_HASH;
-  const appleMobile = useIsAppleMobile();
+  const download = useMacDownload('header');
   const sendToMac = useSendToMac();
 
   // The pill takes over past one line and gives way above another. Only a
@@ -258,23 +254,38 @@ export function SiteHeader() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const download = appleMobile ? (
-    <Button
-      data-morph="header-download"
-      onClick={() => void sendToMac.send()}
-      style={[styles.download, styles.morph('header-download')]}
-    >
-      <MacCta label={sendToMac.copied ? m.mac_download_copied() : m.nav_download()} />
-    </Button>
-  ) : (
-    <Button
-      data-morph="header-download"
-      render={<a href={downloadHref} />}
-      style={[styles.download, styles.morph('header-download')]}
-    >
-      <MacCta label={m.nav_download()} />
-    </Button>
-  );
+  const morphStyle = [styles.download, styles.morph('header-download')];
+  let downloadButton: ReactNode;
+  if (download.kind === 'unreleased') {
+    downloadButton = (
+      <Button data-morph="header-download" disabled style={morphStyle}>
+        {m.mac_download_unreleased()}
+      </Button>
+    );
+  } else if (download.kind === 'send') {
+    downloadButton = (
+      <Button data-morph="header-download" onClick={() => void sendToMac.send()} style={morphStyle}>
+        <MacCta label={sendToMac.copied ? m.mac_download_copied() : m.nav_download()} />
+      </Button>
+    );
+  } else if (download.kind === 'reading') {
+    downloadButton = (
+      <Button data-morph="header-download" disabled style={morphStyle}>
+        <MacCta label={m.nav_download()} />
+      </Button>
+    );
+  } else {
+    downloadButton = (
+      <Button
+        data-morph="header-download"
+        onClick={download.start}
+        render={<a download href={download.url} />}
+        style={morphStyle}
+      >
+        <MacCta label={m.nav_download()} />
+      </Button>
+    );
+  }
 
   return (
     <header {...props(styles.header)}>
@@ -321,7 +332,7 @@ export function SiteHeader() {
             {m.nav_why()}
           </a>
         </nav>
-        {download}
+        {downloadButton}
       </div>
     </header>
   );
