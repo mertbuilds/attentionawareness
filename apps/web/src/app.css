@@ -88,11 +88,10 @@ summary::-webkit-details-marker {
 
 /*
  * The work-in-progress strip at the top of every page. Its height is a
- * variable because the screens that fill the window subtract it and the fixed
- * chrome starts under it: dismissing the strip takes the variable to zero, so
- * both take the room back instead of leaving a gap where it stood. A script in
- * the head stamps the root before first paint, so a reader who has dismissed
- * the strip never sees it flash.
+ * variable because the screens that fill the window subtract it: dismissing
+ * the strip takes the variable to zero, so they take the room back instead of
+ * leaving a gap where it stood. A script in the head stamps the root before
+ * first paint, so a reader who has dismissed the strip never sees it flash.
  */
 :root {
   --aa-wip-height: 32px;

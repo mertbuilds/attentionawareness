@@ -13,10 +13,10 @@ const MARK_SIZE = 24;
 const SURFACE = `color-mix(in srgb, ${colors.bg} 70%, transparent)`;
 const SURFACE_BLUR = 'blur(12px) saturate(1.2)';
 /** The home page's sections, by the ids it gives them. */
-const HOW_URL = '/#way-out';
-const WHY_URL = '/#story';
+const HOW_HASH = '#way-out';
+const WHY_HASH = '#story';
 /** The home page's first screen, which holds its download. */
-const HERO_URL = '/#download';
+const HERO_HASH = '#download';
 
 const styles = create({
   // A strip across the window: it starts under the work-in-progress strip,
@@ -63,6 +63,13 @@ const styles = create({
     fontWeight: font.weightMedium,
     gap: spacing.s2,
     minWidth: 0,
+    outlineColor: colors.muted,
+    outlineOffset: 2,
+    outlineStyle: {
+      ':focus-visible': 'solid',
+      default: 'none',
+    },
+    outlineWidth: 1,
     textDecorationLine: 'none',
     textTransform: 'lowercase',
   },
@@ -73,6 +80,13 @@ const styles = create({
     },
     fontSize: font.sizeSm,
     fontWeight: font.weightMedium,
+    outlineColor: colors.muted,
+    outlineOffset: 2,
+    outlineStyle: {
+      ':focus-visible': 'solid',
+      default: 'none',
+    },
+    outlineWidth: 1,
     textDecorationLine: 'none',
     transitionDuration: duration.quick,
     transitionProperty: 'color',
@@ -128,6 +142,9 @@ function useScrolled(): boolean {
 export function SiteHeader() {
   const scrolled = useScrolled();
   const home = useLocation({ select: (location) => location.pathname === '/' });
+  // On the home page a bare hash scrolls in place; with the path in front the
+  // browser would load the page again and drop its query.
+  const page = home ? '' : '/';
 
   return (
     <header {...props(styles.bar, scrolled && styles.barScrolled)}>
@@ -136,13 +153,13 @@ export function SiteHeader() {
         <span {...props(styles.name)}>{m.site_name()}</span>
       </a>
       <nav {...props(styles.nav)}>
-        <a data-plain="" href={HOW_URL} {...props(styles.link, styles.linkWide)}>
+        <a data-plain="" href={page + HOW_HASH} {...props(styles.link, styles.linkWide)}>
           {m.nav_how()}
         </a>
-        <a data-plain="" href={WHY_URL} {...props(styles.link)}>
+        <a data-plain="" href={page + WHY_HASH} {...props(styles.link)}>
           {m.nav_why()}
         </a>
-        <Button render={<a href={home ? HERO_URL : HOW_URL} />} variant="outline">
+        <Button render={<a href={home ? HERO_HASH : page + HOW_HASH} />} variant="outline">
           {m.nav_download()}
         </Button>
       </nav>

@@ -88,8 +88,8 @@ const styles = create({
     isolation: 'isolate',
     minHeight: `calc(100vh - ${wip.height})`,
     paddingBlockEnd: spacing.s16,
-    // On a phone the name's strip stands over the top of the page, so the
-    // first line starts clear of it.
+    // The header strip stands over the top of the page, so the first line
+    // starts clear of it.
     paddingBlockStart: {
       '@media (min-width: 640px)': 96,
       default: `calc(${brandBar.height} + ${spacing.s6})`,
