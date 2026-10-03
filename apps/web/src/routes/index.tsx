@@ -42,6 +42,8 @@ const HERO_PHONE_WIDTH = 272;
 const PROOF_ID = 'proof';
 const WAY_OUT_ID = 'way-out';
 const STORY_ID = 'story';
+/** The price card, which the header's pricing link goes down to. */
+const PRICING_ID = 'pricing';
 /** The first screen, which the header's download goes back up to. */
 const DOWNLOAD_ID = 'download';
 /** The manual way out, on a page of its own. */
@@ -604,7 +606,7 @@ function HomePage() {
           <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
           <p {...props(styles.sectionBody)}>{m.home_how_lead()}</p>
           <HowItWorks />
-          <div {...props(styles.offer)}>
+          <div id={PRICING_ID} {...props(styles.offer, styles.anchor)}>
             <div {...props(styles.offerHead)}>
               <p {...props(styles.offerPrice)}>{m.home_how_app_price()}</p>
               <Promises promises={promises} />
