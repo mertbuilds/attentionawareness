@@ -42,7 +42,7 @@ const HERO_PHONE_WIDTH = 272;
 const PROOF_ID = 'proof';
 const WAY_OUT_ID = 'way-out';
 const STORY_ID = 'story';
-/** The price card, which the header's pricing link goes down to. */
+/** The two ways and their prices, which the header's pricing link goes down to. */
 const PRICING_ID = 'pricing';
 /** The first screen, which the header's download goes back up to. */
 const DOWNLOAD_ID = 'download';
@@ -115,24 +115,6 @@ const styles = create({
     fontWeight: font.weightRegular,
     letterSpacing: '-0.02em',
     lineHeight: 1.15,
-    margin: 0,
-    textWrap: 'balance',
-  },
-  // The free way, under the or: one quiet line and its button, in the middle
-  // like the price above it.
-  diy: {
-    alignItems: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s3,
-    textAlign: 'center',
-  },
-  // The free way's one line, quiet: one line where it fits, even lines where
-  // it wraps.
-  diyLine: {
-    color: colors.muted,
-    fontSize: font.sizeSm,
-    lineHeight: 1.5,
     margin: 0,
     textWrap: 'balance',
   },
@@ -308,67 +290,6 @@ const styles = create({
     flexDirection: 'column',
     gap: spacing.s6,
   },
-  // The app's offer under the steps: the price and what it buys, then the
-  // download, all in the middle. The app is the way the page recommends, so
-  // its card carries the orange. It takes the column on a phone and stands
-  // narrower in the middle of it on a wide one.
-  offer: {
-    alignItems: 'center',
-    alignSelf: 'center',
-    backgroundColor: `color-mix(in srgb, ${accent.base} 6%, ${colors.bg})`,
-    borderColor: accent.base,
-    borderRadius: radius.base,
-    borderStyle: 'solid',
-    borderWidth: '1px',
-    boxSizing: 'border-box',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s6,
-    maxWidth: 560,
-    padding: spacing.s6,
-    textAlign: 'center',
-    width: '100%',
-  },
-  // The price, and the promises close under it.
-  offerHead: {
-    alignItems: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s4,
-  },
-  // The price is in the card's orange.
-  offerPrice: {
-    color: accent.base,
-    fontSize: font.sizeLg,
-    fontVariantNumeric: 'tabular-nums',
-    fontWeight: font.weightMedium,
-    letterSpacing: '-0.01em',
-    lineHeight: 1.2,
-    margin: 0,
-  },
-  // The rule between the two ways, broken in its middle by the word that
-  // tells the reader to pick one.
-  or: {
-    '::after': {
-      backgroundColor: colors.border,
-      content: '""',
-      flexGrow: 1,
-      height: 1,
-    },
-    '::before': {
-      backgroundColor: colors.border,
-      content: '""',
-      flexGrow: 1,
-      height: 1,
-    },
-    alignItems: 'center',
-    color: colors.muted,
-    display: 'flex',
-    fontSize: font.sizeSm,
-    gap: spacing.s4,
-    lineHeight: 1.5,
-    margin: 0,
-  },
   page: {
     alignItems: 'center',
     backgroundColor: colors.bg,
@@ -387,6 +308,80 @@ const styles = create({
     paddingInline: spacing.s4,
     // The containing block the footer's graph paper measures itself against.
     position: 'relative',
+  },
+  // One way out: its name, what it is, what it keeps, then its button at the
+  // foot, level with the other card's.
+  plan: {
+    alignItems: 'flex-start',
+    borderColor: colors.border,
+    borderRadius: radius.base,
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    boxSizing: 'border-box',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s6,
+    padding: spacing.s6,
+  },
+  // The app is the way the page recommends, so its card carries the orange.
+  planApp: {
+    backgroundColor: `color-mix(in srgb, ${accent.base} 6%, ${colors.bg})`,
+    borderColor: accent.base,
+  },
+  // The words of a card, held to a short measure where the card runs wide.
+  planBody: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s4,
+    maxWidth: '40ch',
+  },
+  // The button takes what height is left, so both stand at the foot.
+  planButton: {
+    marginBlockStart: 'auto',
+  },
+  // The name, and what it is close under it.
+  planHead: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s1,
+  },
+  planNote: {
+    fontSize: font.sizeMd,
+    lineHeight: 1.5,
+    margin: 0,
+    textWrap: 'pretty',
+  },
+  // The app's price is in its card's orange.
+  planPrice: {
+    color: accent.base,
+  },
+  // The guide's ticks in the ink, so its card stays quiet.
+  planQuietCheck: {
+    color: colors.fg,
+  },
+  planSub: {
+    color: colors.muted,
+    fontSize: font.sizeSm,
+    lineHeight: 1.5,
+    margin: 0,
+  },
+  planTitle: {
+    fontSize: font.sizeLg,
+    fontVariantNumeric: 'tabular-nums',
+    fontWeight: font.weightMedium,
+    letterSpacing: '-0.01em',
+    lineHeight: 1.2,
+    margin: 0,
+  },
+  // The two ways side by side, as tall as each other, where both fit; the app
+  // first and the guide under it where they do not.
+  plans: {
+    display: 'grid',
+    gap: spacing.s4,
+    gridTemplateColumns: {
+      '@media (min-width: 640px)': 'repeat(2, minmax(0, 1fr))',
+      default: 'minmax(0, 1fr)',
+    },
   },
   // One promise: its tick, then its words, wrapping clear of the tick in even
   // lines.
@@ -505,7 +500,15 @@ function Question({ answer, question }: { answer: string; question: string }) {
 }
 
 /** Promises in a list, each after its tick. */
-function Promises({ promises, style }: { promises: ReadonlyArray<string>; style?: StyleXStyles }) {
+function Promises({
+  checkStyle,
+  promises,
+  style,
+}: {
+  checkStyle?: StyleXStyles;
+  promises: ReadonlyArray<string>;
+  style?: StyleXStyles;
+}) {
   return (
     <ul {...props(styles.promises, style)}>
       {promises.map((promise) => (
@@ -514,7 +517,7 @@ function Promises({ promises, style }: { promises: ReadonlyArray<string>; style?
             aria-hidden="true"
             size={CHECK_SIZE}
             strokeWidth={CHEVRON_STROKE}
-            {...props(styles.promiseCheck)}
+            {...props(styles.promiseCheck, checkStyle)}
           />
           {promise}
         </li>
@@ -561,6 +564,13 @@ function HomePage() {
     m.home_how_promise_keep(),
     m.home_how_promise_trial(),
     m.home_how_promise_add(),
+  ];
+
+  // What the free guide is, each with its tick.
+  const guidePromises = [
+    m.home_how_guide_steps(),
+    m.home_how_guide_configurator(),
+    m.home_how_guide_erase(),
   ];
 
   const objections = [
@@ -613,26 +623,37 @@ function HomePage() {
           <p {...props(styles.sectionBody)}>{m.home_uses_close()}</p>
         </section>
 
-        {/* How it works: what the Mac app does, in three steps, what it costs
-        and promises, and under it, past an or, the manual way that starts the
-        phone over. */}
+        {/* How it works: what the Mac app does, in three steps, then the two
+        ways to it: the app, with what it costs and keeps, and the free guide
+        that starts the phone over. */}
         <section {...props(styles.section, styles.anchor)} id={WAY_OUT_ID}>
           <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
           <p {...props(styles.sectionBody)}>{m.home_how_lead()}</p>
           <HowItWorks />
-          <div id={PRICING_ID} {...props(styles.offer, styles.anchor)}>
-            <div {...props(styles.offerHead)}>
-              <p {...props(styles.offerPrice)}>{m.home_how_app_price()}</p>
-              <Promises promises={promises} />
+          <div id={PRICING_ID} {...props(styles.plans, styles.anchor)}>
+            <div {...props(styles.plan, styles.planApp)}>
+              <div {...props(styles.planBody)}>
+                <div {...props(styles.planHead)}>
+                  <h3 {...props(styles.planTitle, styles.planPrice)}>{m.home_how_app_price()}</h3>
+                  <p {...props(styles.planSub)}>{m.home_how_app_sub()}</p>
+                </div>
+                <Promises promises={promises} />
+              </div>
+              <MacDownload style={styles.planButton} />
             </div>
-            <MacDownload style={styles.downloadCentered} />
-          </div>
-          <p {...props(styles.or)}>{m.home_how_or()}</p>
-          <div {...props(styles.diy)}>
-            <p {...props(styles.diyLine)}>{m.home_how_diy()}</p>
-            <Button render={<a href={GUIDE_URL} />} variant="outline">
-              {m.home_how_diy_cta()}
-            </Button>
+            <div {...props(styles.plan)}>
+              <div {...props(styles.planBody)}>
+                <div {...props(styles.planHead)}>
+                  <h3 {...props(styles.planTitle)}>{m.home_how_guide_title()}</h3>
+                  <p {...props(styles.planSub)}>{m.home_how_guide_sub()}</p>
+                </div>
+                <p {...props(styles.planNote)}>{m.home_how_guide_note()}</p>
+                <Promises checkStyle={styles.planQuietCheck} promises={guidePromises} />
+              </div>
+              <Button render={<a href={GUIDE_URL} />} style={styles.planButton} variant="outline">
+                {m.home_how_guide_cta()}
+              </Button>
+            </div>
           </div>
         </section>
 
