@@ -24,13 +24,17 @@ const styles = create({
     strokeLinejoin: 'round',
     strokeWidth: 1,
   },
+  // Filled with the page, so a drawing behind the laptop gives way to it.
+  solid: {
+    fill: colors.bg,
+  },
 });
 
 /**
  * The Mac the steps draw, a laptop open on the desk, and the plug in its
- * side shown as far as `plugged`.
+ * side shown as far as `plugged`. A `solid` laptop hides what is drawn behind it.
  */
-export function Laptop({ plugged }: { plugged: number }) {
+export function Laptop({ plugged, solid = false }: { plugged: number; solid?: boolean }) {
   return (
     <>
       <rect
@@ -39,7 +43,7 @@ export function Laptop({ plugged }: { plugged: number }) {
         width={LID.width}
         x={LID.x}
         y={LID.y}
-        {...props(styles.line)}
+        {...props(styles.line, solid && styles.solid)}
       />
       <rect
         height={LID.height - 2 * DISPLAY_INSET}
@@ -49,7 +53,7 @@ export function Laptop({ plugged }: { plugged: number }) {
         y={LID.y + DISPLAY_INSET}
         {...props(styles.faint)}
       />
-      <path d={BASE} {...props(styles.line)} />
+      <path d={BASE} {...props(styles.line, solid && styles.solid)} />
       <rect
         height={MAC_PLUG.height}
         opacity={plugged}
