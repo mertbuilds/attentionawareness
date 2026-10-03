@@ -11,6 +11,9 @@ export const duration = defineConsts({
   fast: '250ms',
   // The wait before a tooltip appears.
   micro: '80ms',
+  // The header gathering into its pill and opening back out, the same both
+  // ways.
+  medium: '350ms',
   // A tooltip appearing, a quiet fade out.
   quick: '150ms',
   // A tile rising into place.
