@@ -577,6 +577,9 @@ function HomePage() {
     m.home_how_guide_erase(),
   ];
 
+  // The word the closing line turns on, in orange wherever a language puts it.
+  const [closeBefore, closeAfter] = m.home_close_title({ better: LINK_SLOT }).split(LINK_SLOT);
+
   const objections = [
     { desc: m.home_faq_screen_time_desc(), term: m.home_faq_screen_time_term() },
     { desc: m.home_faq_supervision_desc(), term: m.home_faq_supervision_term() },
@@ -747,7 +750,11 @@ function HomePage() {
         </section>
 
         <section {...props(styles.closing)}>
-          <h2 {...props(styles.displayTitle)}>{m.home_close_title()}</h2>
+          <h2 {...props(styles.displayTitle)}>
+            {closeBefore}
+            <span {...props(styles.accentWord)}>{m.home_close_title_accent()}</span>
+            {closeAfter}
+          </h2>
           <MacDownload style={styles.downloadCentered} />
           <p {...props(styles.closingNote)}>
             <span>{m.home_how_app_price()}</span>
