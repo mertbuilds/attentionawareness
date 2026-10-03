@@ -108,6 +108,16 @@ const styles = create({
     gap: spacing.s3,
     padding: spacing.s4,
   },
+  // The why inside the box: in the ink, where the lines around it are muted,
+  // with a little more air above it than between them.
+  noticeSubtitle: {
+    fontSize: font.sizeMd,
+    fontWeight: font.weightRegular,
+    lineHeight: 1.5,
+    margin: 0,
+    marginBlockStart: spacing.s2,
+    textWrap: 'balance',
+  },
   page: {
     alignItems: 'center',
     backgroundColor: colors.bg,
@@ -268,6 +278,14 @@ function Guide() {
         <aside {...props(styles.notice)}>
           <h2 {...props(styles.sectionTitle)}>{m.guide_erase_title()}</h2>
           <p {...props(styles.body)}>{m.guide_erase_body()}</p>
+          <h3 {...props(styles.noticeSubtitle)}>{m.guide_erase_why_title()}</h3>
+          <ul {...props(styles.list)}>
+            <li>{m.guide_erase_why_restore()}</li>
+            <li>{m.guide_erase_why_remove()}</li>
+            <li>{m.guide_erase_why_apps()}</li>
+          </ul>
+          <p {...props(styles.body)}>{m.guide_erase_icloud()}</p>
+          <p {...props(styles.body)}>{m.guide_erase_backup()}</p>
           <p {...props(styles.body)}>
             {appBefore}
             <a href={APP_PATH}>{m.guide_erase_app_link()}</a>
