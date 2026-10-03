@@ -6,6 +6,7 @@ import { drawing, easing } from '../../lib/motion.stylex.ts';
 import { HEIGHT, WIDTH } from './box.ts';
 import { Cable } from './cable.tsx';
 import { Laptop, MAC_PLUG } from './laptop.tsx';
+import { MacApp } from './mac-app.tsx';
 import {
   APPS,
   AppGlyph,
@@ -138,7 +139,7 @@ const styles = create({
  * A small Mac on the left, the iPhone on the right and the cable between
  * them, the feeds chosen on the Mac by their own icons on the phone's home
  * screen among the apps the reader keeps: a pulse runs down the
- * cable, the chosen feeds go one after another while everything else stays,
+ * cable as the Mac app on the laptop fills its bar, the chosen feeds go one after another while everything else stays,
  * and an orange lock comes up over the phone's corner and shuts. It plays
  * once each time `play` turns on and stands with the chosen feeds still there
  * while it is off. With less motion it stands locked.
@@ -152,7 +153,9 @@ export function StaysGraphic({ play }: { play: boolean }) {
   return (
     <svg aria-hidden="true" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} {...props(styles.graphic)}>
       <g transform={transform(MAC)}>
-        <Laptop plugged={1} />
+        <Laptop plugged={1}>
+          <MacApp progress={travel} screen="sending" />
+        </Laptop>
       </g>
       <g transform={transform(IPHONE)}>
         <PhoneFrame />

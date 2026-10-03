@@ -1,4 +1,3 @@
-import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { cancelFrame, easeInOut, frame, useInView } from 'motion/react';
@@ -6,9 +5,9 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { ReactNode } from 'react';
 import { useLessMotion } from '../lib/use-less-motion.ts';
 import { m } from '../paraglide/messages.js';
-import { BrandMark } from './brand-mark.tsx';
 import { Cable } from './steps/cable.tsx';
 import { Laptop, MAC_PLUG } from './steps/laptop.tsx';
+import { MacApp } from './steps/mac-app.tsx';
 import {
   APPS,
   AppGlyph,
@@ -47,11 +46,11 @@ const STAYING = HOME.flatMap((app, slot) => ('glyph' in app ? [{ glyph: app.glyp
  * milliseconds from the start of the turn. It tells rather than responds, so
  * like the steps' drawings it keeps its own times rather than the page's
  * motion scale. The phone stands full, feeds and all. A small Mac comes up in
- * front of it and the cable runs from the Mac into the phone. The button with
- * the mark is pressed on the Mac and a pulse runs down the cable. The feeds go
- * one after another, the apps that stay close up, the cable comes out and the
- * Mac goes. The clean phone stands a moment before the full one crossfades
- * back in.
+ * front of it, the Mac app on its screen with the feeds ticked, and the cable
+ * runs from the Mac into the phone. The app's button is pressed and a pulse
+ * runs down the cable. The feeds go one after another, the apps that stay
+ * close up, the cable comes out and the Mac goes. The clean phone stands a
+ * moment before the full one crossfades back in.
  */
 const LOOP = 9000;
 const AT = {
@@ -99,15 +98,6 @@ const GONE_SCALE = 0.85;
  */
 const MAC = { scale: 0.3, x: 59.8, y: 138.1 };
 const RISE = 4;
-/** The lock button in the middle of the Mac's display, in the Mac's units, and the mark on it. */
-const LOCK = { height: 24, radius: 12, width: 64, x: 82, y: 71 };
-const LOCK_MARK = 16;
-/** How far the button gives under the press, and the ring the press sends out. */
-const LOCK_DIP = 0.06;
-const RING_GROW = 0.5;
-const RING_OPACITY = 0.5;
-/** A pressed button's orange wash, faint enough that the mark still reads on it. */
-const WASH = 0.12;
 /** The plug in the phone's port, flush with the phone's foot, in the phone's units. */
 const PHONE_PLUG = { height: 3, radius: 1, width: 7 };
 /**
@@ -169,16 +159,6 @@ const styles = create({
     filter,
     opacity,
   }),
-  button: {
-    fill: 'none',
-    stroke: colors.muted,
-    strokeWidth: 1,
-  },
-  buttonOn: {
-    fill: accent.base,
-    stroke: accent.base,
-    strokeWidth: 1,
-  },
   caption: {
     color: colors.muted,
     fontSize: font.sizeSm,
@@ -228,11 +208,6 @@ const styles = create({
   plug: {
     fill: 'none',
     stroke: colors.muted,
-    strokeWidth: 1,
-  },
-  ring: {
-    fill: 'none',
-    stroke: accent.base,
     strokeWidth: 1,
   },
   stat: {
@@ -352,9 +327,9 @@ function KeptIcon({ glyph }: { glyph: Glyph }) {
 
 /**
  * The hero's iPhone and the way the feeds come off it: the full home screen,
- * then a small Mac in front of it with the cable run into the phone, the
- * button with the mark pressed on the Mac, the four feeds blurring away one
- * after another and the apps that stay sliding up to close the gaps. The cable
+ * then a small Mac in front of it with the cable run into the phone, the Mac
+ * app's button pressed, the four feeds blurring away one after another and
+ * the apps that stay sliding up to close the gaps. The cable
  * comes out, the Mac goes, and the clean phone stands a moment before the full
  * one crossfades back and it plays again. Under it, the daily screen time
  * before and after.
@@ -412,42 +387,9 @@ export function HeroPhone() {
           ) : null}
           {mac > 0 ? (
             <g opacity={mac} transform={`translate(${MAC.x} ${MAC.y + rise}) scale(${MAC.scale})`}>
-              <Laptop plugged={within(now, AT.macPlug)} solid />
-              <g transform={`translate(${LOCK.x} ${LOCK.y}) scale(${1 - LOCK_DIP * dip})`}>
-                <rect
-                  height={LOCK.height}
-                  rx={LOCK.radius}
-                  width={LOCK.width}
-                  x={-LOCK.width / 2}
-                  y={-LOCK.height / 2}
-                  {...props(styles.button)}
-                />
-                <rect
-                  fillOpacity={WASH}
-                  height={LOCK.height}
-                  opacity={pressed}
-                  rx={LOCK.radius}
-                  width={LOCK.width}
-                  x={-LOCK.width / 2}
-                  y={-LOCK.height / 2}
-                  {...props(styles.buttonOn)}
-                />
-                <g transform={`translate(${-LOCK_MARK / 2} ${-LOCK_MARK / 2})`}>
-                  <BrandMark size={LOCK_MARK} />
-                </g>
-              </g>
-              {ring > 0 && ring < 1 ? (
-                <rect
-                  height={LOCK.height}
-                  opacity={RING_OPACITY * (1 - ring)}
-                  rx={LOCK.radius}
-                  transform={`translate(${LOCK.x} ${LOCK.y}) scale(${1 + RING_GROW * ring})`}
-                  width={LOCK.width}
-                  x={-LOCK.width / 2}
-                  y={-LOCK.height / 2}
-                  {...props(styles.ring)}
-                />
-              ) : null}
+              <Laptop plugged={within(now, AT.macPlug)} solid>
+                <MacApp dip={dip} pressed={pressed} ring={ring} screen="apps" />
+              </Laptop>
             </g>
           ) : null}
         </svg>
