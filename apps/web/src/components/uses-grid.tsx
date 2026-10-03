@@ -1,20 +1,16 @@
 import { accent, tint } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
-import { inView, useInView } from 'motion/react';
+import { inView } from 'motion/react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ComponentType } from 'react';
 import { layout } from '../lib/layout.ts';
 import { blur, clock, distance, drawing, duration, easing } from '../lib/motion.stylex.ts';
 import { useLessMotion } from '../lib/use-less-motion.ts';
+import { SEEN, useSeen } from '../lib/use-seen.ts';
 import { useTabHidden } from '../lib/use-tab-hidden.ts';
 import { m } from '../paraglide/messages.js';
 
-/**
- * A tile comes in once its top is this far up the window, so the tiles of a
- * row, whatever their height, come in together.
- */
-const SEEN = '0px 0px -10% 0px';
 /**
  * The grid's times, in milliseconds. Tiles that come on screen together rise
  * one after another, `stagger` apart, the motion scale's large stagger. Gains
@@ -1366,8 +1362,10 @@ function Loss({
  *
  * The server draws every tile finished, so none waits on the script. Only a
  * tile still under the window once the page has come alive hides, and rises
- * once its top comes up the window, `stagger` after the one before it when
- * they come up together, as a row does. As a loss rises its icon moves and it
+ * once its top has come up the window as far as `SEEN`, where it is in full
+ * view, `stagger` after the one before it when they come up together, as a
+ * row does. Tiles of one row come up together whatever their height, since
+ * it is their tops that are watched. As a loss rises its icon moves and it
  * is struck through, once, and it stays struck. As a gain rises its drawing
  * plays from the start, and from then on it plays again every three to four
  * seconds, each gain on its own time; a gain already on screen starts playing
@@ -1377,7 +1375,7 @@ function Loss({
 export function UsesGrid() {
   const grid = useRef<HTMLUListElement>(null);
   const reduced = useLessMotion();
-  const seen = useInView(grid);
+  const seen = useSeen(grid);
   const hidden = useTabHidden();
   // Which tiles were under the window as the page came alive, by place.
   const [below, setBelow] = useState<ReadonlyArray<boolean>>([]);

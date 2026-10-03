@@ -1,18 +1,16 @@
 import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
-import { useInView } from 'motion/react';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { drawing } from '../lib/motion.stylex.ts';
 import { useLessMotion } from '../lib/use-less-motion.ts';
+import { useSeen } from '../lib/use-seen.ts';
 import { useTabHidden } from '../lib/use-tab-hidden.ts';
 import { m } from '../paraglide/messages.js';
 import { BillFilters } from './bill-paper.tsx';
 import { InfoTip } from './info-tip.tsx';
 import { ChooseGraphic, PlugGraphic, StaysGraphic } from './steps/index.ts';
 
-/** How much of a step has to be on screen before its drawing plays. */
-const SEEN = 0.6;
 /** The turn in which every step goes back to its start, before the first plays again. */
 const BACK = -1;
 /** The last run of non-blank characters in a title: its last word. */
@@ -184,11 +182,7 @@ export function HowItWorks() {
   const plug = useRef<HTMLLIElement>(null);
   const choose = useRef<HTMLLIElement>(null);
   const stays = useRef<HTMLLIElement>(null);
-  const seen = [
-    useInView(plug, { amount: SEEN }),
-    useInView(choose, { amount: SEEN }),
-    useInView(stays, { amount: SEEN }),
-  ];
+  const seen = [useSeen(plug), useSeen(choose), useSeen(stays)];
   const items = [plug, choose, stays];
   const hidden = useTabHidden();
   const reduced = useLessMotion();
