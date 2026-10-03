@@ -40,7 +40,7 @@ export const defaultSettings: Settings = {
  * against the defaults on the way in, so a half-written or outgrown object
  * degrades to the default rather than to a broken page.
  */
-export function mergeSettings(stored: Record<string, unknown> | undefined): Settings {
+function mergeSettings(stored: Record<string, unknown> | undefined): Settings {
   const sites = { ...defaultSettings.sites };
   const storedSites = stored?.['sites'];
   if (isRecord(storedSites)) {

@@ -32,8 +32,6 @@ for extra in \
   apps/web/.wrangler \
   apps/web/dist \
   apps/web/src/paraglide \
-  e2e/playwright-report \
-  e2e/test-results \
   packages/ui/storybook-static \
   packages/ui/dist; do
   [[ -e "$extra" ]] && TARGETS+=("$extra")
@@ -41,7 +39,7 @@ done
 
 while IFS= read -r dir; do
   TARGETS+=("$dir")
-done < <(find apps packages e2e -maxdepth 3 -type d \( -name .vite -o -name .turbo \) -prune 2>/dev/null)
+done < <(find apps packages -maxdepth 3 -type d \( -name .vite -o -name .turbo \) -prune 2>/dev/null)
 
 for t in "${TARGETS[@]}"; do
   if dry; then

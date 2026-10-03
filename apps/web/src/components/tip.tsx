@@ -1,7 +1,6 @@
 import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { Tooltip } from '@base-ui/react/tooltip';
 import { create, props } from '@stylexjs/stylex';
-import type { StyleXStyles } from '@stylexjs/stylex';
 import { cloneElement, useState } from 'react';
 import type { MouseEvent, ReactElement, ReactNode } from 'react';
 import { duration, easing, scale } from '../lib/motion.stylex.ts';
@@ -113,31 +112,22 @@ const styles = create({
  */
 export function Tip({
   children,
-  content,
   paper = false,
-  style,
   title,
   trigger,
-  untitled = false,
 }: {
-  /** Shown on a wide page, over the trigger. */
+  /** Shown over the trigger on a wide page, and in the sheet on a phone. */
   children: ReactNode;
-  /** Shown in the sheet on a phone; defaults to the same as `children`. */
-  content?: ReactNode;
   /**
    * Drawn as a scrap of the bill's own paper rather than as a box: a torn
    * edge, the grain, and the ink pressed into it. The sheet on a phone is
    * untouched by it.
    */
   paper?: boolean;
-  /** Extra style for the box, when a tip needs a different width. */
-  style?: StyleXStyles;
   /** Written over the box, and used as the sheet's heading. */
   title: string;
   /** The element that opens it: a button, with its own aria-label. */
   trigger: ReactElement<{ onClick?: (event: MouseEvent) => void }>;
-  /** The box shows only its content; the title still names the sheet on a phone. */
-  untitled?: boolean;
 }) {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
@@ -153,7 +143,7 @@ export function Tip({
           },
         })}
         <Sheet onOpenChange={setOpen} open={open} title={title}>
-          <div {...props(styles.sheetText)}>{content ?? children}</div>
+          <div {...props(styles.sheetText)}>{children}</div>
         </Sheet>
       </>
     );
@@ -162,7 +152,7 @@ export function Tip({
   // What the box says, whether it is drawn as a box or as a scrap of paper.
   const written = (
     <>
-      {untitled ? null : <span {...props(styles.title)}>{title}</span>}
+      <span {...props(styles.title)}>{title}</span>
       {children}
     </>
   );
@@ -172,16 +162,8 @@ export function Tip({
       <Tooltip.Trigger render={trigger} />
       <Tooltip.Portal>
         <Tooltip.Positioner side="top" sideOffset={8} {...props(styles.positioner)}>
-          <Tooltip.Popup
-            {...props(styles.popup, paper && styles.popupPaper, paper && paperRoot, style)}
-          >
-            {paper ? (
-              <PaperSheet scrap style={styles.popupInk}>
-                {written}
-              </PaperSheet>
-            ) : (
-              written
-            )}
+          <Tooltip.Popup {...props(styles.popup, paper && styles.popupPaper, paper && paperRoot)}>
+            {paper ? <PaperSheet style={styles.popupInk}>{written}</PaperSheet> : written}
           </Tooltip.Popup>
         </Tooltip.Positioner>
       </Tooltip.Portal>

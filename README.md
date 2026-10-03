@@ -53,7 +53,6 @@ See [apps/extension/README.md](apps/extension/README.md).
 | Errors      | Sentry                                                                   |
 | Logging     | evlog wide events to an Axiom drain                                      |
 | Lint/format | oxlint (`@nkzw/oxlint-config`, type-aware) + oxfmt, no ESLint/Prettier   |
-| Tests       | Vitest (+ Storybook stories as tests) + Playwright smoke tests           |
 
 ## Develop
 
@@ -68,13 +67,11 @@ pnpm dev   # mprocs: web + storybook
 [portless](https://portless.sh). The proxy is a one-time setup:
 `sudo pnpm exec portless proxy start --https`.
 
-| Command             | What it does                              |
-| ------------------- | ----------------------------------------- |
-| `pnpm test`         | Unit and story tests across the workspace |
-| `pnpm e2e`          | Playwright smoke against a booted web app |
-| `pnpm lint`         | oxlint, type-aware                        |
-| `pnpm format:check` | oxfmt, the CI check                       |
-| `pnpm typecheck`    | `tsc --noEmit` per package                |
+| Command             | What it does               |
+| ------------------- | -------------------------- |
+| `pnpm lint`         | oxlint, type-aware         |
+| `pnpm format:check` | oxfmt, the CI check        |
+| `pnpm typecheck`    | `tsc --noEmit` per package |
 
 **Fonts.** Suisse Intl is licensed and not in the repo. Without
 `packages/ui/fonts/*.woff2` the site falls back to Inter and everything else

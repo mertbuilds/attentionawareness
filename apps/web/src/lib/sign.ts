@@ -38,7 +38,7 @@ const SIGNED_ATTRS = 0;
 const PEM_BLOCK = /-----BEGIN [^-]+-----([\dA-Za-z+/=\s]+)-----END [^-]+-----/gu;
 const WHITESPACE = /\s+/gu;
 
-export class InvalidSigningSecretError extends Error {
+class InvalidSigningSecretError extends Error {
   readonly secret: string;
 
   constructor(secret: string) {
@@ -52,10 +52,9 @@ let engineReady = false;
 
 /**
  * pkijs reads its crypto off a global engine, and a Worker has no default one.
- * Set once per isolate, pointing at the runtime's own WebCrypto. Exported so a
- * test fixture can mint certificates through the same engine.
+ * Set once per isolate, pointing at the runtime's own WebCrypto.
  */
-export function ensurePkijsEngine(): void {
+function ensurePkijsEngine(): void {
   if (engineReady) {
     return;
   }

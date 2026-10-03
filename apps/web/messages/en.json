@@ -1,7 +1,5 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
-  "app_name": "attentionawareness",
-  "nav_back_home": "Back to the start",
   "nav_how": "How it works",
   "nav_pricing": "Pricing",
   "nav_why": "Why",

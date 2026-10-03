@@ -1,7 +1,6 @@
 packages:
   - apps/*
   - packages/*
-  - e2e
 allowBuilds:
   '@sentry/cli': true
   core-js: false
@@ -10,7 +9,6 @@ allowBuilds:
   lefthook: true
   protobufjs: false
   ssh2: false
-  tesseract.js: false
   workerd: true
 minimumReleaseAgeExclude:
   - '@oxfmt/binding-android-arm-eabi@0.66.0'

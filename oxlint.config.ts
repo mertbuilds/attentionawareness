@@ -23,7 +23,6 @@ export default defineConfig({
         '**/*.test.*',
         '**/*.stories.*',
         '**/test/**',
-        'e2e/**',
         '**/scripts/**',
         'packages/ui/.storybook/**',
       ],
