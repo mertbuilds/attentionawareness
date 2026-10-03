@@ -274,6 +274,23 @@ const styles = create({
     flexDirection: 'column',
     gap: spacing.s3,
   },
+  // What the product is, in one quiet line over the claim.
+  heroEyebrow: {
+    color: colors.muted,
+    fontSize: {
+      '@media (min-width: 640px)': font.sizeMd,
+      default: font.sizeSm,
+    },
+    lineHeight: 1.5,
+    margin: 0,
+  },
+  // The line naming the product and the claim under it, closer together than
+  // the rest of the first screen.
+  heroHead: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s3,
+  },
   heroPrice: {
     color: colors.muted,
     fontSize: font.sizeSm,
@@ -548,11 +565,14 @@ function HomePage() {
       download with its price, beside the phone the feeds leave. */}
       <header id={DOWNLOAD_ID} {...props(styles.hero, styles.anchor)}>
         <div {...props(styles.heroText)}>
-          <h1 {...props(styles.displayTitle)}>
-            {titleBefore}
-            <span {...props(styles.accentWord)}>{m.home_hero_title_accent()}</span>
-            {titleAfter}
-          </h1>
+          <div {...props(styles.heroHead)}>
+            <p {...props(styles.heroEyebrow)}>{m.home_hero_eyebrow()}</p>
+            <h1 {...props(styles.displayTitle)}>
+              {titleBefore}
+              <span {...props(styles.accentWord)}>{m.home_hero_title_accent()}</span>
+              {titleAfter}
+            </h1>
+          </div>
           <p {...props(styles.heroSub)}>{m.home_hero_sub()}</p>
           <div {...props(styles.heroAction)}>
             <MacDownload />
