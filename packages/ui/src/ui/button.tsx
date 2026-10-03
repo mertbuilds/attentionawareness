@@ -32,6 +32,9 @@ const styles = create({
       ':focus-visible': `0 0 0 3px color-mix(in oklab, ${colors.ring} 50%, transparent)`,
       default: null,
     },
+    // A border stays inside the 28px, so an outlined <a> is as tall as a
+    // <button>, which the browser already sizes this way.
+    boxSizing: 'border-box',
     cursor: {
       ':disabled': 'not-allowed',
       default: 'pointer',

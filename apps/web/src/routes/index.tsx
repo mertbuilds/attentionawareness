@@ -2,6 +2,7 @@ import { Button } from '@attentionawareness/ui';
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, defaultMarker, props, when } from '@stylexjs/stylex';
+import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { useId, useState } from 'react';
 import { AngleDown, Check } from 'reicon-react';
@@ -13,6 +14,7 @@ import { ScreenShots } from '../components/screen-shots.tsx';
 import { Signature } from '../components/signature.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { UsesGrid } from '../components/uses-grid.tsx';
+import { brandBar } from '../lib/brand-bar.stylex.ts';
 import { blur, duration, easing } from '../lib/motion.stylex.ts';
 import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
@@ -35,11 +37,15 @@ const COLUMN_WIDTH = 760;
  */
 const HERO_WIDTH = 1040;
 /** The phone's column beside the words, as wide as the phone is drawn there. */
-const HERO_PHONE_WIDTH = 320;
+const HERO_PHONE_WIDTH = 272;
 /** The places on the page that can be linked to, and the ids they use. */
 const PROOF_ID = 'proof';
 const WAY_OUT_ID = 'way-out';
 const STORY_ID = 'story';
+/** The two ways and their prices, which the header's pricing link goes down to. */
+const PRICING_ID = 'pricing';
+/** The first screen, which the header's download goes back up to. */
+const DOWNLOAD_ID = 'download';
 /** The manual way out, on a page of its own. */
 const GUIDE_URL = '/guide';
 /** Every link off this site carries utm tags, so the visit is traced to this page. */
@@ -67,9 +73,9 @@ const CHECK_SIZE = 16;
 
 const styles = create({
   // A section the page links down to. The scroll stops short of its heading,
-  // clear of the brand bar fixed over the top of the window.
+  // clear of the header strip over the top of the window.
   anchor: {
-    scrollMarginBlockStart: `calc(${spacing.s16} + ${wip.height})`,
+    scrollMarginBlockStart: `calc(${brandBar.height} + ${spacing.s6})`,
   },
   // The last word before the footer: one line, the download under it, then
   // its price and the free way, all in the middle of the column.
@@ -109,24 +115,6 @@ const styles = create({
     fontWeight: font.weightRegular,
     letterSpacing: '-0.02em',
     lineHeight: 1.15,
-    margin: 0,
-    textWrap: 'balance',
-  },
-  // The free way, under the or: one quiet line and its button, in the middle
-  // like the price above it.
-  diy: {
-    alignItems: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s3,
-    textAlign: 'center',
-  },
-  // The free way's one line, quiet: one line where it fits, even lines where
-  // it wraps.
-  diyLine: {
-    color: colors.muted,
-    fontSize: font.sizeSm,
-    lineHeight: 1.5,
     margin: 0,
     textWrap: 'balance',
   },
@@ -240,11 +228,17 @@ const styles = create({
     textWrap: 'pretty',
     width: '100%',
   },
-  // The first screen: the claim, the reason and the download beside the phone
-  // the feeds leave. Too narrow for two columns, the phone stands under the
-  // words and the hero narrows to the column, so every left edge lines up.
+  // The first screen: the claim, what makes it last and the download beside
+  // the phone the feeds leave. Too narrow for two columns, the phone stands
+  // under the words and the hero narrows to the column, so every left edge
+  // lines up. It fills the window under the work-in-progress strip, so the
+  // first section waits below the fold, and stands in the middle of the room
+  // under the header. `svh` so a phone's collapsing toolbar does not move it,
+  // `vh` where a browser has no `svh`.
   hero: {
+    alignContent: 'center',
     alignItems: 'center',
+    boxSizing: 'border-box',
     columnGap: spacing.s16,
     display: 'grid',
     gridTemplateColumns: {
@@ -255,9 +249,13 @@ const styles = create({
       '@media (min-width: 900px)': HERO_WIDTH,
       default: COLUMN_WIDTH,
     },
-    // Clear of the name: the strip a phone keeps it in, and the corner a wider
-    // window keeps it in.
-    paddingBlockStart: spacing.s16,
+    minHeight: {
+      '@supports (height: 100svh)': `calc(100svh - ${wip.height})`,
+      default: `calc(100vh - ${wip.height})`,
+    },
+    paddingBlockEnd: spacing.s12,
+    // Clear of the header strip over the top of the window, and a step more.
+    paddingBlockStart: `calc(${brandBar.height} + ${spacing.s12})`,
     rowGap: spacing.s12,
     width: '100%',
   },
@@ -265,11 +263,20 @@ const styles = create({
   accentWord: {
     color: accent.base,
   },
-  // The download and its price, close under it.
+  // The download and the free way, and the price close under them.
   heroAction: {
     alignItems: 'flex-start',
     display: 'flex',
     flexDirection: 'column',
+    gap: spacing.s3,
+  },
+  // The download and the free way beside it, on their feet, so a phone's
+  // note over its button leaves the two buttons level. They stack where the
+  // row runs out.
+  heroButtons: {
+    alignItems: 'flex-end',
+    display: 'flex',
+    flexWrap: 'wrap',
     gap: spacing.s3,
   },
   heroPrice: {
@@ -278,83 +285,14 @@ const styles = create({
     lineHeight: 1.5,
     margin: 0,
   },
-  // The reason under the claim, a step quieter and a step smaller on a phone.
-  heroSub: {
+  // Why it lasts, under the claim: the price box's ticked list, a step quieter.
+  heroPromises: {
     color: colors.muted,
-    fontSize: {
-      '@media (min-width: 640px)': font.sizeLg,
-      default: font.sizeMd,
-    },
-    lineHeight: 1.5,
-    margin: 0,
-    maxWidth: '46ch',
-    textWrap: 'pretty',
   },
   heroText: {
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s6,
-  },
-  // The app's offer under the steps: the price and what it buys, then the
-  // download, all in the middle. The app is the way the page recommends, so
-  // its card carries the orange. It takes the column on a phone and stands
-  // narrower in the middle of it on a wide one.
-  offer: {
-    alignItems: 'center',
-    alignSelf: 'center',
-    backgroundColor: `color-mix(in srgb, ${accent.base} 6%, ${colors.bg})`,
-    borderColor: accent.base,
-    borderRadius: radius.base,
-    borderStyle: 'solid',
-    borderWidth: '1px',
-    boxSizing: 'border-box',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s6,
-    maxWidth: 560,
-    padding: spacing.s6,
-    textAlign: 'center',
-    width: '100%',
-  },
-  // The price, and the promises close under it.
-  offerHead: {
-    alignItems: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s4,
-  },
-  // The price is in the card's orange.
-  offerPrice: {
-    color: accent.base,
-    fontSize: font.sizeLg,
-    fontVariantNumeric: 'tabular-nums',
-    fontWeight: font.weightMedium,
-    letterSpacing: '-0.01em',
-    lineHeight: 1.2,
-    margin: 0,
-  },
-  // The rule between the two ways, broken in its middle by the word that
-  // tells the reader to pick one.
-  or: {
-    '::after': {
-      backgroundColor: colors.border,
-      content: '""',
-      flexGrow: 1,
-      height: 1,
-    },
-    '::before': {
-      backgroundColor: colors.border,
-      content: '""',
-      flexGrow: 1,
-      height: 1,
-    },
-    alignItems: 'center',
-    color: colors.muted,
-    display: 'flex',
-    fontSize: font.sizeSm,
-    gap: spacing.s4,
-    lineHeight: 1.5,
-    margin: 0,
   },
   page: {
     alignItems: 'center',
@@ -375,6 +313,80 @@ const styles = create({
     // The containing block the footer's graph paper measures itself against.
     position: 'relative',
   },
+  // One way out: its name, what it is, what it keeps, then its button at the
+  // foot, level with the other card's.
+  plan: {
+    alignItems: 'flex-start',
+    borderColor: colors.border,
+    borderRadius: radius.base,
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    boxSizing: 'border-box',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s6,
+    padding: spacing.s6,
+  },
+  // The app is the way the page recommends, so its card carries the orange.
+  planApp: {
+    backgroundColor: `color-mix(in srgb, ${accent.base} 6%, ${colors.bg})`,
+    borderColor: accent.base,
+  },
+  // The words of a card, held to a short measure where the card runs wide.
+  planBody: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s4,
+    maxWidth: '40ch',
+  },
+  // The button takes what height is left, so both stand at the foot.
+  planButton: {
+    marginBlockStart: 'auto',
+  },
+  // The name, and what it is close under it.
+  planHead: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s1,
+  },
+  planNote: {
+    fontSize: font.sizeMd,
+    lineHeight: 1.5,
+    margin: 0,
+    textWrap: 'pretty',
+  },
+  // The app's price is in its card's orange.
+  planPrice: {
+    color: accent.base,
+  },
+  // The guide's ticks in the ink, so its card stays quiet.
+  planQuietCheck: {
+    color: colors.fg,
+  },
+  planSub: {
+    color: colors.muted,
+    fontSize: font.sizeSm,
+    lineHeight: 1.5,
+    margin: 0,
+  },
+  planTitle: {
+    fontSize: font.sizeLg,
+    fontVariantNumeric: 'tabular-nums',
+    fontWeight: font.weightMedium,
+    letterSpacing: '-0.01em',
+    lineHeight: 1.2,
+    margin: 0,
+  },
+  // The two ways side by side, as tall as each other, where both fit; the app
+  // first and the guide under it where they do not.
+  plans: {
+    display: 'grid',
+    gap: spacing.s4,
+    gridTemplateColumns: {
+      '@media (min-width: 640px)': 'repeat(2, minmax(0, 1fr))',
+      default: 'minmax(0, 1fr)',
+    },
+  },
   // One promise: its tick, then its words, wrapping clear of the tick in even
   // lines.
   promise: {
@@ -391,7 +403,7 @@ const styles = create({
     flexShrink: 0,
     marginBlockStart: 4,
   },
-  // The promises stand in the middle as one block, their ticks in a column.
+  // The promises stand as one block, their ticks in a column.
   promises: {
     display: 'flex',
     flexDirection: 'column',
@@ -415,6 +427,11 @@ const styles = create({
     margin: 0,
     maxWidth: '60ch',
     textWrap: 'pretty',
+  },
+  // A closing said in two lines, one under the other.
+  sectionLines: {
+    display: 'flex',
+    flexDirection: 'column',
   },
   sectionTitle: {
     fontSize: font.sizeLg,
@@ -491,10 +508,44 @@ function Question({ answer, question }: { answer: string; question: string }) {
   );
 }
 
+/** Promises in a list, each after its tick. */
+function Promises({
+  checkStyle,
+  promises,
+  style,
+}: {
+  checkStyle?: StyleXStyles;
+  promises: ReadonlyArray<string>;
+  style?: StyleXStyles;
+}) {
+  return (
+    <ul {...props(styles.promises, style)}>
+      {promises.map((promise) => (
+        <li key={promise} {...props(styles.promise)}>
+          <Check
+            aria-hidden="true"
+            size={CHECK_SIZE}
+            strokeWidth={CHEVRON_STROKE}
+            {...props(styles.promiseCheck, checkStyle)}
+          />
+          {promise}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function HomePage() {
-  // The word the claim turns on, in the middle of it, so the words around it
-  // keep their own order in every language.
-  const [titleBefore, titleAfter] = m.home_hero_title({ algorithms: LINK_SLOT }).split(LINK_SLOT);
+  // The word the claim turns on, wherever a language puts it, so the words
+  // around it keep their own order in every language.
+  const [titleBefore, titleAfter] = m.home_hero_title({ permanently: LINK_SLOT }).split(LINK_SLOT);
+
+  // Why the lock lasts, each with its tick.
+  const heroPromises = [
+    m.home_hero_promise_install(),
+    m.home_hero_promise_keep(),
+    m.home_hero_promise_sticks(),
+  ];
 
   // The browser half: the extension, in the middle of the sentence, and the
   // store it is added from.
@@ -524,6 +575,16 @@ function HomePage() {
     m.home_how_promise_add(),
   ];
 
+  // What the free guide is, each with its tick.
+  const guidePromises = [
+    m.home_how_guide_steps(),
+    m.home_how_guide_configurator(),
+    m.home_how_guide_erase(),
+  ];
+
+  // The word the closing line turns on, in orange wherever a language puts it.
+  const [closeBefore, closeAfter] = m.home_close_title({ better: LINK_SLOT }).split(LINK_SLOT);
+
   const objections = [
     { desc: m.home_faq_screen_time_desc(), term: m.home_faq_screen_time_term() },
     { desc: m.home_faq_supervision_desc(), term: m.home_faq_supervision_term() },
@@ -542,18 +603,23 @@ function HomePage() {
       {/* The graph paper the first screen stands on, fading out before the
       first section. */}
       <GridTexture />
-      {/* The first screen: the claim, why willpower cannot win it, and the
-      download with its price, beside the phone the feeds leave. */}
-      <header {...props(styles.hero)}>
+      {/* The first screen: the claim, why it lasts, and the download with its
+      price and the free way beside it, next to the phone the feeds leave. */}
+      <header id={DOWNLOAD_ID} {...props(styles.hero, styles.anchor)}>
         <div {...props(styles.heroText)}>
           <h1 {...props(styles.displayTitle)}>
             {titleBefore}
             <span {...props(styles.accentWord)}>{m.home_hero_title_accent()}</span>
             {titleAfter}
           </h1>
-          <p {...props(styles.heroSub)}>{m.home_hero_sub()}</p>
+          <Promises promises={heroPromises} style={styles.heroPromises} />
           <div {...props(styles.heroAction)}>
-            <MacDownload />
+            <div {...props(styles.heroButtons)}>
+              <MacDownload placement="hero" />
+              <Button render={<a href={GUIDE_URL} />} variant="outline">
+                {m.home_hero_diy_cta()}
+              </Button>
+            </div>
             <p {...props(styles.heroPrice)}>{m.home_hero_price()}</p>
           </div>
         </div>
@@ -561,46 +627,48 @@ function HomePage() {
       </header>
 
       <div {...props(styles.content)}>
-        {/* What the phone is for once the feeds are off it: everything else
-        it does, which is why the rest of it stays. */}
+        {/* What the feeds take, and what the phone is for once they are off
+        it: everything else it does, which is why the rest of it stays. */}
         <section {...props(styles.section)}>
           <h2 {...props(styles.sectionTitle)}>{m.home_uses_title()}</h2>
           <UsesGrid />
-          <p {...props(styles.sectionBody)}>{m.home_uses_close()}</p>
+          <p {...props(styles.sectionBody, styles.sectionLines)}>
+            <span>{m.home_uses_kept()}</span>
+            <span>{m.home_uses_gone()}</span>
+          </p>
         </section>
 
-        {/* How it works: what the Mac app does, in three steps, what it costs
-        and promises, and under it, past an or, the manual way that starts the
-        phone over. */}
+        {/* How it works: what the Mac app does, in three steps, then the two
+        ways to it: the app, with what it costs and keeps, and the free guide
+        that starts the phone over. */}
         <section {...props(styles.section, styles.anchor)} id={WAY_OUT_ID}>
           <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
           <p {...props(styles.sectionBody)}>{m.home_how_lead()}</p>
           <HowItWorks />
-          <div {...props(styles.offer)}>
-            <div {...props(styles.offerHead)}>
-              <p {...props(styles.offerPrice)}>{m.home_how_app_price()}</p>
-              <ul {...props(styles.promises)}>
-                {promises.map((promise) => (
-                  <li key={promise} {...props(styles.promise)}>
-                    <Check
-                      aria-hidden="true"
-                      size={CHECK_SIZE}
-                      strokeWidth={CHEVRON_STROKE}
-                      {...props(styles.promiseCheck)}
-                    />
-                    {promise}
-                  </li>
-                ))}
-              </ul>
+          <div id={PRICING_ID} {...props(styles.plans, styles.anchor)}>
+            <div {...props(styles.plan, styles.planApp)}>
+              <div {...props(styles.planBody)}>
+                <div {...props(styles.planHead)}>
+                  <h3 {...props(styles.planTitle, styles.planPrice)}>{m.home_how_app_price()}</h3>
+                  <p {...props(styles.planSub)}>{m.home_how_app_sub()}</p>
+                </div>
+                <Promises promises={promises} />
+              </div>
+              <MacDownload placement="pricing" style={styles.planButton} />
             </div>
-            <MacDownload style={styles.downloadCentered} />
-          </div>
-          <p {...props(styles.or)}>{m.home_how_or()}</p>
-          <div {...props(styles.diy)}>
-            <p {...props(styles.diyLine)}>{m.home_how_diy()}</p>
-            <Button render={<a href={GUIDE_URL} />} variant="outline">
-              {m.home_how_diy_cta()}
-            </Button>
+            <div {...props(styles.plan)}>
+              <div {...props(styles.planBody)}>
+                <div {...props(styles.planHead)}>
+                  <h3 {...props(styles.planTitle)}>{m.home_how_guide_title()}</h3>
+                  <p {...props(styles.planSub)}>{m.home_how_guide_sub()}</p>
+                </div>
+                <p {...props(styles.planNote)}>{m.home_how_guide_note()}</p>
+                <Promises checkStyle={styles.planQuietCheck} promises={guidePromises} />
+              </div>
+              <Button render={<a href={GUIDE_URL} />} style={styles.planButton} variant="outline">
+                {m.home_how_guide_cta()}
+              </Button>
+            </div>
           </div>
         </section>
 
@@ -690,8 +758,12 @@ function HomePage() {
         </section>
 
         <section {...props(styles.closing)}>
-          <h2 {...props(styles.displayTitle)}>{m.home_close_title()}</h2>
-          <MacDownload style={styles.downloadCentered} />
+          <h2 {...props(styles.displayTitle)}>
+            {closeBefore}
+            <span {...props(styles.accentWord)}>{m.home_close_title_accent()}</span>
+            {closeAfter}
+          </h2>
+          <MacDownload placement="closing" style={styles.downloadCentered} />
           <p {...props(styles.closingNote)}>
             <span>{m.home_how_app_price()}</span>
             <a href={GUIDE_URL}>{m.home_close_diy()}</a>

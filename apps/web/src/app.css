@@ -12,6 +12,32 @@ html {
 }
 
 /*
+ * The header gathers into its pill and opens back out as a view transition
+ * (`lib/morph.ts`). The page itself takes no part in it: it keeps drawing and
+ * scrolling under the moving items, and the pointer goes through the
+ * transition's layer to it.
+ */
+:root {
+  view-transition-name: none;
+}
+
+::view-transition {
+  pointer-events: none;
+}
+
+/*
+ * The browser eases each keyframe of a view transition, under the pace
+ * `lib/morph.ts` sets over the whole of it. While the header opens back out
+ * that second ease goes, so the items keep to the ground growing under them
+ * instead of running out past its edges.
+ */
+:root:active-view-transition-type(morph-spreading)::view-transition-group(*),
+:root:active-view-transition-type(morph-spreading)::view-transition-old(*),
+:root:active-view-transition-type(morph-spreading)::view-transition-new(*) {
+  animation-timing-function: linear;
+}
+
+/*
  * The scrollbar is a hairline: `thin` where Firefox and Chromium honour it,
  * the WebKit box for the rest. `scrollbar-color` inherits, `scrollbar-width`
  * does not, so `*` carries the width into the sheet and every other inner
@@ -88,11 +114,10 @@ summary::-webkit-details-marker {
 
 /*
  * The work-in-progress strip at the top of every page. Its height is a
- * variable because the screens that fill the window subtract it and the fixed
- * chrome starts under it: dismissing the strip takes the variable to zero, so
- * both take the room back instead of leaving a gap where it stood. A script in
- * the head stamps the root before first paint, so a reader who has dismissed
- * the strip never sees it flash.
+ * variable because the screens that fill the window subtract it: dismissing
+ * the strip takes the variable to zero, so they take the room back instead of
+ * leaving a gap where it stood. A script in the head stamps the root before
+ * first paint, so a reader who has dismissed the strip never sees it flash.
  */
 :root {
   --aa-wip-height: 32px;

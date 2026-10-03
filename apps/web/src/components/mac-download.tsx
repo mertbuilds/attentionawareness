@@ -21,6 +21,20 @@ type Release = {
   url: string;
 };
 
+/** Where on the site a download stands, which its event carries. */
+type Placement = 'closing' | 'header' | 'hero' | 'pricing';
+
+/**
+ * What a download does: nothing before the first release, nothing yet while
+ * `latest.json` is read, send the link on to a Mac from a phone or a tablet,
+ * and on a computer start the file.
+ */
+type Download =
+  | { kind: 'unreleased' }
+  | { kind: 'reading' }
+  | { kind: 'send' }
+  | { kind: 'file'; start: () => void; url: string };
+
 const styles = create({
   // The Apple mark on the download button, sized to the label.
   appleMark: {
@@ -57,6 +71,21 @@ const styles = create({
     textWrap: 'pretty',
   },
 });
+
+/**
+ * A download's label after the Apple mark, the two centered against each
+ * other in the button.
+ */
+export function MacCta({ label }: { label: string }) {
+  return (
+    <span {...props(styles.cta)}>
+      <svg aria-hidden="true" viewBox="0 0 384 512" {...props(styles.appleMark)}>
+        <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z" />
+      </svg>
+      <span {...props(styles.label)}>{label}</span>
+    </span>
+  );
+}
 
 /**
  * The one read of `latest.json` every download on the page shares, so two
@@ -113,12 +142,16 @@ function useLatestRelease(): Release | null | undefined {
 }
 
 /**
- * An iPhone or an iPad. iPadOS asks for pages as a Mac does, so a Mac that
- * takes touch is counted as one too.
+ * A phone or a tablet, which cannot run the app: Android, an iPhone, an iPad,
+ * or any browser that calls itself mobile. iPadOS asks for pages as a Mac
+ * does, so a Mac that takes touch is counted as one too.
  */
-function isAppleMobile(): boolean {
+function isMobile(): boolean {
   const { maxTouchPoints, userAgent } = navigator;
-  return /iPhone|iPad|iPod/.test(userAgent) || (/Macintosh/.test(userAgent) && maxTouchPoints > 1);
+  return (
+    /Android|iPhone|iPad|iPod|Mobi/.test(userAgent) ||
+    (/Macintosh/.test(userAgent) && maxTouchPoints > 1)
+  );
 }
 
 /** The device does not change under the page, so there is nothing to listen to. */
@@ -127,26 +160,54 @@ function subscribeNever() {
 }
 
 /**
- * Whether the reader is on an iPhone or an iPad. The server cannot tell, so it
+ * Whether the reader is on a phone or a tablet. The server cannot tell, so it
  * and the first client render answer `false` and the page corrects itself
  * once it is up.
  */
-function useIsAppleMobile(): boolean {
-  return useSyncExternalStore(subscribeNever, isAppleMobile, () => false);
+function useIsMobile(): boolean {
+  return useSyncExternalStore(subscribeNever, isMobile, () => false);
 }
 
 /**
- * The download on a phone, which cannot run it: where to open the page
- * instead, and the link to send there. The share sheet reaches a Mac by
- * AirDrop or a message; without one, the link goes to the clipboard.
+ * What the download at `placement` does, the same wherever it stands. The
+ * file is only offered once `latest.json` has been read, which happens after
+ * the page is up, and by then a phone or a tablet has been told apart: the
+ * server's page and a click before it comes alive carry no link to start.
  */
-function SendToMac() {
+export function useMacDownload(placement: Placement): Download {
+  const posthog = usePostHog();
+  const release = useLatestRelease();
+  const mobile = useIsMobile();
+
+  if (release === null) {
+    return { kind: 'unreleased' };
+  }
+  if (mobile) {
+    return { kind: 'send' };
+  }
+  if (release === undefined) {
+    return { kind: 'reading' };
+  }
+  return {
+    kind: 'file',
+    start: () => posthog.capture('mac_download_started', { placement }),
+    url: release.url,
+  };
+}
+
+/**
+ * Sends the download on from a phone, which cannot run it, to a Mac. The
+ * share sheet reaches a Mac by AirDrop or a message; without one, the link
+ * goes to the clipboard, and `copied` says it is there. Every download on the
+ * site sends the same link.
+ */
+export function useSendToMac(): { copied: boolean; send: () => Promise<void> } {
   const posthog = usePostHog();
   const [copied, setCopied] = useState(false);
-  const canShare = 'share' in navigator;
 
   async function send() {
     const url = new URL(DOWNLOAD_PATH, location.href).href;
+    const canShare = 'share' in navigator;
     if (canShare) {
       try {
         await navigator.share({ url });
@@ -164,6 +225,17 @@ function SendToMac() {
       // The clipboard refused. The button keeps offering it.
     }
   }
+
+  return { copied, send };
+}
+
+/**
+ * The download on a phone: where to open the page instead, and the button
+ * that sends the link there.
+ */
+function SendToMac() {
+  const { copied, send } = useSendToMac();
+  const canShare = 'share' in navigator;
 
   let label = m.mac_download_copy();
   if (canShare) {
@@ -186,33 +258,21 @@ function SendToMac() {
  * is no file to read, so the button says so and does nothing. On a phone, the
  * page says where to open it instead.
  */
-export function MacDownload({ style }: { style?: StyleXStyles }) {
-  const posthog = usePostHog();
-  const release = useLatestRelease();
-  const appleMobile = useIsAppleMobile();
+export function MacDownload({ placement, style }: { placement: Placement; style?: StyleXStyles }) {
+  const download = useMacDownload(placement);
 
-  const cta = (
-    <span {...props(styles.cta)}>
-      <svg aria-hidden="true" viewBox="0 0 384 512" {...props(styles.appleMark)}>
-        <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z" />
-      </svg>
-      <span {...props(styles.label)}>{m.mac_download_cta()}</span>
-    </span>
-  );
+  const cta = <MacCta label={m.mac_download_cta()} />;
 
   let action: ReactNode;
-  if (release === null) {
+  if (download.kind === 'unreleased') {
     action = <Button disabled>{m.mac_download_unreleased()}</Button>;
-  } else if (appleMobile) {
+  } else if (download.kind === 'send') {
     action = <SendToMac />;
-  } else if (release === undefined) {
+  } else if (download.kind === 'reading') {
     action = <Button disabled>{cta}</Button>;
   } else {
     action = (
-      <Button
-        onClick={() => posthog.capture('mac_download_started')}
-        render={<a download href={release.url} />}
-      >
+      <Button onClick={download.start} render={<a download href={download.url} />}>
         {cta}
       </Button>
     );

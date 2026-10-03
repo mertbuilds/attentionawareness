@@ -1,9 +1,18 @@
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
+import type { ReactNode } from 'react';
 
 /** The laptop's lid, and its display a bezel inside it. */
 const LID = { height: 74, radius: 5, width: 112, x: 26, y: 34 };
 const DISPLAY_INSET = 4;
+/** The display, where whatever the laptop shows is drawn, in the laptop's units. */
+export const SCREEN = {
+  height: LID.height - 2 * DISPLAY_INSET,
+  radius: LID.radius - DISPLAY_INSET,
+  width: LID.width - 2 * DISPLAY_INSET,
+  x: LID.x + DISPLAY_INSET,
+  y: LID.y + DISPLAY_INSET,
+};
 /** The slab the lid stands on, a little wider than the lid, with the notch a thumb opens it by. */
 const BASE =
   'M14 108 H150 V110.5 Q150 113 147.5 113 H16.5 Q14 113 14 110.5 Z M74 108 Q74 110 76 110 H88 Q90 110 90 108';
@@ -24,13 +33,27 @@ const styles = create({
     strokeLinejoin: 'round',
     strokeWidth: 1,
   },
+  // Filled with the page, so a drawing behind the laptop gives way to it.
+  solid: {
+    fill: colors.bg,
+  },
 });
 
 /**
  * The Mac the steps draw, a laptop open on the desk, and the plug in its
- * side shown as far as `plugged`.
+ * side shown as far as `plugged`. A `solid` laptop hides what is drawn behind
+ * it. `children` are drawn on its display, from the display's top left
+ * corner in the laptop's units.
  */
-export function Laptop({ plugged }: { plugged: number }) {
+export function Laptop({
+  children,
+  plugged,
+  solid = false,
+}: {
+  children: ReactNode;
+  plugged: number;
+  solid?: boolean;
+}) {
   return (
     <>
       <rect
@@ -39,17 +62,18 @@ export function Laptop({ plugged }: { plugged: number }) {
         width={LID.width}
         x={LID.x}
         y={LID.y}
-        {...props(styles.line)}
+        {...props(styles.line, solid && styles.solid)}
       />
       <rect
-        height={LID.height - 2 * DISPLAY_INSET}
-        rx={LID.radius - DISPLAY_INSET}
-        width={LID.width - 2 * DISPLAY_INSET}
-        x={LID.x + DISPLAY_INSET}
-        y={LID.y + DISPLAY_INSET}
+        height={SCREEN.height}
+        rx={SCREEN.radius}
+        width={SCREEN.width}
+        x={SCREEN.x}
+        y={SCREEN.y}
         {...props(styles.faint)}
       />
-      <path d={BASE} {...props(styles.line)} />
+      <g transform={`translate(${SCREEN.x} ${SCREEN.y})`}>{children}</g>
+      <path d={BASE} {...props(styles.line, solid && styles.solid)} />
       <rect
         height={MAC_PLUG.height}
         opacity={plugged}

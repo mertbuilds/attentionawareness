@@ -26,7 +26,7 @@ export const Route = createFileRoute('/guide')({
 const SITE_NAME = 'attention awareness';
 /** The post this guide is adapted from. */
 const POST_URL = 'https://stopa.io/post/297';
-const CONFIGURATOR_URL = 'https://apps.apple.com/app/apple-configurator/id1037126344';
+const CONFIGURATOR_URL = 'https://apps.apple.com/app/apple-configurator/id1037126344?mt=12';
 /** The free profile builder. */
 const BUILD_PATH = '/build';
 /** The Mac app is offered on the home page. */
@@ -108,6 +108,20 @@ const styles = create({
     gap: spacing.s3,
     padding: spacing.s4,
   },
+  // The why inside the box: in the ink, where the lines around it are muted,
+  // with a little more air above it than between them.
+  noticeSubtitle: {
+    fontSize: font.sizeMd,
+    fontWeight: font.weightRegular,
+    lineHeight: 1.5,
+    margin: 0,
+    marginBlockStart: spacing.s2,
+    textWrap: 'balance',
+  },
+  // A link's name held on one line, so it never breaks in two.
+  nowrap: {
+    whiteSpace: 'nowrap',
+  },
   page: {
     alignItems: 'center',
     backgroundColor: colors.bg,
@@ -124,8 +138,8 @@ const styles = create({
     isolation: 'isolate',
     minHeight: `calc(100vh - ${wip.height})`,
     paddingBlockEnd: spacing.s16,
-    // On a phone the name's strip stands over the top of the page, so the
-    // first line starts clear of it.
+    // The header strip stands over the top of the page, so the first line
+    // starts clear of it.
     paddingBlockStart: {
       '@media (min-width: 640px)': 96,
       default: `calc(${brandBar.height} + ${spacing.s6})`,
@@ -268,9 +282,19 @@ function Guide() {
         <aside {...props(styles.notice)}>
           <h2 {...props(styles.sectionTitle)}>{m.guide_erase_title()}</h2>
           <p {...props(styles.body)}>{m.guide_erase_body()}</p>
+          <h3 {...props(styles.noticeSubtitle)}>{m.guide_erase_why_title()}</h3>
+          <ul {...props(styles.list)}>
+            <li>{m.guide_erase_why_restore()}</li>
+            <li>{m.guide_erase_why_remove()}</li>
+            <li>{m.guide_erase_why_apps()}</li>
+          </ul>
+          <p {...props(styles.body)}>{m.guide_erase_icloud()}</p>
+          <p {...props(styles.body)}>{m.guide_erase_backup()}</p>
           <p {...props(styles.body)}>
             {appBefore}
-            <a href={APP_PATH}>{m.guide_erase_app_link()}</a>
+            <a href={APP_PATH} {...props(styles.nowrap)}>
+              {m.guide_erase_app_link()}
+            </a>
             {appAfter}
           </p>
         </aside>
@@ -292,9 +316,9 @@ function Guide() {
             <p {...props(styles.body)}>{m.guide_step_backup_note()}</p>
             <Shot
               alt={m.guide_shot_backup_finder()}
-              height={600}
+              height={470}
               name="backup-finder"
-              width={779}
+              width={800}
             />
           </Step>
 

@@ -4,7 +4,7 @@ import { PostHogProvider } from '@posthog/react';
 import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { NotFound } from '../components/not-found.tsx';
-import { SiteBrand } from '../components/site-brand.tsx';
+import { SiteHeader } from '../components/site-header.tsx';
 import { WipBanner } from '../components/wip-banner.tsx';
 import { clientEnv } from '../lib/env.ts';
 import { m } from '../paraglide/messages.js';
@@ -58,8 +58,8 @@ export const Route = createRootRoute({
     // marked on the root match and has no address of its own.
     const url = match._notFound ? undefined : `${SITE_URL}${matches.at(-1)?.pathname ?? '/'}`;
     // What the site promises, in the hero's own words. The share cards lead with it.
-    const tagline = m.home_hero_title({ algorithms: m.home_hero_title_accent() });
-    const description = `${SITE_NAME}. ${m.home_hero_sub()}`;
+    const tagline = m.home_hero_title({ permanently: m.home_hero_title_accent() });
+    const description = `${SITE_NAME}. ${m.home_meta_description()}`;
     return {
       links: [
         // The SVG first: it inverts with the browser's own theme. The PNG is
@@ -192,7 +192,7 @@ function RootDocument({ children }: { children: ReactNode }) {
       <body>
         <Providers>
           <WipBanner />
-          <SiteBrand />
+          <SiteHeader />
           {children}
         </Providers>
         <Scripts />

@@ -6,6 +6,7 @@ import { drawing } from '../../lib/motion.stylex.ts';
 import { HEIGHT, WIDTH } from './box.ts';
 import { Cable } from './cable.tsx';
 import { Laptop } from './laptop.tsx';
+import { MacApp } from './mac-app.tsx';
 import { stretch, usePlayhead } from './playhead.ts';
 
 /** The phone beside the laptop, its screen and island, and the plug in the port under it. */
@@ -69,7 +70,8 @@ const styles = create({
 /**
  * A laptop and an iPhone side by side, and the cable between them: it draws
  * itself out of the laptop and into the phone, a small orange pulse runs down
- * it, and the phone's screen lights. It plays once each time `play` turns on
+ * it, and the phone's screen lights. The Mac app on the laptop waits for the
+ * iPhone and shows its card once the phone is lit. It plays once each time `play` turns on
  * and stands unplugged while it is off. With less motion it stands lit.
  */
 export function PlugGraphic({ play }: { play: boolean }) {
@@ -92,7 +94,9 @@ export function PlugGraphic({ play }: { play: boolean }) {
 
   return (
     <svg aria-hidden="true" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} {...props(styles.graphic)}>
-      <Laptop plugged={macPlug} />
+      <Laptop plugged={macPlug}>
+        <MacApp found={lit} screen="connect" />
+      </Laptop>
       <rect
         height={PHONE.height}
         rx={PHONE.radius}
