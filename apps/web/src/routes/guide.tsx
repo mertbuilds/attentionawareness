@@ -26,7 +26,7 @@ export const Route = createFileRoute('/guide')({
 const SITE_NAME = 'attention awareness';
 /** The post this guide is adapted from. */
 const POST_URL = 'https://stopa.io/post/297';
-const CONFIGURATOR_URL = 'https://apps.apple.com/app/apple-configurator/id1037126344';
+const CONFIGURATOR_URL = 'https://apps.apple.com/app/apple-configurator/id1037126344?mt=12';
 /** The free profile builder. */
 const BUILD_PATH = '/build';
 /** The Mac app is offered on the home page. */
