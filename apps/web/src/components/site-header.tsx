@@ -7,6 +7,7 @@ import { brandBar } from '../lib/brand-bar.stylex.ts';
 import { duration, easing } from '../lib/motion.stylex.ts';
 import { m } from '../paraglide/messages.js';
 import { BrandMark } from './brand-mark.tsx';
+import { useIsAppleMobile, useSendToMac } from './mac-download.tsx';
 
 const MARK_SIZE = 24;
 /** The strip's ground once the page runs under it: the page, thinned, and blurred behind. */
@@ -147,7 +148,9 @@ function useScrolled(): boolean {
  * The name, top left on every page and the way home, the home page's two
  * sections and its price in the middle, and the download across from the
  * name. On the home page the download goes back up to the first screen, where
- * it stands; on any other page it goes to how it works, which ends in it.
+ * it stands; on any other page it goes to how it works, which ends in it. On
+ * an iPhone or an iPad, which cannot run the app, it sends the link on to a
+ * Mac instead, as every download on the site does there.
  */
 export function SiteHeader() {
   const scrolled = useScrolled();
@@ -155,6 +158,8 @@ export function SiteHeader() {
   // On the home page a bare hash scrolls in place; with the path in front the
   // browser would load the page again and drop its query.
   const page = home ? '' : '/';
+  const appleMobile = useIsAppleMobile();
+  const sendToMac = useSendToMac();
 
   return (
     <header {...props(styles.bar, scrolled && styles.barScrolled)}>
@@ -173,13 +178,19 @@ export function SiteHeader() {
           {m.nav_why()}
         </a>
       </nav>
-      <Button
-        render={<a href={home ? HERO_HASH : page + HOW_HASH} />}
-        style={styles.download}
-        variant="outline"
-      >
-        {m.nav_download()}
-      </Button>
+      {appleMobile ? (
+        <Button onClick={() => void sendToMac.send()} style={styles.download} variant="outline">
+          {sendToMac.copied ? m.mac_download_copied() : m.nav_download()}
+        </Button>
+      ) : (
+        <Button
+          render={<a href={home ? HERO_HASH : page + HOW_HASH} />}
+          style={styles.download}
+          variant="outline"
+        >
+          {m.nav_download()}
+        </Button>
+      )}
     </header>
   );
 }

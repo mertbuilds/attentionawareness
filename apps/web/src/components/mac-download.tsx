@@ -131,22 +131,23 @@ function subscribeNever() {
  * and the first client render answer `false` and the page corrects itself
  * once it is up.
  */
-function useIsAppleMobile(): boolean {
+export function useIsAppleMobile(): boolean {
   return useSyncExternalStore(subscribeNever, isAppleMobile, () => false);
 }
 
 /**
- * The download on a phone, which cannot run it: where to open the page
- * instead, and the link to send there. The share sheet reaches a Mac by
- * AirDrop or a message; without one, the link goes to the clipboard.
+ * Sends the download on from a phone, which cannot run it, to a Mac. The
+ * share sheet reaches a Mac by AirDrop or a message; without one, the link
+ * goes to the clipboard, and `copied` says it is there. Every download on the
+ * site sends the same link.
  */
-function SendToMac() {
+export function useSendToMac(): { copied: boolean; send: () => Promise<void> } {
   const posthog = usePostHog();
   const [copied, setCopied] = useState(false);
-  const canShare = 'share' in navigator;
 
   async function send() {
     const url = new URL(DOWNLOAD_PATH, location.href).href;
+    const canShare = 'share' in navigator;
     if (canShare) {
       try {
         await navigator.share({ url });
@@ -164,6 +165,17 @@ function SendToMac() {
       // The clipboard refused. The button keeps offering it.
     }
   }
+
+  return { copied, send };
+}
+
+/**
+ * The download on a phone: where to open the page instead, and the button
+ * that sends the link there.
+ */
+function SendToMac() {
+  const { copied, send } = useSendToMac();
+  const canShare = 'share' in navigator;
 
   let label = m.mac_download_copy();
   if (canShare) {
