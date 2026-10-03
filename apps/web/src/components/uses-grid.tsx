@@ -6,13 +6,13 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import type { PointerEvent } from 'react';
 import {
   BookOpen,
-  Briefcase,
   Brush,
   Call,
-  Camera,
-  ChartLine,
+  ChatRound,
+  Expand,
+  Lightbulb,
   MusicNote,
-  Video,
+  Rocket,
 } from 'reicon-react';
 import { blur, distance, duration, easing } from '../lib/motion.stylex.ts';
 import { useLessMotion } from '../lib/use-less-motion.ts';
@@ -30,15 +30,20 @@ const SEEN = 0.3;
  */
 const TIMES = { lead: 250, stagger: 80 };
 const PLAYS = {
+  book: 900,
   brush: 1100,
+  bulb: 1000,
   call: 900,
-  camera: 700,
-  learn: 900,
+  chat: 700,
+  expand: 1400,
   music: 1100,
-  numbers: 900,
-  video: 1600,
-  work: 800,
+  rocket: 1100,
 };
+/** The chat's dots type twice, each `CHAT_STAGGER` after the one before it. */
+const CHAT_TYPES = 2;
+const CHAT_STAGGER = 120;
+/** The chat's three dots, where the icon with dots draws them. */
+const CHAT_DOTS = [8, 12, 16];
 
 /** A tile rising into place, out of a blur. */
 const rise = keyframes({
@@ -68,19 +73,30 @@ const brushStroke = keyframes({
   '80%': { opacity: 1 },
   '100%': { opacity: 0, strokeDashoffset: 0 },
 });
-/** The camera gives under the shutter. */
-const shutter = keyframes({
+/** The rocket crouches, lifts off up its own line and settles back. */
+const launch = keyframes({
   '0%': { transform: 'none' },
-  '20%': { transform: 'scale(0.92)' },
-  '55%': { transform: 'scale(1.02)' },
+  '15%': { transform: 'translate(-0.75px, 0.75px)' },
+  '45%': { transform: 'translate(2.5px, -2.5px)' },
+  '75%': { transform: 'translate(-0.5px, 0.5px)' },
   '100%': { transform: 'none' },
 });
-/** The lens flashes as it does, and the flash fades. */
-const flash = keyframes({
-  '0%': { opacity: 0 },
-  '18%': { opacity: 0 },
-  '26%': { opacity: 0.9 },
-  '100%': { opacity: 0 },
+/** Its exhaust, drawn out behind it as it lifts and gone after. */
+const exhaust = keyframes({
+  '0%': { opacity: 0, strokeDashoffset: 1 },
+  '15%': { opacity: 0, strokeDashoffset: 1 },
+  '20%': { opacity: 1 },
+  '45%': { strokeDashoffset: 0 },
+  '60%': { opacity: 1 },
+  '85%': { opacity: 0, strokeDashoffset: 0 },
+  '100%': { opacity: 0, strokeDashoffset: 0 },
+});
+/** A dot in the chat rises and drops, as dots do while someone types. */
+const typing = keyframes({
+  '0%': { transform: 'none' },
+  '30%': { transform: 'translateY(-2px)' },
+  '60%': { transform: 'none' },
+  '100%': { transform: 'none' },
 });
 /** The handset rings, each swing smaller than the last. */
 const ring = keyframes({
@@ -108,19 +124,6 @@ const signalFar = keyframes({
   '85%': { opacity: 0 },
   '100%': { opacity: 0 },
 });
-/** The briefcase is picked up by its handle, swings a little and is set down. */
-const lift = keyframes({
-  '0%': { transform: 'none' },
-  '30%': { transform: 'translateY(-3px) rotate(-4deg)' },
-  '55%': { transform: 'translateY(0.75px) rotate(1.5deg)' },
-  '75%': { transform: 'translateY(-0.5px) rotate(-0.5deg)' },
-  '100%': { transform: 'none' },
-});
-/** The chart's line draws itself from left to right. */
-const chartDraw = keyframes({
-  '0%': { strokeDashoffset: 1 },
-  '100%': { strokeDashoffset: 0 },
-});
 /** The right page turns over onto the left one and settles into it. */
 const pageTurn = keyframes({
   '0%': { opacity: 0, transform: 'none' },
@@ -146,15 +149,28 @@ const noteSecond = keyframes({
   '45%': { opacity: 1 },
   '100%': { opacity: 0, transform: 'translate(2px, -8px) rotate(8deg)' },
 });
-/** The record dot comes on, pulses twice and goes off. */
-const recording = keyframes({
-  '0%': { opacity: 0, transform: 'scale(0.5)' },
-  '10%': { opacity: 1, transform: 'none' },
-  '30%': { opacity: 0.35 },
-  '50%': { opacity: 1 },
-  '70%': { opacity: 0.35 },
-  '85%': { opacity: 1 },
-  '100%': { opacity: 0, transform: 'none' },
+/** The bulb lights up and dims again. */
+const glow = keyframes({
+  '0%': { opacity: 0 },
+  '20%': { opacity: 0 },
+  '35%': { opacity: 1 },
+  '65%': { opacity: 1 },
+  '100%': { opacity: 0 },
+});
+/** Its rays shine out from it as it lights, and fade. */
+const shine = keyframes({
+  '0%': { opacity: 0, transform: 'none' },
+  '25%': { opacity: 0, transform: 'none' },
+  '35%': { opacity: 1 },
+  '80%': { opacity: 0, transform: 'scale(1.3)' },
+  '100%': { opacity: 0, transform: 'scale(1.3)' },
+});
+/** The corners draw a breath in, out to make room, and back. */
+const breathe = keyframes({
+  '0%': { transform: 'none' },
+  '45%': { transform: 'scale(1.12)' },
+  '80%': { transform: 'scale(0.98)' },
+  '100%': { transform: 'none' },
 });
 
 /* oxlint-enable perfectionist/sort-objects */
@@ -164,11 +180,6 @@ const styles = create({
   after: (ms: number) => ({
     animationDelay: `${ms}ms`,
   }),
-  // The chart's own line is cut away, leaving its axes, and drawn again in
-  // the same line over them, so it can draw itself.
-  axes: {
-    clipPath: 'polygon(0 0, 4.5px 0, 4.5px 17px, 100% 17px, 100% 100%, 0 100%)',
-  },
   brush: {
     transformOrigin: '6px 18px',
   },
@@ -187,35 +198,34 @@ const styles = create({
     animationDuration: `${PLAYS.call}ms`,
     animationName: ring,
   },
-  camera: {
-    transformOrigin: '12px 13px',
+  // A dot in the chat, in the icon's ink.
+  chatDot: {
+    fill: 'currentColor',
   },
-  cameraPlay: {
-    animationDuration: `${PLAYS.camera}ms`,
-    animationName: shutter,
+  chatDotPlay: {
+    animationDuration: `${PLAYS.chat}ms`,
+    animationIterationCount: CHAT_TYPES,
+    animationName: typing,
   },
-  chartPlay: {
-    animationDuration: `${PLAYS.numbers}ms`,
-    animationName: chartDraw,
+  exhaustPlay: {
+    animationDuration: `${PLAYS.rocket}ms`,
+    animationName: exhaust,
   },
-  // The one orange in the grid.
-  dot: {
+  // The corners breathe from the middle of the icon.
+  expand: {
+    transformOrigin: '12px 12px',
+  },
+  expandPlay: {
+    animationDuration: `${PLAYS.expand}ms`,
+    animationName: breathe,
+  },
+  // The light in the bulb: the one orange in the grid.
+  glow: {
     fill: accent.base,
-    transformBox: 'fill-box',
-    transformOrigin: 'center',
   },
-  dotPlay: {
-    animationDuration: `${PLAYS.video}ms`,
-    animationName: recording,
-  },
-  // The flash in the lens, in the page's ink: light on a dark page, a blink
-  // of the shutter on a light one.
-  flash: {
-    fill: colors.fg,
-  },
-  flashPlay: {
-    animationDuration: `${PLAYS.camera}ms`,
-    animationName: flash,
+  glowPlay: {
+    animationDuration: `${PLAYS.bulb}ms`,
+    animationName: glow,
   },
   icon: {
     display: 'block',
@@ -266,14 +276,28 @@ const styles = create({
     transformOrigin: '12px 12px',
   },
   pagePlay: {
-    animationDuration: `${PLAYS.learn}ms`,
+    animationDuration: `${PLAYS.book}ms`,
     animationName: pageTurn,
   },
-  // Every part of a drawing plays once, holding its first frame through the
-  // wait and its last after it, which is where it rests.
+  // Every part of a drawing plays once, unless it says otherwise, holding its
+  // first frame through the wait and its last after it, which is where it
+  // rests.
   play: {
     animationFillMode: 'both',
     animationTimingFunction: easing.smoothOut,
+  },
+  // The rays go out from the middle of the bulb.
+  rays: {
+    transformBox: 'view-box',
+    transformOrigin: '12px 12px',
+  },
+  raysPlay: {
+    animationDuration: `${PLAYS.bulb}ms`,
+    animationName: shine,
+  },
+  rocketPlay: {
+    animationDuration: `${PLAYS.rocket}ms`,
+    animationName: launch,
   },
   // The arcs go out from the corner the handset rings in.
   signal: {
@@ -366,14 +390,6 @@ const styles = create({
     margin: 0,
     padding: 0,
   },
-  // Picked up by the handle.
-  work: {
-    transformOrigin: '12px 3px',
-  },
-  workPlay: {
-    animationDuration: `${PLAYS.work}ms`,
-    animationName: lift,
-  },
 });
 
 /** Whether a tile's drawing plays, and after how long. */
@@ -407,29 +423,56 @@ function BrushMark({ delay, play }: Played) {
   );
 }
 
-function CameraMark({ delay, play }: Played) {
+/** Three short lines behind the rocket's tail, along the way it flies. */
+const EXHAUST = ['M5.5 15.5L3 18', 'M7.25 17.25L3.75 20.75', 'M9 19L6.5 21.5'];
+
+function RocketMark({ delay, play }: Played) {
   return (
     <>
-      <Camera
+      <Rocket
         aria-hidden="true"
         size={SIZE}
         {...props(
           styles.icon,
-          styles.camera,
-          play && [styles.play, styles.cameraPlay, styles.after(delay)],
+          play && [styles.play, styles.swing, styles.rocketPlay, styles.after(delay)],
         )}
       />
       <svg aria-hidden="true" viewBox="0 0 24 24" {...props(styles.marks)}>
-        <circle
-          cx={12}
-          cy={13}
-          r={3}
-          {...props(
-            styles.flash,
-            styles.unseen,
-            play && [styles.play, styles.flashPlay, styles.after(delay)],
-          )}
-        />
+        {EXHAUST.map((d) => (
+          <path
+            d={d}
+            key={d}
+            pathLength={1}
+            strokeDasharray="1 1"
+            {...props(
+              styles.line,
+              styles.unseen,
+              play && [styles.play, styles.exhaustPlay, styles.after(delay)],
+            )}
+          />
+        ))}
+      </svg>
+    </>
+  );
+}
+
+function ChatMark({ delay, play }: Played) {
+  return (
+    <>
+      <ChatRound aria-hidden="true" size={SIZE} {...props(styles.icon)} />
+      <svg aria-hidden="true" viewBox="0 0 24 24" {...props(styles.marks)}>
+        {CHAT_DOTS.map((cx, index) => (
+          <circle
+            cx={cx}
+            cy={12}
+            key={cx}
+            r={1}
+            {...props(
+              styles.chatDot,
+              play && [styles.play, styles.chatDotPlay, styles.after(delay + index * CHAT_STAGGER)],
+            )}
+          />
+        ))}
       </svg>
     </>
   );
@@ -471,37 +514,7 @@ function CallMark({ delay, play }: Played) {
   );
 }
 
-function WorkMark({ delay, play }: Played) {
-  return (
-    <Briefcase
-      aria-hidden="true"
-      size={SIZE}
-      {...props(
-        styles.icon,
-        styles.work,
-        play && [styles.play, styles.swing, styles.workPlay, styles.after(delay)],
-      )}
-    />
-  );
-}
-
-function NumbersMark({ delay, play }: Played) {
-  return (
-    <>
-      <ChartLine aria-hidden="true" size={SIZE} {...props(styles.icon, styles.axes)} />
-      <svg aria-hidden="true" viewBox="0 0 24 24" {...props(styles.marks)}>
-        <path
-          d="M6 15L11.5 9.5L15.5 13.5L21 8"
-          pathLength={1}
-          strokeDasharray="1 1"
-          {...props(styles.line, play && [styles.play, styles.chartPlay, styles.after(delay)])}
-        />
-      </svg>
-    </>
-  );
-}
-
-function LearnMark({ delay, play }: Played) {
+function BookMark({ delay, play }: Played) {
   return (
     <>
       <BookOpen aria-hidden="true" size={SIZE} {...props(styles.icon)} />
@@ -562,36 +575,70 @@ function MusicMark({ delay, play }: Played) {
   );
 }
 
-function VideoMark({ delay, play }: Played) {
+/** The bulb's rays, where the icon draws them. */
+const RAYS = [
+  'M12 1V2.33',
+  'M19.78 4.22L18.84 5.16',
+  'M23 12H21.67',
+  'M4.22 4.22L5.16 5.16',
+  'M1 12H2.33',
+];
+
+function BulbMark({ delay, play }: Played) {
   return (
     <>
-      <Video aria-hidden="true" size={SIZE} {...props(styles.icon)} />
+      <Lightbulb aria-hidden="true" size={SIZE} {...props(styles.icon)} />
       <svg aria-hidden="true" viewBox="0 0 24 24" {...props(styles.marks)}>
         <circle
-          cx={9.25}
-          cy={12}
-          r={2.25}
+          cx={12}
+          cy={11.75}
+          r={3}
           {...props(
-            styles.dot,
+            styles.glow,
             styles.unseen,
-            play && [styles.play, styles.swing, styles.dotPlay, styles.after(delay)],
+            play && [styles.play, styles.glowPlay, styles.after(delay)],
           )}
         />
+        <g
+          {...props(
+            styles.rays,
+            styles.unseen,
+            play && [styles.play, styles.raysPlay, styles.after(delay)],
+          )}
+        >
+          {RAYS.map((d) => (
+            <path d={d} key={d} {...props(styles.line)} />
+          ))}
+        </g>
       </svg>
     </>
   );
 }
 
+function ExpandMark({ delay, play }: Played) {
+  return (
+    <Expand
+      aria-hidden="true"
+      size={SIZE}
+      {...props(
+        styles.icon,
+        styles.expand,
+        play && [styles.play, styles.swing, styles.expandPlay, styles.after(delay)],
+      )}
+    />
+  );
+}
+
 /** What the phone is still for, each with its icon and the drawing it plays. */
 const USES = [
-  { Mark: BrushMark, text: m.home_uses_make },
-  { Mark: CameraMark, text: m.home_uses_photos },
+  { Mark: BrushMark, text: m.home_uses_sketch },
+  { Mark: RocketMark, text: m.home_uses_ship },
+  { Mark: ChatMark, text: m.home_uses_ask },
+  { Mark: BookMark, text: m.home_uses_read },
+  { Mark: MusicMark, text: m.home_uses_melody },
   { Mark: CallMark, text: m.home_uses_call },
-  { Mark: WorkMark, text: m.home_uses_work },
-  { Mark: NumbersMark, text: m.home_uses_numbers },
-  { Mark: LearnMark, text: m.home_uses_learn },
-  { Mark: MusicMark, text: m.home_uses_music },
-  { Mark: VideoMark, text: m.home_uses_video },
+  { Mark: BulbMark, text: m.home_uses_learn },
+  { Mark: ExpandMark, text: m.home_uses_room },
 ];
 
 /**

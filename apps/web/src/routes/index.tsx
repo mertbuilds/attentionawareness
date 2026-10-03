@@ -428,6 +428,11 @@ const styles = create({
     maxWidth: '60ch',
     textWrap: 'pretty',
   },
+  // A closing said in two lines, one under the other.
+  sectionLines: {
+    display: 'flex',
+    flexDirection: 'column',
+  },
   sectionTitle: {
     fontSize: font.sizeLg,
     fontWeight: font.weightMedium,
@@ -627,7 +632,10 @@ function HomePage() {
         <section {...props(styles.section)}>
           <h2 {...props(styles.sectionTitle)}>{m.home_uses_title()}</h2>
           <UsesGrid />
-          <p {...props(styles.sectionBody)}>{m.home_uses_close()}</p>
+          <p {...props(styles.sectionBody, styles.sectionLines)}>
+            <span>{m.home_uses_kept()}</span>
+            <span>{m.home_uses_gone()}</span>
+          </p>
         </section>
 
         {/* How it works: what the Mac app does, in three steps, then the two
