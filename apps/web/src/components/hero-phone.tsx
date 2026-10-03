@@ -4,6 +4,7 @@ import { cancelFrame, easeInOut, frame, useInView } from 'motion/react';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { ReactNode } from 'react';
 import { useLessMotion } from '../lib/use-less-motion.ts';
+import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
 import { Cable } from './steps/cable.tsx';
 import { Laptop, MAC_PLUG } from './steps/laptop.tsx';
@@ -78,6 +79,15 @@ const APPS_CLOSE = { from: 4950, slide: 700, stagger: 40 };
  */
 const SWAP = 7000;
 const CLEAN_OUT = 150;
+/**
+ * The phone's width on a wide window: at most `PHONE_MAX`, less on a short
+ * one, and never under `PHONE_MIN`. `PHONE_CLEARANCE` is the height around it
+ * on the first screen: the header and the hero's padding, and the stat under
+ * the phone with its gap.
+ */
+const PHONE_MAX = 272;
+const PHONE_MIN = 200;
+const PHONE_CLEARANCE = 240;
 /** Where the loop stands for a reader who asked for less motion: the clean phone, alone. */
 const REST = 8000;
 /** The stretches where nothing moves: the full phone before the Mac, and the clean one after it. */
@@ -196,10 +206,11 @@ const styles = create({
     opacity,
   }),
   // As wide as the column lets it, up to a size that still leaves the words
-  // around it room.
+  // around it room. On a wide window it is also held short enough that the
+  // stat under it clears the fold; the phone is twice as tall as it is wide.
   phone: {
     maxWidth: {
-      '@media (min-width: 640px)': 272,
+      '@media (min-width: 640px)': `clamp(${PHONE_MIN}px, calc((100svh - ${wip.height} - ${PHONE_CLEARANCE}px) / 2), ${PHONE_MAX}px)`,
       default: 224,
     },
     position: 'relative',

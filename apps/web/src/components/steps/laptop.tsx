@@ -50,7 +50,7 @@ export function Laptop({
   plugged,
   solid = false,
 }: {
-  children?: ReactNode;
+  children: ReactNode;
   plugged: number;
   solid?: boolean;
 }) {
@@ -72,9 +72,7 @@ export function Laptop({
         y={SCREEN.y}
         {...props(styles.faint)}
       />
-      {children === undefined ? null : (
-        <g transform={`translate(${SCREEN.x} ${SCREEN.y})`}>{children}</g>
-      )}
+      <g transform={`translate(${SCREEN.x} ${SCREEN.y})`}>{children}</g>
       <path d={BASE} {...props(styles.line, solid && styles.solid)} />
       <rect
         height={MAC_PLUG.height}

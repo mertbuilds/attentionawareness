@@ -68,6 +68,9 @@ const styles = create({
     fontWeight: font.weightRegular,
     gap: spacing.s2,
     justifySelf: 'start',
+    // Held to its grid cell, so the name is cut short there instead of
+    // running under the links.
+    maxWidth: '100%',
     minWidth: 0,
     outlineColor: colors.muted,
     outlineOffset: 2,

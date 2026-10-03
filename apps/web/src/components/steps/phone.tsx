@@ -35,7 +35,7 @@ export const FEEDS = [
   'com.burbn.instagram',
   'com.google.ios.youtube',
   'com.atebits.Tweetie2',
-];
+] as const;
 
 const GRID_LEFT = PHONE.x + (PHONE.width - (COLUMNS - 1) * PITCH.x - ICON) / 2;
 const SCREEN = {

@@ -37,9 +37,9 @@ const ROW_ICON = 0.5;
 const ROW_NAME_X = INSET + ICON * ROW_ICON + 4;
 /** Each row: a feed, ticked, or an app the reader keeps, left as it is, and its name as a bar. */
 const ROWS: ReadonlyArray<{ feed: string; name: number } | { glyph: Glyph; name: number }> = [
-  { feed: FEEDS[0] ?? '', name: 30 },
+  { feed: FEEDS[0], name: 30 },
   { glyph: 'messages', name: 24 },
-  { feed: FEEDS[1] ?? '', name: 36 },
+  { feed: FEEDS[1], name: 36 },
 ];
 /** The box at a row's end, and the tick drawn in it. */
 const BOX = { radius: 1.2, size: 5 };
@@ -70,7 +70,8 @@ const styles = create({
     strokeLinecap: 'round',
     strokeWidth: 1,
   },
-  // The step's title, the one loud line in the window.
+  // The loud lines in the window: the step's title, and the name on the
+  // iPhone's card.
   head: {
     fill: 'none',
     stroke: colors.muted,
@@ -123,9 +124,9 @@ const styles = create({
 export type MacAppScreen = 'apps' | 'connect' | 'sending';
 
 /**
- * The button at the foot of the column, `pressed` of the way to orange, given
- * `dip` of the way under the press and sending out a ring as `ring` goes from
- * 0 to 1.
+ * The button at the foot of the column, orange at rest. `pressed` deepens its
+ * wash from `WASH` to `WASH_PRESSED`; it sinks `dip` of the way under the
+ * press and sends out a ring as `ring` goes from 0 to 1.
  */
 function PrimaryButton({ dip, pressed, ring }: { dip: number; pressed: number; ring: number }) {
   const middle = { x: BUTTON.x + BUTTON.width / 2, y: BUTTON.y + BUTTON.height / 2 };
@@ -241,10 +242,10 @@ function Progress({ progress }: { progress: number }) {
  * units: its window with the mark and the step's title at the top of its
  * column, and under them the step on `screen`. `connect` waits for the
  * iPhone and shows its card as far as `found`; `apps` is the list with the
- * feeds ticked and the button that blocks them, `pressed`, given `dip` and
- * sending out `ring` as the press lands; `sending` fills its bar as far as
- * `progress`. Lines stand for the words, which no screen this small could
- * hold.
+ * feeds ticked. Both end in the button, `pressed`, given `dip` and sending
+ * out `ring` as the press lands. `sending` fills its bar as far as `progress`
+ * in the button's place. Lines stand for the words, which no screen this
+ * small could hold.
  */
 export function MacApp({
   dip = 0,

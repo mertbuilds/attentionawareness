@@ -1,7 +1,7 @@
 import { Button } from '@attentionawareness/ui';
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
-import { create, defaultMarker, firstThatWorks, props, when } from '@stylexjs/stylex';
+import { create, defaultMarker, props, when } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { useId, useState } from 'react';
@@ -232,8 +232,9 @@ const styles = create({
   // the phone the feeds leave. Too narrow for two columns, the phone stands
   // under the words and the hero narrows to the column, so every left edge
   // lines up. It fills the window under the work-in-progress strip, so the
-  // first section waits below the fold, and sits a little low in the room
-  // under the header. `svh` so a phone's collapsing toolbar does not move it.
+  // first section waits below the fold, and stands in the middle of the room
+  // under the header. `svh` so a phone's collapsing toolbar does not move it,
+  // `vh` where a browser has no `svh`.
   hero: {
     alignContent: 'center',
     alignItems: 'center',
@@ -248,7 +249,10 @@ const styles = create({
       '@media (min-width: 900px)': HERO_WIDTH,
       default: COLUMN_WIDTH,
     },
-    minHeight: firstThatWorks(`calc(100svh - ${wip.height})`, `calc(100vh - ${wip.height})`),
+    minHeight: {
+      '@supports (height: 100svh)': `calc(100svh - ${wip.height})`,
+      default: `calc(100vh - ${wip.height})`,
+    },
     paddingBlockEnd: spacing.s12,
     // Clear of the header strip over the top of the window, and a step more.
     paddingBlockStart: `calc(${brandBar.height} + ${spacing.s12})`,
