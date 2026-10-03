@@ -36,7 +36,7 @@ const COLUMN_WIDTH = 760;
  */
 const HERO_WIDTH = 1040;
 /** The phone's column beside the words, as wide as the phone is drawn there. */
-const HERO_PHONE_WIDTH = 320;
+const HERO_PHONE_WIDTH = 272;
 /** The places on the page that can be linked to, and the ids they use. */
 const PROOF_ID = 'proof';
 const WAY_OUT_ID = 'way-out';

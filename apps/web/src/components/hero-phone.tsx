@@ -176,8 +176,8 @@ const styles = create({
   // around it room.
   phone: {
     maxWidth: {
-      '@media (min-width: 640px)': 320,
-      default: 260,
+      '@media (min-width: 640px)': 272,
+      default: 224,
     },
     position: 'relative',
     width: '100%',
