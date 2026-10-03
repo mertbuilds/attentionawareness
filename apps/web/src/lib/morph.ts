@@ -20,6 +20,15 @@ import { blur, duration, easing } from './motion.stylex.ts';
  * by hand, and an item that is gone leaves a copy where it stood to fade.
  * The surface is not a snapshot in either case: it stays live, so the page
  * blurs through it the whole way. With less motion, the layout only changes.
+ *
+ * A view transition eases each step of its own keyframes as well, which on
+ * top of the pace hurries the items. Gathering, that brings them in ahead of
+ * the surface closing around them. Opening back out it would fling them past
+ * the surface's edges before it has opened, and leave the surface sweeping
+ * out after they have stopped. So that transition is given a type, and
+ * `app.css` takes the ease off by it: the pace is then the whole motion, as
+ * it is for the surface. There every picture also holds its last frame until
+ * the transition is gone, so the live items take over exactly as they stand.
  */
 type Timing = { delay?: number; duration: number; easing: string; fill?: FillMode };
 
@@ -29,6 +38,8 @@ const STAGGER = Number.parseFloat(duration.stagger);
 const WORD_GONE = { filter: `blur(${blur.small})`, opacity: 0 };
 const WORD_HERE = { filter: 'blur(0)', opacity: 1 };
 const LESS_MOTION = '(prefers-reduced-motion: reduce)';
+/** The type of a view transition that opens the items back out. */
+const SPREADING = 'morph-spreading';
 
 type Box = { opacity: string; radius: string; rect: DOMRect };
 /**
@@ -36,13 +47,20 @@ type Box = { opacity: string; radius: string; rect: DOMRect };
  * it as it was drawn then, to leave in its place if it goes.
  */
 type Item = { copy: HTMLElement; element: HTMLElement; parent: HTMLElement | null; rect: DOMRect };
-/** How long the items travel, and how far apart they set off. */
-type Pace = { length: number; stagger: number };
+/**
+ * How long the items travel, how far apart they set off, and whether, carried
+ * by a view transition, they run ahead of the surface.
+ */
+type Pace = { ahead: boolean; length: number; stagger: number };
 
 /** Gathering into the pill, the surface opening. */
-const GATHER: Pace = { length: Number.parseFloat(duration.verySlow), stagger: STAGGER };
+const GATHER: Pace = {
+  ahead: true,
+  length: Number.parseFloat(duration.verySlow),
+  stagger: STAGGER,
+};
 /** Opening back out, the surface closing. */
-const SPREAD: Pace = { length: Number.parseFloat(duration.slow), stagger: 0 };
+const SPREAD: Pace = { ahead: false, length: Number.parseFloat(duration.slow), stagger: 0 };
 
 function travel(pace: Pace, index: number): Timing {
   return {
@@ -188,7 +206,8 @@ function retime(order: Array<string>, pace: Pace) {
       effect.setKeyframes([WORD_GONE, WORD_HERE]);
       effect.updateTiming(arrive(pace));
     } else {
-      effect.updateTiming(travel(pace, order.indexOf(name)));
+      const timing = travel(pace, order.indexOf(name));
+      effect.updateTiming(pace.ahead ? timing : { ...timing, fill: 'both' });
     }
   }
 }
@@ -228,6 +247,10 @@ export function morph({
 
   if (typeof document.startViewTransition === 'function') {
     const transition = document.startViewTransition(update);
+    // A browser that has no types yet keeps its own ease under the pace.
+    if (!pace.ahead && 'types' in transition) {
+      transition.types.add(SPREADING);
+    }
     // `ready` rejects when a newer transition cuts this one short, and then
     // there is nothing left to time or grow.
     transition.ready.then(() => retime(orderAfter(), pace)).catch(() => {});

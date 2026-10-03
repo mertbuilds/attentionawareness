@@ -26,6 +26,18 @@ html {
 }
 
 /*
+ * The browser eases each keyframe of a view transition, under the pace
+ * `lib/morph.ts` sets over the whole of it. While the header opens back out
+ * that second ease goes, so the items keep to the ground growing under them
+ * instead of running out past its edges.
+ */
+:root:active-view-transition-type(morph-spreading)::view-transition-group(*),
+:root:active-view-transition-type(morph-spreading)::view-transition-old(*),
+:root:active-view-transition-type(morph-spreading)::view-transition-new(*) {
+  animation-timing-function: linear;
+}
+
+/*
  * The scrollbar is a hairline: `thin` where Firefox and Chromium honour it,
  * the WebKit box for the rest. `scrollbar-color` inherits, `scrollbar-width`
  * does not, so `*` carries the width into the sheet and every other inner
