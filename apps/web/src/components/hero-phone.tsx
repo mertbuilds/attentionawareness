@@ -39,22 +39,20 @@ const GOING = HOME.flatMap((app, slot) => ('feed' in app ? [{ bundleId: app.feed
 const STAYING = HOME.flatMap((app, slot) => ('glyph' in app ? [{ glyph: app.glyph, slot }] : []));
 
 /**
- * The loop, in milliseconds, about eight seconds a turn. It tells rather than
+ * The loop, in milliseconds, about six seconds a turn. It tells rather than
  * responds, so like the steps' drawings it keeps its own times rather than the
- * page's motion scale. The full screen crossfades in over `crossfade` and
- * stands for `full`. The feeds go one after another, `feedStagger` apart, each
- * over `feedFade`, and the gaps they leave stand open for `gap`. The apps that
- * stay close them over `slide`, `slideStagger` apart, and the clean screen
- * stands for `clean` before the full one crossfades back in. The clean screen
- * the server draws stands for `first` before the loop first comes in.
+ * page's motion scale. The full screen stands for `full`. The feeds go one
+ * after another, `feedStagger` apart, each over `feedFade`, and the gaps they
+ * leave stand open for `gap`. The apps that stay close them over `slide`,
+ * `slideStagger` apart, and the clean screen stands for `clean` before the
+ * full one crossfades back in over `crossfade`.
  */
 const LOOP = {
-  clean: 3600,
+  clean: 1500,
   crossfade: 400,
   feedFade: 400,
   feedStagger: 150,
-  first: 600,
-  full: 1800,
+  full: 2000,
   gap: 250,
   slide: 700,
   slideStagger: 40,
@@ -64,18 +62,17 @@ const GONE_BLUR = '3px';
 const GONE_SCALE = 0.85;
 
 /**
- * Where the loop stands. The server draws the clean screen, `served`, which is
- * all a reader who asked for less motion ever sees. From there the full screen
- * comes in, its feeds go, the apps that stay close up, and the clean screen
- * stands before the full one comes back.
+ * Where the loop stands. It opens on the full screen, which the server draws
+ * too, so the feeds are the first thing seen. Its feeds go, the apps that stay
+ * close up, and the clean screen stands a moment before the full one comes
+ * back. A reader who asked for less motion sees only the clean screen.
  */
-type Phase = 'served' | 'full' | 'clearing' | 'closing' | 'clean';
+type Phase = 'full' | 'clearing' | 'closing' | 'clean';
 const NEXT: Record<Phase, Phase> = {
   clean: 'full',
   clearing: 'closing',
   closing: 'clean',
   full: 'clearing',
-  served: 'full',
 };
 /** How long each phase stands before the next comes on. */
 const LASTS: Record<Phase, number> = {
@@ -83,7 +80,6 @@ const LASTS: Record<Phase, number> = {
   clearing: (GOING.length - 1) * LOOP.feedStagger + LOOP.feedFade + LOOP.gap,
   closing: (STAYING.length - 1) * LOOP.slideStagger + LOOP.slide,
   full: LOOP.crossfade + LOOP.full,
-  served: LOOP.first,
 };
 
 /** An app's box, as a share of the phone's width and of its height. */
@@ -250,21 +246,21 @@ function KeptIcon({ glyph }: { glyph: Glyph }) {
 /**
  * The hero's iPhone and what it took: a home screen whose four feeds blur
  * away one after another, the apps that stay sliding up to close the gaps,
- * the clean screen standing a while before the full one crossfades back and
+ * the clean screen standing a moment before the full one crossfades back and
  * it plays again. Under it, the daily screen time before and after.
  *
  * The clean screen is drawn over the live one and stands in for it at the
  * loop's end, so the live one can be put back where it started unseen and the
  * full screen crossfades in over the clean one. The loop holds while the
- * phone is off screen or the tab is put away. The server draws the clean
- * screen, and with less motion it stands there.
+ * phone is off screen or the tab is put away. The server draws the full
+ * screen, and with less motion the clean one stands there.
  */
 export function HeroPhone() {
   const phone = useRef<HTMLDivElement>(null);
   const seen = useInView(phone);
   const hidden = useSyncExternalStore(subscribeVisibility, tabHidden, hiddenOnServer);
   const reduced = useLessMotion();
-  const [phase, setPhase] = useState<Phase>('served');
+  const [phase, setPhase] = useState<Phase>('full');
   const running = seen && !hidden && !reduced;
 
   useEffect(() => {
@@ -275,7 +271,7 @@ export function HeroPhone() {
     return () => clearTimeout(timer);
   }, [phase, running]);
 
-  const still = reduced || phase === 'served' || phase === 'clean';
+  const still = reduced || phase === 'clean';
   const gone = !still && phase !== 'full';
   const closed = !still && phase === 'closing';
 
