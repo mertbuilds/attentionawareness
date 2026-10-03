@@ -6,8 +6,9 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { ReactNode } from 'react';
 import { useLessMotion } from '../lib/use-less-motion.ts';
 import { m } from '../paraglide/messages.js';
+import { BrandMark } from './brand-mark.tsx';
 import { Cable } from './steps/cable.tsx';
-import { Laptop } from './steps/laptop.tsx';
+import { Laptop, MAC_PLUG } from './steps/laptop.tsx';
 import {
   APPS,
   AppGlyph,
@@ -46,10 +47,11 @@ const STAYING = HOME.flatMap((app, slot) => ('glyph' in app ? [{ glyph: app.glyp
  * milliseconds from the start of the turn. It tells rather than responds, so
  * like the steps' drawings it keeps its own times rather than the page's
  * motion scale. The phone stands full, feeds and all. A small Mac comes up in
- * front of it and the cable runs from the Mac into the phone. Lock is pressed
- * on the Mac and a pulse runs down the cable. The feeds go one after another,
- * the apps that stay close up, the cable comes out and the Mac goes. The clean
- * phone stands a moment before the full one crossfades back in.
+ * front of it and the cable runs from the Mac into the phone. The button with
+ * the mark is pressed on the Mac and a pulse runs down the cable. The feeds go
+ * one after another, the apps that stay close up, the cable comes out and the
+ * Mac goes. The clean phone stands a moment before the full one crossfades
+ * back in.
  */
 const LOOP = 9000;
 const AT = {
@@ -97,17 +99,27 @@ const GONE_SCALE = 0.85;
  */
 const MAC = { scale: 0.3, x: 59.8, y: 138.1 };
 const RISE = 4;
-/** The Lock button in the middle of the Mac's display, in the Mac's units, and its label's size. */
+/** The lock button in the middle of the Mac's display, in the Mac's units, and the mark on it. */
 const LOCK = { height: 24, radius: 12, width: 64, x: 82, y: 71 };
-const LOCK_TYPE = 13;
+const LOCK_MARK = 16;
 /** How far the button gives under the press, and the ring the press sends out. */
 const LOCK_DIP = 0.06;
 const RING_GROW = 0.5;
 const RING_OPACITY = 0.5;
-/** A pressed button's orange wash, faint enough that its label still reads on it. */
+/** A pressed button's orange wash, faint enough that the mark still reads on it. */
 const WASH = 0.12;
-/** The plug in the phone's port and the room above it, in the phone's units. */
-const PHONE_PLUG = { gap: 0.5, height: 3, radius: 1, width: 7 };
+/** The plug in the phone's port, flush with the phone's foot, in the phone's units. */
+const PHONE_PLUG = { height: 3, radius: 1, width: 7 };
+/**
+ * How far under the plug the cable sags on its way in, in the phone's units.
+ * In the Mac's units: how far it runs level out of the laptop and into its
+ * low run, and the bend it turns up into the plug by.
+ */
+const SAG_DEPTH = 3;
+const REACH = 15;
+const BEND = 7;
+/** A quarter circle's control points stand this share of its radius from its ends. */
+const ARC = 0.552;
 
 /** A point in the phone's units, in the Mac's, where the cable is drawn at the Mac's line width. */
 function onMac(x: number, y: number): { x: number; y: number } {
@@ -115,12 +127,24 @@ function onMac(x: number, y: number): { x: number; y: number } {
 }
 
 const PORT_X = PHONE.x + PHONE.width / 2;
-const PLUG_TOP = onMac(PORT_X - PHONE_PLUG.width / 2, PHONE.y + PHONE.height + PHONE_PLUG.gap);
-const PLUG_END = onMac(PORT_X, PHONE.y + PHONE.height + PHONE_PLUG.gap + PHONE_PLUG.height);
-/** How far under the plug the cable sags on its way in, in the phone's units. */
-const SAG = onMac(PORT_X, PHONE.y + PHONE.height + PHONE_PLUG.gap + PHONE_PLUG.height + 2).y;
-/** The cable: out of the laptop's side, sagging under the phone's foot, and up into its plug. */
-const CABLE = `M156 110.5 C176 110.5 176 ${SAG} 196 ${SAG} C214 ${SAG} ${PLUG_END.x} ${SAG} ${PLUG_END.x} ${PLUG_END.y}`;
+const FOOT = PHONE.y + PHONE.height;
+const PLUG_TOP = onMac(PORT_X - PHONE_PLUG.width / 2, FOOT);
+const PLUG_END = onMac(PORT_X, FOOT + PHONE_PLUG.height);
+const SAG = onMac(PORT_X, FOOT + PHONE_PLUG.height + SAG_DEPTH).y;
+/** Where the cable's low run ends and its bend up into the plug starts. */
+const BEND_X = PLUG_END.x - BEND;
+/** Where the cable leaves the laptop: the outer end of the plug in its side. */
+const CABLE_START = { x: MAC_PLUG.x + MAC_PLUG.width, y: MAC_PLUG.y + MAC_PLUG.height / 2 };
+/**
+ * The cable: out of the laptop's side, down under the phone's foot, then one
+ * bend that never passes the port and straight up into the plug's middle.
+ */
+const CABLE = [
+  `M${CABLE_START.x} ${CABLE_START.y}`,
+  `C${CABLE_START.x + REACH} ${CABLE_START.y} ${BEND_X - REACH} ${SAG} ${BEND_X} ${SAG}`,
+  `C${BEND_X + ARC * BEND} ${SAG} ${PLUG_END.x} ${SAG - BEND + ARC * BEND} ${PLUG_END.x} ${SAG - BEND}`,
+  `V${PLUG_END.y}`,
+].join(' ');
 
 /** An app's box, as a share of the phone's width and of its height. */
 const SIDE = {
@@ -183,14 +207,6 @@ const styles = create({
     height: '100%',
     overflow: 'visible',
     width: '100%',
-  },
-  label: {
-    fill: colors.muted,
-    fontFamily: font.family,
-    fontWeight: font.weightMedium,
-  },
-  labelOn: {
-    fill: accent.base,
   },
   layer: {
     inset: 0,
@@ -336,11 +352,12 @@ function KeptIcon({ glyph }: { glyph: Glyph }) {
 
 /**
  * The hero's iPhone and the way the feeds come off it: the full home screen,
- * then a small Mac in front of it with the cable run into the phone, Lock
- * pressed on the Mac, the four feeds blurring away one after another and the
- * apps that stay sliding up to close the gaps. The cable comes out, the Mac
- * goes, and the clean phone stands a moment before the full one crossfades
- * back and it plays again. Under it, the daily screen time before and after.
+ * then a small Mac in front of it with the cable run into the phone, the
+ * button with the mark pressed on the Mac, the four feeds blurring away one
+ * after another and the apps that stay sliding up to close the gaps. The cable
+ * comes out, the Mac goes, and the clean phone stands a moment before the full
+ * one crossfades back and it plays again. Under it, the daily screen time
+ * before and after.
  *
  * The clean screen is drawn over the live one and stands in for it at the
  * loop's end, so the live one can be put back where it started unseen and the
@@ -415,24 +432,9 @@ export function HeroPhone() {
                   y={-LOCK.height / 2}
                   {...props(styles.buttonOn)}
                 />
-                <text
-                  dominantBaseline="central"
-                  fontSize={LOCK_TYPE}
-                  opacity={1 - pressed}
-                  textAnchor="middle"
-                  {...props(styles.label)}
-                >
-                  {m.hero_phone_lock()}
-                </text>
-                <text
-                  dominantBaseline="central"
-                  fontSize={LOCK_TYPE}
-                  opacity={pressed}
-                  textAnchor="middle"
-                  {...props(styles.label, styles.labelOn)}
-                >
-                  {m.hero_phone_lock()}
-                </text>
+                <g transform={`translate(${-LOCK_MARK / 2} ${-LOCK_MARK / 2})`}>
+                  <BrandMark size={LOCK_MARK} />
+                </g>
               </g>
               {ring > 0 && ring < 1 ? (
                 <rect
