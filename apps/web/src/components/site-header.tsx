@@ -1,25 +1,23 @@
 import { Button } from '@attentionawareness/ui';
-import { colors, font, palette, spacing } from '@attentionawareness/ui/tokens.stylex';
+import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { useLocation } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { ArrowDown, Check } from 'reicon-react';
 import { brandBar } from '../lib/brand-bar.stylex.ts';
 import { morph } from '../lib/morph.ts';
 import { duration, easing } from '../lib/motion.stylex.ts';
 import { m } from '../paraglide/messages.js';
 import { BrandMark } from './brand-mark.tsx';
-import { useIsAppleMobile, useSendToMac } from './mac-download.tsx';
+import { MacCta, useIsAppleMobile, useSendToMac } from './mac-download.tsx';
 
 const MARK_SIZE = 24;
-/** The pill: its height, and the inset of the round download from its end. */
-const PILL_HEIGHT = 40;
-const PILL_INSET = 4;
-/** The round download, the pill's height less the inset at either side. */
-const ROUND_SIZE = PILL_HEIGHT - 2 * PILL_INSET;
-const ICON_SIZE = 16;
-const ICON_STROKE = 2.25;
+/**
+ * The pill holds the download, 28px tall, with this much room around it, so
+ * the pill is as round as the button plus the room.
+ */
+const PILL_INSET = 6;
+const PILL_HEIGHT = 28 + 2 * PILL_INSET;
 /**
  * How far down the page the pill takes over, and how far back up the open
  * header returns. The gap between them keeps a page resting near one line
@@ -55,7 +53,7 @@ const styles = create({
     },
     paddingInline: spacing.s4,
   },
-  // The pill: the mark, the links and the round download, in the middle of
+  // The pill: the mark, the links and the download, in the middle of
   // the strip and only as wide as they are.
   barPill: {
     alignSelf: 'center',
@@ -96,7 +94,8 @@ const styles = create({
     textDecorationLine: 'none',
     textTransform: 'lowercase',
   },
-  // The button's label at the strip's one weight, at the far edge.
+  // The download at the strip's one weight, at the far edge, filled in both
+  // layouts, so it only travels between them.
   download: {
     fontWeight: font.weightRegular,
     justifySelf: 'end',
@@ -170,38 +169,6 @@ const styles = create({
     },
     position: 'relative',
   },
-  // The pill's download: a white disc in either theme, its corner the pill's
-  // own less the inset, holding an arrow down.
-  round: {
-    alignItems: 'center',
-    backgroundColor: palette.white,
-    borderRadius: '50%',
-    borderStyle: 'none',
-    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.16), 0 0 0 1px rgba(0, 0, 0, 0.06)',
-    color: palette.black,
-    cursor: 'pointer',
-    display: 'inline-flex',
-    flexShrink: 0,
-    height: ROUND_SIZE,
-    justifyContent: 'center',
-    outlineColor: colors.fg,
-    outlineOffset: 2,
-    outlineStyle: {
-      ':focus-visible': 'solid',
-      default: 'none',
-    },
-    outlineWidth: 2,
-    padding: 0,
-    position: 'relative',
-    scale: {
-      ':active': '0.96',
-      default: '1',
-    },
-    transitionDuration: duration.quick,
-    transitionProperty: 'scale',
-    transitionTimingFunction: easing.out,
-    width: ROUND_SIZE,
-  },
   // The ground behind the row: nothing while the header is open, and the
   // pill once it gathers, the page blurred through a tint of it, a hairline
   // at its edge and a soft shadow under it. Where the reader asked for less
@@ -243,11 +210,11 @@ const styles = create({
  * The name, top left on every page and the way home, the home page's two
  * sections and its price in the middle, and the download across from the
  * name. Once the page has run a little way under it, the same items gather
- * into a pill in the middle: the mark alone for the name, the download as a
- * round button. On the home page the download goes back up to the first
- * screen, where it stands; on any other page it goes to how it works, which
- * ends in it. On an iPhone or an iPad, which cannot run the app, it sends the
- * link on to a Mac instead, as every download on the site does there.
+ * into a pill in the middle, the mark alone for the name. On the home page
+ * the download goes back up to the first screen, where it stands; on any
+ * other page it goes to how it works, which ends in it. On an iPhone or an
+ * iPad, which cannot run the app, it sends the link on to a Mac instead, as
+ * every download on the site does there.
  */
 export function SiteHeader() {
   const [pill, setPill] = useState(false);
@@ -278,7 +245,12 @@ export function SiteHeader() {
         setPill(next);
         return;
       }
-      morph({ root, surface: ground, update: () => flushSync(() => setPill(next)) });
+      morph({
+        gather: next,
+        root,
+        surface: ground,
+        update: () => flushSync(() => setPill(next)),
+      });
     }
     update(true);
     const onScroll = () => update(false);
@@ -286,60 +258,23 @@ export function SiteHeader() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const roundIcon = sendToMac.copied ? (
-    <Check aria-hidden="true" size={ICON_SIZE} strokeWidth={ICON_STROKE} />
+  const download = appleMobile ? (
+    <Button
+      data-morph="header-download"
+      onClick={() => void sendToMac.send()}
+      style={[styles.download, styles.morph('header-download')]}
+    >
+      <MacCta label={sendToMac.copied ? m.mac_download_copied() : m.nav_download()} />
+    </Button>
   ) : (
-    <ArrowDown aria-hidden="true" size={ICON_SIZE} strokeWidth={ICON_STROKE} />
+    <Button
+      data-morph="header-download"
+      render={<a href={downloadHref} />}
+      style={[styles.download, styles.morph('header-download')]}
+    >
+      <MacCta label={m.nav_download()} />
+    </Button>
   );
-
-  let download;
-  if (pill && appleMobile) {
-    download = (
-      <button
-        aria-label={sendToMac.copied ? m.mac_download_copied() : m.nav_download_send()}
-        data-morph="download"
-        onClick={() => void sendToMac.send()}
-        type="button"
-        {...props(styles.round, styles.morph('header-download'))}
-      >
-        {roundIcon}
-      </button>
-    );
-  } else if (pill) {
-    download = (
-      <a
-        aria-label={m.mac_download_cta()}
-        data-morph="download"
-        data-plain=""
-        href={downloadHref}
-        {...props(styles.round, styles.morph('header-download'))}
-      >
-        {roundIcon}
-      </a>
-    );
-  } else if (appleMobile) {
-    download = (
-      <Button
-        data-morph="download"
-        onClick={() => void sendToMac.send()}
-        style={[styles.download, styles.morph('header-download')]}
-        variant="outline"
-      >
-        {sendToMac.copied ? m.mac_download_copied() : m.nav_download()}
-      </Button>
-    );
-  } else {
-    download = (
-      <Button
-        data-morph="download"
-        render={<a href={downloadHref} />}
-        style={[styles.download, styles.morph('header-download')]}
-        variant="outline"
-      >
-        {m.nav_download()}
-      </Button>
-    );
-  }
 
   return (
     <header {...props(styles.header)}>
@@ -350,11 +285,11 @@ export function SiteHeader() {
           {...props(styles.surface, pill && styles.surfacePill)}
         />
         <a aria-label={m.site_name()} data-plain="" href="/" {...props(styles.brand)}>
-          <span data-morph="mark" {...props(styles.mark, styles.morph('header-mark'))}>
+          <span data-morph="header-mark" {...props(styles.mark, styles.morph('header-mark'))}>
             <BrandMark size={MARK_SIZE} />
           </span>
           <span
-            data-morph="name"
+            data-morph="header-name"
             {...props(styles.name, styles.morph('header-name'), pill && styles.hidden)}
           >
             {m.site_name()}
@@ -362,7 +297,7 @@ export function SiteHeader() {
         </a>
         <nav {...props(styles.nav)}>
           <a
-            data-morph="how"
+            data-morph="header-how"
             data-plain=""
             href={page + HOW_HASH}
             {...props(styles.link, styles.linkWide, styles.morph('header-how'))}
@@ -370,7 +305,7 @@ export function SiteHeader() {
             {m.nav_how()}
           </a>
           <a
-            data-morph="pricing"
+            data-morph="header-pricing"
             data-plain=""
             href={page + PRICING_HASH}
             {...props(styles.link, styles.morph('header-pricing'))}
@@ -378,7 +313,7 @@ export function SiteHeader() {
             {m.nav_pricing()}
           </a>
           <a
-            data-morph="why"
+            data-morph="header-why"
             data-plain=""
             href={page + WHY_HASH}
             {...props(styles.link, !pill && styles.linkWide, styles.morph('header-why'))}

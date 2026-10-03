@@ -11,16 +11,19 @@ export const duration = defineConsts({
   fast: '250ms',
   // The wait before a tooltip appears.
   micro: '80ms',
-  // The header gathering into its pill and opening back out, the same both
-  // ways.
-  medium: '350ms',
-  // A tooltip appearing, a quiet fade out.
+  // A tooltip appearing, a quiet fade out, a word going or coming.
   quick: '150ms',
-  // A tile rising into place.
+  // The header opening back out of its pill.
+  slow: '400ms',
+  // Each of the header's items after the one before it, as they gather.
+  stagger: '40ms',
+  // A tile rising into place, the header gathering into its pill.
   verySlow: '500ms',
 });
 
 export const easing = defineConsts({
+  // A word fading out or in where it stands.
+  inOut: 'ease-in-out',
   // A tooltip.
   out: 'ease-out',
   // Anything that opens, closes, crossfades or moves into place.

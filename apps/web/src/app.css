@@ -25,13 +25,6 @@ html {
   pointer-events: none;
 }
 
-/* The download changes shape on the way, a button to a disc and back, so
-   both pictures of it fill its box instead of keeping their own proportions. */
-::view-transition-old(header-download),
-::view-transition-new(header-download) {
-  height: 100%;
-}
-
 /*
  * The scrollbar is a hairline: `thin` where Firefox and Chromium honour it,
  * the WebKit box for the rest. `scrollbar-color` inherits, `scrollbar-width`
