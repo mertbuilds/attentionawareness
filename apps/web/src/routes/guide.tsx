@@ -118,6 +118,10 @@ const styles = create({
     marginBlockStart: spacing.s2,
     textWrap: 'balance',
   },
+  // A link's name held on one line, so it never breaks in two.
+  nowrap: {
+    whiteSpace: 'nowrap',
+  },
   page: {
     alignItems: 'center',
     backgroundColor: colors.bg,
@@ -288,7 +292,9 @@ function Guide() {
           <p {...props(styles.body)}>{m.guide_erase_backup()}</p>
           <p {...props(styles.body)}>
             {appBefore}
-            <a href={APP_PATH}>{m.guide_erase_app_link()}</a>
+            <a href={APP_PATH} {...props(styles.nowrap)}>
+              {m.guide_erase_app_link()}
+            </a>
             {appAfter}
           </p>
         </aside>

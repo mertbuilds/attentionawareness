@@ -138,7 +138,7 @@
   "guide_erase_why_apps": "Without supervision, the profile can't block apps. It can only block websites.",
   "guide_erase_icloud": "So after supervising, only what syncs to iCloud comes back, like iCloud Photos, Contacts and Notes. Apps download again from the App Store.",
   "guide_erase_backup": "Back up first anyway, to iCloud or to your Mac in Finder. Restoring that backup is your way back if you change your mind.",
-  "guide_erase_app": "Want to keep everything on it? The {app} supervises it without erasing, for $29 per supervision. It changes one setting in a copy of your backup and restores it, so your data and supervision both stay.",
+  "guide_erase_app": "Want to keep everything on it? The {app} supervises it without erasing, for $29 per supervision. It makes a fresh backup of your iPhone, changes one setting in it and restores it, so your data and supervision both stay.",
   "guide_erase_app_link": "Mac app",
   "guide_need_title": "What you need",
   "guide_need_mac": "A Mac with macOS 15.7 or later, and a cable for your iPhone.",

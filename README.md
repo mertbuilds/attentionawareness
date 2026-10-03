@@ -28,7 +28,8 @@ See [apps/extension/README.md](apps/extension/README.md).
 - Supervision is a device mode Apple gives to phones that a school or a company
   owns.
 - A configuration profile on a supervised phone can hide apps by bundle id and
-  block sites. On a normal phone it cannot, and Screen Time is all that is left.
+  block sites. On a normal phone it can still filter websites, but it cannot
+  hide or block apps, and it can be removed in Settings.
 - Apple's own path to supervision is Apple Configurator's Prepare action, which
   erases the phone first.
 - The paid Mac app supervises the phone without erasing it. The free guide
