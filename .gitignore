@@ -14,7 +14,6 @@ apps/extension/*.zip
 .cloudflare/
 .wrangler/
 apps/web/.tanstack/
-coverage/
 *.tsbuildinfo
 
 # env — only the example is committed
@@ -30,10 +29,6 @@ apps/web/src/routeTree.gen.ts
 
 # licensed fonts — fetched by scripts/fetch-fonts.sh, never committed
 packages/ui/fonts/*.woff2
-
-# e2e artifacts
-playwright-report/
-test-results/
 
 # os
 .DS_Store

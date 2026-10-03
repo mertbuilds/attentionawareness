@@ -1,7 +1,7 @@
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
-import { lazy, Suspense, useSyncExternalStore } from 'react';
+import { useSyncExternalStore } from 'react';
 import type { ReactNode } from 'react';
 import { subscribeTheme } from '../lib/theme.ts';
 
@@ -10,57 +10,25 @@ const PAPER = `color-mix(in srgb, ${colors.bg} 92%, ${colors.fg})`;
 /** Paper grain: one tile of fractal noise, faint, laid over the ground. */
 const PAPER_GRAIN =
   "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='4' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.16 0'/></filter><rect width='160' height='160' filter='url(%23g)'/></svg>\")";
-/**
- * The paper the shader draws, one pair per theme. `back` is what PAPER above
- * resolves to (`--kya-bg` mixed 92% with `--kya-fg`): #ebebeb on light, #141414
- * on dark. `front` is the light a fold catches, one shade over it. Both are
- * written out because a shader takes a color, not a `color-mix()`.
- */
-const PAPER_SHADER = {
-  dark: { back: '#141414', front: '#262626' },
-  light: { back: '#ebebeb', front: '#ffffff' },
-} as const;
 
-type PaperTheme = keyof typeof PAPER_SHADER;
+type PaperTheme = 'dark' | 'light';
 
-/** One sheet, milled the same way every time. */
-const PAPER_SEED = 5.8;
-/** Enough pixels for a 480px sheet at 3x, and no more: a phone draws it too. */
-const PAPER_PIXELS = 1_500_000;
-
-/** The dies a sheet is cut with, and the press its lines are printed on. */
+/** The die a scrap is cut with, and the press its lines are printed on. */
 const EDGE_FILTER_ID = 'bill-edge';
-const SCRAP_EDGE_FILTER_ID = 'bill-edge-scrap';
 const INK_FILTER_ID = 'bill-ink';
 /**
- * A sheet floats over the page: a tight shadow where it touches it, a wide
+ * A scrap floats over the page: a tight shadow where it touches it, a wide
  * soft one under it. Both are chained after the edge filter, so they follow
  * the torn outline instead of a rectangle. A white page takes half the weight;
- * the dark pair on it reads as dirt rather than as shadow. A scrap is small,
- * so it is cut finer and sits lower.
+ * the dark pair on it reads as dirt rather than as shadow.
  */
 const PAPER_FILTER = {
-  scrap: {
-    dark: `url(#${SCRAP_EDGE_FILTER_ID}) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25)) drop-shadow(0 8px 20px rgba(0, 0, 0, 0.35))`,
-    light: `url(#${SCRAP_EDGE_FILTER_ID}) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.12)) drop-shadow(0 8px 20px rgba(0, 0, 0, 0.18))`,
-  },
-  sheet: {
-    dark: `url(#${EDGE_FILTER_ID}) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25)) drop-shadow(0 12px 32px rgba(0, 0, 0, 0.35))`,
-    light: `url(#${EDGE_FILTER_ID}) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.12)) drop-shadow(0 12px 32px rgba(0, 0, 0, 0.18))`,
-  },
+  dark: `url(#${EDGE_FILTER_ID}) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25)) drop-shadow(0 8px 20px rgba(0, 0, 0, 0.35))`,
+  light: `url(#${EDGE_FILTER_ID}) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.12)) drop-shadow(0 8px 20px rgba(0, 0, 0, 0.18))`,
 } as const;
 
-/**
- * The texture is WebGL, so it is loaded only where there is a canvas to draw
- * into: the client, and only after it has hydrated.
- */
-const PaperTexture = lazy(async () => {
-  const shaders = await import('@paper-design/shaders-react');
-  return { default: shaders.PaperTexture };
-});
-
 const styles = create({
-  // The back of the sheet: the ground it is printed on, and the only layer the
+  // The back of the scrap: the ground it is printed on, and the only layer the
   // edge filter touches. The lines sit over it untouched, so a torn outline
   // never smears a letter.
   back: {
@@ -73,29 +41,20 @@ const styles = create({
     zIndex: 0,
   },
   backDark: {
-    filter: PAPER_FILTER.sheet.dark,
+    filter: PAPER_FILTER.dark,
   },
   backLight: {
-    filter: PAPER_FILTER.sheet.light,
+    filter: PAPER_FILTER.light,
   },
-  backScrap: {
-    filter: `url(#${SCRAP_EDGE_FILTER_ID})`,
-  },
-  backScrapDark: {
-    filter: PAPER_FILTER.scrap.dark,
-  },
-  backScrapLight: {
-    filter: PAPER_FILTER.scrap.light,
-  },
-  // The two dies and the press, parked in the page so a sheet can point at
-  // them. An SVG has to be rendered for its filters to resolve, so this one is
-  // drawn at nothing rather than hidden.
+  // The die and the press, parked in the page so a scrap can point at them. An
+  // SVG has to be rendered for its filters to resolve, so this one is drawn at
+  // nothing rather than hidden.
   filterDefs: {
     display: 'block',
     height: 0,
     width: 0,
   },
-  // Everything printed on the sheet, pressed into it: the ink filter roughens
+  // Everything printed on the scrap, pressed into it: the ink filter roughens
   // the glyph edges and takes a few percent off the coverage, the way a till
   // head that has printed all day lays it down.
   ink: {
@@ -108,31 +67,20 @@ const styles = create({
   inkDark: {
     opacity: 0.94,
   },
-  // Dark ink on light paper: multiplied, so the grain and the folds under it
-  // come through the letters.
+  // Dark ink on light paper: multiplied, so the grain under it comes through
+  // the letters.
   inkLight: {
     mixBlendMode: 'multiply',
   },
-  // The surface the shader draws, filling the back layer.
-  paper: {
-    inset: 0,
-    overflow: 'hidden',
-    pointerEvents: 'none',
-    position: 'absolute',
-  },
-  // The box a sheet is laid in: the paper is laid against it, and the ink
+  // The box a scrap is laid in: the paper is laid against it, and the ink
   // multiplies with the paper under it and with nothing else.
   root: {
     isolation: 'isolate',
     position: 'relative',
   },
-  shader: {
-    height: '100%',
-    width: '100%',
-  },
 });
 
-/** What a sheet's own box needs, wherever the sheet is used. */
+/** What a scrap's own box needs, wherever the scrap is used. */
 export const paperRoot: StyleXStyles = styles.root;
 
 /** The paper the theme is asking for, read off the document the CSS reads. */
@@ -156,54 +104,19 @@ function subscribePaperTheme(onChange: () => void): () => void {
 }
 
 /**
- * The server has no canvas and no theme to read, and it renders that same
- * answer while hydrating, which is what keeps the paper out of the first frame
- * and hydration quiet.
+ * The server has no theme to read, and it renders that same answer while
+ * hydrating, which keeps hydration quiet.
  */
 const noPaperTheme = (): PaperTheme | null => null;
 
 /**
- * The surface of the sheet: fibers, crumples and four soft folds, drawn once
- * and left alone. It is behind every line and it never takes a click.
- */
-function PaperSurface({ theme }: { theme: PaperTheme }) {
-  const paper = PAPER_SHADER[theme];
-  return (
-    <div {...props(styles.paper)}>
-      <Suspense fallback={null}>
-        <PaperTexture
-          colorBack={paper.back}
-          colorFront={paper.front}
-          contrast={0.25}
-          crumples={0.2}
-          crumpleSize={0.35}
-          drops={0.1}
-          fade={0}
-          fiber={0.25}
-          fiberSize={0.2}
-          fit="cover"
-          foldCount={4}
-          folds={0.4}
-          maxPixelCount={PAPER_PIXELS}
-          roughness={0.35}
-          scale={0.7}
-          seed={PAPER_SEED}
-          {...props(styles.shader)}
-        />
-      </Suspense>
-    </div>
-  );
-}
-
-/**
- * The dies every sheet on the page shares, drawn at nothing and pointed at by
- * id. The steps of the way out render them once, and every scrap a tip opens
+ * The die and the press every scrap on the page shares, drawn at nothing and
+ * pointed at by id. The steps of the way out render them once, and every scrap a tip opens
  * on refers to them.
  *
  * `bill-edge` cuts the paper: low fractal noise pushed through a displacement
  * map, so the outline wanders a few pixels the way a torn edge does. It is put
- * on the back layer alone, never on the lines. `bill-edge-scrap` is the same
- * cut at a smaller scale, for a piece the size of a note.
+ * on the back layer alone, never on the lines.
  *
  * `bill-ink` prints them: a high noise displaces the glyphs by about a pixel,
  * and the same noise, turned into an alpha mask, takes a few percent of the
@@ -216,14 +129,14 @@ export function BillFilters() {
       <defs>
         <filter
           colorInterpolationFilters="sRGB"
-          height="110%"
+          height="120%"
           id={EDGE_FILTER_ID}
-          width="110%"
-          x="-5%"
-          y="-5%"
+          width="120%"
+          x="-10%"
+          y="-10%"
         >
           <feTurbulence
-            baseFrequency="0.015 0.02"
+            baseFrequency="0.03 0.04"
             numOctaves="2"
             result="edgeNoise"
             seed="7"
@@ -232,29 +145,6 @@ export function BillFilters() {
           <feDisplacementMap
             in="SourceGraphic"
             in2="edgeNoise"
-            scale="7"
-            xChannelSelector="R"
-            yChannelSelector="G"
-          />
-        </filter>
-        <filter
-          colorInterpolationFilters="sRGB"
-          height="120%"
-          id={SCRAP_EDGE_FILTER_ID}
-          width="120%"
-          x="-10%"
-          y="-10%"
-        >
-          <feTurbulence
-            baseFrequency="0.03 0.04"
-            numOctaves="2"
-            result="scrapNoise"
-            seed="7"
-            type="fractalNoise"
-          />
-          <feDisplacementMap
-            in="SourceGraphic"
-            in2="scrapNoise"
             scale="4"
             xChannelSelector="R"
             yChannelSelector="G"
@@ -299,22 +189,15 @@ export function BillFilters() {
 }
 
 /**
- * A piece of paper with something printed on it: the torn back layer, the
- * shadow it floats on, and the ink over it. The box around it is the caller's,
- * and it carries `paperRoot`.
- *
- * A whole sheet takes the shader as well. A scrap does not: a tip opens and
- * closes on every hover, and a WebGL context per hover is a cost a note the
- * size of a hand does not earn.
+ * A scrap of paper the size of a note with something printed on it: the torn
+ * back layer, the shadow it floats on, and the ink over it. The box around it
+ * is the caller's, and it carries `paperRoot`.
  */
 export function PaperSheet({
   children,
-  scrap = false,
   style,
 }: {
   children: ReactNode;
-  /** A piece the size of a note: cut finer, sitting lower, without a shader. */
-  scrap?: boolean;
   /** The layout the printed side takes inside the box. */
   style?: StyleXStyles;
 }) {
@@ -325,15 +208,10 @@ export function PaperSheet({
         aria-hidden="true"
         {...props(
           styles.back,
-          scrap && styles.backScrap,
-          !scrap && theme === 'dark' && styles.backDark,
-          !scrap && theme === 'light' && styles.backLight,
-          scrap && theme === 'dark' && styles.backScrapDark,
-          scrap && theme === 'light' && styles.backScrapLight,
+          theme === 'dark' && styles.backDark,
+          theme === 'light' && styles.backLight,
         )}
-      >
-        {scrap || theme === null ? null : <PaperSurface theme={theme} />}
-      </div>
+      />
       <div
         {...props(
           styles.ink,

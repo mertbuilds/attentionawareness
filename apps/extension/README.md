@@ -78,8 +78,7 @@ grows.
   static hosts, which the manifest already covers and which would otherwise get
   the script twice, and it skips hosts whose permission is not held, because
   one bad match rejects the whole call. `desiredMatches` in
-  `src/lib/registration.ts` is that decision as a pure function, and is what
-  the tests cover.
+  `src/lib/registration.ts` is that decision as a pure function.
 - Edits are debounced 300ms and then written whole; "Saved" appears when the
   write lands. Remove takes two clicks, the second within three seconds, the
   same as the site's own rows.

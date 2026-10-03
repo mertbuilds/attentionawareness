@@ -4,14 +4,14 @@ export const themeChoices = ['system', 'light', 'dark'] as const;
 export type ThemeChoice = (typeof themeChoices)[number];
 
 /** What lands in `data-theme` on `<html>`. `null` means: no attribute at all. */
-export type ThemeAttribute = 'dark' | 'light' | null;
+type ThemeAttribute = 'dark' | 'light' | null;
 
 /**
  * The `data-theme` value a choice resolves to. `null` leaves the attribute off,
  * so the `prefers-color-scheme` rules in `theme.css` decide. A browser that
  * reports no preference either way is unknown, and unknown resolves to dark.
  */
-export function themeAttribute(choice: string | null, systemKnown = true): ThemeAttribute {
+function themeAttribute(choice: string | null, systemKnown: boolean): ThemeAttribute {
   if (choice === 'dark' || choice === 'light') {
     return choice;
   }

@@ -43,11 +43,9 @@
   --font-sans: 'Suisse Intl', 'Suisse Intl Fallback', 'Inter Variable', system-ui, sans-serif;
   --kya-bg: #ffffff;
   --kya-border: #d4d4d4;
-  --kya-disabled: #8a8a8a;
   --kya-error: #dc2626;
   --kya-fg: #000000;
   --kya-muted: #8a8a8a;
-  --kya-warning: #d97706;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -80,11 +78,9 @@
     --sidebar-ring: #8a8a8a;
     --kya-bg: #000000;
     --kya-border: #3f3f3f;
-    --kya-disabled: #8a8a8a;
     --kya-error: #f87171;
     --kya-fg: #ffffff;
     --kya-muted: #8a8a8a;
-    --kya-warning: #fbbf24;
   }
 }
 
@@ -120,11 +116,9 @@
   --sidebar-ring: #8a8a8a;
   --kya-bg: #000000;
   --kya-border: #3f3f3f;
-  --kya-disabled: #8a8a8a;
   --kya-error: #f87171;
   --kya-fg: #ffffff;
   --kya-muted: #8a8a8a;
-  --kya-warning: #fbbf24;
 }
 
 /* Forced light needs no values: the `:root` block already holds them, and the

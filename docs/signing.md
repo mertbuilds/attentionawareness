@@ -111,8 +111,8 @@ rule only decides what may replace it.
 ## Local
 
 Signing is off until the secrets exist. Without them `/api/sign` answers `503`
-and the Mac app says signing is unavailable, so the rest of the site and every
-test keep working on a bare checkout.
+and the Mac app says signing is unavailable, so the rest of the site keeps
+working on a bare checkout.
 
 To sign locally, copy `.dev.vars.example` to `.dev.vars` at the repo root and
 fill in the three values. `.dev.vars` is gitignored, and the Cloudflare Vite

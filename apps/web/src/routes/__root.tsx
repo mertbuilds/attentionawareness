@@ -2,7 +2,7 @@ import { fontUrls } from '@attentionawareness/ui/fonts';
 import { Tooltip } from '@base-ui/react/tooltip';
 import { PostHogProvider } from '@posthog/react';
 import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-router';
-import { useEffect, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { NotFound } from '../components/not-found.tsx';
 import { SiteBrand } from '../components/site-brand.tsx';
 import { WipBanner } from '../components/wip-banner.tsx';
@@ -123,11 +123,6 @@ export const Route = createRootRoute({
 });
 
 function RootComponent() {
-  // Marks hydration completion; forms rely on React handlers (preventDefault),
-  // so e2e tests wait for html[data-hydrated] before interacting.
-  useEffect(() => {
-    document.documentElement.dataset['hydrated'] = 'true';
-  }, []);
   return (
     <RootDocument>
       <Outlet />

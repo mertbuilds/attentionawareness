@@ -20,7 +20,7 @@ export type SiteSource = 'curated' | 'seller' | 'none';
  * that are worth naming even though the domain already covers them, because
  * they are what a phone actually opens.
  */
-export const curatedSites: Record<string, Array<string>> = {
+const curatedSites: Record<string, Array<string>> = {
   'AlexisBarreyat.BeReal': ['https://bereal.com'],
   'com.9gag.ios.mobile': ['https://9gag.com'],
   'com.amazon.aiv.AIVApp': ['https://primevideo.com'],
@@ -74,7 +74,7 @@ export function normalizeUrl(url: string): string {
  * does. A value that names no public site (empty, malformed, localhost, a
  * bare IP) blocks nothing, so it is null.
  */
-export function hostFromSellerUrl(url: string | undefined): string | null {
+function hostFromSellerUrl(url: string | undefined): string | null {
   const trimmed = url?.trim() ?? '';
   if (trimmed === '') {
     return null;
