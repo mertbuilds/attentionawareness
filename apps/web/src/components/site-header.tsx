@@ -94,10 +94,10 @@ const styles = create({
     textDecorationLine: 'none',
     textTransform: 'lowercase',
   },
-  // The download at the strip's one weight, at the far edge, filled in both
-  // layouts, so it only travels between them.
+  // The download at the far edge, filled in both layouts, so it only travels
+  // between them. It keeps the button's own type, as every download on the
+  // page does.
   download: {
-    fontWeight: font.weightRegular,
     justifySelf: 'end',
   },
   // The strip at the top of the window: it starts under the work-in-progress
