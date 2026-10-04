@@ -36,7 +36,11 @@ export const openPanelReplay = {
 export const posthogReplay = {
   blockSelector: APP_STORE_ICON,
   maskAllInputs: true,
-  maskAttributeFn: (name, value, element) =>
+  maskAttributeFn: (
+    name: string,
+    value: string,
+    element?: { closest(selector: string): unknown },
+  ) =>
     MASKED_ATTRIBUTES.includes(name) && (element === undefined || element.closest(MASKED) !== null)
       ? '*'
       : value,

@@ -52,6 +52,17 @@ test('PostHog masks naming attributes when it cannot see the element', () => {
   }
 });
 
+test('PostHog masks naming attributes inside a marked subtree only', () => {
+  const mask = posthogReplay.maskAttributeFn;
+  const inside = { closest: (selector: string) => (selector === '[data-replay-mask]' ? {} : null) };
+  const outside = { closest: () => null };
+  for (const name of ['alt', 'aria-label', 'title']) {
+    assert.equal(mask(name, 'Instagram', inside), '*');
+  }
+  assert.equal(mask('alt', 'Instagram', outside), 'Instagram');
+  assert.equal(mask('class', 'x1abc', inside), 'x1abc');
+});
+
 test('/build marks its page and the tip that lists every blocked app and site', () => {
   const build = source('../routes/build.tsx');
   assert.ok(build.includes('<main {...replayMask} {...props(styles.page)}>'));
