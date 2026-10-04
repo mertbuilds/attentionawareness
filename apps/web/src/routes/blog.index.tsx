@@ -14,7 +14,7 @@ export const Route = createFileRoute('/blog/')({
       { content: m.blog_description(), name: 'description' },
       { content: m.blog_head_title(), property: 'og:title' },
       { content: m.blog_description(), property: 'og:description' },
-      { content: m.blog_lead(), property: 'og:image:alt' },
+      { content: m.blog_og_title(), property: 'og:image:alt' },
     ],
   }),
 });

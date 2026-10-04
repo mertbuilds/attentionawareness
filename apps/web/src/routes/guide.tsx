@@ -24,7 +24,7 @@ export const Route = createFileRoute('/guide')({
       { content: m.guide_description(), name: 'description' },
       { content: m.guide_head_title(), property: 'og:title' },
       { content: m.guide_description(), property: 'og:description' },
-      { content: m.guide_title(), property: 'og:image:alt' },
+      { content: m.guide_head_title(), property: 'og:image:alt' },
       {
         'script:ld+json': howToSchema({
           description: m.guide_description(),

@@ -21,6 +21,9 @@ export const Route = createFileRoute('/og-preview')({
   head: () => ({
     meta: [{ title: m.og_preview_title() }, { content: 'noindex', name: 'robots' }],
   }),
+  // When the page was drawn, put on every card's address, so a browser that
+  // kept an older render of a card fetches the new one after `pnpm og`.
+  loader: () => ({ drawn: Date.now() }),
 });
 
 /** How wide a thumbnail of a card is in a chat app. */
@@ -104,10 +107,10 @@ function cards(): Array<{ path: string; title: string }> {
       distraction: m.home_hero_title_distraction(),
       permanently: m.home_hero_title_accent(),
     }),
-    '/blog': m.blog_lead(),
+    '/blog': m.blog_og_title(),
     '/build': m.gen_step2_title(),
     '/extension/privacy': m.ext_privacy_title(),
-    '/guide': m.guide_title(),
+    '/guide': m.guide_head_title(),
     '/open': m.open_title(),
   };
   return [
@@ -117,6 +120,7 @@ function cards(): Array<{ path: string; title: string }> {
 }
 
 function OgPreview() {
+  const { drawn } = Route.useLoaderData();
   return (
     <PageRoot>
       <PageHeader eyebrow={m.og_preview_eyebrow()} title={m.og_preview_title()} wide>
@@ -124,7 +128,7 @@ function OgPreview() {
       </PageHeader>
       <div {...props(styles.cards)}>
         {cards().map(({ path, title }) => {
-          const src = ogImagePath(path, SLUGS);
+          const src = `${ogImagePath(path, SLUGS)}?v=${drawn}`;
           return (
             <figure key={path} {...props(styles.card)}>
               <img
@@ -140,7 +144,7 @@ function OgPreview() {
                     <a href={path}>{path}</a>
                   </p>
                   <p {...props(styles.muted)}>{title}</p>
-                  <p {...props(styles.muted)}>{src}</p>
+                  <p {...props(styles.muted)}>{ogImagePath(path, SLUGS)}</p>
                 </div>
                 <div {...props(styles.thumbBox)}>
                   <img
