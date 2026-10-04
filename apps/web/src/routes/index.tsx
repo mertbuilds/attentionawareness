@@ -791,7 +791,7 @@ function HomePage() {
         {/* That it works, once the way is told: the before in words, my own
         screen time after. */}
         <section {...props(styles.section, styles.anchor)} id={SECTION.proof}>
-          <h2 {...props(styles.displayTitle)}>{m.home_proof_title()}</h2>
+          <h2 {...props(styles.sectionTitle)}>{m.home_proof_title()}</h2>
           <p {...props(styles.sectionBody)}>{m.home_proof_lead()}</p>
           <ScreenShots
             caption={m.home_proof_caption()}
