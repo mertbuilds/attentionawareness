@@ -125,6 +125,8 @@ Web app (`apps/web`): `pnpm --filter @attentionawareness/web dev` (:3000 standal
 
 Web: `pnpm --filter @attentionawareness/web test` runs `node --test` on `src/**/*.test.ts` (no test library). CI runs it (`pnpm exec turbo run test`). Otherwise the web side has no tests (decision 2026-09-13: iterate on the product first). The one exception is `src/lib/replay.test.ts`, which pins the session replay masking, because it guards visitor privacy.
 
+Test the site in Safari on iOS, not only in Chromium. A change to the header, to a filter or to anything drawn with `filter`, `backdrop-filter`, a mask or a view transition gets a look in the iOS Simulator before it ships: Safari on iOS draws some of these wrong where desktop Chrome, desktop Safari and Playwright's WebKit all draw them right, so no browser test in CI sees it. `node scripts/safari-check.ts <url of a running production preview>` opens the pages in the Simulator's Safari and fails when the top corner of one is black (a Mac with Xcode only, so it is a manual check and CI does not run it). The case it guards: a filter with `feDisplacementMap` on an element drawn in the page's own layer leaves a black box at the top of the page, over the header, while that element is off screen. The letter is a layer of its own for that reason (`rootLetter` in `src/components/bill-paper.tsx`); a new element with such a filter that is in the page from the start needs the same.
+
 ## Dev workflow
 
 - `pnpm dev` runs mprocs with two panes: web and storybook. Quit with `q`; panes restart individually with `r`.
