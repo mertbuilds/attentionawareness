@@ -1,54 +1,46 @@
 import Foundation
 
-/// The body of the last screen: a line for what the run set up, and the one
-/// closing sentence the whole thing is for.
+/// The words of the last screen: what the run set up, the one thing left to
+/// do, and the two things somebody can do next.
 ///
-/// Supervision is confirmed on the screen before this one, so nothing here
-/// repeats it. What it does say is worked out from the profile the person
-/// built: how many apps it hides and how many websites it blocks.
+/// Supervision is the title of that screen, so nothing here repeats it. The
+/// result line is worked out from the profile the person built: how many apps
+/// it hides and how many websites it blocks.
 ///
 /// Nothing here reaches an iPhone or a window, so the tests read every line of
 /// it.
 enum DoneCopy {
-    /// The two plain lines the screen opens with: what the profile took away,
-    /// and the one practical thing left to do. The extension line and the
-    /// closing line are the view's, because each carries a link or a weight a
-    /// plain string can't.
-    static func lines(apps: Int, sites: Int) -> [String] {
-        [
-            blocked(apps: apps, sites: sites),
-            "You can disconnect iPhone.",
-        ]
-    }
-
     /// What the profile took away, in the person's own numbers. Both counts
     /// where it hides apps and blocks sites, one clause where it does only one,
-    /// and a plain reassurance where a stripped-down profile does neither.
-    private static func blocked(apps: Int, sites: Int) -> String {
+    /// and a plain line where a stripped-down profile does neither.
+    static func result(apps: Int, sites: Int) -> String {
         switch (apps, sites) {
         case (0, 0):
             return "Your restrictions are on."
         case (_, 0):
-            return "You blocked \(count(apps, "app"))."
+            return "\(count(apps, "app")) \(verb(apps)) blocked."
         case (0, _):
-            return "You blocked \(count(sites, "website"))."
+            return "\(count(sites, "website")) \(verb(sites)) blocked."
         default:
-            return "You blocked \(count(apps, "app")) and \(count(sites, "website"))."
+            return "\(count(apps, "app")) and \(count(sites, "website")) are blocked."
         }
     }
 
-    /// The last line of the body, the one the whole run is for. The view gives
-    /// it the weight the practical lines above it don't carry.
-    static let closing = "Your future self will thank you."
+    /// The one practical thing left to do.
+    static let disconnect = "You can disconnect iPhone."
 
-    /// The notice under the closing line: the app costs nothing, and there are
-    /// two ways to give something back.
-    static let support =
-        "The app is free. If it helps you, you can support the work. "
-        + "Pay what you want, or share it with a friend."
+    /// The heading over the two things somebody can do after the run.
+    static let next = "Next"
 
-    /// The words the share picker hands to whatever the person shares with.
-    static let shareMessage = "Permanently remove distraction from your iPhone. Free Mac app."
+    /// The first of them: the same blocks on the computer.
+    static let browserExtension = "Block the same feeds on your computer"
+    static let getBrowserExtension = "Get the Browser Extension"
+
+    /// The second: the app costs nothing, and there are two ways to give
+    /// something back.
+    static let support = "The app is free. If it helps you, you can support the work."
+    static let supportThisProject = "Support This Project"
+    static let share = "Share"
 
     /// Where to look on the iPhone for what the run set up, in one line. The
     /// smoke harness draws the info popover from it, picture and words both.
@@ -60,5 +52,9 @@ enum DoneCopy {
     /// never abbreviates a unit.
     private static func count(_ value: Int, _ unit: String) -> String {
         "\(value) \(unit)\(value == 1 ? "" : "s")"
+    }
+
+    private static func verb(_ value: Int) -> String {
+        value == 1 ? "is" : "are"
     }
 }

@@ -12,7 +12,7 @@ struct RestrictionsStep: View {
     @ObservedObject var model: WizardModel
 
     var body: some View {
-        StepLayout(title: title) {
+        StepLayout(symbol: failure == nil ? nil : .warning, title: title) {
             content
         } actions: {
             actions
@@ -135,23 +135,21 @@ struct RestrictionsStep: View {
     @ViewBuilder
     private var actions: some View {
         if failure != nil {
-            PrimaryButton(title: "Try Again") {
-                model.signAndInstallProfile()
-            }
             Button("Cancel") {
                 model.forgetProfileFailure()
             }
-            .controlSize(.large)
+            PrimaryButton(title: "Try Again") {
+                model.signAndInstallProfile()
+            }
         } else if case .guide(let prompt) = model.profile.stage {
             // The check reads the iPhone back, which needs it unlocked. Install
             // Again re-sends the download when it needs re-sending.
-            PrimaryButton(title: ProfileGuideCopy.confirmTitle(for: prompt)) {
-                model.confirmProfileInstalled()
-            }
             Button("Install Again") {
                 model.signAndInstallProfile()
             }
-            .controlSize(.large)
+            PrimaryButton(title: ProfileGuideCopy.confirmTitle(for: prompt)) {
+                model.confirmProfileInstalled()
+            }
         } else if !model.profile.isRunning {
             // Installing is the only way on. A run that walked past the
             // profile would leave a supervised iPhone with nothing blocked,

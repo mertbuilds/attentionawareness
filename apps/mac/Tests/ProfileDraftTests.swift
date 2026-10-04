@@ -252,13 +252,13 @@ struct ProfileDraftTests {
 
     // MARK: - What the step reads out
 
-    @Test func theSiteCountIsWrittenInWholeWords() {
+    @Test func theSiteCountIsTheNumberAloneLikeTheAppCount() {
         var draft = draft(apps: [])
-        #expect(draft.siteSummary == "no sites")
+        #expect(draft.siteSummary == nil)
         draft.addSite("reddit.com")
-        #expect(draft.siteSummary == "1 site")
+        #expect(draft.siteSummary == "1")
         draft.addSite("news.ycombinator.com")
-        #expect(draft.siteSummary == "2 sites")
+        #expect(draft.siteSummary == "2")
     }
 
     // MARK: - Starting over

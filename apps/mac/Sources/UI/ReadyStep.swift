@@ -14,53 +14,73 @@ struct ReadyStep: View {
             error: model.errorMessage
         ) {
             VStack(alignment: .leading, spacing: 12) {
-                Picker("Supervision method", selection: Binding(
-                    get: { model.supervisionMethod },
-                    set: { model.selectSupervisionMethod($0) }
-                )) {
-                    Text("Full copy and restore").tag(SupervisionMethod.fullCopy)
-                    Text("Fast (experimental)").tag(SupervisionMethod.seed)
+                VStack(alignment: .leading, spacing: 6) {
+                    SectionHeading("Method")
+                    Picker("Supervision method", selection: Binding(
+                        get: { model.supervisionMethod },
+                        set: { model.selectSupervisionMethod($0) }
+                    )) {
+                        Text("Full copy and restore").tag(SupervisionMethod.fullCopy)
+                        Text("Fast (experimental)").tag(SupervisionMethod.seed)
+                    }
+                    // The heading names it on screen. VoiceOver still reads
+                    // the picker's own title.
+                    .labelsHidden()
+                    .fixedSize()
+                    .disabled(model.fastRefusal != nil && model.requiresFullCopy)
+                    if let refusal = model.fastRefusal {
+                        secondary(refusal)
+                    }
+                    if !model.requiresFullCopy {
+                        secondary(Self.fastWarning)
+                    }
                 }
-                .disabled(model.fastRefusal != nil && model.requiresFullCopy)
-                if let refusal = model.fastRefusal {
-                    Text(refusal)
+                VStack(alignment: .leading, spacing: 6) {
+                    SectionHeading("Checks")
+                    findMyRow
+                    if model.requiresFullCopy { spaceRow }
+                    backupRow
+                    if model.clearedLeftoverBackup {
+                        CheckLine(ok: true, text: "Leftover from an unfinished run was cleared.")
+                    }
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    SectionHeading("Backup")
+                    Text(BackupSafetyNet.notice)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Toggle(BackupSafetyNet.confirmation, isOn: Binding(
+                        get: { model.backupConfirmed },
+                        set: { model.confirmBackup($0) }
+                    ))
+                    if model.requiresFullCopy { BackupPasswordField(model: model) }
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    if model.requiresFullCopy {
+                        secondary(TransferRate.howLong(.backup, bytes: model.backupBytes))
+                    }
+                    Text(SupervisionFinishedEvent.disclosure)
+                        .font(.callout)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                findMyRow
-                if model.requiresFullCopy { spaceRow }
-                backupRow
-                Text(BackupSafetyNet.notice)
-                    .fixedSize(horizontal: false, vertical: true)
-                Toggle(BackupSafetyNet.confirmation, isOn: Binding(
-                    get: { model.backupConfirmed },
-                    set: { model.confirmBackup($0) }
-                ))
-                if model.requiresFullCopy { BackupPasswordField(model: model) }
-                if model.clearedLeftoverBackup {
-                    CheckLine(ok: true, text: "Leftover from an unfinished run was cleared.")
-                }
-                Text(model.requiresFullCopy
-                    ? TransferRate.howLong(.backup, bytes: model.backupBytes)
-                    : Self.fastWarning)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(SupervisionFinishedEvent.disclosure)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
             }
         } actions: {
-            PrimaryButton(title: verb, enabled: model.checksPass) {
-                model.startJob()
-            }
             // Back to Connect, to pick another iPhone. Nothing has been sent to
             // this one yet, so there is nothing to undo.
             Button("Back") {
                 model.back()
             }
-            .controlSize(.large)
+            PrimaryButton(title: verb, enabled: model.checksPass) {
+                model.startJob()
+            }
         }
+    }
+
+    /// A line of secondary text under a group, wrapped rather than cut.
+    private func secondary(_ text: String) -> some View {
+        Text(text)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     /// What the fast method is, said while it is the one picked.
@@ -145,7 +165,7 @@ struct ReadyStep: View {
                     }
                 }
             }
-            .font(.callout)
+            .controlSize(.small)
         }
     }
 }

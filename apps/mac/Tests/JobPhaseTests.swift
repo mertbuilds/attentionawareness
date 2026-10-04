@@ -40,7 +40,7 @@ struct JobPhaseTests {
         #expect(JobPhase.encrypting.headline == "Check iPhone")
         #expect(
             JobPhase.encrypting.body
-                == "Enter the passcode on iPhone to turn on encryption. The prompt can take a few seconds to appear. Keep the cable connected."
+                == "Enter the passcode on iPhone to turn on encryption. The prompt can take a few seconds to appear. Keep iPhone connected."
         )
         // The headline and the body carry the message, so the plain line
         // steps aside the way it does on the phases that came to an end.
@@ -55,7 +55,7 @@ struct JobPhaseTests {
         #expect(JobPhase.connecting.headline == "Check iPhone")
         #expect(
             JobPhase.connecting.body
-                == "If iPhone asks, tap Trust This Computer and enter the passcode. Keep it unlocked and the cable connected."
+                == "If iPhone asks, tap Trust This Computer and enter the passcode. Keep iPhone unlocked and connected."
         )
         // The headline and the body carry the message, so the plain line
         // steps aside the way it does on the phases that came to an end.
@@ -191,7 +191,7 @@ struct JobPhaseTests {
 
     @Test func aPhoneThatNeverCameBackSaysSoAndWhatToDo() {
         #expect(JobPhase.phoneGone.headline == "iPhone Didn't Reconnect")
-        #expect(JobPhase.phoneGone.body == "Unlock iPhone and keep the cable in.")
+        #expect(JobPhase.phoneGone.body == "Unlock iPhone. Keep iPhone connected.")
         #expect(JobPhase.phoneGone.note == nil)
     }
 

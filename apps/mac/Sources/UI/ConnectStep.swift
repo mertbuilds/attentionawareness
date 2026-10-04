@@ -51,11 +51,13 @@ struct ConnectStep: View {
                 Button("Manage Restrictions") {
                     model.manageRestrictions()
                 }
-                .controlSize(.large)
             } else {
+                // Continue only moves to the checks, which send nothing to
+                // the iPhone, so Return can press it.
                 PrimaryButton(title: "Continue") {
                     model.start()
                 }
+                .keyboardShortcut(.defaultAction)
             }
         }
     }

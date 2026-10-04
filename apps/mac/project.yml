@@ -20,8 +20,8 @@ settings:
     # build for generic/platform=macOS also builds an Intel slice, which has
     # nothing to link against.
     ARCHS: arm64
-    MARKETING_VERSION: '0.4.1'
-    CURRENT_PROJECT_VERSION: '5'
+    MARKETING_VERSION: '0.4.2'
+    CURRENT_PROJECT_VERSION: '6'
     ENABLE_HARDENED_RUNTIME: YES
     GENERATE_INFOPLIST_FILE: NO
   configs:
@@ -216,6 +216,7 @@ targets:
       - Sources/UI/WizardModel.swift
       - Sources/UI/OldSupervisionKey.swift
       - Sources/UI/WizardStyle.swift
+      - Sources/UI/StepSymbol.swift
       - Sources/UI/InfoPopover.swift
       - Sources/Device/DeviceWatcher.swift
       - Sources/Device/Lockdown.swift
