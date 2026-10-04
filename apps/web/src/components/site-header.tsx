@@ -9,6 +9,7 @@ import { Heart } from 'reicon-react';
 import { brandBar } from '../lib/brand-bar.stylex.ts';
 import { morph } from '../lib/morph.ts';
 import { duration, easing } from '../lib/motion.stylex.ts';
+import { SECTION } from '../lib/sections.ts';
 import { m } from '../paraglide/messages.js';
 import { BrandMark } from './brand-mark.tsx';
 import { MacCta, useMacDownload, useSendToMac } from './mac-download.tsx';
@@ -38,10 +39,10 @@ const OPEN_FROM = 16;
  * morph carries each one by.
  */
 const LINKS = [
-  { hash: '#way-out', label: m.nav_how, name: 'header-how' },
-  { hash: '#support', heart: true, label: m.nav_support, name: 'header-support' },
-  { hash: '#story', label: m.nav_why, name: 'header-why' },
-  { hash: '#faq', label: m.nav_faq, name: 'header-faq' },
+  { hash: `#${SECTION.wayOut}`, label: m.nav_how, name: 'header-how' },
+  { hash: `#${SECTION.support}`, heart: true, label: m.nav_support, name: 'header-support' },
+  { hash: `#${SECTION.story}`, label: m.nav_why, name: 'header-why' },
+  { hash: `#${SECTION.faq}`, label: m.nav_faq, name: 'header-faq' },
   { label: m.nav_blog, name: 'header-blog', path: '/blog' },
 ] as const;
 

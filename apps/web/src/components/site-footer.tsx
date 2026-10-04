@@ -8,6 +8,7 @@ import { Heart, Star } from 'reicon-react';
 import { posts } from '../lib/blog.ts';
 import { layout } from '../lib/layout.ts';
 import { blur, distance, duration, easing } from '../lib/motion.stylex.ts';
+import { SECTION } from '../lib/sections.ts';
 import { supportUrl } from '../lib/support.ts';
 import { useLessMotion } from '../lib/use-less-motion.ts';
 import { useSeen } from '../lib/use-seen.ts';
@@ -498,11 +499,11 @@ export function SiteFooter({ children }: { children?: ReactNode | undefined }) {
   const onGitHub = () => posthog.capture('github_clicked', { placement: 'footer' });
 
   const product: ReadonlyArray<FooterLink> = [
-    { href: `${page}#pricing`, label: m.footer_product_download() },
-    { href: `${page}#way-out`, label: m.footer_product_how() },
+    { href: `${page}#${SECTION.pricing}`, label: m.footer_product_download() },
+    { href: `${page}#${SECTION.wayOut}`, label: m.footer_product_how() },
     { href: GUIDE_PATH, label: m.footer_product_guide() },
     { href: BUILD_PATH, label: m.footer_product_build() },
-    { href: `${page}#extension`, label: m.footer_product_extension() },
+    { href: `${page}#${SECTION.extension}`, label: m.footer_product_extension() },
     { external: true, href: STORE_URL, label: m.footer_product_store() },
   ];
   const blog: ReadonlyArray<FooterLink> = [
@@ -519,8 +520,8 @@ export function SiteFooter({ children }: { children?: ReactNode | undefined }) {
       label: m.footer_project_support(),
       onClick: () => posthog.capture('support_clicked', { placement: 'footer' }),
     },
-    { href: `${page}#story`, label: m.footer_project_why() },
-    { href: `${page}#faq`, label: m.footer_project_faq() },
+    { href: `${page}#${SECTION.story}`, label: m.footer_project_why() },
+    { href: `${page}#${SECTION.faq}`, label: m.footer_project_faq() },
   ];
 
   return (

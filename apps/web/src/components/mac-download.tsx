@@ -6,6 +6,7 @@ import type { StyleXStyles } from '@stylexjs/stylex';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { MouseEvent, ReactNode } from 'react';
 import { announceDownload } from '../lib/download-started.ts';
+import { SECTION } from '../lib/sections.ts';
 import { m } from '../paraglide/messages.js';
 
 /**
@@ -15,7 +16,7 @@ import { m } from '../paraglide/messages.js';
  */
 const LATEST_URL = '/mac/latest.json';
 /** Where the download stands on the home page: the link a phone sends on to a Mac. */
-const DOWNLOAD_PATH = '/#way-out';
+const DOWNLOAD_PATH = `/#${SECTION.wayOut}`;
 
 /** The field of `latest.json` this component reads. The rest is the updater's. */
 type Release = {

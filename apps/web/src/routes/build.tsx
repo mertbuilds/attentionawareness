@@ -40,6 +40,7 @@ import { controls } from '../lib/controls.ts';
 import { layout } from '../lib/layout.ts';
 import { presets } from '../lib/profile/index.ts';
 import type { BlockedApp, ProfileConfig } from '../lib/profile/index.ts';
+import { SECTION } from '../lib/sections.ts';
 import { normalizeUrl, sitesForApp, sitesForApps } from '../lib/sites.ts';
 import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
@@ -61,7 +62,7 @@ const SITE_NAME = 'attention awareness';
 /** How to supervise an iPhone for free, which the profile assumes is done. */
 const GUIDE_URL = '/guide';
 /** The Mac app's download lives on the home page. */
-const MAC_URL = '/#way-out';
+const MAC_URL = `/#${SECTION.wayOut}`;
 /**
  * Where a link stands inside a sentence, the way the footer does it: the
  * message carries the link as a placeholder and is split on it, so the words

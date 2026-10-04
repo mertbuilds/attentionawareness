@@ -20,6 +20,7 @@ import { SupportSection } from '../components/support-section.tsx';
 import { UsesGrid } from '../components/uses-grid.tsx';
 import { brandBar } from '../lib/brand-bar.stylex.ts';
 import { blur, duration, easing } from '../lib/motion.stylex.ts';
+import { SECTION } from '../lib/sections.ts';
 import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
 
@@ -47,17 +48,6 @@ const LETTER_FACE = "'Special Elite', 'Courier New', ui-monospace, monospace";
 const HERO_WIDTH = 1040;
 /** The phone's column beside the words, as wide as the phone is drawn there. */
 const HERO_PHONE_WIDTH = 272;
-/** The places on the page that can be linked to, and the ids they use. */
-const PROOF_ID = 'proof';
-const WAY_OUT_ID = 'way-out';
-const STORY_ID = 'story';
-const FAQ_ID = 'faq';
-/** The browser extension, the same idea on the computer. */
-const EXTENSION_ID = 'extension';
-/** The two ways, both free. Links from before the app was free still come down to it. */
-const PRICING_ID = 'pricing';
-/** Why everything is free and how to support the work, which the header's support link goes down to. */
-const SUPPORT_ID = 'support';
 /** The manual way out, on a page of its own. */
 const GUIDE_URL = '/guide';
 /** Every link off this site carries utm tags, so the visit is traced to this page. */
@@ -718,11 +708,11 @@ function HomePage() {
         {/* How it works: what the Mac app does, in three steps, then the two
         ways to it, both free: the app, with what it keeps, and the guide that
         starts the phone over. */}
-        <section {...props(styles.section, styles.anchor)} id={WAY_OUT_ID}>
+        <section {...props(styles.section, styles.anchor)} id={SECTION.wayOut}>
           <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
           <p {...props(styles.sectionBody)}>{m.home_how_lead()}</p>
           <HowItWorks />
-          <div id={PRICING_ID} {...props(styles.plans, styles.anchor)}>
+          <div id={SECTION.pricing} {...props(styles.plans, styles.anchor)}>
             <div {...props(styles.plan, styles.planApp)}>
               <div {...props(styles.planBody)}>
                 <div {...props(styles.planHead)}>
@@ -750,7 +740,7 @@ function HomePage() {
 
         {/* That it works, once the way is told: the before in words, my own
         screen time after. */}
-        <section {...props(styles.section, styles.anchor)} id={PROOF_ID}>
+        <section {...props(styles.section, styles.anchor)} id={SECTION.proof}>
           <h2 {...props(styles.displayTitle)}>{m.home_proof_title()}</h2>
           <p {...props(styles.sectionBody)}>{m.home_proof_lead()}</p>
           <ScreenShots
@@ -783,7 +773,7 @@ function HomePage() {
         {/* The same idea on the computer: the browser extension and the way
         to it, the drawing of what it hides on the three sites it knows, then
         what it does in three short points. */}
-        <section {...props(styles.section, styles.extension, styles.anchor)} id={EXTENSION_ID}>
+        <section {...props(styles.section, styles.extension, styles.anchor)} id={SECTION.extension}>
           <div {...props(styles.extensionHead)}>
             <h2 {...props(styles.sectionTitle)}>{m.home_ext_title()}</h2>
             <p {...props(styles.sectionBody)}>{m.home_ext_lead()}</p>
@@ -807,13 +797,13 @@ function HomePage() {
 
         {/* Why everything is free, and the way to support the work: the
         founder's words beside a stamp, like the corner of an envelope. */}
-        <section {...props(styles.anchor)} id={SUPPORT_ID}>
+        <section {...props(styles.anchor)} id={SECTION.support}>
           <SupportSection titleStyle={styles.displayTitle} />
         </section>
 
         {/* Who made this and why, told rather than argued: a letter on a
         sheet of paper, signed at its foot. */}
-        <section {...props(styles.anchor)} id={STORY_ID}>
+        <section {...props(styles.anchor)} id={SECTION.story}>
           <PaperLetter ink={styles.section} style={styles.letter}>
             <h2 {...props(styles.sectionTitle, styles.letterTitle)}>{m.home_story_title()}</h2>
             <div {...props(styles.story)}>
@@ -857,7 +847,7 @@ function HomePage() {
 
         {/* The questions, last of the sections: after them only the line the
         page closes on. */}
-        <section {...props(styles.section, styles.anchor)} id={FAQ_ID}>
+        <section {...props(styles.section, styles.anchor)} id={SECTION.faq}>
           <h2 {...props(styles.sectionTitle)}>{m.home_faq_title()}</h2>
           <div>
             {objections.map((objection) => (
