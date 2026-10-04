@@ -186,23 +186,6 @@ struct DemoConditionsTests {
         #expect(before.afterRestore(target: true).holdingBackup)
     }
 
-    @Test func aNewDemoStartsWithAKeyThatWorks() {
-        #expect(DemoConditions().key.check == .usable)
-        #expect(DemoConditions().key.spend == .spent)
-    }
-
-    @Test func onlyAnOfflineKeyServerLeavesTheSpendOwed() {
-        for key in DemoConditions.Key.allCases {
-            #expect((key.spend == .transient) == (key == .offline))
-        }
-    }
-
-    @Test func everyBadKeyChecksAsSomethingOtherThanUsable() {
-        for key in DemoConditions.Key.allCases where key != .works {
-            #expect(key.check != .usable)
-        }
-    }
-
     @Test func installingTheProfileLeavesItOnThePhone() {
         #expect(DemoConditions().afterProfileInstall().profileInstalled)
     }

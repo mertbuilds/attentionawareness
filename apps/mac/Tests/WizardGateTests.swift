@@ -12,41 +12,36 @@ struct WizardGateTests {
     // MARK: - The checks
 
     @Test func theChecksPassWhenTheDiskIsBigEnoughAndAPasswordIsTyped() {
-        #expect(WizardGate.checksPass(diskSpacePasses: true, findMyOn: false, hasPassword: true, key: .usable))
+        #expect(WizardGate.checksPass(diskSpacePasses: true, findMyOn: false, hasPassword: true))
     }
 
     @Test func aDiskThatIsTooSmallStopsTheRun() {
-        #expect(WizardGate.checksPass(diskSpacePasses: false, findMyOn: false, hasPassword: true, key: .usable) == false)
+        #expect(WizardGate.checksPass(diskSpacePasses: false, findMyOn: false, hasPassword: true) == false)
     }
 
     @Test func freeSpaceThatCouldNotBeReadBlocksNothingOnItsOwn() {
-        #expect(WizardGate.checksPass(diskSpacePasses: nil, findMyOn: false, hasPassword: true, key: .usable))
+        #expect(WizardGate.checksPass(diskSpacePasses: nil, findMyOn: false, hasPassword: true))
     }
 
     @Test func aMissingPasswordStopsTheRun() {
         // The copy is always encrypted now, so a password is always required.
-        #expect(WizardGate.checksPass(diskSpacePasses: true, findMyOn: false, hasPassword: false, key: .usable) == false)
+        #expect(WizardGate.checksPass(diskSpacePasses: true, findMyOn: false, hasPassword: false) == false)
     }
 
     @Test func aMissingPasswordStopsTheRunEvenWhenTheDiskWouldNotRead() {
-        #expect(WizardGate.checksPass(diskSpacePasses: nil, findMyOn: false, hasPassword: false, key: .usable) == false)
-    }
-
-    @Test func aKeyThatHasNotBeenCheckedYetStopsTheRun() {
-        // Nothing pasted, or a check still on its way back.
-        #expect(WizardGate.checksPass(diskSpacePasses: true, findMyOn: false, hasPassword: true, key: nil) == false)
+        #expect(WizardGate.checksPass(diskSpacePasses: nil, findMyOn: false, hasPassword: false) == false)
     }
 
     @Test func anIPhoneThatSaysFindMyIsOnStopsTheRun() {
         // The restore would be refused, so the copy does not start an hour of
         // work that ends in a wait.
-        #expect(WizardGate.checksPass(diskSpacePasses: true, findMyOn: true, hasPassword: true, key: .usable) == false)
+        #expect(WizardGate.checksPass(diskSpacePasses: true, findMyOn: true, hasPassword: true) == false)
     }
 
     @Test func anIPhoneThatWillNotSayAboutFindMyIsNotHeldBack() {
         // The same rule the restore keeps, which still holds if it turns out
         // to be on.
-        #expect(WizardGate.checksPass(diskSpacePasses: true, findMyOn: nil, hasPassword: true, key: .usable))
+        #expect(WizardGate.checksPass(diskSpacePasses: true, findMyOn: nil, hasPassword: true))
     }
 
     @Test func findMyOnStopsTheRunWhateverElseReadsFine() {
@@ -55,18 +50,10 @@ struct WizardGateTests {
                 WizardGate.checksPass(
                     diskSpacePasses: diskSpacePasses,
                     findMyOn: true,
-                    hasPassword: true,
-                    key: .usable
+                    hasPassword: true
                 ) == false
             )
         }
-    }
-
-    @Test(arguments: [LicenseCheck.usedUp, .revoked, .notFound, .unavailable])
-    func onlyAUsableKeyLetsTheRunStart(_ check: LicenseCheck) {
-        // A key server that could not be reached is no answer either: the run
-        // waits for one rather than starting on a key nobody vouched for.
-        #expect(WizardGate.checksPass(diskSpacePasses: true, findMyOn: false, hasPassword: true, key: check) == false)
     }
 
     // MARK: - The patch
@@ -203,6 +190,9 @@ struct WizardGateTests {
     }
 
     // MARK: - The iPhone leaving the cable
+
+    private static let udid = "00008140-000000000000001A"
+    private static let otherUdid = "00008140-000B2C3D4E5F6071"
 
     @Test(arguments: [WizardStep.ready, .restrictions, .done, .profiles])
     func unpluggingThePickedIPhoneOffTheJobScreenGoesBackToConnect(_ step: WizardStep) {
@@ -378,56 +368,13 @@ struct WizardGateTests {
         )
     }
 
-    // MARK: - Spending the key
+    // MARK: - The anonymous count
 
-    private static let key = "AA-3F2C1D0E-8B7A-4C6D-9E5F-1A2B3C4D5E6F"
-    private static let otherKey = "AA-9A8B7C6D-5E4F-4A3B-8C2D-1E0F9A8B7C6D"
-    private static let udid = "00008140-000000000000001A"
-    private static let otherUdid = "00008140-000B2C3D4E5F6071"
-
-    @Test func aPhoneThatReadsAsSupervisedMakesItsSpendsDue() {
-        let pending = [
-            PendingSpend(key: Self.key, deviceID: Self.udid),
-            PendingSpend(key: Self.otherKey, deviceID: Self.otherUdid),
-        ]
-
-        #expect(
-            WizardGate.spendsDue(pending, supervision: [Self.udid: true])
-                == [PendingSpend(key: Self.key, deviceID: Self.udid)]
-        )
-    }
-
-    @Test func anEarlyReadAfterTheRestoreSpendsNothing() {
-        // The phone answers as it was before it has settled, so a read that
-        // says not supervised is no reason to spend and no reason to forget.
-        let pending = [PendingSpend(key: Self.key, deviceID: Self.udid)]
-
-        #expect(WizardGate.spendsDue(pending, supervision: [Self.udid: false]).isEmpty)
-    }
-
-    @Test func aPhoneThatIsNotOnTheCableSpendsNothing() {
-        // A run that failed leaves its spend behind, and the phone it was for
-        // has to say it is supervised before anything is counted.
-        let pending = [PendingSpend(key: Self.key, deviceID: Self.udid)]
-
-        #expect(WizardGate.spendsDue(pending, supervision: [:]).isEmpty)
-        #expect(WizardGate.spendsDue(pending, supervision: [Self.otherUdid: true]).isEmpty)
-    }
-
-    @Test func aSpendThatIsAlreadyDueIsNotMadeDueAgain() {
-        let due = PendingSpend(key: Self.key, deviceID: Self.udid, due: true)
-
-        #expect(WizardGate.spendsDue([due], supervision: [Self.udid: true]).isEmpty)
-    }
-
-    @Test func pressingItsSupervisedCountsAsASupervisedRead() {
+    @Test func pressingItsSupervisedSaysTheSupervisionFinished() {
         // A cable pulled during the reboot leaves a phone this Mac never saw
         // come back supervised, so the person saying it is has to be enough.
         #expect(WizardGate.confirmsSupervision(.checkOnIPhone(reportedSupervised: false)))
         #expect(WizardGate.confirmsSupervision(.checkOnIPhone(reportedSupervised: true)))
-
-        let pending = [PendingSpend(key: Self.key, deviceID: Self.udid)]
-        #expect(WizardGate.spendsDue(pending, supervision: [Self.udid: true]) == pending)
     }
 
     @Test func aRunThatDidNotGetToTheEndConfirmsNothing() {
@@ -437,102 +384,5 @@ struct WizardGateTests {
         #expect(WizardGate.confirmsSupervision(.phoneGone) == false)
         #expect(WizardGate.confirmsSupervision(.restarting) == false)
         #expect(WizardGate.confirmsSupervision(.confirming) == false)
-    }
-
-    @Test func everyDueSpendIsSentWhicheverIPhoneIsOnTheCable() {
-        let dueHere = PendingSpend(key: Self.key, deviceID: Self.udid, due: true)
-        let dueElsewhere = PendingSpend(key: Self.otherKey, deviceID: Self.otherUdid, due: true)
-        let waiting = PendingSpend(key: Self.otherKey, deviceID: Self.udid)
-
-        #expect(WizardGate.spendsToSend([dueHere, waiting, dueElsewhere]) == [dueHere, dueElsewhere])
-    }
-
-    @Test func aKeyADueSpendHoldsIsUsedUpWithoutAskingPolar() {
-        let pending = [PendingSpend(key: Self.key, deviceID: Self.otherUdid, due: true)]
-
-        #expect(WizardGate.localCheck(key: Self.key, pending: pending) == .usedUp)
-    }
-
-    @Test func aKeyNoDueSpendHoldsIsLeftToPolar() {
-        // A waiting spend is a run that may still fail, and a failed run costs
-        // nothing, so it holds nothing.
-        let waiting = PendingSpend(key: Self.key, deviceID: Self.udid)
-        let otherKeyDue = PendingSpend(key: Self.otherKey, deviceID: Self.udid, due: true)
-
-        #expect(WizardGate.localCheck(key: Self.key, pending: [waiting, otherKeyDue]) == nil)
-        #expect(WizardGate.localCheck(key: Self.key, pending: []) == nil)
-    }
-
-    @Test func oneKeyCannotPayForASecondIPhoneWhilePolarIsOutOfReach() throws {
-        let store = PendingSpendStore(storage: MemoryStorage())
-        // The run on the first iPhone starts and the iPhone reads as
-        // supervised, which marks the spend due before Polar is asked.
-        try store.addPending(key: Self.key, deviceID: Self.udid)
-        for spend in try WizardGate.spendsDue(store.allPending(), supervision: [Self.udid: true]) {
-            try store.markDue(spend)
-        }
-        // Polar cannot be reached, so the spend stays owed.
-        #expect(WizardGate.settle(.transient, key: Self.key, savedKey: Self.key) == .keep)
-
-        // The second iPhone's Ready screen checks the same key. Polar never
-        // heard of the spend and would call it usable; this Mac does not ask.
-        let check = try WizardGate.localCheck(key: Self.key, pending: store.allPending())
-        #expect(check == .usedUp)
-        #expect(WizardGate.checksPass(diskSpacePasses: true, findMyOn: false, hasPassword: true, key: check) == false)
-        // And the spend goes out again with the first iPhone nowhere near.
-        #expect(
-            try WizardGate.spendsToSend(store.allPending())
-                == [PendingSpend(key: Self.key, deviceID: Self.udid, due: true)]
-        )
-    }
-
-    @Test func aCountedSpendIsForgottenAndTakesTheSavedKeyWithIt() {
-        #expect(
-            WizardGate.settle(.spent, key: Self.key, savedKey: Self.key)
-                == .forget(clearSavedKey: true)
-        )
-    }
-
-    @Test func aRefusedSpendIsForgottenJustTheSame() {
-        // A spend whose answer was lost comes back refused as used up, which
-        // ends it the way a count would have.
-        #expect(
-            WizardGate.settle(.rejected, key: Self.key, savedKey: Self.key)
-                == .forget(clearSavedKey: true)
-        )
-    }
-
-    @Test func anotherKeyThatIsSavedStaysSaved() {
-        // Somebody may have pasted their next key while this one was owed.
-        #expect(
-            WizardGate.settle(.spent, key: Self.key, savedKey: Self.otherKey)
-                == .forget(clearSavedKey: false)
-        )
-        #expect(WizardGate.settle(.spent, key: Self.key, savedKey: nil) == .forget(clearSavedKey: false))
-    }
-
-    @Test func aSpendPolarCouldNotAnswerStaysOwed() {
-        #expect(WizardGate.settle(.transient, key: Self.key, savedKey: Self.key) == .keep)
-    }
-
-    @Test func aNewRunOnAnIPhoneTakesOverTheSpendAFailedRunLeftUnderAnotherKey() {
-        let failed = PendingSpend(key: Self.otherKey, deviceID: Self.udid)
-        let sameKey = PendingSpend(key: Self.key, deviceID: Self.udid)
-        let otherPhone = PendingSpend(key: Self.otherKey, deviceID: Self.otherUdid)
-
-        #expect(
-            WizardGate.supersededSpends(
-                [failed, sameKey, otherPhone],
-                byKey: Self.key,
-                on: Self.udid
-            ) == [failed]
-        )
-    }
-
-    @Test func aDueSpendIsNeverTakenOverByANewRun() {
-        // Its supervision went through, so its key is owed whatever runs next.
-        let due = PendingSpend(key: Self.otherKey, deviceID: Self.udid, due: true)
-
-        #expect(WizardGate.supersededSpends([due], byKey: Self.key, on: Self.udid).isEmpty)
     }
 }

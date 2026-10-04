@@ -4,9 +4,9 @@ import Foundation
 /// The wizard, run against an iPhone that is not there.
 ///
 /// It is the model the window always has. What changes is the other end of it:
-/// every method that would reach a phone, a disk, the helper, the site or the
-/// key server is replaced by one that waits the moment the real thing would
-/// take and then says what the demo was asked to say. The steps, the stage
+/// every method that would reach a phone, a disk, the helper or the site is
+/// replaced by one that waits the moment the real thing would take and then
+/// says what the demo was asked to say. The steps, the stage
 /// machine, the gates and every sentence on screen are the ones that ship.
 ///
 /// Nothing in this file opens a file, starts a process or makes a request. It
@@ -32,11 +32,6 @@ final class DemoWizardModel: WizardModel {
             // Full Disk Access, so flipping it starts that over.
             if conditions.finderBackups != oldValue.finderBackups {
                 showFullDiskAccess(DemoWorld.fullDiskAccess(conditions))
-            }
-            // A key already in the field is asked about again, so flipping the
-            // switch reads the way pasting that kind of key would.
-            if conditions.key != oldValue.key, !licenseKey.isEmpty {
-                checkKey()
             }
         }
     }
@@ -80,8 +75,6 @@ final class DemoWizardModel: WizardModel {
     /// How long the store takes to answer one search.
     private static let signingPause = Duration.milliseconds(1200)
     private static let installPause = Duration.milliseconds(1600)
-    /// How long the key server takes to answer a check or a spend.
-    private static let keyPause = Duration.milliseconds(700)
     /// What the demo says this Mac has free. It is a fixed figure rather than
     /// the volume's own, so the checks read the same on every machine.
     private static let freeBytes: UInt64 = 248_000_000_000
@@ -89,13 +82,9 @@ final class DemoWizardModel: WizardModel {
     init() {
         super.init(
             watcher: DeviceWatcher(sample: []),
-            engine: BackupEngine(sample: .idle, progress: 0),
-            // The saved key and the spends owed live in memory for as long as
-            // the window is open, so the demo never reads the Keychain.
-            spendStore: PendingSpendStore(storage: DemoKeychain())
+            engine: BackupEngine(sample: .idle, progress: 0)
         )
         applyConditions()
-        watchForOwedSpends()
     }
 
     // MARK: - The world the demo says is there
@@ -172,11 +161,6 @@ final class DemoWizardModel: WizardModel {
     func reset() {
         stopWork()
         addedProfiles = []
-        // A window that has just been opened has no key saved and none owed.
-        try? spendStore.clearSavedKey()
-        for spend in (try? spendStore.allPending()) ?? [] {
-            try? spendStore.remove(spend)
-        }
         conditions = DemoConditions()
         engine.show(phase: .idle, progress: 0, log: [])
         startOver()
@@ -200,10 +184,6 @@ final class DemoWizardModel: WizardModel {
         sample.backupConfirmed = step == .ready ? backupConfirmed : true
         sample.finderBackup = DemoWorld.finderBackup(conditions)
         sample.fullDiskAccess = fullDiskAccess
-        // A jump does not forget the key in the field, the way stepping back
-        // and forth does not.
-        sample.licenseKey = licenseKey
-        sample.keyStatus = keyStatus
         guard step != .connect else { return sample }
         sample.udid = DemoWorld.udid
         // The job screen is landed on where it starts, on the copy, so it is
@@ -244,9 +224,7 @@ final class DemoWizardModel: WizardModel {
             fullDiskAccess: fullDiskAccess,
             clearedLeftoverBackup: clearedLeftoverBackup,
             backupRemovalFailure: backupRemovalFailure,
-            errorMessage: errorMessage,
-            licenseKey: licenseKey,
-            keyStatus: keyStatus
+            errorMessage: errorMessage
         )
     }
 
@@ -581,28 +559,6 @@ final class DemoWizardModel: WizardModel {
         }
     }
 
-    // MARK: - The supervision key
-
-    /// The real model opens the page that sells a key. The demo sells nothing
-    /// and pastes a key of its own, which is checked like any other paste.
-    override func buyKey() {
-        editKey(DemoWorld.key)
-    }
-
-    /// The real model asks Polar. The demo waits the beat a check takes and
-    /// answers what the bar says.
-    override func checkLicense(key: String) async -> LicenseCheck {
-        try? await Task.sleep(for: Self.keyPause)
-        return conditions.key.check
-    }
-
-    /// The real model counts the supervision with Polar once the phone reads
-    /// as supervised. The demo counts nothing and answers what the bar says.
-    override func spendLicense(key: String) async -> LicenseSpend {
-        try? await Task.sleep(for: Self.keyPause)
-        return conditions.key.spend
-    }
-
     // MARK: - The App Store
 
     // The App Store search is not overridden here on purpose. It reads a
@@ -644,21 +600,4 @@ final class DemoWizardModel: WizardModel {
     }
 }
 
-/// Where the demo keeps the saved key and the spends owed: a dictionary that
-/// lasts as long as the window, in place of the Keychain.
-private final class DemoKeychain: LicenseStorage {
-    private var items: [String: Data] = [:]
-
-    func data(for account: String) throws -> Data? {
-        items[account]
-    }
-
-    func set(_ data: Data, for account: String) throws {
-        items[account] = data
-    }
-
-    func remove(_ account: String) throws {
-        items[account] = nil
-    }
-}
 #endif

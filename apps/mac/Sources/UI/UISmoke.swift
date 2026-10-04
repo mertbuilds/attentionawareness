@@ -55,11 +55,6 @@ enum UISmoke {
         for sample in methodSamples() {
             report(sample.name, WizardStepContent(step: .ready, model: sample.model), into: folder)
         }
-        // The key row in each of the things it says. The empty field is the
-        // one the loop above drew.
-        for sample in keySamples() {
-            report("ready-key-\(sample.name)", WizardStepContent(step: .ready, model: sample.model), into: folder)
-        }
         // The Restrictions screen in the three states the loop above cannot
         // draw: a profile of ours already on the iPhone, the install running,
         // and one that did not take.
@@ -100,11 +95,10 @@ enum UISmoke {
         }
         // Find My is one of the checks, so they are drawn for a phone that
         // says it is on and for one that says it is off, each with a password
-        // typed and a key that works, so Find My is the one thing that keeps
-        // the button off. The one the loop above drew comes from a Mac with
+        // typed, so Find My is the one thing that keeps the button off. The one the loop above drew comes from a Mac with
         // nothing on the cable, which is the third answer: no answer at all.
         for (name, findMyOn) in [("find-my-on", true), ("find-my-off", false)] {
-            let model = withKey(.checked(.usable), findMyOn: findMyOn)
+            let model = readyToStart(findMyOn: findMyOn)
             model.password = "hunter2"
             report("ready-\(name)", WizardStepContent(step: .ready, model: model), into: folder)
         }
@@ -836,38 +830,17 @@ enum UISmoke {
             )
             model.show(WizardModel.Sample(
                 step: .ready, supervisionMethod: method, backupConfirmed: true,
-                udid: phone.udid, licenseKey: "SAMPLE-KEY", keyStatus: .checked(.usable)
+                udid: phone.udid
             ))
             return (name, model)
         }
     }
 
-    /// The checks with a key in the field, once for each thing a check of it
-    /// can come back with, and once while the check is still out.
-    private static func keySamples() -> [(name: String, model: WizardModel)] {
-        [
-            ("checking", withKey(.checking)),
-            ("usable", withKey(.checked(.usable))),
-            ("used-up", withKey(.checked(.usedUp))),
-            ("revoked", withKey(.checked(.revoked))),
-            ("not-found", withKey(.checked(.notFound))),
-            ("unavailable", withKey(.checked(.unavailable))),
-        ]
-    }
-
-    /// The checks for a phone with nothing else to fix, with a key pasted and
-    /// its answer handed in. Nothing is asked of the key server.
-    private static func withKey(_ status: WizardModel.KeyStatus, findMyOn: Bool = false) -> WizardModel {
+    /// The checks for a phone with nothing else to fix.
+    private static func readyToStart(findMyOn: Bool) -> WizardModel {
         let phone = samplePhone(findMyOn: findMyOn)
         let model = WizardModel(watcher: sampleWatcher([phone]))
-        model.show(
-            WizardModel.Sample(
-                step: .ready,
-                udid: phone.udid,
-                licenseKey: "A1B2C3D4-E5F6-4A7B-8C9D-0E1F2A3B4C5D",
-                keyStatus: status
-            )
-        )
+        model.show(WizardModel.Sample(step: .ready, udid: phone.udid))
         return model
     }
 

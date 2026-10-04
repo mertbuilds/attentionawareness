@@ -3,13 +3,12 @@ import Foundation
 
 /// What the demo pretends is true about the world.
 ///
-/// The wizard reads four things it cannot be given in a demo: the iPhones on
-/// the cable, what this Mac is holding for them, how a transfer ends, and what
-/// the key server says about a supervision key. Every one of those answers
-/// comes from here, so the reader can put the window into a state a real run
-/// only reaches by luck: no phone on the cable, two of them, a phone that is
-/// already supervised, a backup an earlier run left behind, a transfer that
-/// fails, a key that was already used.
+/// The wizard reads three things it cannot be given in a demo: the iPhones on
+/// the cable, what this Mac is holding for them and how a transfer ends. Every
+/// one of those answers comes from here, so the reader can put the window into
+/// a state a real run only reaches by luck: no phone on the cable, two of
+/// them, a phone that is already supervised, a backup an earlier run left
+/// behind, a transfer that fails.
 ///
 /// Nothing here reads an iPhone, a disk or a network, which is why it is the
 /// part of the demo the tests can run.
@@ -108,50 +107,6 @@ struct DemoConditions: Equatable {
         var stopsPartWay: Bool { self != .succeeds }
     }
 
-    /// What the key server says about any key the demo checks or spends, so
-    /// the Ready screen can be read with a key that works and with each kind
-    /// of key that does not.
-    enum Key: String, CaseIterable, Identifiable {
-        case works
-        case usedUp
-        case revoked
-        case unknown
-        case offline
-
-        var id: String { rawValue }
-
-        var title: String {
-            switch self {
-            case .works: return "Works"
-            case .usedUp: return "Used"
-            case .revoked: return "Revoked"
-            case .unknown: return "Unknown"
-            case .offline: return "Offline"
-            }
-        }
-
-        /// What checking a key answers.
-        var check: LicenseCheck {
-            switch self {
-            case .works: return .usable
-            case .usedUp: return .usedUp
-            case .revoked: return .revoked
-            case .unknown: return .notFound
-            case .offline: return .unavailable
-            }
-        }
-
-        /// What spending one answers. Offline leaves the spend owed, which is
-        /// the one answer that keeps it; every other refusal ends it.
-        var spend: LicenseSpend {
-            switch self {
-            case .works: return .spent
-            case .offline: return .transient
-            case .usedUp, .revoked, .unknown: return .rejected
-            }
-        }
-    }
-
     var phones: Phones = .one
     var findMyOn = false
     var cloudBackups: CloudBackups = .recent
@@ -172,7 +127,6 @@ struct DemoConditions: Equatable {
     /// story under the bar can be watched from its first slide to its last.
     var longJob = false
     var outcome: Outcome = .succeeds
-    var key: Key = .works
 
     /// The world as it is once a restore has gone through: the phone says what
     /// the run asked it to say, and this Mac is holding the backup the run

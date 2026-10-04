@@ -138,17 +138,15 @@ struct SeedWizardTests {
         #expect(model.step == .ready)
         #expect(model.errorMessage == model.fastRefusal)
         #expect(model.events.isEmpty)
-        #expect(try model.spendStore.allPending().isEmpty)
     }
 
-    @Test func freshVersionRefusalBeforeWorkRecordsNoSpend() async throws {
+    @Test func freshVersionRefusalStopsBeforeAnyWork() async throws {
         let model = makeModel()
         model.freshVersion = "27.0"
         ready(model)
         model.startJob()
         #expect(await waitUntil { if case .failed = model.job { return true }; return false })
         #expect(model.events == ["version"])
-        #expect(try model.spendStore.allPending().isEmpty)
         guard case .failed(let failure) = model.job else { Issue.record("Expected version refusal"); return }
         #expect(failure.title == "Can't Use Fast on This iPhone")
         #expect(failure.fix == "Fast does not work on iOS 27 or later yet. Use full copy. Nothing was sent to iPhone.")
@@ -330,7 +328,7 @@ struct SeedWizardTests {
         )
         return RoutingModel(
             watcher: DeviceWatcher(sample: [phone]), engine: BackupEngine(sample: .idle, progress: 0),
-            seedEngine: seedEngine, spendStore: PendingSpendStore(storage: MemoryStorage())
+            seedEngine: seedEngine
         )
     }
 
@@ -339,7 +337,7 @@ struct SeedWizardTests {
     ) {
         model.show(WizardModel.Sample(
             step: .ready, supervisionMethod: method, backupConfirmed: backupConfirmed,
-            udid: "phone", licenseKey: "test key", keyStatus: .checked(.usable)
+            udid: "phone"
         ))
     }
 
@@ -402,8 +400,6 @@ struct SeedWizardTests {
             if holdPhone { return await withCheckedContinuation { phoneCompletion = $0 } }
             return true
         }
-        override func checkLicense(key: String) async -> LicenseCheck { .usable }
-        override func spendLicense(key: String) async -> LicenseSpend { .spent }
         override func confirmWhatTheIPhoneIs() async -> Bool { events.append("confirm"); return reportsSupervised }
     }
 

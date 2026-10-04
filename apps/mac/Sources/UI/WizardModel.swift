@@ -54,10 +54,6 @@ class WizardModel: ObservableObject {
     @Published private(set) var backupConfirmed = false
     @Published private(set) var jobMethod: SupervisionMethod?
     var activeMethod: SupervisionMethod { jobMethod ?? supervisionMethod }
-    /// Asks Polar about the supervision key and spends it.
-    let license: LicenseClient
-    /// The key waiting to be used and the spends Polar has not counted yet.
-    let spendStore: PendingSpendStore
 
     @Published private(set) var step: WizardStep = .connect
     /// The iPhone this run is about, from the moment the user picks it. Nil on
@@ -69,11 +65,6 @@ class WizardModel: ObservableObject {
     /// The password of an encrypted backup. It is the password the user set
     /// for encrypted backups, never the passcode of the iPhone.
     @Published var password = ""
-    /// The supervision key in the field on the Ready screen, as typed or
-    /// pasted. `editKey(_:)` is the way in, so every change is checked.
-    @Published private(set) var licenseKey = ""
-    /// What the last check said about the key in that field.
-    @Published private(set) var keyStatus: KeyStatus = .empty
     @Published private(set) var backupFolder: URL?
     /// What the restore will send, which is the backup this run made, once its
     /// folder has been walked. Nil until then and on a run that skipped the
@@ -145,12 +136,6 @@ class WizardModel: ObservableObject {
     /// confirmed, and nil for a profile built somewhere else, where the app
     /// never knew what was asked for.
     private var pendingRemovalDisallowed: Bool?
-    /// The key check being waited on. The next edit cancels it, so a slow
-    /// answer never lands under a key that has been typed over.
-    private var keyTask: Task<Void, Never>?
-    /// Spends on their way to Polar, so a phone read again while one is out
-    /// does not send the same spend twice.
-    private var spending = Set<PendingSpend>()
     /// The profile on its way to the iPhone, or the read that confirms it.
     /// Forgetting the run cancels it, so an answer that comes back after the
     /// iPhone left never lands on the screen that replaced the run.
@@ -169,11 +154,8 @@ class WizardModel: ObservableObject {
     private var seedOperationRun: Int?
 
     /// A model that watches the real USB bus, which is what the window uses.
-    /// It is also the one that spends keys, so a launch settles whatever the
-    /// last one left owed for a phone on the cable.
     convenience init() {
         self.init(watcher: DeviceWatcher())
-        watchForOwedSpends()
     }
 
     /// A model that runs an engine of its own, which is every model but the
@@ -188,21 +170,15 @@ class WizardModel: ObservableObject {
     ///
     /// Both are handed in rather than made here, so the hidden `--ui-smoke`
     /// path can draw the steps from a watcher holding phones that are not
-    /// there and from an engine that is running nothing. The key client and
-    /// the store are handed in for the same reason: the hidden `--demo` path
-    /// keeps its keys in memory rather than in the Keychain.
+    /// there and from an engine that is running nothing.
     init(
         watcher: DeviceWatcher,
         engine: BackupEngine,
-        seedEngine: SeedEngine? = nil,
-        license: LicenseClient = LicenseClient(),
-        spendStore: PendingSpendStore = PendingSpendStore()
+        seedEngine: SeedEngine? = nil
     ) {
         self.watcher = watcher
         self.engine = engine
         self.seedEngine = seedEngine ?? SeedEngine(backupEngine: engine)
-        self.license = license
-        self.spendStore = spendStore
         relays = [
             watcher.objectWillChange.sink { [weak self] in self?.objectWillChange.send() },
             engine.objectWillChange.sink { [weak self] in self?.objectWillChange.send() },
@@ -310,10 +286,6 @@ class WizardModel: ObservableObject {
         var clearedLeftoverBackup = false
         var backupRemovalFailure: String?
         var errorMessage: String?
-        /// The key field and what its last check said, so the key row can be
-        /// drawn in each of its states.
-        var licenseKey = ""
-        var keyStatus: KeyStatus = .empty
     }
 
     /// Put this model where a sample says. It starts nothing and sends nothing
@@ -340,8 +312,6 @@ class WizardModel: ObservableObject {
         clearedLeftoverBackup = sample.clearedLeftoverBackup
         backupRemovalFailure = sample.backupRemovalFailure
         errorMessage = sample.errorMessage
-        licenseKey = sample.licenseKey
-        keyStatus = sample.keyStatus
     }
 
     // MARK: - What the iPhone says
@@ -492,14 +462,9 @@ class WizardModel: ObservableObject {
         go(to: .connect)
     }
 
-    /// Move on to whatever comes after the step on screen. Moving on from the
-    /// job is the person pressing It's Supervised, which makes the run's spend
-    /// due the way a supervised read would.
+    /// Move on to whatever comes after the step on screen.
     func advance() {
         guard let next = step.next else { return }
-        if step == .job, let job, WizardGate.confirmsSupervision(job), let udid {
-            makeSpendsDue(supervision: [udid: true])
-        }
         go(to: next)
     }
 
@@ -520,10 +485,6 @@ class WizardModel: ObservableObject {
         backupConfirmed = false
         jobMethod = nil
         seedOperationRun = nil
-        // The next Ready screen fills the field from the saved key again.
-        keyTask?.cancel()
-        licenseKey = ""
-        keyStatus = .empty
         backupFolder = nil
         restoreBytes = nil
         finderBackup = .notLooked
@@ -599,8 +560,6 @@ class WizardModel: ObservableObject {
         switch step {
         case .ready:
             refreshReadyChecks()
-            sendDueSpends()
-            refreshKey()
         case .restrictions:
             profile = ProfileState()
         case .profiles:
@@ -819,7 +778,7 @@ class WizardModel: ObservableObject {
     /// Every check that can be read says yes.
     ///
     /// Both methods require the tick that says the person backed up the
-    /// iPhone themselves and a usable key, and wait while Find My is on. Only
+    /// iPhone themselves, and wait while Find My is on. Only
     /// full-copy requires a backup password and enough space for the copy,
     /// and only the fast method requires an iOS version it works on.
     var checksPass: Bool {
@@ -827,8 +786,7 @@ class WizardModel: ObservableObject {
         return WizardGate.checksPass(
             diskSpacePasses: requiresFullCopy ? diskSpace.passes : true,
             findMyOn: device?.findMyOn,
-            hasPassword: !requiresFullCopy || !password.isEmpty,
-            key: keyStatus.check
+            hasPassword: !requiresFullCopy || !password.isEmpty
         )
     }
 
@@ -851,213 +809,6 @@ class WizardModel: ObservableObject {
     func confirmBackup(_ confirmed: Bool) {
         guard step == .ready, !isBusy else { return }
         backupConfirmed = confirmed
-    }
-
-    // MARK: - The supervision key
-
-    /// Where the key on the Ready screen stands.
-    enum KeyStatus: Equatable {
-        /// Nothing in the field.
-        case empty
-        /// Being asked about, or about to be once the typing stops.
-        case checking
-        /// What the last check said about the key in the field.
-        case checked(LicenseCheck)
-
-        /// The answer the gate weighs. Nil until there is one.
-        var check: LicenseCheck? {
-            if case .checked(let check) = self { return check }
-            return nil
-        }
-    }
-
-    /// How long an edit waits before the key is asked about, so a key typed by
-    /// hand costs one request rather than one per character. A paste is one
-    /// edit, so it is checked a moment after it lands.
-    private static let keyDelay = Duration.milliseconds(600)
-
-    /// Take what is in the key field, and check it once the typing stops.
-    func editKey(_ text: String) {
-        licenseKey = text
-        checkKey(after: Self.keyDelay)
-    }
-
-    /// Check the key in the field now, which is what Return and Try Again do.
-    func checkKey() {
-        checkKey(after: .zero)
-    }
-
-    /// Ask about the key in the field. Every call cancels the one before it,
-    /// so the answer on screen is always about the key on screen. A usable key
-    /// is saved for the next launch; nothing else is. A key a due spend holds
-    /// is used up without asking Polar, which has not counted it yet.
-    private func checkKey(after delay: Duration) {
-        keyTask?.cancel()
-        let key = LicenseClient.cleaned(licenseKey)
-        guard !key.isEmpty else {
-            keyStatus = .empty
-            return
-        }
-        keyStatus = .checking
-        keyTask = Task {
-            if delay > .zero {
-                do {
-                    try await Task.sleep(for: delay)
-                } catch {
-                    return
-                }
-            }
-            let answer: LicenseCheck
-            if let local = WizardGate.localCheck(key: key, pending: (try? spendStore.allPending()) ?? []) {
-                answer = local
-            } else {
-                answer = await checkLicense(key: key)
-            }
-            guard !Task.isCancelled, LicenseClient.cleaned(licenseKey) == key else { return }
-            keyStatus = .checked(answer)
-            if answer == .usable {
-                try? spendStore.save(key: key)
-            }
-        }
-    }
-
-    /// Fill an empty field with the key saved last time, and check whatever
-    /// the field holds. It runs on every arrival at the Ready screen, so a key
-    /// used up on another Mac in the meantime is found out before the run.
-    private func refreshKey() {
-        if LicenseClient.cleaned(licenseKey).isEmpty, let saved = spendStore.savedKey {
-            licenseKey = saved
-        }
-        checkKey()
-    }
-
-    /// Open the page that sells one key.
-    ///
-    /// The demo replaces it with a paste of a key of its own.
-    func buyKey() {
-        NSWorkspace.shared.open(license.config.checkoutURL)
-    }
-
-    /// What Polar says about a key. Nothing is spent.
-    ///
-    /// The demo replaces it with the answer its bar is set to.
-    func checkLicense(key: String) async -> LicenseCheck {
-        await license.check(key: key)
-    }
-
-    /// Count one supervision against a key.
-    ///
-    /// The demo replaces it with the answer its bar is set to.
-    func spendLicense(key: String) async -> LicenseSpend {
-        await license.spend(key: key)
-    }
-
-    /// Write down that the run about to start is paid for by the key in the
-    /// field, before a byte moves, so the spend survives a quit.
-    ///
-    /// Nothing is spent here. The key stays saved and usable until the phone
-    /// reads as supervised or the person says it is, so a run that fails costs
-    /// nothing and the same key can go again on this iPhone or another. A
-    /// spend a failed run left for this phone under another key is dropped,
-    /// or both keys would be counted when this one goes through. A Keychain
-    /// that will not write stops nothing either: key trouble never stands
-    /// between a person and a run.
-    private func recordPendingSpend() {
-        guard let udid, keyStatus == .checked(.usable) else { return }
-        let key = LicenseClient.cleaned(licenseKey)
-        let owed = (try? spendStore.pending(for: udid)) ?? []
-        for stale in WizardGate.supersededSpends(owed, byKey: key, on: udid) {
-            try? spendStore.remove(stale)
-        }
-        try? spendStore.addPending(key: key, deviceID: udid)
-        try? spendStore.save(key: key)
-    }
-
-    /// Make due the spends owed for any iPhone that reads as supervised, on
-    /// every read of the cable from now on, and send the due spends a quit or
-    /// an offline Mac left behind.
-    ///
-    /// Every read is one of these: the one at launch, every connect and
-    /// disconnect, the polls on the Ready screen and the questions the job
-    /// asks once the restore has rebooted the phone. So a spend is made due
-    /// the first time its phone says it is supervised. The window's model and
-    /// the demo's call this; a model the hidden `--ui-smoke` path draws never
-    /// does, so drawing a supervised phone spends nothing.
-    func watchForOwedSpends() {
-        relays.append(
-            watcher.$cloudConfigurations.sink { [weak self] configurations in
-                self?.spendOwedKeys(configurations)
-            }
-        )
-        sendDueSpends()
-    }
-
-    private func spendOwedKeys(_ configurations: [String: CloudConfiguration]) {
-        let supervision = configurations.mapValues(\.isSupervised)
-        // The Keychain is only read once a phone says it is supervised.
-        guard supervision.values.contains(true) else { return }
-        makeSpendsDue(supervision: supervision)
-    }
-
-    /// Make due every spend still waiting for a phone `supervision` says is
-    /// supervised, then send every due spend.
-    ///
-    /// The mark is written before Polar is asked, so from here on the key
-    /// checks as used up on this Mac whatever Polar answers or fails to, and
-    /// a key in the field is checked again so it cannot stay usable. A
-    /// Keychain that will not take the mark does not hold the spend back.
-    private func makeSpendsDue(supervision: [String: Bool]) {
-        guard let owed = try? spendStore.allPending() else { return }
-        var made: [PendingSpend] = []
-        for spend in WizardGate.spendsDue(owed, supervision: supervision) {
-            try? spendStore.markDue(spend)
-            made.append(PendingSpend(key: spend.key, deviceID: spend.deviceID, due: true))
-        }
-        if made.contains(where: { $0.key == LicenseClient.cleaned(licenseKey) }) {
-            checkKey()
-        }
-        send(WizardGate.spendsToSend(owed) + made)
-    }
-
-    /// Send every due spend, whichever iPhone is on the cable. It runs at
-    /// launch and on every arrival at the Ready screen, so a spend Polar could
-    /// not answer never waits for its own phone to come back.
-    private func sendDueSpends() {
-        guard let owed = try? spendStore.allPending() else { return }
-        send(WizardGate.spendsToSend(owed))
-    }
-
-    private func send(_ spends: [PendingSpend]) {
-        for spend in spends where !spending.contains(spend) {
-            spending.insert(spend)
-            Task {
-                let answer = await spendLicense(key: spend.key)
-                spending.remove(spend)
-                settle(spend, after: answer)
-            }
-        }
-    }
-
-    /// Act on what Polar said about one spend. It never says anything on
-    /// screen: a spend Polar could not answer stays due and is sent again,
-    /// and one that is settled only takes the key out of the field.
-    private func settle(_ spend: PendingSpend, after answer: LicenseSpend) {
-        guard case .forget(let clearSavedKey) = WizardGate.settle(
-            answer,
-            key: spend.key,
-            savedKey: spendStore.savedKey
-        ) else { return }
-        try? spendStore.remove(spend)
-        if clearSavedKey {
-            try? spendStore.clearSavedKey()
-        }
-        // A key that is gone must not stay in the field looking usable, or the
-        // next run would start on it.
-        if LicenseClient.cleaned(licenseKey) == spend.key {
-            keyTask?.cancel()
-            licenseKey = ""
-            keyStatus = .empty
-        }
     }
 
     // MARK: - The job
@@ -1168,7 +919,6 @@ class WizardModel: ObservableObject {
                 try await verifyFastSupportsIOS(udid: udid)
                 try Task.checkCancellation()
             }
-            recordPendingSpend()
         } catch {
             return fail(error, in: .preparing)
         }

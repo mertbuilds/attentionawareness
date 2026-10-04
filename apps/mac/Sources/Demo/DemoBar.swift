@@ -74,8 +74,7 @@ struct DemoBar: View {
     }
 
     /// The step the window is on. Picking one lands on it without walking the
-    /// steps before it. The key sits beside it because the row of the world
-    /// below is full.
+    /// steps before it.
     private var steps: some View {
         HStack(alignment: .bottom, spacing: 18) {
             field("Step") {
@@ -88,16 +87,6 @@ struct DemoBar: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-            }
-            field("Key") {
-                Picker("Key", selection: $model.conditions.key) {
-                    ForEach(DemoConditions.Key.allCases) { key in
-                        Text(key.title).tag(key)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .frame(width: 280)
             }
         }
     }

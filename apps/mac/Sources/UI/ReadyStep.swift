@@ -4,7 +4,7 @@ import SwiftUI
 ///
 /// Every row says the one thing to do about it and nothing more. The longer
 /// how-to sits in the hover help, so a reader with nothing to fix reads a few
-/// short lines, pastes the key and presses the button.
+/// short lines and presses the button.
 struct ReadyStep: View {
     @ObservedObject var model: WizardModel
 
@@ -37,7 +37,6 @@ struct ReadyStep: View {
                     set: { model.confirmBackup($0) }
                 ))
                 if model.requiresFullCopy { BackupPasswordField(model: model) }
-                SupervisionKeyField(model: model)
                 if model.clearedLeftoverBackup {
                     CheckLine(ok: true, text: "Leftover from an unfinished run was cleared.")
                 }

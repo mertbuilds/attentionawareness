@@ -124,17 +124,13 @@ installed, what this Mac already holds, how the reader's own backups read in
 iCloud and in Finder, Full Disk Access granted, refused, or still refused after
 a trip to System Settings, and whether the next transfer or install succeeds,
 fails or is cancelled. Setting the iPhones to None at any step unplugs the one
-the run is about, and going from Two to One unplugs the other one. A last switch says what
-the key server answers, from a key that works to one already used or a server
-that cannot be reached, and the Buy button on the Ready screen pastes a demo
-key rather than opening the checkout.
+the run is about, and going from Two to One unplugs the other one.
 
 Nothing real is in reach of it. The demo is built on a watcher that reads no
-bus, an engine that refuses to start the helper, a backups list that reads
-and deletes nothing and a key store that lives in memory, and every method
-that would patch a backup, ask the site for a signature, check or spend a key
-or send anything to a phone is replaced by one that waits a moment and says
-what the bar asked for. It writes nothing anywhere, and it is
+bus, an engine that refuses to start the helper and a backups list that reads
+and deletes nothing, and every method that would patch a backup, ask the site
+for a signature or send anything to a phone is replaced by one that waits a
+moment and says what the bar asked for. It writes nothing anywhere, and it is
 the one hidden flag that opens a window. The one thing outside the window it
 can still reach is System Settings, when the Full Disk Access button on the
 Ready screen is pressed, which is left alone so that button can be read the way it
@@ -194,22 +190,6 @@ AA_SITE_URL=https://attentionawareness.localhost \
   run; `DemoWorld` makes the iPhones and backups out of those switches;
   `DemoModel` is the wizard with every method that reaches the world replaced;
   `DemoBar` is the bar itself.
-- `Sources/License/` is the supervision key: $29 on Polar buys one key, and one
-  key is one supervision. `LicenseClient` checks and spends a key through
-  Polar's public validate endpoint, `LicenseConfig` points a Debug build at
-  Polar's sandbox and a Release build at Polar itself, and `PendingSpendStore`
-  keeps the saved key and the spends still owed in the Keychain. The Ready
-  screen checks the pasted key and keeps Supervise off until it comes back
-  usable, and starting a run writes down a spend for that key and that
-  iPhone. Nothing is spent until the iPhone reads as supervised, straight
-  after the restore or on any later connect or launch, or until the person
-  presses It's Supervised. That makes the spend due: the mark is written to
-  the Keychain before Polar is asked, and from then on the key checks as used
-  up on this Mac without asking Polar, so a spend Polar could not answer
-  cannot let the key pay for a second iPhone. Every due spend is sent again at
-  launch and on every arrival at the Ready screen, whichever iPhone is on the
-  cable, until Polar counts it or refuses it for good. A run that fails costs
-  nothing, and the Profiles screen never asks for a key.
 - `Sources/Device/` is the device layer: `DeviceWatcher` publishes the iPhones on
   the cable and re-reads them on every connect and disconnect, along with every
   udid usbmuxd lists, read or not, which is what says a phone was unplugged
@@ -325,10 +305,6 @@ without shipping anything: `--dry-run` does everything but the uploads and
 prints each upload command instead, and `--no-notarize` skips the notary
 service and stapling. `--no-notarize` is refused without `--dry-run`, because
 Gatekeeper stops a dmg that is not notarized on every Mac but this one.
-
-A release also stops while `Sources/License/LicenseConfig.swift`, when that
-file is there, still holds a `TODO`, because a Release build sells and checks
-keys against those production values. `--dry-run` only warns about it.
 
 ## Auto-update
 

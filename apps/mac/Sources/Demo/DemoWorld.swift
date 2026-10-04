@@ -17,10 +17,6 @@ enum DemoWorld {
     /// one the run is about.
     static let secondUdid = "00008120-000000000000001D"
 
-    /// The key the demo's Buy button pastes. It is shaped like one and is no
-    /// key at all: the demo asks nobody about it.
-    static let key = "DEMO-7C41E2A9-5B3D-4F08-A6E1-92D0C38B4F17"
-
     /// Where a run would have put the backup. It is only ever shown, never
     /// opened: the demo reads no disk.
     static var backupFolder: URL {

@@ -163,9 +163,6 @@ targets:
       # Seed writer and device integration, tested with injected operations.
       # No test opens or changes a real iPhone.
       - Sources/Seed
-      # The supervision key: asking Polar about one and keeping the ones not
-      # yet counted. The tests answer for Polar and for the Keychain.
-      - Sources/License
       # The step order, what each step demands before it runs and what the
       # phone has to say about the profile before the backup can go are the
       # parts of the window that need neither SwiftUI nor an iPhone, so they

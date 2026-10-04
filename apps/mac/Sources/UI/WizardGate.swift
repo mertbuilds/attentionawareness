@@ -23,19 +23,16 @@ enum WizardGate {
     /// goes through, for the same reason the restore lets it through, and the
     /// restore still holds if it turns out to be on. A check that could not be
     /// read blocks nothing either. The copy is always encrypted, so a password
-    /// is always required, and every run is paid for, so the supervision key
-    /// has to have come back usable from a check made on this screen. The only
-    /// ways through this are a disk that answered and answered too small, an
-    /// iPhone that says Find My is on, a password that has not been typed yet,
-    /// and a key that is missing, still being asked about or no good.
+    /// is always required. The only ways through this are a disk that
+    /// answered and answered too small, an iPhone that says Find My is on and
+    /// a password that has not been typed yet.
     static func checksPass(
         diskSpacePasses: Bool?,
         findMyOn: Bool?,
-        hasPassword: Bool,
-        key: LicenseCheck?
+        hasPassword: Bool
     ) -> Bool {
         if diskSpacePasses == false || findMyOn == true { return false }
-        return hasPassword && key == .usable
+        return hasPassword
     }
 
     /// Whether the patch has left a result behind: a flag it wrote, or a copy
@@ -173,85 +170,16 @@ enum WizardGate {
         }
     }
 
-    // MARK: - The supervision key
-
-    /// The spends one read of the cable makes due: every spend still waiting
-    /// for an iPhone that reads as supervised, and none for any other.
-    ///
-    /// `supervision` is what each phone on the cable said, keyed by udid. A
-    /// phone that has just restored answers before it has settled, and the
-    /// first thing it says is the iPhone as it was, so a phone that reads as
-    /// not supervised, or has not answered at all, makes nothing due and
-    /// forgets nothing. A spend is made due the first time the phone says it
-    /// is supervised, straight after the restore or on any later connect or
-    /// launch, or when the person presses It's Supervised, and a run that
-    /// never gets there costs nothing.
-    static func spendsDue(_ pending: [PendingSpend], supervision: [String: Bool]) -> [PendingSpend] {
-        pending.filter { !$0.due && supervision[$0.deviceID] == true }
-    }
+    // MARK: - The anonymous count
 
     /// Whether moving on from this phase of the job is the person saying the
-    /// iPhone is supervised. It counts as a supervised read for the key, so a
-    /// phone this Mac never saw come back supervised, a cable pulled during
-    /// the reboot, is paid for once somebody confirms it. A run that failed
-    /// or was walked away from confirms nothing.
+    /// iPhone is supervised, which is the one moment the app sends its count.
+    /// The Mac's own read after a restart is not reliable, so the person
+    /// saying it is what ends a supervision. A run that failed or was walked
+    /// away from confirms nothing.
     static func confirmsSupervision(_ phase: JobPhase) -> Bool {
         if case .checkOnIPhone = phase { return true }
         return false
-    }
-
-    /// The spends sent to Polar: every one that is due, whichever iPhone is on
-    /// the cable. They go out the moment they are made due, again at launch
-    /// and on every arrival at the Ready screen, until Polar answers.
-    static func spendsToSend(_ pending: [PendingSpend]) -> [PendingSpend] {
-        pending.filter(\.due)
-    }
-
-    /// What a check says about a key without asking Polar. A key a due spend
-    /// holds is used up, because the supervision it paid for went through and
-    /// Polar may not have heard yet: asking would find its use still on it
-    /// and let it pay for a second iPhone. Nil means Polar is the one to ask.
-    static func localCheck(key: String, pending: [PendingSpend]) -> LicenseCheck? {
-        pending.contains { $0.due && $0.key == key } ? .usedUp : nil
-    }
-
-    /// What Polar's answer to a spend does to the keys this Mac is holding.
-    enum SpendSettlement: Equatable {
-        /// Polar could not be asked. The spend stays due and holds its key,
-        /// and is sent again at launch, on the next arrival at the Ready
-        /// screen and on the next read that finds a phone supervised.
-        case keep
-        /// Counted, or refused for good. The spend is forgotten, and the saved
-        /// key goes with it when it is the key that was spent.
-        case forget(clearSavedKey: Bool)
-    }
-
-    /// A spend is only kept for an answer that says nothing about the key.
-    /// A refusal is as final as a count: the key is used up, revoked or
-    /// unknown, and asking again would get the same answer.
-    static func settle(_ answer: LicenseSpend, key: String, savedKey: String?) -> SpendSettlement {
-        switch answer {
-        case .transient:
-            return .keep
-        case .spent, .rejected:
-            return .forget(clearSavedKey: savedKey == key)
-        }
-    }
-
-    /// The spends a new run takes over: those still waiting for the same
-    /// iPhone under another key.
-    ///
-    /// Only a run that never saw its phone supervised leaves a waiting spend
-    /// behind, and a second run on that phone with a different key would
-    /// otherwise count both keys the moment it went through. The same key on
-    /// the same phone is the same spend, other iPhones are left alone, and a
-    /// due spend is never taken over: its supervision went through.
-    static func supersededSpends(
-        _ pending: [PendingSpend],
-        byKey key: String,
-        on deviceID: String
-    ) -> [PendingSpend] {
-        pending.filter { !$0.due && $0.deviceID == deviceID && $0.key != key }
     }
 
     /// How Find My is turned off, on the Ready screen while it is still on and

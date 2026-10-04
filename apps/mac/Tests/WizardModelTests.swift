@@ -46,8 +46,7 @@ struct WizardModelTests {
     init() {
         model = HeldModel(
             watcher: DeviceWatcher(sample: [Self.phone]),
-            engine: BackupEngine(sample: .idle, progress: 0),
-            spendStore: PendingSpendStore(storage: MemoryStorage())
+            engine: BackupEngine(sample: .idle, progress: 0)
         )
     }
 

@@ -53,7 +53,6 @@ CONFIG="Release"
 TEAM_ID="3HGP3W3TLD"
 NOTARY_PROFILE="attentionawareness-notary"
 RELEASE_ENV="$HOME/.config/attentionawareness/release.env"
-LICENSE_CONFIG="Sources/License/LicenseConfig.swift"
 SITE_URL="https://attentionawareness.com/mac"
 BUILD_DIR="build/release"
 SITE_DIR="$BUILD_DIR/site"
@@ -112,19 +111,6 @@ if [ -z "${R2_BUCKET:-}" ]; then
   echo "       in $RELEASE_ENV (mode 600):" >&2
   echo "         R2_BUCKET=<bucket>" >&2
   exit 1
-fi
-
-# The paywall's production values start as placeholders, and a Release build
-# sells and checks keys against them.
-if [ -f "$LICENSE_CONFIG" ] && grep -q TODO "$LICENSE_CONFIG"; then
-  if [ "$DRY_RUN" = 0 ]; then
-    echo "error: $LICENSE_CONFIG still holds a TODO, so this build would sell" >&2
-    echo "       and check keys against a placeholder Polar organization." >&2
-    echo "       fill in the production values first." >&2
-    exit 1
-  fi
-  echo "warning: $LICENSE_CONFIG still holds a TODO; a release without" >&2
-  echo "         --dry-run stops here." >&2
 fi
 
 echo "==> clean build"
