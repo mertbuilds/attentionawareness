@@ -68,6 +68,8 @@ Web app (`apps/web`): `pnpm --filter @attentionawareness/web dev` (:3000 standal
 
 - First run needs one-time setup in a terminal: `sudo pnpm exec portless proxy start --https` (binds 443, generates + trusts a local CA). After that the proxy auto-starts. `pnpm exec portless service install` makes it start on boot.
 - portless injects `PORT` (4000-4999 pool) into each app; vite reads it in `vite.config.ts`, storybook takes it as `--port`. If TLS is in the way, `--no-tls` on portless or curl `-k`.
+- On a real iPhone, test `pnpm phone` instead of `pnpm dev`: it builds the site and serves the production preview on the same name (stop `pnpm dev` first). Dev mode on a phone is fragile: the dev overlays sit over the header, the HMR socket needs the trusted CA, and a module Safari kept from another checkout's server (its `/@fs/` path names that checkout) is refused, so nothing hydrates.
+- Rebuild with `pnpm phone` after each change. With the proxy in LAN mode the name is `https://attentionawareness.local`; trust `~/.portless/ca.pem` on the phone (Settings > General > About > Certificate Trust Settings) rather than tapping through the warning.
 
 ## UI (`packages/ui`)
 
