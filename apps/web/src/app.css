@@ -3,6 +3,17 @@ html {
   background: var(--background);
 }
 
+/*
+ * The page does not stretch past its ends: no elastic pull at the top or the
+ * foot. Where a browser still pulls, what shows behind the page is the page's
+ * own ground, set on `html` above and named to the browser as `theme-color`
+ * (`__root.tsx`, `lib/theme.ts`).
+ */
+html,
+body {
+  overscroll-behavior-y: none;
+}
+
 /* Jumps down the page are eased - for everyone who has not asked for less
    motion. */
 @media (prefers-reduced-motion: no-preference) {

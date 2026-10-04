@@ -8,6 +8,7 @@ import { SiteHeader } from '../components/site-header.tsx';
 import { SupportPopup } from '../components/support-popup.tsx';
 import { WipBanner } from '../components/wip-banner.tsx';
 import { clientEnv } from '../lib/env.ts';
+import { THEME_GROUND } from '../lib/theme.ts';
 import { m } from '../paraglide/messages.js';
 import fontsStylesheet from '@attentionawareness/ui/fonts-optional.css?url';
 import '@attentionawareness/ui/theme.css';
@@ -192,6 +193,22 @@ function RootDocument({ children }: { children: ReactNode }) {
     <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
+        {/* The page's ground, for the browser's own chrome and what it shows
+        behind the page: one per system theme, written here because the head's
+        list keeps one meta per name. A theme chosen on the site rewrites both
+        (`lib/theme.ts`). */}
+        <meta
+          content={THEME_GROUND.light}
+          media="(prefers-color-scheme: light)"
+          name="theme-color"
+          suppressHydrationWarning
+        />
+        <meta
+          content={THEME_GROUND.dark}
+          media="(prefers-color-scheme: dark)"
+          name="theme-color"
+          suppressHydrationWarning
+        />
         <script dangerouslySetInnerHTML={{ __html: WIP_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: ANALYTICS_SCRIPT }} />
       </head>

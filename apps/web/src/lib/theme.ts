@@ -29,6 +29,21 @@ function systemKnown(): boolean {
   );
 }
 
+/** The page's ground in each theme, as `--background` in `theme.css` has it. */
+export const THEME_GROUND = { dark: '#000000', light: '#ffffff' } as const;
+
+/**
+ * Tells the browser the ground of the theme in use, through the two
+ * `theme-color` metas in the head, one per system theme. A theme chosen here
+ * goes into both; back on the system's, each gets its own again.
+ */
+function nameGround(attribute: ThemeAttribute): void {
+  for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')) {
+    const own = meta.media.includes('dark') ? 'dark' : 'light';
+    meta.content = THEME_GROUND[attribute ?? own];
+  }
+}
+
 const listeners = new Set<() => void>();
 
 /** The choice this tab is on. Nothing is stored, so a reload starts over. */
@@ -65,6 +80,7 @@ export function applyTheme(choice: ThemeChoice): void {
   } else {
     document.documentElement.dataset['theme'] = attribute;
   }
+  nameGround(attribute);
   for (const listener of listeners) {
     listener();
   }
