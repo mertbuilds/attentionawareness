@@ -233,7 +233,9 @@ export function SupportPopup() {
       <DialogContent
         // The popup's two lines are its own paragraphs, not one description.
         aria-describedby={undefined}
-        finalFocus={button}
+        // Back to the button that started the download. One that has gone with
+        // the phone menu it stood in leaves focus to go where it was before.
+        finalFocus={() => (button.current?.isConnected === true ? button.current : true)}
         overlayStyle={styles.backdrop}
         showCloseButton={false}
         style={styles.panel}

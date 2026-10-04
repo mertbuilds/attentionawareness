@@ -12,6 +12,7 @@ import { duration, easing } from '../lib/motion.stylex.ts';
 import { m } from '../paraglide/messages.js';
 import { BrandMark } from './brand-mark.tsx';
 import { MacCta, useMacDownload, useSendToMac } from './mac-download.tsx';
+import { SiteMenu } from './site-menu.tsx';
 
 const MARK_SIZE = 24;
 /** The heart before the support link, as tall as the link's letters are set. */
@@ -31,13 +32,18 @@ const PILL_HEIGHT = 28 + 2 * PILL_INSET;
  */
 const PILL_FROM = 48;
 const OPEN_FROM = 16;
-/** The home page's sections, by the ids it gives them. */
-const HOW_HASH = '#way-out';
-const SUPPORT_HASH = '#support';
-const WHY_HASH = '#story';
-const FAQ_HASH = '#faq';
-/** The blog, a page of its own. */
-const BLOG_PATH = '/blog';
+/**
+ * The header's links, in the order they stand: the home page's sections, by
+ * the ids it gives them, then the blog, a page of its own. `name` is what the
+ * morph carries each one by.
+ */
+const LINKS = [
+  { hash: '#way-out', label: m.nav_how, name: 'header-how' },
+  { hash: '#support', heart: true, label: m.nav_support, name: 'header-support' },
+  { hash: '#story', label: m.nav_why, name: 'header-why' },
+  { hash: '#faq', label: m.nav_faq, name: 'header-faq' },
+  { label: m.nav_blog, name: 'header-blog', path: '/blog' },
+] as const;
 
 const styles = create({
   // The row of items, laid out as the open strip or as the pill. Every item
@@ -49,25 +55,26 @@ const styles = create({
     position: 'relative',
   },
   // Open: the name at one edge and the download at the other, and the links
-  // in the middle of the strip between two equal sides. On a phone the one
-  // link left goes over to the download, so the name keeps the room.
+  // in the middle of the strip between two equal sides. A window too narrow
+  // for the links keeps the name and, at the other edge, the menu's button.
   barOpen: {
     columnGap: spacing.s4,
     display: 'grid',
     gridTemplateColumns: {
-      '@media (min-width: 640px)': 'minmax(0, 1fr) auto minmax(0, 1fr)',
-      default: 'minmax(0, 1fr) auto auto',
+      '@media (min-width: 768px)': 'minmax(0, 1fr) auto minmax(0, 1fr)',
+      default: 'minmax(0, 1fr) auto',
     },
     paddingInline: spacing.s4,
   },
   // The pill: the mark, the links and the download, in the middle of
-  // the strip and only as wide as they are.
+  // the strip and only as wide as they are. On a narrow window it is the mark,
+  // the download and the menu's button.
   barPill: {
     alignSelf: 'center',
     display: 'flex',
     gap: {
-      '@media (min-width: 640px)': spacing.s6,
-      default: spacing.s4,
+      '@media (min-width: 768px)': spacing.s6,
+      default: spacing.s3,
     },
     height: PILL_HEIGHT,
     justifySelf: 'center',
@@ -107,6 +114,15 @@ const styles = create({
   download: {
     justifySelf: 'end',
   },
+  // A narrow window's open strip has room for the name or the download, not
+  // both. The name stays; the download is in the menu there, and comes back
+  // in the pill, which has no name.
+  downloadRoomy: {
+    display: {
+      '@media (min-width: 768px)': 'inline-flex',
+      default: 'none',
+    },
+  },
   // The strip at the top of the window: it starts under the work-in-progress
   // strip, stays at the top once that has scrolled away, and gives its own
   // room back through its margin, so the page under it starts where it did.
@@ -120,14 +136,6 @@ const styles = create({
     pointerEvents: 'none',
     position: 'sticky',
     zIndex: 30,
-  },
-  // On a phone the open strip has no room for the heart beside the name, so
-  // the link stands alone there. The pill has no name, and keeps the heart.
-  heartWide: {
-    display: {
-      '@media (min-width: 640px)': 'block',
-      default: 'none',
-    },
   },
   hidden: {
     display: 'none',
@@ -158,23 +166,6 @@ const styles = create({
     display: 'inline-flex',
     gap: spacing.s1,
   },
-  // The questions and the blog need a wider window than the other links: under
-  // it the name would be cut short to make room for them.
-  linkRoomy: {
-    display: {
-      '@media (min-width: 768px)': 'inline',
-      default: 'none',
-    },
-  },
-  // How it works and why go on a phone, so the name, the support link and
-  // the download keep one line. The pill has no name to make room for, so there
-  // only how it works goes.
-  linkWide: {
-    display: {
-      '@media (min-width: 640px)': 'inline',
-      default: 'none',
-    },
-  },
   // The mark, as an item of its own, so it can move without the name.
   mark: {
     display: 'flex',
@@ -189,13 +180,15 @@ const styles = create({
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
   },
+  // The links in a row, on a window wide enough for all of them beside the
+  // name. Under that they are in the menu.
   nav: {
     alignItems: 'center',
-    display: 'flex',
-    gap: {
-      '@media (min-width: 640px)': spacing.s6,
-      default: spacing.s4,
+    display: {
+      '@media (min-width: 768px)': 'flex',
+      default: 'none',
     },
+    gap: spacing.s6,
     position: 'relative',
   },
   // The ground behind the row: nothing while the header is open, and the
@@ -235,10 +228,13 @@ const styles = create({
 /**
  * The name, top left on every page and the way home, the home page's
  * sections, its support link with a heart before it, and the blog in the
- * middle, and the download across from the name. Once the page has run a little way under it, the same items gather
- * into a pill in the middle, the mark alone for the name. The download starts
- * the file at once, as every download on the site does; on a phone or a
- * tablet, which cannot run the app, it sends the link on to a Mac instead.
+ * middle, and the download across from the name. Once the page has run a
+ * little way under it, the same items gather into a pill in the middle, the
+ * mark alone for the name. A window too narrow for the links has the menu's
+ * button of two lines at the far edge instead, and the links in the menu it
+ * opens. The download starts the file at once, as every download on the site
+ * does; on a phone or a tablet, which cannot run the app, it sends the link
+ * on to a Mac instead.
  */
 export function SiteHeader() {
   const [pill, setPill] = useState(false);
@@ -250,6 +246,12 @@ export function SiteHeader() {
   const page = home ? '' : '/';
   const download = useMacDownload('header');
   const sendToMac = useSendToMac();
+  const links = LINKS.map((link) => ({
+    heart: 'heart' in link,
+    href: 'path' in link ? link.path : page + link.hash,
+    label: link.label(),
+    name: link.name,
+  }));
 
   // The pill takes over past one line and gives way above another. Only a
   // change between the two moves anything; the page as it first loads is
@@ -281,7 +283,11 @@ export function SiteHeader() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const morphStyle = [styles.download, styles.morph('header-download')];
+  const morphStyle = [
+    styles.download,
+    !pill && styles.downloadRoomy,
+    styles.morph('header-download'),
+  ];
   let downloadButton: ReactNode;
   if (download.kind === 'unreleased') {
     downloadButton = (
@@ -334,54 +340,23 @@ export function SiteHeader() {
           </span>
         </a>
         <nav {...props(styles.nav)}>
-          <a
-            data-morph="header-how"
-            data-plain=""
-            href={page + HOW_HASH}
-            {...props(styles.link, styles.linkWide, styles.morph('header-how'))}
-          >
-            {m.nav_how()}
-          </a>
-          <a
-            data-morph="header-support"
-            data-plain=""
-            href={page + SUPPORT_HASH}
-            {...props(styles.link, styles.linkHeart, styles.morph('header-support'))}
-          >
-            <Heart
-              aria-hidden="true"
-              size={HEART_SIZE}
-              strokeWidth={HEART_STROKE}
-              {...props(!pill && styles.heartWide)}
-            />
-            {m.nav_support()}
-          </a>
-          <a
-            data-morph="header-why"
-            data-plain=""
-            href={page + WHY_HASH}
-            {...props(styles.link, !pill && styles.linkWide, styles.morph('header-why'))}
-          >
-            {m.nav_why()}
-          </a>
-          <a
-            data-morph="header-faq"
-            data-plain=""
-            href={page + FAQ_HASH}
-            {...props(styles.link, styles.linkRoomy, styles.morph('header-faq'))}
-          >
-            {m.nav_faq()}
-          </a>
-          <a
-            data-morph="header-blog"
-            data-plain=""
-            href={BLOG_PATH}
-            {...props(styles.link, styles.linkRoomy, styles.morph('header-blog'))}
-          >
-            {m.nav_blog()}
-          </a>
+          {links.map((link) => (
+            <a
+              data-morph={link.name}
+              data-plain=""
+              href={link.href}
+              key={link.name}
+              {...props(styles.link, link.heart && styles.linkHeart, styles.morph(link.name))}
+            >
+              {link.heart && (
+                <Heart aria-hidden="true" size={HEART_SIZE} strokeWidth={HEART_STROKE} />
+              )}
+              {link.label}
+            </a>
+          ))}
         </nav>
         {downloadButton}
+        <SiteMenu anchor={bar} links={links} morph="header-menu" />
       </div>
     </header>
   );

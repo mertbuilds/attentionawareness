@@ -8,16 +8,17 @@ import { defineConsts, defineVars } from '@stylexjs/stylex';
  */
 export const duration = defineConsts({
   // An answer opening or closing under its question, and its chevron turning.
-  // A dialog opening.
+  // A dialog or a menu opening.
   fast: '250ms',
   // The wait before a tooltip appears.
   micro: '80ms',
   // A tooltip appearing, a quiet fade out, a word going or coming. A dialog
-  // closing.
+  // or a menu closing.
   quick: '150ms',
   // The header opening back out of its pill.
   slow: '400ms',
-  // Each of the header's items after the one before it, as they gather.
+  // Each of the header's items after the one before it, as they gather, and
+  // each item of its menu as they come in.
   stagger: '40ms',
   // A tile rising into place, the header gathering into its pill, a heart's
   // one beat.
@@ -43,6 +44,8 @@ export const blur = defineConsts({
 });
 
 export const distance = defineConsts({
+  // How far a menu comes down from its button, and its items rise.
+  base: '8px',
   // How far a tile or a dialog rises into place.
   medium: '12px',
 });
@@ -50,8 +53,12 @@ export const distance = defineConsts({
 export const scale = defineConsts({
   // A dialog opening or closing.
   large: 0.96,
+  // A menu opening.
+  medium: 0.97,
   // A tooltip opening.
   small: 0.98,
+  // A menu closing.
+  tiny: 0.99,
 });
 
 /**
