@@ -9,6 +9,8 @@ import { useEffect, useId, useState } from 'react';
 import { AngleDown, Check } from 'reicon-react';
 import { PaperLetter } from '../components/bill-paper.tsx';
 import { ExtensionBrowser } from '../components/extension-browser.tsx';
+import { FaqAnswer } from '../components/faq-answer.tsx';
+import type { AnswerBlock } from '../components/faq-answer.tsx';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { HeroPhone } from '../components/hero-phone.tsx';
 import { HowItWorks } from '../components/how-it-works.tsx';
@@ -192,15 +194,6 @@ const styles = create({
       ':first-child': 0,
       default: '1px',
     },
-  },
-  // Quieter than the question, and clear of the chevron above it.
-  faqText: {
-    color: colors.muted,
-    lineHeight: 1.5,
-    margin: 0,
-    paddingBlockEnd: spacing.s4,
-    paddingInlineEnd: spacing.s8,
-    textWrap: 'pretty',
   },
   // The chevron at the end of the row. It waits in the muted ink, pointing
   // down, and darkens when the row is pointed at; an open answer turns it
@@ -532,7 +525,7 @@ function Question({
 }: {
   /** The id a link elsewhere on the page goes to. Gone to, the answer opens. */
   anchor?: string | undefined;
-  answer: string;
+  answer: ReadonlyArray<AnswerBlock>;
   question: string;
 }) {
   const id = useId();
@@ -593,11 +586,21 @@ function Question({
         {...props(styles.faqAnswer, open && styles.faqAnswerOpen)}
       >
         <div {...props(styles.faqClip)}>
-          <p {...props(styles.faqText)}>{answer}</p>
+          <FaqAnswer blocks={answer} />
         </div>
       </div>
     </div>
   );
+}
+
+/** An answer's block of a sentence or two. */
+function text(words: string): AnswerBlock {
+  return { kind: 'text', text: words };
+}
+
+/** An answer's list, one item under another, under its name if it has one. */
+function dots(items: ReadonlyArray<string>, label?: string): AnswerBlock {
+  return { items, kind: 'list', label, mark: 'dot' };
 }
 
 /** Promises in a list, each after its tick. */
@@ -660,20 +663,132 @@ function HomePage() {
   // The word the closing line turns on, in orange wherever a language puts it.
   const [closeBefore, closeAfter] = m.home_close_title({ better: LINK_SLOT }).split(LINK_SLOT);
 
-  const objections = [
-    { desc: m.home_faq_free_desc(), term: m.home_faq_free_term() },
-    { desc: m.home_faq_money_desc(), term: m.home_faq_money_term() },
-    { desc: m.home_faq_screen_time_desc(), term: m.home_faq_screen_time_term() },
-    { desc: m.home_faq_supervision_desc(), term: m.home_faq_supervision_term() },
-    { desc: m.home_faq_trial_desc(), term: m.home_faq_trial_term() },
-    { desc: m.home_faq_choice_desc(), term: m.home_faq_choice_term() },
-    { anchor: FAQ_DATA_ID, desc: m.home_faq_data_desc(), term: m.home_faq_data_term() },
-    { desc: m.home_faq_fail_desc(), term: m.home_faq_fail_term() },
-    { desc: m.home_faq_see_desc(), term: m.home_faq_see_term() },
-    { desc: m.home_faq_source_desc(), term: m.home_faq_source_term() },
-    { desc: m.home_faq_undo_desc(), term: m.home_faq_undo_term() },
-    { desc: m.home_faq_mac_desc(), term: m.home_faq_mac_term() },
-    { desc: m.home_faq_other_platforms_desc(), term: m.home_faq_other_platforms_term() },
+  // The questions in the order a new visitor asks them, each answer block
+  // under block.
+  const questions: ReadonlyArray<{
+    anchor?: string;
+    answer: ReadonlyArray<AnswerBlock>;
+    question: string;
+  }> = [
+    {
+      answer: [text(m.home_faq_free_a1()), text(m.home_faq_free_a2())],
+      question: m.home_faq_free_term(),
+    },
+    {
+      answer: [text(m.home_faq_screen_time_a1()), text(m.home_faq_screen_time_a2())],
+      question: m.home_faq_screen_time_term(),
+    },
+    {
+      answer: [text(m.home_faq_supervision_a1()), text(m.home_faq_supervision_a2())],
+      question: m.home_faq_supervision_term(),
+    },
+    {
+      answer: [
+        text(m.home_faq_needs_a1()),
+        dots([
+          m.home_faq_needs_item_friend(),
+          m.home_faq_needs_item_phone(),
+          m.home_faq_needs_item_copy(),
+        ]),
+      ],
+      question: m.home_faq_needs_term(),
+    },
+    {
+      anchor: FAQ_DATA_ID,
+      answer: [
+        text(m.home_faq_data_a1()),
+        {
+          kind: 'path',
+          label: m.home_faq_data_icloud(),
+          steps: [
+            m.home_faq_data_icloud_settings(),
+            m.home_faq_data_icloud_name(),
+            m.home_faq_data_icloud_icloud(),
+            m.home_faq_data_icloud_backup(),
+            m.home_faq_data_back_up_now(),
+          ],
+        },
+        {
+          kind: 'path',
+          label: m.home_faq_data_finder(),
+          steps: [
+            m.home_faq_data_finder_connect(),
+            m.home_faq_data_finder_select(),
+            m.home_faq_data_back_up_now(),
+          ],
+        },
+        {
+          items: [
+            m.home_faq_data_stays_photos(),
+            m.home_faq_data_stays_messages(),
+            m.home_faq_data_stays_logins(),
+            m.home_faq_data_stays_health(),
+          ],
+          kind: 'list',
+          label: m.home_faq_data_stays(),
+          mark: 'check',
+        },
+        text(m.home_faq_data_changes()),
+        dots(
+          [
+            m.home_faq_data_before_find_my(),
+            m.home_faq_data_before_space(),
+            m.home_faq_data_before_password(),
+          ],
+          m.home_faq_data_before(),
+        ),
+      ],
+      question: m.home_faq_data_term(),
+    },
+    { answer: [text(m.home_faq_time_a1())], question: m.home_faq_time_term() },
+    {
+      answer: [text(m.home_faq_fail_a1()), text(m.home_faq_fail_a2())],
+      question: m.home_faq_fail_term(),
+    },
+    {
+      answer: [text(m.home_faq_trial_a1()), text(m.home_faq_trial_a2())],
+      question: m.home_faq_trial_term(),
+    },
+    {
+      answer: [
+        text(m.home_faq_undo_a1()),
+        dots([m.home_faq_undo_item_erase(), m.home_faq_undo_item_configurator()]),
+        text(m.home_faq_undo_a2()),
+      ],
+      question: m.home_faq_undo_term(),
+    },
+    {
+      answer: [
+        text(m.home_faq_apps_a1()),
+        dots([m.home_faq_apps_item_store(), m.home_faq_apps_item_rest()]),
+      ],
+      question: m.home_faq_apps_term(),
+    },
+    {
+      answer: [text(m.home_faq_see_a1()), text(m.home_faq_see_a2())],
+      question: m.home_faq_see_term(),
+    },
+    {
+      answer: [
+        text(m.home_faq_source_a1()),
+        dots([m.home_faq_source_item_mac(), m.home_faq_source_item_rest()]),
+      ],
+      question: m.home_faq_source_term(),
+    },
+    {
+      answer: [text(m.home_faq_manual_a1()), text(m.home_faq_manual_a2())],
+      question: m.home_faq_manual_term(),
+    },
+    {
+      answer: [
+        text(m.home_faq_other_platforms_a1()),
+        dots([
+          m.home_faq_other_platforms_item_windows(),
+          m.home_faq_other_platforms_item_android(),
+        ]),
+      ],
+      question: m.home_faq_other_platforms_term(),
+    },
   ];
 
   return (
@@ -861,12 +976,12 @@ function HomePage() {
         <section {...props(styles.section, styles.anchor)} id={SECTION.faq}>
           <h2 {...props(styles.sectionTitle)}>{m.home_faq_title()}</h2>
           <div>
-            {objections.map((objection) => (
+            {questions.map((entry) => (
               <Question
-                anchor={'anchor' in objection ? objection.anchor : undefined}
-                answer={objection.desc}
-                key={objection.term}
-                question={objection.term}
+                anchor={entry.anchor}
+                answer={entry.answer}
+                key={entry.question}
+                question={entry.question}
               />
             ))}
           </div>
