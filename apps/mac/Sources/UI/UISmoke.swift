@@ -15,6 +15,7 @@ enum UISmoke {
         // Hosting a SwiftUI view needs the application object, but not a
         // window and not the run loop.
         _ = NSApplication.shared
+        drawAsActive()
 
         let folder = arguments.count > flag + 1
             ? URL(fileURLWithPath: arguments[flag + 1], isDirectory: true)
@@ -113,6 +114,10 @@ enum UISmoke {
         // one too old to lean on, none at all, and the refusal that keeps
         // Finder's own out of the app's reach until Full Disk Access is on,
         // before the trip to System Settings and after one that did not take.
+        // A Mac with too little room for the copy, which is the one check
+        // besides Find My that keeps the button off. The phone is made far
+        // bigger than any disk, so the picture is the same on every Mac.
+        report("ready-low-space", WizardStepContent(step: .ready, model: lowSpace()), into: folder)
         for sample in safetyNetSamples() {
             report("ready-\(sample.name)", WizardStepContent(step: .ready, model: sample.model), into: folder)
         }
@@ -174,7 +179,13 @@ enum UISmoke {
         report("device-card", DeviceCard(device: sampleDevice), into: folder)
         report("device-card-reading", DeviceCard(device: sampleReadingDevice), into: folder)
         report("error", ErrorText(DeviceError.trustPending.localizedDescription), into: folder)
-        report("window", ContentView(), into: folder)
+        // The whole window at its smallest, from a wizard that reads no bus.
+        report(
+            "window",
+            ContentView(demo: WizardModel(watcher: DeviceWatcher(sample: []))),
+            into: folder,
+            windowSize: CGSize(width: 560, height: 520)
+        )
         exit(misplaced == 0 ? 0 : 1)
     }
 
@@ -580,6 +591,34 @@ enum UISmoke {
                 )
             ),
             (
+                "failed-restore",
+                waiting(
+                    .failed(failure(BackupError.failed(DemoFailure.cableCameOut), in: .restoring)),
+                    on: samplePhone(findMyOn: false)
+                )
+            ),
+            (
+                "failed-no-space",
+                waiting(
+                    .failed(failure(BackupError.failed("No space left on device"), in: .copying)),
+                    on: samplePhone(findMyOn: false)
+                )
+            ),
+            (
+                "failed-encryption",
+                waiting(
+                    .failed(failure(BackupError.encryptionFailed("The iPhone is locked."), in: .copying)),
+                    on: samplePhone(findMyOn: false)
+                )
+            ),
+            (
+                "failed-restart",
+                waiting(
+                    .failed(failure(SeedRunError.restartFailed("The iPhone did not answer."), in: .restoring)),
+                    on: samplePhone(findMyOn: false)
+                )
+            ),
+            (
                 "failed-password",
                 waiting(
                     .failed(failure(PatchError.wrongPassword, in: .preparing)),
@@ -842,6 +881,27 @@ enum UISmoke {
         }
     }
 
+    /// The checks for a phone that holds more than this Mac has room for.
+    private static func lowSpace() -> WizardModel {
+        let phone = ConnectedDevice(
+            udid: "55555555-5555555555555555",
+            name: "iPhone",
+            productType: "iPhone15,2",
+            marketingName: "iPhone 14 Pro",
+            iosVersion: "26.6.2",
+            findMyOn: false,
+            backupEncrypted: false,
+            cloudBackupOn: true,
+            lastCloudBackup: Date().addingTimeInterval(-dayInSeconds),
+            dataCapacity: 900_000_000_000_000,
+            dataAvailable: 0,
+            pairingState: .paired
+        )
+        let model = WizardModel(watcher: sampleWatcher([phone]))
+        model.show(WizardModel.Sample(step: .ready, udid: phone.udid))
+        return model
+    }
+
     /// The checks for a phone with nothing else to fix.
     private static func readyToStart(findMyOn: Bool) -> WizardModel {
         let phone = samplePhone(findMyOn: findMyOn)
@@ -874,43 +934,87 @@ enum UISmoke {
     /// The appearance the pictures are drawn in, or nil to follow the Mac.
     private static var appearance: NSAppearance?
 
-    private static func report(_ name: String, _ view: some View, into folder: URL?) {
+    private static func report(
+        _ name: String,
+        _ view: some View,
+        into folder: URL?,
+        windowSize: CGSize? = nil
+    ) {
         let host = NSHostingView(rootView: AnyView(view.frame(width: WizardStyle.contentWidth)))
         host.layoutSubtreeIfNeeded()
         let size = host.fittingSize
         print("\(name): \(Int(size.width))x\(Int(size.height))")
         guard let folder, size.width > 0, size.height > 0 else { return }
-        // `ImageRenderer` draws the text too, which `cacheDisplay` on the
-        // hosting view does not.
-        let dark = appearance.map { $0.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua }
-        let renderer = ImageRenderer(
-            content: view
-                .frame(width: WizardStyle.contentWidth)
-                .padding(20)
-                .background(Color(nsColor: .windowBackgroundColor))
-                // The tint the window gives every step, so a bordered button
-                // is drawn here the way the window draws it.
-                .tint(WizardStyle.accentSoft)
-                .transformEnvironment(\.colorScheme) { scheme in
-                    if let dark { scheme = dark ? .dark : .light }
-                }
-        )
-        renderer.scale = 2
-        var rendered: NSImage?
-        if let appearance {
-            appearance.performAsCurrentDrawingAppearance { rendered = renderer.nsImage }
-        } else {
-            rendered = renderer.nsImage
-        }
-        guard
-            let image = rendered,
-            let tiff = image.tiffRepresentation,
-            let bitmap = NSBitmapImageRep(data: tiff),
-            let png = bitmap.representation(using: .png, properties: [:])
-        else {
-            return
-        }
+        // A step drawn the way the window draws it: the same margin, the same
+        // background and the same tint, or the whole window at a fixed size.
+        let content: AnyView = windowSize == nil
+            ? AnyView(
+                view
+                    .frame(width: WizardStyle.contentWidth)
+                    .padding(28)
+                    .background(Color(nsColor: .windowBackgroundColor))
+                    .tint(WizardStyle.accentSoft)
+            )
+            : AnyView(view)
+        guard let png = picture(of: content, size: windowSize) else { return }
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try? png.write(to: folder.appendingPathComponent("\(name).png"))
+    }
+
+    /// A picture of `view` drawn in a real window that is never put on screen.
+    /// `ImageRenderer` draws no AppKit control, so pickers, switches, fields
+    /// and bars came out as empty boxes. A window hosts them all, and nothing
+    /// shows: it is never ordered in and it sits far off every display.
+    private static func picture(of view: AnyView, size fixed: CGSize?) -> Data? {
+        let host = NSHostingView(rootView: view)
+        let size = fixed ?? host.fittingSize
+        let window = SmokeWindow(
+            contentRect: NSRect(x: -20_000, y: -20_000, width: size.width, height: size.height),
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        window.isReleasedWhenClosed = false
+        if let appearance {
+            window.appearance = appearance
+        }
+        window.contentView = host
+        host.frame = NSRect(origin: .zero, size: size)
+        host.layoutSubtreeIfNeeded()
+        // One turn of the run loop lets SwiftUI hand its controls to AppKit
+        // and draw them.
+        RunLoop.main.run(until: Date().addingTimeInterval(0.15))
+        host.layoutSubtreeIfNeeded()
+        guard let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { return nil }
+        host.cacheDisplay(in: host.bounds, to: bitmap)
+        window.contentView = nil
+        return bitmap.representation(using: .png, properties: [:])
+    }
+
+    /// The window the pictures are drawn in. It says it is the key window, so
+    /// controls are drawn the way they look in front, in colour, rather than
+    /// in the grey of a window in the background.
+    private final class SmokeWindow: NSWindow {
+        override var isKeyWindow: Bool { true }
+        override var isMainWindow: Bool { true }
+    }
+
+    /// The app is never brought to the front while it draws, because that
+    /// would take the screen from whoever is using it. A control in an app
+    /// that is not in front draws grey, so in a debug build the app and its
+    /// windows are told they look active for as long as the smoke runs, which
+    /// is until it exits. A Release build draws the grey look.
+    private static func drawAsActive() {
+        #if DEBUG
+        let yes: @convention(block) (AnyObject) -> Bool = { _ in true }
+        if let method = class_getInstanceMethod(NSApplication.self, #selector(getter: NSApplication.isActive)) {
+            method_setImplementation(method, imp_implementationWithBlock(yes))
+        }
+        for name in ["_hasActiveAppearance", "_hasActiveAppearanceIgnoringKeyFocus", "hasKeyAppearance"] {
+            if let method = class_getInstanceMethod(NSWindow.self, NSSelectorFromString(name)) {
+                method_setImplementation(method, imp_implementationWithBlock(yes))
+            }
+        }
+        #endif
     }
 }
