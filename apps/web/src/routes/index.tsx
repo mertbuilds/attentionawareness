@@ -780,8 +780,8 @@ function HomePage() {
           </ul>
         </section>
 
-        {/* Why everything is free, and the way to support the work, in a box
-        of its own. */}
+        {/* Why everything is free, and the way to support the work: the
+        founder's words beside a stamp, like the corner of an envelope. */}
         <section {...props(styles.anchor)} id={SUPPORT_ID}>
           <SupportSection titleStyle={styles.displayTitle} />
         </section>
