@@ -6,7 +6,7 @@ import { macFileEvent, sendMacEvent } from './lib/mac-analytics.ts';
 import { macFileResponse } from './lib/mac-files.ts';
 import type { MacFilesBucket } from './lib/mac-files.ts';
 import { setOpenNumbersKey } from './lib/open-numbers.server.ts';
-import { removedPathRedirect } from './lib/redirects.ts';
+import { removedPathRedirect, trailingSlashRedirect } from './lib/redirects.ts';
 import { setSigningSecrets } from './lib/signing-secrets.ts';
 import { paraglideMiddleware } from './paraglide/server.js';
 
@@ -62,6 +62,7 @@ export default {
       const response =
         canonicalRedirect(url) ??
         removedPathRedirect(url) ??
+        trailingSlashRedirect(url) ??
         missingAssetResponse(url) ??
         (await macFileResponse(request, url, env.MAC_FILES)) ??
         withDocumentCache(await paraglideMiddleware(request, () => handler.fetch(request)));

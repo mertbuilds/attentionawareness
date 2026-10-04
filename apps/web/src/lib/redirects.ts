@@ -26,3 +26,19 @@ export function removedPathRedirect(url: URL): Response | null {
   }
   return Response.redirect(new URL('/', url).toString(), 301);
 }
+
+/**
+ * A 308 to the same path without its closing slash, query kept. The router
+ * sends `/guide/` to `/guide` itself, but with a 307, which search engines
+ * take as a move for now. The new address is built on the request's own
+ * origin, so a path like `//other.example/` stays on this site.
+ * `null` for `/` and for any path without a closing slash.
+ */
+export function trailingSlashRedirect(url: URL): Response | null {
+  if (url.pathname.length < 2 || !url.pathname.endsWith('/')) {
+    return null;
+  }
+  const target = new URL(url.toString());
+  target.pathname = url.pathname.replace(/\/+$/u, '') || '/';
+  return Response.redirect(target.toString(), 308);
+}
