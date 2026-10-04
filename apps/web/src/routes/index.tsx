@@ -376,6 +376,7 @@ const styles = create({
       default: 'minmax(0, 1fr)',
     },
     padding: spacing.s6,
+    position: 'relative',
   },
   // The words of a card, held to a short measure where the card runs wide.
   planBody: {
@@ -442,6 +443,11 @@ const styles = create({
     listStyle: 'none',
     margin: 0,
     padding: 0,
+  },
+  // A mark at the top of the card that holds it, taking no room there.
+  outOfFlow: {
+    insetBlockStart: 0,
+    position: 'absolute',
   },
   section: {
     display: 'flex',
@@ -832,10 +838,10 @@ function HomePage() {
           <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
           <p {...props(styles.sectionBody)}>{m.home_how_lead()}</p>
           <HowItWorks />
-          <p {...props(styles.sectionBody)}>{m.home_how_backup()}</p>
-          {/* Where links from before the two ways were named the download still land. */}
-          <span id={OLD_DOWNLOAD_ID} {...props(styles.anchor)} />
           <div id={SECTION.download} {...props(styles.plan, styles.anchor)}>
+            {/* Where links from before the two ways were named the download
+            still land. Out of the card's grid, so it takes no cell. */}
+            <span id={OLD_DOWNLOAD_ID} {...props(styles.anchor, styles.outOfFlow)} />
             <div {...props(styles.planBody)}>
               <div {...props(styles.planHead)}>
                 <h3 {...props(styles.planTitle, styles.planPrice)}>{m.home_how_app_price()}</h3>
