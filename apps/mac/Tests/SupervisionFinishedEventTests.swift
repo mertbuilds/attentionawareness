@@ -102,6 +102,27 @@ struct SupervisionFinishedEventTests {
         #expect(sent.events.count == 1)
     }
 
+    @Test func aSecondIPhoneInTheSameSessionIsCountedAgain() async {
+        let sent = Sent()
+        let model = makeModel(sent)
+        ready(model, method: .seed)
+        model.startJob()
+        #expect(await waitUntil { model.job == .checkOnIPhone(reportedSupervised: true) })
+        model.advance()
+        #expect(sent.events.count == 1)
+        // Done forgets the run, and the next iPhone is a run of its own.
+        model.startOver()
+        model.start()
+        #expect(model.step == .ready)
+        model.confirmBackup(true)
+        model.password = "pw"
+        model.startJob()
+        #expect(await waitUntil { model.job == .checkOnIPhone(reportedSupervised: true) })
+        model.advance()
+        #expect(sent.events.count == 2)
+        #expect(sent.events.map(\.method) == [.seed, .fullCopy])
+    }
+
     @Test func aRunThatFailsSendsNothing() async {
         let sent = Sent()
         let model = makeModel(sent)
