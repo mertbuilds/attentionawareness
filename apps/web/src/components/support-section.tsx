@@ -297,8 +297,14 @@ const styles = create({
     animationName: wash,
     animationTimingFunction: easing.inOut,
   },
+  // Whatever beat the stamp's heart is given, its own or the button's, it
+  // beats round its own middle.
+  heartMiddle: {
+    transformBox: 'fill-box',
+    transformOrigin: 'center',
+  },
   // The stamp's heart beats softly once the postmark is on, about every four
-  // seconds, round its own middle.
+  // seconds.
   heartSoft: {
     animationDelay: '2400ms',
     animationDuration: '4s',
@@ -308,8 +314,6 @@ const styles = create({
       default: beatSoft,
     },
     animationTimingFunction: easing.inOut,
-    transformBox: 'fill-box',
-    transformOrigin: 'center',
   },
   // Below the fold once the page has come alive, a part waits out of sight
   // for its rise.
@@ -582,7 +586,7 @@ function Stamp({
         <g
           transform={`translate(${HEART.x - 12 * HEART.scale} ${HEART.y - 12 * HEART.scale}) scale(${HEART.scale})`}
         >
-          <g ref={beatRef} {...props(play && styles.heartSoft)}>
+          <g ref={beatRef} {...props(styles.heartMiddle, play && styles.heartSoft)}>
             <path d={HEART_LINE} {...props(styles.heartWash, play && styles.heartWashIn)} />
             <path
               d={HEART_LINE}
