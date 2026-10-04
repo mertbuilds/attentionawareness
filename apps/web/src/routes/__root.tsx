@@ -9,7 +9,7 @@ import { SupportPopup } from '../components/support-popup.tsx';
 import { WipBanner } from '../components/wip-banner.tsx';
 import { clientEnv } from '../lib/env.ts';
 import { openPanelReplay, posthogReplay } from '../lib/replay.ts';
-import { THEME_GROUND } from '../lib/theme.ts';
+import { THEME_GROUND, THEME_SCRIPT } from '../lib/theme.ts';
 import { m } from '../paraglide/messages.js';
 import fontsStylesheet from '@attentionawareness/ui/fonts-optional.css?url';
 import '@attentionawareness/ui/theme.css';
@@ -182,14 +182,14 @@ function Providers({ children }: { children: ReactNode }) {
 
 function RootDocument({ children }: { children: ReactNode }) {
   return (
-    // The strip's script marks the element before the page comes alive.
+    // The theme's script and the strip's mark the element before the page comes alive.
     <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
         {/* The page's ground, for the browser's own chrome and what it shows
         behind the page: one per system theme, written here because the head's
         list keeps one meta per name. A theme chosen on the site rewrites both
-        (`lib/theme.ts`). */}
+        (`lib/theme.ts`), and the script under them does it for a kept choice. */}
         <meta
           content={THEME_GROUND.light}
           media="(prefers-color-scheme: light)"
@@ -202,6 +202,7 @@ function RootDocument({ children }: { children: ReactNode }) {
           name="theme-color"
           suppressHydrationWarning
         />
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: WIP_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: ANALYTICS_SCRIPT }} />
       </head>

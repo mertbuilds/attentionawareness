@@ -143,6 +143,19 @@ html[data-aa-wip-off] [data-aa-wip] {
 }
 
 /*
+ * The picked segment of a theme control (`components/preferences.tsx`), in
+ * the page's ink. It is drawn from the choice on the root, which the script
+ * in the head sets before first paint, so a kept choice is never shown as the
+ * system's first. No choice on the root is the system's.
+ */
+:root:not([data-theme-choice]) [data-theme-pick='system'],
+:root[data-theme-choice='light'] [data-theme-pick='light'],
+:root[data-theme-choice='dark'] [data-theme-pick='dark'] {
+  background-color: var(--kya-fg);
+  color: var(--kya-bg);
+}
+
+/*
  * A blog post's body. It reaches the page as HTML compiled from the post's
  * Markdown file (`vite.blog.ts`), so its elements carry no class and StyleX
  * cannot reach them: these rules do, from the `data-prose` box the post is

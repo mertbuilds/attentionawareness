@@ -21,12 +21,13 @@ const styles = create({
   // One choice: a pill inside the track's pill. It is as tall as the track
   // less its border and its padding, so its round ends sit the same two
   // pixels from the track's edge at the top, the foot and the end. On a phone
-  // the pseudo-element takes the touch a finger's height around it.
+  // the pseudo-element takes the touch a finger's height around it. The
+  // picked one is drawn by `app.css`, from the choice on `<html>`.
   segment: {
     '::before': {
       content: '',
       insetBlock: {
-        '@media (max-width: 639px)': -10,
+        '@media (max-width: 767px)': -10,
         default: 0,
       },
       insetInline: 0,
@@ -73,21 +74,20 @@ const styles = create({
     height: 28,
     padding: 1,
   },
-  segmentOn: {
-    backgroundColor: colors.fg,
-    color: colors.bg,
-  },
 });
 
 /**
- * The theme control, written to `<html data-theme>`. It sits at the foot of
- * every page, and is the only preference the site carries.
+ * The theme control, written to `<html data-theme>` and kept in the browser.
+ * It sits at the foot of every page and in the phone menu, and is the only
+ * preference the site carries.
  */
 export function ThemeSwitch() {
   // The choice lives outside the control, because the footer of every page
-  // mounts it anew. It is not read during the first render: the server has no
-  // choice to read, and a render that disagreed with the SSR HTML would detach
-  // the hydrated tree.
+  // and the phone menu mount it anew. It is not read during the first render:
+  // the server has no choice to read, and a render that disagreed with the SSR
+  // HTML would detach the hydrated tree. So the picked segment is drawn by CSS
+  // from the choice the head's script put on `<html>`, right from the first
+  // paint, and only `aria-pressed` waits for the page to come alive.
   const theme = useSyncExternalStore(subscribeTheme, readTheme, serverTheme);
 
   return (
@@ -95,10 +95,11 @@ export function ThemeSwitch() {
       {themeChoices.map((choice) => (
         <button
           aria-pressed={choice === theme}
+          data-theme-pick={choice}
           key={choice}
           onClick={() => applyTheme(choice)}
           type="button"
-          {...props(styles.segment, choice === theme && styles.segmentOn)}
+          {...props(styles.segment)}
         >
           {THEME_NAMES[choice]()}
         </button>

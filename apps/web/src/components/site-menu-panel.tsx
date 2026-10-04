@@ -9,6 +9,7 @@ import { blur, distance, duration, easing, scale } from '../lib/motion.stylex.ts
 import { WIDE_QUERY } from '../lib/wide.ts';
 import { m } from '../paraglide/messages.js';
 import { MacDownload } from './mac-download.tsx';
+import { ThemeSwitch } from './preferences.tsx';
 import { MenuLines, menuButton } from './site-menu-button.tsx';
 import type { MenuProps } from './site-menu.tsx';
 
@@ -133,6 +134,18 @@ const styles = create({
     height: 1,
     marginBlock: spacing.s2,
   },
+  // The theme, at the foot of the panel: its name, quiet, and the control at
+  // the row's far end. The row is a thumb tall, and so is each choice.
+  theme: {
+    alignItems: 'center',
+    color: colors.muted,
+    display: 'flex',
+    flexShrink: 0,
+    fontSize: font.sizeSm,
+    justifyContent: 'space-between',
+    marginBlockStart: spacing.s3,
+    minHeight: 44,
+  },
 });
 
 /** One row of the menu, in its place in the order they come in by. */
@@ -163,7 +176,8 @@ function Item({
  * The header's menu on a phone, with its button: the button of two lines at
  * the header's far edge, and the panel it opens under the header, in the open
  * strip and in the pill alike. The panel holds the header's links, the blog,
- * and the download, which on a phone sends the link on to a Mac. The lines cross as it opens, the panel comes down from the button and
+ * the download, which on a phone sends the link on to a Mac, and the theme
+ * control, which leaves the panel open. The lines cross as it opens, the panel comes down from the button and
  * its items follow a step apart; it closes quicker than it opens. A link,
  * Escape, a press outside it, the page running on under it or a wider window
  * all close it, and focus goes into the panel and back to the button. The
@@ -240,6 +254,12 @@ export function SiteMenuPanel({
             <div aria-hidden="true" {...props(styles.rule)} />
             <div {...props(styles.itemIn, styles.after(links.length * STAGGER))}>
               <MacDownload placement="header" style={styles.download} />
+            </div>
+            <div
+              {...props(styles.theme, styles.itemIn, styles.after((links.length + 1) * STAGGER))}
+            >
+              <span aria-hidden="true">{m.pref_theme_label()}</span>
+              <ThemeSwitch />
             </div>
           </Popover.Popup>
         </Popover.Positioner>

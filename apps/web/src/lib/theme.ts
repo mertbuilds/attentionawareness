@@ -44,15 +44,54 @@ function nameGround(attribute: ThemeAttribute): void {
   }
 }
 
-const listeners = new Set<() => void>();
-
-/** The choice this tab is on. Nothing is stored, so a reload starts over. */
-let current: ThemeChoice = 'system';
+/** Where the choice is kept in the browser. `system` is kept as no entry at all. */
+export const THEME_KEY = 'aa-theme';
 
 /**
- * The chosen theme is an external store: it outlives the control, which the
- * footer of every page mounts anew. Components subscribe instead of holding
- * their own copy, so the first client render still matches the server's.
+ * Puts a kept choice on the page before it paints, so a reader who chose a
+ * theme never sees the other one first. It runs in the head, after the two
+ * `theme-color` metas, and does by hand what `applyTheme` does.
+ */
+export const THEME_SCRIPT =
+  `try{var t=localStorage.getItem('${THEME_KEY}');if(t==='light'||t==='dark'){` +
+  "var d=document.documentElement;d.setAttribute('data-theme',t);d.setAttribute('data-theme-choice',t);" +
+  `var g=t==='dark'?'${THEME_GROUND.dark}':'${THEME_GROUND.light}';` +
+  "document.querySelectorAll('meta[name=\"theme-color\"]').forEach(function(m){m.setAttribute('content',g)})" +
+  '}}catch(e){}';
+
+/** The kept choice. A browser that keeps nothing, or refuses to say, is on the system's. */
+function storedTheme(): ThemeChoice {
+  try {
+    const kept = window.localStorage.getItem(THEME_KEY);
+    return kept === 'dark' || kept === 'light' ? kept : 'system';
+  } catch {
+    return 'system';
+  }
+}
+
+/** Keeps the choice for the next visit. A browser that refuses still gets it for this one. */
+function storeTheme(choice: ThemeChoice): void {
+  try {
+    if (choice === 'system') {
+      window.localStorage.removeItem(THEME_KEY);
+    } else {
+      window.localStorage.setItem(THEME_KEY, choice);
+    }
+  } catch {
+    // Storage is off: the choice lasts until the page is left.
+  }
+}
+
+const listeners = new Set<() => void>();
+
+/** The choice this tab is on: the kept one, read the first time it is asked for. */
+let current: ThemeChoice | undefined;
+
+/**
+ * The chosen theme is an external store: it outlives the controls, which the
+ * footer of every page and the phone menu mount anew. Components subscribe
+ * instead of holding their own copy, so the first client render still matches
+ * the server's.
  */
 export function subscribeTheme(listener: () => void): () => void {
   listeners.add(listener);
@@ -66,22 +105,46 @@ export function serverTheme(): ThemeChoice {
   return 'system';
 }
 
-/** The choice this tab is on, which starts at `system` on every load. */
+/** The choice this tab is on, which starts at the kept one. */
 export function readTheme(): ThemeChoice {
+  current ??= storedTheme();
   return current;
 }
 
-/** Puts the choice on `<html>` and keeps it for the rest of the session. */
-export function applyTheme(choice: ThemeChoice): void {
+/** Puts the choice on `<html>`, where the head's script put the kept one. */
+function showTheme(choice: ThemeChoice): void {
   current = choice;
   const attribute = themeAttribute(choice, systemKnown());
+  const root = document.documentElement;
   if (attribute === null) {
-    delete document.documentElement.dataset['theme'];
+    delete root.dataset['theme'];
   } else {
-    document.documentElement.dataset['theme'] = attribute;
+    root.dataset['theme'] = attribute;
+  }
+  // The controls draw their picked segment from this (`app.css`).
+  if (choice === 'system') {
+    delete root.dataset['themeChoice'];
+  } else {
+    root.dataset['themeChoice'] = choice;
   }
   nameGround(attribute);
   for (const listener of listeners) {
     listener();
   }
+}
+
+/** Puts the choice on `<html>` and keeps it in the browser for every later visit. */
+export function applyTheme(choice: ThemeChoice): void {
+  storeTheme(choice);
+  showTheme(choice);
+}
+
+// A choice made in another tab of the site is this tab's too. `key` is null
+// when the whole storage was cleared.
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (event) => {
+    if (event.key === THEME_KEY || event.key === null) {
+      showTheme(storedTheme());
+    }
+  });
 }
