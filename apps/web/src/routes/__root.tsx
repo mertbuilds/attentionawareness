@@ -74,7 +74,7 @@ export const Route = createRootRoute({
       distraction: m.home_hero_title_distraction(),
       permanently: m.home_hero_title_accent(),
     });
-    const description = `${SITE_NAME}. ${m.home_meta_description()}`;
+    const description = m.home_meta_description();
     return {
       links: [
         // The SVG first: it inverts with the browser's own theme. The PNG is

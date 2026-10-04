@@ -32,6 +32,7 @@ export const Route = createFileRoute('/')({
   // The site, the Mac app and the questions below, as data a search engine reads.
   head: () => ({
     meta: [
+      { title: `${m.home_head_title()} · ${SITE_NAME}` },
       schemaMeta(
         homeSchema({
           description: m.home_meta_description(),
