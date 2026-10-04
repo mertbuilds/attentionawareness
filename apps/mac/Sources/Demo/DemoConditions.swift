@@ -1,0 +1,194 @@
+#if DEBUG
+import Foundation
+
+/// What the demo pretends is true about the world.
+///
+/// The wizard reads four things it cannot be given in a demo: the iPhones on
+/// the cable, what this Mac is holding for them, how a transfer ends, and what
+/// the key server says about a supervision key. Every one of those answers
+/// comes from here, so the reader can put the window into a state a real run
+/// only reaches by luck: no phone on the cable, two of them, a phone that is
+/// already supervised, a backup an earlier run left behind, a transfer that
+/// fails, a key that was already used.
+///
+/// Nothing here reads an iPhone, a disk or a network, which is why it is the
+/// part of the demo the tests can run.
+struct DemoConditions: Equatable {
+    /// How many iPhones the demo says are on the cable.
+    enum Phones: String, CaseIterable, Identifiable {
+        case none
+        case one
+        case two
+
+        var id: String { rawValue }
+
+        var count: Int {
+            switch self {
+            case .none: return 0
+            case .one: return 1
+            case .two: return 2
+            }
+        }
+
+        /// The word the demo bar puts on the button.
+        var title: String {
+            switch self {
+            case .none: return "None"
+            case .one: return "One"
+            case .two: return "Two"
+            }
+        }
+    }
+
+    /// What the iPhone says about its own iCloud backups, which is the first
+    /// thing the checks tell the reader about: the way back they have that is
+    /// nothing to do with this app.
+    enum CloudBackups: String, CaseIterable, Identifiable {
+        case recent
+        case old
+        case off
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .recent: return "Recent"
+            case .old: return "Old"
+            case .off: return "Off"
+            }
+        }
+    }
+
+    /// What Finder's own backup folder on this Mac says about the same iPhone.
+    /// The last two are the refusal a reader cannot be prompted out of: macOS
+    /// offers no way to ask for Full Disk Access, so the checks ask in words
+    /// and open the list in System Settings, and a switch turned on while the
+    /// app runs may only count once the app is opened again.
+    enum FinderBackups: String, CaseIterable, Identifiable {
+        case onThisMac
+        case nothingHere
+        /// Refused, before any trip to System Settings.
+        case noAccess
+        /// Still refused after a trip to System Settings, which is the state
+        /// that asks for the app to be reopened.
+        case needsReopen
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .onThisMac: return "On this Mac"
+            case .nothingHere: return "None"
+            case .noAccess: return "No access"
+            case .needsReopen: return "Reopen"
+            }
+        }
+    }
+
+    /// How the next transfer or profile install ends. It is the one condition
+    /// that is about what the demo does rather than about what it says is
+    /// there, and it is here so the error wording can be read without a phone
+    /// going wrong.
+    enum Outcome: String, CaseIterable, Identifiable {
+        case succeeds
+        case fails
+        case cancelled
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .succeeds: return "Succeeds"
+            case .fails: return "Fails"
+            case .cancelled: return "Cancelled"
+            }
+        }
+
+        /// True for an outcome that stops a transfer part way through.
+        var stopsPartWay: Bool { self != .succeeds }
+    }
+
+    /// What the key server says about any key the demo checks or spends, so
+    /// the Ready screen can be read with a key that works and with each kind
+    /// of key that does not.
+    enum Key: String, CaseIterable, Identifiable {
+        case works
+        case usedUp
+        case revoked
+        case unknown
+        case offline
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .works: return "Works"
+            case .usedUp: return "Used"
+            case .revoked: return "Revoked"
+            case .unknown: return "Unknown"
+            case .offline: return "Offline"
+            }
+        }
+
+        /// What checking a key answers.
+        var check: LicenseCheck {
+            switch self {
+            case .works: return .usable
+            case .usedUp: return .usedUp
+            case .revoked: return .revoked
+            case .unknown: return .notFound
+            case .offline: return .unavailable
+            }
+        }
+
+        /// What spending one answers. Offline leaves the spend owed, which is
+        /// the one answer that keeps it; every other refusal ends it.
+        var spend: LicenseSpend {
+            switch self {
+            case .works: return .spent
+            case .offline: return .transient
+            case .usedUp, .revoked, .unknown: return .rejected
+            }
+        }
+    }
+
+    var phones: Phones = .one
+    var findMyOn = false
+    var cloudBackups: CloudBackups = .recent
+    var finderBackups: FinderBackups = .nothingHere
+    /// The iPhone encrypts what it backs up, which is what makes the wizard
+    /// ask for a backup password.
+    var backupsEncrypted = false
+    var supervised = false
+    /// A profile of ours is already on the phone, which is what the Profile
+    /// step asks about before it offers to install another.
+    var profileInstalled = false
+    /// This Mac is holding a backup folder for that phone. A run makes one on
+    /// the way through and takes it away at the end, and the switch is there
+    /// for the other way in: a folder an earlier run left behind, which the
+    /// checks say they cleared.
+    var holdingBackup = false
+    /// The next job runs for minutes rather than half a minute, so the cost
+    /// story under the bar can be watched from its first slide to its last.
+    var longJob = false
+    var outcome: Outcome = .succeeds
+    var key: Key = .works
+
+    /// The world as it is once a restore has gone through: the phone says what
+    /// the run asked it to say, and this Mac is holding the backup the run
+    /// made.
+    func afterRestore(target: Bool) -> DemoConditions {
+        var next = self
+        next.supervised = target
+        next.holdingBackup = true
+        return next
+    }
+
+    /// The world as it is once a profile has been installed.
+    func afterProfileInstall() -> DemoConditions {
+        var next = self
+        next.profileInstalled = true
+        return next
+    }
+}
+#endif

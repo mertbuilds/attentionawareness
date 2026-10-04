@@ -1,0 +1,43 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+/* Suisse Intl is licensed and never in the repo. The two faces load from
+   scripts/fonts, which is gitignored: put SuisseIntl-Regular.woff2 and
+   SuisseIntl-Medium.woff2 there to render with them, and serve scripts/ over
+   http, since a browser may refuse a font on a file:// page. Without the
+   files the page falls back to the system font. */
+@font-face{font-family:'Suisse';font-weight:400;src:url('fonts/SuisseIntl-Regular.woff2') format('woff2')}
+@font-face{font-family:'Suisse';font-weight:500;src:url('fonts/SuisseIntl-Medium.woff2') format('woff2')}
+html,body{margin:0;padding:0}*{box-sizing:border-box}
+#c{position:relative;width:680px;height:540px;overflow:hidden;background:#ffffff;
+   font-family:'Suisse',-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+#grid{position:absolute;inset:0;
+   background-image:linear-gradient(rgba(0,0,0,0.08) 1px,transparent 1px),
+                    linear-gradient(90deg,rgba(0,0,0,0.08) 1px,transparent 1px);
+   background-size:40px 40px}
+#logo{position:absolute;top:34px;left:40px;display:flex;align-items:center;gap:10px}
+#logo .mark{width:26px;height:26px;border-radius:7px;background:#0a0a0a;color:#fff;
+   font-weight:500;font-size:13px;display:flex;align-items:center;justify-content:center;letter-spacing:-0.02em}
+#logo .wm{color:#14110d;font-weight:500;font-size:16px;letter-spacing:-0.01em}
+#title{position:absolute;top:118px;left:0;width:680px;text-align:center;color:#14110d;
+   font-weight:500;font-size:38px;letter-spacing:-0.02em}
+#sub{position:absolute;top:176px;left:0;width:680px;text-align:center;color:#8a8378;
+   font-weight:400;font-size:15px}
+#sub b{color:#14110d;font-weight:500}
+#chev{position:absolute;left:0;top:296px;width:680px;text-align:center}
+#title .acc{color:#ff4f00}
+</style></head><body>
+  <div id="c">
+    <div id="grid"></div>
+    <div id="logo"><div class="mark">aa</div><div class="wm">attention awareness</div></div>
+    <div id="title">Drag to <span class="acc">take back</span> your <span class="acc">attention</span></div>
+    <div id="sub">To install, drag <b>attention awareness</b> to <b>Applications</b></div>
+    <div id="chev">
+      <svg width="88" height="48" viewBox="0 0 88 48" fill="none">
+        <g stroke="#ff4f00" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none">
+          <path d="M16 12 L34 24 L16 36" opacity="0.45"/>
+          <path d="M38 12 L56 24 L38 36" opacity="0.75"/>
+          <path d="M60 12 L78 24 L60 36" opacity="1"/>
+        </g>
+      </svg>
+    </div>
+  </div>
+</body></html>
