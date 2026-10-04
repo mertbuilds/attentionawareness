@@ -187,8 +187,8 @@ struct RestrictionsBuilder: View {
             Button("Reset to Recommended") {
                 model.draft.resetLists()
             }
-            .buttonStyle(.link)
-            .font(.callout)
+            .buttonStyle(StandardButton())
+            .controlSize(.small)
         }
     }
 
