@@ -728,12 +728,6 @@ function HomePage() {
           <SupportSection titleStyle={styles.displayTitle} />
         </section>
 
-        {/* Not against the networks, only their feeds. */}
-        <section {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_social_title()}</h2>
-          <p {...props(styles.sectionBody)}>{m.home_social_body()}</p>
-        </section>
-
         <section {...props(styles.section, styles.anchor)} id={FAQ_ID}>
           <h2 {...props(styles.sectionTitle)}>{m.home_faq_title()}</h2>
           <div>
@@ -770,6 +764,8 @@ function HomePage() {
                 );
               })}
             </p>
+            {/* Not against the networks, only what their feeds take. */}
+            <p {...props(styles.storyLine)}>{m.home_story_social()}</p>
             <p {...props(styles.storyLine)}>
               {storyBefore}
               <a href={STORY_URL} rel="noreferrer" target="_blank">
