@@ -12,7 +12,6 @@ import {
   Skeleton,
 } from '@attentionawareness/ui';
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
-import { usePostHog } from '@posthog/react';
 import { create, keyframes, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
@@ -23,6 +22,7 @@ import { AppArtwork, artworkStyles } from '../components/app-artwork.tsx';
 import type { MetaCache } from '../components/app-artwork.tsx';
 import { PageFoot, PageHeader, page } from '../components/page.tsx';
 import { Tip } from '../components/tip.tsx';
+import { posthog } from '../lib/analytics.ts';
 import type { AppResult } from '../lib/app-search.ts';
 import {
   defaultStorefront,
@@ -1088,7 +1088,6 @@ function SiteHostField({
 }
 
 function BuildPage() {
-  const posthog = usePostHog();
   const [config, setConfig] = useState<ProfileConfig>(presets.mert);
   // The user's own urls, the derived ones they turned off, and the derived ones
   // they deleted. Everything else in the deny list comes from the blocked apps.

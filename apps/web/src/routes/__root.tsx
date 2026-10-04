@@ -1,12 +1,13 @@
 import { fontUrls } from '@attentionawareness/ui/fonts';
 import { Tooltip } from '@base-ui/react/tooltip';
-import { PostHogProvider } from '@posthog/react';
 import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-router';
-import type { ReactNode } from 'react';
+import { lazy, Suspense } from 'react';
+import type { FC, ReactNode } from 'react';
 import { NotFound } from '../components/not-found.tsx';
 import { SiteHeader } from '../components/site-header.tsx';
-import { SupportPopup } from '../components/support-popup.tsx';
+import { startAnalytics } from '../lib/analytics.ts';
 import { clientEnv } from '../lib/env.ts';
+import { useIdle } from '../lib/idle.ts';
 import { MOBILE_SCRIPT } from '../lib/mobile.ts';
 import { openPanelReplay, posthogReplay } from '../lib/replay.ts';
 import { SITE_URL } from '../lib/structured-data.ts';
@@ -25,10 +26,46 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
   void import('virtual:stylex:runtime');
 }
 
+if (clientEnv.VITE_POSTHOG_KEY && clientEnv.VITE_POSTHOG_HOST && typeof window !== 'undefined') {
+  startAnalytics(clientEnv.VITE_POSTHOG_KEY, {
+    api_host: clientEnv.VITE_POSTHOG_HOST,
+    capture_exceptions: {
+      capture_console_errors: false,
+      capture_unhandled_errors: true,
+      capture_unhandled_rejections: true,
+    },
+    capture_heatmaps: true,
+    defaults: '2026-05-30',
+    logs: {
+      environment: import.meta.env.MODE,
+      serviceName: 'attentionawareness-web',
+    },
+    // /build shows the apps and sites a visitor blocks; autocapture keeps
+    // no text or attributes anywhere, and replay masks the marked parts.
+    mask_all_element_attributes: true,
+    mask_all_text: true,
+    session_recording: posthogReplay,
+    // The project lives in PostHog EU; api_host may be our own proxy domain.
+    ui_host: 'https://eu.posthog.com',
+  });
+}
+
 if (clientEnv.VITE_SENTRY_DSN && typeof window !== 'undefined') {
   const Sentry = await import('@sentry/tanstackstart-react');
   Sentry.init({ dsn: clientEnv.VITE_SENTRY_DSN });
 }
+
+/**
+ * The popup after a download is fetched once the page is up: no page needs it
+ * to draw, and a download that starts before it is in waits for it
+ * (`lib/download-started.ts`). A chunk that does not load leaves no popup.
+ */
+const SupportPopup = lazy((): Promise<{ default: FC }> =>
+  import('../components/support-popup.tsx').then(
+    (popup) => ({ default: popup.SupportPopup }),
+    () => ({ default: () => null }),
+  ),
+);
 
 /** The brand, in prose. The lowercase "aa" mark is the only lowercase form. */
 const SITE_NAME = 'attention awareness';
@@ -155,42 +192,20 @@ function RootComponent() {
 function Providers({ children }: { children: ReactNode }) {
   // Every tooltip on the site opens after the same short pause and closes
   // without one, so a pointer hopping between tips never waits twice.
-  const tips = (
+  return (
     <Tooltip.Provider closeDelay={0} delay={150}>
       {children}
     </Tooltip.Provider>
   );
-  if (!clientEnv.VITE_POSTHOG_KEY || !clientEnv.VITE_POSTHOG_HOST) {
-    return tips;
-  }
-  return (
-    <PostHogProvider
-      apiKey={clientEnv.VITE_POSTHOG_KEY}
-      options={{
-        api_host: clientEnv.VITE_POSTHOG_HOST,
-        capture_exceptions: {
-          capture_console_errors: false,
-          capture_unhandled_errors: true,
-          capture_unhandled_rejections: true,
-        },
-        capture_heatmaps: true,
-        defaults: '2026-05-30',
-        logs: {
-          environment: import.meta.env.MODE,
-          serviceName: 'attentionawareness-web',
-        },
-        // /build shows the apps and sites a visitor blocks; autocapture keeps
-        // no text or attributes anywhere, and replay masks the marked parts.
-        mask_all_element_attributes: true,
-        mask_all_text: true,
-        session_recording: posthogReplay,
-        // The project lives in PostHog EU; api_host may be our own proxy domain.
-        ui_host: 'https://eu.posthog.com',
-      }}
-    >
-      {tips}
-    </PostHogProvider>
-  );
+}
+
+function LaterSupportPopup() {
+  const idle = useIdle();
+  return idle ? (
+    <Suspense fallback={null}>
+      <SupportPopup />
+    </Suspense>
+  ) : null;
 }
 
 function RootDocument({ children }: { children: ReactNode }) {
@@ -224,7 +239,7 @@ function RootDocument({ children }: { children: ReactNode }) {
         <Providers>
           <SiteHeader />
           {children}
-          <SupportPopup />
+          <LaterSupportPopup />
         </Providers>
         <Scripts />
       </body>

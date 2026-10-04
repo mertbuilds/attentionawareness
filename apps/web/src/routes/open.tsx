@@ -1,4 +1,3 @@
-import { usePostHog } from '@posthog/react';
 import { props } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { OpenNumbers } from '../components/open-numbers.tsx';
@@ -11,6 +10,7 @@ import {
   Prose,
   page,
 } from '../components/page.tsx';
+import { posthog } from '../lib/analytics.ts';
 import { m } from '../paraglide/messages.js';
 
 export const Route = createFileRoute('/open')({
@@ -40,7 +40,6 @@ const SPONSOR_EMAIL = 'hi@attentionawareness.com';
 const LINK_SLOT = '\u0000';
 
 function Open() {
-  const posthog = usePostHog();
   const answer = Route.useLoaderData();
   const mailto = `mailto:${SPONSOR_EMAIL}?subject=${encodeURIComponent(m.open_sponsor_subject())}`;
   const [sponsorBefore, sponsorAfter] = m.open_sponsor_body({ write: LINK_SLOT }).split(LINK_SLOT);

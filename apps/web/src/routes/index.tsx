@@ -1,11 +1,11 @@
 import { Button } from '@attentionawareness/ui';
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
-import { usePostHog } from '@posthog/react';
 import { create, defaultMarker, props, when } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
-import { useEffect, useId, useState } from 'react';
+import { lazy, Suspense, useEffect, useId, useState } from 'react';
+import type { ComponentProps, FC } from 'react';
 import { AngleDown, Check } from 'reicon-react';
 import { PaperLetter } from '../components/bill-paper.tsx';
 import { ExtensionBrowser } from '../components/extension-browser.tsx';
@@ -19,13 +19,26 @@ import { OtherUses } from '../components/other-uses.tsx';
 import { ScreenShots } from '../components/screen-shots.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { SupportSection } from '../components/support-section.tsx';
-import { ThanksPopup } from '../components/thanks-popup.tsx';
+import type { ThanksPopup as ThanksPopupComponent } from '../components/thanks-popup.tsx';
 import { UsesGrid } from '../components/uses-grid.tsx';
+import { posthog } from '../lib/analytics.ts';
 import { brandBar } from '../lib/brand-bar.stylex.ts';
 import { duration, easing } from '../lib/motion.stylex.ts';
 import { SECTION } from '../lib/sections.ts';
 import { homeSchema, schemaMeta } from '../lib/structured-data.ts';
 import { m } from '../paraglide/messages.js';
+
+/**
+ * The thank-you is fetched only for a reader the support checkout sends back.
+ * A chunk that does not load leaves no popup.
+ */
+const ThanksPopup = lazy(
+  (): Promise<{ default: FC<ComponentProps<typeof ThanksPopupComponent>> }> =>
+    import('../components/thanks-popup.tsx').then(
+      (popup) => ({ default: popup.ThanksPopup }),
+      () => ({ default: () => null }),
+    ),
+);
 
 export const Route = createFileRoute('/')({
   component: HomePage,
@@ -795,8 +808,9 @@ function homeQuestions(): ReadonlyArray<{
 }
 
 function HomePage() {
-  const posthog = usePostHog();
   const { thanks } = Route.useSearch();
+  // Kept for the visit: the popup takes the mark off the address as it opens.
+  const [thanked] = useState(thanks === 1);
   const navigate = Route.useNavigate();
   // The two words the claim turns on, in orange wherever a language puts
   // them, so the words around them keep their own order in every language.
@@ -1062,11 +1076,15 @@ function HomePage() {
 
         <SiteFooter />
       </div>
-      <ThanksPopup
-        // The mark goes off the address, in place: the page stays where it is.
-        onShown={() => void navigate({ replace: true, resetScroll: false, search: {} })}
-        show={thanks === 1}
-      />
+      {thanked ? (
+        <Suspense fallback={null}>
+          <ThanksPopup
+            // The mark goes off the address, in place: the page stays where it is.
+            onShown={() => void navigate({ replace: true, resetScroll: false, search: {} })}
+            show={thanks === 1}
+          />
+        </Suspense>
+      ) : null}
     </main>
   );
 }

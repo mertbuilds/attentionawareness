@@ -1,8 +1,8 @@
 import { accent } from '@attentionawareness/ui/accent.stylex';
-import { usePostHog } from '@posthog/react';
 import { create, props } from '@stylexjs/stylex';
 import { useEffect, useRef, useState } from 'react';
 import { Heart } from 'reicon-react';
+import { posthog } from '../lib/analytics.ts';
 import { shareUrl } from '../lib/share.ts';
 import { m } from '../paraglide/messages.js';
 import {
@@ -41,7 +41,6 @@ const styles = create({
  * to share the site: the reader has just supported it.
  */
 export function ThanksPopup({ onShown, show }: { onShown: () => void; show: boolean }) {
-  const posthog = usePostHog();
   const [open, setOpen] = useState(false);
   // Once for each load of the page, whatever the address says after.
   const shown = useRef(false);
@@ -53,10 +52,9 @@ export function ThanksPopup({ onShown, show }: { onShown: () => void; show: bool
     shown.current = true;
     setOpen(true);
     onShown();
-    // After this turn: the analytics start in an effect of the root, which
-    // runs after this one. No amount and no id goes with it.
-    window.setTimeout(() => posthog.capture('support_completed'), 0);
-  }, [onShown, posthog, show]);
+    // No amount and no id goes with it.
+    posthog.capture('support_completed');
+  }, [onShown, show]);
 
   return (
     <PopupShell

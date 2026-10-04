@@ -1,18 +1,30 @@
 import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { Tooltip } from '@base-ui/react/tooltip';
 import { create, props } from '@stylexjs/stylex';
-import { cloneElement, useState } from 'react';
-import type { MouseEvent, ReactElement, ReactNode } from 'react';
+import { cloneElement, lazy, Suspense, useState } from 'react';
+import type { ComponentProps, FC, MouseEvent, ReactElement, ReactNode } from 'react';
 import { duration, easing, scale } from '../lib/motion.stylex.ts';
 import { useIsMobile } from '../lib/use-is-mobile.ts';
 import { paperRoot, PaperSheet } from './bill-paper.tsx';
-import { Sheet } from './sheet.tsx';
+import type { Sheet as SheetComponent } from './sheet.tsx';
 
 /**
  * A tooltip appears a beat after it is asked for and goes at once: this long,
  * the tooltip's own close, quicker than any step of the motion scale.
  */
 const CLOSE_MS = 50;
+
+/**
+ * The sheet is a phone's alone, so its code (and the drawer it is built on)
+ * is fetched only on a phone, once the page knows it is one. A chunk that
+ * does not load leaves the trigger without a sheet.
+ */
+const Sheet = lazy((): Promise<{ default: FC<ComponentProps<typeof SheetComponent>> }> =>
+  import('./sheet.tsx').then(
+    (sheet) => ({ default: sheet.Sheet }),
+    () => ({ default: () => null }),
+  ),
+);
 
 const styles = create({
   popup: {
@@ -142,9 +154,11 @@ export function Tip({
             setOpen(true);
           },
         })}
-        <Sheet onOpenChange={setOpen} open={open} title={title}>
-          <div {...props(styles.sheetText)}>{children}</div>
-        </Sheet>
+        <Suspense fallback={null}>
+          <Sheet onOpenChange={setOpen} open={open} title={title}>
+            <div {...props(styles.sheetText)}>{children}</div>
+          </Sheet>
+        </Suspense>
       </>
     );
   }
