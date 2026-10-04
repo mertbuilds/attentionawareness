@@ -5,7 +5,7 @@ description: "Turn on Apple's adult website filter in Screen Time, see why it is
 slug: block-adult-websites-iphone
 date: 2026-10-04
 primary_keyword: 'how to block porn on iphone'
-reading_minutes: 6
+reading_minutes: 7
 read_next: why-screen-time-does-not-work, block-any-app-iphone
 ---
 
@@ -48,6 +48,22 @@ The Screen Time filter is a setting, and settings can be changed. There are thre
 
 Giving the passcode to a friend or partner helps, and it may be enough for you.
 
+## Another way: a DNS filter
+
+Before any app opens a website, the iPhone asks a DNS service for the website's address. A DNS filter is a DNS service that refuses to look up adult websites. So the block works for every app on the phone, not only Safari.
+
+Two free examples:
+
+- **Cloudflare 1.1.1.1 for Families.** The addresses that block malware and adult content are 1.1.1.3 and 1.0.0.3.
+- **CleanBrowsing Family Filter.** The addresses are 185.228.168.168 and 185.228.169.168. It also blocks known VPN and proxy websites, and turns on SafeSearch in Google, Bing and YouTube.
+
+There are two ways to set one up on an iPhone:
+
+- **With the provider's app or profile.** Cloudflare's free app, 1.1.1.1: Faster Internet, works on Wi-Fi and on mobile data. In the app, tap the menu, then Advanced > Connection options, and choose 1.1.1.1 for Families. CleanBrowsing offers a profile for iOS.
+- **By hand, for one Wi-Fi network.** In Settings, tap Wi-Fi, tap the "i" next to the network, tap Configure DNS, choose Manual and add the two addresses. This covers only that Wi-Fi network, not mobile data.
+
+What it leaves open: you can switch off the app, remove the profile in Settings > General > VPN & Device Management, or set the Wi-Fi back to Automatic. A VPN app can send the lookups to another DNS service. So a DNS filter covers more apps than Apple's filter, but it is just as easy to switch off. The locked profile below uses Apple's filter. Once it is locked on a supervised iPhone, it cannot be removed in Settings.
+
 ## The permanent way: lock the filter on a supervised iPhone
 
 Supervision is a mode Apple built for schools and companies. A supervised iPhone can carry a profile with rules that the person holding the phone cannot change. One of those rules is the same adult website filter from Screen Time, with no switch for it in Settings. There are two free ways to do this.
@@ -70,14 +86,14 @@ The [manual guide](/guide) does the same with Apple Configurator, Apple's own fr
 
 ### Which way fits you
 
-|                               | Screen Time            | Free Mac app                                           | Manually via Apple Configurator                        |
-| ----------------------------- | ---------------------- | ------------------------------------------------------ | ------------------------------------------------------ |
-| Needs a Mac                   | No                     | Yes                                                    | Yes                                                    |
-| Erases the iPhone             | No                     | No                                                     | Yes                                                    |
-| Can be turned off in Settings | Yes, with the passcode | No, once locked                                        | No, once locked                                        |
-| How to undo                   | Change the setting     | Erase the iPhone, or use a Mac with Apple Configurator | Erase the iPhone, or use a Mac with Apple Configurator |
+|                               | Screen Time            | DNS filter                               | Free Mac app                                           | Manually via Apple Configurator                        |
+| ----------------------------- | ---------------------- | ---------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------ |
+| Needs a Mac                   | No                     | No                                       | Yes                                                    | Yes                                                    |
+| Erases the iPhone             | No                     | No                                       | No                                                     | Yes                                                    |
+| Can be turned off in Settings | Yes, with the passcode | Yes                                      | No, once locked                                        | No, once locked                                        |
+| How to undo                   | Change the setting     | Switch off the app or remove the profile | Erase the iPhone, or use a Mac with Apple Configurator | Erase the iPhone, or use a Mac with Apple Configurator |
 
-All three are free.
+All four are free.
 
 ## What the filter catches
 
@@ -144,7 +160,7 @@ Turn on Limit Adult Websites in Screen Time today. If you find yourself turning 
       "url": "https://attentionawareness.com/blog/block-adult-websites-iphone",
       "mainEntityOfPage": "https://attentionawareness.com/blog/block-adult-websites-iphone",
       "datePublished": "2026-10-04",
-      "dateModified": "2026-10-04",
+      "dateModified": "2026-10-05",
       "inLanguage": "en",
       "author": {
         "@type": "Person",
@@ -263,5 +279,9 @@ Turn on Limit Adult Websites in Screen Time today. If you find yourself turning 
 - [Apple, "Change your Screen Time passcode on an iPhone or iPad"](https://support.apple.com/en-us/102677)
 - [Apple, "Set up Screen Time for yourself on iPhone"](https://support.apple.com/guide/iphone/set-up-screen-time-for-yourself-iphbfa595995/27/ios/27)
 - [Apple, "Erase iPhone"](https://support.apple.com/guide/iphone/erase-iphone-iph7a2a9399b/27/ios/27)
+- [Apple, "Install or remove configuration profiles on iPhone"](https://support.apple.com/guide/iphone/install-or-remove-configuration-profiles-iph6c493b19/ios)
+- [Cloudflare, "Set up 1.1.1.1 on iOS"](https://developers.cloudflare.com/1.1.1.1/setup/ios/)
+- [Cloudflare, "Set up Cloudflare 1.1.1.1 resolver" (1.1.1.1 for Families)](https://developers.cloudflare.com/1.1.1.1/setup/)
+- [CleanBrowsing, "Free DNS Filters"](https://cleanbrowsing.org/filters/)
 - [Apple, "Web Content Filter device management payload settings"](https://support.apple.com/guide/deployment/web-content-filter-payload-settings-depc77c9609/web)
 - [Apple, "Add or remove configuration profiles in Apple Configurator for Mac"](https://support.apple.com/guide/apple-configurator-mac/add-or-remove-configuration-profiles-cadb67fcd4f/mac)
