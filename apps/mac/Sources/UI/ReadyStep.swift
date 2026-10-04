@@ -144,7 +144,7 @@ struct ReadyStep: View {
                     }
                 }
             }
-            .font(.callout)
+            .controlSize(.small)
         }
     }
 }

@@ -208,19 +208,15 @@ struct StepLayout<Content: View, Actions: View>: View {
             HStack(spacing: 10) {
                 actions
             }
-            .buttonStyle(.bordered)
-            // The window tints its controls orange, which would colour the
-            // words of a bordered button too. The filled one sets its own.
-            .tint(nil)
             .controlSize(.large)
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        // Every plain button in the content of a step takes the orange. The
-        // buttons at the bottom and the filled one set their own style, so
-        // they win over this. It sits here rather than on the window so a
-        // step drawn on its own carries it too.
-        .buttonStyle(TextButton())
+        // Every button on a step is a standard bordered one. The filled one
+        // and the few that are only a symbol set their own style, so they
+        // win over this. It sits here rather than on the window so a step
+        // drawn on its own carries it too.
+        .buttonStyle(StandardButton())
     }
 }
 
@@ -373,27 +369,14 @@ extension View {
     }
 }
 
-/// A button that is only its words, for the small actions inside the content
-/// of a step. The orange is what says these are the things you can press.
-struct TextButton: ButtonStyle {
+/// The standard bordered button, for every button on a step but the filled
+/// one. The window tints its controls orange, which would colour the words
+/// of a bordered button too, so these take the system's plain look instead.
+struct StandardButton: PrimitiveButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        RingedLabel(configuration: configuration)
-    }
-
-    /// A `ButtonStyle` cannot hold the focus state a ring needs, so the label
-    /// is its own view. It draws the same orange ring the filled button does,
-    /// in the rounded-rect shape a text button rings in.
-    struct RingedLabel: View {
-        let configuration: ButtonStyleConfiguration
-        @Environment(\.isEnabled) private var enabled
-
-        var body: some View {
-            configuration.label
-                .foregroundStyle(configuration.isPressed ? WizardStyle.accentSoft : WizardStyle.accent)
-                .opacity(enabled ? 1 : 0.4)
-                .contentShape(Rectangle())
-                .accentFocusRing(RoundedRectangle(cornerRadius: 6))
-        }
+        Button(configuration)
+            .buttonStyle(.bordered)
+            .tint(nil)
     }
 }
 

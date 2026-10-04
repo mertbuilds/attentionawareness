@@ -27,9 +27,6 @@ struct DoneRow<Actions: View>: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .buttonStyle(.bordered)
-        // The window tints its controls orange, which would colour these
-        // words too. They take the system's plain look instead.
-        .tint(nil)
+        .buttonStyle(StandardButton())
     }
 }
