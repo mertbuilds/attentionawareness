@@ -87,24 +87,16 @@ const NAME_BEARING = 0.038;
  */
 const NAME_SHOWN = 0.84;
 /**
- * The name's ink: a quiet share of the page's own, so it reads as a watermark
- * under the links and not as a title. It thins toward the page's edge.
+ * The name's ink: the page's own at the top of the letters, running into the
+ * orange by their foot, which it holds down to the page's edge. Where a
+ * browser cannot paint text with a gradient, the letters are in the ink.
+ * The stops are shares of the shown line: the tall letters start near 10%,
+ * the short ones near 30%, and the line they stand on is at 96%.
  */
-const NAME_INK = `color-mix(in srgb, ${colors.fg} 28%, transparent)`;
-const NAME_THINS = 'linear-gradient(to bottom, black 15%, rgb(0 0 0 / 0.3))';
-/**
- * The orange light the foot of the name stands in: the header band's glow on
- * inner pages, laid along the page's whole bottom edge instead of in one
- * corner. The light is even across the width and fades upward; its top is a
- * soft, regular wave. Two masks give it that shape together: a band that is
- * full along the bottom edge and gone by a little over half the height, and a
- * row of wide soft humps that reach the top, one to a period.
- */
-const GLOW = `linear-gradient(to top, ${accent.glow}, transparent)`;
-const GLOW_BASE = 'linear-gradient(to top, black, transparent 60%)';
-const GLOW_WAVE = 'radial-gradient(ellipse 60% 100% at 50% 100%, black, transparent)';
-/** How much of the shown name the glow climbs over the room under it, at a crest. */
-const GLOW_SHARE = 0.28;
+const NAME_INK = colors.fg;
+/** Only a browser that paints text with a background lets the letters go clear. */
+const CLIPS_TEXT = '@supports ((background-clip: text) or (-webkit-background-clip: text))';
+const NAME_RUN = `linear-gradient(to bottom, ${colors.fg} 30%, ${accent.base} 85%)`;
 /** The room the page shells leave under the footer, which the footer takes back. */
 const PAGE_FOOT = spacing.s16;
 /**
@@ -211,37 +203,6 @@ const styles = create({
     opacity: 0,
     transform: `translateY(${distance.medium})`,
   },
-  // Under the name and over the paper, standing on the page's bottom edge:
-  // the room under the name, and a little of the name's own height. The
-  // humps are centred on the middle of the page, a whole number of them or
-  // a half more, so the wave is the same on both sides.
-  glow: {
-    backgroundImage: GLOW,
-    height: firstThatWorks(
-      `calc((100cqi - 2 * ${spacing.s4}) / ${NAME_WIDTH} * ${NAME_SHOWN * GLOW_SHARE} + ${spacing.s4})`,
-      `calc((100vw - 2 * ${spacing.s4}) / ${NAME_WIDTH} * ${NAME_SHOWN * GLOW_SHARE} + ${spacing.s4})`,
-    ),
-    insetBlockEnd: 0,
-    insetInline: 0,
-    maskImage: `${GLOW_WAVE}, ${GLOW_BASE}`,
-    maskPosition: 'center bottom, center',
-    maskRepeat: 'repeat-x, no-repeat',
-    maskSize: {
-      '@media (min-width: 1200px)': 'calc(100% / 3) 100%, 100% 100%',
-      '@media (min-width: 768px)': 'calc(100% / 2) 100%, 100% 100%',
-      default: 'calc(100% / 1.5) 100%, 100% 100%',
-    },
-    pointerEvents: 'none',
-    position: 'absolute',
-    WebkitMaskImage: `${GLOW_WAVE}, ${GLOW_BASE}`,
-    WebkitMaskPosition: 'center bottom, center',
-    WebkitMaskRepeat: 'repeat-x, no-repeat',
-    WebkitMaskSize: {
-      '@media (min-width: 1200px)': 'calc(100% / 3) 100%, 100% 100%',
-      '@media (min-width: 768px)': 'calc(100% / 2) 100%, 100% 100%',
-      default: 'calc(100% / 1.5) 100%, 100% 100%',
-    },
-  },
   // The star before its link, and the box its filled twin is laid over. It
   // keeps its size where the words wrap.
   icon: {
@@ -311,7 +272,6 @@ const styles = create({
   // The name, as large as the row is wide, every letter whole. The type size is read off the stage's own width, or off the window's where a
   // browser has no container units.
   name: {
-    color: NAME_INK,
     display: 'block',
     fontSize: firstThatWorks(
       `calc((100cqi - 2 * ${spacing.s4}) / ${NAME_WIDTH})`,
@@ -323,10 +283,6 @@ const styles = create({
     lineHeight: 1,
     // The first letter's ink, not its box, stands on the page's left edge.
     marginInlineStart: `calc(${spacing.s4} - ${NAME_BEARING}em)`,
-    maskImage: NAME_THINS,
-    // Drawn over the glow, which is placed and would otherwise cover it.
-    position: 'relative',
-    WebkitMaskImage: NAME_THINS,
     whiteSpace: 'nowrap',
   },
   // The graph paper, under the foot of the page. The footer is not
@@ -346,6 +302,20 @@ const styles = create({
     WebkitMaskImage: {
       '@media (min-width: 640px)': `${PAPER_SIDES}, ${PAPER_TOP}`,
       default: `${PAPER_SIDES_NARROW}, ${PAPER_TOP}`,
+    },
+  },
+  // The letters painted with the run, on a box of their own inside the name,
+  // so WebKit never meets the clip and the rise's moving layer on one element.
+  nameInk: {
+    backgroundClip: 'text',
+    backgroundImage: NAME_RUN,
+    color: NAME_INK,
+    display: 'block',
+    height: '100%',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: {
+      [CLIPS_TEXT]: 'transparent',
+      default: null,
     },
   },
   rise: {
@@ -663,9 +633,8 @@ export function SiteFooter({ children }: { children?: ReactNode | undefined }) {
       </div>
       {/* The name is read out in the brand's line above, so this one is for the eye only. */}
       <div aria-hidden="true" ref={stage} {...props(styles.stage)}>
-        <span {...props(styles.glow)} />
         <span {...props(styles.name, rising && (seen ? styles.rise : styles.hidden))}>
-          {m.site_name()}
+          <span {...props(styles.nameInk)}>{m.site_name()}</span>
         </span>
       </div>
     </footer>
