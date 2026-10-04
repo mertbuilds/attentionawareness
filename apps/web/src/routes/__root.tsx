@@ -9,6 +9,7 @@ import { SupportPopup } from '../components/support-popup.tsx';
 import { clientEnv } from '../lib/env.ts';
 import { MOBILE_SCRIPT } from '../lib/mobile.ts';
 import { openPanelReplay, posthogReplay } from '../lib/replay.ts';
+import { SITE_URL } from '../lib/structured-data.ts';
 import { THEME_GROUND, THEME_SCRIPT } from '../lib/theme.ts';
 import { m } from '../paraglide/messages.js';
 import fontsStylesheet from '@attentionawareness/ui/fonts-optional.css?url';
@@ -40,7 +41,6 @@ const SITE_NAME = 'attention awareness';
 const CHECKOUT_SCRIPT =
   "try{var u=new URL(location.href),p=u.searchParams;if(p.has('checkout_id')||p.has('customer_session_token')){" +
   "p.delete('checkout_id');p.delete('customer_session_token');history.replaceState(history.state,'',u.pathname+u.search+u.hash)}}catch(e){}";
-const SITE_URL = 'https://attentionawareness.com';
 const ICON_SUFFIX = import.meta.env.DEV ? '-dev' : '';
 /** The site's own OpenPanel project. The id is public by design. */
 const ANALYTICS_CLIENT_ID = '7969381f-4a54-484b-abe4-79148bce2206';
@@ -129,6 +129,13 @@ export const Route = createRootRoute({
         { content: 'website', property: 'og:type' },
         { content: url ?? SITE_URL, property: 'og:url' },
         { content: OG_IMAGE, property: 'og:image' },
+        // The picture's size, so a share card is laid out before the file is in,
+        // and its words, which are the tagline.
+        { content: '1200', property: 'og:image:width' },
+        { content: '630', property: 'og:image:height' },
+        { content: tagline, property: 'og:image:alt' },
+        // A path no route answers is not a page to list.
+        ...(match._notFound ? [{ content: 'noindex', name: 'robots' }] : []),
         { content: 'summary_large_image', name: 'twitter:card' },
         { content: OG_IMAGE, name: 'twitter:image' },
       ],

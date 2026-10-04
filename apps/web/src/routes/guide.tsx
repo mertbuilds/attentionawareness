@@ -13,6 +13,7 @@ import {
   page,
 } from '../components/page.tsx';
 import { SECTION } from '../lib/sections.ts';
+import { howToSchema } from '../lib/structured-data.ts';
 import { m } from '../paraglide/messages.js';
 
 export const Route = createFileRoute('/guide')({
@@ -23,12 +24,84 @@ export const Route = createFileRoute('/guide')({
       { content: m.guide_description(), name: 'description' },
       { content: m.guide_head_title(), property: 'og:title' },
       { content: m.guide_description(), property: 'og:description' },
+      {
+        'script:ld+json': howToSchema({
+          description: m.guide_description(),
+          name: m.guide_title(),
+          path: GUIDE_PATH,
+          steps: guideSteps(),
+          supplies: [m.guide_need_passwords()],
+          tools: [m.guide_need_mac()],
+        }),
+      },
     ],
   }),
 });
 
 /** The brand in prose, the way the root document spells it. */
 const SITE_NAME = 'attention awareness';
+const GUIDE_PATH = '/guide';
+
+/** One step: its title, and the lines under it as one run of words. */
+function step(name: string, ...lines: Array<string>): { name: string; text: string } {
+  return { name, text: lines.join(' ') };
+}
+
+/**
+ * The seven steps as the page numbers them, each with the words under its
+ * title, for the head's HowTo. Kept beside the page so the two say the same.
+ */
+function guideSteps(): Array<{ name: string; text: string }> {
+  return [
+    step(
+      m.guide_step_backup_title(),
+      m.guide_step_backup_icloud(),
+      m.guide_step_backup_finder(),
+      m.guide_step_backup_note(),
+    ),
+    step(
+      m.guide_step_configurator_title(),
+      m.guide_step_configurator_body({ configurator: m.guide_step_configurator_link() }),
+    ),
+    step(
+      m.guide_step_erase_title(),
+      m.guide_step_erase_body(),
+      m.guide_step_erase_stolen(),
+      m.guide_step_erase_hello(),
+    ),
+    step(
+      m.guide_step_prepare_title(),
+      m.guide_step_prepare_connect(),
+      m.guide_step_prepare_manual(),
+      m.guide_step_prepare_skip(),
+      m.guide_step_prepare_org(),
+      m.guide_step_prepare_setup(),
+      m.guide_step_prepare_done(),
+    ),
+    step(
+      m.guide_step_setup_title(),
+      m.guide_step_setup_home(),
+      m.guide_step_setup_no_restore(),
+      m.guide_step_setup_account(),
+      m.guide_step_setup_find_my(),
+      m.guide_step_setup_apps(),
+      m.guide_step_setup_check(),
+      m.guide_step_setup_managed(),
+    ),
+    step(
+      m.guide_step_build_title(),
+      m.guide_step_build_body({ builder: m.guide_step_build_link() }),
+      m.guide_step_build_trial(),
+      m.guide_step_build_by_hand(),
+    ),
+    step(
+      m.guide_step_install_title(),
+      m.guide_step_install_body(),
+      m.guide_step_install_done(),
+      m.guide_step_install_more(),
+    ),
+  ];
+}
 /** The post this guide is adapted from. */
 const POST_URL = 'https://stopa.io/post/297';
 const CONFIGURATOR_URL = 'https://apps.apple.com/app/apple-configurator/id1037126344?mt=12';

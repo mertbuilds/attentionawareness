@@ -15,6 +15,7 @@ import {
 import { PostCard } from '../components/post-card.tsx';
 import { loadPost, postDay } from '../lib/blog.ts';
 import { ink } from '../lib/reading.stylex.ts';
+import { breadcrumbSchema } from '../lib/structured-data.ts';
 import { m } from '../paraglide/messages.js';
 
 export const Route = createFileRoute('/blog/$slug')({
@@ -31,7 +32,16 @@ export const Route = createFileRoute('/blog/$slug')({
             { content: loaderData.post.title, property: 'og:title' },
             { content: loaderData.post.description, property: 'og:description' },
             { content: 'article', property: 'og:type' },
+            { content: loaderData.post.date, property: 'article:published_time' },
             { 'script:ld+json': loaderData.post.schema },
+            // The way down to the post, which a search result shows in place of the address.
+            {
+              'script:ld+json': breadcrumbSchema([
+                { name: SITE_NAME, path: '/' },
+                { name: m.blog_title(), path: BLOG_PATH },
+                { name: loaderData.post.heading, path: `${BLOG_PATH}/${loaderData.post.slug}` },
+              ]),
+            },
           ],
         },
   loader: load,
