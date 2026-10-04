@@ -165,15 +165,23 @@ enum JobPhase: Equatable {
     /// What the restart wait asks of the person, under its line. A restarted
     /// iPhone answers nothing until its passcode is entered, so the wait says
     /// so from the start and names the one thing missing once the iPhone is
-    /// back on the cable. `pairing` is nil while the iPhone is away.
-    static func restartHint(pairing: PairingState?) -> String {
+    /// back on the cable. `pairing` is nil while the iPhone is away. The fast
+    /// method's restore makes the iPhone forget this Mac, so after its restart
+    /// the iPhone always asks to trust it again, and the wait says so.
+    static func restartHint(pairing: PairingState?, method: SupervisionMethod = .fullCopy) -> String {
         switch pairing {
         case .locked:
             return "Unlock iPhone."
-        case .trustPending, .untrusted:
+        case .trustPending:
             return "Tap Trust on iPhone."
+        case .untrusted:
+            return "iPhone did not trust this Mac. Unplug iPhone, plug it in again, then tap Trust."
+        case .needsReplug:
+            return "Unplug iPhone, plug it in again, then tap Trust."
         case .paired:
             return "Keep iPhone unlocked and connected."
+        case nil where method == .seed:
+            return "When it is back, unlock it with your passcode. It then asks to trust this Mac again: tap Trust."
         case nil:
             return "When it is back, unlock it with your passcode. If it asks, tap Trust."
         }

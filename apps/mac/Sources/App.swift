@@ -58,6 +58,16 @@ struct AttentionAwarenessApp: App {
         // display and without an iPhone.
         UISmoke.runIfAsked()
 
+        #if DEBUG
+        // `--debug-forget-pairing` makes this Mac's pair record unknown to the
+        // iPhone on the cable, the state the fast method's restore leaves it
+        // in, and goes on into the window. See `DebugForgetPairing`.
+        DebugForgetPairing.runIfAsked()
+        // `--debug-unsupervise` turns the run round, so it takes supervision
+        // off iPhone. See `DebugUnsupervise`.
+        DebugUnsupervise.announceIfAsked()
+        #endif
+
         // `--demo` opens the window on a wizard that reaches no iPhone, no
         // disk and no site, with a bar under it for driving the states by
         // hand. It is the one flag that stays and opens a window, and the one

@@ -47,7 +47,7 @@ struct ConnectStep: View {
         if let device = model.device, device.pairingState == .paired {
             // Which button shows is the only thing that says whether the
             // phone is supervised already, so the card carries no such row.
-            if model.isSupervised == true {
+            if model.offersManageRestrictions {
                 Button("Manage Restrictions") {
                     model.manageRestrictions()
                 }
@@ -76,7 +76,7 @@ struct ConnectStep: View {
         switch device.pairingState {
         case .trustPending, .locked:
             return "Tap Trust on iPhone, then enter its passcode."
-        case .untrusted:
+        case .untrusted, .needsReplug:
             return "Unplug iPhone, plug it back in, then tap Trust."
         case .paired:
             return nil

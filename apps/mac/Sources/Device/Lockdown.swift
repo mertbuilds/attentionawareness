@@ -12,6 +12,10 @@ enum PairingState: String, Equatable {
     case locked
     /// The user answered the Trust dialog with Don't Trust.
     case untrusted
+    /// This Mac gave up on pairing over this connection: it could not hear
+    /// the answer to Trust, or could not keep the record. Only unplugging
+    /// iPhone and plugging it in again starts over.
+    case needsReplug
 }
 
 /// One iPhone on the USB bus, as lockdown describes it. Every field except the
@@ -90,12 +94,9 @@ struct ConnectedDevice: Identifiable, Equatable {
                 dataAvailable: session.integer(domain: "com.apple.disk_usage", key: "TotalDataAvailable"),
                 pairingState: .paired
             )
-        } catch DeviceError.trustPending {
-            return readBeforeTrust(udid: udid, pairingState: .trustPending)
-        } catch DeviceError.locked {
-            return readBeforeTrust(udid: udid, pairingState: .locked)
-        } catch DeviceError.trustDenied {
-            return readBeforeTrust(udid: udid, pairingState: .untrusted)
+        } catch let error as DeviceError {
+            guard let pairingState = error.pairingState else { throw error }
+            return readBeforeTrust(udid: udid, pairingState: pairingState)
         }
     }
 
@@ -146,32 +147,25 @@ final class LockdownSession {
         }
 
         var client: lockdownd_client_t?
-        let status = handshake
-            ? lockdownd_client_new_with_handshake(device, &client, Self.label)
-            : lockdownd_client_new(device, &client, Self.label)
-        guard status == LOCKDOWN_E_SUCCESS, let client else {
-            idevice_free(device)
-            switch status {
-            // Still pairing / not trusted yet. During a first pairing, while
-            // the Trust dialog is up and the passcode is being entered, the
-            // phone has not written the pairing record, so the handshake
-            // reports one of these transient states rather than success. Treat
-            // them all as "keep waiting" so the UI shows the calm waiting step
-            // and the watcher polls until pairing completes.
-            case LOCKDOWN_E_PASSWORD_PROTECTED:
-                throw DeviceError.locked
-            case LOCKDOWN_E_PAIRING_DIALOG_RESPONSE_PENDING,
-                 LOCKDOWN_E_INVALID_HOST_ID,
-                 LOCKDOWN_E_INVALID_CONF,
-                 LOCKDOWN_E_MUX_ERROR,
-                 LOCKDOWN_E_SSL_ERROR,
-                 LOCKDOWN_E_NO_RUNNING_SESSION:
-                throw DeviceError.trustPending
-            case LOCKDOWN_E_USER_DENIED_PAIRING:
-                throw DeviceError.trustDenied
-            default:
-                throw DeviceError.lockdownFailed(code: status.rawValue)
+        do {
+            if handshake {
+                try Pairing.open(
+                    udid: udid,
+                    handshake: { lockdownd_client_new_with_handshake(device, &client, Self.label) },
+                    pair: { Self.pair(device) },
+                    observe: { TrustObserver(udid: udid, watch: .shared) }
+                )
+            } else {
+                let status = lockdownd_client_new(device, &client, Self.label)
+                guard status == LOCKDOWN_E_SUCCESS else { throw Pairing.error(for: status) }
             }
+        } catch {
+            idevice_free(device)
+            throw error
+        }
+        guard let client else {
+            idevice_free(device)
+            throw DeviceError.lockdownFailed(code: LOCKDOWN_E_UNKNOWN_ERROR.rawValue)
         }
 
         self.device = device
@@ -181,6 +175,17 @@ final class LockdownSession {
     deinit {
         lockdownd_client_free(client)
         idevice_free(device)
+    }
+
+    /// Sends Pair on a lockdown client of its own. libimobiledevice makes a
+    /// new pair record for it and, once the phone says yes, saves it through
+    /// usbmuxd in the Mac's own store, where every later handshake reads it.
+    private static func pair(_ device: idevice_t) -> lockdownd_error_t {
+        var client: lockdownd_client_t?
+        let status = lockdownd_client_new(device, &client, label)
+        guard status == LOCKDOWN_E_SUCCESS, let client else { return status }
+        defer { lockdownd_client_free(client) }
+        return lockdownd_pair(client, nil)
     }
 
     /// The device handle, for the service clients that need to open their own

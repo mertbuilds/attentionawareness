@@ -32,6 +32,16 @@ struct ContentView: View {
                 .padding(28)
                 .frame(maxWidth: .infinity)
         }
+        #if DEBUG
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if !model.supervises {
+                Text(DebugUnsupervise.label)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .padding(.top, 8)
+            }
+        }
+        #endif
         .background(Color(nsColor: .windowBackgroundColor))
         // macOS rings whatever holds the keyboard in the system accent, which
         // is blue on most Macs. The window tints itself instead, and the

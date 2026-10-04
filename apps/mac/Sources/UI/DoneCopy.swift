@@ -26,6 +26,10 @@ enum DoneCopy {
         }
     }
 
+    /// The title of the last screen after a run that took supervision off,
+    /// which only the debug `--debug-unsupervise` flag starts.
+    static let unsupervisedTitle = "iPhone Is No Longer Supervised"
+
     /// The one practical thing left to do.
     static let disconnect = "You can disconnect iPhone."
 

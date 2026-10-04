@@ -53,13 +53,14 @@ struct SupervisionPatch {
     // Planning
 
     /// Work out the new file bytes without writing anything. The backup is left
-    /// saying it is supervised.
-    static func plan(backup: BackupFolder) throws -> PatchPlan {
+    /// saying it is supervised, or, when `supervised` is false, which only the
+    /// debug `--debug-unsupervise` run asks for, saying it is not.
+    static func plan(backup: BackupFolder, supervised: Bool = true) throws -> PatchPlan {
         guard let recordedSize = backup.recordedSize else { throw PatchError.noSupervisionFile }
-        return try plan(original: try backup.readContent(), recordedSize: recordedSize)
+        return try plan(original: try backup.readContent(), recordedSize: recordedSize, supervised: supervised)
     }
 
-    static func plan(original: Data, recordedSize: Int) throws -> PatchPlan {
+    static func plan(original: Data, recordedSize: Int, supervised: Bool = true) throws -> PatchPlan {
         let isBinary = original.starts(with: Array("bplist00".utf8))
         guard
             var content = try PropertyListSerialization.propertyList(
@@ -72,13 +73,21 @@ struct SupervisionPatch {
         }
 
         var changes: [String] = []
-        if boolean(content["IsSupervised"]) != true {
-            changes.append("IsSupervised: \(label(content["IsSupervised"])) -> true")
-            content["IsSupervised"] = true
+        if boolean(content["IsSupervised"]) != supervised {
+            changes.append("IsSupervised: \(label(content["IsSupervised"])) -> \(supervised)")
+            content["IsSupervised"] = supervised
         }
         if boolean(content["CloudConfigurationUIComplete"]) == false {
             changes.append("CloudConfigurationUIComplete: false -> true")
             content["CloudConfigurationUIComplete"] = true
+        }
+        // A supervising identity goes when supervision does, as in the seed
+        // method's edit.
+        if !supervised {
+            for key in CloudConfigurationEdit.identityKeys where content[key] != nil {
+                changes.append("\(key): present -> missing")
+                content.removeValue(forKey: key)
+            }
         }
 
         var newBytes = try PropertyListSerialization.data(
@@ -123,8 +132,9 @@ struct SupervisionPatch {
     }
 
     /// Re-read the patched backup. Return the byte size that both sides agree on.
+    /// `supervised` is the flag the plan wrote.
     @discardableResult
-    func verify() throws -> Int {
+    func verify(supervised: Bool = true) throws -> Int {
         let plain = try backup.readContent()
         guard
             let content = try? PropertyListSerialization.propertyList(
@@ -132,9 +142,9 @@ struct SupervisionPatch {
                 options: [],
                 format: nil
             ) as? [String: Any],
-            Self.boolean(content["IsSupervised"]) == true
+            Self.boolean(content["IsSupervised"]) == supervised
         else {
-            throw PatchError.verificationFlag(true)
+            throw PatchError.verificationFlag(supervised)
         }
         guard let row = try backup.supervisionRow() else { throw PatchError.verificationRowMissing }
         let recorded = try MBFileBlob.readSize(row.blob)

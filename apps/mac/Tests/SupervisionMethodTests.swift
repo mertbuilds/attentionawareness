@@ -4,17 +4,48 @@ import Testing
 /// Which methods an iPhone is offered, from the version of iOS it reports.
 ///
 /// The seed method erases an iPhone on iOS 27, so the rule these pin down is
-/// that only a version that reads as 26 or older is ever offered it. The full
-/// copy is offered on every version, and it is the default on all of them.
+/// that only a version that reads as 26 or older is ever offered it. There it
+/// is the default and is recommended; everywhere else the full copy is the
+/// default and fast is tagged experimental.
 struct SupervisionMethodTests {
-    @Test func theDefaultMethodIsTheFullCopy() {
-        #expect(SupervisionMethod.defaultMethod == .fullCopy)
+    @Test(arguments: ["1.0", "9.3", "17.6.1", "26.0", "26.4", "26.2.1", "26.4.1", "26"])
+    func iOS26AndOlderAreOfferedBothWithFastFirst(_ version: String) {
+        #expect(SupervisionMethod.fastRefusal(iosVersion: version) == nil)
+        #expect(SupervisionMethod.offered(iosVersion: version) == [.seed, .fullCopy])
     }
 
-    @Test(arguments: ["1.0", "17.6.1", "26.0", "26.4", "26.2.1", "26"])
-    func iOS26AndOlderAreOfferedBothWithTheFullCopyFirst(_ version: String) {
-        #expect(SupervisionMethod.fastRefusal(iosVersion: version) == nil)
-        #expect(SupervisionMethod.offered(iosVersion: version) == [.fullCopy, .seed])
+    @Test(arguments: ["9.3", "26.0", "26.4.1", "26"])
+    func iOS26AndOlderDefaultToFastAndRecommendIt(_ version: String) {
+        #expect(SupervisionMethod.defaultMethod(iosVersion: version) == .seed)
+        #expect(SupervisionMethod.tag(of: .seed, iosVersion: version) == "recommended")
+        #expect(SupervisionMethod.tag(of: .fullCopy, iosVersion: version) == nil)
+        #expect(SupervisionMethod.label(of: .seed, iosVersion: version) == "Fast (recommended)")
+        #expect(SupervisionMethod.label(of: .fullCopy, iosVersion: version) == "Full copy and restore")
+    }
+
+    @Test(arguments: ["27.0", "27.1", "27", "30", nil, "", "abc"] as [String?])
+    func iOS27AndLaterAndUnknownDefaultToTheFullCopyWithFastExperimental(_ version: String?) {
+        #expect(SupervisionMethod.defaultMethod(iosVersion: version) == .fullCopy)
+        #expect(SupervisionMethod.tag(of: .seed, iosVersion: version) == "experimental")
+        #expect(SupervisionMethod.tag(of: .fullCopy, iosVersion: version) == nil)
+        #expect(SupervisionMethod.label(of: .seed, iosVersion: version) == "Fast (experimental)")
+        #expect(SupervisionMethod.label(of: .fullCopy, iosVersion: version) == "Full copy and restore")
+    }
+
+    @Test func theMajorVersionIsReadAsANumber() {
+        #expect(SupervisionMethod.majorVersion(of: "26.4.1") == 26)
+        #expect(SupervisionMethod.majorVersion(of: "27") == 27)
+        #expect(SupervisionMethod.majorVersion(of: "27.0") == 27)
+        #expect(SupervisionMethod.majorVersion(of: "9.3") == 9)
+    }
+
+    @Test func aPickByHandHoldsWhileTheVersionStillOffersIt() {
+        #expect(SupervisionMethod.method(pickedByHand: nil, iosVersion: "26.4.1") == .seed)
+        #expect(SupervisionMethod.method(pickedByHand: .fullCopy, iosVersion: "26.4.1") == .fullCopy)
+        #expect(SupervisionMethod.method(pickedByHand: .seed, iosVersion: "26.4.1") == .seed)
+        #expect(SupervisionMethod.method(pickedByHand: nil, iosVersion: "27.0") == .fullCopy)
+        #expect(SupervisionMethod.method(pickedByHand: .seed, iosVersion: "27.0") == .fullCopy)
+        #expect(SupervisionMethod.method(pickedByHand: .seed, iosVersion: nil) == .fullCopy)
     }
 
     @Test(arguments: ["27.0", "27.1", "30"])

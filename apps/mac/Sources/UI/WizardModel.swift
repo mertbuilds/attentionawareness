@@ -34,6 +34,10 @@ class WizardModel: ObservableObject {
     }
     /// How often the iPhone is read while the job waits for it to come back.
     var restartPollInterval: Duration { .seconds(2) }
+    /// How often a locked or untrusted iPhone is read again outside the job.
+    var pendingPollInterval: Duration { .milliseconds(2500) }
+    /// How often the iPhone is asked what it is now, once it is back.
+    var confirmInterval: Duration { .seconds(5) }
     /// How long Check Again reads for before the screen offers it again.
     var checkAgainTimeout: TimeInterval { 20 }
     /// How often the iPhone is read again while a check is waiting for it.
@@ -44,8 +48,6 @@ class WizardModel: ObservableObject {
     /// the cable. A phone that has just restored takes a minute or two to
     /// settle before it answers MCInstall with the truth.
     private static let confirmTimeout: TimeInterval = 3 * 60
-    /// How often it is asked while that runs.
-    private static let confirmInterval = Duration.seconds(5)
     /// How long the iPhone is given to register the new backup password after
     /// encryption is turned on, before the copy starts anyway.
     private static let encryptionSettleTimeout: TimeInterval = 30
@@ -58,7 +60,11 @@ class WizardModel: ObservableObject {
     let watcher: DeviceWatcher
     let engine: BackupEngine
     let seedEngine: SeedEngine
-    @Published private(set) var supervisionMethod = SupervisionMethod.defaultMethod
+    @Published private(set) var supervisionMethod = SupervisionMethod.defaultMethod(iosVersion: nil)
+    /// The method the person picked by hand on Ready for this iPhone. Nil
+    /// until they pick one, and while it is nil the method follows the
+    /// version the iPhone reports.
+    private var methodPickedByHand: SupervisionMethod?
     /// The person has said they backed up the iPhone themselves, with Finder
     /// or iCloud. No run of either method starts until they have.
     @Published private(set) var backupConfirmed = false
@@ -124,6 +130,9 @@ class WizardModel: ObservableObject {
 
     private var relays: [AnyCancellable] = []
     private var poll: Task<Void, Never>?
+    /// Reads an iPhone that is locked or waiting for Trust again, on the steps
+    /// that have no poll of their own. See `followPendingDevices()`.
+    private var pendingPoll: Task<Void, Never>?
     /// The job, from the first byte of the copy to the iPhone saying what it is
     /// now. Every move off the job screen cancels it, so two of them can never
     /// run at once.
@@ -171,6 +180,10 @@ class WizardModel: ObservableObject {
     let finishedEvent: ((SupervisionFinishedEvent) -> Void)?
     /// True once this run has sent its count, so one run sends one.
     private var finishedEventSent = false
+    /// The flag every run writes: true puts supervision on. False takes it
+    /// off, skips the Restrictions step and sends no count, which only the
+    /// debug `--debug-unsupervise` flag asks for (`DebugUnsupervise`).
+    let supervises: Bool
 
     /// A model that watches the real USB bus, which is what the window uses.
     /// It is the only one that sends the anonymous count, and the only one
@@ -178,10 +191,16 @@ class WizardModel: ObservableObject {
     convenience init() {
         // Can be removed in a later version, with `OldSupervisionKey`.
         OldSupervisionKey.remove()
+        #if DEBUG
+        let supervises = !DebugUnsupervise.isOn
+        #else
+        let supervises = true
+        #endif
         self.init(
             watcher: DeviceWatcher(),
             engine: BackupEngine(),
-            finishedEvent: SupervisionEventSender.send
+            finishedEvent: SupervisionEventSender.send,
+            supervises: supervises
         )
     }
 
@@ -202,12 +221,14 @@ class WizardModel: ObservableObject {
         watcher: DeviceWatcher,
         engine: BackupEngine,
         seedEngine: SeedEngine? = nil,
-        finishedEvent: ((SupervisionFinishedEvent) -> Void)? = nil
+        finishedEvent: ((SupervisionFinishedEvent) -> Void)? = nil,
+        supervises: Bool = true
     ) {
         self.watcher = watcher
         self.engine = engine
         self.seedEngine = seedEngine ?? SeedEngine(backupEngine: engine)
         self.finishedEvent = finishedEvent
+        self.supervises = supervises
         relays = [
             watcher.objectWillChange.sink { [weak self] in self?.objectWillChange.send() },
             engine.objectWillChange.sink { [weak self] in self?.objectWillChange.send() },
@@ -230,6 +251,11 @@ class WizardModel: ObservableObject {
             watcher.$onCable.sink { [weak self] onCable in
                 self?.cableRead(onCable)
             },
+            // A version that arrives or changes after Ready is on screen moves
+            // the method with it, unless the person picked one by hand.
+            watcher.$devices.sink { [weak self] devices in
+                self?.followDefaultMethod(devices)
+            },
             engine.$phase.sink { [weak self] phase in
                 self?.helperMoved(to: phase)
             },
@@ -241,6 +267,7 @@ class WizardModel: ObservableObject {
                     self?.becameActive()
                 },
         ]
+        followPendingDevices()
     }
 
     /// A model whose run is already over: an iPhone that came back on the cable
@@ -284,7 +311,7 @@ class WizardModel: ObservableObject {
     /// network, and nothing here starts any work.
     struct Sample {
         var step: WizardStep = .connect
-        var supervisionMethod = SupervisionMethod.defaultMethod
+        var supervisionMethod = SupervisionMethod.defaultMethod(iosVersion: nil)
         var backupConfirmed = false
         var udid: String?
         var backupFolder: URL?
@@ -327,6 +354,7 @@ class WizardModel: ObservableObject {
     func show(_ sample: Sample) {
         step = sample.step
         supervisionMethod = sample.supervisionMethod
+        methodPickedByHand = sample.supervisionMethod
         backupConfirmed = sample.backupConfirmed
         udid = sample.udid
         selectedUdid = sample.udid
@@ -367,6 +395,11 @@ class WizardModel: ObservableObject {
         }
         return watcher.devices.first
     }
+
+    /// Whether Connect offers Manage Restrictions in place of Continue: the
+    /// phone is supervised already, so a supervising run has nothing to do.
+    /// A run that takes supervision off starts from exactly that phone.
+    var offersManageRestrictions: Bool { supervises && isSupervised == true }
 
     /// What MCInstall last said about the chosen phone.
     var cloudConfiguration: CloudConfiguration? {
@@ -432,7 +465,8 @@ class WizardModel: ObservableObject {
         // may be another iPhone.
         finderBackup = .notLooked
         backupRemovalFailure = nil
-        supervisionMethod = .defaultMethod
+        methodPickedByHand = nil
+        supervisionMethod = .defaultMethod(iosVersion: device.iosVersion)
         backupConfirmed = false
         jobMethod = nil
         finishedEventSent = false
@@ -510,7 +544,7 @@ class WizardModel: ObservableObject {
     /// Send the anonymous count for this run, once. A failure to send is
     /// never heard of here, so it cannot hold the wizard up.
     private func sendFinishedEvent() {
-        guard let finishedEvent, !finishedEventSent else { return }
+        guard supervises, let finishedEvent, !finishedEventSent else { return }
         finishedEventSent = true
         finishedEvent(
             SupervisionFinishedEvent(
@@ -536,7 +570,8 @@ class WizardModel: ObservableObject {
         udid = nil
         selectedUdid = nil
         password = ""
-        supervisionMethod = .defaultMethod
+        methodPickedByHand = nil
+        supervisionMethod = .defaultMethod(iosVersion: nil)
         backupConfirmed = false
         jobMethod = nil
         seedOperationRun = nil
@@ -606,6 +641,7 @@ class WizardModel: ObservableObject {
     /// starts it here, so entering it twice cannot leave two runs going.
     private func go(to step: WizardStep) {
         poll?.cancel()
+        pendingPoll?.cancel()
         errorMessage = nil
         // Every way off the job screen ends the job, whether the work went
         // through or somebody walked away from it.
@@ -624,6 +660,26 @@ class WizardModel: ObservableObject {
             refreshInstalledProfiles()
         case .connect, .job, .done:
             break
+        }
+        // Ready reads on its own poll and the job on its own waits, and the
+        // job's helper has the iPhone to itself.
+        if step != .ready, step != .job { followPendingDevices() }
+    }
+
+    /// Read the cable again every few seconds while an iPhone on it is locked,
+    /// waits for Trust or could not be read. A locked iPhone sends nothing
+    /// when it is unlocked: usbmuxd cannot listen to a phone that has not
+    /// been unlocked since it started, so without this the screen would say
+    /// "Unlock iPhone." until the cable was pulled. Nothing is read while
+    /// every iPhone is paired or the cable is empty.
+    private func followPendingDevices() {
+        pendingPoll = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let interval = self?.pendingPollInterval else { return }
+                try? await Task.sleep(for: interval)
+                guard let self, !Task.isCancelled else { return }
+                if self.watcher.hasPendingDevice { self.watcher.reload() }
+            }
         }
     }
 
@@ -858,8 +914,21 @@ class WizardModel: ObservableObject {
     func selectSupervisionMethod(_ method: SupervisionMethod) {
         guard step == .ready, !isBusy else { return }
         guard SupervisionMethod.offered(iosVersion: device?.iosVersion).contains(method) else { return }
+        methodPickedByHand = method
         supervisionMethod = method
         jobMethod = nil
+    }
+
+    /// Put Ready on the method for the version the iPhone this run is about
+    /// now reports, keeping a pick made by hand while that version offers it.
+    /// `devices` is the read that is landing, which `device` does not hold yet.
+    private func followDefaultMethod(_ devices: [ConnectedDevice]) {
+        guard step == .ready, !isBusy, let udid,
+              let phone = devices.first(where: { $0.udid == udid })
+        else { return }
+        supervisionMethod = SupervisionMethod.method(
+            pickedByHand: methodPickedByHand, iosVersion: phone.iosVersion
+        )
     }
 
     /// Take the tick that says the person backed up the iPhone themselves.
@@ -1050,6 +1119,7 @@ class WizardModel: ObservableObject {
             // the screen says what to do and the reading goes on underneath.
             // After this long an iPhone that answers is one that is back,
             // whether or not a read ever missed it.
+            DeviceLog.logger.notice("restart wait: timed out, offering Check Again")
             job = .phoneGone
             phoneLeftForRestart = true
             guard await waitForPhone(until: nil), !Task.isCancelled else { return }
@@ -1068,6 +1138,7 @@ class WizardModel: ObservableObject {
         guard !Task.isCancelled else { return }
         restore.stage = .finished
         restore.supervisedAfterwards = isSupervised
+        guard supervises else { return endUnsupervising(confirmed: reportedSupervised) }
         // The profile is still to come, so the gate keeps the copy until the
         // Restrictions step confirms one. The gate is the whole of that rule.
         deleteBackupIfTheRunIsDone()
@@ -1076,6 +1147,19 @@ class WizardModel: ObservableObject {
         // The restore no longer has the phone. An unplug while it did was let
         // pass, and nothing reads the cable again on this screen, so the last
         // read is weighed now.
+        cableRead(watcher.onCable)
+    }
+
+    /// The end of a run that took supervision off. An unsupervised iPhone
+    /// refuses the profile, so there is no Restrictions step and no question
+    /// to ask: the iPhone saying it is not supervised is the end. The copy
+    /// stays on this Mac, and the next run on this iPhone clears it.
+    private func endUnsupervising(confirmed: Bool) {
+        guard confirmed else {
+            job = .failed(.stillSupervised)
+            return
+        }
+        go(to: .done)
         cableRead(watcher.onCable)
     }
 
@@ -1129,7 +1213,7 @@ class WizardModel: ObservableObject {
             if restartingOnly {
                 try await seedEngine.restart(udid: udid)
             } else {
-                try await seedEngine.supervise(udid: udid)
+                try await seedEngine.supervise(udid: udid, supervised: supervises)
             }
             try Task.checkCancellation()
         } catch {
@@ -1331,6 +1415,7 @@ class WizardModel: ObservableObject {
             let outcome = try await Self.applyPatch(
                 folder: folder,
                 password: password,
+                supervised: supervises,
                 status: { [weak self] line in
                     Task { @MainActor in self?.patch.status = line }
                 }
@@ -1364,6 +1449,7 @@ class WizardModel: ObservableObject {
     private nonisolated static func applyPatch(
         folder: URL,
         password: String,
+        supervised: Bool,
         status: @escaping @Sendable (String) -> Void
     ) async throws -> PatchOutcome {
         try await Task.detached(priority: .userInitiated) {
@@ -1372,7 +1458,7 @@ class WizardModel: ObservableObject {
                 status("Deriving the backup keys, up to ten seconds")
                 try backup.unlock(password: password)
             }
-            let plan = try SupervisionPatch.plan(backup: backup)
+            let plan = try SupervisionPatch.plan(backup: backup, supervised: supervised)
             guard !plan.isEmpty else {
                 return PatchOutcome(changes: [], pristinePath: nil, alreadyCorrect: true)
             }
@@ -1380,7 +1466,7 @@ class WizardModel: ObservableObject {
             let patch = SupervisionPatch(backup: backup)
             let pristine = try patch.apply(plan)
             status("Checking")
-            try patch.verify()
+            try patch.verify(supervised: supervised)
             return PatchOutcome(
                 changes: plan.changes,
                 pristinePath: pristine.path,
@@ -1494,8 +1580,12 @@ class WizardModel: ObservableObject {
             seen = watcher.passes
             let readable = device?.pairingState == .paired
             if !readable {
+                if !phoneLeftForRestart {
+                    DeviceLog.logger.notice("restart wait: iPhone left or is not readable")
+                }
                 phoneLeftForRestart = true
             } else if phoneLeftForRestart, cloudConfiguration != nil {
+                DeviceLog.logger.notice("restart wait: iPhone is back and paired")
                 return true
             }
         }
@@ -1505,11 +1595,15 @@ class WizardModel: ObservableObject {
     /// What the restart wait asks of the person, from what the last read of
     /// the iPhone said.
     var restartHint: String {
-        JobPhase.restartHint(pairing: phoneLeftForRestart ? device?.pairingState : nil)
+        JobPhase.restartHint(
+            pairing: phoneLeftForRestart ? device?.pairingState : nil,
+            method: activeMethod
+        )
     }
 
     /// Ask the iPhone what it is now, every five seconds for three minutes,
-    /// and stop at the first answer that is the one the run asked for.
+    /// and stop at the first answer that is the one the run asked for:
+    /// supervised, or not supervised on a run that takes it off.
     ///
     /// A phone that has just restored answers MCInstall before it has settled,
     /// and the answer before it settles is the iPhone as it was. So this asks
@@ -1520,8 +1614,8 @@ class WizardModel: ObservableObject {
         let deadline = Date().addingTimeInterval(Self.confirmTimeout)
         while !Task.isCancelled {
             watcher.reload()
-            try? await Task.sleep(for: Self.confirmInterval)
-            if isSupervised == true { return true }
+            try? await Task.sleep(for: confirmInterval)
+            if isSupervised == supervises { return true }
             if Date() >= deadline { return false }
         }
         return false

@@ -3,17 +3,22 @@
 Native macOS app (SwiftUI, macOS 14+) that supervises a connected iPhone and
 installs restrictions over USB. There are two methods:
 
-| iOS on the iPhone | Full copy (default) | Fast (experimental) |
+| iOS on the iPhone | Full copy | Fast |
 | --- | --- | --- |
-| 26 and earlier | yes | yes, picked by hand |
-| 27 and later | yes | no |
-| missing or unreadable version | yes | no |
+| 26 and earlier | yes | yes, the default, "Fast (recommended)" |
+| 27 and later | yes, the default | no, shown as "Fast (experimental)" |
+| missing or unreadable version | yes, the default | no, shown as "Fast (experimental)" |
 
-The full copy backs up the iPhone, patches the copy and restores it. It is the
-default on every iOS version and is not held to a version. The fast method
-restores a small configuration backup and restarts the iPhone. It is
-experimental, it is never picked by default, and the Ready screen only offers
-it on iOS 26 and earlier, with no lower limit in the code.
+The full copy backs up the iPhone, patches the copy and restores it. It is
+not held to a version. The fast method restores a small configuration backup
+and restarts the iPhone. On iOS 26 and earlier it is the default, with no
+lower limit in the code. On iOS 27 and later, and when the iPhone gives no
+version, the full copy is the default and fast is shown as experimental but
+cannot be picked, because the seed restore refuses those versions (see
+`--seed` below). The rule is `SupervisionMethod` in
+`Sources/Seed/SupervisionMethod.swift`. The default follows the version the
+iPhone reports until the person picks a method by hand, and that pick is kept
+for that iPhone.
 
 Back up the iPhone first, with Finder or iCloud. The app does not erase the
 iPhone, but things can go wrong, and that backup is the way back. We are not
@@ -28,10 +33,14 @@ skip list and managed setup-completion preferences. The hardware retest of
 this correction, on the owner's iPhone on 2026-10-04 with app version 0.4.2,
 went through: the iPhone came back supervised with its data kept. One fault
 showed, in the app and not in the method: the wait after the restart did not
-find the iPhone again until the cable was pulled and put back, which 0.4.3
-corrects (see the wait below). One iPhone is one test, so the method stays
-experimental, and unit tests do not establish that local data survives a
-restore.
+find the iPhone again until the cable was pulled and put back. The restore
+resets the iPhone's pairing records, so after the restart it refuses this
+Mac's pair record (InvalidHostID). macOS pairs again only when the iPhone is
+plugged in, and right after the restart that is while it is still locked, so
+nothing paired again until the cable was pulled. 0.4.3 pairs again itself
+(see the wait below). Since that run went through, fast is the default below
+iOS 27. iOS 27 is not tested, and unit tests do not establish that local data
+survives a restore.
 
 After the restart, for both methods, the job reads the iPhone every two
 seconds on its own and waits on no connect or disconnect, because a restarted
@@ -39,10 +48,51 @@ iPhone is back on the cable before it answers. It only counts a read made
 after one that missed the iPhone, so the answer from before the restart ends
 nothing. While it waits it says what is missing: "Unlock iPhone." for an
 iPhone that is locked, "Tap Trust on iPhone." for one that asks for trust.
+Every lockdown session that meets InvalidHostID sends Pair once (`Pairing` in
+`Sources/Device/Pairing.swift`): a locked iPhone answers that it needs its
+passcode, an unlocked one shows Trust, and once Trust is tapped the next Pair
+saves a new record through usbmuxd and the read goes on. A locked iPhone
+gets Pair every 2 seconds, since it shows nothing. After the first Pair that
+shows Trust, no Pair is sent on a timer: one sent while the person types the
+passcode cancels it and the iPhone answers UserDeniedPairing until the cable
+is pulled (seen on the owner's iPhone). As usbmuxd's preflight does, the app
+listens on the insecure notification proxy (`TrustObserver`) for
+`request_pair`, which comes once Trust is tapped and the passcode entered, and
+then sends one Pair. UserDeniedPairing is final until the iPhone leaves the
+cable. The handshake runs on every read, so a record saved by anything on
+this Mac is used at once. If no `request_pair` is heard two minutes after
+Trust showed (the proxy did not start, Don't Trust, or the alert closed with
+the screen lock), the read asks for a replug, and a `request_pair` that comes
+later still sends its one Pair. A Pair the iPhone accepted whose record is
+still refused is a failure ("couldn't keep the pairing") on every read until
+a replug, not a wait for Trust. Both keep the iPhone listed as needing a
+replug, so the connect screen and the restart wait say "Unplug iPhone".
+Outside the job and Ready, the wizard reads the cable every 2.5 seconds while
+an iPhone on it is locked, waits for Trust or could not be read, because an
+unlock sends no event, and reads nothing while every iPhone is paired.
+
 After 5 minutes for the fast method and 15 for the full copy the screen
 becomes "iPhone Didn't Reconnect" with Check Again, and the reading goes on
 underneath. Check Again reads the iPhone and nothing else: it sends no
 configuration and restarts nothing.
+
+A Debug build takes `--debug-forget-pairing`: it gives the Mac's own pair
+record for the iPhone on the cable a HostID the iPhone does not know, which
+is the state the restore leaves, then opens the window. It touches nothing on
+the iPhone, and a replug lets macOS pair again.
+
+A Debug build also takes `--debug-unsupervise`, for running the supervise
+flow many times on one iPhone without erasing it. The run is the usual one,
+with either method, but the flag it writes takes supervision off, so it
+starts on a supervised iPhone, ends once the iPhone says it is not
+supervised, skips the Restrictions step and sends no count. The window says
+so over every step. The next launch without the flag supervises again.
+
+The device layer writes every read's outcome to the Mac's log under the
+subsystem `com.attentionawareness.mac`, category `device`: pairing states,
+lockdown error codes, and the restart wait's steps, never a udid or a device
+name. To read a run back:
+`/usr/bin/log show --last 30m --info --predicate 'subsystem == "com.attentionawareness.mac"'`.
 
 The full copy's patch logic was ported from a Python tool that did the same
 thing by hand; that tool is retired and is not in this repo.

@@ -13,11 +13,15 @@ struct DoneStep: View {
     var body: some View {
         StepLayout(
             symbol: .done,
-            title: WizardStep.done.title,
+            title: model.supervises ? WizardStep.done.title : DoneCopy.unsupervisedTitle,
             error: model.errorMessage
         ) {
             VStack(alignment: .leading, spacing: 6) {
-                Text(result)
+                // A run that took supervision off installed no profile, so
+                // there is nothing to count and nothing to offer next.
+                if model.supervises {
+                    Text(result)
+                }
                 Text(DoneCopy.disconnect)
                     .foregroundStyle(.secondary)
                 if let failure = model.backupRemovalFailure {
@@ -27,7 +31,9 @@ struct DoneStep: View {
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            next
+            if model.supervises {
+                next
+            }
         } actions: {
             PrimaryButton(title: "Done") {
                 model.startOver()

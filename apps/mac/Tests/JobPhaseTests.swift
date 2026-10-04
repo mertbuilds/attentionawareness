@@ -203,10 +203,28 @@ struct JobPhaseTests {
             JobPhase.restartHint(pairing: nil)
                 == "When it is back, unlock it with your passcode. If it asks, tap Trust."
         )
+        #expect(
+            JobPhase.restartHint(pairing: nil, method: .seed)
+                == "When it is back, unlock it with your passcode. It then asks to trust this Mac again: tap Trust."
+        )
         #expect(JobPhase.restartHint(pairing: .locked) == "Unlock iPhone.")
         #expect(JobPhase.restartHint(pairing: .trustPending) == "Tap Trust on iPhone.")
-        #expect(JobPhase.restartHint(pairing: .untrusted) == "Tap Trust on iPhone.")
+        #expect(
+            JobPhase.restartHint(pairing: .untrusted)
+                == "iPhone did not trust this Mac. Unplug iPhone, plug it in again, then tap Trust."
+        )
         #expect(JobPhase.restartHint(pairing: .paired) == "Keep iPhone unlocked and connected.")
+    }
+
+    /// The Mac gave up on this connection: the wait says so at once, rather
+    /// than "Tap Trust" until it runs out.
+    @Test func theRestartWaitAsksForAReplugWhenTheMacGaveUp() {
+        #expect(DeviceError.trustUnseen.pairingState == .needsReplug)
+        #expect(DeviceError.pairRecordRejected.pairingState == .needsReplug)
+        #expect(
+            JobPhase.restartHint(pairing: .needsReplug)
+                == "Unplug iPhone, plug it in again, then tap Trust."
+        )
     }
 
     @Test func aFailureIsItsOwnTwoSentencesWithTheLayersWordsBehindIt() {

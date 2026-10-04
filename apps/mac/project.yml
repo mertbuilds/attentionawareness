@@ -214,12 +214,15 @@ targets:
       # and see where it lands. It is handed a sample watcher, which reads no
       # bus, and the files below are only what it takes to compile.
       - Sources/UI/WizardModel.swift
+      - Sources/UI/DebugUnsupervise.swift
       - Sources/UI/OldSupervisionKey.swift
       - Sources/UI/WizardStyle.swift
       - Sources/UI/StepSymbol.swift
       - Sources/UI/InfoPopover.swift
       - Sources/Device/DeviceWatcher.swift
       - Sources/Device/Lockdown.swift
+      - Sources/Device/Pairing.swift
+      - Sources/Device/TrustObserver.swift
       - Sources/Device/MCInstall.swift
       - Sources/Device/Plist.swift
       - Sources/Device/Errors.swift
