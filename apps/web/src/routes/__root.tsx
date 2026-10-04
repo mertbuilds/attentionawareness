@@ -58,8 +58,10 @@ export const Route = createRootRoute({
     // deepest match, which is the page itself. A path no route answers is
     // marked on the root match and has no address of its own. An index route
     // under a path names itself with a closing slash (`/blog/`), which the
-    // address does not have.
-    const path = (matches.at(-1)?.pathname ?? '/').replace(/(?<=.)\/$/u, '');
+    // address does not have. Cut by hand: a lookbehind in a pattern stops
+    // the whole script from parsing in Safari before 16.4.
+    const named = matches.at(-1)?.pathname ?? '/';
+    const path = named.length > 1 && named.endsWith('/') ? named.slice(0, -1) : named;
     const url = match._notFound ? undefined : `${SITE_URL}${path}`;
     // What the site promises, in the hero's own words. The share cards lead with it.
     const tagline = m.home_hero_title({ permanently: m.home_hero_title_accent() });
