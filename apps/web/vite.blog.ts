@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { Marked } from 'marked';
 import type { Plugin } from 'vite';
@@ -50,6 +51,18 @@ function unquote(value: string): string {
   return value;
 }
 
+/** Whether a day written YYYY-MM-DD is one the calendar has. */
+function isDay(date: string): boolean {
+  const day = new Date(`${date}T00:00:00Z`);
+  // A month the calendar lacks does not parse, and a day it lacks runs on
+  // into the next month, so the day has to read back as it was written.
+  return !Number.isNaN(day.getTime()) && day.toISOString().startsWith(date);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 /** `key: value` lines. Nothing nested. */
 function readFrontmatter(block: string, file: string): Map<string, string> {
   const fields = new Map<string, string>();
@@ -85,6 +98,9 @@ function compile(source: string, file: string): Post {
   if (!DATE.test(date)) {
     throw new Error(`${file}: the date "${date}" is not YYYY-MM-DD`);
   }
+  if (!isDay(date)) {
+    throw new Error(`${file}: the date "${date}" is not a day of the calendar`);
+  }
   const minutes = Number(field('reading_minutes'));
   if (!Number.isInteger(minutes) || minutes < 1) {
     throw new Error(`${file}: reading_minutes is not a whole number of minutes`);
@@ -108,8 +124,18 @@ function compile(source: string, file: string): Post {
   } catch (error) {
     throw new Error(`${file}: the JSON-LD under "## Schema" does not parse`, { cause: error });
   }
-  if (typeof schema !== 'object' || schema === null || Array.isArray(schema)) {
+  if (!isRecord(schema)) {
     throw new Error(`${file}: the JSON-LD under "## Schema" is not one object`);
+  }
+  // A post may only link on to a post that is there: its file, beside this one.
+  const next = (fields.get('read_next') ?? '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  for (const sibling of next) {
+    if (!existsSync(path.join(path.dirname(file), `${sibling}.md`))) {
+      throw new Error(`${file}: read_next names "${sibling}", and there is no such post`);
+    }
   }
 
   return {
@@ -118,11 +144,8 @@ function compile(source: string, file: string): Post {
     heading: fields.get('heading') || title,
     html: render(body),
     minutes,
-    next: (fields.get('read_next') ?? '')
-      .split(',')
-      .map((entry) => entry.trim())
-      .filter(Boolean),
-    schema: schema as Record<string, unknown>,
+    next,
+    schema,
     slug,
     sources: render(sections.get('Sources') ?? ''),
     title,

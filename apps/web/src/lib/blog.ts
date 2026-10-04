@@ -41,7 +41,11 @@ export const posts: ReadonlyArray<PostMeta> = Object.values(metas).toSorted(
   (a, b) => b.date.localeCompare(a.date) || a.slug.localeCompare(b.slug),
 );
 
-/** A post and the posts it links on to, or nothing where no post has that slug. */
+/**
+ * A post and the posts it links on to, or nothing where no post has that
+ * slug. The build has already refused a post that links on to one that is
+ * not there (`vite.blog.ts`).
+ */
 export async function loadPost(
   slug: string,
 ): Promise<{ next: Array<PostMeta>; post: Post } | undefined> {
