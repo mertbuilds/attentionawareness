@@ -44,6 +44,8 @@ const GONE_BLUR = 2;
 const PILL = { border: 1, height: 28 };
 /** The line down the middle of that border turns its corners on this radius. */
 const PILL_RADIUS = (PILL.height - PILL.border) / 2;
+/** How tall the touch a name takes is, in pixels: a finger's height. */
+const TOUCH = 44;
 
 /** When a part leaves, by its place in the order, and how far it moves up once the feeds have left. */
 type Mark = {
@@ -223,8 +225,17 @@ const styles = create({
     vectorEffect: 'non-scaling-stroke',
   },
   // One site in the row over the drawing: its icon and its name, quiet until
-  // its page is the one playing.
+  // its page is the one playing. The pseudo-element takes the touch a
+  // finger's height around it, so the pill stays as slim as it looks.
   site: {
+    '::before': {
+      content: '',
+      // From the pill's padding edge: half of what the touch is taller by,
+      // and the border.
+      insetBlock: -((TOUCH - PILL.height) / 2 + PILL.border),
+      insetInline: 0,
+      position: 'absolute',
+    },
     alignItems: 'center',
     backgroundColor: 'transparent',
     borderColor: {
@@ -338,9 +349,10 @@ function trace(line: SVGRectElement | null, at: number) {
 /**
  * How far into the loop the drawing is, in milliseconds, and a way to send it
  * to another point of the loop, from where it goes on. It moves with the clock
- * only while `running` and holds where it is otherwise; with `rewound` it goes
- * back to the start, so it plays from there next. While the page stands still
- * it is not drawn again.
+ * only while `running` and holds where it is otherwise; as it turns `rewound`
+ * it goes back to the start, so it plays from there next. Sent somewhere while
+ * it is rewound, it stands there, and plays from there. While the page stands
+ * still it is not drawn again.
  *
  * The same clock draws `line`, the line round the playing site's name, on
  * every frame, the still ones too, and after every render, so the line and
@@ -354,6 +366,16 @@ function useLoop(
 ): [number, (to: number) => void] {
   const [now, setNow] = useState(0);
   const clock = useRef(0);
+  // Whether it was rewound at the last render. As it turns rewound, what is
+  // drawn goes back to the start with the clock, in the same render, so no
+  // frame shows where the loop had been.
+  const [was, setWas] = useState(rewound);
+  if (was !== rewound) {
+    setWas(rewound);
+    if (rewound) {
+      setNow(0);
+    }
+  }
 
   useLayoutEffect(() => {
     if (rewound) {
@@ -394,7 +416,7 @@ function useLoop(
     setNow(to);
   }
 
-  return [rewound ? 0 : now, jump];
+  return [now, jump];
 }
 
 /** One site's page, `at` milliseconds into its turn. */
@@ -454,7 +476,8 @@ function Page({ at, site }: { at: number; site: number }) {
  * its name, clockwise from the top, over the time its page is shown, and as
  * the line closes the next site's turn starts. Pressing a name sends the
  * drawing to that site, with the line at its start, and it goes on from
- * there. The left and right arrows go from one name to the next. It plays
+ * there, or stands there until the drawing is on screen and can play. The
+ * left and right arrows go from one name to the next. It plays
  * while it is on screen, holds while the tab is put away, the line with it,
  * and goes back to its start off screen. The server draws the first site
  * with its feeds on it, and with less motion a site stands clean and the
