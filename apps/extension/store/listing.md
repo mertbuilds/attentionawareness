@@ -14,10 +14,10 @@ attention awareness
 
 ### Summary
 
-Max 132 characters. This one is 94.
+Max 132 characters. This one is 91.
 
 ```
-Hides the addictive feeds on YouTube, Instagram and X. Add your own CSS for any other website.
+Hides the addictive feeds on YouTube, Instagram and X. Add your own CSS for other websites.
 ```
 
 ### Description
