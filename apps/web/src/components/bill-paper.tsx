@@ -59,8 +59,10 @@ const SHEET_FILTER = {
  * never waits for it.
  */
 const PaperTexture = lazy(async () => {
-  const shaders = await import('@paper-design/shaders-react');
-  return { default: shaders.PaperTexture };
+  // Named in the import itself, so the chunk carries this one shader and not
+  // the library's others.
+  const { PaperTexture: texture } = await import('@paper-design/shaders-react');
+  return { default: texture };
 });
 
 /** The texture comes in over the plain paper under it rather than at once. */
