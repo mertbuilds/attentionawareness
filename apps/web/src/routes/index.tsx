@@ -91,6 +91,9 @@ const CHEVRON_STROKE = 2.25;
 /** The tick before a promise, in pixels, drawn with the chevron's line. */
 const CHECK_SIZE = 16;
 
+/** The closing's paper fades out from behind the line and the button. */
+const CLOSING_PAPER_MASK = 'radial-gradient(ellipse at 50% 42%, black 25%, transparent 68%)';
+
 const styles = create({
   // A section the page links down to. The scroll stops short of its heading,
   // clear of the header strip over the top of the window.
@@ -105,6 +108,9 @@ const styles = create({
     flexDirection: 'column',
     gap: spacing.s6,
     paddingBlock: spacing.s16,
+    // The box the closing's graph paper measures itself against. No z-index,
+    // so the paper still goes under the page's own stacking, as the hero's does.
+    position: 'relative',
     textAlign: 'center',
   },
   closingNote: {
@@ -115,6 +121,17 @@ const styles = create({
     gap: spacing.s2,
     lineHeight: 1.5,
     margin: 0,
+  },
+  // The hero's graph paper again behind the last word: the window's whole
+  // width, from the page's own left edge so its squares line up with the
+  // footer's, a step past the section at the top and the foot, clearest
+  // behind the line and the button and gone before any edge.
+  closingPaper: {
+    height: 'auto',
+    insetBlock: `calc(-1 * ${spacing.s8})`,
+    insetInline: 'calc(50% - 50vw)',
+    maskImage: CLOSING_PAPER_MASK,
+    WebkitMaskImage: CLOSING_PAPER_MASK,
   },
   content: {
     display: 'flex',
@@ -994,6 +1011,7 @@ function HomePage() {
         </section>
 
         <section {...props(styles.closing)}>
+          <GridTexture style={styles.closingPaper} />
           <h2 {...props(styles.displayTitle)}>
             {closeBefore}
             <span {...props(styles.accentWord)}>{m.home_close_title_accent()}</span>
