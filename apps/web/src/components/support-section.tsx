@@ -25,7 +25,7 @@ const STAGGER = 80;
  * The stamp's drawing, in its own units: the sheet it is drawn on, the stamp
  * on it, a little turned, and the postmark over the stamp's lower corner.
  */
-const SHEET = { height: 216, width: 200 };
+const SHEET = { height: 206, width: 200 };
 const STAMP = { height: 164, turn: 3, width: 128, x: 58, y: 12 };
 /** The stamp's edge: half circles bitten out of it, one every `pitch`. */
 const BITE = 3.5;
@@ -36,10 +36,35 @@ const HEART = { scale: 2.8, x: STAMP.width / 2, y: 78 };
 /** A heart in a 24 unit box, as one line a pen can draw from its foot round to its foot. */
 const HEART_LINE =
   'M12 21s-7.5-4.6-9.3-9.5C1.4 8 3.4 4.5 6.9 4.5c2 0 3.7 1 5.1 2.9 1.4-1.9 3.1-2.9 5.1-2.9 3.5 0 5.5 3.5 4.2 7C19.5 16.4 12 21 12 21Z';
-/** The postmark: two rings, the place round the top between them, the year round the foot. */
-const MARK = { inner: 23, outer: 34, turn: -14, words: 28.5, x: 50, y: 158 };
+/**
+ * The postmark: two rings, set straight, with the place round the top between
+ * them and the year round the foot.
+ */
+const MARK = { inner: 23, outer: 34, x: 50, y: 148 };
+/**
+ * The postmark's words: how large they are set, and how tall a capital or a
+ * figure of Suisse Intl stands on its line, as a share of that size.
+ */
+const WORDS_SIZE = 7.5;
+const WORDS_CAP = 0.725;
+/**
+ * The circles the two words are set on. The place stands on its circle and
+ * the year hangs from its own, so each circle is half a capital off the
+ * middle of the band, and both words are as far from one ring as from the
+ * other.
+ */
+const WORDS_OFF = (WORDS_CAP * WORDS_SIZE) / 2;
+const PLACE_CIRCLE = (MARK.inner + MARK.outer) / 2 - WORDS_OFF;
+const YEAR_CIRCLE = (MARK.inner + MARK.outer) / 2 + WORDS_OFF;
+/**
+ * Half a circle for a word to run along, from nine o'clock to three: over the
+ * top, or under the foot. Its middle is at twelve or at six, where the word's
+ * own middle is put.
+ */
+const half = (radius: number, over: boolean) =>
+  `M${-radius} 0 A${radius} ${radius} 0 0 ${over ? 1 : 0} ${radius} 0`;
 /** The lines the postmark cancels the stamp with, running off its right side. */
-const WAVES = [-12, 0, 12].map((dy) => `M${MARK.outer + 4} ${dy} q7 -5 14 0 t14 0 t14 0 t14 0`);
+const WAVES = [-10, 0, 10].map((dy) => `M${MARK.outer + 4} ${dy} q7 -5 14 0 t14 0 t14 0 t14 0`);
 /**
  * The heart's line, in the heart's own units, so it comes out a pixel and a
  * half wide where the stamp is drawn at its full size. It cannot be held to
@@ -222,10 +247,14 @@ const styles = create({
     transformBox: 'fill-box',
     transformOrigin: 'center',
   },
+  // The last letter of a word round the postmark takes no space after it.
+  markLast: {
+    letterSpacing: 0,
+  },
   // The words round the postmark, spaced as a rubber stamp's letters are.
   markWords: {
     fill: colors.fg,
-    fontSize: 7.5,
+    fontSize: WORDS_SIZE,
     fontWeight: font.weightMedium,
     letterSpacing: '0.14em',
     opacity: 0.6,
@@ -302,6 +331,23 @@ const styles = create({
 });
 
 /**
+ * A word of the postmark, set round the circle drawn as `line`, with its
+ * middle on the circle's upright axis. The space after each letter would
+ * follow the last one too and push the word half of it off that axis, so the
+ * last letter is set without it.
+ */
+function RingWord({ line, word }: { line: string; word: string }) {
+  return (
+    <text textAnchor="middle" {...props(styles.markWords)}>
+      <textPath href={`#${line}`} startOffset="50%">
+        {word.slice(0, -1)}
+        <tspan {...props(styles.markLast)}>{word.slice(-1)}</tspan>
+      </textPath>
+    </text>
+  );
+}
+
+/**
  * A postage stamp, drawn in the page's lines: its bitten edge, a printed line
  * inside it, what it is worth, the heart, and the site's name down its side;
  * over its lower corner a postmark with the place and the year. `play` draws it in: the
@@ -330,14 +376,8 @@ function Stamp({
       {...props(styles.stamp, style)}
     >
       <defs>
-        <path
-          d={`M${-MARK.words} 0 A${MARK.words} ${MARK.words} 0 0 1 ${MARK.words} 0`}
-          id={place}
-        />
-        <path
-          d={`M${-MARK.words - 3} 0 A${MARK.words + 3} ${MARK.words + 3} 0 0 0 ${MARK.words + 3} 0`}
-          id={year}
-        />
+        <path d={half(PLACE_CIRCLE, true)} id={place} />
+        <path d={half(YEAR_CIRCLE, false)} id={year} />
       </defs>
       <g
         transform={`translate(${STAMP.x} ${STAMP.y}) rotate(${STAMP.turn} ${STAMP.width / 2} ${STAMP.height / 2})`}
@@ -379,23 +419,15 @@ function Stamp({
           {m.site_name()}
         </text>
       </g>
-      <g transform={`translate(${MARK.x} ${MARK.y}) rotate(${MARK.turn})`}>
+      <g transform={`translate(${MARK.x} ${MARK.y})`}>
         <g {...props(play && styles.markPressed)}>
           <circle r={MARK.outer} {...props(styles.hairline, styles.mark)} />
           <circle r={MARK.inner} {...props(styles.hairline, styles.mark)} />
           {WAVES.map((d) => (
             <path d={d} key={d} {...props(styles.hairline, styles.mark)} />
           ))}
-          <text textAnchor="middle" {...props(styles.markWords)}>
-            <textPath href={`#${place}`} startOffset="50%">
-              {m.home_support_postmark_place()}
-            </textPath>
-          </text>
-          <text textAnchor="middle" {...props(styles.markWords)}>
-            <textPath href={`#${year}`} startOffset="50%">
-              {m.home_support_postmark_year()}
-            </textPath>
-          </text>
+          <RingWord line={place} word={m.home_support_postmark_place()} />
+          <RingWord line={year} word={m.home_support_postmark_year()} />
         </g>
       </g>
     </svg>
