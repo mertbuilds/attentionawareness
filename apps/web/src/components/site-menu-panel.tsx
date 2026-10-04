@@ -20,8 +20,6 @@ const STAGGER = Number.parseFloat(duration.stagger);
 const HEART_SIZE = 16;
 /** A line as heavy as the two lines of the button, in the icon's own 24-unit grid. */
 const HEART_STROKE = 2.25;
-/** The manual way, on a page of its own. */
-const GUIDE_PATH = '/guide';
 
 /** An item of the menu coming in: a short rise out of a blur. */
 const itemIn = keyframes({
@@ -42,11 +40,6 @@ const styles = create({
   download: {
     alignItems: 'stretch',
     marginBlockStart: spacing.s2,
-  },
-  // The manual way, quieter than the links over it.
-  guide: {
-    color: colors.muted,
-    fontSize: font.sizeSm,
   },
   // One row of the menu, tall enough for a thumb.
   item: {
@@ -148,20 +141,18 @@ function Item({
   href,
   onPick,
   place,
-  quiet = false,
 }: {
   children: ReactNode;
   href: string;
   onPick: () => void;
   place: number;
-  quiet?: boolean;
 }) {
   return (
     <a
       data-plain=""
       href={href}
       onClick={onPick}
-      {...props(styles.item, quiet && styles.guide, styles.itemIn, styles.after(place * STAGGER))}
+      {...props(styles.item, styles.itemIn, styles.after(place * STAGGER))}
     >
       {children}
     </a>
@@ -172,8 +163,7 @@ function Item({
  * The header's menu on a phone, with its button: the button of two lines at
  * the header's far edge, and the panel it opens under the header, in the open
  * strip and in the pill alike. The panel holds the header's links, the blog,
- * the manual way and the download, which on a phone sends the link on to a
- * Mac. The lines cross as it opens, the panel comes down from the button and
+ * and the download, which on a phone sends the link on to a Mac. The lines cross as it opens, the panel comes down from the button and
  * its items follow a step apart; it closes quicker than it opens. A link,
  * Escape, a press outside it, the page running on under it or a wider window
  * all close it, and focus goes into the panel and back to the button. The
@@ -248,10 +238,7 @@ export function SiteMenuPanel({
               ))}
             </nav>
             <div aria-hidden="true" {...props(styles.rule)} />
-            <Item href={GUIDE_PATH} onPick={pick} place={links.length} quiet>
-              {m.nav_manual()}
-            </Item>
-            <div {...props(styles.itemIn, styles.after((links.length + 1) * STAGGER))}>
+            <div {...props(styles.itemIn, styles.after(links.length * STAGGER))}>
               <MacDownload placement="header" style={styles.download} />
             </div>
           </Popover.Popup>
