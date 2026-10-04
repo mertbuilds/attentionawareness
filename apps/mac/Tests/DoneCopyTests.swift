@@ -41,12 +41,12 @@ struct DoneCopyTests {
     @Test func theFirstRowOffersTheBrowserExtension() {
         #expect(DoneCopy.next == "Next")
         #expect(DoneCopy.browserExtension == "Block the same feeds on your computer")
-        #expect(DoneCopy.getBrowserExtension == "Get the browser extension")
+        #expect(DoneCopy.getBrowserExtension == "Get the Browser Extension")
     }
 
     @Test func theSecondRowSaysTheAppIsFreeAndOffersSupportAndAShare() {
         #expect(DoneCopy.support == "The app is free. If it helps you, you can support the work.")
-        #expect(DoneCopy.supportThisProject == "Support this project")
+        #expect(DoneCopy.supportThisProject == "Support This Project")
         #expect(DoneCopy.share == "Share")
     }
 

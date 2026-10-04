@@ -34,12 +34,12 @@ enum DoneCopy {
 
     /// The first of them: the same blocks on the computer.
     static let browserExtension = "Block the same feeds on your computer"
-    static let getBrowserExtension = "Get the browser extension"
+    static let getBrowserExtension = "Get the Browser Extension"
 
     /// The second: the app costs nothing, and there are two ways to give
     /// something back.
     static let support = "The app is free. If it helps you, you can support the work."
-    static let supportThisProject = "Support this project"
+    static let supportThisProject = "Support This Project"
     static let share = "Share"
 
     /// Where to look on the iPhone for what the run set up, in one line. The

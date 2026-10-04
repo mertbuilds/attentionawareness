@@ -33,8 +33,8 @@ thing by hand; that tool is retired and is not in this repo.
 
 The app is free. There is no license key, no price and no account. People who
 want to can support the work on a pay-what-you-want page, and the last screen
-of a run that went through says so once, with a Support this project button
-and a Share button. The Help menu has Support this project as well. The app
+of a run that went through says so once, with a Support This Project button
+and a Share button. The Help menu has Support This Project as well. The app
 never asks again.
 
 The app is open source under the GNU Affero General Public License, version 3

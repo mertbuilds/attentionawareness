@@ -112,7 +112,7 @@ struct AttentionAwarenessApp: App {
                     Link("Source Code", destination: url)
                 }
                 if let url = SiteLink.support {
-                    Link("Support this project", destination: url)
+                    Link("Support This Project", destination: url)
                 }
             }
             // Demo mode only, in a debug build only. The app as it ships has
