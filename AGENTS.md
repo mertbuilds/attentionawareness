@@ -28,7 +28,7 @@ The product is the site, the extension and the Mac app. The Mac app is closed
 source and lives in a private repo; this repo holds the site and the extension.
 The web profile
 builder (`/build`) came back on 2026-09-30 as the profile step of the
-do-it-yourself path (`/guide`), which erases the iPhone; the Mac app is the
+manual path (`/guide`), which erases the iPhone; the Mac app is the
 path that keeps the data. Both are free, and so is the extension (decision
 2026-10-04): the Mac app loses its license key step in its next release, and
 the site must not say free before that release is out. The home page links a

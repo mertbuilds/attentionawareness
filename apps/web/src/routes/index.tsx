@@ -284,6 +284,20 @@ const styles = create({
     flexWrap: 'wrap',
     gap: spacing.s3,
   },
+  // The manual way's full name where the row has room for it beside the
+  // download, and its short name on a phone.
+  heroManualLong: {
+    display: {
+      '@media (min-width: 640px)': 'inline',
+      default: 'none',
+    },
+  },
+  heroManualShort: {
+    display: {
+      '@media (min-width: 640px)': 'none',
+      default: 'inline',
+    },
+  },
   heroPrice: {
     color: colors.muted,
     fontSize: font.sizeSm,
@@ -602,7 +616,7 @@ function HomePage() {
     m.home_how_promise_add(),
   ];
 
-  // What the free guide is, each with its tick.
+  // What the manual way is, each with its tick.
   const guidePromises = [
     m.home_how_guide_steps(),
     m.home_how_guide_configurator(),
@@ -646,7 +660,8 @@ function HomePage() {
             <div {...props(styles.heroButtons)}>
               <MacDownload placement="hero" />
               <Button render={<a href={GUIDE_URL} />} variant="outline">
-                {m.home_hero_diy_cta()}
+                <span {...props(styles.heroManualLong)}>{m.home_hero_diy_cta()}</span>
+                <span {...props(styles.heroManualShort)}>{m.home_hero_diy_cta_short()}</span>
               </Button>
             </div>
             <p {...props(styles.heroPrice)}>{m.home_hero_price()}</p>
