@@ -11,10 +11,9 @@ symlinks = {"Applications": "/Applications"}
 # own bookkeeping files are pushed far off canvas so users with "show hidden
 # files" enabled never see them in the install window.
 #
-# The art draws a gray tile behind each icon and the arrow between them, so the
-# two positions and icon_size below are repeated at the top of
-# dmg-background.html (--app-x, --applications-x, --icon-y, --icon). Change
-# them in both places, then run scripts/render-dmg-background.sh.
+# The art draws the arrow between the two icons, at the height repeated at the
+# top of dmg-background.html (--icon-y). Change it in both places, then run
+# scripts/render-dmg-background.sh.
 icon_locations = {
     appname: (210, 320),
     "Applications": (470, 320),
@@ -37,8 +36,8 @@ size = None
 window_rect = ((180, 100), (680, 552))
 icon_size = 120
 # Finder draws the labels itself: black in light appearance, white in dark, and
-# nothing here can set the colour or hide them. The art is black, so the gray
-# tiles are what keep a black label readable.
+# nothing here can set the colour. The art is black, so in light appearance the
+# labels do not show. The art names both icons in its own text.
 text_size = 12
 
 # dmgbuild picks up dmg-background@2x.png automatically when it sits beside this.

@@ -9,19 +9,18 @@
    files the page falls back to the system font.
 
    The colours are the site's dark theme (packages/ui/src/theme.css) and its
-   one accent (packages/ui/src/accent.stylex.ts). */
+   one accent (packages/ui/src/accent.stylex.ts).
+
+   Finder draws the two icon labels itself, black when the Mac is in light
+   appearance, so there they do not show on the black ground. The line under
+   the headline names both icons. */
 @font-face{font-family:'Suisse';font-weight:400;src:url('fonts/SuisseIntl-Regular.woff2') format('woff2')}
 @font-face{font-family:'Suisse';font-weight:500;src:url('fonts/SuisseIntl-Medium.woff2') format('woff2')}
 :root{
   --ground:#000000;--ink:#ffffff;--muted:#8a8a8a;--border:#3f3f3f;--accent:#ff4f00;
-  /* Finder draws the two icon labels itself, black when the Mac is in light
-     appearance and white in dark, whatever the picture behind them. So each
-     icon and its label sit on a tile of the one gray that both read on:
-     4.5:1 against white and 4.6:1 against black. */
-  --tile:#767676;
-  /* Where Finder puts the icons. Keep in step with icon_locations and
-     icon_size in dmg-settings.py. */
-  --app-x:210px;--applications-x:470px;--icon-y:320px;--icon:120px;
+  /* The height Finder puts the icons at, which the arrow sits on. Keep in
+     step with icon_locations in dmg-settings.py. */
+  --icon-y:320px;
 }
 html,body{margin:0;padding:0}*{box-sizing:border-box}
 #c{position:relative;width:680px;height:540px;overflow:hidden;background:var(--ground);
@@ -39,10 +38,6 @@ html,body{margin:0;padding:0}*{box-sizing:border-box}
 #sub{position:absolute;top:176px;left:0;width:680px;text-align:center;color:var(--muted);
    font-weight:400;font-size:15px}
 #sub b{color:var(--ink);font-weight:500}
-/* The icon, 16px of air around it, and room below for a label of two lines. */
-.tile{position:absolute;top:calc(var(--icon-y) - var(--icon) / 2 - 16px);
-   width:calc(var(--icon) + 56px);height:calc(var(--icon) + 60px);margin-left:calc(var(--icon) / -2 - 28px);
-   border-radius:8px;background:var(--tile)}
 #chev{position:absolute;left:0;top:calc(var(--icon-y) - 24px);width:680px;text-align:center}
 #title .acc{color:var(--accent)}
 </style></head><body>
@@ -51,8 +46,6 @@ html,body{margin:0;padding:0}*{box-sizing:border-box}
     <div id="logo"><div class="mark">aa</div><div class="wm">attention awareness</div></div>
     <div id="title">Drag to <span class="acc">take back</span> your <span class="acc">attention</span></div>
     <div id="sub">To install, drag <b>attention awareness</b> to <b>Applications</b></div>
-    <div class="tile" style="left:var(--app-x)"></div>
-    <div class="tile" style="left:var(--applications-x)"></div>
     <div id="chev">
       <svg width="88" height="48" viewBox="0 0 88 48" fill="none">
         <g stroke="#ff4f00" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none">
