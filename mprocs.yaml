@@ -3,5 +3,5 @@ procs:
     # https://aa.localhost
     shell: pnpm exec portless aa pnpm --filter @attentionawareness/web dev
   storybook:
-    # https://storybook.aa.localhost — storybook respects --port only, so pass PORT through.
-    shell: pnpm exec portless storybook.aa sh -c 'pnpm --filter @attentionawareness/ui exec storybook dev --port "$PORT" --no-open'
+    # https://aa-storybook.localhost — storybook respects --port only, so pass PORT through.
+    shell: pnpm exec portless aa-storybook sh -c 'pnpm --filter @attentionawareness/ui exec storybook dev --port "$PORT" --no-open'
