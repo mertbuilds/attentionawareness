@@ -8,7 +8,7 @@ reading_minutes: 6
 read_next: why-screen-time-does-not-work, block-any-app-iphone
 ---
 
-You can turn an iPhone into a dumbphone without buying a new phone. Put the iPhone in Apple's supervised mode, then install a locked profile that removes the addictive feed apps and their websites. Camera, maps, bank and messages stay. Our Mac app does this for free in about one afternoon.
+You can turn an iPhone into a dumbphone without buying a new phone. Put the iPhone in Apple's supervised mode, then install a locked profile that removes the addictive feed apps and their websites. Camera, maps, bank and messages stay. My Mac app does this for free in about one afternoon.
 
 ## What people mean by a dumbphone
 
@@ -24,7 +24,7 @@ Most people who want one do not want fewer tools. They want fewer feeds. They pi
 | Minimalist launcher or grayscale        | Free, or a small fee for a dumb phone app              | Nothing                                    | Very easy. A few taps                       |
 | Screen Time limits                      | Free, built in                                         | Nothing                                    | Very easy. One tap, or a passcode you know  |
 | App blockers (Opal, one sec, Brick)     | A yearly fee for most, a device you buy once for Brick | Nothing, when the block is off             | Easy to medium. You control the blocker     |
-| Supervised iPhone with a locked profile | Free                                                   | Only the apps and sites you choose         | Hard. Not possible on the iPhone itself     |
+| Supervised iPhone with a locked profile | Free                                                   | Only the apps and websites you choose      | Hard. Not possible on the iPhone itself     |
 
 ### Buy a Light Phone or a flip phone
 
@@ -64,7 +64,7 @@ There is no button to ignore it, and no way to remove it on the iPhone itself. T
 
 ### With the free Mac app
 
-You need a Mac with Apple Silicon and macOS 14 or later, a cable, and about one afternoon. The app is free, with no account and no subscription. You can support the work if you want, but you never have to.
+You need a Mac with Apple silicon and macOS 14 or later, a cable, and about one afternoon. The app is free, with no account and no subscription. You can support the work if you want, but you never have to.
 
 1. Download the app from [attentionawareness.com](/) and open it.
 2. Plug in the iPhone with a cable.
@@ -97,14 +97,14 @@ Start small. You can add blocks later, but with a locked profile you cannot take
 
 I am Mert. I built this, and I use it on my own iPhone. My screen time was more than 5 hours a day. It is now 1 hour 45 minutes a day on average, with 72 pickups a day.
 
-On my computer, our free browser extension hides the addictive feeds on X, YouTube and Instagram and keeps the accounts.
+On my computer, my free browser extension hides the addictive feeds on X, YouTube and Instagram and keeps the accounts.
 
 The idea is not mine. I started from Stepan Parunashvili's post ["iPhone dumbphone"](https://stopa.io/post/297). He supervised his own iPhone with Apple Configurator and cut his use from about 4 hours a day to about 2.
 
 ## What this cannot do
 
 - It does not work on Android or from Windows. It is iPhone only today, from a Mac.
-- It does not block everything. It blocks only the apps and sites on your list.
+- It does not block everything. It blocks only the apps and websites on your list.
 - The adult website filter is Apple's own filter. It works in Safari and in apps that use the system web view. It does not catch every site.
 - It is not a medical treatment. If your phone use comes with deeper distress, please talk to a professional.
 
@@ -186,7 +186,7 @@ Download the [free Mac app](/) and run it in trial mode this weekend. If you wou
       "tool": [
         {
           "@type": "HowToTool",
-          "name": "Mac with Apple Silicon and macOS 14 or later"
+          "name": "Mac with Apple silicon and macOS 14 or later"
         },
         {
           "@type": "HowToTool",

@@ -1,15 +1,15 @@
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
-import { useLayoutEffect, useRef, useState } from 'react';
-import { Briefcase, EyeSlash, Grid, Users } from 'reicon-react';
-import type { IconComponent } from 'reicon-react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { blur, distance, duration, easing } from '../lib/motion.stylex.ts';
 import { useLessMotion } from '../lib/use-less-motion.ts';
 import { useSeen } from '../lib/use-seen.ts';
 import { m } from '../paraglide/messages.js';
+import { GLYPH_TIME, UseGlyph } from './other-use-icons.tsx';
+import type { GlyphName } from './other-use-icons.tsx';
 
-/** A card's icon, in pixels. */
-const ICON = 20;
+/** How long a card's glyph waits after the card has started to rise, in milliseconds. */
+const GLYPH_WAIT = 250;
 /**
  * How long the second card of a row waits after the first, in milliseconds,
  * the stagger the tiles of the uses keep.
@@ -68,11 +68,6 @@ const styles = create({
     opacity: 0,
     transform: `translateY(${distance.medium})`,
   },
-  icon: {
-    color: colors.muted,
-    display: 'block',
-    flexShrink: 0,
-  },
   // The way to the post, at the foot of its card, level with its neighbour's.
   more: {
     marginBlockStart: 'auto',
@@ -95,30 +90,30 @@ const styles = create({
  * One thing the same setup blocks: its icon, its name and what it means, and
  * the blog post that shows how, by its slug.
  */
-type Use = { body: () => string; Icon: IconComponent; post: string; title: () => string };
+type Use = { body: () => string; glyph: GlyphName; post: string; title: () => string };
 
 const USES: ReadonlyArray<Use> = [
   {
     body: m.home_other_adult_body,
-    Icon: EyeSlash,
+    glyph: 'eye',
     post: 'block-adult-websites-iphone',
     title: m.home_other_adult_title,
   },
   {
     body: m.home_other_any_body,
-    Icon: Grid,
+    glyph: 'apps',
     post: 'block-any-app-iphone',
     title: m.home_other_any_title,
   },
   {
     body: m.home_other_kids_body,
-    Icon: Users,
+    glyph: 'lock',
     post: 'iphone-parental-controls-kids-cannot-turn-off',
     title: m.home_other_kids_title,
   },
   {
     body: m.home_other_work_body,
-    Icon: Briefcase,
+    glyph: 'work',
     post: 'work-iphones-without-mdm',
     title: m.home_other_work_title,
   },
@@ -129,6 +124,11 @@ const USES: ReadonlyArray<Use> = [
  * once the page has come alive hides, and rises once its top has come up the
  * window as far as `SEEN`, the second of a row `STAGGER` after the first. With
  * less motion it stands still.
+ *
+ * Its glyph plays its motion once, as the card comes into view, and again
+ * when a pointer comes over the card or the keyboard's focus comes into it,
+ * where there is a pointer that can hover. A motion that is playing is left
+ * to end; it is not started over. With less motion the glyph stands finished.
  */
 function UseCard({ place, use }: { place: number; use: Use }) {
   const card = useRef<HTMLLIElement>(null);
@@ -145,17 +145,52 @@ function UseCard({ place, use }: { place: number; use: Use }) {
   }, []);
 
   const rising = below && !reduced;
-  const { Icon } = use;
+  // How many times the glyph has been asked to play, and whether it is now.
+  const [run, setRun] = useState(0);
+  const playing = useRef(false);
+
+  // Each time the glyph plays: it is playing for as long as its motion takes.
+  useEffect(() => {
+    if (run === 0) {
+      return;
+    }
+    playing.current = true;
+    const timer = window.setTimeout(() => {
+      playing.current = false;
+    }, GLYPH_TIME);
+    return () => window.clearTimeout(timer);
+  }, [run]);
+
+  // Once, as the card comes into view, after it has started to rise.
+  useEffect(() => {
+    if (!seen || reduced) {
+      return;
+    }
+    const timer = window.setTimeout(
+      () => setRun((was) => (was === 0 ? 1 : was)),
+      (rising ? (place % 2) * STAGGER : 0) + GLYPH_WAIT,
+    );
+    return () => window.clearTimeout(timer);
+  }, [place, reduced, rising, seen]);
+
+  // Again under a pointer that can hover, or the keyboard's focus.
+  const again = () => {
+    if (!reduced && !playing.current && window.matchMedia('(hover: hover)').matches) {
+      setRun((was) => was + 1);
+    }
+  };
 
   return (
     <li
+      onFocus={again}
+      onPointerEnter={again}
       ref={card}
       {...props(
         styles.card,
         rising && (seen ? [styles.rise, styles.after((place % 2) * STAGGER)] : styles.hidden),
       )}
     >
-      <Icon aria-hidden="true" size={ICON} {...props(styles.icon)} />
+      <UseGlyph name={use.glyph} play={run > 0} run={run} />
       <h3 {...props(styles.title)}>{use.title()}</h3>
       <p {...props(styles.body)}>{use.body()}</p>
       <p {...props(styles.body, styles.more)}>

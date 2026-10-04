@@ -1,11 +1,20 @@
-import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
+import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { createFileRoute, notFound } from '@tanstack/react-router';
 import { useId } from 'react';
-import { BlogPage } from '../components/blog-page.tsx';
 import { MacDownload } from '../components/mac-download.tsx';
+import {
+  Callout,
+  PageColumn,
+  PageFoot,
+  PageHeader,
+  PageRoot,
+  Prose,
+  page,
+} from '../components/page.tsx';
+import { PostCard } from '../components/post-card.tsx';
 import { loadPost, postDay } from '../lib/blog.ts';
-import { layout } from '../lib/layout.ts';
+import { ink } from '../lib/reading.stylex.ts';
 import { m } from '../paraglide/messages.js';
 
 export const Route = createFileRoute('/blog/$slug')({
@@ -47,22 +56,9 @@ const BLOG_PATH = '/blog';
 const GUIDE_PATH = '/guide';
 
 const styles = create({
-  // What the post asks for, in a box of its own under the last paragraph: the
-  // download, its price, and the manual way.
-  cta: {
-    alignItems: 'flex-start',
-    borderColor: colors.fg,
-    borderRadius: radius.base,
-    borderStyle: 'solid',
-    borderWidth: '1px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s4,
-    padding: spacing.s6,
-  },
   ctaBody: {
-    color: colors.muted,
-    lineHeight: 1.5,
+    color: ink.text,
+    lineHeight: 1.55,
     margin: 0,
     maxWidth: '52ch',
     textWrap: 'pretty',
@@ -76,32 +72,38 @@ const styles = create({
     lineHeight: 1.5,
     margin: 0,
   },
-  line: {
-    margin: 0,
-  },
-  list: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s2,
-    lineHeight: 1.5,
-    listStyle: 'none',
-    margin: 0,
-    padding: 0,
-  },
-  section: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s3,
-  },
-  sectionTitle: {
+  ctaTitle: {
     fontSize: font.sizeLg,
-    fontWeight: font.weightRegular,
+    fontWeight: font.weightMedium,
     letterSpacing: '-0.01em',
     lineHeight: 1.2,
     margin: 0,
     textWrap: 'balance',
   },
+  // What the post asks for: the download, its price, and the manual way.
+  ctaWords: {
+    alignItems: 'flex-start',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s4,
+  },
+  next: {
+    display: 'grid',
+    gap: spacing.s4,
+    gridTemplateColumns: {
+      '@media (min-width: 640px)': 'repeat(2, minmax(0, 1fr))',
+      default: 'minmax(0, 1fr)',
+    },
+    listStyle: 'none',
+    margin: 0,
+    padding: 0,
+  },
   // The heading over the sources, as quiet as the list under it.
+  sources: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s3,
+  },
   sourcesTitle: {
     fontSize: font.sizeSm,
     fontWeight: font.weightMedium,
@@ -117,57 +119,62 @@ function BlogPost() {
   const nextTitle = useId();
 
   return (
-    <BlogPage
-      above={
-        <p {...props(layout.muted, styles.line)}>
-          <a href={BLOG_PATH}>{m.blog_title()}</a>
-        </p>
-      }
-      below={
-        <p {...props(layout.muted, styles.line)}>
-          <time dateTime={post.date}>{postDay(post.date)}</time>
-          {' · '}
-          {m.blog_minutes({ minutes: post.minutes })}
-        </p>
-      }
-      heading={post.heading}
-    >
-      {/* The post's own words, compiled from its Markdown file in this repo
-      by vite.blog.ts. Nothing a reader or another site wrote goes in here. */}
-      <article dangerouslySetInnerHTML={{ __html: post.html }} data-prose="" />
+    <PageRoot>
+      <PageHeader
+        eyebrow={<a href={BLOG_PATH}>{m.blog_title()}</a>}
+        meta={[
+          <time dateTime={post.date} key="day">
+            {postDay(post.date)}
+          </time>,
+          m.blog_minutes({ minutes: post.minutes }),
+        ]}
+        title={post.heading}
+      >
+        <p {...props(page.flush)}>{post.description}</p>
+      </PageHeader>
 
-      <aside {...props(styles.cta)}>
-        <h2 {...props(styles.sectionTitle)}>{m.blog_cta_title()}</h2>
-        <p {...props(styles.ctaBody)}>{m.blog_cta_body()}</p>
-        <MacDownload placement="blog" />
-        <p {...props(styles.ctaNote)}>
-          <span>{m.home_hero_price()}</span>
-          <a href={GUIDE_PATH}>{m.blog_cta_manual()}</a>
-        </p>
-      </aside>
+      <PageColumn>
+        {/* The post's own words, compiled from its Markdown file in this repo
+        by vite.blog.ts. Nothing a reader or another site wrote goes in here. */}
+        <Prose as="article" html={post.html} />
 
-      {next.length > 0 && (
-        <nav aria-labelledby={nextTitle} {...props(styles.section)}>
-          <h2 id={nextTitle} {...props(styles.sectionTitle)}>
-            {m.blog_next_title()}
-          </h2>
-          <ul {...props(styles.list)}>
-            {next.map((sibling) => (
-              <li key={sibling.slug}>
-                <a href={`${BLOG_PATH}/${sibling.slug}`}>{sibling.heading}</a>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      )}
+        <Callout>
+          <div {...props(styles.ctaWords)}>
+            <h2 {...props(styles.ctaTitle)}>{m.blog_cta_title()}</h2>
+            <p {...props(styles.ctaBody)}>{m.blog_cta_body()}</p>
+            <MacDownload placement="blog" />
+            <p {...props(styles.ctaNote)}>
+              <span>{m.home_hero_price()}</span>
+              <a href={GUIDE_PATH}>{m.blog_cta_manual()}</a>
+            </p>
+          </div>
+        </Callout>
 
-      {post.sources !== '' && (
-        <section {...props(styles.section)}>
-          <h2 {...props(styles.sourcesTitle)}>{m.blog_sources_title()}</h2>
-          {/* The same file's list of sources, compiled the same way. */}
-          <div dangerouslySetInnerHTML={{ __html: post.sources }} data-prose="small" />
-        </section>
-      )}
-    </BlogPage>
+        {next.length > 0 && (
+          <nav aria-labelledby={nextTitle} {...props(page.section)}>
+            <h2 id={nextTitle} {...props(page.sectionTitle)}>
+              {m.blog_next_title()}
+            </h2>
+            <ul {...props(styles.next)}>
+              {next.map((sibling) => (
+                <li key={sibling.slug}>
+                  <PostCard heading="h3" post={sibling} />
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )}
+
+        {post.sources !== '' && (
+          <section {...props(styles.sources)}>
+            <h2 {...props(styles.sourcesTitle)}>{m.blog_sources_title()}</h2>
+            {/* The same file's list of sources, compiled the same way. */}
+            <Prose html={post.sources} small />
+          </section>
+        )}
+
+        <PageFoot />
+      </PageColumn>
+    </PageRoot>
   );
 }

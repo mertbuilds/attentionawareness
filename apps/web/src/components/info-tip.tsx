@@ -31,7 +31,10 @@ const styles = create({
     borderWidth: 1,
     color: {
       ':focus-visible': colors.fg,
-      ':hover': colors.fg,
+      ':hover': {
+        '@media (hover: hover)': colors.fg,
+        default: null,
+      },
       default: colors.muted,
     },
     cursor: 'pointer',

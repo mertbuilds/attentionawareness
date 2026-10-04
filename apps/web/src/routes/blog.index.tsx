@@ -1,9 +1,9 @@
-import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
+import { spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
-import { BlogPage } from '../components/blog-page.tsx';
+import { PageColumn, PageFoot, PageHeader, PageRoot, page } from '../components/page.tsx';
+import { PostCard } from '../components/post-card.tsx';
 import { posts } from '../lib/blog.ts';
-import { layout } from '../lib/layout.ts';
 import { m } from '../paraglide/messages.js';
 
 export const Route = createFileRoute('/blog/')({
@@ -22,63 +22,36 @@ export const Route = createFileRoute('/blog/')({
 const SITE_NAME = 'attention awareness';
 
 const styles = create({
-  description: {
-    color: colors.muted,
-    lineHeight: 1.5,
-    margin: 0,
-    textWrap: 'pretty',
-  },
-  lead: {
-    color: colors.muted,
-    fontSize: 18,
-    lineHeight: 1.5,
-    margin: 0,
-    textWrap: 'pretty',
-  },
+  // One card a row on a phone, two side by side where they fit.
   list: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s8,
+    display: 'grid',
+    gap: spacing.s4,
+    gridTemplateColumns: {
+      '@media (min-width: 768px)': 'repeat(2, minmax(0, 1fr))',
+      default: 'minmax(0, 1fr)',
+    },
     listStyle: 'none',
     margin: 0,
     padding: 0,
-  },
-  minutes: {
-    margin: 0,
-  },
-  // A post in the list: its title, what it is about, how long it takes.
-  post: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s2,
-    maxWidth: 640,
-  },
-  title: {
-    fontSize: font.sizeLg,
-    fontWeight: font.weightRegular,
-    letterSpacing: '-0.01em',
-    lineHeight: 1.2,
-    margin: 0,
-    textWrap: 'balance',
   },
 });
 
 function Blog() {
   return (
-    <BlogPage below={<p {...props(styles.lead)}>{m.blog_lead()}</p>} heading={m.blog_title()}>
-      <ul {...props(styles.list)}>
-        {posts.map((post) => (
-          <li key={post.slug} {...props(styles.post)}>
-            <h2 {...props(styles.title)}>
-              <a href={`/blog/${post.slug}`}>{post.heading}</a>
-            </h2>
-            <p {...props(styles.description)}>{post.description}</p>
-            <p {...props(layout.muted, styles.minutes)}>
-              {m.blog_minutes({ minutes: post.minutes })}
-            </p>
-          </li>
-        ))}
-      </ul>
-    </BlogPage>
+    <PageRoot>
+      <PageHeader eyebrow={m.page_eyebrow_blog()} title={m.blog_title()} wide>
+        <p {...props(page.flush)}>{m.blog_lead()}</p>
+      </PageHeader>
+      <PageColumn width="wide">
+        <ul {...props(styles.list)}>
+          {posts.map((post) => (
+            <li key={post.slug}>
+              <PostCard post={post} />
+            </li>
+          ))}
+        </ul>
+        <PageFoot />
+      </PageColumn>
+    </PageRoot>
   );
 }

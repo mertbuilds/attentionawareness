@@ -54,9 +54,9 @@ Supervision is a mode Apple built for schools and companies. A supervised iPhone
 
 ### Option 1: the free Mac app, which does not erase your iPhone
 
-Our [free Mac app](/) puts your iPhone into supervised mode without erasing it. It makes a fresh backup, changes one setting in that backup, and restores it. Your photos, messages and apps stay. Back up your iPhone first, with Finder or iCloud.
+My [free Mac app](/) puts your iPhone into supervised mode without erasing it. It makes a fresh backup, changes one setting in that backup, and restores it. Your photos, messages and apps stay. Back up your iPhone first, with Finder or iCloud.
 
-1. Download the app on a Mac with Apple Silicon and macOS 14 or later, and connect the iPhone with a cable.
+1. Download the app on a Mac with Apple silicon and macOS 14 or later, and connect the iPhone with a cable.
 2. Let the app back up and restore the phone. Plan for about one afternoon.
 3. Choose your rules: Apple's adult website filter, websites to block, and apps to hide.
 4. Start in trial mode. You can still remove the profile in Settings, so you can test it first.
@@ -114,7 +114,7 @@ Use Screen Time. On iOS 27, open Settings, tap Screen Time, then Apps & Websites
 
 ### Is there a free porn blocker for iPhone?
 
-Yes. Apple's adult website filter is built into every iPhone. Our Mac app, which locks that filter so it cannot be switched off, is also free.
+Yes. Apple's adult website filter is built into every iPhone. My Mac app, which locks that filter so it cannot be switched off, is also free.
 
 ### Can I block websites on an iPhone permanently?
 

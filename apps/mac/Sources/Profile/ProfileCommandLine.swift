@@ -7,7 +7,7 @@ import Foundation
 /// without an iPhone:
 ///
 /// ```sh
-/// AA_SITE_URL=https://attentionawareness.localhost \
+/// AA_SITE_URL=https://aa.localhost \
 ///   "attention awareness.app/Contents/MacOS/attention awareness" --sign-profile /tmp/aa.mobileconfig
 /// ```
 ///

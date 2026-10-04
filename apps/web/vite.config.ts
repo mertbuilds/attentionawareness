@@ -10,7 +10,7 @@ export default defineConfig(({ command, mode }) => {
   // The repo-root .env (loaded via envDir below) sets NODE_ENV=development, and Vite
   // applies it whenever NODE_ENV is unset in the environment. `import.meta.env.DEV`
   // follows NODE_ENV, not mode, so a bare `vite build` builds in development even
-  // though mode already defaults to production, and ships dev-only code (react-grab,
+  // though mode already defaults to production, and ships dev-only code (devknobs,
   // the virtual:stylex dev stylesheet). Pinning NODE_ENV=production in the shell is
   // what stops the .env from winning, so the package script sets it alongside mode
   // and this guard checks both.
@@ -18,7 +18,7 @@ export default defineConfig(({ command, mode }) => {
     throw new Error(
       `Refusing to build with mode="${mode}" and NODE_ENV="${process.env.NODE_ENV ?? 'unset'}". ` +
         'Both must be "production": the repo-root .env sets NODE_ENV=development and Vite ' +
-        'applies it whenever NODE_ENV is unset, which ships dev-only code (react-grab, the ' +
+        'applies it whenever NODE_ENV is unset, which ships dev-only code (devknobs, the ' +
         'virtual:stylex dev stylesheet) to production. Run `pnpm build` instead of `vite build`.',
     );
   }
@@ -66,7 +66,7 @@ export default defineConfig(({ command, mode }) => {
       }),
     ],
     server: {
-      // Vite ignores PORT by default; portless assigns one when proxying https://attentionawareness.localhost.
+      // Vite ignores PORT by default; portless assigns one when proxying https://aa.localhost.
       port: process.env.PORT ? Number(process.env.PORT) : 3000,
     },
   };

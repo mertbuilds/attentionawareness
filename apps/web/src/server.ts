@@ -1,6 +1,7 @@
 import handler from '@tanstack/react-start/server-entry';
 import { initWorkersLogger } from 'evlog/workers';
 import { canonicalRedirect } from './lib/canonical.ts';
+import { missingAssetResponse, withDocumentCache } from './lib/document-cache.ts';
 import { macFileEvent, sendMacEvent } from './lib/mac-analytics.ts';
 import { macFileResponse } from './lib/mac-files.ts';
 import type { MacFilesBucket } from './lib/mac-files.ts';
@@ -61,8 +62,9 @@ export default {
       const response =
         canonicalRedirect(url) ??
         removedPathRedirect(url) ??
+        missingAssetResponse(url) ??
         (await macFileResponse(request, url, env.MAC_FILES)) ??
-        (await paraglideMiddleware(request, () => handler.fetch(request)));
+        withDocumentCache(await paraglideMiddleware(request, () => handler.fetch(request)));
       log.set({ status: response.status });
       const event = macFileEvent(request, url, response);
       if (event !== null) {

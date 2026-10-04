@@ -71,7 +71,7 @@ A locked profile cannot be removed on the iPhone itself. Undoing it takes erasin
 | ----------------- | ------------------------------------------------------------------- | -------------------------------------------------- |
 | Data on the phone | Stays. The app makes a backup, changes one setting, and restores it | Erased first. Only what syncs to iCloud comes back |
 | Good for          | Phones already in use                                               | New company phones, where erasing is normal        |
-| You need          | Mac with Apple Silicon, macOS 14 or later, a cable                  | Mac, Apple Configurator (free from Apple), a cable |
+| You need          | Mac with Apple silicon, macOS 14 or later, a cable                  | Mac, Apple Configurator (free from Apple), a cable |
 | Effort            | The app does the steps                                              | You follow a written guide                         |
 | Account           | None                                                                | None                                               |
 
@@ -107,7 +107,7 @@ With no MDM server, nothing on the phone reports back to you or to me. The phone
 
 - It does not change anything from a distance. Adding a block needs the cable. Removing a block from a locked phone means erasing the phone and setting it up again.
 - It does not erase, find, or list phones.
-- It does not block everything. Only the apps and sites on your list are blocked, and the adult filter misses some sites.
+- It does not block everything. Only the apps and websites on your list are blocked, and the adult filter misses some sites.
 - It does not install or update apps for you.
 - It is iPhone only today, and you need a Mac.
 
@@ -119,7 +119,7 @@ Do this only on phones the company owns, and tell employees in writing before yo
 
 ### Is there a free Apple MDM?
 
-Yes. Apple Business has device management built in, and Apple lists it as free in more than 200 countries and regions. Some other MDM tools have free plans with limits. Check each site for current terms.
+Yes. Apple Business has device management built in, and Apple lists it as free in more than 200 countries and regions. Some other MDM tools have free plans with limits. Check each website for current terms.
 
 ### Can I supervise an iPhone without MDM?
 
@@ -253,7 +253,7 @@ Start with one phone and trial mode. Back up each phone first. Get [the free Mac
           "name": "Is there a free Apple MDM?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Yes. Apple Business has device management built in, and Apple lists it as free in more than 200 countries and regions. Some other MDM tools have free plans with limits. Check each site for current terms."
+            "text": "Yes. Apple Business has device management built in, and Apple lists it as free in more than 200 countries and regions. Some other MDM tools have free plans with limits. Check each website for current terms."
           }
         },
         {

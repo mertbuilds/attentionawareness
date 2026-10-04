@@ -14,8 +14,6 @@ import { useSeen } from '../lib/use-seen.ts';
 import { m } from '../paraglide/messages.js';
 
 const SUPPORT_URL = supportUrl('support-section');
-/** Where the code is public. */
-const REPO_URL = 'https://github.com/mertbuilds/attentionawareness';
 /** The heart on the support button, as tall as the button's letters are set. */
 const HEART_SIZE = 14;
 /** One part of the section after the one before it, in milliseconds, as they rise. */
@@ -234,20 +232,6 @@ const styles = create({
     stopColor: tint.gold,
     stopOpacity: 0.32,
   },
-  // What is true of all of it, small and quiet, in a row that wraps: plain
-  // words with space between them, nothing boxed.
-  facts: {
-    color: colors.muted,
-    columnGap: spacing.s6,
-    display: 'flex',
-    flexWrap: 'wrap',
-    fontSize: font.sizeSm,
-    lineHeight: 1.5,
-    listStyle: 'none',
-    margin: 0,
-    padding: 0,
-    rowGap: spacing.s1,
-  },
   // The stamp's printed line, the lines of its view, and the postmark's rings
   // and waves.
   hairline: {
@@ -262,7 +246,10 @@ const styles = create({
     animationName: {
       '@media (prefers-reduced-motion: reduce)': 'none',
       default: null,
-      [when.ancestor(':hover')]: beat,
+      [when.ancestor(':hover')]: {
+        '@media (hover: hover)': beat,
+        default: null,
+      },
     },
     animationTimingFunction: easing.bounce,
     color: accent.base,
@@ -405,8 +392,8 @@ const styles = create({
     animationTimingFunction: easing.smoothOut,
   },
   // The words on the left, the stamp to their right and level with their
-  // top, where a stamp sits on an envelope. On a narrow window the stamp
-  // comes first, small, and the words under it.
+  // top, where a stamp sits on an envelope. On a phone the stamp comes
+  // first, large and in the middle, and the words under it.
   section: {
     alignItems: 'start',
     columnGap: spacing.s12,
@@ -419,17 +406,26 @@ const styles = create({
       '@media (min-width: 768px)': 'minmax(0, 1fr) auto',
       default: 'minmax(0, 1fr)',
     },
-    rowGap: spacing.s6,
+    rowGap: {
+      '@media (min-width: 768px)': spacing.s6,
+      default: spacing.s8,
+    },
   },
-  // The stamp, as wide as a real one reads at beside the words.
+  // The stamp, as wide as a real one reads at beside the words. On a phone
+  // it is the section's picture: most of the column wide, in its middle, and
+  // never wider than it stays sharp at.
   stamp: {
     display: 'block',
     gridArea: 'stamp',
     height: 'auto',
+    justifySelf: {
+      '@media (min-width: 768px)': 'auto',
+      default: 'center',
+    },
     overflow: 'visible',
     width: {
       '@media (min-width: 768px)': 220,
-      default: 148,
+      default: 'min(80%, 300px)',
     },
   },
   // What the stamp is worth, and whose it is, in the stamp's own small type.
@@ -447,7 +443,7 @@ const styles = create({
   title: {
     marginBlockEnd: spacing.s2,
   },
-  // The words, in one column: the title, what it says, the button, the facts.
+  // The words, in one column: the title, what it says, the button.
   words: {
     alignItems: 'flex-start',
     display: 'flex',
@@ -624,8 +620,7 @@ function Stamp({
  * own words, set as the corner of an envelope: the words on the left, a
  * stamp of Antalya with a heart in its sky and a postmark to their right. The title carries
  * the section, in the page's display size, which the page hands it; under it
- * three short paragraphs at a readable measure, the one button, and two
- * plain facts in quiet type. Nothing is boxed.
+ * two short lines at a readable measure and the one button. Nothing is boxed.
  *
  * The server draws it finished. Still under the window once the page has come
  * alive, its parts hide and rise one after another as it comes into view, the
@@ -661,13 +656,13 @@ export function SupportSection({ titleStyle }: { titleStyle: StyleXStyles }) {
       <div {...props(styles.words)}>
         <h2 {...props(titleStyle, styles.title, part(0))}>{m.home_support_title()}</h2>
         <p {...props(styles.line, part(1))}>{m.home_support_free()}</p>
-        <p {...props(styles.line, part(2))}>{m.home_support_why()}</p>
-        <p {...props(styles.line, part(3))}>{m.home_support_ask()}</p>
+        <p {...props(styles.line, part(2))}>{m.home_support_ask()}</p>
         <Button
           onClick={() => posthog.capture('support_clicked', { placement: 'support_section' })}
-          onPointerEnter={() => {
-            // The stamp's heart answers the button's: one beat, on top of its own.
-            if (!prefersLessMotion()) {
+          onPointerEnter={(event) => {
+            // The stamp's heart answers the button's: one beat, on top of its
+            // own. A finger does not hover, so a tap does not set it off.
+            if (event.pointerType !== 'touch' && !prefersLessMotion()) {
               stampHeart.current?.animate(
                 [
                   { transform: 'scale(1)' },
@@ -679,21 +674,13 @@ export function SupportSection({ titleStyle }: { titleStyle: StyleXStyles }) {
             }
           }}
           render={<a href={SUPPORT_URL} rel="noreferrer" target="_blank" />}
-          style={[styles.button, defaultMarker(), part(4)]}
+          style={[styles.button, defaultMarker(), part(3)]}
         >
           <span {...props(styles.heart)}>
             <Heart aria-hidden="true" size={HEART_SIZE} weight="Filled" />
           </span>
           {m.home_support_cta()}
         </Button>
-        <ul {...props(styles.facts, part(5))}>
-          <li>
-            <a href={REPO_URL} rel="noreferrer" target="_blank">
-              {m.home_support_fact_open()}
-            </a>
-          </li>
-          <li>{m.home_support_fact_tracking()}</li>
-        </ul>
       </div>
       <Stamp beatRef={stampHeart} play={moving && seen} style={part(1)} />
     </div>

@@ -10,6 +10,7 @@
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "lint": "oxlint --type-aware --type-check",
+    "phone": "pnpm --filter @attentionawareness/web build && portless aa-phone sh -c 'cd apps/web && WRANGLER_DOCKER_BIN=/usr/bin/false exec pnpm exec vite preview --port \"$PORT\" --strictPort'",
     "prepare": "git rev-parse --git-dir >/dev/null 2>&1 && lefthook install || echo 'lefthook install skipped (no git repo)'",
     "rename": "bash scripts/rename.sh",
     "skills:check": "node scripts/skills-check.ts",

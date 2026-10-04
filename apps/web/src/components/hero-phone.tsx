@@ -8,7 +8,6 @@ import { useLessMotion } from '../lib/use-less-motion.ts';
 import { useSeen } from '../lib/use-seen.ts';
 import type { WideLine } from '../lib/use-seen.ts';
 import { useTabHidden } from '../lib/use-tab-hidden.ts';
-import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
 import { Cable } from './steps/cable.tsx';
 import { Laptop, MAC_PLUG } from './steps/laptop.tsx';
@@ -118,6 +117,11 @@ const BACK_SCALE = 0.94;
  */
 const MAC = { scale: 0.42, x: 44.5, y: 124.5 };
 const RISE = 4;
+/**
+ * How far the phone moves aside for the Mac where the hero is one column, as
+ * a share of its own width: half of what the Mac stands out past its edge by.
+ */
+const MAC_ASIDE = 18.5;
 /** The plug in the phone's port, flush with the phone's foot, in the phone's units. */
 const PHONE_PLUG = { height: 3, radius: 1, width: 7 };
 /**
@@ -272,20 +276,28 @@ const styles = create({
   // Where the hero is one column the Mac's side stands out to the left of the
   // phone by 37% of the phone's width, so the phone is moved right by half of
   // that and the two stand in the middle together. A window too narrow for
-  // both at that size gets a smaller phone.
+  // both at that size gets a smaller phone. On a phone that move is the
+  // loop's own (`phoneAside`).
   phone: {
     maxWidth: {
       '@media (max-width: 359px)': 200,
-      '@media (min-width: 640px)': `clamp(${PHONE_MIN}px, calc((100svh - ${wip.height} - ${PHONE_CLEARANCE}px) / 2), ${PHONE_MAX}px)`,
+      '@media (min-width: 640px)': `clamp(${PHONE_MIN}px, calc((100svh - ${PHONE_CLEARANCE}px) / 2), ${PHONE_MAX}px)`,
       default: 224,
     },
     position: 'relative',
-    translate: {
-      '@media (min-width: 900px)': '0 0',
-      default: '18.5% 0',
-    },
     width: '100%',
   },
+  // On a phone the phone stands in the middle while it is alone, and moves
+  // aside by `aside` of that half as the Mac comes, so what is on show is in
+  // the middle all the way through. From the phone's width up it stands where
+  // it always did: aside in one column, and in its own column from 900px.
+  phoneAside: (aside: number) => ({
+    translate: {
+      '@media (min-width: 768px) and (max-width: 899.98px)': `${MAC_ASIDE}% 0`,
+      '@media (min-width: 900px)': '0 0',
+      default: `${MAC_ASIDE * aside}% 0`,
+    },
+  }),
   plug: {
     fill: 'none',
     stroke: colors.muted,
@@ -488,6 +500,7 @@ export function HeroPhone() {
   const panel = panelIn * (1 - back);
   const mac = within(now, AT.macIn) * (1 - within(now, AT.macOut));
   const rise = RISE * (1 - within(now, AT.macIn));
+  const aside = within(now, AT.macIn, easeInOut) * (1 - within(now, AT.macOut, easeInOut));
   const cable = within(now, AT.cableIn, easeInOut) * (1 - within(now, AT.cableOut, easeInOut));
   const phonePlug = within(now, AT.phonePlugIn) * (1 - within(now, AT.phonePlugOut));
   const travel = within(now, AT.travel, easeInOut);
@@ -497,7 +510,12 @@ export function HeroPhone() {
 
   return (
     <div {...props(styles.hero)}>
-      <div aria-label={m.hero_phone_label()} ref={phone} role="img" {...props(styles.phone)}>
+      <div
+        aria-label={m.hero_phone_label()}
+        ref={phone}
+        role="img"
+        {...props(styles.phone, styles.phoneAside(aside))}
+      >
         <svg
           aria-hidden="true"
           viewBox={`${PHONE.x} ${PHONE.y} ${PHONE.width} ${PHONE.height}`}

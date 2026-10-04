@@ -9,6 +9,8 @@ import { useEffect, useId, useState } from 'react';
 import { AngleDown, Check } from 'reicon-react';
 import { PaperLetter } from '../components/bill-paper.tsx';
 import { ExtensionBrowser } from '../components/extension-browser.tsx';
+import { ANSWER_LINK, FaqAnswer } from '../components/faq-answer.tsx';
+import type { AnswerBlock } from '../components/faq-answer.tsx';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { HeroPhone } from '../components/hero-phone.tsx';
 import { HowItWorks } from '../components/how-it-works.tsx';
@@ -17,15 +19,19 @@ import { OtherUses } from '../components/other-uses.tsx';
 import { ScreenShots } from '../components/screen-shots.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { SupportSection } from '../components/support-section.tsx';
+import { ThanksPopup } from '../components/thanks-popup.tsx';
 import { UsesGrid } from '../components/uses-grid.tsx';
 import { brandBar } from '../lib/brand-bar.stylex.ts';
-import { blur, duration, easing } from '../lib/motion.stylex.ts';
+import { duration, easing } from '../lib/motion.stylex.ts';
 import { SECTION } from '../lib/sections.ts';
-import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
 
 export const Route = createFileRoute('/')({
   component: HomePage,
+  // The support checkout sends the reader back with `thanks=1`, among marks
+  // of its own. Nothing else on the address means anything to the page.
+  validateSearch: (search: Record<string, unknown>): { thanks?: 1 } =>
+    search['thanks'] === 1 || search['thanks'] === '1' ? { thanks: 1 } : {},
 });
 
 /**
@@ -84,6 +90,9 @@ const CHEVRON_STROKE = 2.25;
 /** The tick before a promise, in pixels, drawn with the chevron's line. */
 const CHECK_SIZE = 16;
 
+/** The closing's paper fades out from behind the line and the button. */
+const CLOSING_PAPER_MASK = 'radial-gradient(ellipse at 50% 42%, black 25%, transparent 68%)';
+
 const styles = create({
   // A section the page links down to. The scroll stops short of its heading,
   // clear of the header strip over the top of the window.
@@ -98,6 +107,9 @@ const styles = create({
     flexDirection: 'column',
     gap: spacing.s6,
     paddingBlock: spacing.s16,
+    // The box the closing's graph paper measures itself against. No z-index,
+    // so the paper still goes under the page's own stacking, as the hero's does.
+    position: 'relative',
     textAlign: 'center',
   },
   closingNote: {
@@ -108,6 +120,17 @@ const styles = create({
     gap: spacing.s2,
     lineHeight: 1.5,
     margin: 0,
+  },
+  // The hero's graph paper again behind the last word: the window's whole
+  // width, from the page's own left edge so its squares line up with the
+  // footer's, a step past the section at the top and the foot, clearest
+  // behind the line and the button and gone before any edge.
+  closingPaper: {
+    height: 'auto',
+    insetBlock: `calc(-1 * ${spacing.s8})`,
+    insetInline: 'calc(50% - 50vw)',
+    maskImage: CLOSING_PAPER_MASK,
+    WebkitMaskImage: CLOSING_PAPER_MASK,
   },
   content: {
     display: 'flex',
@@ -169,22 +192,12 @@ const styles = create({
   faqAnswerOpen: {
     gridTemplateRows: '1fr',
   },
-  // What the track cuts off while it is short, coming into focus as it opens.
+  // What the track cuts off while it is short. Only the track moves: a fade
+  // or a blur here makes the text a layer of its own, and Safari on iOS
+  // draws that layer a pixel higher or lower in each frame of the growth.
   faqClip: {
-    filter: `blur(${blur.small})`,
     minHeight: 0,
-    opacity: 0,
     overflow: 'hidden',
-    transitionDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: duration.fast,
-    },
-    transitionProperty: 'opacity, filter',
-    transitionTimingFunction: easing.smoothOut,
-  },
-  faqClipOpen: {
-    filter: 'blur(0)',
-    opacity: 1,
   },
   faqHeading: {
     margin: 0,
@@ -198,22 +211,16 @@ const styles = create({
       default: '1px',
     },
   },
-  // Quieter than the question, and clear of the chevron above it.
-  faqText: {
-    color: colors.muted,
-    lineHeight: 1.5,
-    margin: 0,
-    paddingBlockEnd: spacing.s4,
-    paddingInlineEnd: spacing.s8,
-    textWrap: 'pretty',
-  },
   // The chevron at the end of the row. It waits in the muted ink, pointing
   // down, and darkens when the row is pointed at; an open answer turns it
   // over to point up.
   faqChevron: {
     color: {
       default: colors.muted,
-      [when.ancestor(':hover')]: colors.fg,
+      [when.ancestor(':hover')]: {
+        '@media (hover: hover)': colors.fg,
+        default: null,
+      },
     },
     flexShrink: 0,
     transform: 'none',
@@ -281,8 +288,8 @@ const styles = create({
       default: COLUMN_WIDTH,
     },
     minHeight: {
-      '@supports (height: 100svh)': `calc(100svh - ${wip.height})`,
-      default: `calc(100vh - ${wip.height})`,
+      '@supports (height: 100svh)': '100svh',
+      default: '100vh',
     },
     paddingBlockEnd: spacing.s12,
     // Clear of the header strip over the top of the window, and a step more.
@@ -327,7 +334,7 @@ const styles = create({
     // The stacking context that keeps the footer's graph paper above the page's
     // own background instead of behind it.
     isolation: 'isolate',
-    minHeight: `calc(100vh - ${wip.height})`,
+    minHeight: '100vh',
     // Anything past the window's edge is cut, so nothing scrolls sideways.
     overflowX: 'clip',
     paddingBlockEnd: spacing.s16,
@@ -363,24 +370,29 @@ const styles = create({
     letterSpacing: 'normal',
     textAlign: 'center',
   },
-  // One way out: its name, what it is, what it keeps, then its button at the
-  // foot, level with the other card's.
+  // The way out: the app's card, in the orange the page recommends it by.
+  // Its name, what it is and what it keeps, with its button and the line
+  // about backing up beside them at the card's foot on a wide window, and
+  // under them on a narrow one.
   plan: {
-    alignItems: 'flex-start',
-    borderColor: colors.border,
+    alignItems: {
+      '@media (min-width: 768px)': 'end',
+      default: 'start',
+    },
+    backgroundColor: `color-mix(in srgb, ${accent.base} 6%, ${colors.bg})`,
+    borderColor: accent.base,
     borderRadius: radius.base,
     borderStyle: 'solid',
     borderWidth: '1px',
     boxSizing: 'border-box',
-    display: 'flex',
-    flexDirection: 'column',
+    display: 'grid',
     gap: spacing.s6,
+    gridTemplateColumns: {
+      '@media (min-width: 768px)': 'minmax(0, 1fr) auto',
+      default: 'minmax(0, 1fr)',
+    },
     padding: spacing.s6,
-  },
-  // The app is the way the page recommends, so its card carries the orange.
-  planApp: {
-    backgroundColor: `color-mix(in srgb, ${accent.base} 6%, ${colors.bg})`,
-    borderColor: accent.base,
+    position: 'relative',
   },
   // The words of a card, held to a short measure where the card runs wide.
   planBody: {
@@ -389,22 +401,13 @@ const styles = create({
     gap: spacing.s4,
     maxWidth: '40ch',
   },
-  // A card's button with a line about backing up under it, at the card's
-  // foot.
+  // The card's button with the line about backing up under it.
   planFoot: {
     alignItems: 'flex-start',
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s3,
-    marginBlockStart: 'auto',
-  },
-  // The line under a card's button. Side by side, each card keeps room for
-  // two lines of it, so the two buttons stand level whichever line is longer.
-  planNote: {
-    minHeight: {
-      '@media (min-width: 640px)': '3em',
-      default: 0,
-    },
+    maxWidth: '32ch',
   },
   // The name, and what it is close under it.
   planHead: {
@@ -415,10 +418,6 @@ const styles = create({
   // The app's price is in its card's orange.
   planPrice: {
     color: accent.base,
-  },
-  // The guide's ticks in the ink, so its card stays quiet.
-  planQuietCheck: {
-    color: colors.fg,
   },
   planSub: {
     color: colors.muted,
@@ -433,16 +432,6 @@ const styles = create({
     letterSpacing: '-0.01em',
     lineHeight: 1.2,
     margin: 0,
-  },
-  // The two ways side by side, as tall as each other, where both fit; the app
-  // first and the guide under it where they do not.
-  plans: {
-    display: 'grid',
-    gap: spacing.s4,
-    gridTemplateColumns: {
-      '@media (min-width: 640px)': 'repeat(2, minmax(0, 1fr))',
-      default: 'minmax(0, 1fr)',
-    },
   },
   // One promise: its tick, then its words, wrapping clear of the tick in even
   // lines.
@@ -470,6 +459,11 @@ const styles = create({
     listStyle: 'none',
     margin: 0,
     padding: 0,
+  },
+  // A mark at the top of the card that holds it, taking no room there.
+  outOfFlow: {
+    insetBlockStart: 0,
+    position: 'absolute',
   },
   section: {
     display: 'flex',
@@ -553,7 +547,7 @@ function Question({
 }: {
   /** The id a link elsewhere on the page goes to. Gone to, the answer opens. */
   anchor?: string | undefined;
-  answer: string;
+  answer: ReadonlyArray<AnswerBlock>;
   question: string;
 }) {
   const id = useId();
@@ -613,24 +607,26 @@ function Question({
         role="region"
         {...props(styles.faqAnswer, open && styles.faqAnswerOpen)}
       >
-        <div {...props(styles.faqClip, open && styles.faqClipOpen)}>
-          <p {...props(styles.faqText)}>{answer}</p>
+        <div {...props(styles.faqClip)}>
+          <FaqAnswer blocks={answer} />
         </div>
       </div>
     </div>
   );
 }
 
+/** An answer's block of a sentence or two. */
+function text(words: string): AnswerBlock {
+  return { kind: 'text', text: words };
+}
+
+/** An answer's list, one item under another, under its name if it has one. */
+function dots(items: ReadonlyArray<string>, label?: string): AnswerBlock {
+  return { items, kind: 'list', label, mark: 'dot' };
+}
+
 /** Promises in a list, each after its tick. */
-function Promises({
-  checkStyle,
-  promises,
-  style,
-}: {
-  checkStyle?: StyleXStyles;
-  promises: ReadonlyArray<string>;
-  style?: StyleXStyles;
-}) {
+function Promises({ promises, style }: { promises: ReadonlyArray<string>; style?: StyleXStyles }) {
   return (
     <ul {...props(styles.promises, style)}>
       {promises.map((promise) => (
@@ -639,7 +635,7 @@ function Promises({
             aria-hidden="true"
             size={CHECK_SIZE}
             strokeWidth={CHEVRON_STROKE}
-            {...props(styles.promiseCheck, checkStyle)}
+            {...props(styles.promiseCheck)}
           />
           {promise}
         </li>
@@ -650,9 +646,17 @@ function Promises({
 
 function HomePage() {
   const posthog = usePostHog();
-  // The word the claim turns on, wherever a language puts it, so the words
-  // around it keep their own order in every language.
-  const [titleBefore, titleAfter] = m.home_hero_title({ permanently: LINK_SLOT }).split(LINK_SLOT);
+  const { thanks } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  // The two words the claim turns on, in orange wherever a language puts
+  // them, so the words around them keep their own order in every language.
+  const titleWords = new Map([
+    [LINK_SLOT, m.home_hero_title_distraction()],
+    [SECOND_SLOT, m.home_hero_title_accent()],
+  ]);
+  const titleParts = m
+    .home_hero_title({ distraction: LINK_SLOT, permanently: SECOND_SLOT })
+    .split(SLOTS);
 
   // Why the lock lasts, each with its tick.
   const heroPromises = [
@@ -684,30 +688,136 @@ function HomePage() {
     m.home_how_promise_add(),
   ];
 
-  // What the manual way is, each with its tick.
-  const guidePromises = [
-    m.home_how_guide_steps(),
-    m.home_how_guide_free(),
-    m.home_how_guide_erase(),
-  ];
-
   // The word the closing line turns on, in orange wherever a language puts it.
   const [closeBefore, closeAfter] = m.home_close_title({ better: LINK_SLOT }).split(LINK_SLOT);
 
-  const objections = [
-    { desc: m.home_faq_free_desc(), term: m.home_faq_free_term() },
-    { desc: m.home_faq_money_desc(), term: m.home_faq_money_term() },
-    { desc: m.home_faq_screen_time_desc(), term: m.home_faq_screen_time_term() },
-    { desc: m.home_faq_supervision_desc(), term: m.home_faq_supervision_term() },
-    { desc: m.home_faq_trial_desc(), term: m.home_faq_trial_term() },
-    { desc: m.home_faq_choice_desc(), term: m.home_faq_choice_term() },
-    { anchor: FAQ_DATA_ID, desc: m.home_faq_data_desc(), term: m.home_faq_data_term() },
-    { desc: m.home_faq_fail_desc(), term: m.home_faq_fail_term() },
-    { desc: m.home_faq_see_desc(), term: m.home_faq_see_term() },
-    { desc: m.home_faq_source_desc(), term: m.home_faq_source_term() },
-    { desc: m.home_faq_undo_desc(), term: m.home_faq_undo_term() },
-    { desc: m.home_faq_mac_desc(), term: m.home_faq_mac_term() },
-    { desc: m.home_faq_other_platforms_desc(), term: m.home_faq_other_platforms_term() },
+  // The questions in the order a new visitor asks them, each answer block
+  // under block.
+  const questions: ReadonlyArray<{
+    anchor?: string;
+    answer: ReadonlyArray<AnswerBlock>;
+    question: string;
+  }> = [
+    {
+      answer: [text(m.home_faq_free_a1()), text(m.home_faq_free_a2())],
+      question: m.home_faq_free_term(),
+    },
+    {
+      answer: [text(m.home_faq_screen_time_a1()), text(m.home_faq_screen_time_a2())],
+      question: m.home_faq_screen_time_term(),
+    },
+    {
+      answer: [text(m.home_faq_supervision_a1()), text(m.home_faq_supervision_a2())],
+      question: m.home_faq_supervision_term(),
+    },
+    {
+      answer: [
+        text(m.home_faq_needs_a1()),
+        dots([
+          m.home_faq_needs_item_friend(),
+          m.home_faq_needs_item_phone(),
+          m.home_faq_needs_item_copy(),
+        ]),
+      ],
+      question: m.home_faq_needs_term(),
+    },
+    {
+      anchor: FAQ_DATA_ID,
+      answer: [
+        text(m.home_faq_data_a1()),
+        {
+          kind: 'path',
+          label: m.home_faq_data_icloud(),
+          steps: [
+            m.home_faq_data_icloud_settings(),
+            m.home_faq_data_icloud_name(),
+            m.home_faq_data_icloud_icloud(),
+            m.home_faq_data_icloud_backup(),
+            m.home_faq_data_back_up_now(),
+          ],
+        },
+        {
+          kind: 'path',
+          label: m.home_faq_data_finder(),
+          steps: [
+            m.home_faq_data_finder_connect(),
+            m.home_faq_data_finder_select(),
+            m.home_faq_data_back_up_now(),
+          ],
+        },
+        {
+          items: [
+            m.home_faq_data_stays_photos(),
+            m.home_faq_data_stays_messages(),
+            m.home_faq_data_stays_logins(),
+            m.home_faq_data_stays_health(),
+          ],
+          kind: 'list',
+          label: m.home_faq_data_stays(),
+          mark: 'check',
+        },
+        text(m.home_faq_data_changes()),
+        dots(
+          [
+            m.home_faq_data_before_find_my(),
+            m.home_faq_data_before_space(),
+            m.home_faq_data_before_password(),
+          ],
+          m.home_faq_data_before(),
+        ),
+      ],
+      question: m.home_faq_data_term(),
+    },
+    { answer: [text(m.home_faq_time_a1())], question: m.home_faq_time_term() },
+    {
+      answer: [text(m.home_faq_fail_a1()), text(m.home_faq_fail_a2())],
+      question: m.home_faq_fail_term(),
+    },
+    {
+      answer: [text(m.home_faq_trial_a1()), text(m.home_faq_trial_a2())],
+      question: m.home_faq_trial_term(),
+    },
+    {
+      answer: [
+        text(m.home_faq_undo_a1()),
+        dots([m.home_faq_undo_item_erase(), m.home_faq_undo_item_configurator()]),
+        text(m.home_faq_undo_a2()),
+      ],
+      question: m.home_faq_undo_term(),
+    },
+    {
+      answer: [
+        text(m.home_faq_apps_a1()),
+        dots([m.home_faq_apps_item_store(), m.home_faq_apps_item_rest()]),
+      ],
+      question: m.home_faq_apps_term(),
+    },
+    {
+      answer: [text(m.home_faq_see_a1()), text(m.home_faq_see_a2())],
+      question: m.home_faq_see_term(),
+    },
+    {
+      answer: [
+        text(m.home_faq_source_a1()),
+        dots([m.home_faq_source_item_mac(), m.home_faq_source_item_rest()]),
+      ],
+      question: m.home_faq_source_term(),
+    },
+    {
+      answer: [
+        {
+          kind: 'text',
+          link: { href: '/guide', label: m.home_faq_manual_a1_link() },
+          text: m.home_faq_manual_a1({ guide: ANSWER_LINK }),
+        },
+        text(m.home_faq_manual_a2()),
+      ],
+      question: m.home_faq_manual_term(),
+    },
+    {
+      answer: [text(m.home_faq_other_platforms_a1()), text(m.home_faq_other_platforms_a2())],
+      question: m.home_faq_other_platforms_term(),
+    },
   ];
 
   return (
@@ -720,9 +830,16 @@ function HomePage() {
       <header {...props(styles.hero)}>
         <div {...props(styles.heroText)}>
           <h1 {...props(styles.displayTitle)}>
-            {titleBefore}
-            <span {...props(styles.accentWord)}>{m.home_hero_title_accent()}</span>
-            {titleAfter}
+            {titleParts.map((part) => {
+              const word = titleWords.get(part);
+              return word === undefined ? (
+                part
+              ) : (
+                <span key={part} {...props(styles.accentWord)}>
+                  {word}
+                </span>
+              );
+            })}
           </h1>
           <Promises promises={heroPromises} style={styles.heroPromises} />
           <div {...props(styles.heroAction)}>
@@ -745,49 +862,31 @@ function HomePage() {
           </p>
         </section>
 
-        {/* How it works: what the Mac app does, in three steps, then the two
-        ways to it, both free: the app, with what it keeps, and the guide that
-        starts the phone over. */}
+        {/* How it works: what the Mac app does, in three steps, then the app
+        itself, free, with what it keeps and its download. */}
         <section {...props(styles.section, styles.anchor)} id={SECTION.wayOut}>
           <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
           <p {...props(styles.sectionBody)}>{m.home_how_lead()}</p>
           <HowItWorks />
-          <p {...props(styles.sectionBody)}>{m.home_how_backup()}</p>
-          {/* Where links from before the two ways were named the download still land. */}
-          <span id={OLD_DOWNLOAD_ID} {...props(styles.anchor)} />
-          <div id={SECTION.download} {...props(styles.plans, styles.anchor)}>
-            <div {...props(styles.plan, styles.planApp)}>
-              <div {...props(styles.planBody)}>
-                <div {...props(styles.planHead)}>
-                  <h3 {...props(styles.planTitle, styles.planPrice)}>{m.home_how_app_price()}</h3>
-                  <p {...props(styles.planSub)}>{m.home_how_app_sub()}</p>
-                </div>
-                <Promises promises={promises} />
+          <div id={SECTION.download} {...props(styles.plan, styles.anchor)}>
+            {/* Where links from before the two ways were named the download
+            still land. Out of the card's grid, so it takes no cell. */}
+            <span id={OLD_DOWNLOAD_ID} {...props(styles.anchor, styles.outOfFlow)} />
+            <div {...props(styles.planBody)}>
+              <div {...props(styles.planHead)}>
+                <h3 {...props(styles.planTitle, styles.planPrice)}>{m.home_how_app_price()}</h3>
+                <p {...props(styles.planSub)}>{m.home_how_app_sub()}</p>
               </div>
-              <div {...props(styles.planFoot)}>
-                <MacDownload placement="download" />
-                <p {...props(styles.planSub, styles.planNote)}>
-                  <a href={`#${FAQ_DATA_ID}`} onClick={() => askQuestion(FAQ_DATA_ID)}>
-                    {m.home_how_backup_note_link()}
-                  </a>
-                  {m.home_how_backup_note({ link: LINK_SLOT }).split(LINK_SLOT)[1]}
-                </p>
-              </div>
+              <Promises promises={promises} />
             </div>
-            <div {...props(styles.plan)}>
-              <div {...props(styles.planBody)}>
-                <div {...props(styles.planHead)}>
-                  <h3 {...props(styles.planTitle)}>{m.home_how_guide_title()}</h3>
-                  <p {...props(styles.planSub)}>{m.home_how_guide_sub()}</p>
-                </div>
-                <Promises checkStyle={styles.planQuietCheck} promises={guidePromises} />
-              </div>
-              <div {...props(styles.planFoot)}>
-                <Button render={<a href={GUIDE_URL} />} variant="outline">
-                  {m.home_how_guide_cta()}
-                </Button>
-                <p {...props(styles.planSub, styles.planNote)}>{m.home_how_guide_note()}</p>
-              </div>
+            <div {...props(styles.planFoot)}>
+              <MacDownload placement="download" />
+              <p {...props(styles.planSub)}>
+                <a href={`#${FAQ_DATA_ID}`} onClick={() => askQuestion(FAQ_DATA_ID)}>
+                  {m.home_how_backup_note_link()}
+                </a>
+                {m.home_how_backup_note({ link: LINK_SLOT }).split(LINK_SLOT)[1]}
+              </p>
             </div>
           </div>
         </section>
@@ -802,13 +901,15 @@ function HomePage() {
             shots={[
               {
                 alt: m.home_proof_shot_time(),
-                height: 684,
+                height: 672,
+                padded: true,
                 src: '/media/screentime-mert/mert-after-screen-time.webp',
                 width: 800,
               },
               {
                 alt: m.home_proof_shot_pickups(),
-                height: 511,
+                height: 672,
+                padded: true,
                 src: '/media/screentime-mert/mert-after-pickups.webp',
                 width: 800,
               },
@@ -831,7 +932,6 @@ function HomePage() {
           <div {...props(styles.extensionHead)}>
             <h2 {...props(styles.sectionTitle)}>{m.home_ext_title()}</h2>
             <p {...props(styles.sectionBody)}>{m.home_ext_lead()}</p>
-            <p {...props(styles.sectionBody)}>{m.home_ext_honest()}</p>
             <div {...props(styles.extensionAction)}>
               <Button
                 aria-label={m.home_ext_cta_label()}
@@ -843,7 +943,7 @@ function HomePage() {
                 {m.home_ext_cta()}
               </Button>
               <p {...props(styles.heroPrice)}>
-                {m.home_ext_note()} <a href={EXTENSION_PRIVACY_PATH}>{m.home_ext_privacy()}</a>
+                <a href={EXTENSION_PRIVACY_PATH}>{m.home_ext_privacy()}</a>
               </p>
             </div>
           </div>
@@ -912,18 +1012,19 @@ function HomePage() {
         <section {...props(styles.section, styles.anchor)} id={SECTION.faq}>
           <h2 {...props(styles.sectionTitle)}>{m.home_faq_title()}</h2>
           <div>
-            {objections.map((objection) => (
+            {questions.map((entry) => (
               <Question
-                anchor={'anchor' in objection ? objection.anchor : undefined}
-                answer={objection.desc}
-                key={objection.term}
-                question={objection.term}
+                anchor={entry.anchor}
+                answer={entry.answer}
+                key={entry.question}
+                question={entry.question}
               />
             ))}
           </div>
         </section>
 
         <section {...props(styles.closing)}>
+          <GridTexture style={styles.closingPaper} />
           <h2 {...props(styles.displayTitle)}>
             {closeBefore}
             <span {...props(styles.accentWord)}>{m.home_close_title_accent()}</span>
@@ -938,6 +1039,11 @@ function HomePage() {
 
         <SiteFooter />
       </div>
+      <ThanksPopup
+        // The mark goes off the address, in place: the page stays where it is.
+        onShown={() => void navigate({ replace: true, resetScroll: false, search: {} })}
+        show={thanks === 1}
+      />
     </main>
   );
 }

@@ -6,18 +6,18 @@ import type { ReactNode } from 'react';
 import { NotFound } from '../components/not-found.tsx';
 import { SiteHeader } from '../components/site-header.tsx';
 import { SupportPopup } from '../components/support-popup.tsx';
-import { WipBanner } from '../components/wip-banner.tsx';
 import { clientEnv } from '../lib/env.ts';
+import { MOBILE_SCRIPT } from '../lib/mobile.ts';
 import { openPanelReplay, posthogReplay } from '../lib/replay.ts';
-import { THEME_GROUND } from '../lib/theme.ts';
+import { THEME_GROUND, THEME_SCRIPT } from '../lib/theme.ts';
 import { m } from '../paraglide/messages.js';
 import fontsStylesheet from '@attentionawareness/ui/fonts-optional.css?url';
 import '@attentionawareness/ui/theme.css';
 import '../app.css';
 
 if (import.meta.env.DEV && typeof window !== 'undefined') {
-  void import('react-grab');
-  // Dev-only: the knobs panel emulates scheme, motion, locale and width in place.
+  // Dev-only: the knobs panel emulates scheme, motion, locale and width in place. It also
+  // provides grab: hold cmd+C to pick an element and copy its context.
   const knobs = await import('devknobs');
   knobs.mount();
   // Dev-only: StyleX HMR runtime injects styles; production CSS is emitted into app.css at build.
@@ -32,11 +32,14 @@ if (clientEnv.VITE_SENTRY_DSN && typeof window !== 'undefined') {
 /** The brand, in prose. The lowercase "aa" mark is the only lowercase form. */
 const SITE_NAME = 'attention awareness';
 /**
- * Takes the work-in-progress strip off the page before it paints, for a reader
- * who has already put it away. Same key as the strip's own button.
+ * Takes the support checkout's own marks off the address before anything
+ * reads it: the checkout comes back with the id of the payment and a token of
+ * the reader's session, and neither is for the analytics or for a link the
+ * reader shares. `thanks` stays, for the home page to answer.
  */
-const WIP_SCRIPT =
-  "try{if(localStorage.getItem('aa-wip-dismissed'))document.documentElement.setAttribute('data-aa-wip-off','')}catch(e){}";
+const CHECKOUT_SCRIPT =
+  "try{var u=new URL(location.href),p=u.searchParams;if(p.has('checkout_id')||p.has('customer_session_token')){" +
+  "p.delete('checkout_id');p.delete('customer_session_token');history.replaceState(history.state,'',u.pathname+u.search+u.hash)}}catch(e){}";
 const SITE_URL = 'https://attentionawareness.com';
 const ICON_SUFFIX = import.meta.env.DEV ? '-dev' : '';
 /** The site's own OpenPanel project. The id is public by design. */
@@ -67,7 +70,10 @@ export const Route = createRootRoute({
     const path = named.length > 1 && named.endsWith('/') ? named.slice(0, -1) : named;
     const url = match._notFound ? undefined : `${SITE_URL}${path}`;
     // What the site promises, in the hero's own words. The share cards lead with it.
-    const tagline = m.home_hero_title({ permanently: m.home_hero_title_accent() });
+    const tagline = m.home_hero_title({
+      distraction: m.home_hero_title_distraction(),
+      permanently: m.home_hero_title_accent(),
+    });
     const description = `${SITE_NAME}. ${m.home_meta_description()}`;
     return {
       links: [
@@ -182,14 +188,14 @@ function Providers({ children }: { children: ReactNode }) {
 
 function RootDocument({ children }: { children: ReactNode }) {
   return (
-    // The strip's script marks the element before the page comes alive.
+    // The theme's script and the strip's mark the element before the page comes alive.
     <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
         {/* The page's ground, for the browser's own chrome and what it shows
         behind the page: one per system theme, written here because the head's
         list keeps one meta per name. A theme chosen on the site rewrites both
-        (`lib/theme.ts`). */}
+        (`lib/theme.ts`), and the script under them does it for a kept choice. */}
         <meta
           content={THEME_GROUND.light}
           media="(prefers-color-scheme: light)"
@@ -202,12 +208,13 @@ function RootDocument({ children }: { children: ReactNode }) {
           name="theme-color"
           suppressHydrationWarning
         />
-        <script dangerouslySetInnerHTML={{ __html: WIP_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: MOBILE_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: CHECKOUT_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: ANALYTICS_SCRIPT }} />
       </head>
       <body>
         <Providers>
-          <WipBanner />
           <SiteHeader />
           {children}
           <SupportPopup />

@@ -1,4 +1,5 @@
 import { createRouter } from '@tanstack/react-router';
+import { RouteError } from './components/route-error.tsx';
 import { routeTree } from './routeTree.gen.ts';
 
 export function getRouter() {
@@ -8,6 +9,7 @@ export function getRouter() {
     history.scrollRestoration = 'manual';
   }
   return createRouter({
+    defaultErrorComponent: RouteError,
     defaultPreload: 'intent',
     routeTree,
   });

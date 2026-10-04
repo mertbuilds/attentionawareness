@@ -1,19 +1,20 @@
 import { Button } from '@attentionawareness/ui';
 import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
-import { create, props } from '@stylexjs/stylex';
+import { create, defaultMarker, props } from '@stylexjs/stylex';
 import { useLocation } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { flushSync } from 'react-dom';
-import { Heart } from 'reicon-react';
 import { brandBar } from '../lib/brand-bar.stylex.ts';
+import { GITHUB_MARK, REPO_URL } from '../lib/github.ts';
 import { morph } from '../lib/morph.ts';
 import { duration, easing } from '../lib/motion.stylex.ts';
 import { SECTION } from '../lib/sections.ts';
 import { m } from '../paraglide/messages.js';
 import { BrandMark } from './brand-mark.tsx';
-import { MacCta, useMacDownload, useSendToMac } from './mac-download.tsx';
+import { MacCta, useMacDownload } from './mac-download.tsx';
 import { SiteMenu } from './site-menu.tsx';
+import { SupportHeart } from './support-heart.tsx';
 
 const MARK_SIZE = 24;
 /** The heart before the support link, as tall as the link's letters are set. */
@@ -40,6 +41,8 @@ const PILL_MARK = PILL_HEIGHT - 2 * PILL_INSET;
  */
 const PILL_FROM = 48;
 const OPEN_FROM = 16;
+/** The support link, which a phone has as its button instead. */
+const SUPPORT_LINK = 'header-support';
 /**
  * The header's links, in the order they stand: the home page's sections, by
  * the ids it gives them, then the blog, a page of its own. `name` is what the
@@ -47,7 +50,7 @@ const OPEN_FROM = 16;
  */
 const LINKS = [
   { hash: `#${SECTION.wayOut}`, label: m.nav_how, name: 'header-how' },
-  { hash: `#${SECTION.support}`, heart: true, label: m.nav_support, name: 'header-support' },
+  { hash: `#${SECTION.support}`, heart: true, label: m.nav_support, name: SUPPORT_LINK },
   { hash: `#${SECTION.story}`, label: m.nav_why, name: 'header-why' },
   { hash: `#${SECTION.faq}`, label: m.nav_faq, name: 'header-faq' },
   { label: m.nav_blog, name: 'header-blog', path: '/blog' },
@@ -64,10 +67,14 @@ const styles = create({
   },
   // Open: the name at one edge and the download at the other, and the links
   // in the middle of the strip between two equal sides. A window too narrow
-  // for the links keeps the name and, at the other edge, the menu's button.
+  // for the links keeps the name and, at the other edge, the menu's button,
+  // with a phone's support button before it. What the columns do not name
+  // stands in a column of its own, on the one line.
   barOpen: {
     columnGap: spacing.s4,
     display: 'grid',
+    gridAutoColumns: 'auto',
+    gridAutoFlow: 'column',
     gridTemplateColumns: {
       '@media (min-width: 768px)': 'minmax(0, 1fr) auto minmax(0, 1fr)',
       default: 'minmax(0, 1fr) auto',
@@ -92,7 +99,10 @@ const styles = create({
   brand: {
     alignItems: 'center',
     color: {
-      ':hover': colors.fg,
+      ':hover': {
+        '@media (hover: hover)': colors.fg,
+        default: null,
+      },
       default: colors.muted,
     },
     display: 'inline-flex',
@@ -144,12 +154,37 @@ const styles = create({
     position: 'sticky',
     zIndex: 30,
   },
+  // A wrapper that leaves no box of its own, so what is in it stands in the
+  // row as if it were not wrapped.
+  // The computer's two buttons at the bar's end: GitHub, then the download.
+  actions: {
+    alignItems: 'center',
+    display: 'inline-flex',
+    gap: spacing.s2,
+    justifySelf: 'end',
+  },
+  contents: {
+    display: 'contents',
+  },
+  // A round icon button, as tall as the download beside it. A narrow window
+  // has no room for it, so it shows from the width the links show at.
+  github: {
+    display: {
+      '@media (min-width: 768px)': 'inline-flex',
+      default: 'none',
+    },
+    paddingInline: 0,
+    width: 28,
+  },
   hidden: {
     display: 'none',
   },
   link: {
     color: {
-      ':hover': colors.fg,
+      ':hover': {
+        '@media (hover: hover)': colors.fg,
+        default: null,
+      },
       default: colors.muted,
     },
     fontSize: font.sizeSm,
@@ -169,6 +204,12 @@ const styles = create({
   },
   // The support link and the heart before it, in one row and one colour.
   linkHeart: {
+    alignItems: 'center',
+    display: 'inline-flex',
+    gap: spacing.s1,
+  },
+  // The heart and the word on a phone's support button, in one row.
+  supportCta: {
     alignItems: 'center',
     display: 'inline-flex',
     gap: spacing.s1,
@@ -252,8 +293,9 @@ const styles = create({
  * download at the other end are. A window too narrow for the links has the menu's
  * button of two lines at the far edge instead, and the links in the menu it
  * opens. The download starts the file at once, as every download on the site
- * does; on a phone or a tablet, which cannot run the app, it sends the link
- * on to a Mac instead.
+ * does; a phone or a tablet, which cannot run the app, has a support button
+ * there instead, at the top of the page and in the pill, to the support
+ * section, and the menu sends the link on to a Mac.
  */
 export function SiteHeader() {
   const [pill, setPill] = useState(false);
@@ -265,7 +307,6 @@ export function SiteHeader() {
   // browser would load the page again and drop its query.
   const page = home ? '' : '/';
   const download = useMacDownload('header');
-  const sendToMac = useSendToMac();
   const links = LINKS.map((link) => ({
     heart: 'heart' in link,
     href: 'path' in link ? link.path : page + link.hash,
@@ -317,11 +358,8 @@ export function SiteHeader() {
       </Button>
     );
   } else if (download.kind === 'send') {
-    downloadButton = (
-      <Button data-morph="header-download" onClick={() => void sendToMac.send()} style={morphStyle}>
-        <MacCta label={sendToMac.copied ? m.mac_download_copied() : m.nav_download()} />
-      </Button>
-    );
+    // A phone has the support button in its place.
+    downloadButton = null;
   } else if (download.kind === 'reading') {
     downloadButton = (
       <Button data-morph="header-download" disabled style={morphStyle}>
@@ -359,6 +397,7 @@ export function SiteHeader() {
             <BrandMark size={pill ? PILL_MARK : MARK_SIZE} />
           </span>
           <span
+            data-aa-phone-narrow-off=""
             data-morph="header-name"
             {...props(styles.name, styles.morph('header-name'), pill && styles.hidden)}
           >
@@ -370,18 +409,51 @@ export function SiteHeader() {
             <a
               data-morph={link.name}
               data-plain=""
+              {...(link.name === SUPPORT_LINK && { 'data-aa-computer': '' })}
               href={link.href}
               key={link.name}
-              {...props(styles.link, link.heart && styles.linkHeart, styles.morph(link.name))}
-            >
-              {link.heart && (
-                <Heart aria-hidden="true" size={HEART_SIZE} strokeWidth={HEART_STROKE} />
+              {...props(
+                styles.link,
+                link.heart && styles.linkHeart,
+                styles.morph(link.name),
+                defaultMarker(),
               )}
+            >
+              {link.heart && <SupportHeart size={HEART_SIZE} stroke={HEART_STROKE} />}
               {link.label}
             </a>
           ))}
         </nav>
-        {downloadButton}
+        {/* The server cannot tell a phone, so it draws both buttons, and the
+            mark the head script puts on a phone's root shows the one that
+            stays: the download on a computer, the support on a phone. */}
+        <span data-aa-computer="" {...props(styles.actions)}>
+          <Button
+            aria-label={m.footer_github()}
+            data-morph="header-github"
+            render={<a href={REPO_URL} rel="noreferrer" target="_blank" />}
+            style={[styles.github, styles.morph('header-github')]}
+            variant="outline"
+          >
+            <svg aria-hidden="true" fill="currentColor" height={14} viewBox="0 0 16 16" width={14}>
+              <path d={GITHUB_MARK} />
+            </svg>
+          </Button>
+          {downloadButton}
+        </span>
+        <span data-aa-phone="" {...props(styles.contents)}>
+          <Button
+            data-morph="header-phone-support"
+            render={<a href={`${page}#${SECTION.support}`} />}
+            style={[styles.download, styles.morph('header-phone-support'), defaultMarker()]}
+            variant="outline"
+          >
+            <span {...props(styles.supportCta)}>
+              <SupportHeart size={HEART_SIZE} stroke={HEART_STROKE} />
+              {m.nav_support()}
+            </span>
+          </Button>
+        </span>
         <SiteMenu anchor={bar} links={links} morph="header-menu" />
       </div>
     </header>

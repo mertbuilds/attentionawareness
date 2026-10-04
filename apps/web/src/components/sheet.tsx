@@ -11,7 +11,10 @@ const styles = create({
     borderStyle: 'none',
     borderWidth: 0,
     color: {
-      ':hover': colors.fg,
+      ':hover': {
+        '@media (hover: hover)': colors.fg,
+        default: null,
+      },
       default: colors.muted,
     },
     cursor: 'pointer',

@@ -1,3 +1,4 @@
+import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { usePostHog } from '@posthog/react';
 import { create, defaultMarker, firstThatWorks, keyframes, props, when } from '@stylexjs/stylex';
@@ -6,6 +7,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode, RefObject } from 'react';
 import { Heart, Star } from 'reicon-react';
 import { posts } from '../lib/blog.ts';
+import { GITHUB_MARK, REPO_URL } from '../lib/github.ts';
 import { layout } from '../lib/layout.ts';
 import { blur, distance, duration, easing } from '../lib/motion.stylex.ts';
 import { SECTION } from '../lib/sections.ts';
@@ -30,8 +32,6 @@ const BUILDER_URL =
 const STORE_URL =
   'https://chromewebstore.google.com/detail/attention-awareness/lgcijcijcndmggjiioibfcmppndfakee?utm_source=attentionawareness.com&utm_medium=referral&utm_campaign=footer';
 const SUPPORT_URL = supportUrl('footer');
-/** Where the site's and the extension's code is public. */
-const REPO_URL = 'https://github.com/mertbuilds/attentionawareness';
 /** What GitHub tells anyone about the repo, its stars among it. */
 const REPO_API = 'https://api.github.com/repos/mertbuilds/attentionawareness';
 /** Where the star count is kept for the rest of a tab's session. */
@@ -45,9 +45,6 @@ const MARK_SIZE = 24;
 const ICON_SIZE = 14;
 /** A line as heavy as the letters beside it, in the icon's own 24-unit grid. */
 const ICON_STROKE = 2.25;
-/** GitHub's mark, as the one path it is drawn in, on its own 16-unit grid. */
-const GITHUB_MARK =
-  'M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z';
 /**
  * Where a link stands inside a sentence. The message is written with the link
  * as a placeholder and split on it, so the words around it keep their own
@@ -79,19 +76,18 @@ const NAME_TRACKING = -0.04;
 const NAME_WIDTH = 8.663;
 const NAME_BEARING = 0.038;
 /**
- * How much of the name's line stands above the page's bottom edge, in ems.
- * The line is one em tall and its letters sit on a line 0.809 em down it,
- * 0.538 em tall, so this shows a little under six tenths of them and the
- * edge cuts the rest.
+ * How much of the name's line is shown, in ems. The line is one em tall and
+ * its letters sit on a line 0.809 em down it; the name has no letter that
+ * hangs below that line, and its round letters dip a hair under it, so this
+ * shows every letter whole and cuts only the empty foot of the line.
  */
-const NAME_SHOWN = 0.58;
+const NAME_SHOWN = 0.84;
 /**
- * The name's ink: a quiet share of the page's own, so it reads as a watermark
- * under the links and not as a title. It thins toward the page's edge, which
- * cuts it.
+ * The name is drawn as an outline in the orange, at a low strength. The line
+ * is full at the top of the letters and thins out toward their foot, but it
+ * never goes out.
  */
-const NAME_INK = `color-mix(in srgb, ${colors.fg} 28%, transparent)`;
-const NAME_THINS = 'linear-gradient(to bottom, black 15%, rgb(0 0 0 / 0.3))';
+const NAME_FADE = 'linear-gradient(to bottom, #000 25%, rgb(0 0 0 / 0.35) 95%)';
 /** The room the page shells leave under the footer, which the footer takes back. */
 const PAGE_FOOT = spacing.s16;
 /**
@@ -101,8 +97,10 @@ const PAGE_FOOT = spacing.s16;
 const PAPER_SIDES = 'linear-gradient(to right, black, transparent 35%, transparent 65%, black)';
 const PAPER_SIDES_NARROW =
   'linear-gradient(to right, rgb(0 0 0 / 0.4), transparent 25%, transparent 75%, rgb(0 0 0 / 0.4))';
-/** The strip of paper at the foot of the page: six squares tall. */
-const PAPER_HEIGHT = '240px';
+/** The footer's own height, measured in the page and set on the footer. */
+const FOOTER_HEIGHT = '--aa-footer-height';
+/** The paper covers the whole footer; twelve squares tall until it is measured. */
+const PAPER_HEIGHT = `var(${FOOTER_HEIGHT}, 480px)`;
 /** No hard line where the paper starts: it comes in out of nothing at its top. */
 const PAPER_TOP = 'linear-gradient(to bottom, transparent, black 144px)';
 
@@ -174,13 +172,14 @@ const styles = create({
   },
   // The footer runs down to the page's own bottom edge: it takes back the
   // room every page shell leaves under it, and keeps the room the name stands
-  // in instead, as tall as the name is shown, and a step of air over it.
+  // in instead, as tall as the name is shown, with a step of air over it and
+  // one under it.
   footer: {
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s8,
     marginBlockEnd: `calc(-1 * ${PAGE_FOOT})`,
-    paddingBlockEnd: `calc((100vw - 2 * ${spacing.s4}) / ${NAME_WIDTH} * ${NAME_SHOWN} + ${spacing.s4})`,
+    paddingBlockEnd: `calc((100vw - 2 * ${spacing.s4}) / ${NAME_WIDTH} * ${NAME_SHOWN} + 2 * ${spacing.s4})`,
   },
   // A column's name: in the ink, over links that are a step quieter. As tall
   // as the mark beside it, so the four columns start on one line.
@@ -225,7 +224,10 @@ const styles = create({
   link: {
     alignItems: 'center',
     color: {
-      ':hover': colors.fg,
+      ':hover': {
+        '@media (hover: hover)': colors.fg,
+        default: null,
+      },
       default: colors.muted,
     },
     display: 'inline-flex',
@@ -260,12 +262,9 @@ const styles = create({
   mark: {
     flexShrink: 0,
   },
-  // The name, as large as the row is wide. Its line starts at the top of the
-  // stage and runs out under it, so the stage's edge cuts the letters. The
-  // type size is read off the stage's own width, or off the window's where a
+  // The name, as large as the row is wide, every letter whole. The type size is read off the stage's own width, or off the window's where a
   // browser has no container units.
   name: {
-    color: NAME_INK,
     display: 'block',
     fontSize: firstThatWorks(
       `calc((100cqi - 2 * ${spacing.s4}) / ${NAME_WIDTH})`,
@@ -277,8 +276,6 @@ const styles = create({
     lineHeight: 1,
     // The first letter's ink, not its box, stands on the page's left edge.
     marginInlineStart: `calc(${spacing.s4} - ${NAME_BEARING}em)`,
-    maskImage: NAME_THINS,
-    WebkitMaskImage: NAME_THINS,
     whiteSpace: 'nowrap',
   },
   // The graph paper, under the foot of the page. The footer is not
@@ -300,21 +297,34 @@ const styles = create({
       default: `${PAPER_SIDES_NARROW}, ${PAPER_TOP}`,
     },
   },
+  // The letters' outline, on a box of its own inside the name, so WebKit
+  // never meets the mask and the rise's moving layer on one element.
+  nameInk: {
+    color: 'transparent',
+    display: 'block',
+    height: '100%',
+    maskImage: NAME_FADE,
+    opacity: 0.3,
+    WebkitMaskImage: NAME_FADE,
+    WebkitTextStrokeColor: accent.base,
+    WebkitTextStrokeWidth: '1.5px',
+  },
   rise: {
     animationDuration: duration.verySlow,
     animationFillMode: 'backwards',
     animationName: rise,
     animationTimingFunction: easing.smoothOut,
   },
-  // Where the name stands: on the page's bottom edge, the window's whole
-  // width, hung from the page root as the paper is. It cuts what runs past it,
-  // so the name never pushes the page sideways or makes it longer, and it is
-  // under everything the page draws.
+  // Where the name stands: a step over the page's bottom edge, the window's
+  // whole width, hung from the page root as the paper is. It cuts what runs
+  // past it, so the name never pushes the page sideways or makes it longer,
+  // and it is under everything the page draws.
   stage: {
     containerType: 'inline-size',
     insetBlockEnd: 0,
     insetInline: 0,
     overflow: 'hidden',
+    paddingBlockEnd: spacing.s4,
     pointerEvents: 'none',
     position: 'absolute',
     userSelect: 'none',
@@ -325,7 +335,10 @@ const styles = create({
     inset: 0,
     opacity: {
       default: 0,
-      [when.ancestor(':hover')]: 1,
+      [when.ancestor(':hover')]: {
+        '@media (hover: hover)': 1,
+        default: null,
+      },
     },
     position: 'absolute',
     transitionDuration: duration.quick,
@@ -468,7 +481,8 @@ function Column({ links, title }: { links: ReadonlyArray<FooterLink>; title: str
  * this is, the way to the code and the ask for a star, the product, the blog's
  * posts and the project in three columns of links, then who made it, the
  * privacy page and the theme control in a last row. Under all of it the name
- * is set as large as the window is wide, cut by the page's bottom edge. The
+ * is set as large as the window is wide, whole, fading toward the page's
+ * bottom edge. The
  * server draws the name in place. Still under the window once the page has
  * come alive, it hides and rises as the reader reaches the page's end. With
  * less motion it stands still. A page with one more line of its own passes it
@@ -488,6 +502,20 @@ export function SiteFooter({ children }: { children?: ReactNode | undefined }) {
   // browser would load the page again and drop its query.
   const page = home ? '' : '/';
   const [appleBefore, appleAfter] = m.gen_footer_not_apple({ builder: LINK_SLOT }).split(LINK_SLOT);
+
+  // The paper is as tall as the footer. The footer is not positioned, so its
+  // height is measured and handed to the paper, and kept as the footer grows.
+  useEffect(() => {
+    const node = footer.current;
+    if (node === null) {
+      return;
+    }
+    const measure = () => node.style.setProperty(FOOTER_HEIGHT, `${node.offsetHeight}px`);
+    measure();
+    const watch = new ResizeObserver(measure);
+    watch.observe(node);
+    return () => watch.disconnect();
+  }, []);
 
   // Measured once, before the page paints again: only a name wholly under the
   // window is hidden, where nobody sees it go.
@@ -611,7 +639,7 @@ export function SiteFooter({ children }: { children?: ReactNode | undefined }) {
       {/* The name is read out in the brand's line above, so this one is for the eye only. */}
       <div aria-hidden="true" ref={stage} {...props(styles.stage)}>
         <span {...props(styles.name, rising && (seen ? styles.rise : styles.hidden))}>
-          {m.site_name()}
+          <span {...props(styles.nameInk)}>{m.site_name()}</span>
         </span>
       </div>
     </footer>

@@ -14,6 +14,23 @@ body {
   overscroll-behavior-y: none;
 }
 
+/*
+ * A tap on a phone draws no gray box over what was tapped, and waits for no
+ * second tap to zoom: every control shows its own state instead.
+ */
+a,
+button,
+summary,
+label,
+input,
+select,
+textarea,
+[role='button'],
+[role='tab'] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
 /* Jumps down the page are eased - for everyone who has not asked for less
    motion. */
 @media (prefers-reduced-motion: no-preference) {
@@ -124,37 +141,58 @@ summary::-webkit-details-marker {
 }
 
 /*
- * The work-in-progress strip at the top of every page. Its height is a
- * variable because the screens that fill the window subtract it: dismissing
- * the strip takes the variable to zero, so they take the room back instead of
- * leaving a gap where it stood. A script in the head stamps the root before
- * first paint, so a reader who has dismissed the strip never sees it flash.
+ * What stands only on a computer or only on a phone, decided before the page
+ * has told a phone apart: the script in the head marks a phone's root before
+ * first paint (`lib/mobile.ts`), so a phone is never shown a download it
+ * cannot run, and nothing changes width as the page comes alive.
  */
-:root {
-  --aa-wip-height: 32px;
-}
-
-html[data-aa-wip-off] {
-  --aa-wip-height: 0px;
-}
-
-html[data-aa-wip-off] [data-aa-wip] {
+html[data-aa-mobile] [data-aa-computer],
+html:not([data-aa-mobile]) [data-aa-phone] {
   display: none;
 }
 
+/* A narrow phone's header has no room for the name beside its support button
+   and the menu's: the mark stands for it, as it does in the pill. */
+@media (max-width: 389px) {
+  html[data-aa-mobile] [data-aa-phone-narrow-off] {
+    display: none;
+  }
+}
+
 /*
- * A blog post's body. It reaches the page as HTML compiled from the post's
- * Markdown file (`vite.blog.ts`), so its elements carry no class and StyleX
- * cannot reach them: these rules do, from the `data-prose` box the post is
- * poured into. The measure and the ink are the home page's story; headings are
- * medium, never bold.
+ * The picked segment of a theme control (`components/preferences.tsx`), in
+ * the page's ink. It is drawn from the choice on the root, which the script
+ * in the head sets before first paint, so a kept choice is never shown as the
+ * system's first. No choice on the root is the system's.
+ */
+:root:not([data-theme-choice]) [data-theme-pick='system'],
+:root[data-theme-choice='light'] [data-theme-pick='light'],
+:root[data-theme-choice='dark'] [data-theme-pick='dark'] {
+  background-color: var(--kya-fg);
+  color: var(--kya-bg);
+}
+
+/*
+ * Long text: a blog post's body, and the pages set like one. A post reaches
+ * the page as HTML compiled from its Markdown file (`vite.blog.ts`), so its
+ * elements carry no class and StyleX cannot reach them: these rules do, from
+ * the `data-prose` box the text is poured into. The column it stands in sets
+ * the measure. Headings are medium, never bold; the orange marks the links,
+ * the list markers and a quote, never a run of words. `Prose`
+ * (`components/page.tsx`) hands the orange in as `--prose-accent`.
  */
 [data-prose] {
   color: color-mix(in srgb, var(--kya-fg) 80%, var(--kya-bg));
-  font-size: 18px;
-  line-height: 1.7;
-  max-width: 640px;
+  font-size: 17px;
+  line-height: 1.65;
+  overflow-wrap: break-word;
   text-wrap: pretty;
+}
+
+@media (min-width: 640px) {
+  [data-prose] {
+    font-size: 18px;
+  }
 }
 
 [data-prose] > * {
@@ -162,7 +200,7 @@ html[data-aa-wip-off] [data-aa-wip] {
 }
 
 [data-prose] > * + * {
-  margin-block-start: 16px;
+  margin-block-start: 1em;
 }
 
 [data-prose] h2,
@@ -173,57 +211,125 @@ html[data-aa-wip-off] [data-aa-wip] {
   font-weight: 500;
 }
 
-[data-prose] h2 {
-  font-size: 24px;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
+/* A heading clears the sticky header when a link jumps to it. */
+[data-prose] :is(h2, h3) {
+  scroll-margin-block-start: 96px;
   text-wrap: balance;
+}
+
+[data-prose] h2 {
+  font-size: 22px;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
 }
 
 [data-prose] h3 {
   font-size: 18px;
-  line-height: 1.4;
-  text-wrap: balance;
+  letter-spacing: -0.005em;
+  line-height: 1.35;
+}
+
+@media (min-width: 640px) {
+  [data-prose] h2 {
+    font-size: 26px;
+  }
+
+  [data-prose] h3 {
+    font-size: 20px;
+  }
 }
 
 [data-prose] > * + h2 {
-  margin-block-start: 48px;
+  margin-block-start: 2.2em;
 }
 
 [data-prose] > * + h3 {
-  margin-block-start: 32px;
+  margin-block-start: 1.8em;
+}
+
+/* What a heading says comes close under it. */
+[data-prose] > :is(h2, h3) + * {
+  margin-block-start: 0.6em;
+}
+
+[data-prose] a:not([data-slot='button']):not([data-plain]) {
+  color: var(--kya-fg);
+  text-decoration-color: var(--prose-accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+@media (hover: hover) {
+  [data-prose] a:not([data-slot='button']):not([data-plain]):hover {
+    text-decoration-thickness: 2px;
+  }
+}
+
+[data-prose] a:not([data-slot='button']):not([data-plain]):focus-visible {
+  outline: 2px solid var(--prose-accent-soft);
 }
 
 [data-prose] ul,
 [data-prose] ol {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding-inline-start: 24px;
+  gap: 0.5em;
+  padding-inline-start: 1.4em;
+}
+
+/* A list keeps its dots inside a step of the guide, which is itself a list
+   item, where the browser would draw rings. */
+[data-prose] ul {
+  list-style-type: disc;
+}
+
+[data-prose] li {
+  padding-inline-start: 0.2em;
 }
 
 /* A step's number at one width, so ten steps keep one left edge. */
 [data-prose] li::marker {
-  color: var(--kya-muted);
+  color: var(--prose-accent);
   font-variant-numeric: tabular-nums;
 }
 
 [data-prose] blockquote {
-  border-inline-start: 1px solid var(--kya-border);
-  color: var(--kya-muted);
+  background: color-mix(in srgb, var(--prose-accent) 6%, var(--kya-bg));
+  border-inline-start: 2px solid var(--prose-accent);
+  border-radius: 0 4px 4px 0;
   margin-inline: 0;
-  padding-inline-start: 16px;
+  padding: 16px 20px;
+}
+
+[data-prose] code {
+  background: color-mix(in srgb, var(--kya-fg) 6%, var(--kya-bg));
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.88em;
+  padding: 0.1em 0.35em;
+}
+
+[data-prose] img {
+  height: auto;
+  max-width: 100%;
+}
+
+[data-prose] hr {
+  border: 0;
+  border-block-start: 1px solid var(--kya-border);
 }
 
 /* A table is the one thing wider than a phone: its box scrolls, the page
-   never does. */
+   never does. It stands in a hairline frame, its head on a faint ground. */
 [data-prose] [data-table] {
+  border: 1px solid var(--kya-border);
+  border-radius: 4px;
   overflow-x: auto;
 }
 
 [data-prose] table {
   border-collapse: collapse;
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1.5;
   min-width: 560px;
   width: 100%;
@@ -231,10 +337,19 @@ html[data-aa-wip-off] [data-aa-wip] {
 
 [data-prose] th,
 [data-prose] td {
-  border-block-end: 1px solid var(--kya-border);
-  padding: 8px 16px 8px 0;
+  padding: 10px 14px;
   text-align: start;
   vertical-align: top;
+}
+
+[data-prose] thead th {
+  background: color-mix(in srgb, var(--kya-fg) 4%, var(--kya-bg));
+  border-block-end: 1px solid var(--kya-border);
+  font-size: 14px;
+}
+
+[data-prose] tbody tr + tr :is(th, td) {
+  border-block-start: 1px solid var(--kya-border);
 }
 
 /* The sources under a post: the same list, a step smaller and quieter. A long
@@ -244,6 +359,10 @@ html[data-aa-wip-off] [data-aa-wip] {
   font-size: 14px;
   line-height: 1.5;
   overflow-wrap: anywhere;
+}
+
+[data-prose='small'] li::marker {
+  color: var(--kya-muted);
 }
 
 /*

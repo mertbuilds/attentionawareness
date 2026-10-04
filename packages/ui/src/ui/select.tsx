@@ -55,14 +55,20 @@ const styles = create({
     alignItems: 'center',
     backgroundColor: {
       ':focus': colors.accent,
-      ':hover': colors.accent,
+      ':hover': {
+        '@media (hover: hover)': colors.accent,
+        default: null,
+      },
       default: 'transparent',
     },
     borderRadius: `calc(${radius.md} - 4px)`,
     boxSizing: 'border-box',
     color: {
       ':focus': colors.accentForeground,
-      ':hover': colors.accentForeground,
+      ':hover': {
+        '@media (hover: hover)': colors.accentForeground,
+        default: null,
+      },
       default: colors.foreground,
     },
     cursor: 'default',

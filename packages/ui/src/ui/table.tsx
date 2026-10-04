@@ -74,7 +74,10 @@ const styles = create({
   row: {
     backgroundColor: {
       ':has([aria-expanded=true])': `color-mix(in oklab, ${colors.muted} 50%, transparent)`,
-      ':hover': `color-mix(in oklab, ${colors.muted} 50%, transparent)`,
+      ':hover': {
+        '@media (hover: hover)': `color-mix(in oklab, ${colors.muted} 50%, transparent)`,
+        default: null,
+      },
       ':nth-child(n)[data-state=selected]': colors.muted,
       default: 'transparent',
     },

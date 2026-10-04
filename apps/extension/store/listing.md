@@ -14,18 +14,18 @@ attention awareness
 
 ### Summary
 
-Max 132 characters. This one is 111.
+Max 132 characters. This one is 94.
 
 ```
-Hides the feeds that farm your attention on X, YouTube and Instagram, plus any site you write your own CSS for.
+Hides the addictive feeds on YouTube, Instagram and X. Add your own CSS for any other website.
 ```
 
 ### Description
 
-Plain text, max 16,000 characters. This one is 1,290.
+Plain text, max 16,000 characters. This one is 1,287.
 
 ```
-attention awareness removes the surfaces built to hold you, and leaves the rest of the site alone.
+attention awareness hides the addictive feeds, and leaves the rest of each website alone.
 
 What goes
 
@@ -39,11 +39,11 @@ The feeds you chose, stories, messages, notifications, search and profiles. Noth
 
 Switches
 
-One master switch turns everything off at once, and one switch per site under it.
+One master switch turns everything off at once, and one switch per website under it.
 
 Your own CSS
 
-The options page takes a domain and a block of CSS and applies it on top of the built-in rules. A domain covers its subdomains, so reddit.com takes old.reddit.com. A domain outside the three above asks for that one site as you add the rule, and for nothing else.
+The options page takes a domain and a block of CSS and applies it on top of the built-in rules. A domain covers its subdomains, so reddit.com takes old.reddit.com. A domain outside the three above asks for that one website as you add the rule, and for nothing else.
 
 No accounts. No tracking. No analytics. No servers: your settings live in the browser's own extension storage, and nothing ever leaves the machine.
 
@@ -69,7 +69,7 @@ English
 ### Single purpose description
 
 ```
-attention awareness hides the attention farming feeds on X, YouTube and Instagram, and on any other site the user writes a rule for, by injecting CSS into those pages.
+attention awareness hides the addictive feeds on YouTube, Instagram and X, and on any other website the user writes a rule for, by injecting CSS into those pages.
 ```
 
 ### Permission justifications

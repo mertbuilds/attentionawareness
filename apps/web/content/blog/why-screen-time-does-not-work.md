@@ -83,7 +83,7 @@ The profile can also turn on Apple's adult website filter. See [how to block adu
 
 What it takes:
 
-- You need a Mac with Apple Silicon and macOS 14 or later, and a cable.
+- You need a Mac with Apple silicon and macOS 14 or later, and a cable.
 - It takes about one afternoon.
 - If you lock the profile, you cannot undo it on the iPhone itself. That takes erasing the iPhone, or a Mac with Apple Configurator.
 

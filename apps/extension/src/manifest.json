@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "attention awareness",
-  "description": "Removes the feeds that farm your attention. X, YouTube, Instagram, plus your own CSS.",
-  "version": "0.2.0",
+  "description": "Hides the addictive feeds on YouTube, Instagram and X. Add your own CSS for other websites.",
+  "version": "0.2.1",
   "action": {
     "default_popup": "popup.html"
   },

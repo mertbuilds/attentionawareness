@@ -1,16 +1,17 @@
 import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { Popover } from '@base-ui/react/popover';
-import { create, keyframes, props } from '@stylexjs/stylex';
+import { create, defaultMarker, keyframes, props } from '@stylexjs/stylex';
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Heart } from 'reicon-react';
 import { onDownloadStarted } from '../lib/download-started.ts';
 import { blur, distance, duration, easing, scale } from '../lib/motion.stylex.ts';
 import { WIDE_QUERY } from '../lib/wide.ts';
 import { m } from '../paraglide/messages.js';
 import { MacDownload } from './mac-download.tsx';
+import { ThemeSwitch } from './preferences.tsx';
 import { MenuLines, menuButton } from './site-menu-button.tsx';
 import type { MenuProps } from './site-menu.tsx';
+import { SupportHeart } from './support-heart.tsx';
 
 /** How far the page may run under an open menu before the menu closes, in pixels. */
 const SCROLL_CLOSE = 24;
@@ -20,8 +21,6 @@ const STAGGER = Number.parseFloat(duration.stagger);
 const HEART_SIZE = 16;
 /** A line as heavy as the two lines of the button, in the icon's own 24-unit grid. */
 const HEART_STROKE = 2.25;
-/** The manual way, on a page of its own. */
-const GUIDE_PATH = '/guide';
 
 /** An item of the menu coming in: a short rise out of a blur. */
 const itemIn = keyframes({
@@ -42,11 +41,6 @@ const styles = create({
   download: {
     alignItems: 'stretch',
     marginBlockStart: spacing.s2,
-  },
-  // The manual way, quieter than the links over it.
-  guide: {
-    color: colors.muted,
-    fontSize: font.sizeSm,
   },
   // One row of the menu, tall enough for a thumb.
   item: {
@@ -140,6 +134,18 @@ const styles = create({
     height: 1,
     marginBlock: spacing.s2,
   },
+  // The theme, at the foot of the panel: its name, quiet, and the control at
+  // the row's far end. The row is a thumb tall, and so is each choice.
+  theme: {
+    alignItems: 'center',
+    color: colors.muted,
+    display: 'flex',
+    flexShrink: 0,
+    fontSize: font.sizeSm,
+    justifyContent: 'space-between',
+    marginBlockStart: spacing.s3,
+    minHeight: 44,
+  },
 });
 
 /** One row of the menu, in its place in the order they come in by. */
@@ -148,20 +154,18 @@ function Item({
   href,
   onPick,
   place,
-  quiet = false,
 }: {
   children: ReactNode;
   href: string;
   onPick: () => void;
   place: number;
-  quiet?: boolean;
 }) {
   return (
     <a
       data-plain=""
       href={href}
       onClick={onPick}
-      {...props(styles.item, quiet && styles.guide, styles.itemIn, styles.after(place * STAGGER))}
+      {...props(styles.item, styles.itemIn, styles.after(place * STAGGER), defaultMarker())}
     >
       {children}
     </a>
@@ -172,8 +176,8 @@ function Item({
  * The header's menu on a phone, with its button: the button of two lines at
  * the header's far edge, and the panel it opens under the header, in the open
  * strip and in the pill alike. The panel holds the header's links, the blog,
- * the manual way and the download, which on a phone sends the link on to a
- * Mac. The lines cross as it opens, the panel comes down from the button and
+ * the download, which on a phone sends the link on to a Mac, and the theme
+ * control, which leaves the panel open. The lines cross as it opens, the panel comes down from the button and
  * its items follow a step apart; it closes quicker than it opens. A link,
  * Escape, a press outside it, the page running on under it or a wider window
  * all close it, and focus goes into the panel and back to the button. The
@@ -240,19 +244,20 @@ export function SiteMenuPanel({
             <nav aria-label={m.nav_menu()} {...props(styles.list)}>
               {links.map((link, place) => (
                 <Item href={link.href} key={link.href} onPick={pick} place={place}>
-                  {link.heart === true && (
-                    <Heart aria-hidden="true" size={HEART_SIZE} strokeWidth={HEART_STROKE} />
-                  )}
+                  {link.heart === true && <SupportHeart size={HEART_SIZE} stroke={HEART_STROKE} />}
                   {link.label}
                 </Item>
               ))}
             </nav>
             <div aria-hidden="true" {...props(styles.rule)} />
-            <Item href={GUIDE_PATH} onPick={pick} place={links.length} quiet>
-              {m.nav_manual()}
-            </Item>
-            <div {...props(styles.itemIn, styles.after((links.length + 1) * STAGGER))}>
+            <div {...props(styles.itemIn, styles.after(links.length * STAGGER))}>
               <MacDownload placement="header" style={styles.download} />
+            </div>
+            <div
+              {...props(styles.theme, styles.itemIn, styles.after((links.length + 1) * STAGGER))}
+            >
+              <span aria-hidden="true">{m.pref_theme_label()}</span>
+              <ThemeSwitch />
             </div>
           </Popover.Popup>
         </Popover.Positioner>
