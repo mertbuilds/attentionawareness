@@ -58,7 +58,11 @@ one place that folder is named.
 Apple Silicon only, macOS 14 and up. The vendored C libraries are built arm64
 with a deployment target of 14.0, and the app carries no Intel slice.
 
+Every command in this file runs from `apps/mac`. The scripts find that folder
+from their own place, so they also run from anywhere else.
+
 ```sh
+cd apps/mac
 bash scripts/build-libimobiledevice.sh
 bash scripts/vendor.sh
 xcodegen generate
@@ -214,10 +218,10 @@ AA_SITE_URL=https://attentionawareness.localhost \
   profile over USB.
 - `Sources/Profile/` is the profile the Restrictions screen installs: `ProfileConfig`
   mirrors the type of the same name in `apps/web/src/lib/profile/types.ts`
-  of the site repo, `mertbuilds/attentionawareness`, field for field, because
+  of this repo, field for field, because
   it is encoded straight into the body `POST /api/sign` validates, and
   `ProfileConfig.default` is a copy of the `mert` preset in
-  `apps/web/src/lib/profile/presets.ts` there. `ProfileSigner` posts it and hands back the signed
+  `apps/web/src/lib/profile/presets.ts`. `ProfileSigner` posts it and hands back the signed
   `.mobileconfig` bytes; the signing certificate stays on the site and never
   comes near the app.
 - `Resources/Images/` holds the screenshots the "i" popovers show. The folder
@@ -235,7 +239,8 @@ AA_SITE_URL=https://attentionawareness.localhost \
   its source is. Both are copied into `Contents/Resources`, so every copy of the
   app carries them. A new or bumped component is a change to both.
 - `Vendor/` is filled by the two scripts below and gitignored except for
-  `Vendor/include/module.modulemap`.
+  `Vendor/include/module.modulemap`. The ignore rules for the app are in the
+  `.gitignore` at the root of the repo.
 - `scripts/build-libimobiledevice.sh` clones libplist, libimobiledevice-glue,
   libusbmuxd, libtatsu, libimobiledevice and OpenSSL at the release tags
   Homebrew ships, builds each one with `-arch arm64` and
@@ -277,7 +282,7 @@ staples, writes a dmg, signs the dmg for Sparkle and uploads three files to the
 private R2 bucket with `cf r2 objects put`, from Cloudflare's `cf` cli. The
 script does not carry the bucket name: put it in
 `~/.config/attentionawareness/release.env` (mode 600) as `R2_BUCKET=<bucket>`,
-the bucket bound as `MAC_FILES` in `apps/web/cloudflare.config.ts` of the site
+the bucket bound as `MAC_FILES` in `apps/web/cloudflare.config.ts` of this
 repo, and the script stops before it builds when it is not set. The site serves each
 file at `https://attentionawareness.com/mac/<file>`:
 

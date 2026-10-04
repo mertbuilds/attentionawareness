@@ -1,10 +1,9 @@
 # attention awareness
 
-Open-source site and browser extension to take your attention back. <https://attentionawareness.com>
+Open-source site, browser extension and Mac app to take your attention back. <https://attentionawareness.com>
 
 The product is three parts: the site, the browser extension and the Mac app.
-The site and the extension live here. The Mac app is closed source and ships
-from the site.
+All three live here. The Mac app ships from the site.
 
 ## What is here
 
@@ -22,6 +21,13 @@ A Chromium extension that hides the feeds on X, YouTube, Instagram and TikTok
 with CSS, plus custom CSS of your own per domain. It is in the
 [Chrome Web Store](https://chromewebstore.google.com/detail/attention-awareness/lgcijcijcndmggjiioibfcmppndfakee).
 See [apps/extension/README.md](apps/extension/README.md).
+
+### `apps/mac`
+
+The Mac app. Native Swift and SwiftUI, macOS 14 and later, Apple Silicon. It
+supervises a connected iPhone over USB and installs the restrictions. It is
+not part of the pnpm workspace: Xcode builds it. See
+[apps/mac/README.md](apps/mac/README.md).
 
 ## How the phone part works
 
@@ -93,8 +99,15 @@ repo layout and the full workflow live in [AGENTS.md](AGENTS.md).
 - There are no accounts. The profile is built on your own machine and signed on
   the way out; what you block is not stored and not tracked.
 
-## License
+## Licenses
 
-MIT. See [LICENSE](LICENSE).
+There are two licenses in this repo.
+
+- The Mac app, everything in `apps/mac`, is under the GNU Affero General
+  Public License, version 3 (`AGPL-3.0-only`). See
+  [apps/mac/LICENSE](apps/mac/LICENSE) and
+  [apps/mac/THIRD_PARTY_NOTICES.md](apps/mac/THIRD_PARTY_NOTICES.md).
+- Everything else, the site, the extension and the packages, is under the MIT
+  license. See [LICENSE](LICENSE).
 
 Made by Mert Duzgun. <https://mertbuilds.com>
