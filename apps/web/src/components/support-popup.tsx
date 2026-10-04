@@ -6,12 +6,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Heart, Share } from 'reicon-react';
 import { onDownloadStarted } from '../lib/download-started.ts';
 import { blur, distance, duration, easing, scale } from '../lib/motion.stylex.ts';
+import { shareSheet, shareUrl } from '../lib/share.ts';
 import { supportUrl } from '../lib/support.ts';
 import { m } from '../paraglide/messages.js';
 
 /** The site's address as a shared link carries it, so a visit from one is traced to the popup. */
-const SHARE_URL =
-  'https://attentionawareness.com/?utm_source=share&utm_medium=popup&utm_campaign=download';
+const SHARE_URL = shareUrl('popup');
 /** How long the share button says the link was copied, in milliseconds. */
 const COPIED_MS = 2000;
 /** An icon on a button, as tall as the button's letters are set. */
@@ -171,8 +171,9 @@ const styles = create({
  * leaves it as it is. Escape, a press outside it and its close button close
  * it, and focus goes back to the button that started the download.
  *
- * Share hands the site's address to the system's share sheet where the
- * browser has one. Where it has none the address goes to the clipboard, and
+ * Share hands the site's address and its name to the system's share sheet
+ * where the browser has one, and no sentence with them: a sheet may join a
+ * sentence to the address. Where it has none the address goes to the clipboard, and
  * the button says so for a moment, aloud too.
  */
 export function SupportPopup() {
@@ -221,11 +222,7 @@ export function SupportPopup() {
     if (sheet !== undefined) {
       posthog.capture('support_popup_share_clicked', { method: 'native' });
       try {
-        await navigator.share({
-          text: m.support_popup_share_text(),
-          title: m.site_name(),
-          url: SHARE_URL,
-        });
+        await navigator.share(shareSheet(SHARE_URL, m.site_name()));
         return;
       } catch (error) {
         // The reader closed the sheet: nothing to say. Anything else, and the

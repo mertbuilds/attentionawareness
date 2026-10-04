@@ -9,6 +9,7 @@ import { announceDownload } from '../lib/download-started.ts';
 import { parseRelease } from '../lib/mac-release.ts';
 import type { Release } from '../lib/mac-release.ts';
 import { SECTION } from '../lib/sections.ts';
+import { shareUrl } from '../lib/share.ts';
 import { m } from '../paraglide/messages.js';
 
 /**
@@ -17,8 +18,8 @@ import { m } from '../paraglide/messages.js';
  * download.
  */
 const LATEST_URL = '/mac/latest.json';
-/** Where the download stands on the home page: the link a phone sends on to a Mac. */
-const DOWNLOAD_PATH = `/#${SECTION.wayOut}`;
+/** The link a phone sends on to a Mac: the site, open where the download stands on the home page. */
+const SEND_URL = shareUrl('phone', SECTION.wayOut);
 
 /** Where on the site a download stands, which its event carries. */
 type Placement = 'blog' | 'closing' | 'download' | 'header' | 'hero';
@@ -217,11 +218,10 @@ export function useSendToMac(): { copied: boolean; send: () => Promise<void> } {
   const [copied, setCopied] = useState(false);
 
   async function send() {
-    const url = new URL(DOWNLOAD_PATH, location.href).href;
     const canShare = 'share' in navigator;
     if (canShare) {
       try {
-        await navigator.share({ url });
+        await navigator.share({ url: SEND_URL });
         posthog.capture('mac_download_link_shared', { share_method: 'share_sheet' });
       } catch {
         // The sheet was closed. Nothing to say.
@@ -229,7 +229,7 @@ export function useSendToMac(): { copied: boolean; send: () => Promise<void> } {
       return;
     }
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(SEND_URL);
       setCopied(true);
       posthog.capture('mac_download_link_shared', { share_method: 'clipboard' });
     } catch {
