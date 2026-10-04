@@ -68,7 +68,7 @@ You need a Mac with Apple Silicon and macOS 14 or later, a cable, and about one 
 
 1. Download the app from [attentionawareness.com](/) and open it.
 2. Plug in the iPhone with a cable.
-3. Let the app supervise the iPhone. It makes a fresh backup, changes one setting in it, and restores it. Photos, messages and apps stay.
+3. Back up your iPhone first, with Finder or iCloud. Then let the app supervise the iPhone. It makes a fresh backup, changes one setting in it, and restores it. Photos, messages and apps stay.
 4. Pick the apps and websites to block.
 5. Choose trial mode first. A trial profile can be removed in Settings, so you can test your list.
 6. When the list feels right, plug in once more and make it permanent.
@@ -122,7 +122,7 @@ No. Apple has no setting with that name. The closest built-in options are Screen
 
 ### Will I lose my photos and messages?
 
-Not with the Mac app. It backs up the iPhone, changes one setting in the backup, and restores it. If you do it manually via Apple Configurator, the iPhone is erased and only what syncs to iCloud comes back.
+The Mac app does not erase the iPhone. It backs up the iPhone, changes one setting in the backup, and restores it. Back up first anyway, in case something goes wrong. If you do it manually via Apple Configurator, the iPhone is erased and only what syncs to iCloud comes back.
 
 ### Do I need a dumb phone app on the iPhone?
 
@@ -210,7 +210,7 @@ Download the [free Mac app](/) and run it in trial mode this weekend. If you wou
           "@type": "HowToStep",
           "position": 3,
           "name": "Supervise the iPhone",
-          "text": "Let the app supervise the iPhone. It makes a fresh backup, changes one setting in it, and restores it. Photos, messages and apps stay."
+          "text": "Back up your iPhone first, with Finder or iCloud. Then let the app supervise the iPhone. It makes a fresh backup, changes one setting in it, and restores it. Photos, messages and apps stay."
         },
         {
           "@type": "HowToStep",
@@ -249,7 +249,7 @@ Download the [free Mac app](/) and run it in trial mode this weekend. If you wou
           "name": "Will I lose my photos and messages?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Not with the Mac app. It backs up the iPhone, changes one setting in the backup, and restores it. If you do it manually via Apple Configurator, the iPhone is erased and only what syncs to iCloud comes back."
+            "text": "The Mac app does not erase the iPhone. It backs up the iPhone, changes one setting in the backup, and restores it. Back up first anyway, in case something goes wrong. If you do it manually via Apple Configurator, the iPhone is erased and only what syncs to iCloud comes back."
           }
         },
         {

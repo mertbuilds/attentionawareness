@@ -67,7 +67,7 @@ Supervised mode is the Apple mode that schools and companies use for their iPhon
 
 There are two free ways to set this up.
 
-**The free Mac app.** [attention awareness](/) supervises your iPhone without erasing it. It makes a fresh backup, changes one setting in it, and restores it. Your photos, messages and apps stay. Then it installs the profile. You need a Mac with Apple Silicon and macOS 14 or later, a cable, and about one afternoon. There is no payment, no account and no app on the iPhone. Nobody can see or track the phone.
+**The free Mac app.** [attention awareness](/) supervises your iPhone without erasing it. It makes a fresh backup, changes one setting in it, and restores it. Your photos, messages and apps stay. Back up your iPhone first, with Finder or iCloud. Then it installs the profile. You need a Mac with Apple Silicon and macOS 14 or later, a cable, and about one afternoon. There is no payment, no account and no app on the iPhone. Nobody can see or track the phone.
 
 **Manually via Apple Configurator.** The [manual guide](/guide) does the same with Apple Configurator on a Mac. It erases the iPhone first. Only what syncs to iCloud comes back.
 
@@ -129,7 +129,7 @@ Yes. In Content & Privacy Restrictions, open the list of allowed apps and featur
 
 ## Block the app once
 
-If deleting the app works for you, stop there. If the app comes back every time, use a block you cannot undo on the phone: the [free Mac app](/), which keeps your data, or do it [manually via Apple Configurator](/guide), which erases the iPhone first.
+If deleting the app works for you, stop there. If the app comes back every time, use a block you cannot undo on the phone: the [free Mac app](/), which does not erase your iPhone, or do it [manually via Apple Configurator](/guide), which erases the iPhone first.
 
 For company phones, see [how to lock down work iPhones without an MDM server](/blog/work-iphones-without-mdm).
 

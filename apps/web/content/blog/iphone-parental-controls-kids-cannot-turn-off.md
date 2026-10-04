@@ -104,7 +104,7 @@ I use this setup on my own iPhone. My screen time went from more than 5 hours a 
 
 - **Talk to your child first.** Say what you will block and why. A lock that arrives as a surprise damages trust.
 - **Plan one afternoon.** You need the Mac, a cable and the child's iPhone. The backup and restore take time.
-- **Back up first.** Keep an iCloud backup too.
+- **Back up first.** Use Finder or iCloud. The app does not erase the iPhone, but things can go wrong, and the backup is the way back.
 - **Test before you lock.** In trial mode the profile can be removed in Settings. Making it permanent later takes one more plug-in.
 - **It is hard to undo by design.** It cannot be removed on the iPhone itself. To remove it you erase the iPhone, or use a Mac with Apple Configurator.
 - **Nobody can watch the phone.** No app is installed on the iPhone, and the phone is not connected to any server. The profile blocks things. It does not report anything.

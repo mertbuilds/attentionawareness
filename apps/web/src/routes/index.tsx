@@ -4,7 +4,7 @@ import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.sty
 import { create, defaultMarker, props, when } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { AngleDown, Check } from 'reicon-react';
 import { PaperLetter } from '../components/bill-paper.tsx';
 import { ExtensionBrowser } from '../components/extension-browser.tsx';
@@ -44,6 +44,8 @@ function signLines(text: string): Array<string> {
   const comma = text.indexOf(',');
   return comma === -1 ? [text] : [text.slice(0, comma).trim(), text.slice(comma + 1).trim()];
 }
+/** The question about losing data, which the line under the download goes to. */
+const FAQ_DATA_ID = 'faq-data';
 const LETTER_FACE = "'Special Elite', 'Courier New', ui-monospace, monospace";
 /**
  * The first screen side by side: wider than the column, so the words keep a
@@ -417,6 +419,13 @@ const styles = create({
     gap: spacing.s4,
     maxWidth: '40ch',
   },
+  // The app's button with the line about backing up under it, at the foot.
+  planFoot: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s3,
+    marginBlockStart: 'auto',
+  },
   // The button takes what height is left, so both stand at the foot.
   planButton: {
     marginBlockStart: 'auto',
@@ -551,14 +560,37 @@ const styles = create({
  * is inert: out of the tab order and unread by a screen reader, though it
  * stays in the page to animate.
  */
-function Question({ answer, question }: { answer: string; question: string }) {
+function Question({
+  anchor,
+  answer,
+  question,
+}: {
+  /** The id a link elsewhere on the page goes to. Gone to, the answer opens. */
+  anchor?: string | undefined;
+  answer: string;
+  question: string;
+}) {
   const id = useId();
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (anchor === undefined) {
+      return;
+    }
+    const openIfHere = () => {
+      if (window.location.hash === `#${anchor}`) {
+        setOpen(true);
+      }
+    };
+    openIfHere();
+    window.addEventListener('hashchange', openIfHere);
+    return () => window.removeEventListener('hashchange', openIfHere);
+  }, [anchor]);
   const questionId = `${id}-question`;
   const answerId = `${id}-answer`;
 
   return (
-    <div {...props(styles.faqItem)}>
+    <div id={anchor} {...props(styles.faqItem, anchor !== undefined && styles.anchor)}>
       <h3 {...props(styles.faqHeading)}>
         <button
           aria-controls={answerId}
@@ -677,7 +709,7 @@ function HomePage() {
     { desc: m.home_faq_supervision_desc(), term: m.home_faq_supervision_term() },
     { desc: m.home_faq_trial_desc(), term: m.home_faq_trial_term() },
     { desc: m.home_faq_choice_desc(), term: m.home_faq_choice_term() },
-    { desc: m.home_faq_data_desc(), term: m.home_faq_data_term() },
+    { anchor: FAQ_DATA_ID, desc: m.home_faq_data_desc(), term: m.home_faq_data_term() },
     { desc: m.home_faq_fail_desc(), term: m.home_faq_fail_term() },
     { desc: m.home_faq_see_desc(), term: m.home_faq_see_term() },
     { desc: m.home_faq_undo_desc(), term: m.home_faq_undo_term() },
@@ -727,6 +759,7 @@ function HomePage() {
           <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
           <p {...props(styles.sectionBody)}>{m.home_how_lead()}</p>
           <HowItWorks />
+          <p {...props(styles.sectionBody)}>{m.home_how_backup()}</p>
           <div id={SECTION.pricing} {...props(styles.plans, styles.anchor)}>
             <div {...props(styles.plan, styles.planApp)}>
               <div {...props(styles.planBody)}>
@@ -736,7 +769,13 @@ function HomePage() {
                 </div>
                 <Promises promises={promises} />
               </div>
-              <MacDownload placement="pricing" style={styles.planButton} />
+              <div {...props(styles.planFoot)}>
+                <MacDownload placement="pricing" />
+                <p {...props(styles.planSub)}>
+                  <a href={`#${FAQ_DATA_ID}`}>{m.home_how_backup_note_link()}</a>
+                  {m.home_how_backup_note({ link: LINK_SLOT }).split(LINK_SLOT)[1]}
+                </p>
+              </div>
             </div>
             <div {...props(styles.plan)}>
               <div {...props(styles.planBody)}>
@@ -873,7 +912,12 @@ function HomePage() {
           <h2 {...props(styles.sectionTitle)}>{m.home_faq_title()}</h2>
           <div>
             {objections.map((objection) => (
-              <Question answer={objection.desc} key={objection.term} question={objection.term} />
+              <Question
+                anchor={'anchor' in objection ? objection.anchor : undefined}
+                answer={objection.desc}
+                key={objection.term}
+                question={objection.term}
+              />
             ))}
           </div>
         </section>

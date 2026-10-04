@@ -139,7 +139,7 @@ Erase the iPhone. Then supervise it again and install the profile for the next p
 
 ## Next step
 
-Start with one phone and trial mode. Get [the free Mac app](/) if the phones have data on them, or do it [manually via Apple Configurator](/guide) for new phones.
+Start with one phone and trial mode. Back up each phone first. Get [the free Mac app](/) if the phones have data on them, or do it [manually via Apple Configurator](/guide) for new phones.
 
 ## Schema
 

@@ -52,9 +52,9 @@ Giving the passcode to a friend or partner helps, and it may be enough for you.
 
 Supervision is a mode Apple built for schools and companies. A supervised iPhone can carry a profile with rules that the person holding the phone cannot change. One of those rules is the same adult website filter from Screen Time, with no switch for it in Settings. There are two free ways to do this.
 
-### Option 1: the free Mac app, which keeps your data
+### Option 1: the free Mac app, which does not erase your iPhone
 
-Our [free Mac app](/) puts your iPhone into supervised mode without erasing it. It makes a fresh backup, changes one setting in that backup, and restores it. Your photos, messages and apps stay.
+Our [free Mac app](/) puts your iPhone into supervised mode without erasing it. It makes a fresh backup, changes one setting in that backup, and restores it. Your photos, messages and apps stay. Back up your iPhone first, with Finder or iCloud.
 
 1. Download the app on a Mac with Apple Silicon and macOS 14 or later, and connect the iPhone with a cable.
 2. Let the app back up and restore the phone. Plan for about one afternoon.
@@ -126,7 +126,7 @@ It works in Safari and in apps that use the iPhone's system web view. Browsers a
 
 ## Start with the built-in filter, then lock it
 
-Turn on Limit Adult Websites in Screen Time today. If you find yourself turning it off, lock it with the [free Mac app](/), which keeps your data, or do it [manually via Apple Configurator](/guide).
+Turn on Limit Adult Websites in Screen Time today. If you find yourself turning it off, lock it with the [free Mac app](/), which does not erase your iPhone, or do it [manually via Apple Configurator](/guide).
 
 ## Schema
 
