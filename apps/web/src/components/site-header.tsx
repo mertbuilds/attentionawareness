@@ -28,7 +28,7 @@ const PILL_FROM = 48;
 const OPEN_FROM = 16;
 /** The home page's sections, by the ids it gives them. */
 const HOW_HASH = '#way-out';
-const PRICING_HASH = '#pricing';
+const SUPPORT_HASH = '#support';
 const WHY_HASH = '#story';
 
 const styles = create({
@@ -136,8 +136,8 @@ const styles = create({
     transitionTimingFunction: easing.out,
     whiteSpace: 'nowrap',
   },
-  // How it works and why go on a phone, so the name, the price and the
-  // download keep one line. The pill has no name to make room for, so there
+  // How it works and why go on a phone, so the name, the support link and
+  // the download keep one line. The pill has no name to make room for, so there
   // only how it works goes.
   linkWide: {
     display: {
@@ -204,8 +204,8 @@ const styles = create({
 
 /**
  * The name, top left on every page and the way home, the home page's two
- * sections and its price in the middle, and the download across from the
- * name. Once the page has run a little way under it, the same items gather
+ * sections and its support link in the middle, and the download across from
+ * the name. Once the page has run a little way under it, the same items gather
  * into a pill in the middle, the mark alone for the name. The download starts
  * the file at once, as every download on the site does; on a phone or a
  * tablet, which cannot run the app, it sends the link on to a Mac instead.
@@ -313,12 +313,12 @@ export function SiteHeader() {
             {m.nav_how()}
           </a>
           <a
-            data-morph="header-pricing"
+            data-morph="header-support"
             data-plain=""
-            href={page + PRICING_HASH}
-            {...props(styles.link, styles.morph('header-pricing'))}
+            href={page + SUPPORT_HASH}
+            {...props(styles.link, styles.morph('header-support'))}
           >
-            {m.nav_pricing()}
+            {m.nav_support()}
           </a>
           <a
             data-morph="header-why"

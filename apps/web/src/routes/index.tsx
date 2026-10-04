@@ -1,6 +1,7 @@
 import { Button } from '@attentionawareness/ui';
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
+import { usePostHog } from '@posthog/react';
 import { create, defaultMarker, props, when } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
@@ -42,13 +43,18 @@ const HERO_PHONE_WIDTH = 272;
 const PROOF_ID = 'proof';
 const WAY_OUT_ID = 'way-out';
 const STORY_ID = 'story';
-/** The two ways and their prices, which the header's pricing link goes down to. */
+/** The two ways, both free. Links from before the app was free still come down to it. */
 const PRICING_ID = 'pricing';
+/** Why they are free and how to support the work, which the header's support link goes down to. */
+const SUPPORT_ID = 'support';
 /** The manual way out, on a page of its own. */
 const GUIDE_URL = '/guide';
 /** Every link off this site carries utm tags, so the visit is traced to this page. */
 const STORE_URL =
   'https://chromewebstore.google.com/detail/attention-awareness/lgcijcijcndmggjiioibfcmppndfakee?utm_source=attentionawareness.com&utm_medium=referral&utm_campaign=home';
+/** The checkout where a reader pays what they want to support the work. */
+const SUPPORT_URL =
+  'https://buy.polar.sh/polar_cl_ftX1jafCvlNQXeQZRhjMjBLd2ChzzBp1LTIY63l0MBh?utm_source=attentionawareness.com&utm_medium=referral&utm_campaign=support';
 /** The post this started from, linked out of the paragraph that tells it. */
 const STORY_URL = 'https://stopa.io/post/297';
 /**
@@ -76,7 +82,7 @@ const styles = create({
     scrollMarginBlockStart: `calc(${brandBar.height} + ${spacing.s6})`,
   },
   // The last word before the footer: one line, the download under it, then
-  // its price and the free way, all in the middle of the column.
+  // its price and the guide, all in the middle of the column.
   closing: {
     alignItems: 'center',
     display: 'flex',
@@ -261,14 +267,14 @@ const styles = create({
   accentWord: {
     color: accent.base,
   },
-  // The download and the free way, and the price close under them.
+  // The download and the guide, and the price close under them.
   heroAction: {
     alignItems: 'flex-start',
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s3,
   },
-  // The download and the free way beside it, on their feet, so a phone's
+  // The download and the guide beside it, on their feet, so a phone's
   // note over its button leaves the two buttons level. They stack where the
   // row runs out.
   heroButtons: {
@@ -346,12 +352,6 @@ const styles = create({
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s1,
-  },
-  planNote: {
-    fontSize: font.sizeMd,
-    lineHeight: 1.5,
-    margin: 0,
-    textWrap: 'pretty',
   },
   // The app's price is in its card's orange.
   planPrice: {
@@ -436,6 +436,32 @@ const styles = create({
     fontWeight: font.weightMedium,
     letterSpacing: '-0.01em',
     lineHeight: 1.2,
+    margin: 0,
+    textWrap: 'balance',
+  },
+  // Under the two cards, in the middle and with no box of its own: why
+  // everything is free, then the way to support the work.
+  support: {
+    alignItems: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s2,
+    textAlign: 'center',
+  },
+  // The button stands a step clear of the lines it follows.
+  supportButton: {
+    marginBlockStart: spacing.s2,
+  },
+  supportCare: {
+    fontSize: font.sizeMd,
+    lineHeight: 1.5,
+    margin: 0,
+    textWrap: 'balance',
+  },
+  supportNote: {
+    color: colors.muted,
+    fontSize: font.sizeSm,
+    lineHeight: 1.5,
     margin: 0,
     textWrap: 'balance',
   },
@@ -534,6 +560,8 @@ function Promises({
 }
 
 function HomePage() {
+  const posthog = usePostHog();
+
   // The word the claim turns on, wherever a language puts it, so the words
   // around it keep their own order in every language.
   const [titleBefore, titleAfter] = m.home_hero_title({ permanently: LINK_SLOT }).split(LINK_SLOT);
@@ -565,9 +593,9 @@ function HomePage() {
     .home_story_attention({ attention: SECOND_SLOT, aware: LINK_SLOT })
     .split(SLOTS);
 
-  // What the price buys, each with its tick.
+  // What the app gives, each with its tick.
   const promises = [
-    m.home_how_promise_subscription(),
+    m.home_how_promise_free(),
     m.home_how_promise_keep(),
     m.home_how_promise_trial(),
     m.home_how_promise_add(),
@@ -584,6 +612,8 @@ function HomePage() {
   const [closeBefore, closeAfter] = m.home_close_title({ better: LINK_SLOT }).split(LINK_SLOT);
 
   const objections = [
+    { desc: m.home_faq_free_desc(), term: m.home_faq_free_term() },
+    { desc: m.home_faq_money_desc(), term: m.home_faq_money_term() },
     { desc: m.home_faq_screen_time_desc(), term: m.home_faq_screen_time_term() },
     { desc: m.home_faq_supervision_desc(), term: m.home_faq_supervision_term() },
     { desc: m.home_faq_trial_desc(), term: m.home_faq_trial_term() },
@@ -602,7 +632,7 @@ function HomePage() {
       first section. */}
       <GridTexture />
       {/* The first screen: the claim, why it lasts, and the download with its
-      price and the free way beside it, next to the phone the feeds leave. */}
+      price and the guide beside it, next to the phone the feeds leave. */}
       <header {...props(styles.hero)}>
         <div {...props(styles.heroText)}>
           <h1 {...props(styles.displayTitle)}>
@@ -637,8 +667,9 @@ function HomePage() {
         </section>
 
         {/* How it works: what the Mac app does, in three steps, then the two
-        ways to it: the app, with what it costs and keeps, and the free guide
-        that starts the phone over. */}
+        ways to it, both free: the app, with what it keeps, and the guide that
+        starts the phone over. Under them, why they are free and the way to
+        support the work. */}
         <section {...props(styles.section, styles.anchor)} id={WAY_OUT_ID}>
           <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
           <p {...props(styles.sectionBody)}>{m.home_how_lead()}</p>
@@ -660,13 +691,24 @@ function HomePage() {
                   <h3 {...props(styles.planTitle)}>{m.home_how_guide_title()}</h3>
                   <p {...props(styles.planSub)}>{m.home_how_guide_sub()}</p>
                 </div>
-                <p {...props(styles.planNote)}>{m.home_how_guide_note()}</p>
                 <Promises checkStyle={styles.planQuietCheck} promises={guidePromises} />
               </div>
               <Button render={<a href={GUIDE_URL} />} style={styles.planButton} variant="outline">
                 {m.home_how_guide_cta()}
               </Button>
             </div>
+          </div>
+          <div id={SUPPORT_ID} {...props(styles.support, styles.anchor)}>
+            <p {...props(styles.supportCare)}>{m.home_support_care()}</p>
+            <p {...props(styles.supportNote)}>{m.home_support_note()}</p>
+            <Button
+              onClick={() => posthog.capture('support_clicked', { placement: 'pricing' })}
+              render={<a href={SUPPORT_URL} rel="noreferrer" target="_blank" />}
+              style={styles.supportButton}
+              variant="outline"
+            >
+              {m.home_support_cta()}
+            </Button>
           </div>
         </section>
 
@@ -763,7 +805,7 @@ function HomePage() {
           </h2>
           <MacDownload placement="closing" style={styles.downloadCentered} />
           <p {...props(styles.closingNote)}>
-            <span>{m.home_how_app_price()}</span>
+            <span>{m.home_hero_price()}</span>
             <a href={GUIDE_URL}>{m.home_close_diy()}</a>
           </p>
         </section>
