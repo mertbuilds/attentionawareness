@@ -40,7 +40,6 @@ import type { BlockedApp, ProfileConfig } from '../lib/profile/index.ts';
 import { replayMask } from '../lib/replay.ts';
 import { SECTION } from '../lib/sections.ts';
 import { normalizeUrl, sitesForApp, sitesForApps } from '../lib/sites.ts';
-import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
 
 export const Route = createFileRoute('/build')({
@@ -258,7 +257,7 @@ const styles = create({
     // The stacking context that keeps the head's paper above the page's own
     // background instead of behind it.
     isolation: 'isolate',
-    minHeight: `calc(100vh - ${wip.height})`,
+    minHeight: '100vh',
     overflowX: 'clip',
     paddingBlockEnd: spacing.s16,
     position: 'relative',

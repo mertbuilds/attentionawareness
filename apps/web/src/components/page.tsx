@@ -6,7 +6,6 @@ import type { ReactNode } from 'react';
 import { brandBar } from '../lib/brand-bar.stylex.ts';
 import { distance, duration, easing } from '../lib/motion.stylex.ts';
 import { ink } from '../lib/reading.stylex.ts';
-import { wip } from '../lib/wip.stylex.ts';
 import { SiteFooter } from './site-footer.tsx';
 
 /** The home page's graph paper: the same hairline and the same 40px square. */
@@ -255,7 +254,7 @@ const styles = create({
     // The stacking context that keeps the band's paper over the page's own
     // background instead of behind it.
     isolation: 'isolate',
-    minHeight: firstThatWorks(`calc(100svh - ${wip.height})`, `calc(100vh - ${wip.height})`),
+    minHeight: firstThatWorks('100svh', '100vh'),
     overflowX: 'clip',
     paddingBlockEnd: spacing.s16,
     position: 'relative',

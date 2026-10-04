@@ -6,7 +6,6 @@ import type { ReactNode } from 'react';
 import { NotFound } from '../components/not-found.tsx';
 import { SiteHeader } from '../components/site-header.tsx';
 import { SupportPopup } from '../components/support-popup.tsx';
-import { WipBanner } from '../components/wip-banner.tsx';
 import { clientEnv } from '../lib/env.ts';
 import { MOBILE_SCRIPT } from '../lib/mobile.ts';
 import { openPanelReplay, posthogReplay } from '../lib/replay.ts';
@@ -32,12 +31,6 @@ if (clientEnv.VITE_SENTRY_DSN && typeof window !== 'undefined') {
 
 /** The brand, in prose. The lowercase "aa" mark is the only lowercase form. */
 const SITE_NAME = 'attention awareness';
-/**
- * Takes the work-in-progress strip off the page before it paints, for a reader
- * who has already put it away. Same key as the strip's own button.
- */
-const WIP_SCRIPT =
-  "try{if(localStorage.getItem('aa-wip-dismissed'))document.documentElement.setAttribute('data-aa-wip-off','')}catch(e){}";
 /**
  * Takes the support checkout's own marks off the address before anything
  * reads it: the checkout comes back with the id of the payment and a token of
@@ -216,14 +209,12 @@ function RootDocument({ children }: { children: ReactNode }) {
           suppressHydrationWarning
         />
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
-        <script dangerouslySetInnerHTML={{ __html: WIP_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: MOBILE_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: CHECKOUT_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: ANALYTICS_SCRIPT }} />
       </head>
       <body>
         <Providers>
-          <WipBanner />
           <SiteHeader />
           {children}
           <SupportPopup />

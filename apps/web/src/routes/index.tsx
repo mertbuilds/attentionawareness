@@ -24,7 +24,6 @@ import { UsesGrid } from '../components/uses-grid.tsx';
 import { brandBar } from '../lib/brand-bar.stylex.ts';
 import { duration, easing } from '../lib/motion.stylex.ts';
 import { SECTION } from '../lib/sections.ts';
-import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
 
 export const Route = createFileRoute('/')({
@@ -289,8 +288,8 @@ const styles = create({
       default: COLUMN_WIDTH,
     },
     minHeight: {
-      '@supports (height: 100svh)': `calc(100svh - ${wip.height})`,
-      default: `calc(100vh - ${wip.height})`,
+      '@supports (height: 100svh)': '100svh',
+      default: '100vh',
     },
     paddingBlockEnd: spacing.s12,
     // Clear of the header strip over the top of the window, and a step more.
@@ -335,7 +334,7 @@ const styles = create({
     // The stacking context that keeps the footer's graph paper above the page's
     // own background instead of behind it.
     isolation: 'isolate',
-    minHeight: `calc(100vh - ${wip.height})`,
+    minHeight: '100vh',
     // Anything past the window's edge is cut, so nothing scrolls sideways.
     overflowX: 'clip',
     paddingBlockEnd: spacing.s16,

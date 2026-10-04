@@ -8,7 +8,6 @@ import { useLessMotion } from '../lib/use-less-motion.ts';
 import { useSeen } from '../lib/use-seen.ts';
 import type { WideLine } from '../lib/use-seen.ts';
 import { useTabHidden } from '../lib/use-tab-hidden.ts';
-import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
 import { Cable } from './steps/cable.tsx';
 import { Laptop, MAC_PLUG } from './steps/laptop.tsx';
@@ -282,7 +281,7 @@ const styles = create({
   phone: {
     maxWidth: {
       '@media (max-width: 359px)': 200,
-      '@media (min-width: 640px)': `clamp(${PHONE_MIN}px, calc((100svh - ${wip.height} - ${PHONE_CLEARANCE}px) / 2), ${PHONE_MAX}px)`,
+      '@media (min-width: 640px)': `clamp(${PHONE_MIN}px, calc((100svh - ${PHONE_CLEARANCE}px) / 2), ${PHONE_MAX}px)`,
       default: 224,
     },
     position: 'relative',
