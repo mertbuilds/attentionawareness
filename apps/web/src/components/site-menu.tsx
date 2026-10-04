@@ -168,7 +168,10 @@ const styles = create({
   }),
   // The panel under the header: it comes down a little from the button it
   // opens from, out of nothing and a touch small, and leaves quicker than it
-  // came. With less motion it is there or it is not.
+  // came. With less motion it is there or it is not. It is never taller than
+  // the room under the header: in a window too short for all of it, a phone
+  // on its side, it scrolls in itself, and the page under it stays where it
+  // is.
   panel: {
     backgroundColor: colors.bg,
     borderColor: `color-mix(in srgb, ${colors.fg} 10%, transparent)`,
@@ -181,12 +184,15 @@ const styles = create({
     display: 'flex',
     flexDirection: 'column',
     fontFamily: font.family,
+    maxHeight: 'var(--available-height)',
     opacity: {
       ':is([data-ending-style])': 0,
       ':is([data-starting-style])': 0,
       default: 1,
     },
     outlineStyle: 'none',
+    overflowY: 'auto',
+    overscrollBehavior: 'contain',
     paddingBlockEnd: spacing.s4,
     paddingBlockStart: spacing.s2,
     paddingInline: spacing.s4,
