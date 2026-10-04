@@ -54,7 +54,7 @@
   --kya-tint-gold: #f0a500;
   --kya-tint-green: #22a559;
   --kya-tint-sky: #3d9be9;
-  --kya-accent-glow: rgb(255 79 0 / 0.1);
+  --kya-accent-glow: rgb(255 79 0 / 0.07);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -94,7 +94,7 @@
     --kya-tint-gold: #ffc94d;
     --kya-tint-green: #4fd08a;
     --kya-tint-sky: #6cb8ff;
-    --kya-accent-glow: rgb(255 79 0 / 0.24);
+    --kya-accent-glow: rgb(255 79 0 / 0.15);
   }
 }
 
@@ -137,7 +137,7 @@
   --kya-tint-gold: #ffc94d;
   --kya-tint-green: #4fd08a;
   --kya-tint-sky: #6cb8ff;
-  --kya-accent-glow: rgb(255 79 0 / 0.24);
+  --kya-accent-glow: rgb(255 79 0 / 0.15);
 }
 
 /* Forced light needs no values: the `:root` block already holds them, and the
