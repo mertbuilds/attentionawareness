@@ -112,6 +112,11 @@ struct JobStep: View {
                     bar(phase)
                     line(phase)
                 }
+                // The one wait somebody ends with their own hands: a
+                // restarted iPhone answers nothing until it is unlocked.
+                if phase == .restarting {
+                    body(model.restartHint, note: nil)
+                }
                 if let sentence = phase.body {
                     // The confirm-supervision screen carries the picture of the
                     // top of Settings inline below, so its sentence needs no
@@ -234,6 +239,9 @@ struct JobStep: View {
                 }
             } else if case .phoneGone = phase {
                 cancel
+                PrimaryButton(title: "Check Again") {
+                    model.checkPhoneAgain()
+                }
             }
         }
     }

@@ -74,7 +74,7 @@ struct ConnectStep: View {
             return "Use a USB cable. Unlock iPhone and tap Trust if asked."
         }
         switch device.pairingState {
-        case .trustPending:
+        case .trustPending, .locked:
             return "Tap Trust on iPhone, then enter its passcode."
         case .untrusted:
             return "Unplug iPhone, plug it back in, then tap Trust."

@@ -113,8 +113,10 @@ enum JobPhase: Equatable {
             return "Restoring iPhone"
         case .finishing:
             return "Finishing on iPhone"
-        case .restarting, .confirming:
+        case .restarting:
             return "iPhone is restarting"
+        case .confirming:
+            return "Checking iPhone"
         // Encrypting and connecting send the person to their phone, so they
         // carry a headline and a body in place of a line the way the ended
         // phases do.
@@ -151,12 +153,29 @@ enum JobPhase: Equatable {
                 "Unlock iPhone and look at the top of Settings. It should say 'This iPhone is supervised.' Then continue to install the restrictions. Keep iPhone connected."
             return reportedSupervised ? "iPhone reports it's supervised. " + look : look
         case .phoneGone:
-            return "Unlock iPhone. Keep iPhone connected."
+            return "Unlock iPhone with your passcode. If it asks, tap Trust. Still nothing? Unplug iPhone and plug it in again."
         case .failed(let failure):
             return failure.fix
         case .copying, .preparing, .waitingForFindMy, .restoring, .finishing,
              .restarting, .confirming, .done:
             return nil
+        }
+    }
+
+    /// What the restart wait asks of the person, under its line. A restarted
+    /// iPhone answers nothing until its passcode is entered, so the wait says
+    /// so from the start and names the one thing missing once the iPhone is
+    /// back on the cable. `pairing` is nil while the iPhone is away.
+    static func restartHint(pairing: PairingState?) -> String {
+        switch pairing {
+        case .locked:
+            return "Unlock iPhone."
+        case .trustPending, .untrusted:
+            return "Tap Trust on iPhone."
+        case .paired:
+            return "Keep iPhone unlocked and connected."
+        case nil:
+            return "When it is back, unlock it with your passcode. If it asks, tap Trust."
         }
     }
 

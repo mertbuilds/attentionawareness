@@ -22,7 +22,7 @@ struct JobPhaseTests {
             (.restoring, "Restoring iPhone"),
             (.finishing, "Finishing on iPhone"),
             (.restarting, "iPhone is restarting"),
-            (.confirming, "iPhone is restarting"),
+            (.confirming, "Checking iPhone"),
         ]
 
         for (phase, line) in lines {
@@ -191,8 +191,22 @@ struct JobPhaseTests {
 
     @Test func aPhoneThatNeverCameBackSaysSoAndWhatToDo() {
         #expect(JobPhase.phoneGone.headline == "iPhone Didn't Reconnect")
-        #expect(JobPhase.phoneGone.body == "Unlock iPhone. Keep iPhone connected.")
+        #expect(
+            JobPhase.phoneGone.body
+                == "Unlock iPhone with your passcode. If it asks, tap Trust. Still nothing? Unplug iPhone and plug it in again."
+        )
         #expect(JobPhase.phoneGone.note == nil)
+    }
+
+    @Test func theRestartWaitNamesTheOneThingMissing() {
+        #expect(
+            JobPhase.restartHint(pairing: nil)
+                == "When it is back, unlock it with your passcode. If it asks, tap Trust."
+        )
+        #expect(JobPhase.restartHint(pairing: .locked) == "Unlock iPhone.")
+        #expect(JobPhase.restartHint(pairing: .trustPending) == "Tap Trust on iPhone.")
+        #expect(JobPhase.restartHint(pairing: .untrusted) == "Tap Trust on iPhone.")
+        #expect(JobPhase.restartHint(pairing: .paired) == "Keep iPhone unlocked and connected.")
     }
 
     @Test func aFailureIsItsOwnTwoSentencesWithTheLayersWordsBehindIt() {
