@@ -1,7 +1,6 @@
 import { z } from 'zod';
 
 const clientSchema = z.object({
-  VITE_OPEN_DASHBOARD_URL: z.url().optional(),
   VITE_POSTHOG_HOST: z.url().optional(),
   VITE_POSTHOG_KEY: z.string().min(1).optional(),
   VITE_SENTRY_DSN: z.url().optional(),
