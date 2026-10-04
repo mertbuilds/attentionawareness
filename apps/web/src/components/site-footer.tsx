@@ -20,6 +20,7 @@ import { ThemeSwitch } from './preferences.tsx';
 const BLOG_PATH = '/blog';
 const GUIDE_PATH = '/guide';
 const BUILD_PATH = '/build';
+const OPEN_PATH = '/open';
 /** The one privacy page the site has: the browser extension's. */
 const PRIVACY_PATH = '/extension/privacy';
 /** Every link to one of Mert's own sites carries utm tags, so the visit is traced to this site. */
@@ -522,6 +523,7 @@ export function SiteFooter({ children }: { children?: ReactNode | undefined }) {
     },
     { href: `${page}#${SECTION.story}`, label: m.footer_project_why() },
     { href: `${page}#${SECTION.faq}`, label: m.footer_project_faq() },
+    { href: OPEN_PATH, label: m.footer_project_open() },
   ];
 
   return (
