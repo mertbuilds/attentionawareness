@@ -1,0 +1,278 @@
+name: AttentionAwareness
+options:
+  bundleIdPrefix: com.attentionawareness
+  deploymentTarget:
+    macOS: '14.0'
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+packages:
+  # Auto-update. The binary target ships Sparkle.framework, which Xcode embeds
+  # in Contents/Frameworks and signs with the app's identity.
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    majorVersion: 2.10.0
+
+settings:
+  base:
+    SWIFT_VERSION: '5.10'
+    # Apple Silicon only, like the vendored dylibs. Without this a Release
+    # build for generic/platform=macOS also builds an Intel slice, which has
+    # nothing to link against.
+    ARCHS: arm64
+    MARKETING_VERSION: '0.4.0'
+    CURRENT_PROJECT_VERSION: '4'
+    ENABLE_HARDENED_RUNTIME: YES
+    GENERATE_INFOPLIST_FILE: NO
+  configs:
+    Debug:
+      CODE_SIGN_STYLE: Manual
+      CODE_SIGN_IDENTITY: '-'
+      DEVELOPMENT_TEAM: ''
+    Release:
+      CODE_SIGN_STYLE: Manual
+      CODE_SIGN_IDENTITY: 'Developer ID Application'
+      DEVELOPMENT_TEAM: '3HGP3W3TLD'
+      PROVISIONING_PROFILE_SPECIFIER: ''
+      CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO
+      OTHER_CODE_SIGN_FLAGS: '--timestamp --options runtime'
+
+targets:
+  AttentionAwareness:
+    type: application
+    platform: macOS
+    sources:
+      - Sources
+      # The pictures the "i" popovers show, carried as a folder rather than
+      # file by file, so a new screenshot is a file drop and no project change.
+      - path: Resources/Images
+        type: folder
+      # The license texts of what the app bundles, carried as a folder as
+      # well, and the notices that name each component beside them. Both land
+      # in Contents/Resources, so every copy of the app carries them.
+      - path: Resources/Licenses
+        type: folder
+      - path: THIRD_PARTY_NOTICES.md
+        buildPhase: resources
+      # The bundled backup helper runs as its own process out of
+      # Contents/Helpers, signed on copy like the embedded dylibs.
+      - path: Vendor/bin/idevicebackup2
+        buildPhase:
+          copyFiles:
+            destination: wrapper
+            subpath: Contents/Helpers
+        attributes: [CodeSignOnCopy]
+    info:
+      path: Sources/Info.plist
+      properties:
+        CFBundleName: attention awareness
+        CFBundleDisplayName: attention awareness
+        CFBundleIdentifier: $(PRODUCT_BUNDLE_IDENTIFIER)
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundlePackageType: APPL
+        CFBundleIconFile: AppIcon
+        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
+        NSHumanReadableCopyright: 'Copyright © 2026 Mert Duzgun'
+        # Sparkle. The appcast is written by scripts/release.sh and served by
+        # the site; the public half of the EdDSA key pair whose private half
+        # lives in the login keychain, backed up in
+        # ~/.config/attentionawareness/sparkle-ed25519.key.
+        SUFeedURL: https://attentionawareness.com/mac/appcast.xml
+        SUPublicEDKey: 4bQcmYkBAELBOBPKFXmzEXVewke6iC4THkFZqsROLEk=
+        SUEnableAutomaticChecks: true
+        SUScheduledCheckInterval: 86400
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.attentionawareness.mac
+        PRODUCT_NAME: attention awareness
+        INFOPLIST_KEY_NSPrincipalClass: NSApplication
+        CODE_SIGN_ENTITLEMENTS: Sources/AttentionAwareness.entitlements
+        HEADER_SEARCH_PATHS:
+          - $(inherited)
+          - $(SRCROOT)/Vendor/include
+        SWIFT_INCLUDE_PATHS:
+          - $(inherited)
+          - $(SRCROOT)/Vendor/include
+        LIBRARY_SEARCH_PATHS:
+          - $(inherited)
+          - $(SRCROOT)/Vendor/lib
+        LD_RUNPATH_SEARCH_PATHS:
+          - $(inherited)
+          - '@executable_path/../Frameworks'
+    postBuildScripts:
+      # Sparkle's Swift package ships an ad-hoc signed xcframework, and Xcode's
+      # embed step re-signs only the outer framework, so Updater.app, the two
+      # XPC services and Autoupdate would still be ad-hoc and the notary
+      # service would refuse the app. Sign them inside out here. None of them
+      # carries an entitlement to keep, and Xcode seals the app after this
+      # phase, so the app's own signature stays Xcode's.
+      - name: Sign Sparkle's nested helpers
+        basedOnDependencyAnalysis: false
+        script: |
+          [ "${CODE_SIGNING_ALLOWED:-NO}" = "YES" ] || exit 0
+          FRAMEWORK="$CODESIGNING_FOLDER_PATH/Contents/Frameworks/Sparkle.framework/Versions/B"
+          [ -d "$FRAMEWORK" ] || exit 0
+          for item in \
+            "$FRAMEWORK/XPCServices/Downloader.xpc" \
+            "$FRAMEWORK/XPCServices/Installer.xpc" \
+            "$FRAMEWORK/Updater.app" \
+            "$FRAMEWORK/Autoupdate" \
+            "$FRAMEWORK"
+          do
+            codesign --force --sign "$EXPANDED_CODE_SIGN_IDENTITY" $OTHER_CODE_SIGN_FLAGS "$item"
+          done
+
+    # Vendored by scripts/vendor.sh, linked from Vendor/lib and embedded in
+    # Contents/Frameworks so nothing resolves through Homebrew at run time.
+    dependencies:
+      - package: Sparkle
+      - framework: Vendor/lib/libimobiledevice-1.0.6.dylib
+        embed: true
+        codeSign: true
+      - framework: Vendor/lib/libimobiledevice-glue-1.0.0.dylib
+        embed: true
+        codeSign: true
+      - framework: Vendor/lib/libusbmuxd-2.0.7.dylib
+        embed: true
+        codeSign: true
+      - framework: Vendor/lib/libplist-2.0.4.dylib
+        embed: true
+        codeSign: true
+      - framework: Vendor/lib/libtatsu.0.dylib
+        embed: true
+        codeSign: true
+      - framework: Vendor/lib/libssl.3.dylib
+        embed: true
+        codeSign: true
+      - framework: Vendor/lib/libcrypto.3.dylib
+        embed: true
+        codeSign: true
+
+  # The patch, backup and profile layers are compiled into the test bundle as
+  # well as into the app, so the tests need no host application and no window.
+  # libimobiledevice is linked for the wizard's model alone, and no test calls
+  # it.
+  AttentionAwarenessTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - Sources/Patch
+      - Sources/Backup
+      - Sources/Profile
+      # Seed writer and device integration, tested with injected operations.
+      # No test opens or changes a real iPhone.
+      - Sources/Seed
+      # The one anonymous count: what is in it and the request that carries
+      # it. No test sends one.
+      - Sources/Event
+      # The step order, what each step demands before it runs and what the
+      # phone has to say about the profile before the backup can go are the
+      # parts of the window that need neither SwiftUI nor an iPhone, so they
+      # are tested here with the rest. The profile as the phone lists it comes
+      # with them, because the rule that weighs one is written against it.
+      - Sources/UI/WizardStep.swift
+      - Sources/UI/WizardGate.swift
+      # The phases of the one long job and the two sentences a failure shows
+      # are values as well: the words under the bar, which of them carry a
+      # figure, and what each layer's own wording turns into.
+      - Sources/UI/JobPhase.swift
+      - Sources/UI/JobFailure.swift
+      # The body of the last screen is a value as well: three answers in, one
+      # or two sentences out.
+      - Sources/UI/DoneCopy.swift
+      # Where the app looks for the pictures the "i" popovers show, and what
+      # a screenshot has to be called for it to be found, are values too.
+      - Sources/UI/InfoImage.swift
+      # Whether the reader already has a backup of their own is decided here,
+      # and the whole of it is values: two answers in, one line of the checks
+      # out. Finder's own folder is the one thing it reads, and the tests
+      # point it at a folder of their own.
+      - Sources/UI/BackupSafetyNet.swift
+      - Sources/UI/ProfileCheck.swift
+      - Sources/Device/InstalledProfile.swift
+      # The profile the Restrictions screen builds is a value as well: the
+      # apps, the sites they imply and the four switches, with no window
+      # around it, and the card that reads all of it back in six lines.
+      - Sources/UI/ProfileDraft.swift
+      - Sources/UI/RestrictionsSummary.swift
+      # The demo's clock and its switches are plain values as well, so the
+      # timeline a demo transfer runs to is tested with the rest.
+      - Sources/Demo/DemoScript.swift
+      - Sources/Demo/DemoConditions.swift
+      # The demo's wizard and the world it reads, so a test can see that it
+      # is built with nothing to send the anonymous count.
+      - Sources/Demo/DemoModel.swift
+      - Sources/Demo/DemoWorld.swift
+      # The cost story the job screen plays is values under its drawings: the
+      # site's figures, the slides in order and the clock they play to, and
+      # the run the weekends make past their line.
+      - Sources/Wait/WaitMath.swift
+      - Sources/Wait/WaitSlide.swift
+      - Sources/Wait/WeekendsRun.swift
+      # The wizard's model, so a test can hold one of its slow answers back
+      # and see where it lands. It is handed a sample watcher, which reads no
+      # bus, and the files below are only what it takes to compile.
+      - Sources/UI/WizardModel.swift
+      - Sources/UI/OldSupervisionKey.swift
+      - Sources/UI/WizardStyle.swift
+      - Sources/UI/InfoPopover.swift
+      - Sources/Device/DeviceWatcher.swift
+      - Sources/Device/Lockdown.swift
+      - Sources/Device/MCInstall.swift
+      - Sources/Device/Plist.swift
+      - Sources/Device/Errors.swift
+      - Tests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.attentionawareness.mac.tests
+        PRODUCT_NAME: AttentionAwarenessTests
+        GENERATE_INFOPLIST_FILE: YES
+        ENABLE_HARDENED_RUNTIME: NO
+        HEADER_SEARCH_PATHS:
+          - $(inherited)
+          - $(SRCROOT)/Vendor/include
+        SWIFT_INCLUDE_PATHS:
+          - $(inherited)
+          - $(SRCROOT)/Vendor/include
+        LIBRARY_SEARCH_PATHS:
+          - $(inherited)
+          - $(SRCROOT)/Vendor/lib
+    dependencies:
+      - framework: Vendor/lib/libimobiledevice-1.0.6.dylib
+        embed: true
+        codeSign: true
+      - framework: Vendor/lib/libimobiledevice-glue-1.0.0.dylib
+        embed: true
+        codeSign: true
+      - framework: Vendor/lib/libusbmuxd-2.0.7.dylib
+        embed: true
+        codeSign: true
+      - framework: Vendor/lib/libplist-2.0.4.dylib
+        embed: true
+        codeSign: true
+      - framework: Vendor/lib/libssl.3.dylib
+        embed: true
+        codeSign: true
+      - framework: Vendor/lib/libcrypto.3.dylib
+        embed: true
+        codeSign: true
+
+schemes:
+  AttentionAwareness:
+    build:
+      targets:
+        AttentionAwareness: all
+        AttentionAwarenessTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - AttentionAwarenessTests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release

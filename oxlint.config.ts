@@ -16,6 +16,7 @@ export default defineConfig({
     'apps/web/src/paraglide',
     'apps/web/src/routeTree.gen.ts',
     '.claude/skills',
+    'apps/mac',
   ],
   overrides: [
     {
