@@ -62,7 +62,7 @@ Our [free Mac app](/) puts your iPhone into supervised mode without erasing it. 
 4. Start in trial mode. You can still remove the profile in Settings, so you can test it first.
 5. When you are sure, plug in one more time and lock the profile.
 
-The app is free. It needs no account and no subscription. It installs no app on the iPhone, only a profile. The profile blocks things and reports nothing, so nobody can see or track the phone. To sign the profile, the app sends the list of what you block to this site once. The site does not store the list, and gets nothing that names you or your iPhone.
+The app is free. It needs no account and no subscription. It installs no app on the iPhone, only a profile. The profile blocks things and reports nothing, so nobody can see or track the phone. To sign the profile, the app sends the list of what you block to this site once for each profile. The site does not store the list, and gets nothing that names you or your iPhone.
 
 ### Option 2: manually via Apple Configurator
 
