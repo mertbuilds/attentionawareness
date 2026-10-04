@@ -11,6 +11,7 @@ import { GridTexture } from '../components/grid-texture.tsx';
 import { HeroPhone } from '../components/hero-phone.tsx';
 import { HowItWorks } from '../components/how-it-works.tsx';
 import { MacDownload } from '../components/mac-download.tsx';
+import { OtherUses } from '../components/other-uses.tsx';
 import { ScreenShots } from '../components/screen-shots.tsx';
 import { Signature } from '../components/signature.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
@@ -734,6 +735,14 @@ function HomePage() {
               },
             ]}
           />
+        </section>
+
+        {/* What else the same setup blocks: any app or website, not only the
+        feeds. */}
+        <section {...props(styles.section)}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_other_title()}</h2>
+          <p {...props(styles.sectionBody)}>{m.home_other_lead()}</p>
+          <OtherUses />
         </section>
 
         {/* Not against the networks, only their feeds, and the browser half
