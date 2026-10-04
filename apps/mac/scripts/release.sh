@@ -103,6 +103,15 @@ if [ "$DRY_RUN" = 0 ]; then
   grep -E '"(authSource|email)":' <<< "$WHOAMI" || true
 fi
 
+# The dmg is written by dmgbuild, long after the build and the notary service.
+DMGBUILD="${DMGBUILD:-$(command -v dmgbuild || ls "$HOME"/Library/Python/*/bin/dmgbuild 2>/dev/null | sort -V | tail -1)}"
+if [ -z "$DMGBUILD" ] || [ ! -x "$DMGBUILD" ]; then
+  echo "error: dmgbuild is not installed, so the dmg cannot be written." >&2
+  echo "       install it with: pip3 install --user dmgbuild" >&2
+  echo "       or point DMGBUILD at it." >&2
+  exit 1
+fi
+
 if [ -f "$RELEASE_ENV" ]; then
   . "$RELEASE_ENV"
 fi
@@ -275,7 +284,6 @@ echo "==> create release zip"
 # right even on a build host that has not granted Automation permissions.
 echo "==> build dmg (drag-to-applications)"
 RELEASE_DMG="$BUILD_DIR/$DMG_NAME"
-DMGBUILD="${DMGBUILD:-$(command -v dmgbuild || ls "$HOME"/Library/Python/*/bin/dmgbuild 2>/dev/null | sort -V | tail -1)}"
 
 # Stage the notarized app into a dist copy so dmgbuild reads a clean bundle
 # named exactly the volume name. cp -R keeps the signature and stapled ticket.
