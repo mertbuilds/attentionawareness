@@ -298,7 +298,7 @@
   "open_numbers_empty": "Numbers are not public yet",
   "open_track_title": "What we track",
   "open_track_posthog": "The site uses PostHog. It counts page views and clicks, and it records visits with every word and every field masked.",
-  "open_track_cookie": "PostHog keeps a cookie in your browser, so one visitor is counted once.",
+  "open_track_cookie": "PostHog keeps a cookie in your browser, so one visitor is counted once. It does not store your IP address, only the rough place the address points to: country, city and postal code.",
   "open_track_builder": "The profile builder sends how many apps and sites you block, never which ones.",
   "open_track_openpanel": "A second tool, OpenPanel, also counts page views and Mac downloads, and records one visit in ten with the same masking.",
   "open_track_iphone": "Nothing on the iPhone is tracked.",

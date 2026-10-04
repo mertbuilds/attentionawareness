@@ -16,6 +16,7 @@ Page views do not say which steps of the Mac download and the `/build` profile b
   - Autocapture: `mask_all_element_attributes` and `mask_all_text`, so no `attr__*` and no `$el_text`. An element is named by its tag, classes and position.
   - Replay: inputs and all text masked; `alt`, `aria-label` and `title` replaced by `*` through `maskAttributeFn`; App Store icons (`img[src*="mzstatic.com"]`) blocked; App Store requests (`itunes.apple.com`, `mzstatic.com`) dropped from network capture. `class` stays visible: `maskAllElementAttributes` would mask it too, and a StyleX page replays unstyled without it.
   - Custom events carry counts and modes, never the apps or sites themselves.
+- The project discards client IP data (project setting "Discard client IP data", checked 2026-10-04: on, and no stored event has an address). PostHog first reads the country, the city, the postal code and rough coordinates from the address, keeps those on the event, and drops the address. The Countries tile on `/open` (ADR-0007) needs that.
 
 ## Consequences
 
