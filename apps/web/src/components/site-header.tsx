@@ -66,10 +66,14 @@ const styles = create({
   },
   // Open: the name at one edge and the download at the other, and the links
   // in the middle of the strip between two equal sides. A window too narrow
-  // for the links keeps the name and, at the other edge, the menu's button.
+  // for the links keeps the name and, at the other edge, the menu's button,
+  // with a phone's support button before it. What the columns do not name
+  // stands in a column of its own, on the one line.
   barOpen: {
     columnGap: spacing.s4,
     display: 'grid',
+    gridAutoColumns: 'auto',
+    gridAutoFlow: 'column',
     gridTemplateColumns: {
       '@media (min-width: 768px)': 'minmax(0, 1fr) auto minmax(0, 1fr)',
       default: 'minmax(0, 1fr) auto',
@@ -272,8 +276,8 @@ const styles = create({
  * button of two lines at the far edge instead, and the links in the menu it
  * opens. The download starts the file at once, as every download on the site
  * does; a phone or a tablet, which cannot run the app, has a support button
- * there instead, to the support section, and the menu sends the link on to a
- * Mac.
+ * there instead, at the top of the page and in the pill, to the support
+ * section, and the menu sends the link on to a Mac.
  */
 export function SiteHeader() {
   const [pill, setPill] = useState(false);
@@ -375,6 +379,7 @@ export function SiteHeader() {
             <BrandMark size={pill ? PILL_MARK : MARK_SIZE} />
           </span>
           <span
+            data-aa-phone-narrow-off=""
             data-morph="header-name"
             {...props(styles.name, styles.morph('header-name'), pill && styles.hidden)}
           >
@@ -408,11 +413,7 @@ export function SiteHeader() {
           <Button
             data-morph="header-phone-support"
             render={<a href={`${page}#${SECTION.support}`} />}
-            style={[
-              styles.download,
-              !pill && styles.downloadRoomy,
-              styles.morph('header-phone-support'),
-            ]}
+            style={[styles.download, styles.morph('header-phone-support')]}
           >
             <span {...props(styles.supportCta)}>
               <Heart aria-hidden="true" size={HEART_SIZE} strokeWidth={HEART_STROKE} />

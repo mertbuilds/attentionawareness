@@ -170,6 +170,14 @@ html:not([data-aa-mobile]) [data-aa-phone] {
   display: none;
 }
 
+/* A narrow phone's header has no room for the name beside its support button
+   and the menu's: the mark stands for it, as it does in the pill. */
+@media (max-width: 389px) {
+  html[data-aa-mobile] [data-aa-phone-narrow-off] {
+    display: none;
+  }
+}
+
 /*
  * The picked segment of a theme control (`components/preferences.tsx`), in
  * the page's ink. It is drawn from the choice on the root, which the script
