@@ -60,7 +60,6 @@ struct DoneCopyTests {
                 == "The app is free. If it helps you, you can support the work. "
                 + "Pay what you want, or share it with a friend."
         )
-        #expect(DoneCopy.shareMessage == "Permanently remove distraction from your iPhone. Free Mac app.")
     }
 
     @Test func theSupportLinkOpensThePayWhatYouWantPageWithItsCampaign() throws {

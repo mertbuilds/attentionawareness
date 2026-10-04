@@ -96,7 +96,7 @@ struct DoneStep: View {
                     .buttonStyle(.bordered)
                 }
                 if let url = SiteLink.share {
-                    ShareLink(item: url, message: Text(DoneCopy.shareMessage)) {
+                    ShareLink(item: url) {
                         Label("Share", systemImage: "square.and.arrow.up")
                     }
                 }

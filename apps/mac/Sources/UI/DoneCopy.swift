@@ -47,9 +47,6 @@ enum DoneCopy {
         "The app is free. If it helps you, you can support the work. "
         + "Pay what you want, or share it with a friend."
 
-    /// The words the share picker hands to whatever the person shares with.
-    static let shareMessage = "Permanently remove distraction from your iPhone. Free Mac app."
-
     /// Where to look on the iPhone for what the run set up, in one line. The
     /// smoke harness draws the info popover from it, picture and words both.
     static var note: String {
