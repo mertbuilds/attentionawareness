@@ -20,10 +20,11 @@ struct BackupPasswordField: View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Backup password")
                 .help(help)
-            // The placeholder is a row of dots, so the field needs a spoken
-            // name of its own for VoiceOver to announce anything useful.
+            // The label above is a separate view, so the field carries a
+            // spoken name of its own for VoiceOver. The placeholder is a word,
+            // not a row of dots, so an empty field never looks filled in.
             RingedField(focused: focused) {
-                SecureField("****", text: $model.password)
+                SecureField("Password", text: $model.password)
                     .labelsHidden()
                     .accessibilityLabel("Backup password")
                     .focused($focused)
