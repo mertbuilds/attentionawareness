@@ -4,22 +4,24 @@ description: 'Four ways to block an app on an iPhone: delete it, limit it, stop 
 slug: block-any-app-iphone
 date: 2026-10-04
 primary_keyword: 'how to block an app on iphone'
-reading_minutes: 7
+reading_minutes: 8
 read_next: why-screen-time-does-not-work, iphone-parental-controls-kids-cannot-turn-off
 ---
 
-To block an app on an iPhone, you can delete it, set a Screen Time limit on it, or turn off app installs in Settings > Screen Time > Content & Privacy Restrictions. All three can be undone on the phone in under a minute. To block an app so it cannot come back, block it by app on a supervised iPhone with a locked profile.
+To block an app on an iPhone, you can delete it, set a Screen Time limit or schedule on it, or turn off app installs in Settings > Screen Time > Content & Privacy Restrictions. All of these can be undone on the phone in under a minute. To block an app so it cannot come back, block it by app on a supervised iPhone with a locked profile.
 
 Below are the steps for each way, and what each one leaves open. Apple renamed parts of Screen Time in iOS 27. I use the iOS 27 names and give the old name the first time.
 
-## The four ways, side by side
+## The ways, side by side
 
-| Method                                                | Can you undo it in a weak moment?                                                                               | Does the app come back?              |
-| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
-| Delete the app                                        | Yes. Download it again from the App Store.                                                                      | Yes, in about 30 seconds             |
-| A time limit in Screen Time                           | Yes. Apple lets you ignore the limit, or you change the setting.                                                | Yes, the same day                    |
-| Installing apps turned off                            | Yes, if you know the Screen Time passcode. You can also reset that passcode with your Apple Account.            | Yes, after you turn installs back on |
-| Blocked by app on a supervised iPhone, locked profile | No. It cannot be removed on the iPhone itself. That takes erasing the iPhone, or a Mac with Apple Configurator. | No                                   |
+| Method                                                | Can you undo it in a weak moment?                                                                               | Does the app come back?                                     |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Delete the app                                        | Yes. Download it again from the App Store.                                                                      | Yes, in about 30 seconds                                    |
+| A time limit in Screen Time                           | Yes. Apple lets you ignore the limit, or you change the setting.                                                | Yes, the same day                                           |
+| A Screen Time Schedule (Downtime before iOS 27)       | Yes. You turn the schedule off, or keep using the apps if they are not set to block.                            | Yes, when the schedule ends                                 |
+| Installing apps turned off                            | Yes, if you know the Screen Time passcode. You can also reset that passcode with your Apple Account.            | Yes, after you turn installs back on                        |
+| Blocked by app on a supervised iPhone, locked profile | No. It cannot be removed on the iPhone itself. That takes erasing the iPhone, or a Mac with Apple Configurator. | No                                                          |
+| Guided Access                                         | Yes. You set its passcode, so you end it.                                                                       | It does not block one app. It locks the phone into one app. |
 
 ## Way 1: delete the app
 
@@ -39,6 +41,16 @@ Deleting is enough if you do not miss the app.
 Then check the Always Allowed list in Screen Time. An app on that list ignores every limit, so remove the app from it.
 
 What it leaves open: Apple's guide for iOS 26 says, "By default, Screen Time limits can be ignored once reached." When the time is up, the phone shows an Ignore Limit button. You can also switch the limit off in Settings.
+
+### Or block apps at set hours with a schedule
+
+A Screen Time Schedule (called Downtime before iOS 27) sets the hours when your apps are available. Outside those hours, most apps are paused.
+
+1. In Settings, open Screen Time, then Screen Time Schedule, and turn on Schedule.
+2. Tap Add Schedule and pick the days. Then tap the time window to set the start and stop times and the kinds of apps it allows.
+3. Before iOS 27, tap Downtime, then Scheduled, and set the days and times.
+
+What it leaves open: on iOS 26 and earlier, the phone only reminds you that it is Downtime, and you can keep using the apps. To block them, turn on Block at Downtime. That needs a Screen Time passcode, and whoever knows the passcode can turn the schedule off. Apps in Always Allowed stay open. More on this in [why Screen Time doesn't work](/blog/why-screen-time-does-not-work).
 
 ## Way 3: turn off app installs, and hide built-in apps
 
@@ -74,6 +86,18 @@ There are two free ways to set this up.
 Start in trial mode. In trial mode you can remove the profile in Settings. When the list is right, plug in once more to lock it.
 
 I use this setup on my own iPhone. My screen time went from more than 5 hours a day to 1 hour 45 minutes.
+
+## Guided Access: one app only, which is the opposite
+
+Guided Access is an accessibility feature. Apple says it can "temporarily restrict iPhone to a single app." It does not block an app. It keeps the phone in one app, and every other app stays closed until the session ends.
+
+1. In Settings, open Accessibility, then Guided Access, and turn it on.
+2. Tap Passcode Settings, then Set Guided Access Passcode.
+3. Open the app you want to allow. Start Guided Access with the Accessibility Shortcut or from Control Center, then tap Start.
+
+To end it, triple-click the side button (or the Home button) and enter the passcode.
+
+What it leaves open: you set the passcode, so you can end the session at any time. Emergency calls do not work during a session. Guided Access is good when you hand the phone to a child for one game or one video. It is not a way to block an app for yourself. For a child's own iPhone, see [iPhone parental controls kids cannot turn off](/blog/iphone-parental-controls-kids-cannot-turn-off).
 
 ## How to block YouTube, Instagram, TikTok and X
 
@@ -148,7 +172,7 @@ For company phones, see [how to lock down work iPhones without an MDM server](/b
       "url": "https://attentionawareness.com/blog/block-any-app-iphone",
       "mainEntityOfPage": "https://attentionawareness.com/blog/block-any-app-iphone",
       "datePublished": "2026-10-04",
-      "dateModified": "2026-10-04",
+      "dateModified": "2026-10-05",
       "inLanguage": "en",
       "author": {
         "@type": "Person",
@@ -214,6 +238,8 @@ For company phones, see [how to lock down work iPhones without an MDM server](/b
 - [Apple, "Set up Screen Time for yourself on iPhone" (iOS 27)](https://support.apple.com/guide/iphone/set-up-screen-time-for-yourself-iphbfa595995/ios)
 - [Apple, "Set Screen Time Schedules and Time Allowances" (iOS 27)](https://support.apple.com/guide/iphone/set-schedules-with-screen-time-iphb0c7313c9/ios)
 - [Apple, "Set schedules with Screen Time" (iOS 26)](https://support.apple.com/guide/iphone/set-schedules-with-screen-time-iphb0c7313c9/26/ios/26)
+- [Apple, "Set up parental controls on your child's device" (version 27)](https://support.apple.com/guide/child-safety/set-up-parental-controls-for-version-27-kmp239668ukx/web)
+- [Apple, "Lock iPhone to one app with Guided Access"](https://support.apple.com/guide/iphone/lock-iphone-to-one-app-iph7fad0d10/ios)
 - [Apple, "Block features or content with Screen Time" (iOS 27)](https://support.apple.com/guide/iphone/block-apps-app-downloads-websites-purchases-iph3ff83f3b1/ios)
 - [Apple, "Block apps, app downloads, websites, and purchases" (iOS 26)](https://support.apple.com/guide/iphone/block-apps-app-downloads-websites-purchases-iph3ff83f3b1/26/ios/26)
 - [Apple, "Change settings and restrictions in the App Store on iPhone"](https://support.apple.com/guide/iphone/iph3dfd91de/ios)
