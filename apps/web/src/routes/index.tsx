@@ -1,7 +1,6 @@
 import { Button } from '@attentionawareness/ui';
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
-import { usePostHog } from '@posthog/react';
 import { create, defaultMarker, props, when } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
@@ -15,10 +14,10 @@ import { OtherUses } from '../components/other-uses.tsx';
 import { ScreenShots } from '../components/screen-shots.tsx';
 import { Signature } from '../components/signature.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
+import { SupportSection } from '../components/support-section.tsx';
 import { UsesGrid } from '../components/uses-grid.tsx';
 import { brandBar } from '../lib/brand-bar.stylex.ts';
 import { blur, duration, easing } from '../lib/motion.stylex.ts';
-import { supportUrl } from '../lib/support.ts';
 import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
 
@@ -47,15 +46,13 @@ const WAY_OUT_ID = 'way-out';
 const STORY_ID = 'story';
 /** The two ways, both free. Links from before the app was free still come down to it. */
 const PRICING_ID = 'pricing';
-/** Why they are free and how to support the work, which the header's support link goes down to. */
+/** Why everything is free and how to support the work, which the header's support link goes down to. */
 const SUPPORT_ID = 'support';
 /** The manual way out, on a page of its own. */
 const GUIDE_URL = '/guide';
 /** Every link off this site carries utm tags, so the visit is traced to this page. */
 const STORE_URL =
   'https://chromewebstore.google.com/detail/attention-awareness/lgcijcijcndmggjiioibfcmppndfakee?utm_source=attentionawareness.com&utm_medium=referral&utm_campaign=home';
-/** The checkout where a reader pays what they want to support the work. */
-const SUPPORT_URL = supportUrl('support');
 /** The post this started from, linked out of the paragraph that tells it. */
 const STORY_URL = 'https://stopa.io/post/297';
 /**
@@ -431,37 +428,11 @@ const styles = create({
     margin: 0,
     textWrap: 'balance',
   },
-  // Under the two cards, in the middle and with no box of its own: why
-  // everything is free, then the way to support the work.
-  support: {
-    alignItems: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s2,
-    textAlign: 'center',
-  },
-  // The button stands a step clear of the lines it follows.
   story: {
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s4,
     maxWidth: 640,
-  },
-  supportButton: {
-    marginBlockStart: spacing.s2,
-  },
-  supportCare: {
-    fontSize: font.sizeMd,
-    lineHeight: 1.5,
-    margin: 0,
-    textWrap: 'balance',
-  },
-  supportNote: {
-    color: colors.muted,
-    fontSize: font.sizeSm,
-    lineHeight: 1.5,
-    margin: 0,
-    textWrap: 'balance',
   },
   // Paragraphs of prose, so the ink is pulled a step toward the page.
   storyLine: {
@@ -548,8 +519,6 @@ function Promises({
 }
 
 function HomePage() {
-  const posthog = usePostHog();
-
   // The word the claim turns on, wherever a language puts it, so the words
   // around it keep their own order in every language.
   const [titleBefore, titleAfter] = m.home_hero_title({ permanently: LINK_SLOT }).split(LINK_SLOT);
@@ -651,8 +620,7 @@ function HomePage() {
 
         {/* How it works: what the Mac app does, in three steps, then the two
         ways to it, both free: the app, with what it keeps, and the guide that
-        starts the phone over. Under them, why they are free and the way to
-        support the work. */}
+        starts the phone over. */}
         <section {...props(styles.section, styles.anchor)} id={WAY_OUT_ID}>
           <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
           <p {...props(styles.sectionBody)}>{m.home_how_lead()}</p>
@@ -680,18 +648,6 @@ function HomePage() {
                 {m.home_how_guide_cta()}
               </Button>
             </div>
-          </div>
-          <div id={SUPPORT_ID} {...props(styles.support, styles.anchor)}>
-            <p {...props(styles.supportCare)}>{m.home_support_care()}</p>
-            <p {...props(styles.supportNote)}>{m.home_support_note()}</p>
-            <Button
-              onClick={() => posthog.capture('support_clicked', { placement: 'pricing' })}
-              render={<a href={SUPPORT_URL} rel="noreferrer" target="_blank" />}
-              style={styles.supportButton}
-              variant="outline"
-            >
-              {m.home_support_cta()}
-            </Button>
           </div>
         </section>
 
@@ -725,6 +681,12 @@ function HomePage() {
           <h2 {...props(styles.sectionTitle)}>{m.home_other_title()}</h2>
           <p {...props(styles.sectionBody)}>{m.home_other_lead()}</p>
           <OtherUses />
+        </section>
+
+        {/* Why everything is free, and the way to support the work, in a box
+        of its own. */}
+        <section {...props(styles.anchor)} id={SUPPORT_ID}>
+          <SupportSection titleStyle={styles.displayTitle} />
         </section>
 
         {/* Not against the networks, only their feeds, and the browser half
