@@ -14,7 +14,7 @@ import { useSeen } from '../lib/use-seen.ts';
 import { m } from '../paraglide/messages.js';
 
 const SUPPORT_URL = supportUrl('support-section');
-/** Where the site's and the extension's code is public. */
+/** Where the code is public. */
 const REPO_URL = 'https://github.com/mertbuilds/attentionawareness';
 /** The heart on the support button, as tall as the button's letters are set. */
 const HEART_SIZE = 14;
@@ -620,7 +620,7 @@ function Stamp({
  * own words, set as the corner of an envelope: the words on the left, a
  * stamp of Antalya with a heart in its sky and a postmark to their right. The title carries
  * the section, in the page's display size, which the page hands it; under it
- * three short paragraphs at a readable measure, the one button, and three
+ * three short paragraphs at a readable measure, the one button, and two
  * plain facts in quiet type. Nothing is boxed.
  *
  * The server draws it finished. Still under the window once the page has come
@@ -688,7 +688,6 @@ export function SupportSection({ titleStyle }: { titleStyle: StyleXStyles }) {
               {m.home_support_fact_open()}
             </a>
           </li>
-          <li>{m.home_support_fact_ads()}</li>
           <li>{m.home_support_fact_tracking()}</li>
         </ul>
       </div>
