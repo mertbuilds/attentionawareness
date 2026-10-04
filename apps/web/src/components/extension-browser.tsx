@@ -2,7 +2,8 @@ import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { cancelFrame, frame } from 'motion/react';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import type { KeyboardEvent, RefObject } from 'react';
 import { duration, easing } from '../lib/motion.stylex.ts';
 import { useLessMotion } from '../lib/use-less-motion.ts';
 import { useSeen } from '../lib/use-seen.ts';
@@ -39,6 +40,10 @@ const FAVICON = { radius: 2.5, size: 10, x: 96, y: 8 };
 /** How small a feed is, and how blurred, by the time it is gone. */
 const GONE_SCALE = 0.94;
 const GONE_BLUR = 2;
+/** A site's name in the row over the drawing: how tall it is, and how wide its border. */
+const PILL = { border: 1, height: 28 };
+/** The line down the middle of that border turns its corners on this radius. */
+const PILL_RADIUS = (PILL.height - PILL.border) / 2;
 
 /** When a part leaves, by its place in the order, and how far it moves up once the feeds have left. */
 type Mark = {
@@ -228,7 +233,7 @@ const styles = create({
     },
     borderRadius: 999,
     borderStyle: 'solid',
-    borderWidth: 1,
+    borderWidth: PILL.border,
     color: {
       ':hover': colors.fg,
       default: colors.muted,
@@ -238,7 +243,7 @@ const styles = create({
     fontFamily: 'inherit',
     fontSize: font.sizeSm,
     gap: spacing.s2,
-    height: 28,
+    height: PILL.height,
     lineHeight: 1,
     outlineColor: colors.muted,
     outlineOffset: 2,
@@ -249,6 +254,8 @@ const styles = create({
     outlineWidth: 1,
     paddingInlineEnd: spacing.s3,
     paddingInlineStart: spacing.s2,
+    // What the line round a playing site is laid against.
+    position: 'relative',
     transitionDuration: duration.quick,
     transitionProperty: 'border-color, color',
     transitionTimingFunction: easing.out,
@@ -266,8 +273,14 @@ const styles = create({
     outlineWidth: 1,
     width: 16,
   },
+  // The site whose page is playing: its name in the ink. Its border stays
+  // quiet under the line that is drawn round it. With less motion no line is
+  // drawn, and the whole border is in the ink.
   sitePlaying: {
-    borderColor: colors.fg,
+    borderColor: {
+      '@media (prefers-reduced-motion: reduce)': colors.fg,
+      default: colors.border,
+    },
     color: colors.fg,
   },
   sites: {
@@ -281,11 +294,46 @@ const styles = create({
     transformBox: 'fill-box',
     transformOrigin: 'center',
   }),
+  // The sheet the line round a playing site is drawn on. It is laid over the
+  // pill's border box, a border short of its far edges, and the line on it
+  // stands half a border in, so the line runs down the middle of the border
+  // and covers it exactly. It takes no room and no press.
+  trace: {
+    display: {
+      '@media (prefers-reduced-motion: reduce)': 'none',
+      default: 'block',
+    },
+    height: `calc(100% + ${PILL.border}px)`,
+    left: -PILL.border,
+    overflow: 'visible',
+    pointerEvents: 'none',
+    position: 'absolute',
+    top: -PILL.border,
+    width: `calc(100% + ${PILL.border}px)`,
+  },
+  // The line itself, in the ink, as wide as the border. Its length counts as
+  // one, so it is drawn as far round as the turn is through: none of it to
+  // start with, all of it as the turn ends. The loop's own clock moves it.
+  traceLine: {
+    fill: 'none',
+    stroke: colors.fg,
+    strokeDasharray: '1',
+    strokeDashoffset: '1',
+    strokeWidth: `${PILL.border}px`,
+    vectorEffect: 'non-scaling-stroke',
+  },
   // A line of words, a quiet stroke of its own.
   words: {
     fill: colors.border,
   },
 });
+
+/** Draws `line` as far round its pill as a turn is through, `at` milliseconds into it. */
+function trace(line: SVGRectElement | null, at: number) {
+  if (line !== null) {
+    line.style.strokeDashoffset = String(1 - at / TURN);
+  }
+}
 
 /**
  * How far into the loop the drawing is, in milliseconds, and a way to send it
@@ -293,16 +341,30 @@ const styles = create({
  * only while `running` and holds where it is otherwise; with `rewound` it goes
  * back to the start, so it plays from there next. While the page stands still
  * it is not drawn again.
+ *
+ * The same clock draws `line`, the line round the playing site's name, on
+ * every frame, the still ones too, and after every render, so the line and
+ * the page it times can never be apart: the line closes as the turn ends, and
+ * holds, jumps and goes back to the start with the loop.
  */
-function useLoop(running: boolean, rewound: boolean): [number, (to: number) => void] {
+function useLoop(
+  running: boolean,
+  rewound: boolean,
+  line: RefObject<SVGRectElement | null>,
+): [number, (to: number) => void] {
   const [now, setNow] = useState(0);
   const clock = useRef(0);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (rewound) {
       clock.current = 0;
     }
   }, [rewound]);
+
+  // After every render: the line may be a new one, round another site.
+  useLayoutEffect(() => {
+    trace(line.current, clock.current % TURN);
+  });
 
   useEffect(() => {
     if (!running) {
@@ -317,6 +379,7 @@ function useLoop(running: boolean, rewound: boolean): [number, (to: number) => v
       clock.current = next;
       const at = next % TURN;
       const from = was % TURN;
+      trace(line.current, at);
       // The first frame is always drawn: it is where the loop takes up again.
       if (first || !STILL.some(([start, end]) => from >= start && at >= from && at < end)) {
         setNow(next);
@@ -324,7 +387,7 @@ function useLoop(running: boolean, rewound: boolean): [number, (to: number) => v
     }
     frame.update(tick, true);
     return () => cancelFrame(tick);
-  }, [running]);
+  }, [line, running]);
 
   function jump(to: number) {
     clock.current = to;
@@ -387,22 +450,29 @@ function Page({ at, site }: { at: number; site: number }) {
  * one after another, and the rest of the page closing up. It does this for
  * the three sites it ships rules for, one after another, each under its own
  * icon in the address bar, and starts over. The row over the window names the
- * three and marks the one playing; pressing one sends the drawing to that
- * site, and it goes on from there. It plays while it is on screen, holds while
- * the tab is put away and goes back to its start off screen. The server draws
- * the first site with its feeds on it, and with less motion a site stands
- * clean.
+ * three, as tabs, and marks the one playing: a line in the ink is drawn round
+ * its name, clockwise from the top, over the time its page is shown, and as
+ * the line closes the next site's turn starts. Pressing a name sends the
+ * drawing to that site, with the line at its start, and it goes on from
+ * there. The left and right arrows go from one name to the next. It plays
+ * while it is on screen, holds while the tab is put away, the line with it,
+ * and goes back to its start off screen. The server draws the first site
+ * with its feeds on it, and with less motion a site stands clean and the
+ * playing name has its whole border in the ink.
  */
 export function ExtensionBrowser() {
   const drawing = useRef<SVGSVGElement>(null);
   const seen = useSeen(drawing);
   const hidden = useTabHidden();
   const reduced = useLessMotion();
-  const [looped, jump] = useLoop(seen && !hidden && !reduced, !seen);
+  const line = useRef<SVGRectElement>(null);
+  const [looped, jump] = useLoop(seen && !hidden && !reduced, !seen, line);
   // With less motion the site the reader picked stands clean.
   const now = reduced ? Math.floor(looped / TURN) * TURN + REST : looped;
   const clip = useId();
   const corners = useId();
+  const tabs = useId();
+  const panel = useId();
 
   const site = Math.floor(now / TURN) % SITES.length;
   const next = (site + 1) % SITES.length;
@@ -413,19 +483,36 @@ export function ExtensionBrowser() {
     { at, opacity: 1 - leaving, site },
     { at: 0, opacity: leaving, site: next },
   ];
-  // The site named in the row: the one coming in, once it is the plainer of the two.
-  const playing = leaving > 0.5 ? next : site;
+
+  // The arrows go from one site's name to the next, and round, as tabs do.
+  function onKey(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+    if (step === 0) {
+      return;
+    }
+    event.preventDefault();
+    const to = (index + step + SITES.length) % SITES.length;
+    jump(to * TURN);
+    event.currentTarget.parentElement
+      ?.querySelectorAll<HTMLButtonElement>('[role="tab"]')
+      .item(to)
+      .focus();
+  }
 
   return (
     <div {...props(styles.browser)}>
-      <div aria-label={m.home_ext_sites()} role="group" {...props(styles.sites)}>
+      <div aria-label={m.home_ext_sites()} role="tablist" {...props(styles.sites)}>
         {SITES.map((entry, index) => (
           <button
-            aria-pressed={index === playing}
+            aria-controls={panel}
+            aria-selected={index === site}
+            id={`${tabs}-${index}`}
             key={entry.icon}
             onClick={() => jump(index * TURN)}
+            onKeyDown={(event) => onKey(event, index)}
+            role="tab"
             type="button"
-            {...props(styles.site, index === playing && styles.sitePlaying)}
+            {...props(styles.site, index === site && styles.sitePlaying)}
           >
             <img
               alt=""
@@ -435,70 +522,86 @@ export function ExtensionBrowser() {
               {...props(styles.siteIcon)}
             />
             {entry.name()}
+            {index === site && !reduced ? (
+              <svg aria-hidden="true" focusable="false" {...props(styles.trace)}>
+                <rect
+                  height="100%"
+                  pathLength={1}
+                  ref={line}
+                  rx={PILL_RADIUS}
+                  width="100%"
+                  x={PILL.border / 2}
+                  y={PILL.border / 2}
+                  {...props(styles.traceLine)}
+                />
+              </svg>
+            ) : null}
           </button>
         ))}
       </div>
-      <svg
-        aria-label={m.home_ext_drawing()}
-        ref={drawing}
-        role="img"
-        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-        {...props(styles.graphic)}
-      >
-        <defs>
-          <clipPath id={clip}>
-            <rect height={HEIGHT - BAR - 1} width={WIDTH - 2} x={1} y={BAR} />
-          </clipPath>
-          <clipPath id={corners}>
-            <rect
-              height={FAVICON.size}
-              rx={FAVICON.radius}
-              width={FAVICON.size}
-              x={FAVICON.x}
-              y={FAVICON.y}
-            />
-          </clipPath>
-        </defs>
-        <rect
-          height={HEIGHT - 1}
-          rx={CORNER}
-          width={WIDTH - 1}
-          x={0.5}
-          y={0.5}
-          {...props(styles.line)}
-        />
-        <path d={`M0.5 ${BAR} H${WIDTH - 0.5}`} {...props(styles.line)} />
-        {[14, 24, 34].map((x) => (
-          <circle cx={x} cy={BAR / 2} key={x} r={3} {...props(styles.line)} />
-        ))}
-        <rect height={14} rx={7} width={136} x={92} y={6} {...props(styles.line)} />
-        {pages.map((page) =>
-          page.opacity > 0 ? (
-            <g key={page.site} opacity={page.opacity}>
-              <image
-                clipPath={`url(#${corners})`}
-                height={FAVICON.size}
-                href={`/media/apps/${SITES[page.site]?.icon}.webp`}
-                width={FAVICON.size}
-                x={FAVICON.x}
-                y={FAVICON.y}
-              />
+      <div aria-labelledby={`${tabs}-${site}`} id={panel} role="tabpanel">
+        <svg
+          aria-label={m.home_ext_drawing()}
+          ref={drawing}
+          role="img"
+          viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+          {...props(styles.graphic)}
+        >
+          <defs>
+            <clipPath id={clip}>
+              <rect height={HEIGHT - BAR - 1} width={WIDTH - 2} x={1} y={BAR} />
+            </clipPath>
+            <clipPath id={corners}>
               <rect
                 height={FAVICON.size}
                 rx={FAVICON.radius}
                 width={FAVICON.size}
                 x={FAVICON.x}
                 y={FAVICON.y}
-                {...props(styles.edge)}
               />
-              <rect height={3} rx={1.5} width={56} x={110} y={11.5} {...props(styles.words)} />
-              <g clipPath={`url(#${clip})`}>
-                <Page at={page.at} site={page.site} />
+            </clipPath>
+          </defs>
+          <rect
+            height={HEIGHT - 1}
+            rx={CORNER}
+            width={WIDTH - 1}
+            x={0.5}
+            y={0.5}
+            {...props(styles.line)}
+          />
+          <path d={`M0.5 ${BAR} H${WIDTH - 0.5}`} {...props(styles.line)} />
+          {[14, 24, 34].map((x) => (
+            <circle cx={x} cy={BAR / 2} key={x} r={3} {...props(styles.line)} />
+          ))}
+          <rect height={14} rx={7} width={136} x={92} y={6} {...props(styles.line)} />
+          {pages.map((page) =>
+            page.opacity > 0 ? (
+              <g key={page.site} opacity={page.opacity}>
+                <image
+                  clipPath={`url(#${corners})`}
+                  height={FAVICON.size}
+                  href={`/media/apps/${SITES[page.site]?.icon}.webp`}
+                  width={FAVICON.size}
+                  x={FAVICON.x}
+                  y={FAVICON.y}
+                />
+                <rect
+                  height={FAVICON.size}
+                  rx={FAVICON.radius}
+                  width={FAVICON.size}
+                  x={FAVICON.x}
+                  y={FAVICON.y}
+                  {...props(styles.edge)}
+                />
+                <rect height={3} rx={1.5} width={56} x={110} y={11.5} {...props(styles.words)} />
+                <g clipPath={`url(#${clip})`}>
+                  <Page at={page.at} site={page.site} />
+                </g>
               </g>
-            </g>
-          ) : null,
-        )}
-      </svg>
+            ) : null,
+          )}
+        </svg>
+      </div>
     </div>
   );
 }
