@@ -1,4 +1,5 @@
 import type { AnswerBlock } from '../components/faq-answer.tsx';
+import { splitEmphasis } from './emphasis.ts';
 
 /**
  * The JSON-LD the pages put in their head, for search engines and the
@@ -13,8 +14,6 @@ const LOGO_URL = `${SITE_URL}/icon-512.png`;
 const ORGANIZATION_ID = `${SITE_URL}/#organization`;
 const WEBSITE_ID = `${SITE_URL}/#website`;
 const CONTEXT = 'https://schema.org';
-/** The mark around stressed words in a message (`lib/emphasis.ts`). */
-const STRESS = '**';
 /** Where a text block's link stands in its message, as `ANSWER_LINK` in `faq-answer.tsx`. */
 const LINK_SLOT = '\u0000';
 
@@ -30,8 +29,10 @@ export function schemaMeta(schema: JsonLd): { content?: never; 'script:ld+json':
 }
 
 /** A message as plain words: the marks around its stressed words dropped. */
-export function plainText(message: string): string {
-  return message.replaceAll(STRESS, '');
+function plainText(message: string): string {
+  return splitEmphasis(message)
+    .map((run) => run.text)
+    .join('');
 }
 
 function blockText(block: AnswerBlock): string {
