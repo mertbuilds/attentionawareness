@@ -170,3 +170,12 @@ a:not([data-slot='button']):not([data-plain]):focus-visible {
   outline: 1px solid var(--kya-muted);
   outline-offset: 2px;
 }
+
+/*
+ * Selected text is on the accent, the same orange as `accent.base`, in both
+ * themes. The words go black on it: white on this orange is too faint.
+ */
+::selection {
+  background-color: #ff4f00;
+  color: #000000;
+}
