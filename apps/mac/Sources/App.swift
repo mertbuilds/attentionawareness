@@ -65,6 +65,9 @@ struct AttentionAwarenessApp: App {
         #if DEBUG
         let demo = DemoWizardModel.ifAsked()
         self.demo = demo
+        if let demo {
+            DemoSnapshot.scheduleIfAsked(demo)
+        }
         let startUpdater = demo == nil
         #else
         let startUpdater = true
@@ -112,7 +115,7 @@ struct AttentionAwarenessApp: App {
                     Link("Source Code", destination: url)
                 }
                 if let url = SiteLink.support {
-                    Link("Support this project", destination: url)
+                    Link("Support This Project", destination: url)
                 }
             }
             // Demo mode only, in a debug build only. The app as it ships has
@@ -167,7 +170,7 @@ private struct CheckForUpdatesButton: View {
     @State private var canCheck = false
 
     var body: some View {
-        Button("Check for Updates") {
+        Button("Check for Updates…") {
             updater.checkForUpdates()
         }
         .disabled(!canCheck)

@@ -155,10 +155,11 @@ extension ProfileDraft {
             && droppedExceptions.isEmpty
     }
 
-    /// How many sites the filter carries, as the heading says it.
-    var siteSummary: String {
-        let count = sites.count
-        return count == 0 ? "no sites" : Self.count(count, "site")
+    /// How many sites the filter carries, as the heading says it: the number
+    /// alone, the way the Apps heading counts apps, and nothing when there are
+    /// none.
+    var siteSummary: String? {
+        sites.isEmpty ? nil : "\(sites.count)"
     }
 
     /// How many holes the filter keeps open, as the heading says it.

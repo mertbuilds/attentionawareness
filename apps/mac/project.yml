@@ -216,6 +216,7 @@ targets:
       - Sources/UI/WizardModel.swift
       - Sources/UI/OldSupervisionKey.swift
       - Sources/UI/WizardStyle.swift
+      - Sources/UI/StepSymbol.swift
       - Sources/UI/InfoPopover.swift
       - Sources/Device/DeviceWatcher.swift
       - Sources/Device/Lockdown.swift

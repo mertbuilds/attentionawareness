@@ -4,7 +4,7 @@ import SwiftUI
 ///
 /// Everything else is system: system font, system colours, native controls,
 /// light and dark. The one colour of our own is the accent, and it is only
-/// ever the primary button and the progress bar.
+/// ever the primary button, the progress bar and the tick on the last step.
 enum WizardStyle {
     /// The accent of the site and the extension, #ff4f00.
     static let accent = Color(.sRGB, red: 1, green: 0.310, blue: 0, opacity: 1)
@@ -51,8 +51,8 @@ struct InfoButton: View {
                 .foregroundStyle(.secondary)
         }
         .buttonStyle(.plain)
-        .help("More")
-        .accessibilityLabel("More")
+        .help("More Information")
+        .accessibilityLabel("More Information")
         .popover(isPresented: $shown, arrowEdge: .bottom) {
             InfoPopoverContent(text: text, image: image)
         }
@@ -104,6 +104,14 @@ enum SiteLink {
         string: "https://attentionawareness.com/"
             + "?utm_source=share&utm_medium=mac_app&utm_campaign=supervision_done"
     )
+    /// The browser extension in the Chrome Web Store, on the last step. It
+    /// carries a campaign of its own, because it is a link from the app to
+    /// one of our own.
+    static let browserExtension = URL(
+        string: "https://chromewebstore.google.com/detail/attention-awareness/"
+            + "lgcijcijcndmggjiioibfcmppndfakee"
+            + "?utm_source=mac-app&utm_medium=referral&utm_campaign=done"
+    )
     /// The pay-what-you-want page, on the last step and in the Help menu.
     /// Polar keeps the three campaign fields with the checkout.
     static let support = URL(
@@ -123,7 +131,14 @@ enum SiteLink {
 
 /// The shape every step shares: a title, a sentence under it, the step's own
 /// content, whatever went wrong, and the buttons at the bottom.
+///
+/// The buttons sit at the trailing edge, the way a Mac dialog places them:
+/// the filled one last, and every other one a standard bordered button before
+/// it.
 struct StepLayout<Content: View, Actions: View>: View {
+    /// The symbol above the title, for a step that reports how something
+    /// ended. Nil is every other step, which opens on its title.
+    let symbol: StepSymbol?
     let title: String
     let lead: String?
     /// What the "i" beside the title holds, where the title is a claim about
@@ -137,6 +152,7 @@ struct StepLayout<Content: View, Actions: View>: View {
     let actions: Actions
 
     init(
+        symbol: StepSymbol? = nil,
         title: String,
         lead: String? = nil,
         note: String? = nil,
@@ -145,6 +161,7 @@ struct StepLayout<Content: View, Actions: View>: View {
         @ViewBuilder content: () -> Content,
         @ViewBuilder actions: () -> Actions
     ) {
+        self.symbol = symbol
         self.title = title
         self.lead = lead
         self.note = note
@@ -156,6 +173,10 @@ struct StepLayout<Content: View, Actions: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
+            if let symbol {
+                symbol.body
+            }
+
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(title)
                     .font(.title2)
@@ -181,12 +202,16 @@ struct StepLayout<Content: View, Actions: View>: View {
             HStack(spacing: 10) {
                 actions
             }
+            .controlSize(.large)
+            .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        // Every plain button on a step takes the orange. The filled one sets
-        // its own style, so it wins over this. It sits here rather than on the
-        // window so a step drawn on its own carries it too.
-        .buttonStyle(TextButton())
+        // Every button on a step is a standard bordered one. The filled one
+        // and the few that are only a symbol set their own style, so they
+        // win over this. It sits here rather than on the window so a step
+        // drawn on its own carries it too.
+        .buttonStyle(StandardButton())
+        .toggleStyle(BrandCheckbox())
     }
 }
 
@@ -339,28 +364,26 @@ extension View {
     }
 }
 
-/// A button that is only its words. A step has at most one filled button, so
-/// everything beside it would otherwise be grey system furniture. The orange
-/// is what says these are the things you can press.
-struct TextButton: ButtonStyle {
+/// The standard bordered button, for every button on a step but the filled
+/// one. The window tints its controls orange, which would colour the words
+/// of a bordered button too, so these take the system's plain look instead.
+struct StandardButton: PrimitiveButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        RingedLabel(configuration: configuration)
+        Button(configuration)
+            .buttonStyle(.bordered)
+            .tint(nil)
     }
+}
 
-    /// A `ButtonStyle` cannot hold the focus state a ring needs, so the label
-    /// is its own view. It draws the same orange ring the filled button does,
-    /// in the rounded-rect shape a text button rings in.
-    struct RingedLabel: View {
-        let configuration: ButtonStyleConfiguration
-        @Environment(\.isEnabled) private var enabled
-
-        var body: some View {
-            configuration.label
-                .foregroundStyle(configuration.isPressed ? WizardStyle.accentSoft : WizardStyle.accent)
-                .opacity(enabled ? 1 : 0.4)
-                .contentShape(Rectangle())
-                .accentFocusRing(RoundedRectangle(cornerRadius: 6))
-        }
+/// Every checkbox in the app: the native one, in the brand orange. A checkbox
+/// would otherwise take the window's tint, the softer orange of the focus
+/// ring, and the system accent, which is blue on most Macs, outside it. Being
+/// the native toggle, it keeps what VoiceOver says, Space and the focus ring.
+struct BrandCheckbox: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Toggle(configuration)
+            .toggleStyle(.checkbox)
+            .tint(WizardStyle.accent)
     }
 }
 

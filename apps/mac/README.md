@@ -33,8 +33,8 @@ thing by hand; that tool is retired and is not in this repo.
 
 The app is free. There is no license key, no price and no account. People who
 want to can support the work on a pay-what-you-want page, and the last screen
-of a run that went through says so once, with a Support this project button
-and a Share button. The Help menu has Support this project as well. The app
+of a run that went through says so once, with a Support This Project button
+and a Share button. The Help menu has Support This Project as well. The app
 never asks again.
 
 The app is open source under the GNU Affero General Public License, version 3
@@ -191,7 +191,8 @@ is sent to an iPhone.
 `--ui-smoke` builds every step of the wizard offscreen and prints the size each
 one asks for, so the window can be checked on a Mac whose display is asleep. Add
 a folder, `--ui-smoke /tmp/shots`, and it writes a picture of each step there as
-well. It also unplugs the iPhone from each step past Connect and exits non-zero
+well. Add `--appearance light` or `--appearance dark` to draw them that way,
+whatever this Mac is set to. It also unplugs the iPhone from each step past Connect and exits non-zero
 when one of them lands on a step other than the one it should.
 
 `--demo` opens the real window on a wizard that reaches no iPhone, no disk and

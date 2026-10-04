@@ -187,8 +187,8 @@ struct RestrictionsBuilder: View {
             Button("Reset to Recommended") {
                 model.draft.resetLists()
             }
-            .buttonStyle(.link)
-            .font(.callout)
+            .buttonStyle(StandardButton())
+            .controlSize(.small)
         }
     }
 
@@ -329,9 +329,9 @@ struct RestrictionsBuilder: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        // A checkbox takes the system accent, which is blue on most Macs.
-        // Everything the app switches on is orange.
-        .tint(WizardStyle.accent)
+        // The builder is also drawn outside a step, so it names the shared
+        // checkbox itself rather than relying on the step's.
+        .toggleStyle(BrandCheckbox())
     }
 
     /// One storefront as the menu names it, which is the flag and the country.
@@ -402,7 +402,7 @@ struct RemoveButton: View {
         }
         .buttonStyle(.borderless)
         .foregroundStyle(armed ? WizardStyle.accent : Color.secondary)
-        .accessibilityLabel(armed ? "Remove \(what), tap again to confirm" : "Remove \(what)")
+        .accessibilityLabel(armed ? "Remove \(what), click again to confirm" : "Remove \(what)")
         .help(armed ? "Click again to remove \(what)" : "Remove \(what)")
         // A question left standing is a question nobody answered, so it takes
         // itself back rather than waiting to be clicked by accident later.
