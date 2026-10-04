@@ -619,7 +619,7 @@ function HomePage() {
   // What the manual way is, each with its tick.
   const guidePromises = [
     m.home_how_guide_steps(),
-    m.home_how_guide_configurator(),
+    m.home_how_guide_free(),
     m.home_how_guide_erase(),
   ];
 
