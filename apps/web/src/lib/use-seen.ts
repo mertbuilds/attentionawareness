@@ -24,7 +24,9 @@ export const SEEN = '-10% 0px -30% 0px';
  * on screen. It turns on once the element reaches the part of the window
  * `SEEN` leaves, and off only once the element has left the window
  * altogether, so nothing stops or starts over while it is still in sight.
- * With `once` it stays on from the first time.
+ * In a window so tall that the page ends before the element gets that far, it
+ * turns on once the page can scroll no further with the element in the
+ * window. With `once` it stays on from the first time.
  */
 export function useSeen(
   ref: RefObject<Element | null>,
@@ -49,8 +51,23 @@ export function useSeen(
       { rootMargin: SEEN },
     );
     entering.observe(element);
+    // At the page's end the element is as far up the window as it will get.
+    const atEnd = () => {
+      if (window.scrollY + window.innerHeight < document.documentElement.scrollHeight - 1) {
+        return;
+      }
+      const { bottom, top } = element.getBoundingClientRect();
+      if (bottom > 0 && top < window.innerHeight) {
+        setSeen(true);
+      }
+    };
+    window.addEventListener('scroll', atEnd, { passive: true });
+    atEnd();
     if (once) {
-      return () => entering.disconnect();
+      return () => {
+        entering.disconnect();
+        window.removeEventListener('scroll', atEnd);
+      };
     }
     const leaving = new IntersectionObserver((entries) => {
       if (entries.at(-1)?.isIntersecting === false) {
@@ -61,6 +78,7 @@ export function useSeen(
     return () => {
       entering.disconnect();
       leaving.disconnect();
+      window.removeEventListener('scroll', atEnd);
     };
   }, [once, ref]);
 

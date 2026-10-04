@@ -172,16 +172,17 @@ function StepTitle({ mark, text }: { mark: ReactNode; text: string }) {
 
 /**
  * How the Mac app works, in three steps, each with its drawing over its
- * title and line. A drawing plays as its step comes on screen, steps on
- * screen together play in order, and they play again after a rest for as
- * long as they are on screen. Off screen, or with the tab put away, a step
- * goes back to its start, so it plays from there when it is back. With less
- * motion every drawing stands finished.
+ * title and line. A step is on screen while its drawing is, whatever of its
+ * words still shows. A drawing plays as it comes on screen, steps on screen
+ * together play in order, and they play again after a rest for as long as
+ * they are on screen. Off screen, or with the tab put away, a step goes back
+ * to its start, so it plays from there when it is back. With less motion
+ * every drawing stands finished.
  */
 export function HowItWorks() {
-  const plug = useRef<HTMLLIElement>(null);
-  const choose = useRef<HTMLLIElement>(null);
-  const stays = useRef<HTMLLIElement>(null);
+  const plug = useRef<SVGSVGElement>(null);
+  const choose = useRef<SVGSVGElement>(null);
+  const stays = useRef<SVGSVGElement>(null);
   const seen = [useSeen(plug), useSeen(choose), useSeen(stays)];
   const items = [plug, choose, stays];
   const hidden = useTabHidden();
@@ -197,8 +198,8 @@ export function HowItWorks() {
       <BillFilters />
       <ol {...props(styles.list)}>
         {STEPS.map(({ Graphic, ...step }, index) => (
-          <li key={step.key} ref={items[index]} {...props(styles.step)}>
-            <Graphic play={playing[index] === true} />
+          <li key={step.key} {...props(styles.step)}>
+            <Graphic play={playing[index] === true} ref={items[index]} />
             <h3 {...props(styles.stepTitle)}>
               <span {...props(styles.number)}>{index + 1}</span>{' '}
               <StepTitle
