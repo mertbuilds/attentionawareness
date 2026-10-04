@@ -93,11 +93,16 @@ site's own proxy in front of its PostHog project, with this body:
 - Nothing names the iPhone, the Mac or the person, and nothing about the
   blocked apps and sites is sent, not even how many.
 - The request carries the IP address of the Mac, as every request does, and
-  the proxy and PostHog see it in transit. The body asks PostHog to make no
-  person profile, and it turns off the place lookup from that address.
+  the proxy and PostHog see it in transit. `$process_person_profile: false`
+  means PostHog makes no person profile. `$geoip_disable: true` means no place
+  is worked out from the address: no country, no city, no coordinates.
   Whether PostHog stores the address with the event is a setting of the
-  PostHog project ("IP data capture"), not something the app controls. It
-  must be set to discard for the count to hold no address.
+  PostHog project ("IP data capture"), not something the app controls. It is
+  set to discard, so the count holds no address.
+- The request has three headers of its own: `Content-Type: application/json`,
+  `User-Agent: attentionawareness-mac/0.4.0` (the app version, in place of the
+  one macOS would write, which names the Darwin build) and
+  `Accept-Language: en` (in place of the languages this Mac is set to).
 - The request has a timeout of 5 seconds and is never sent again. A failure is
   silent and changes nothing in the app.
 - A debug build sends nothing, so `--demo`, `--ui-smoke` and the tests send

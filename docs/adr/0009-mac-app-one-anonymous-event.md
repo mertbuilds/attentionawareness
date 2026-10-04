@@ -38,7 +38,8 @@ Date: 2026-10-04. Status: accepted.
 - `method` is `full_copy` or `fast`.
 - `ios_major` is the first number of the iOS version. It is left out when the iPhone gave no version.
 - `distinct_id` is made new for each event and is not stored, so two events cannot be tied to each other or to a person.
-- `$process_person_profile: false` tells PostHog to make no person profile. `$geoip_disable: true` tells PostHog to work out no place from the address of the request.
+- `$process_person_profile: false` tells PostHog to make no person profile. `$geoip_disable: true` is the property PostHog's server libraries set for their `disable_geoip` option, and with it no place is worked out from the address of the request: no country, no city, no coordinates.
+- The request sets `User-Agent: attentionawareness-mac/<app version>` and `Accept-Language: en`, in place of the headers macOS would write, which name the Darwin build and the languages the Mac is set to.
 
 ## What is never sent
 
@@ -49,4 +50,4 @@ Date: 2026-10-04. Status: accepted.
 ## What we cannot promise
 
 - Every request carries the IP address of the Mac. The proxy and PostHog see it in transit.
-- Whether PostHog stores that address with the event is a setting of the PostHog project ("IP data capture"), not something the app controls. It must be set to discard for the count to hold no address.
+- Whether PostHog stores that address with the event is a setting of the PostHog project ("IP data capture"), not something the app controls. It is set to discard (checked 2026-10-04), so the count holds no address. It has to stay that way.

@@ -67,6 +67,9 @@ struct SupervisionFinishedEventTests {
         #expect(request.url?.absoluteString == "https://e.attentionawareness.com/i/v0/e/")
         #expect(request.httpMethod == "POST")
         #expect(request.value(forHTTPHeaderField: "Content-Type") == "application/json")
+        // Fixed, so the request names no Darwin build and no language of this Mac.
+        #expect(request.value(forHTTPHeaderField: "User-Agent") == "attentionawareness-mac/0.4.0")
+        #expect(request.value(forHTTPHeaderField: "Accept-Language") == "en")
         #expect(request.timeoutInterval == 5)
     }
 

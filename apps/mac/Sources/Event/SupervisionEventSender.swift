@@ -18,6 +18,10 @@ enum SupervisionEventSender {
         var request = URLRequest(url: endpoint, timeoutInterval: timeout)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        // The headers macOS would fill in name the Darwin build and the
+        // languages this Mac is set to, so both are fixed here.
+        request.setValue("attentionawareness-mac/\(event.appVersion)", forHTTPHeaderField: "User-Agent")
+        request.setValue("en", forHTTPHeaderField: "Accept-Language")
         request.httpBody = body
         return request
     }
