@@ -4,7 +4,7 @@ import SwiftUI
 ///
 /// Everything else is system: system font, system colours, native controls,
 /// light and dark. The one colour of our own is the accent, and it is only
-/// ever the primary button and the progress bar.
+/// ever the primary button, the progress bar and the tick on the last step.
 enum WizardStyle {
     /// The accent of the site and the extension, #ff4f00.
     static let accent = Color(.sRGB, red: 1, green: 0.310, blue: 0, opacity: 1)
@@ -106,6 +106,14 @@ enum SiteLink {
     )
     /// The pay-what-you-want page, on the last step and in the Help menu.
     /// Polar keeps the three campaign fields with the checkout.
+    /// The browser extension in the Chrome Web Store, on the last step. It
+    /// carries a campaign of its own, because it is a link from the app to
+    /// one of our own.
+    static let browserExtension = URL(
+        string: "https://chromewebstore.google.com/detail/attention-awareness/"
+            + "lgcijcijcndmggjiioibfcmppndfakee"
+            + "?utm_source=mac-app&utm_medium=referral&utm_campaign=done"
+    )
     static let support = URL(
         string: "https://buy.polar.sh/polar_cl_ftX1jafCvlNQXeQZRhjMjBLd2ChzzBp1LTIY63l0MBh"
             + "?utm_source=mac_app&utm_medium=app&utm_campaign=supervision_done"
@@ -128,6 +136,9 @@ enum SiteLink {
 /// the filled one last, and every other one a standard bordered button before
 /// it.
 struct StepLayout<Content: View, Actions: View>: View {
+    /// The symbol above the title, for the one step that reports a result.
+    /// Nil is every other step, which opens on its title.
+    let symbol: String?
     let title: String
     let lead: String?
     /// What the "i" beside the title holds, where the title is a claim about
@@ -141,6 +152,7 @@ struct StepLayout<Content: View, Actions: View>: View {
     let actions: Actions
 
     init(
+        symbol: String? = nil,
         title: String,
         lead: String? = nil,
         note: String? = nil,
@@ -149,6 +161,7 @@ struct StepLayout<Content: View, Actions: View>: View {
         @ViewBuilder content: () -> Content,
         @ViewBuilder actions: () -> Actions
     ) {
+        self.symbol = symbol
         self.title = title
         self.lead = lead
         self.note = note
@@ -160,6 +173,16 @@ struct StepLayout<Content: View, Actions: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
+            if let symbol {
+                // The title says the same thing in words, so VoiceOver skips
+                // the picture.
+                Image(systemName: symbol)
+                    .font(.system(size: 40))
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(WizardStyle.accent)
+                    .accessibilityHidden(true)
+            }
+
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(title)
                     .font(.title2)
