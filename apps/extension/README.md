@@ -1,6 +1,6 @@
 # @attentionawareness/extension
 
-The browser extension. It removes the surfaces that farm attention: the "For
+The browser extension. It hides the addictive feeds: the "For
 you" tab on X, every Shorts shelf on YouTube, Reels and Explore on Instagram.
 Nothing else goes. Feeds you chose, messages, notifications and profiles stay
 where they are.

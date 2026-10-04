@@ -1,6 +1,6 @@
 # attention awareness
 
-Open-source site, browser extension and Mac app to take your attention back. <https://attentionawareness.com>
+Block distraction from your iPhone. Permanently. A free Mac app, a browser extension and the site, all open source. <https://attentionawareness.com>
 
 The product is three parts: the site, the browser extension and the Mac app.
 All three live here. The Mac app ships from the site.
@@ -9,23 +9,24 @@ All three live here. The Mac app ships from the site.
 
 ### `apps/web`
 
-The site. A landing page, the download for the Mac app, and the guide to the
-extension. It also signs the configuration profile: `POST /api/sign` is what
+The site. A landing page, the download for the Mac app, the manual guide, the
+profile builder, the blog and the open numbers page. It also signs the configuration profile: `POST /api/sign` is what
 the Mac app asks for the profile it installs. TanStack Start on Cloudflare
 Workers; the founding stack decisions are in
 [docs/adr/0001-stack.md](docs/adr/0001-stack.md).
 
 ### `apps/extension`
 
-A Chromium extension that hides the feeds on X, YouTube, Instagram and TikTok
-with CSS, plus custom CSS of your own per domain. It is in the
+A Chromium extension that hides the addictive feeds on YouTube, Instagram and
+X with CSS, plus custom CSS of your own per domain. It is free. It is in the
 [Chrome Web Store](https://chromewebstore.google.com/detail/attention-awareness/lgcijcijcndmggjiioibfcmppndfakee).
 See [apps/extension/README.md](apps/extension/README.md).
 
 ### `apps/mac`
 
-The Mac app. Native Swift and SwiftUI, macOS 14 and later, Apple Silicon. It
-supervises a connected iPhone over USB and installs the restrictions. It is
+The Mac app. Native Swift and SwiftUI, macOS 14 and later, Apple silicon. It
+supervises a connected iPhone over USB without erasing it, and installs the
+restrictions. It is free, with no account and no key. It is
 not part of the pnpm workspace: Xcode builds it. See
 [apps/mac/README.md](apps/mac/README.md).
 
@@ -42,7 +43,8 @@ not part of the pnpm workspace: Xcode builds it. See
   Configurator, which erases it. Both are free.
 - Profiles are signed on the server with a Developer ID certificate and carry a
   unique identifier per install, so a second profile stacks on the first
-  instead of replacing it and only an erase takes one off. Trial mode is the
+  instead of replacing it. Nothing on the phone takes one off: that takes an
+  erase, or Apple Configurator on a Mac. Trial mode is the
   exception and stays removable in Settings. See
   [docs/signing.md](docs/signing.md).
 

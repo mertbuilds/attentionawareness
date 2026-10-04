@@ -5,16 +5,16 @@ import type { SiteId } from './sites.ts';
  * is not wired here, and one file is all a second language would need.
  */
 export const strings = {
-  add: 'Add a site',
+  add: 'Add a website',
   badDomain: 'That is not a domain.',
   brand: 'attention awareness',
-  copyHint: 'Enter a site first',
+  copyHint: 'Enter a website first',
   copyPrompt: 'Copy a prompt for your AI',
   copyPromptDone: 'Copied',
   cssFieldLabel: 'Your CSS',
   customCss: 'Custom CSS',
   customIntro:
-    "Your own rules. One block per site, applied on top of the built-in ones. If you don't write CSS, copy a prompt for your AI and paste back what it gives you.",
+    "Your own rules. One block per website, applied on top of the built-in ones. If you don't write CSS, copy a prompt for your AI and paste back what it gives you.",
   domainLabel: 'Domain',
   domainPlaceholder: 'reddit.com',
   enabledLabel: 'Rule on',
@@ -22,7 +22,6 @@ export const strings = {
   remove: 'Remove',
   removeConfirm: 'Sure?',
   saved: 'Saved',
-  website: 'attentionawareness.com',
 } as const;
 
 /** The lines that need a number or a name in them. */
@@ -30,7 +29,7 @@ export const sentences = {
   /** How the popup says there is more than the three sites in play. */
   customCount: (count: number) => (count === 1 ? '1 custom rule' : `${count} custom rules`),
   /** The browser asked, the reader said no, and the rule stays off. */
-  denied: (domain: string) => `Brave did not grant access to ${domain}`,
+  denied: (domain: string) => `The browser did not grant access to ${domain}`,
   /** The brief the reader hands their own AI to get CSS back for a domain. */
   promptTemplate: (domain: string) =>
     `I use a browser extension that hides distracting feeds with CSS. Help me write a CSS rule for ${domain}.
