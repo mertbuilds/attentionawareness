@@ -117,7 +117,7 @@
   "home_faq_needs_a1": "**A Mac with Apple silicon and macOS 14 or newer**, for one afternoon.",
   "home_faq_needs_item_friend": "A friend's Mac works too. Delete the app when you are done.",
   "home_faq_needs_item_phone": "Your iPhone needs no app, and no Mac afterwards.",
-  "home_faq_needs_item_copy": "The app deletes its copy of your iPhone once your blocks are on.",
+  "home_faq_needs_item_copy": "Nothing of your iPhone stays on the Mac afterwards.",
   "home_faq_data_term": "Can I lose data?",
   "home_faq_data_a1": "**The app does not erase your iPhone.** Still, back up first. If something goes wrong, the backup is the way back. **We are not responsible for lost data.**",
   "home_faq_data_icloud": "**Back up with iCloud:**",
