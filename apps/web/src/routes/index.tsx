@@ -6,6 +6,7 @@ import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { useId, useState } from 'react';
 import { AngleDown, Check } from 'reicon-react';
+import { PaperLetter } from '../components/bill-paper.tsx';
 import { ExtensionBrowser } from '../components/extension-browser.tsx';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { HeroPhone } from '../components/hero-phone.tsx';
@@ -362,6 +363,19 @@ const styles = create({
     paddingInline: spacing.s4,
     // The containing block the footer's graph paper measures itself against.
     position: 'relative',
+  },
+  // The sheet the story is written on: the column's width, with room around
+  // the words, less of it on a phone.
+  letter: {
+    boxSizing: 'border-box',
+    paddingBlock: {
+      '@media (min-width: 640px)': spacing.s12,
+      default: spacing.s8,
+    },
+    paddingInline: {
+      '@media (min-width: 640px)': spacing.s12,
+      default: spacing.s6,
+    },
   },
   // One way out: its name, what it is, what it keeps, then its button at the
   // foot, level with the other card's.
@@ -772,44 +786,48 @@ function HomePage() {
           <SupportSection titleStyle={styles.displayTitle} />
         </section>
 
-        {/* Who made this and why, told rather than argued. */}
-        <section {...props(styles.section, styles.anchor)} id={STORY_ID}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_story_title()}</h2>
-          <div {...props(styles.story)}>
-            <p {...props(styles.storyLine)}>{m.home_story_people()}</p>
-            <ScreenShots
-              shots={[
-                {
-                  alt: m.home_story_shot_friend_1(),
-                  height: 640,
-                  src: '/media/screentime-friends/friend-1-week-sep-14.webp',
-                  width: 800,
-                },
-              ]}
-            />
-            <p {...props(styles.storyLine)}>
-              {attentionParts.map((part) => {
-                const word = attentionWords.get(part);
-                return word === undefined ? (
-                  part
-                ) : (
-                  <span key={part} {...props(styles.accentWord)}>
-                    {word}
-                  </span>
-                );
-              })}
-            </p>
-            {/* Not against the networks, only what their feeds take. */}
-            <p {...props(styles.storyLine)}>{m.home_story_social()}</p>
-            <p {...props(styles.storyLine)}>
-              {storyBefore}
-              <a href={STORY_URL} rel="noreferrer" target="_blank">
-                {m.home_story_path_link()}
-              </a>
-              {storyAfter}
-            </p>
-            <Signature />
-          </div>
+        {/* Who made this and why, told rather than argued: a letter on a
+        sheet of paper, signed at its foot. */}
+        <section {...props(styles.anchor)} id={STORY_ID}>
+          <PaperLetter ink={styles.section} style={styles.letter}>
+            <h2 {...props(styles.sectionTitle)}>{m.home_story_title()}</h2>
+            <div {...props(styles.story)}>
+              <p {...props(styles.storyLine)}>{m.home_story_people()}</p>
+              <ScreenShots
+                caption={m.home_story_shot_caption()}
+                shots={[
+                  {
+                    alt: m.home_story_shot_friend_1(),
+                    height: 640,
+                    src: '/media/screentime-friends/friend-1-week-sep-14.webp',
+                    width: 800,
+                  },
+                ]}
+              />
+              <p {...props(styles.storyLine)}>
+                {attentionParts.map((part) => {
+                  const word = attentionWords.get(part);
+                  return word === undefined ? (
+                    part
+                  ) : (
+                    <span key={part} {...props(styles.accentWord)}>
+                      {word}
+                    </span>
+                  );
+                })}
+              </p>
+              {/* Not against the networks, only what their feeds take. */}
+              <p {...props(styles.storyLine)}>{m.home_story_social()}</p>
+              <p {...props(styles.storyLine)}>
+                {storyBefore}
+                <a href={STORY_URL} rel="noreferrer" target="_blank">
+                  {m.home_story_path_link()}
+                </a>
+                {storyAfter}
+              </p>
+              <Signature />
+            </div>
+          </PaperLetter>
         </section>
 
         {/* The questions, last of the sections: after them only the line the

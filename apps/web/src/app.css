@@ -234,3 +234,36 @@ html[data-aa-wip-off] [data-aa-wip] {
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
+
+/*
+ * A letter stands on paper a shade off the page (`PaperLetter`), in both
+ * themes. On that gray the muted ink and the hairlines would be too faint, so
+ * inside a letter each is a step stronger: both are mixed from the theme's own
+ * ink and ground, so they follow the theme the reader chose.
+ */
+[data-paper='letter'] {
+  --kya-border: color-mix(in srgb, var(--foreground) 40%, var(--background));
+  --kya-muted: color-mix(in srgb, var(--foreground) 60%, var(--background));
+}
+
+/*
+ * What is on a letter is printed on it, not laid over it: each title,
+ * paragraph and picture goes through the same ink filter a scrap's lines do
+ * (`bill-ink` in `bill-paper.tsx`), which roughens its edges by about a pixel
+ * and thins the ink in patches. Block by block, so the signature's pen only
+ * redraws its own line. The words stay words: they are still selected, found
+ * and read out. On the light paper the ink is multiplied, so the grain and the
+ * folds come through it; on the dark paper multiplying would wipe light ink
+ * out, so it is only thinned a little.
+ */
+[data-paper='letter'] :is(h2, p, figure) {
+  filter: url(#bill-ink);
+}
+
+[data-paper='letter'][data-ink='light'] :is(h2, p, figure) {
+  mix-blend-mode: multiply;
+}
+
+[data-paper='letter'][data-ink='dark'] :is(h2, p, figure) {
+  opacity: 0.94;
+}
