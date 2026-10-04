@@ -146,6 +146,7 @@ final class LockdownSession {
         do {
             if handshake {
                 try Pairing.open(
+                    udid: udid,
                     handshake: { lockdownd_client_new_with_handshake(device, &client, Self.label) },
                     pair: { Self.pair(device) }
                 )

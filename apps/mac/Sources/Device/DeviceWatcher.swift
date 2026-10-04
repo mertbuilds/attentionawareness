@@ -151,6 +151,12 @@ final class DeviceWatcher: ObservableObject {
         }
     }
 
+    /// True while a phone on the cable is locked, waits for Trust or could
+    /// not be read, which is when reading it again can change the answer.
+    var hasPendingDevice: Bool {
+        devices.contains { $0.pairingState != .paired } || (lastError != nil && !onCable.isEmpty)
+    }
+
     /// Reads every phone again. Safe to call from anywhere on the main actor.
     ///
     /// A sample watcher reads nothing: what it publishes was handed to it, and

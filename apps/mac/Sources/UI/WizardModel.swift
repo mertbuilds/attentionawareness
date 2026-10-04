@@ -34,6 +34,8 @@ class WizardModel: ObservableObject {
     }
     /// How often the iPhone is read while the job waits for it to come back.
     var restartPollInterval: Duration { .seconds(2) }
+    /// How often a locked or untrusted iPhone is read again outside the job.
+    var pendingPollInterval: Duration { .milliseconds(2500) }
     /// How long Check Again reads for before the screen offers it again.
     var checkAgainTimeout: TimeInterval { 20 }
     /// How often the iPhone is read again while a check is waiting for it.
@@ -124,6 +126,9 @@ class WizardModel: ObservableObject {
 
     private var relays: [AnyCancellable] = []
     private var poll: Task<Void, Never>?
+    /// Reads an iPhone that is locked or waiting for Trust again, on the steps
+    /// that have no poll of their own. See `followPendingDevices()`.
+    private var pendingPoll: Task<Void, Never>?
     /// The job, from the first byte of the copy to the iPhone saying what it is
     /// now. Every move off the job screen cancels it, so two of them can never
     /// run at once.
@@ -241,6 +246,7 @@ class WizardModel: ObservableObject {
                     self?.becameActive()
                 },
         ]
+        followPendingDevices()
     }
 
     /// A model whose run is already over: an iPhone that came back on the cable
@@ -606,6 +612,7 @@ class WizardModel: ObservableObject {
     /// starts it here, so entering it twice cannot leave two runs going.
     private func go(to step: WizardStep) {
         poll?.cancel()
+        pendingPoll?.cancel()
         errorMessage = nil
         // Every way off the job screen ends the job, whether the work went
         // through or somebody walked away from it.
@@ -624,6 +631,26 @@ class WizardModel: ObservableObject {
             refreshInstalledProfiles()
         case .connect, .job, .done:
             break
+        }
+        // Ready reads on its own poll and the job on its own waits, and the
+        // job's helper has the iPhone to itself.
+        if step != .ready, step != .job { followPendingDevices() }
+    }
+
+    /// Read the cable again every few seconds while an iPhone on it is locked,
+    /// waits for Trust or could not be read. A locked iPhone sends nothing
+    /// when it is unlocked: usbmuxd cannot listen to a phone that has not
+    /// been unlocked since it started, so without this the screen would say
+    /// "Unlock iPhone." until the cable was pulled. Nothing is read while
+    /// every iPhone is paired or the cable is empty.
+    private func followPendingDevices() {
+        pendingPoll = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let interval = self?.pendingPollInterval else { return }
+                try? await Task.sleep(for: interval)
+                guard let self, !Task.isCancelled else { return }
+                if self.watcher.hasPendingDevice { self.watcher.reload() }
+            }
         }
     }
 

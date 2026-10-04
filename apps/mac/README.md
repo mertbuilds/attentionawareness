@@ -46,7 +46,15 @@ iPhone that is locked, "Tap Trust on iPhone." for one that asks for trust.
 Every lockdown session that meets InvalidHostID sends Pair once (`Pairing` in
 `Sources/Device/Pairing.swift`): a locked iPhone answers that it needs its
 passcode, an unlocked one shows Trust, and once Trust is tapped the next Pair
-saves a new record through usbmuxd and the read goes on.
+saves a new record through usbmuxd and the read goes on. Pair is sent at
+most every 2 seconds to a locked iPhone and every 5 seconds while Trust is on
+screen (`PairThrottle`); the handshake runs on every read, so a record saved
+by anything on this Mac is picked up at once. A Pair the iPhone accepted whose
+record is still refused is a failure ("couldn't keep the pairing"), not a wait
+for Trust. Outside the job and Ready, the wizard reads the cable every 2.5
+seconds while an iPhone on it is locked, waits for Trust or could not be read,
+because an unlock sends no event, and reads nothing while every iPhone is
+paired.
 After 5 minutes for the fast method and 15 for the full copy the screen
 becomes "iPhone Didn't Reconnect" with Check Again, and the reading goes on
 underneath. Check Again reads the iPhone and nothing else: it sends no

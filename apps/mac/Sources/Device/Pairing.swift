@@ -29,6 +29,7 @@ enum DeviceLog {
         case .unexpectedResponse(let request): return "unexpectedResponse \(request)"
         case .requestRefused(let request, _): return "requestRefused \(request)"
         case .profileRejected: return "profileRejected"
+        case .pairRecordRejected: return "pairRecordRejected"
         }
     }
 }
@@ -49,17 +50,47 @@ enum Pairing {
     /// Runs `handshake`, and on InvalidHostID sends `pair` and runs the
     /// handshake once more when the iPhone said yes. Throws the state the
     /// iPhone is in otherwise.
+    ///
+    /// Each Pair makes a new pair record, and what a Pair every two seconds
+    /// does to a Trust dialog already on screen is not known, so `throttle`
+    /// spaces them out per iPhone. In between, the handshake still runs: it
+    /// goes through as soon as anything on this Mac has saved a record the
+    /// iPhone accepts.
     static func open(
+        udid: String,
+        throttle: PairThrottle = .shared,
+        now: Date = Date(),
         handshake: () -> lockdownd_error_t,
         pair: () -> lockdownd_error_t
     ) throws {
         var status = handshake()
-        if status == LOCKDOWN_E_INVALID_HOST_ID {
-            let paired = pair()
-            DeviceLog.logger.notice(
-                "pair after InvalidHostID: \(name(paired), privacy: .public) (\(paired.rawValue, privacy: .public))"
-            )
-            status = paired == LOCKDOWN_E_SUCCESS ? handshake() : paired
+        if status == LOCKDOWN_E_SUCCESS {
+            throttle.forget(udid)
+        } else if status == LOCKDOWN_E_INVALID_HOST_ID {
+            if let held = throttle.reserve(udid, at: now) {
+                DeviceLog.logger.debug("pair skipped, last answer \(name(held), privacy: .public)")
+                status = held
+            } else {
+                DeviceLog.logger.debug("pair sent")
+                let paired = pair()
+                throttle.record(udid, answer: paired, at: now)
+                DeviceLog.logger.notice(
+                    "pair after InvalidHostID: \(name(paired), privacy: .public) (\(paired.rawValue, privacy: .public))"
+                )
+                if paired == LOCKDOWN_E_SUCCESS {
+                    status = handshake()
+                    // The iPhone said yes, so InvalidHostID now means the
+                    // record was not saved or not read back. That is no wait
+                    // for the person, and "Tap Trust" would never end.
+                    if status == LOCKDOWN_E_INVALID_HOST_ID {
+                        DeviceLog.logger.error("pair succeeded but the record was not accepted")
+                        throw DeviceError.pairRecordRejected
+                    }
+                    if status == LOCKDOWN_E_SUCCESS { throttle.forget(udid) }
+                } else {
+                    status = paired
+                }
+            }
         }
         guard status == LOCKDOWN_E_SUCCESS else {
             DeviceLog.logger.error(
@@ -119,5 +150,53 @@ extension DeviceError {
         case .trustDenied: return .untrusted
         default: return nil
         }
+    }
+}
+
+/// When each iPhone was last sent Pair and what it answered, so a Pair is
+/// not sent again too soon. Reads run on several threads, so a Pair is
+/// reserved before it is sent and a second read meanwhile sends none.
+final class PairThrottle: @unchecked Sendable {
+    static let shared = PairThrottle()
+
+    /// How long an answer stands before the next Pair. A locked iPhone shows
+    /// nothing, so it is asked again soon; a Trust dialog on screen is left
+    /// alone longer.
+    static func interval(after answer: lockdownd_error_t) -> TimeInterval {
+        switch answer {
+        case LOCKDOWN_E_PASSWORD_PROTECTED: return 2
+        case LOCKDOWN_E_PAIRING_DIALOG_RESPONSE_PENDING, LOCKDOWN_E_USER_DENIED_PAIRING: return 5
+        default: return 0
+        }
+    }
+
+    private struct Attempt {
+        var at: Date
+        var answer: lockdownd_error_t?
+    }
+
+    private let lock = NSLock()
+    private var attempts: [String: Attempt] = [:]
+
+    /// Nil when a Pair may be sent now, and marks it as out. Otherwise the
+    /// answer the read reports instead: the last one, or InvalidHostID while
+    /// a Pair is still out.
+    func reserve(_ udid: String, at now: Date) -> lockdownd_error_t? {
+        lock.withLock {
+            if let last = attempts[udid] {
+                guard let answer = last.answer else { return LOCKDOWN_E_INVALID_HOST_ID }
+                if now.timeIntervalSince(last.at) < Self.interval(after: answer) { return answer }
+            }
+            attempts[udid] = Attempt(at: now, answer: nil)
+            return nil
+        }
+    }
+
+    func record(_ udid: String, answer: lockdownd_error_t, at now: Date) {
+        lock.withLock { attempts[udid] = Attempt(at: now, answer: answer) }
+    }
+
+    func forget(_ udid: String) {
+        lock.withLock { _ = attempts.removeValue(forKey: udid) }
     }
 }

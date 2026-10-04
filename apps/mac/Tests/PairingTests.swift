@@ -36,6 +36,56 @@ struct PairingTests {
         #expect(phone.pairs == pairs)
     }
 
+    @Test func aTrustDialogOnScreenIsNotSentAnotherPairForFiveSeconds() throws {
+        let phone = FakeLockdown()
+        phone.tick = 0
+        phone.forget()
+        #expect(throws: DeviceError.trustPending) { try phone.open() }
+        #expect(phone.pairs == 1)
+        phone.advance(2)
+        #expect(throws: DeviceError.trustPending) { try phone.open() }
+        phone.advance(2)
+        #expect(throws: DeviceError.trustPending) { try phone.open() }
+        #expect(phone.pairs == 1)
+        phone.accepted = true
+        phone.advance(1)
+        try phone.open()
+        #expect(phone.pairs == 2)
+    }
+
+    @Test func aLockedPhoneIsAskedAgainAfterTwoSeconds() {
+        let phone = FakeLockdown()
+        phone.tick = 0
+        phone.forget()
+        phone.locked = true
+        #expect(throws: DeviceError.locked) { try phone.open() }
+        phone.advance(1)
+        #expect(throws: DeviceError.locked) { try phone.open() }
+        #expect(phone.pairs == 1)
+        phone.advance(1)
+        phone.locked = false
+        #expect(throws: DeviceError.trustPending) { try phone.open() }
+        #expect(phone.pairs == 2)
+        #expect(phone.dialogShown)
+    }
+
+    @Test func aPairOutAlreadyIsNotSentTwice() {
+        let throttle = PairThrottle()
+        let now = Date()
+        #expect(throttle.reserve("phone", at: now) == nil)
+        #expect(throttle.reserve("phone", at: now) == LOCKDOWN_E_INVALID_HOST_ID)
+        #expect(throttle.reserve("other", at: now) == nil)
+    }
+
+    @Test func aRecordTheMacCouldNotKeepIsAFailureNotAWaitForTrust() {
+        let phone = FakeLockdown()
+        phone.forget()
+        phone.accepted = true
+        phone.loseSavedRecord = true
+        #expect(throws: DeviceError.pairRecordRejected) { try phone.open() }
+        #expect(DeviceError.pairRecordRejected.pairingState == nil)
+    }
+
     @Test func dontTrustIsReported() {
         let phone = FakeLockdown()
         phone.forget()
@@ -46,7 +96,7 @@ struct PairingTests {
     @Test func otherFailuresAreNotAnsweredWithPair() {
         var pairs = 0
         #expect(throws: DeviceError.lockdownFailed(code: LOCKDOWN_E_RECEIVE_TIMEOUT.rawValue)) {
-            try Pairing.open(handshake: { LOCKDOWN_E_RECEIVE_TIMEOUT }, pair: {
+            try Pairing.open(udid: "phone", throttle: PairThrottle(), handshake: { LOCKDOWN_E_RECEIVE_TIMEOUT }, pair: {
                 pairs += 1
                 return LOCKDOWN_E_SUCCESS
             })
@@ -108,8 +158,33 @@ final class FakeLockdown: @unchecked Sendable {
         }
     }
 
+    /// Each iPhone gets its own throttle, on a clock the test moves. Every
+    /// read moves it on by `tick`, the way the Mac's reads are spaced.
+    let throttle = PairThrottle()
+    private var clock = Date(timeIntervalSinceReferenceDate: 0)
+    private var step: TimeInterval = 3
+    private var refuseSavedRecord = false
+
+    var tick: TimeInterval {
+        get { lock.withLock { step } }
+        set { lock.withLock { step = newValue } }
+    }
+    /// Pair goes through but the record never reaches the Mac's store.
+    var loseSavedRecord: Bool {
+        get { lock.withLock { refuseSavedRecord } }
+        set { lock.withLock { refuseSavedRecord = newValue } }
+    }
+
+    func advance(_ seconds: TimeInterval) {
+        lock.withLock { clock += seconds }
+    }
+
     func open() throws {
-        try Pairing.open(handshake: handshake, pair: pair)
+        let now = lock.withLock {
+            clock += step
+            return clock
+        }
+        try Pairing.open(udid: "phone", throttle: throttle, now: now, handshake: handshake, pair: pair)
     }
 
     /// `lockdownd_client_new_with_handshake`: pairs on its own only when the
@@ -132,7 +207,7 @@ final class FakeLockdown: @unchecked Sendable {
             let host = nextHost
             nextHost += 1
             known.insert(host)
-            record = host
+            if !refuseSavedRecord { record = host }
             return LOCKDOWN_E_SUCCESS
         }
     }
