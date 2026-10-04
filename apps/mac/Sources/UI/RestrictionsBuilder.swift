@@ -401,7 +401,7 @@ struct RemoveButton: View {
             }
         }
         .buttonStyle(.borderless)
-        .foregroundStyle(armed ? WizardStyle.accentText : Color.secondary)
+        .foregroundStyle(armed ? WizardStyle.accent : Color.secondary)
         .accessibilityLabel(armed ? "Remove \(what), click again to confirm" : "Remove \(what)")
         .help(armed ? "Click again to remove \(what)" : "Remove \(what)")
         // A question left standing is a question nobody answered, so it takes
