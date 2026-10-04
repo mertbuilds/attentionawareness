@@ -160,3 +160,11 @@ a:not([data-slot='button']):not([data-plain]):visited {
 a:not([data-slot='button']):not([data-plain]):hover {
   text-decoration-thickness: 2px;
 }
+
+/* With the keyboard's focus on it, a link wears the line the header's and the
+   footer's links wear, not the browser's own ring. */
+a:not([data-slot='button']):not([data-plain]):focus-visible {
+  border-radius: 2px;
+  outline: 1px solid var(--kya-muted);
+  outline-offset: 2px;
+}
