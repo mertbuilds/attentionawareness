@@ -1,8 +1,11 @@
 /** The site's own address, which every shared link starts from. */
 const SITE = 'https://attentionawareness.com/';
 
-/** Where on the site a link is shared from: the popup after a download, or a phone that sends it on to a Mac. */
-export type SharePlacement = 'phone' | 'popup';
+/**
+ * Where on the site a link is shared from: the popup after a download, a
+ * phone that sends it on to a Mac, or the thank-you after a support.
+ */
+export type SharePlacement = 'phone' | 'popup' | 'thanks';
 
 /**
  * The site's address as a link shared from `placement` carries it, so a visit

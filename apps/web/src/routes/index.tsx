@@ -17,6 +17,7 @@ import { OtherUses } from '../components/other-uses.tsx';
 import { ScreenShots } from '../components/screen-shots.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { SupportSection } from '../components/support-section.tsx';
+import { ThanksPopup } from '../components/thanks-popup.tsx';
 import { UsesGrid } from '../components/uses-grid.tsx';
 import { brandBar } from '../lib/brand-bar.stylex.ts';
 import { blur, duration, easing } from '../lib/motion.stylex.ts';
@@ -26,6 +27,10 @@ import { m } from '../paraglide/messages.js';
 
 export const Route = createFileRoute('/')({
   component: HomePage,
+  // The support checkout sends the reader back with `thanks=1`, among marks
+  // of its own. Nothing else on the address means anything to the page.
+  validateSearch: (search: Record<string, unknown>): { thanks?: 1 } =>
+    search['thanks'] === 1 || search['thanks'] === '1' ? { thanks: 1 } : {},
 });
 
 /**
@@ -650,6 +655,8 @@ function Promises({
 
 function HomePage() {
   const posthog = usePostHog();
+  const { thanks } = Route.useSearch();
+  const navigate = Route.useNavigate();
   // The word the claim turns on, wherever a language puts it, so the words
   // around it keep their own order in every language.
   const [titleBefore, titleAfter] = m.home_hero_title({ permanently: LINK_SLOT }).split(LINK_SLOT);
@@ -940,6 +947,11 @@ function HomePage() {
 
         <SiteFooter />
       </div>
+      <ThanksPopup
+        // The mark goes off the address, in place: the page stays where it is.
+        onShown={() => void navigate({ replace: true, resetScroll: false, search: {} })}
+        show={thanks === 1}
+      />
     </main>
   );
 }

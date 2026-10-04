@@ -20,8 +20,15 @@ test('a phone shares the same link under its own name, open at the download', ()
   );
 });
 
+test('the thank-you shares the same link under its own name', () => {
+  assert.equal(
+    shareUrl('thanks'),
+    'https://attentionawareness.com/?utm_source=share&utm_medium=thanks&utm_campaign=download',
+  );
+});
+
 test('the campaign is one word, whatever the placement', () => {
-  for (const placement of ['popup', 'phone'] as const) {
+  for (const placement of ['popup', 'phone', 'thanks'] as const) {
     const url = new URL(shareUrl(placement));
     assert.equal(url.searchParams.get('utm_campaign'), 'download');
     assert.equal(url.searchParams.get('utm_medium'), placement);

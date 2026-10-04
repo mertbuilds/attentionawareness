@@ -37,6 +37,15 @@ const SITE_NAME = 'attention awareness';
  */
 const WIP_SCRIPT =
   "try{if(localStorage.getItem('aa-wip-dismissed'))document.documentElement.setAttribute('data-aa-wip-off','')}catch(e){}";
+/**
+ * Takes the support checkout's own marks off the address before anything
+ * reads it: the checkout comes back with the id of the payment and a token of
+ * the reader's session, and neither is for the analytics or for a link the
+ * reader shares. `thanks` stays, for the home page to answer.
+ */
+const CHECKOUT_SCRIPT =
+  "try{var u=new URL(location.href),p=u.searchParams;if(p.has('checkout_id')||p.has('customer_session_token')){" +
+  "p.delete('checkout_id');p.delete('customer_session_token');history.replaceState(history.state,'',u.pathname+u.search+u.hash)}}catch(e){}";
 const SITE_URL = 'https://attentionawareness.com';
 const ICON_SUFFIX = import.meta.env.DEV ? '-dev' : '';
 /** The site's own OpenPanel project. The id is public by design. */
@@ -204,6 +213,7 @@ function RootDocument({ children }: { children: ReactNode }) {
         />
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: WIP_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: CHECKOUT_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: ANALYTICS_SCRIPT }} />
       </head>
       <body>
