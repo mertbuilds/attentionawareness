@@ -15,30 +15,9 @@ import { m } from '../paraglide/messages.js';
  * between the reader and the file.
  */
 const OPEN_DELAY = 800;
-/** A reader who closed the popup, or went on to support, is not asked again for a week. */
-const QUIET_MS = 7 * 24 * 60 * 60 * 1000;
-/** Where the end of that week is kept, as a time in milliseconds. */
-const QUIET_KEY = 'aa-support-popup-quiet-until';
 const SUPPORT_URL = supportUrl('download-popup');
 /** The heart on the support button, as tall as the button's letters are set. */
 const HEART_SIZE = 14;
-
-/** Whether the week after the last popup is still running. No storage, no memory of it. */
-function isQuiet(): boolean {
-  try {
-    return Number(localStorage.getItem(QUIET_KEY)) > Date.now();
-  } catch {
-    return false;
-  }
-}
-
-function keepQuiet(): void {
-  try {
-    localStorage.setItem(QUIET_KEY, String(Date.now() + QUIET_MS));
-  } catch {
-    // A private window keeps nothing. The popup may come back on the next visit.
-  }
-}
 
 /** The heart's one beat: past its size and back. */
 const beat = keyframes({
@@ -182,10 +161,10 @@ const styles = create({
  * The thank-you after a download has started, with the way to support the
  * work. One of it stands on every page, and any download button on a computer
  * opens it, a moment after its file has started, so the file is never held up.
- * It opens once a page load, and not at all for a week after it was closed or
- * the reader went on to support. Escape, a press outside it, its close button
- * and "Maybe later" all close it, and focus goes back to the button that
- * started the download.
+ * It opens after every download, and nothing is kept of it: a download that
+ * starts while it is open, or about to open, leaves it as it is. Escape, a
+ * press outside it, its close button and "Maybe later" all close it, and
+ * focus goes back to the button that started the download.
  */
 export function SupportPopup() {
   const posthog = usePostHog();
@@ -193,18 +172,21 @@ export function SupportPopup() {
   // The button whose download this answers, and where on the site it stands.
   const button = useRef<HTMLElement | null>(null);
   const placement = useRef('');
-  const asked = useRef(false);
+  // Whether the popup is open, for the listener, which outlives a render.
+  const shown = useRef(false);
 
   useEffect(() => {
     let timer: number | undefined;
     const stop = onDownloadStarted((download) => {
-      if (asked.current || isQuiet()) {
+      // One popup at a time: open, or about to open, it stays as it is.
+      if (shown.current || timer !== undefined) {
         return;
       }
-      asked.current = true;
       button.current = download.button;
       placement.current = download.placement;
       timer = window.setTimeout(() => {
+        timer = undefined;
+        shown.current = true;
         setOpen(true);
         posthog.capture('support_popup_shown', { placement: download.placement });
       }, OPEN_DELAY);
@@ -216,8 +198,8 @@ export function SupportPopup() {
   }, [posthog]);
 
   function close() {
+    shown.current = false;
     setOpen(false);
-    keepQuiet();
   }
 
   return (
