@@ -387,16 +387,22 @@ const styles = create({
     gap: spacing.s4,
     maxWidth: '40ch',
   },
-  // The app's button with the line about backing up under it, at the foot.
+  // A card's button with a line about backing up under it, at the card's
+  // foot.
   planFoot: {
+    alignItems: 'flex-start',
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s3,
     marginBlockStart: 'auto',
   },
-  // The button takes what height is left, so both stand at the foot.
-  planButton: {
-    marginBlockStart: 'auto',
+  // The line under a card's button. Side by side, each card keeps room for
+  // two lines of it, so the two buttons stand level whichever line is longer.
+  planNote: {
+    minHeight: {
+      '@media (min-width: 640px)': '3em',
+      default: 0,
+    },
   },
   // The name, and what it is close under it.
   planHead: {
@@ -735,7 +741,7 @@ function HomePage() {
               </div>
               <div {...props(styles.planFoot)}>
                 <MacDownload placement="pricing" />
-                <p {...props(styles.planSub)}>
+                <p {...props(styles.planSub, styles.planNote)}>
                   <a href={`#${FAQ_DATA_ID}`}>{m.home_how_backup_note_link()}</a>
                   {m.home_how_backup_note({ link: LINK_SLOT }).split(LINK_SLOT)[1]}
                 </p>
@@ -749,9 +755,12 @@ function HomePage() {
                 </div>
                 <Promises checkStyle={styles.planQuietCheck} promises={guidePromises} />
               </div>
-              <Button render={<a href={GUIDE_URL} />} style={styles.planButton} variant="outline">
-                {m.home_how_guide_cta()}
-              </Button>
+              <div {...props(styles.planFoot)}>
+                <Button render={<a href={GUIDE_URL} />} variant="outline">
+                  {m.home_how_guide_cta()}
+                </Button>
+                <p {...props(styles.planSub, styles.planNote)}>{m.home_how_guide_note()}</p>
+              </div>
             </div>
           </div>
         </section>
