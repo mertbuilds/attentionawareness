@@ -87,22 +87,24 @@ const NAME_BEARING = 0.038;
  */
 const NAME_SHOWN = 0.84;
 /**
- * The name's ink: the page's own at the top of the letters, running into the
- * orange by their foot, which it holds down to the page's edge. Where a
- * browser cannot paint text with a gradient, the letters are in the ink.
- * The stops are shares of the shown line: the tall letters start near 10%,
- * the short ones near 30%, and the line they stand on is at 96%.
+ * The name rises out of the page's own ground at the top of its letters and
+ * turns orange toward their foot, so its upper part is barely there and its
+ * lower part glows. Where a browser cannot paint text with a gradient, the
+ * letters are in the ink. The stops are shares of the shown line: the tall
+ * letters start near 10%, the short ones near 30%, and the line they stand on
+ * is at 96%.
  */
 const NAME_INK = colors.fg;
+const NAME_GROUND = colors.bg;
 /** Only a browser that paints text with a background lets the letters go clear. */
 const CLIPS_TEXT = '@supports ((background-clip: text) or (-webkit-background-clip: text))';
 /**
- * The orange laid over the ink, which is the box's own colour under it. The
- * gradient itself names no theme colour: WebKit keeps a gradient painted
+ * The orange laid over the ground, which is the box's own colour under it.
+ * The gradient itself names no theme colour: WebKit keeps a gradient painted
  * into text as it was when the theme changes on an open page, while it
  * repaints a changed background colour.
  */
-const NAME_RUN = `linear-gradient(to bottom, transparent 30%, ${accent.base} 85%)`;
+const NAME_RUN = `linear-gradient(to bottom, transparent 15%, ${accent.base} 80%)`;
 /** The room the page shells leave under the footer, which the footer takes back. */
 const PAGE_FOOT = spacing.s16;
 /**
@@ -315,7 +317,7 @@ const styles = create({
   nameInk: {
     backgroundClip: 'text',
     backgroundColor: {
-      [CLIPS_TEXT]: NAME_INK,
+      [CLIPS_TEXT]: NAME_GROUND,
       default: null,
     },
     backgroundImage: {
