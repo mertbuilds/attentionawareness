@@ -65,6 +65,9 @@ struct AttentionAwarenessApp: App {
         #if DEBUG
         let demo = DemoWizardModel.ifAsked()
         self.demo = demo
+        if let demo {
+            DemoSnapshot.scheduleIfAsked(demo)
+        }
         let startUpdater = demo == nil
         #else
         let startUpdater = true
