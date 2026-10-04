@@ -333,7 +333,7 @@ export function SiteHeader() {
       <Button
         data-morph="header-download"
         onClick={download.start}
-        render={<a download href={download.url} />}
+        render={<a download={download.filename} href={download.url} />}
         style={morphStyle}
       >
         <MacCta label={m.nav_download()} />
