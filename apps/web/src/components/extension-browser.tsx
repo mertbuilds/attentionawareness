@@ -42,8 +42,14 @@ const GONE_SCALE = 0.94;
 const GONE_BLUR = 2;
 /** A site's name in the row over the drawing: how tall it is, and how wide its border. */
 const PILL = { border: 1, height: 28 };
-/** The line down the middle of that border turns its corners on this radius. */
-const PILL_RADIUS = (PILL.height - PILL.border) / 2;
+/**
+ * The line that runs round the playing site's name, and on to the next. Of a
+ * turn's time, the last `bridge` milliseconds are the crossing to the next
+ * name; before that the line goes once round its own. The line behind it, on
+ * the name it came from, is taken back over `retract` of the turn. `swing` is
+ * how far the crossing's curve is pulled down and up, in pixels.
+ */
+const LINE = { bridge: 300, retract: 0.5, swing: 20 };
 /** How tall the touch a name takes is, in pixels: a finger's height. */
 const TOUCH = 44;
 
@@ -265,7 +271,6 @@ const styles = create({
     outlineWidth: 1,
     paddingInlineEnd: spacing.s3,
     paddingInlineStart: spacing.s2,
-    // What the line round a playing site is laid against.
     position: 'relative',
     transitionDuration: duration.quick,
     transitionProperty: 'border-color, color',
@@ -294,10 +299,12 @@ const styles = create({
     },
     color: colors.fg,
   },
+  // The row of names. The line's sheet is laid against it.
   sites: {
     display: 'flex',
     flexWrap: 'wrap',
     gap: spacing.s2,
+    position: 'relative',
   },
   // A feed on its way out, blurring as it fades.
   going: (filter: string) => ({
@@ -305,33 +312,29 @@ const styles = create({
     transformBox: 'fill-box',
     transformOrigin: 'center',
   }),
-  // The sheet the line round a playing site is drawn on. It is laid over the
-  // pill's border box, a border short of its far edges, and the line on it
-  // stands half a border in, so the line runs down the middle of the border
-  // and covers it exactly. It takes no room and no press.
+  // The sheet the line is drawn on, over the whole row of names. It takes no
+  // room and no press. With less motion there is no line.
   trace: {
     display: {
       '@media (prefers-reduced-motion: reduce)': 'none',
       default: 'block',
     },
-    height: `calc(100% + ${PILL.border}px)`,
-    left: -PILL.border,
+    height: '100%',
+    inset: 0,
     overflow: 'visible',
     pointerEvents: 'none',
     position: 'absolute',
-    top: -PILL.border,
-    width: `calc(100% + ${PILL.border}px)`,
+    width: '100%',
   },
-  // The line itself, in the ink, as wide as the border. Its length counts as
-  // one, so it is drawn as far round as the turn is through: none of it to
-  // start with, all of it as the turn ends. The loop's own clock moves it.
+  // The line itself, in the ink, as wide as a name's border and round at its
+  // ends. The loop's own clock says which stretches of it are lit.
   traceLine: {
     fill: 'none',
     stroke: colors.fg,
-    strokeDasharray: '1',
-    strokeDashoffset: '1',
+    strokeLinecap: 'round',
     strokeWidth: `${PILL.border}px`,
     vectorEffect: 'non-scaling-stroke',
+    visibility: 'hidden',
   },
   // A line of words, a quiet stroke of its own.
   words: {
@@ -339,10 +342,144 @@ const styles = create({
   },
 });
 
-/** Draws `line` as far round its pill as a turn is through, `at` milliseconds into it. */
-function trace(line: SVGRectElement | null, at: number) {
-  if (line !== null) {
-    line.style.strokeDashoffset = String(1 - at / TURN);
+/** A name's box in its row, in pixels. */
+type Box = { height: number; left: number; top: number; width: number };
+/**
+ * The line over the row, as the stretches it is made of, two to a name: the
+ * way round the name, then the crossing to the next. Each has its path and
+ * its length in pixels. A crossing of no length is no crossing. They are
+ * stretches of their own because a dash pattern starts over at every break
+ * in a path, so one path with breaks in it cannot be lit stretch by stretch.
+ */
+type Stretch = { d: string; length: number };
+type Route = ReadonlyArray<{ bridge: Stretch; loop: Stretch }>;
+
+/** How long a cubic curve is, measured over short straight steps. */
+function curveLength(points: ReadonlyArray<readonly [number, number]>): number {
+  const [a, b, c, d] = points;
+  if (a === undefined || b === undefined || c === undefined || d === undefined) {
+    return 0;
+  }
+  const at = (t: number, axis: 0 | 1) =>
+    (1 - t) ** 3 * a[axis] +
+    3 * (1 - t) ** 2 * t * b[axis] +
+    3 * (1 - t) * t ** 2 * c[axis] +
+    t ** 3 * d[axis];
+  let length = 0;
+  for (let step = 1; step <= 32; step += 1) {
+    length += Math.hypot(
+      at(step / 32, 0) - at((step - 1) / 32, 0),
+      at(step / 32, 1) - at((step - 1) / 32, 1),
+    );
+  }
+  return length;
+}
+
+/**
+ * The line's path over a row of names. It goes down the middle of each
+ * name's border, so it covers the border exactly. Round each name it starts
+ * at the middle of the left end and comes back to it: clockwise round the
+ * first, the other way round the second, and so on in turn. So the line
+ * reaches the middle of a name's right end heading down or up, and the next
+ * name is entered at the middle of its left end heading the same way. The
+ * crossing between them leaves and arrives along those two headings, in a
+ * curve that swings one way and back, and the two ways round read as an S.
+ *
+ * A way round is one closed loop, not a loop and a half: the crossing is a
+ * stretch of its own that starts where the loop passes the right end, so no
+ * part of a border is in the path twice. There is no crossing from the last
+ * name back to the first, and none to a name that has wrapped to another row.
+ */
+function routeOf(boxes: ReadonlyArray<Box>): Route {
+  const half = PILL.border / 2;
+  return boxes.map((box, index) => {
+    const left = box.left + half;
+    const right = box.left + box.width - half;
+    const top = box.top + half;
+    const foot = box.top + box.height - half;
+    const middle = (top + foot) / 2;
+    const radius = (foot - top) / 2;
+    // Clockwise goes up first; the other way goes down first.
+    const clockwise = index % 2 === 0;
+    const [first, second] = clockwise ? [top, foot] : [foot, top];
+    const sweep = clockwise ? 1 : 0;
+    const arc = (x: number, y: number) => `A${radius} ${radius} 0 0 ${sweep} ${x} ${y}`;
+    const loop = {
+      d: `M${left} ${middle}${arc(left + radius, first)}H${right - radius}${arc(right, middle)}${arc(right - radius, second)}H${left + radius}${arc(left, middle)}`,
+      length: 2 * (right - left - 2 * radius) + 2 * Math.PI * radius,
+    };
+    const next = boxes[index + 1];
+    let bridge: Stretch = { d: '', length: 0 };
+    if (next !== undefined && Math.abs(next.top - box.top) < 1) {
+      const to = next.left + half;
+      // It leaves heading the way the loop passes the right end.
+      const swing = clockwise ? LINE.swing : -LINE.swing;
+      bridge = {
+        d: `M${right} ${middle}C${right} ${middle + swing} ${to} ${middle - swing} ${to} ${middle}`,
+        length: curveLength([
+          [right, middle],
+          [right, middle + swing],
+          [to, middle - swing],
+          [to, middle],
+        ]),
+      };
+    }
+    return { bridge, loop };
+  });
+}
+
+/** A crossing sets off slowly and arrives slowly. */
+const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+
+/** Lights one stretch from `from` to `to`, as shares of it, or none of it. */
+function light(path: SVGPathElement | undefined, stretch: Stretch, from: number, to: number) {
+  if (path === undefined) {
+    return;
+  }
+  const length = (to - from) * stretch.length;
+  if (length < 0.01) {
+    path.style.visibility = 'hidden';
+    return;
+  }
+  // One dash, then a gap longer than the stretch, so the dash never comes
+  // round again; pushed along to where the lit part starts.
+  path.style.visibility = 'visible';
+  path.style.strokeDasharray = `${length.toFixed(2)} ${(stretch.length + 1).toFixed(2)}`;
+  path.style.strokeDashoffset = (-from * stretch.length).toFixed(2);
+}
+
+/**
+ * Lights the stretches of the line on `sheet` that `at` milliseconds into the
+ * loop calls for. On the playing name: the way round it, as far as the turn
+ * has got, whole by the time the crossing starts, and then the crossing as
+ * far as it has got. On the name before it, unless the loop was sent here
+ * (`fresh`): what the line's tail has not yet taken back, from the loop's
+ * start round, and the crossing once the tail is past the right end.
+ */
+function trace(sheet: SVGSVGElement | null, route: Route | null, at: number, fresh: boolean) {
+  const paths = sheet?.querySelectorAll<SVGPathElement>('path');
+  if (paths === undefined || route === null || paths.length !== route.length * 2) {
+    return;
+  }
+  const turn = Math.floor(at / TURN) % route.length;
+  const before = (turn + route.length - 1) % route.length;
+  const into = at % TURN;
+  const round = TURN - LINE.bridge;
+  const back = fresh ? 1 : Math.min(1, into / (TURN * LINE.retract));
+  for (const [index, leg] of route.entries()) {
+    const loop = paths[index * 2];
+    const bridge = paths[index * 2 + 1];
+    if (index === turn) {
+      light(loop, leg.loop, 0, Math.min(1, into / round));
+      light(bridge, leg.bridge, 0, into > round ? easeInOut((into - round) / LINE.bridge) : 0);
+    } else if (index === before) {
+      light(loop, leg.loop, back, 1);
+      // The crossing hangs off the right end, half way round.
+      light(bridge, leg.bridge, Math.min(1, Math.max(0, (back - 0.5) * 4)), 1);
+    } else {
+      light(loop, leg.loop, 0, 0);
+      light(bridge, leg.bridge, 0, 0);
+    }
   }
 }
 
@@ -354,18 +491,24 @@ function trace(line: SVGRectElement | null, at: number) {
  * it is rewound, it stands there, and plays from there. While the page stands
  * still it is not drawn again.
  *
- * The same clock draws `line`, the line round the playing site's name, on
- * every frame, the still ones too, and after every render, so the line and
- * the page it times can never be apart: the line closes as the turn ends, and
- * holds, jumps and goes back to the start with the loop.
+ * The same clock lights the line on the sheet `line`, along `route`,
+ * on every frame, the still ones too, and after every render, so the line and
+ * the page it times can never be apart: it reaches the next name as the turn
+ * ends, and holds, jumps and goes back to the start with the loop. It writes
+ * to the line itself and renders nothing.
  */
 function useLoop(
   running: boolean,
   rewound: boolean,
-  line: RefObject<SVGRectElement | null>,
+  line: RefObject<SVGSVGElement | null>,
+  route: RefObject<Route | null>,
 ): [number, (to: number) => void] {
   const [now, setNow] = useState(0);
   const clock = useRef(0);
+  // Whether the loop was sent to this turn, by a press or by going back to
+  // its start, and did not come to it from the turn before: then no line is
+  // left on the name before it.
+  const fresh = useRef(true);
   // Whether it was rewound at the last render. As it turns rewound, what is
   // drawn goes back to the start with the clock, in the same render, so no
   // frame shows where the loop had been.
@@ -380,12 +523,13 @@ function useLoop(
   useLayoutEffect(() => {
     if (rewound) {
       clock.current = 0;
+      fresh.current = true;
     }
   }, [rewound]);
 
-  // After every render: the line may be a new one, round another site.
+  // After every render: the row may have been measured anew.
   useLayoutEffect(() => {
-    trace(line.current, clock.current % TURN);
+    trace(line.current, route.current, clock.current, fresh.current);
   });
 
   useEffect(() => {
@@ -401,7 +545,10 @@ function useLoop(
       clock.current = next;
       const at = next % TURN;
       const from = was % TURN;
-      trace(line.current, at);
+      if (Math.floor(next / TURN) !== Math.floor(was / TURN)) {
+        fresh.current = false;
+      }
+      trace(line.current, route.current, next, fresh.current);
       // The first frame is always drawn: it is where the loop takes up again.
       if (first || !STILL.some(([start, end]) => from >= start && at >= from && at < end)) {
         setNow(next);
@@ -409,10 +556,11 @@ function useLoop(
     }
     frame.update(tick, true);
     return () => cancelFrame(tick);
-  }, [line, running]);
+  }, [line, route, running]);
 
   function jump(to: number) {
     clock.current = to;
+    fresh.current = true;
     setNow(to);
   }
 
@@ -473,8 +621,9 @@ function Page({ at, site }: { at: number; site: number }) {
  * the three sites it ships rules for, one after another, each under its own
  * icon in the address bar, and starts over. The row over the window names the
  * three, as tabs, and marks the one playing: a line in the ink is drawn round
- * its name, clockwise from the top, over the time its page is shown, and as
- * the line closes the next site's turn starts. Pressing a name sends the
+ * its name over the time its page is shown, then crosses to the next name in
+ * a short curve, and as it gets there the next site's turn starts and the
+ * line behind it is taken back. Pressing a name sends the
  * drawing to that site, with the line at its start, and it goes on from
  * there, or stands there until the drawing is on screen and can play. The
  * left and right arrows go from one name to the next. It plays
@@ -488,8 +637,42 @@ export function ExtensionBrowser() {
   const seen = useSeen(drawing);
   const hidden = useTabHidden();
   const reduced = useLessMotion();
-  const line = useRef<SVGRectElement>(null);
-  const [looped, jump] = useLoop(seen && !hidden && !reduced, !seen, line);
+  const line = useRef<SVGSVGElement>(null);
+  const row = useRef<HTMLDivElement>(null);
+  const route = useRef<Route | null>(null);
+  // The line's path, drawn anew when the row of names is measured anew.
+  const [paths, setPaths] = useState<ReadonlyArray<string>>([]);
+  const [looped, jump] = useLoop(seen && !hidden && !reduced, !seen, line, route);
+
+  // The names are as wide as their words, so the line's path is read off the
+  // row as it is laid out, and again whenever a name or the row changes size:
+  // a narrower window, a font that lands, another language.
+  useLayoutEffect(() => {
+    const list = row.current;
+    if (list === null) {
+      return;
+    }
+    const tabs = [...list.querySelectorAll<HTMLElement>('[role="tab"]')];
+    const measure = () => {
+      const next = routeOf(
+        tabs.map((tab) => ({
+          height: tab.offsetHeight,
+          left: tab.offsetLeft,
+          top: tab.offsetTop,
+          width: tab.offsetWidth,
+        })),
+      );
+      route.current = next;
+      setPaths(next.flatMap((leg) => [leg.loop.d, leg.bridge.d]));
+    };
+    measure();
+    const watch = new ResizeObserver(measure);
+    watch.observe(list);
+    for (const tab of tabs) {
+      watch.observe(tab);
+    }
+    return () => watch.disconnect();
+  }, []);
   // With less motion the site the reader picked stands clean.
   const now = reduced ? Math.floor(looped / TURN) * TURN + REST : looped;
   const clip = useId();
@@ -524,7 +707,7 @@ export function ExtensionBrowser() {
 
   return (
     <div {...props(styles.browser)}>
-      <div aria-label={m.home_ext_sites()} role="tablist" {...props(styles.sites)}>
+      <div aria-label={m.home_ext_sites()} ref={row} role="tablist" {...props(styles.sites)}>
         {SITES.map((entry, index) => (
           <button
             aria-controls={panel}
@@ -545,22 +728,15 @@ export function ExtensionBrowser() {
               {...props(styles.siteIcon)}
             />
             {entry.name()}
-            {index === site && !reduced ? (
-              <svg aria-hidden="true" focusable="false" {...props(styles.trace)}>
-                <rect
-                  height="100%"
-                  pathLength={1}
-                  ref={line}
-                  rx={PILL_RADIUS}
-                  width="100%"
-                  x={PILL.border / 2}
-                  y={PILL.border / 2}
-                  {...props(styles.traceLine)}
-                />
-              </svg>
-            ) : null}
           </button>
         ))}
+        {reduced ? null : (
+          <svg aria-hidden="true" focusable="false" ref={line} {...props(styles.trace)}>
+            {paths.map((d, index) => (
+              <path d={d} key={index} {...props(styles.traceLine)} />
+            ))}
+          </svg>
+        )}
       </div>
       <div aria-labelledby={`${tabs}-${site}`} id={panel} role="tabpanel">
         <svg
