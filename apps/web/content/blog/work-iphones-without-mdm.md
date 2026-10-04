@@ -57,9 +57,9 @@ A supervised iPhone accepts restrictions that a normal iPhone refuses. It also a
 
 You supervise each iPhone once, by cable. Then you install one locked profile. The profile can:
 
-- Block the apps you choose, such as social, games, betting and shopping apps. They stay blocked even if someone installs them.
+- [Block the apps you choose](/blog/block-any-app-iphone), such as social, games, betting and shopping apps. They stay blocked even if someone installs them.
 - Block the websites you choose.
-- Turn on Apple's adult website filter. It works in Safari and in apps that use the system web view. It is a filter and does not catch everything.
+- Turn on [Apple's adult website filter](/blog/block-adult-websites-iphone). It works in Safari and in apps that use the system web view. It is a filter and does not catch everything.
 
 Phone, Messages, Mail, Maps, the camera and your work apps keep working. The App Store stays on.
 
