@@ -11,7 +11,10 @@ The Mac app is free (ADR-0006), so the site earns nothing by itself. If the traf
 - `/open` shows the numbers, says what the site tracks, and asks a sponsor to write. The link is a `mailto:`, and a click on it is the PostHog event `sponsor_clicked` (`placement`: open). No sponsor is on the site yet; the first one is still a decision of its own.
 - The numbers are a shared PostHog dashboard in a frame: "attentionawareness open numbers" (dashboard 995524 in the EU project). Its address is `VITE_OPEN_DASHBOARD_URL`, `https://eu.posthog.com/embedded/<token>`, a build-time value wired like the PostHog key: a GitHub repository variable that `deploy.yml` passes to the build, `.env` locally. The sharing token is public by design. Without the value the page says the numbers are not public yet.
 - Every insight on the dashboard is a count over the last 30 days, filtered to the host `attentionawareness.com`: visitors, page views, both by day, referring domains, paths, countries, `mac_download_started`, `support_clicked`, and guide and blog reads. No person properties, no addresses, no replays, and nothing from the profile builder's events. A new insight on that dashboard is public the moment it is added, so it has to meet the same rule.
-- `OpenNumbers` (`src/components/open-numbers.tsx`) is the only code that knows of the frame. It passes the page's theme as `?theme=`, takes its height from the `posthog:dimensions` message the dashboard posts, and treats that message as the sign that the frame loaded. A frame that stays silent for ten seconds gives way to a line with a link to the dashboard, since a blocker that lists posthog.com stops the frame.
+- `OpenNumbers` (`src/components/open-numbers.tsx`) is the only code that knows of the frame. It takes its height from the `posthog:dimensions` message the dashboard posts, and treats that message as the sign that the frame loaded. A frame that stays silent for ten seconds gives way to a line with a link to the dashboard, since a blocker that lists posthog.com stops the frame. The frame is sandboxed the way PostHog's own embed code is: scripts, its own origin and popups.
+- Theme: the dashboard's sharing setting is "System", and PostHog ignores a `?theme=` in the address for a dashboard shared after July 2025. A frame reads the system theme from the `color-scheme` of the element that holds it, so `OpenNumbers` sets that to the page's theme, forced or not, and the dashboard follows without a reload.
+- Width: from a 1200px window the block is 1100px wide, wider than the page's 760px column, because the dashboard sets its tiles two to a row only from 1024px. Under that it is one tile per row.
+- The PostHog header and the "Made with PostHog" line stay: taking them off is a paid add-on.
 
 ## Options
 
@@ -25,4 +28,4 @@ The frame is the simplest thing that works. The page around `OpenNumbers` knows 
 - A reader with a blocker sees a link, not numbers.
 - The frame loads from eu.posthog.com, so PostHog sees the address of a reader who opens `/open`.
 - The route is its own chunk, and the frame is only on that page, so no other page loads more for it.
-- The sponsor address in `src/routes/open.tsx` has to be a mailbox that is read.
+- The sponsor address is `hi@attentionawareness.com`, which Cloudflare Email Routing forwards to the owner's inbox. The site sends no mail of its own.
