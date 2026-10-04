@@ -6,6 +6,7 @@ import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { useId, useState } from 'react';
 import { AngleDown, Check } from 'reicon-react';
+import { ExtensionBrowser } from '../components/extension-browser.tsx';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { HeroPhone } from '../components/hero-phone.tsx';
 import { HowItWorks } from '../components/how-it-works.tsx';
@@ -45,6 +46,8 @@ const PROOF_ID = 'proof';
 const WAY_OUT_ID = 'way-out';
 const STORY_ID = 'story';
 const FAQ_ID = 'faq';
+/** The browser extension, the same idea on the computer. */
+const EXTENSION_ID = 'extension';
 /** The two ways, both free. Links from before the app was free still come down to it. */
 const PRICING_ID = 'pricing';
 /** Why everything is free and how to support the work, which the header's support link goes down to. */
@@ -125,6 +128,23 @@ const styles = create({
   // them.
   downloadCentered: {
     alignItems: 'center',
+  },
+  // The extension: its drawing beside what it does, and over it on a phone.
+  extension: {
+    alignItems: 'center',
+    display: 'grid',
+    gap: spacing.s8,
+    gridTemplateColumns: {
+      '@media (min-width: 768px)': 'minmax(0, 11fr) minmax(0, 9fr)',
+      default: 'minmax(0, 1fr)',
+    },
+  },
+  // What it does, then the way to it and what it costs.
+  extensionWords: {
+    alignItems: 'flex-start',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s4,
   },
   // The track an answer grows and shrinks in, from no height to its own. It
   // takes no padding, or a closed answer would keep a strip of it.
@@ -531,11 +551,12 @@ function HomePage() {
     m.home_hero_promise_sticks(),
   ];
 
-  // The browser half: the extension, in the middle of the sentence, and the
-  // store it is added from.
-  const [socialBefore, socialAfter] = m
-    .home_social_computer({ extension: LINK_SLOT })
-    .split(LINK_SLOT);
+  // What the browser extension does, each with its tick.
+  const extensionPoints = [
+    m.home_ext_point_sites(),
+    m.home_ext_point_accounts(),
+    m.home_ext_point_custom(),
+  ];
 
   // The post the story links out to, in the middle of the sentence that tells
   // it, so the words around it keep their own order in every language.
@@ -684,24 +705,33 @@ function HomePage() {
           <OtherUses />
         </section>
 
+        {/* The same idea on the computer: the browser extension, what it
+        hides on the three sites it knows, and how to add another. */}
+        <section {...props(styles.section, styles.anchor)} id={EXTENSION_ID}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_ext_title()}</h2>
+          <p {...props(styles.sectionBody)}>{m.home_ext_lead()}</p>
+          <div {...props(styles.extension)}>
+            <ExtensionBrowser />
+            <div {...props(styles.extensionWords)}>
+              <Promises promises={extensionPoints} />
+              <Button render={<a href={STORE_URL} rel="noreferrer" target="_blank" />}>
+                {m.home_ext_cta()}
+              </Button>
+              <p {...props(styles.heroPrice)}>{m.home_ext_note()}</p>
+            </div>
+          </div>
+        </section>
+
         {/* Why everything is free, and the way to support the work, in a box
         of its own. */}
         <section {...props(styles.anchor)} id={SUPPORT_ID}>
           <SupportSection titleStyle={styles.displayTitle} />
         </section>
 
-        {/* Not against the networks, only their feeds, and the browser half
-        of the same idea: the extension that takes the feeds off the computer. */}
+        {/* Not against the networks, only their feeds. */}
         <section {...props(styles.section)}>
           <h2 {...props(styles.sectionTitle)}>{m.home_social_title()}</h2>
           <p {...props(styles.sectionBody)}>{m.home_social_body()}</p>
-          <p {...props(styles.sectionBody)}>
-            {socialBefore}
-            <a href={STORE_URL} rel="noreferrer" target="_blank">
-              {m.home_social_link()}
-            </a>
-            {socialAfter}
-          </p>
         </section>
 
         <section {...props(styles.section, styles.anchor)} id={FAQ_ID}>
