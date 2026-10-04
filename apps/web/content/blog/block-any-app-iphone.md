@@ -131,6 +131,8 @@ Yes. In Content & Privacy Restrictions, open the list of allowed apps and featur
 
 If deleting the app works for you, stop there. If the app comes back every time, use a block you cannot undo on the phone: the [free Mac app](/), which keeps your data, or the [manual way with Apple Configurator](/guide), which erases the iPhone first.
 
+For company phones, see [how to lock down work iPhones without an MDM server](/blog/work-iphones-without-mdm).
+
 ## Schema
 
 ```json

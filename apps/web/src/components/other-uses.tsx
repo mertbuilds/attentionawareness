@@ -93,9 +93,9 @@ const styles = create({
 
 /**
  * One thing the same setup blocks: its icon, its name and what it means, and
- * the blog post that shows how, by its slug, where there is one.
+ * the blog post that shows how, by its slug.
  */
-type Use = { body: () => string; Icon: IconComponent; post?: string; title: () => string };
+type Use = { body: () => string; Icon: IconComponent; post: string; title: () => string };
 
 const USES: ReadonlyArray<Use> = [
   {
@@ -116,7 +116,12 @@ const USES: ReadonlyArray<Use> = [
     post: 'iphone-parental-controls-kids-cannot-turn-off',
     title: m.home_other_kids_title,
   },
-  { body: m.home_other_work_body, Icon: Briefcase, title: m.home_other_work_title },
+  {
+    body: m.home_other_work_body,
+    Icon: Briefcase,
+    post: 'work-iphones-without-mdm',
+    title: m.home_other_work_title,
+  },
 ];
 
 /**
@@ -153,16 +158,14 @@ function UseCard({ place, use }: { place: number; use: Use }) {
       <Icon aria-hidden="true" size={ICON} {...props(styles.icon)} />
       <h3 {...props(styles.title)}>{use.title()}</h3>
       <p {...props(styles.body)}>{use.body()}</p>
-      {use.post !== undefined && (
-        <p {...props(styles.body, styles.more)}>
-          <a
-            aria-label={m.home_other_read_how_label({ title: use.title() })}
-            href={`/blog/${use.post}`}
-          >
-            {m.home_other_read_how()}
-          </a>
-        </p>
-      )}
+      <p {...props(styles.body, styles.more)}>
+        <a
+          aria-label={m.home_other_read_how_label({ title: use.title() })}
+          href={`/blog/${use.post}`}
+        >
+          {m.home_other_read_how()}
+        </a>
+      </p>
     </li>
   );
 }
@@ -170,7 +173,7 @@ function UseCard({ place, use }: { place: number; use: Use }) {
 /**
  * What else the same setup blocks, past the feeds: Apple's adult website
  * filter, any app or website, a child's iPhone and a work iPhone, each a
- * quiet card, with a link to the post that shows how where one is written.
+ * quiet card, with a link to the post that shows how.
  */
 export function OtherUses() {
   return (
