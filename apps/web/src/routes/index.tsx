@@ -36,10 +36,6 @@ export const Route = createFileRoute('/')({
 const SECTION_GAP = '96px';
 /** The column every section stands in, and the first screen too once it is stacked. */
 const COLUMN_WIDTH = 760;
-/**
- * The face the letter is typed in: Special Elite, a worn typewriter's, which
- * the site serves itself, then a typewriter face the reader's own system has.
- */
 /** The sign-off's lines: the name before its first comma, the place and date after it. */
 function signLines(text: string): Array<string> {
   const comma = text.indexOf(',');
@@ -47,8 +43,14 @@ function signLines(text: string): Array<string> {
 }
 /** The question about losing data, which the line under the download goes to. */
 const FAQ_DATA_ID = 'faq-data';
+/** The id the download's section had, kept as an empty anchor for old links. */
+const OLD_DOWNLOAD_ID = 'pricing';
 /** The extension's privacy page. */
 const EXTENSION_PRIVACY_PATH = '/extension/privacy';
+/**
+ * The face the letter is typed in: Special Elite, a worn typewriter's, which
+ * the site serves itself, then a typewriter face the reader's own system has.
+ */
 const LETTER_FACE = "'Special Elite', 'Courier New', ui-monospace, monospace";
 /**
  * The first screen side by side: wider than the column, so the words keep a
@@ -751,7 +753,9 @@ function HomePage() {
           <p {...props(styles.sectionBody)}>{m.home_how_lead()}</p>
           <HowItWorks />
           <p {...props(styles.sectionBody)}>{m.home_how_backup()}</p>
-          <div id={SECTION.pricing} {...props(styles.plans, styles.anchor)}>
+          {/* Where links from before the two ways were named the download still land. */}
+          <span id={OLD_DOWNLOAD_ID} {...props(styles.anchor)} />
+          <div id={SECTION.download} {...props(styles.plans, styles.anchor)}>
             <div {...props(styles.plan, styles.planApp)}>
               <div {...props(styles.planBody)}>
                 <div {...props(styles.planHead)}>
@@ -761,7 +765,7 @@ function HomePage() {
                 <Promises promises={promises} />
               </div>
               <div {...props(styles.planFoot)}>
-                <MacDownload placement="pricing" />
+                <MacDownload placement="download" />
                 <p {...props(styles.planSub, styles.planNote)}>
                   <a href={`#${FAQ_DATA_ID}`} onClick={() => askQuestion(FAQ_DATA_ID)}>
                     {m.home_how_backup_note_link()}

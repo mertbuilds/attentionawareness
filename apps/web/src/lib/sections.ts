@@ -5,11 +5,11 @@
  * to cannot drift apart.
  */
 export const SECTION = {
+  /** The two ways to it, the app's download and the guide, both free. */
+  download: 'download',
   /** The browser extension, the same idea on the computer. */
   extension: 'extension',
   faq: 'faq',
-  /** The two ways, both free. Links from before the app was free still come down to it. */
-  pricing: 'pricing',
   proof: 'proof',
   story: 'story',
   /** Why everything is free and how to support the work. */

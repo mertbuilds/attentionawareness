@@ -500,7 +500,7 @@ export function SiteFooter({ children }: { children?: ReactNode | undefined }) {
   const onGitHub = () => posthog.capture('github_clicked', { placement: 'footer' });
 
   const product: ReadonlyArray<FooterLink> = [
-    { href: `${page}#${SECTION.pricing}`, label: m.footer_product_download() },
+    { href: `${page}#${SECTION.download}`, label: m.footer_product_download() },
     { href: `${page}#${SECTION.wayOut}`, label: m.footer_product_how() },
     { href: GUIDE_PATH, label: m.footer_product_guide() },
     { href: BUILD_PATH, label: m.footer_product_build() },
