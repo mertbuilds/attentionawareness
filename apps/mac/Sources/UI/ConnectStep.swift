@@ -76,7 +76,7 @@ struct ConnectStep: View {
         switch device.pairingState {
         case .trustPending, .locked:
             return "Tap Trust on iPhone, then enter its passcode."
-        case .untrusted:
+        case .untrusted, .needsReplug:
             return "Unplug iPhone, plug it back in, then tap Trust."
         case .paired:
             return nil
