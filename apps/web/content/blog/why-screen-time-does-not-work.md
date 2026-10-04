@@ -39,7 +39,7 @@ Apple renamed parts of Screen Time in iOS 27. I use the iOS 27 names and give th
 3. Set a daily limit. Tap Time Allowances (called App Limits before iOS 27). Before iOS 27, tap Add Limit next.
 4. Set hours with no apps. Tap Screen Time Schedule (called Downtime before iOS 27) and turn the schedule on.
 5. Set a passcode. Tap Manage Screen Time, then Lock Screen Time Settings, and enter a four-digit code.
-6. On iOS 26 and earlier, make the limits block. In the schedule, turn on Block at Downtime. In each app limit, turn on Block at End of Limit. Both options need the passcode from step 5.
+6. On iOS 26 and earlier, make the schedule block. Tap Downtime and turn on Block at Downtime. Apple says limits can be ignored by default, and this is the setting it gives to stop that.
 
 Even then, Screen Time has four ways out.
 
@@ -103,7 +103,7 @@ In trial mode you can remove the profile in Settings. Use it for a week before y
 
 - It does not work on Android or Windows. It is for iPhone only today.
 - It does not set time limits. A hidden app is hidden all day.
-- It does not block everything. Apple's adult filter is a filter and it misses some sites.
+- It does not block everything. Apple's adult filter is a filter and it misses some websites.
 - It is not a medical treatment.
 
 ## Which option fits you
@@ -126,7 +126,7 @@ Set a Screen Time passcode, so the limit screen asks for a code. Ask someone you
 
 ### Can I remove the Ignore Limit button?
 
-Yes. Set a Screen Time passcode. On iOS 26 and earlier, also turn on Block at End of Limit for each app limit. The button goes away, but anyone who knows the code can still get in.
+Yes. Set a Screen Time passcode. On iOS 26 and earlier, also turn on Block at Downtime, which Apple gives as the way to stop limits being ignored. The button goes away, but anyone who knows the code can still get in.
 
 ### Do I have to erase my iPhone to supervise it?
 
@@ -193,7 +193,7 @@ If Screen Time is enough for you, keep it. If you tap Ignore Limit most nights, 
           "name": "Can I remove the Ignore Limit button?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Yes. Set a Screen Time passcode. On iOS 26 and earlier, also turn on Block at End of Limit for each app limit. The button goes away, but anyone who knows the code can still get in."
+            "text": "Yes. Set a Screen Time passcode. On iOS 26 and earlier, also turn on Block at Downtime, which Apple gives as the way to stop limits being ignored. The button goes away, but anyone who knows the code can still get in."
           }
         },
         {

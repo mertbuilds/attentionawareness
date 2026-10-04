@@ -32,7 +32,7 @@ If you do not see these names on your own iPhone, look in Screen Time under Cont
 4. Tap App Store, Media, Web, & Games.
 5. Tap Web Content.
 6. Select Limit Adult Websites.
-7. To block one more site, tap Add Website below Never Allow and enter its address.
+7. To block one more website, tap Add Website below Never Allow and enter its address.
 
 ### Add a Screen Time passcode
 
@@ -97,13 +97,13 @@ All four are free.
 
 ## What the filter catches
 
-The adult website filter is Apple's own filter. It works in Safari and in apps that show web pages with the iPhone's system web view. It blocks sites that Apple detects as adult sites.
+The adult website filter is Apple's own filter. It works in Safari and in apps that show web pages with the iPhone's system web view. It blocks websites that Apple detects as adult websites.
 
 ## What this cannot do
 
 It is a filter. It does not catch everything.
 
-- **New or unknown sites can get through.** Add any site that gets through to your block list.
+- **New or unknown websites can get through.** Add any website that gets through to your block list.
 - **Apps with their own content are not filtered.** Social media apps, chat apps and video apps show content inside the app. A web filter does not see it.
 - **Other browsers may behave differently.** A browser that does not use the system web view may not follow the filter.
 - **It only covers this iPhone.** Other devices need their own setup. The Mac app supports iPhone only today.
@@ -222,8 +222,8 @@ Turn on Limit Adult Websites in Screen Time today. If you find yourself turning 
         {
           "@type": "HowToStep",
           "position": 7,
-          "name": "Block extra sites",
-          "text": "To block one more site, tap Add Website below Never Allow and enter its address."
+          "name": "Block extra websites",
+          "text": "To block one more website, tap Add Website below Never Allow and enter its address."
         }
       ]
     },
