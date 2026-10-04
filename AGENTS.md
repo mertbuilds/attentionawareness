@@ -34,7 +34,8 @@ rest of the repo is MIT (`LICENSE`). Why: `docs/adr/0008-mac-app-agpl.md`.
 The web profile
 builder (`/build`) came back on 2026-09-30 as the profile step of the free
 do-it-yourself path (`/guide`), which erases the iPhone; the Mac app is the
-paid path that keeps the data.
+path that keeps the data. Both are free: from version 0.4.0 the Mac app has no
+key and no price, and people can support the work on a pay-what-you-want page.
 
 ## Commands
 

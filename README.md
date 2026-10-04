@@ -38,8 +38,8 @@ not part of the pnpm workspace: Xcode builds it. See
   hide or block apps, and it can be removed in Settings.
 - Apple's own path to supervision is Apple Configurator's Prepare action, which
   erases the phone first.
-- The paid Mac app supervises the phone without erasing it. The free guide
-  uses Apple Configurator, which erases it.
+- The Mac app supervises the phone without erasing it. The guide uses Apple
+  Configurator, which erases it. Both are free.
 - Profiles are signed on the server with a Developer ID certificate and carry a
   unique identifier per install, so a second profile stacks on the first
   instead of replacing it and only an erase takes one off. Trial mode is the
