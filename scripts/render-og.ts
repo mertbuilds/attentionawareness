@@ -57,7 +57,6 @@ const BORDER = '#3f3f3f';
 /** The hero's graph paper: the 40px square and the faint white rule. */
 const RULE = 'rgba(255, 255, 255, 0.08)';
 const SQUARE = 40;
-const SITE = 'attentionawareness.com';
 const WORDMARK = 'attention awareness';
 
 /** How thick the drawings' lines are on the card, in pixels: thin, and still there in a thumbnail. */
@@ -300,12 +299,18 @@ function laptop(screen: string): string {
   );
 }
 
-/** The app on the Mac's screen: its mark over the one orange button, as the hero shows it. */
-function macPress(): string {
-  return (
-    mark((DISPLAY.width - 18) / 2, 12, 18) +
-    `<rect x="${(DISPLAY.width - 52) / 2}" y="41" width="52" height="14" rx="7" fill="${ORANGE}" fill-opacity="0.4" ${line(ORANGE, FAINT)}/>`
-  );
+/**
+ * Apple Configurator's icon, which the manual way runs on the Mac. Taken from
+ * the app itself (`/Applications/Apple Configurator.app`, `Configurator.icns`,
+ * converted with `sips -Z 256`); it carries the macOS rounded square and its
+ * margin.
+ */
+const CONFIGURATOR_ICON = `data:image/png;base64,${readFileSync(path.join(import.meta.dirname, 'og/apple-configurator.png')).toString('base64')}`;
+
+/** Apple Configurator on the Mac's screen: its icon in the middle of the display. */
+function macConfigurator(): string {
+  const size = 50;
+  return `<image href="${CONFIGURATOR_ICON}" x="${(DISPLAY.width - size) / 2}" y="${(DISPLAY.height - size) / 2}" width="${size}" height="${size}"/>`;
 }
 
 function plugDrawing(): string {
@@ -316,7 +321,7 @@ function plugDrawing(): string {
   const glass = `x="${phone.x + inset}" y="${phone.y + inset}" width="${phone.width - 2 * inset}" height="${phone.height - 2 * inset}" rx="${phone.radius - inset}"`;
   return svg(
     '8 26 228 136',
-    laptop(macPress()) +
+    laptop(macConfigurator()) +
       `<rect x="${phone.x}" y="${phone.y}" width="${phone.width}" height="${phone.height}" rx="${phone.radius}" ${line()}/>` +
       `<rect ${glass} fill="${ORANGE}" fill-opacity="0.12"/>` +
       `<rect ${glass} ${line(ORANGE, FAINT)}/>` +
@@ -554,8 +559,6 @@ type Card = {
   art: string;
   /** How wide the drawing stands, in pixels, inside its half of the card. */
   artWidth: number;
-  /** The small orange label over the title, as the inner pages have. The home page has none. */
-  eyebrow?: string;
   /** Where it goes, in `public/`. */
   file: string;
   /** The title, its accent words between `**` marks. */
@@ -574,11 +577,6 @@ function accent(title: string, words: string): string {
   return title.replace(words, `**${words}**`);
 }
 
-/** The first sentence of a message, without its full stop: a display line. */
-function firstSentence(text: string): string {
-  return (text.split(/(?<=\.)\s/u)[0] ?? text).replace(/\.$/u, '');
-}
-
 const file = (pagePath: string) => ogImagePath(pagePath, []).slice(1);
 
 const pages: Array<Card> = [
@@ -592,36 +590,31 @@ const pages: Array<Card> = [
   },
   {
     art: plugDrawing(),
-    artWidth: 380,
-    eyebrow: message('page_eyebrow_guide'),
+    artWidth: 300,
     file: file('/guide'),
-    title: accent(message('guide_title'), 'manually'),
+    title: accent(message('guide_head_title'), 'manually'),
   },
   {
     art: profileList(),
-    artWidth: 360,
-    eyebrow: message('page_eyebrow_build'),
+    artWidth: 300,
     file: file('/build'),
     title: accent(message('gen_step2_title'), 'profile'),
   },
   {
     art: numbersChart(),
-    artWidth: 380,
-    eyebrow: message('page_eyebrow_open'),
+    artWidth: 300,
     file: file('/open'),
     title: accent(message('open_title'), 'Open'),
   },
   {
     art: postStack(),
-    artWidth: 380,
-    eyebrow: message('page_eyebrow_blog'),
+    artWidth: 300,
     file: file('/blog'),
-    title: accent(firstSentence(message('blog_lead')), 'stay blocked'),
+    title: accent(message('blog_og_title'), 'for good'),
   },
   {
     art: browserWindow(),
-    artWidth: 380,
-    eyebrow: message('page_eyebrow_privacy'),
+    artWidth: 300,
     file: file('/extension/privacy'),
     title: accent(message('ext_privacy_title'), 'privacy'),
   },
@@ -629,12 +622,12 @@ const pages: Array<Card> = [
 
 /** Each post's drawing, by slug. A new post needs one here, or the run stops. */
 const POST_ART: Record<string, { art: string; width: number }> = {
-  'block-adult-websites-iphone': { art: otherUseGlyph('eye'), width: 320 },
-  'block-any-app-iphone': { art: otherUseGlyph('apps'), width: 320 },
-  'iphone-parental-controls-kids-cannot-turn-off': { art: otherUseGlyph('lock'), width: 320 },
+  'block-adult-websites-iphone': { art: otherUseGlyph('eye'), width: 300 },
+  'block-any-app-iphone': { art: otherUseGlyph('apps'), width: 300 },
+  'iphone-parental-controls-kids-cannot-turn-off': { art: otherUseGlyph('lock'), width: 300 },
   'turn-iphone-into-dumbphone': { art: phoneKept(), width: 250 },
   'why-screen-time-does-not-work': { art: phoneScreenTime(), width: 250 },
-  'work-iphones-without-mdm': { art: otherUseGlyph('work'), width: 320 },
+  'work-iphones-without-mdm': { art: otherUseGlyph('work'), width: 300 },
 };
 
 const posts: Array<Card> = readdirSync(blogDir)
@@ -654,17 +647,25 @@ const posts: Array<Card> = readdirSync(blogDir)
     return {
       art: art.art,
       artWidth: art.width,
-      eyebrow: message('blog_title'),
       file: ogImagePath(`/blog/${slug}`, [slug]).slice(1),
       title,
     };
   });
 
+/** An accent this short stays on one line, so two words like "dumb phone" are never split. */
+const KEEP_WORDS = 2;
+
 /** The title's runs as HTML, the accent words in `<em>`. */
 function titleHtml(title: string): string {
   return title
     .split('**')
-    .map((run, index) => (index % 2 === 1 ? `<em>${escape(run)}</em>` : escape(run)))
+    .map((run, index) => {
+      if (index % 2 === 0) {
+        return escape(run);
+      }
+      const keep = run.trim().split(/\s+/u).length <= KEEP_WORDS;
+      return `<em${keep ? ' class="keep"' : ''}>${escape(run)}</em>`;
+    })
     .join('');
 }
 
@@ -677,9 +678,17 @@ const face = (weight: number, name: string) => `@font-face {
 
 /** The safe area every part stands in, so a card cropped square still shows it all. */
 const SAFE = { x: 100, y: 64 };
-/** The largest title, and the smallest a long one may shrink to, in pixels. */
-const TITLE_MAX = 78;
-const TITLE_MIN = 52;
+/** The mark's side at the top left, in pixels; the wordmark is set to match it. */
+const BRAND = 54;
+/** How wide the title's column is, in pixels; the drawing takes the rest. */
+const TEXT_WIDTH = 660;
+/**
+ * The largest title, and the smallest a long one may shrink to, in steps of
+ * `TITLE_STEP`: two steps at most, so the set reads as one size.
+ */
+const TITLE_MAX = 88;
+const TITLE_STEP = 6;
+const TITLE_MIN = TITLE_MAX - 2 * TITLE_STEP;
 const TITLE_LINES = 3;
 
 const style = `${face(400, 'SuisseIntl-Regular.woff2')}${face(500, 'SuisseIntl-Medium.woff2')}
@@ -708,24 +717,21 @@ body {
   inset: 0;
   position: absolute;
 }
-.brand { align-items: center; display: flex; font-size: 24px; gap: 14px; left: ${SAFE.x}px; letter-spacing: -0.01em; position: absolute; top: ${SAFE.y}px; }
-.brand svg { display: block; height: 36px; width: 36px; }
-.site { color: ${MUTED}; font-size: 22px; font-weight: 400; line-height: 36px; position: absolute; right: ${SAFE.x}px; top: ${SAFE.y}px; }
-.text { bottom: ${SAFE.y}px; display: flex; flex-direction: column; gap: 24px; justify-content: center; left: ${SAFE.x}px; position: absolute; top: ${SAFE.y + 60}px; width: 540px; }
-.eyebrow { align-items: center; display: flex; font-size: 26px; font-weight: 400; gap: 14px; line-height: 1.2; }
-.eyebrow::before { background: ${ORANGE}; border-radius: 2px; content: ''; height: 14px; width: 14px; }
+.brand { align-items: center; display: flex; font-size: ${BRAND * 0.67}px; gap: ${BRAND * 0.39}px; left: ${SAFE.x}px; letter-spacing: -0.01em; position: absolute; top: ${SAFE.y}px; }
+.brand svg { display: block; height: ${BRAND}px; width: ${BRAND}px; }
+.text { bottom: ${SAFE.y}px; display: flex; flex-direction: column; justify-content: center; left: ${SAFE.x}px; position: absolute; top: ${SAFE.y + BRAND + 16}px; width: ${TEXT_WIDTH}px; }
 .title { font-size: ${TITLE_MAX}px; letter-spacing: -0.03em; line-height: 1.06; text-wrap: balance; }
 em { color: ${ORANGE}; font-style: normal; }
-.art { align-items: center; bottom: ${SAFE.y}px; display: flex; justify-content: center; left: 720px; position: absolute; right: ${SAFE.x}px; top: ${SAFE.y + 56}px; }
+.keep { white-space: nowrap; }
+.art { align-items: center; bottom: ${SAFE.y}px; display: flex; justify-content: center; left: ${SAFE.x + TEXT_WIDTH + 40}px; position: absolute; right: ${SAFE.x}px; top: ${SAFE.y + BRAND + 16}px; }
 .art svg { display: block; height: 100%; overflow: visible; }`;
 
 function cardHtml(card: Card): string {
   return (
     `<style>${style}.art svg { width: ${card.artWidth}px; }</style>` +
     '<div class="grid"></div><div class="glow"></div>' +
-    `<div class="brand"><svg viewBox="0 0 36 36">${mark(0, 0, 36)}</svg>${WORDMARK}</div>` +
-    `<div class="site">${SITE}</div>` +
-    `<div class="text">${card.eyebrow === undefined ? '' : `<div class="eyebrow">${escape(card.eyebrow)}</div>`}<div class="title">${titleHtml(card.title)}</div></div>` +
+    `<div class="brand"><svg viewBox="0 0 ${BRAND} ${BRAND}">${mark(0, 0, BRAND)}</svg>${WORDMARK}</div>` +
+    `<div class="text"><div class="title">${titleHtml(card.title)}</div></div>` +
     `<div class="art">${card.art}</div>`
   );
 }
@@ -743,22 +749,22 @@ for (const card of [...pages, ...posts]) {
   await page.setContent(cardHtml(card));
   await page.evaluate(() => document.fonts.ready);
   // As large as the title goes in three lines, and smaller only for a long one.
-  const lines = await page.evaluate(
-    ({ lines, max, min }) => {
+  const { lines, size } = await page.evaluate(
+    ({ lines, max, min, step }) => {
       const title = document.querySelector<HTMLElement>('.title');
       if (title === null) {
-        return Infinity;
+        return { lines: Infinity, size: 0 };
       }
-      for (let size = max; size >= min; size -= 2) {
+      for (let size = max; size >= min; size -= step) {
         title.style.fontSize = `${size}px`;
         const count = Math.round(title.getBoundingClientRect().height / (size * 1.06));
         if (count <= lines && title.scrollWidth <= title.clientWidth) {
-          return count;
+          return { lines: count, size };
         }
       }
-      return Infinity;
+      return { lines: Infinity, size: 0 };
     },
-    { lines: TITLE_LINES, max: TITLE_MAX, min: TITLE_MIN },
+    { lines: TITLE_LINES, max: TITLE_MAX, min: TITLE_MIN, step: TITLE_STEP },
   );
   if (lines > TITLE_LINES) {
     throw new Error(`render-og: "${card.title}" does not fit in ${TITLE_LINES} lines`);
@@ -767,7 +773,7 @@ for (const card of [...pages, ...posts]) {
   mkdirSync(path.dirname(target), { recursive: true });
   await page.screenshot({ path: target });
   const kb = Math.round(statSync(target).size / 1024);
-  process.stdout.write(`render-og: ${card.file} (${lines} lines, ${kb} KB)\n`);
+  process.stdout.write(`render-og: ${card.file} (${size}px, ${lines} lines, ${kb} KB)\n`);
 }
 
 await browser.close();

@@ -1,7 +1,7 @@
 ---
 title: 'Turn your iPhone into a dumbphone, free'
 description: 'Keep camera, maps, bank and messages. Remove the addictive feeds for good. Five ways to make an iPhone a dumb phone, compared, with free setup steps.'
-og_title: 'Turn your iPhone into a **dumbphone**, free'
+og_title: 'Turn your iPhone into a **dumb phone**, free'
 slug: turn-iphone-into-dumbphone
 date: 2026-10-04
 primary_keyword: 'turn iphone into dumb phone'
