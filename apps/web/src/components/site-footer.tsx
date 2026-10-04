@@ -87,24 +87,11 @@ const NAME_BEARING = 0.038;
  */
 const NAME_SHOWN = 0.84;
 /**
- * The name rises out of the page's own ground at the top of its letters and
- * turns orange toward their foot, so its upper part is barely there and its
- * lower part glows. Where a browser cannot paint text with a gradient, the
- * letters are in the ink. The stops are shares of the shown line: the tall
- * letters start near 10%, the short ones near 30%, and the line they stand on
- * is at 96%.
+ * The name is drawn as an outline in the orange, at a low strength. The line
+ * is full at the top of the letters and thins out toward their foot, but it
+ * never goes out.
  */
-const NAME_INK = colors.fg;
-const NAME_GROUND = colors.bg;
-/** Only a browser that paints text with a background lets the letters go clear. */
-const CLIPS_TEXT = '@supports ((background-clip: text) or (-webkit-background-clip: text))';
-/**
- * The orange laid over the ground, which is the box's own colour under it.
- * The gradient itself names no theme colour: WebKit keeps a gradient painted
- * into text as it was when the theme changes on an open page, while it
- * repaints a changed background colour.
- */
-const NAME_RUN = `linear-gradient(to bottom, transparent 15%, ${accent.base} 80%)`;
+const NAME_FADE = 'linear-gradient(to bottom, #000 25%, rgb(0 0 0 / 0.35) 95%)';
 /** The room the page shells leave under the footer, which the footer takes back. */
 const PAGE_FOOT = spacing.s16;
 /**
@@ -114,8 +101,10 @@ const PAGE_FOOT = spacing.s16;
 const PAPER_SIDES = 'linear-gradient(to right, black, transparent 35%, transparent 65%, black)';
 const PAPER_SIDES_NARROW =
   'linear-gradient(to right, rgb(0 0 0 / 0.4), transparent 25%, transparent 75%, rgb(0 0 0 / 0.4))';
-/** The strip of paper at the foot of the page: six squares tall. */
-const PAPER_HEIGHT = '240px';
+/** The footer's own height, measured in the page and set on the footer. */
+const FOOTER_HEIGHT = '--aa-footer-height';
+/** The paper covers the whole footer; twelve squares tall until it is measured. */
+const PAPER_HEIGHT = `var(${FOOTER_HEIGHT}, 480px)`;
 /** No hard line where the paper starts: it comes in out of nothing at its top. */
 const PAPER_TOP = 'linear-gradient(to bottom, transparent, black 144px)';
 
@@ -312,26 +301,17 @@ const styles = create({
       default: `${PAPER_SIDES_NARROW}, ${PAPER_TOP}`,
     },
   },
-  // The letters painted with the run, on a box of their own inside the name,
-  // so WebKit never meets the clip and the rise's moving layer on one element.
+  // The letters' outline, on a box of its own inside the name, so WebKit
+  // never meets the mask and the rise's moving layer on one element.
   nameInk: {
-    backgroundClip: 'text',
-    backgroundColor: {
-      [CLIPS_TEXT]: NAME_GROUND,
-      default: null,
-    },
-    backgroundImage: {
-      [CLIPS_TEXT]: NAME_RUN,
-      default: null,
-    },
-    color: NAME_INK,
+    color: 'transparent',
     display: 'block',
     height: '100%',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: {
-      [CLIPS_TEXT]: 'transparent',
-      default: null,
-    },
+    maskImage: NAME_FADE,
+    opacity: 0.3,
+    WebkitMaskImage: NAME_FADE,
+    WebkitTextStrokeColor: accent.base,
+    WebkitTextStrokeWidth: '1.5px',
   },
   rise: {
     animationDuration: duration.verySlow,
@@ -526,6 +506,20 @@ export function SiteFooter({ children }: { children?: ReactNode | undefined }) {
   // browser would load the page again and drop its query.
   const page = home ? '' : '/';
   const [appleBefore, appleAfter] = m.gen_footer_not_apple({ builder: LINK_SLOT }).split(LINK_SLOT);
+
+  // The paper is as tall as the footer. The footer is not positioned, so its
+  // height is measured and handed to the paper, and kept as the footer grows.
+  useEffect(() => {
+    const node = footer.current;
+    if (node === null) {
+      return;
+    }
+    const measure = () => node.style.setProperty(FOOTER_HEIGHT, `${node.offsetHeight}px`);
+    measure();
+    const watch = new ResizeObserver(measure);
+    watch.observe(node);
+    return () => watch.disconnect();
+  }, []);
 
   // Measured once, before the page paints again: only a name wholly under the
   // window is hidden, where nobody sees it go.
