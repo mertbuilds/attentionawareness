@@ -4,7 +4,9 @@ import { usePostHog } from '@posthog/react';
 import { create, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import type { ReactNode } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
+import { announceDownload } from '../lib/download-started.ts';
+import { SECTION } from '../lib/sections.ts';
 import { m } from '../paraglide/messages.js';
 
 /**
@@ -14,7 +16,7 @@ import { m } from '../paraglide/messages.js';
  */
 const LATEST_URL = '/mac/latest.json';
 /** Where the download stands on the home page: the link a phone sends on to a Mac. */
-const DOWNLOAD_PATH = '/#way-out';
+const DOWNLOAD_PATH = `/#${SECTION.wayOut}`;
 
 /** The field of `latest.json` this component reads. The rest is the updater's. */
 type Release = {
@@ -22,7 +24,7 @@ type Release = {
 };
 
 /** Where on the site a download stands, which its event carries. */
-type Placement = 'closing' | 'header' | 'hero' | 'pricing';
+type Placement = 'blog' | 'closing' | 'download' | 'header' | 'hero';
 
 /**
  * What a download does: nothing before the first release, nothing yet while
@@ -33,7 +35,7 @@ type Download =
   | { kind: 'unreleased' }
   | { kind: 'reading' }
   | { kind: 'send' }
-  | { kind: 'file'; start: () => void; url: string };
+  | { kind: 'file'; start: (event: MouseEvent<HTMLElement>) => void; url: string };
 
 const styles = create({
   // The Apple mark on the download button, sized to the label.
@@ -190,7 +192,12 @@ export function useMacDownload(placement: Placement): Download {
   }
   return {
     kind: 'file',
-    start: () => posthog.capture('mac_download_started', { placement }),
+    // The click goes on to the file untouched. The page is only told that it
+    // has started, and by which button.
+    start: (event) => {
+      posthog.capture('mac_download_started', { placement });
+      announceDownload({ button: event.currentTarget, placement });
+    },
     url: release.url,
   };
 }

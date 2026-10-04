@@ -8,7 +8,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PORT="${SMOKE_PORT:-4173}"
 BASE="http://localhost:$PORT"
-PAGES=(/ /guide)
+PAGES=(/ /guide /open /blog /blog/why-screen-time-does-not-work)
 EXPECT='attention awareness</title>'
 LOG="$(mktemp)"
 BODY="$(mktemp)"

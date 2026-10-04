@@ -146,8 +146,12 @@ const styles = create({
   },
 });
 
-/** The phone's body, its screen and island, and the dock's tray, with no apps on it. */
-export function PhoneFrame({ hairline = false }: { hairline?: boolean }) {
+/**
+ * The phone's body, its screen and island, and the dock's tray, with no apps
+ * on it. The tray is drawn as far as `dock`, for a screen that is not the
+ * home screen.
+ */
+export function PhoneFrame({ dock = 1, hairline = false }: { dock?: number; hairline?: boolean }) {
   const dockLeft = GRID_LEFT - DOCK.inset;
   const line = hairline ? HAIRLINE : undefined;
   return (
@@ -181,6 +185,7 @@ export function PhoneFrame({ hairline = false }: { hairline?: boolean }) {
       />
       <rect
         height={DOCK.height}
+        opacity={dock}
         rx={DOCK.radius}
         vectorEffect={line}
         width={WIDTH - 2 * dockLeft}

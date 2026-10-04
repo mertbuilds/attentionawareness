@@ -1,4 +1,4 @@
-import { colors, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
+import { colors, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { useSyncExternalStore } from 'react';
 import {
@@ -18,9 +18,22 @@ const THEME_NAMES: Record<ThemeChoice, () => string> = {
 };
 
 const styles = create({
+  // One choice: a pill inside the track's pill. It is as tall as the track
+  // less its border and its padding, so its round ends sit the same two
+  // pixels from the track's edge at the top, the foot and the end. On a phone
+  // the pseudo-element takes the touch a finger's height around it.
   segment: {
+    '::before': {
+      content: '',
+      insetBlock: {
+        '@media (max-width: 639px)': -10,
+        default: 0,
+      },
+      insetInline: 0,
+      position: 'absolute',
+    },
     backgroundColor: 'transparent',
-    borderRadius: radius.base,
+    borderRadius: 999,
     borderStyle: 'none',
     borderWidth: 0,
     boxSizing: 'border-box',
@@ -33,16 +46,25 @@ const styles = create({
     fontSize: 12,
     height: 24,
     lineHeight: 1,
+    outlineColor: colors.muted,
+    outlineOffset: 2,
+    outlineStyle: {
+      ':focus-visible': 'solid',
+      default: 'none',
+    },
+    outlineWidth: 1,
     paddingBlock: 5,
     paddingInline: spacing.s2,
+    position: 'relative',
   },
-  // The segments fill what is left inside the padding of the 28px box, which
-  // keeps the picked one at a 1px inset from its border.
+  // The track: a pill, as the site's buttons are. The segments fill what is
+  // left inside the padding of the 28px box, which keeps the picked one at a
+  // 1px inset from its border.
   segmented: {
     alignItems: 'center',
     backgroundColor: colors.bg,
     borderColor: colors.border,
-    borderRadius: radius.base,
+    borderRadius: 999,
     borderStyle: 'solid',
     borderWidth: '1px',
     boxSizing: 'border-box',

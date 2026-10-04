@@ -33,6 +33,9 @@ export default defineConfig({
       // client id has no secret we hold. Without both, nothing is sent.
       OPENPANEL_CLIENT_ID: bindings.secret(),
       OPENPANEL_CLIENT_SECRET: bindings.secret(),
+      // A PostHog personal API key that can only read queries of the site's
+      // project, for the numbers on /open (src/lib/open-numbers.server.ts).
+      POSTHOG_PERSONAL_API_KEY: bindings.secret(),
       // Profile signing (docs/signing.md). The v2 Vite plugin binds only declared
       // names, and `cf deploy` fails until each declared secret is set.
       SIGNING_CERT_PEM: bindings.secret(),

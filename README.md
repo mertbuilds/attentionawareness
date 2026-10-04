@@ -110,4 +110,7 @@ There are two licenses in this repo.
 - Everything else, the site, the extension and the packages, is under the MIT
   license. See [LICENSE](LICENSE).
 
+Files in the site and the packages that are not ours are listed, with their
+licenses, in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
 Made by Mert Duzgun. <https://mertbuilds.com>

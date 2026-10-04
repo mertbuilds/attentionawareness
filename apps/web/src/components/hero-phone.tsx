@@ -1,10 +1,12 @@
-import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
+import { accent } from '@attentionawareness/ui/accent.stylex';
+import { colors, font } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { cancelFrame, easeInOut, frame } from 'motion/react';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useLessMotion } from '../lib/use-less-motion.ts';
 import { useSeen } from '../lib/use-seen.ts';
+import type { WideLine } from '../lib/use-seen.ts';
 import { useTabHidden } from '../lib/use-tab-hidden.ts';
 import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
@@ -45,70 +47,77 @@ const GOING = HOME.flatMap((app, slot) => ('feed' in app ? [{ bundleId: app.feed
 const STAYING = HOME.flatMap((app, slot) => ('glyph' in app ? [{ glyph: app.glyph, slot }] : []));
 
 /**
- * The loop, nine seconds a turn, and when each part of it plays, in
- * milliseconds from the start of the turn. It tells rather than responds, so
- * like the steps' drawings it keeps its own times rather than the page's
- * motion scale. The phone stands full, feeds and all. A small Mac comes up in
- * front of it, the Mac app on its screen with the feeds ticked, and the cable
- * runs from the Mac into the phone. The app's button is pressed and a pulse
- * runs down the cable. The feeds go one after another, the apps that stay
- * close up, the cable comes out and the Mac goes. The clean phone stands a
- * moment before the full one crossfades back in.
+ * The loop, a little under twelve seconds a turn, and when each part of it
+ * plays, in milliseconds from the start of the turn. It tells rather than
+ * responds, so like the steps' drawings it keeps its own times rather than
+ * the page's motion scale. The phone stands full, feeds and all. A small Mac
+ * comes up in front of it, the app's mark and its button on its screen, and
+ * the cable runs from the Mac into the phone. The button is pressed and a
+ * pulse runs down the cable. The feeds go one after another, the apps that
+ * stay close up, the cable comes out and the Mac goes. Then the home screen
+ * gives way to the phone's Screen Time, where the daily average counts down
+ * and the week's bars shrink with it. The result stands, with what it was
+ * under it, before the full home screen crossfades back in.
  */
-const LOOP = 9000;
+const LOOP = 11_600;
 const AT = {
-  back: [8600, 9000],
+  back: [11_200, 11_600],
   cableIn: [2250, 2900],
   cableOut: [6100, 6600],
   dip: [3200, 3280],
+  drop: [7900, 9700],
   macIn: [1800, 2300],
   macOut: [6500, 7000],
   macPlug: [2200, 2300],
+  panelIn: [7000, 7600],
   phonePlugIn: [2800, 2950],
   phonePlugOut: [6100, 6250],
   press: [3200, 3300],
   ring: [3200, 3700],
   travel: [3400, 3900],
   undip: [3280, 3440],
+  was: [9700, 10_000],
 } as const;
 /** The feeds go one after another, each over `fade`; the apps that stay close up `stagger` apart. */
 const FEEDS_GO = { fade: 400, from: 3850, stagger: 150 };
 const APPS_CLOSE = { from: 4950, slide: 700, stagger: 40 };
 /**
- * From here the clean screen stands in for the live one, which goes back to
- * the start unseen, and the clean screen gives way over `CLEAN_OUT` once the
- * full one starts to come back.
+ * Where the loop stands when it is not moving: the result, the lower screen
+ * time with what it was under it. The server draws it there, a reader who
+ * asked for less motion keeps it, and the loop sets off from there, so the
+ * page a script comes alive on is the page the server sent.
  */
-const SWAP = 7000;
-const CLEAN_OUT = 150;
+const REST = 10_200;
+/** The stretches where nothing moves: the full phone before the Mac, and the result. */
+const STILL = [
+  [0, AT.macIn[0]],
+  [AT.was[1], AT.back[0]],
+] as const;
 /**
  * The phone's width on a wide window: at most `PHONE_MAX`, less on a short
  * one, and never under `PHONE_MIN`. `PHONE_CLEARANCE` is the height around it
- * on the first screen: the header and the hero's padding, and the stat under
- * the phone with its gap.
+ * on the first screen: the header, the hero's padding, and the Mac's foot and
+ * the cable under the phone's own.
  */
 const PHONE_MAX = 272;
 const PHONE_MIN = 200;
-const PHONE_CLEARANCE = 240;
-/** Where the loop stands for a reader who asked for less motion: the clean phone, alone. */
-const REST = 8000;
-/** The stretches where nothing moves: the full phone before the Mac, and the clean one after it. */
-const STILL = [
-  [0, AT.macIn[0]],
-  [AT.macOut[1], AT.back[0]],
-] as const;
+const PHONE_CLEARANCE = 176;
 
 /** How blurred a feed is, and how small, by the time it is gone. */
 const GONE_BLUR = 3;
 const GONE_SCALE = 0.85;
+/** How small the home screen is by the time it has given way to Screen Time. */
+const BACK_SCALE = 0.94;
 
 /**
  * Where the Mac stands, in the phone's units: the laptop drawn in its own
  * units, sized by `scale` and moved by `x` and `y`, in front of the phone's
  * foot, its left side out past the phone's edge and its foot just below the
- * phone's. It comes up into place by `RISE`.
+ * phone's. It is large enough for its screen to be read, and stops short of
+ * the port, so the cable has room to turn up into it. It comes up into place
+ * by `RISE`.
  */
-const MAC = { scale: 0.3, x: 59.8, y: 138.1 };
+const MAC = { scale: 0.42, x: 44.5, y: 124.5 };
 const RISE = 4;
 /** The plug in the phone's port, flush with the phone's foot, in the phone's units. */
 const PHONE_PLUG = { height: 3, radius: 1, width: 7 };
@@ -118,7 +127,7 @@ const PHONE_PLUG = { height: 3, radius: 1, width: 7 };
  * low run, and the bend it turns up into the plug by.
  */
 const SAG_DEPTH = 3;
-const REACH = 15;
+const REACH = 8;
 const BEND = 7;
 /** A quarter circle's control points stand this share of its radius from its ends. */
 const ARC = 0.552;
@@ -154,6 +163,41 @@ const SIDE = {
   width: `${(ICON / PHONE.width) * 100}%`,
 };
 
+/**
+ * The phone's Screen Time, in the phone's units: its name over a card that
+ * holds the daily average, what it was, and the week's seven bars. It stops
+ * above the Mac, which stands in front of the phone's foot.
+ */
+const PANEL = { height: 86, inset: 6, radius: 6, width: 64, x: PHONE.x + 8, y: 42 };
+const TEXT_X = PANEL.x + PANEL.inset;
+const TITLE = { size: 5.5, y: PANEL.y - 6 };
+const LABEL = { size: 4.2, y: PANEL.y + 11 };
+const NUMBER = { size: 12, y: PANEL.y + 25 };
+const WAS = { size: 4.2, y: PANEL.y + 32.5 };
+/** The bars stand on a line near the card's foot, the tallest this high. */
+const BARS = { base: PANEL.y + PANEL.height - 8, max: 34, width: 5 };
+const BAR_PITCH = (PANEL.width - 2 * PANEL.inset - BARS.width) / 6;
+/** The daily average before and after, in minutes: 5 hours 30 and 1 hour 45. */
+const BEFORE = 330;
+const AFTER = 105;
+/**
+ * Each day's bar as a share of the tallest, before and after. The week's
+ * average falls by the same share as the number over it.
+ */
+const DAYS = [
+  [0.78, 0.26],
+  [0.92, 0.31],
+  [0.7, 0.22],
+  [1, 0.34],
+  [0.85, 0.28],
+  [0.95, 0.36],
+  [0.74, 0.25],
+] as const;
+/** One day's bar starts to shrink this much of the drop after the day before it. */
+const DAY_AFTER = 0.05;
+/** How far below its place the panel starts as it rises in. */
+const PANEL_RISE = 6;
+
 const styles = create({
   // An app's box, put in place by its transform.
   app: {
@@ -171,11 +215,16 @@ const styles = create({
     filter,
     opacity,
   }),
-  caption: {
-    color: colors.muted,
-    fontSize: font.sizeSm,
-    lineHeight: 1.5,
-    margin: 0,
+  // A day's bar: orange while the day is long, the muted ink once it is short.
+  bar: (long: string) => ({
+    fill: `color-mix(in srgb, ${accent.base} ${long}, ${colors.muted})`,
+  }),
+  // The card the numbers stand on, a hairline as wide as the phone's own.
+  card: {
+    fill: 'none',
+    stroke: colors.border,
+    strokeWidth: 1,
+    vectorEffect: 'non-scaling-stroke',
   },
   // The phone's outline, in the flow, so the phone takes its height from its
   // width. The Mac stands out past its edge.
@@ -185,13 +234,10 @@ const styles = create({
     overflow: 'visible',
     width: '100%',
   },
-  // The phone, and under it the stat, clear of the cable that runs under the
-  // phone's foot.
   hero: {
     alignItems: 'center',
     display: 'flex',
     flexDirection: 'column',
-    gap: spacing.s8,
     width: '100%',
   },
   icon: {
@@ -204,18 +250,41 @@ const styles = create({
     inset: 0,
     position: 'absolute',
   },
-  layerAt: (opacity: number) => ({
+  layerAt: (opacity: number, transform: string) => ({
     opacity,
+    transform,
   }),
+  // The small words on the panel, in the muted ink.
+  muted: {
+    fill: colors.muted,
+    fontWeight: font.weightRegular,
+  },
+  // The daily average, the one thing on the panel to read. Its digits keep
+  // their own widths: it is a number being read, not a column of them.
+  number: {
+    fill: colors.fg,
+    fontVariantNumeric: 'proportional-nums',
+    fontWeight: font.weightMedium,
+    letterSpacing: '-0.02em',
+  },
   // As wide as the column lets it, up to a size that still leaves the words
   // around it room. On a wide window it is also held short enough that the
-  // stat under it clears the fold; the phone is twice as tall as it is wide.
+  // Mac at its foot clears the fold; the phone is twice as tall as it is wide.
+  // Where the hero is one column the Mac's side stands out to the left of the
+  // phone by 37% of the phone's width, so the phone is moved right by half of
+  // that and the two stand in the middle together. A window too narrow for
+  // both at that size gets a smaller phone.
   phone: {
     maxWidth: {
+      '@media (max-width: 359px)': 200,
       '@media (min-width: 640px)': `clamp(${PHONE_MIN}px, calc((100svh - ${wip.height} - ${PHONE_CLEARANCE}px) / 2), ${PHONE_MAX}px)`,
       default: 224,
     },
     position: 'relative',
+    translate: {
+      '@media (min-width: 900px)': '0 0',
+      default: '18.5% 0',
+    },
     width: '100%',
   },
   plug: {
@@ -223,30 +292,22 @@ const styles = create({
     stroke: colors.muted,
     strokeWidth: 1,
   },
-  stat: {
-    fontSize: font.sizeLg,
-    fontVariantNumeric: 'tabular-nums',
+  // The panel's name.
+  title: {
+    fill: colors.fg,
     fontWeight: font.weightMedium,
-    lineHeight: 1.3,
-    margin: 0,
-  },
-  stats: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s1,
-    textAlign: 'center',
   },
 });
 
 /**
- * How far into its turn the loop is, in milliseconds. It moves with the clock
- * only while `running` and holds where it is otherwise, so it goes on from
- * there rather than leaping ahead by the time it stood. While the phone stands
- * still the page is not drawn again.
+ * How far into its turn the loop is, in milliseconds. It starts from `REST`,
+ * moves with the clock only while `running` and holds where it is otherwise,
+ * so it goes on from there rather than leaping ahead by the time it stood.
+ * While the phone stands still the page is not drawn again.
  */
 function useLoop(running: boolean): number {
-  const [now, setNow] = useState(0);
-  const clock = useRef(0);
+  const [now, setNow] = useState(REST);
+  const clock = useRef(REST);
 
   useEffect(() => {
     if (!running) {
@@ -325,35 +386,104 @@ function KeptIcon({ glyph }: { glyph: Glyph }) {
   );
 }
 
+/** A daily average of `minutes`, in the words the phone's own Screen Time uses. */
+function average(minutes: number): string {
+  const whole = Math.round(minutes);
+  if (whole === BEFORE) {
+    return m.hero_phone_before();
+  }
+  if (whole === AFTER) {
+    return m.hero_phone_after();
+  }
+  return m.hero_phone_time({ hours: Math.floor(whole / 60), minutes: whole % 60 });
+}
+
 /**
- * The hero's iPhone and the way the feeds come off it: the full home screen,
- * then a small Mac in front of it with the cable run into the phone, the Mac
- * app's button pressed, the four feeds blurring away one after another and
- * the apps that stay sliding up to close the gaps. The cable
- * comes out, the Mac goes, and the clean phone stands a moment before the full
- * one crossfades back and it plays again. Under it, the daily screen time
- * before and after.
+ * The phone's Screen Time, `dropped` of the way from the week before to the
+ * week after: the daily average counting down, the seven days' bars shrinking
+ * one a little after another, and, as far as `was`, the line that says what
+ * the average was.
+ */
+function ScreenTime({ dropped, was }: { dropped: number; was: number }) {
+  return (
+    <>
+      <text fontSize={TITLE.size} x={PANEL.x + 1} y={TITLE.y} {...props(styles.title)}>
+        {m.hero_phone_panel()}
+      </text>
+      <rect
+        height={PANEL.height}
+        rx={PANEL.radius}
+        width={PANEL.width}
+        x={PANEL.x}
+        y={PANEL.y}
+        {...props(styles.card)}
+      />
+      <text fontSize={LABEL.size} x={TEXT_X} y={LABEL.y} {...props(styles.muted)}>
+        {m.hero_phone_average()}
+      </text>
+      <text fontSize={NUMBER.size} x={TEXT_X} y={NUMBER.y} {...props(styles.number)}>
+        {average(BEFORE - (BEFORE - AFTER) * dropped)}
+      </text>
+      {was > 0 ? (
+        <text fontSize={WAS.size} opacity={was} x={TEXT_X} y={WAS.y} {...props(styles.muted)}>
+          {m.hero_phone_was({ time: m.hero_phone_before() })}
+        </text>
+      ) : null}
+      {DAYS.map(([before, after], day) => {
+        const late = day * DAY_AFTER;
+        const short = stretch(dropped, late, late + 1 - (DAYS.length - 1) * DAY_AFTER);
+        const height = BARS.max * (before - (before - after) * short);
+        return (
+          <rect
+            height={height}
+            key={day}
+            rx={1.5}
+            width={BARS.width}
+            x={TEXT_X + day * BAR_PITCH}
+            y={BARS.base - height}
+            {...props(styles.bar(`${Math.round((1 - short) * 100)}%`))}
+          />
+        );
+      })}
+    </>
+  );
+}
+
+/** On a wide window the loop sets off with any of the phone in the window, as it did before `SEEN`. */
+const WIDE_SEEN: WideLine = {};
+
+/**
+ * The hero's iPhone and what the page promises, told on it: the full home
+ * screen, then a small Mac in front of it with the cable run into the phone,
+ * its button pressed, the four feeds blurring away one after another and the
+ * apps that stay sliding up to close the gaps. The cable comes out and the
+ * Mac goes. Then the home screen gives way to the phone's Screen Time, and
+ * the daily average counts down from five and a half hours to an hour and
+ * three quarters as the week's bars shrink. The result stands a moment before
+ * the full home screen crossfades back and it plays again.
  *
- * The clean screen is drawn over the live one and stands in for it at the
- * loop's end, so the live one can be put back where it started unseen and the
- * full screen crossfades in over the clean one. The loop sets off once the
- * phone is in view and holds while it is off screen or the tab is put away.
- * The server draws the full screen, and with less motion the clean one stands
- * there, the Mac gone.
+ * The home screen is put back where it started while Screen Time stands over
+ * it, unseen, so the full one is what crossfades back in. The loop sets off
+ * once the phone is in view and holds while it is off screen or the tab is
+ * put away. It starts from the result: the server draws the phone there, with
+ * the lower screen time and what it was, and with less motion that is where
+ * it stays.
  */
 export function HeroPhone() {
   const phone = useRef<HTMLDivElement>(null);
-  const seen = useSeen(phone);
+  const seen = useSeen(phone, { desktop: WIDE_SEEN });
   const hidden = useTabHidden();
   const reduced = useLessMotion();
   const looped = useLoop(seen && !hidden && !reduced);
   const now = reduced ? REST : looped;
 
-  // Before the swap the live screen plays. After it the live one waits at the
-  // start, unseen, until it crossfades back in over the clean one.
-  const playing = now < SWAP;
-  const live = playing ? 1 : within(now, AT.back);
-  const clean = playing ? 0 : 1 - stretch(now, AT.back[0], AT.back[0] + CLEAN_OUT);
+  // Until Screen Time has come in over it the home screen plays. From then on
+  // it waits at the start, unseen, until it crossfades back in.
+  const playing = now < AT.panelIn[1];
+  const panelIn = within(now, AT.panelIn);
+  const back = within(now, AT.back);
+  const home = playing ? 1 - panelIn : back;
+  const panel = panelIn * (1 - back);
   const mac = within(now, AT.macIn) * (1 - within(now, AT.macOut));
   const rise = RISE * (1 - within(now, AT.macIn));
   const cable = within(now, AT.cableIn, easeInOut) * (1 - within(now, AT.cableOut, easeInOut));
@@ -371,13 +501,19 @@ export function HeroPhone() {
           viewBox={`${PHONE.x} ${PHONE.y} ${PHONE.width} ${PHONE.height}`}
           {...props(styles.frame)}
         >
-          <PhoneFrame hairline />
+          <PhoneFrame dock={1 - panel} hairline />
+          {panel > 0 ? (
+            <g opacity={panel} transform={`translate(0 ${PANEL_RISE * (1 - panelIn)})`}>
+              <ScreenTime dropped={within(now, AT.drop, easeInOut)} was={within(now, AT.was)} />
+            </g>
+          ) : null}
           {cable > 0 || phonePlug > 0 ? (
             <g transform={`translate(${MAC.x} ${MAC.y}) scale(${MAC.scale})`}>
               <rect
                 height={PHONE_PLUG.height / MAC.scale}
                 opacity={phonePlug}
                 rx={PHONE_PLUG.radius / MAC.scale}
+                vectorEffect="non-scaling-stroke"
                 width={PHONE_PLUG.width / MAC.scale}
                 x={PLUG_TOP.x}
                 y={PLUG_TOP.y}
@@ -388,65 +524,58 @@ export function HeroPhone() {
           ) : null}
           {mac > 0 ? (
             <g opacity={mac} transform={`translate(${MAC.x} ${MAC.y + rise}) scale(${MAC.scale})`}>
-              <Laptop plugged={within(now, AT.macPlug)} solid>
-                <MacApp dip={dip} pressed={pressed} ring={ring} screen="apps" />
+              <Laptop hairline plugged={within(now, AT.macPlug)} solid>
+                <MacApp dip={dip} pressed={pressed} ring={ring} screen="press" />
               </Laptop>
             </g>
           ) : null}
         </svg>
-        <div {...props(styles.layer, styles.layerAt(live))}>
-          {GOING.map((app, order) => {
-            const start = FEEDS_GO.from + order * FEEDS_GO.stagger;
-            const gone = playing ? stretch(now, start, start + FEEDS_GO.fade) : 0;
-            return (
-              <div
-                key={app.bundleId}
-                {...props(
-                  styles.app,
-                  styles.appAt(
-                    SIDE.width,
-                    SIDE.height,
-                    standOn(app.slot, app.slot, 0, 1 - (1 - GONE_SCALE) * gone),
-                  ),
-                  styles.appGoing(1 - gone, gone > 0 ? `blur(${GONE_BLUR * gone}px)` : 'none'),
-                )}
-              >
-                <AppIcon>
-                  <FeedIcon bundleId={app.bundleId} hairline />
-                </AppIcon>
-              </div>
-            );
-          })}
-          {STAYING.map((app, place) => {
-            const start = APPS_CLOSE.from + place * APPS_CLOSE.stagger;
-            const moved = playing ? stretch(now, start, start + APPS_CLOSE.slide) : 0;
-            return (
-              <div
-                key={app.glyph}
-                {...props(
-                  styles.app,
-                  styles.appAt(SIDE.width, SIDE.height, standOn(app.slot, place, moved)),
-                )}
-              >
-                <KeptIcon glyph={app.glyph} />
-              </div>
-            );
-          })}
-        </div>
-        <div {...props(styles.layer, styles.layerAt(clean))}>
-          {STAYING.map((app, place) => (
-            <div
-              key={app.glyph}
-              {...props(styles.app, styles.appAt(SIDE.width, SIDE.height, standOn(place)))}
-            >
-              <KeptIcon glyph={app.glyph} />
-            </div>
-          ))}
-        </div>
-      </div>
-      <div {...props(styles.stats)}>
-        <p {...props(styles.stat)}>{m.hero_phone_stat()}</p>
-        <p {...props(styles.caption)}>{m.hero_phone_stat_caption()}</p>
+        {home > 0 ? (
+          <div
+            {...props(
+              styles.layer,
+              styles.layerAt(home, `scale(${1 - (1 - BACK_SCALE) * (playing ? panelIn : 0)})`),
+            )}
+          >
+            {GOING.map((app, order) => {
+              const start = FEEDS_GO.from + order * FEEDS_GO.stagger;
+              const gone = playing ? stretch(now, start, start + FEEDS_GO.fade) : 0;
+              return (
+                <div
+                  key={app.bundleId}
+                  {...props(
+                    styles.app,
+                    styles.appAt(
+                      SIDE.width,
+                      SIDE.height,
+                      standOn(app.slot, app.slot, 0, 1 - (1 - GONE_SCALE) * gone),
+                    ),
+                    styles.appGoing(1 - gone, gone > 0 ? `blur(${GONE_BLUR * gone}px)` : 'none'),
+                  )}
+                >
+                  <AppIcon>
+                    <FeedIcon bundleId={app.bundleId} hairline />
+                  </AppIcon>
+                </div>
+              );
+            })}
+            {STAYING.map((app, place) => {
+              const start = APPS_CLOSE.from + place * APPS_CLOSE.stagger;
+              const moved = playing ? stretch(now, start, start + APPS_CLOSE.slide) : 0;
+              return (
+                <div
+                  key={app.glyph}
+                  {...props(
+                    styles.app,
+                    styles.appAt(SIDE.width, SIDE.height, standOn(app.slot, place, moved)),
+                  )}
+                >
+                  <KeptIcon glyph={app.glyph} />
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
       </div>
     </div>
   );

@@ -18,6 +18,7 @@ Page views do not say which steps of the Mac download and the `/build` profile b
   - Masking follows marked elements, not the address, so a portal opened from `/build` stays covered. rrweb checks the marker on ancestors for text that changes later, so new text inside a marked element stays masked.
   - On other pages text is readable: they show only the site's own copy. Options set in `posthog.init` win over the project's "Privacy and masking" settings.
   - Custom events carry counts and modes, never the apps or sites themselves.
+- The project discards client IP data (project setting "Discard client IP data", checked 2026-10-04: on, and no stored event has an address). PostHog first reads the country, the city, the postal code and rough coordinates from the address, keeps those on the event, and drops the address. The Countries tile on `/open` (ADR-0007) needs that.
 
 ## Consequences
 

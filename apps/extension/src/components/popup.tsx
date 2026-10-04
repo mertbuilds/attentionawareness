@@ -19,7 +19,7 @@ import { Switch } from './switch.tsx';
  * carries utm tags, so the visit is traced back to the popup.
  */
 const GUIDE_URL =
-  'https://attentionawareness.com/guides/use-social-media-from-your-computer?utm_source=extension&utm_medium=referral&utm_campaign=popup';
+  'https://attentionawareness.com/guide?utm_source=extension&utm_medium=referral&utm_campaign=popup';
 
 const styles = create({
   brand: {

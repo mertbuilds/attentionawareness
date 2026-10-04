@@ -1,16 +1,24 @@
 import { accent, tint } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
-import { inView } from 'motion/react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ComponentType } from 'react';
 import { layout } from '../lib/layout.ts';
 import { blur, clock, distance, drawing, duration, easing } from '../lib/motion.stylex.ts';
 import { useLessMotion } from '../lib/use-less-motion.ts';
-import { SEEN, useSeen } from '../lib/use-seen.ts';
+import { seenLine, useSeen, watchByWidth } from '../lib/use-seen.ts';
+import type { WideLine } from '../lib/use-seen.ts';
 import { useTabHidden } from '../lib/use-tab-hidden.ts';
 import { m } from '../paraglide/messages.js';
 
+/**
+ * On a wide window the grid runs with any of it in the window, and a tile
+ * comes in once its top is a tenth of the way up the window, as they did
+ * before `SEEN`. It is a tile's top that is watched, so the tiles of a row
+ * come in together whatever their height.
+ */
+const WIDE_GRID: WideLine = {};
+const WIDE_TILE: WideLine = { margin: '0px 0px -10% 0px' };
 /**
  * The grid's times, in milliseconds. Tiles that come on screen together rise
  * one after another, `stagger` apart, the motion scale's large stagger. Gains
@@ -709,27 +717,6 @@ function riseStyle({ hidden, wait }: Rise) {
   return hidden ? styles.tileHidden : wait === null ? null : [styles.tileRise, styles.after(wait)];
 }
 
-/**
- * Plays a gain's drawing again from the top of its turn. Every part is put
- * back to where the first turn started, `first` milliseconds in, so each
- * keeps its own place in the turn. The tile's own rise is left alone, and so
- * are the parts marked `data-steady`, the lights and the clouds, which only
- * go round and would jump if they were put back.
- */
-function replay(tile: HTMLElement, first: number) {
-  const kept = new Set(tile.getAnimations());
-  for (const steady of tile.querySelectorAll('[data-steady]')) {
-    for (const motion of steady.getAnimations()) {
-      kept.add(motion);
-    }
-  }
-  for (const part of tile.getAnimations({ subtree: true })) {
-    if (!kept.has(part)) {
-      part.currentTime = first;
-    }
-  }
-}
-
 /** Lines of code on the laptop's display, each `[x, y, length]`. */
 const CODE = [
   [38, 28, 46],
@@ -846,7 +833,6 @@ function BookArt({ play }: Playing) {
       <circle
         cx={MOON.x}
         cy={MOON.y}
-        data-steady
         r={11}
         {...props(styles.halo, play && [styles.loop, styles.glow])}
       />
@@ -858,7 +844,6 @@ function BookArt({ play }: Playing) {
       {STARS.map((star) => (
         <path
           d={star.d}
-          data-steady
           key={star.d}
           vectorEffect={HAIRLINE}
           {...props(
@@ -1054,7 +1039,6 @@ function OutsideArt({ play }: Playing) {
       <circle
         cx={SUN.x}
         cy={SUN.y}
-        data-steady
         r={SUN.r + 5}
         {...props(styles.halo, play && [styles.loop, styles.glow])}
       />
@@ -1067,14 +1051,12 @@ function OutsideArt({ play }: Playing) {
       />
       <path
         d={RAYS}
-        data-steady
         vectorEffect={HAIRLINE}
         {...props(styles.line, styles.gold, play && [styles.loop, styles.spin])}
       />
       {CLOUDS.map((cloud) => (
         <path
           d={cloud.d}
-          data-steady
           key={cloud.d}
           vectorEffect={HAIRLINE}
           {...props(
@@ -1250,8 +1232,8 @@ const TILES: ReadonlyArray<Tile> = [
 
 /**
  * Something the phone is for again, its drawing over its words. The drawing
- * plays over and over once `first`, how long its first turn waits, is known,
- * and a mouse coming onto the tile plays it again at once.
+ * plays over and over once `first`, how long its first turn waits, is known.
+ * A pointer on the tile lifts it and leaves the drawing to play on.
  */
 function Gain({
   area,
@@ -1274,11 +1256,6 @@ function Gain({
 }) {
   return (
     <li
-      onPointerEnter={(event) => {
-        if (first !== null && event.pointerType === 'mouse') {
-          replay(event.currentTarget, first);
-        }
-      }}
       {...props(
         styles.tile,
         styles.gain,
@@ -1362,10 +1339,11 @@ function Loss({
  *
  * The server draws every tile finished, so none waits on the script. Only a
  * tile still under the window once the page has come alive hides, and rises
- * once its top has come up the window as far as `SEEN`, where it is in full
- * view, `stagger` after the one before it when they come up together, as a
- * row does. Tiles of one row come up together whatever their height, since
- * it is their tops that are watched. As a loss rises its icon moves and it
+ * once its top has come up the window as far as `SEEN` on a phone, where it
+ * is in full view, and a tenth of the way up a wide window. It rises
+ * `stagger` after the one before it when they come up together, as a row
+ * does. Tiles of one row come up together whatever their height, since it is
+ * their tops that are watched. As a loss rises its icon moves and it
  * is struck through, once, and it stays struck. As a gain rises its drawing
  * plays from the start, and from then on it plays again every three to four
  * seconds, each gain on its own time; a gain already on screen starts playing
@@ -1375,7 +1353,7 @@ function Loss({
 export function UsesGrid() {
   const grid = useRef<HTMLUListElement>(null);
   const reduced = useLessMotion();
-  const seen = useSeen(grid);
+  const seen = useSeen(grid, { desktop: WIDE_GRID });
   const hidden = useTabHidden();
   // Which tiles were under the window as the page came alive, by place.
   const [below, setBelow] = useState<ReadonlyArray<boolean>>([]);
@@ -1403,17 +1381,30 @@ export function UsesGrid() {
     }
     const tiles = [...list.children];
     let last = Number.NEGATIVE_INFINITY;
-    return inView(
-      tiles.filter((_, index) => below[index] === true),
-      (tile) => {
-        const now = performance.now();
-        last = Math.max(now, last + TIMES.stagger);
-        const place = tiles.indexOf(tile);
-        const wait = last - now;
-        setWaits((was) => new Map(was).set(place, wait));
-      },
-      { margin: SEEN },
-    );
+    // The tiles told so far: a window that changes width watches the rest.
+    const told = new Set<Element>();
+    return watchByWidth(() => {
+      const watch = new IntersectionObserver((entries) => {
+        for (const { isIntersecting, target } of entries) {
+          if (!isIntersecting) {
+            continue;
+          }
+          watch.unobserve(target);
+          told.add(target);
+          const now = performance.now();
+          last = Math.max(now, last + TIMES.stagger);
+          const place = tiles.indexOf(target);
+          const wait = last - now;
+          setWaits((was) => new Map(was).set(place, wait));
+        }
+      }, seenLine(WIDE_TILE));
+      for (const [index, tile] of tiles.entries()) {
+        if (below[index] === true && !told.has(tile)) {
+          watch.observe(tile);
+        }
+      }
+      return () => watch.disconnect();
+    });
   }, [below, rising]);
 
   return (

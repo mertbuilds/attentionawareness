@@ -5,9 +5,11 @@ import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-r
 import type { ReactNode } from 'react';
 import { NotFound } from '../components/not-found.tsx';
 import { SiteHeader } from '../components/site-header.tsx';
+import { SupportPopup } from '../components/support-popup.tsx';
 import { WipBanner } from '../components/wip-banner.tsx';
 import { clientEnv } from '../lib/env.ts';
 import { openPanelReplay, posthogReplay } from '../lib/replay.ts';
+import { THEME_GROUND } from '../lib/theme.ts';
 import { m } from '../paraglide/messages.js';
 import fontsStylesheet from '@attentionawareness/ui/fonts-optional.css?url';
 import '@attentionawareness/ui/theme.css';
@@ -57,8 +59,13 @@ export const Route = createRootRoute({
   head: ({ match, matches }) => {
     // The address a page is known by: the site's own host and the path of the
     // deepest match, which is the page itself. A path no route answers is
-    // marked on the root match and has no address of its own.
-    const url = match._notFound ? undefined : `${SITE_URL}${matches.at(-1)?.pathname ?? '/'}`;
+    // marked on the root match and has no address of its own. An index route
+    // under a path names itself with a closing slash (`/blog/`), which the
+    // address does not have. Cut by hand: a lookbehind in a pattern stops
+    // the whole script from parsing in Safari before 16.4.
+    const named = matches.at(-1)?.pathname ?? '/';
+    const path = named.length > 1 && named.endsWith('/') ? named.slice(0, -1) : named;
+    const url = match._notFound ? undefined : `${SITE_URL}${path}`;
     // What the site promises, in the hero's own words. The share cards lead with it.
     const tagline = m.home_hero_title({ permanently: m.home_hero_title_accent() });
     const description = `${SITE_NAME}. ${m.home_meta_description()}`;
@@ -179,6 +186,22 @@ function RootDocument({ children }: { children: ReactNode }) {
     <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
+        {/* The page's ground, for the browser's own chrome and what it shows
+        behind the page: one per system theme, written here because the head's
+        list keeps one meta per name. A theme chosen on the site rewrites both
+        (`lib/theme.ts`). */}
+        <meta
+          content={THEME_GROUND.light}
+          media="(prefers-color-scheme: light)"
+          name="theme-color"
+          suppressHydrationWarning
+        />
+        <meta
+          content={THEME_GROUND.dark}
+          media="(prefers-color-scheme: dark)"
+          name="theme-color"
+          suppressHydrationWarning
+        />
         <script dangerouslySetInnerHTML={{ __html: WIP_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: ANALYTICS_SCRIPT }} />
       </head>
@@ -187,6 +210,7 @@ function RootDocument({ children }: { children: ReactNode }) {
           <WipBanner />
           <SiteHeader />
           {children}
+          <SupportPopup />
         </Providers>
         <Scripts />
       </body>

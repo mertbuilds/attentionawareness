@@ -23,6 +23,12 @@ const BODY_Y = HEAD_Y + MARK / 2 + 4;
 /** The app's one filled button, at the foot of the column, and the word on it as a bar. */
 const BUTTON = { height: 8, width: 28, x: INSET, y: SCREEN.height - 14 };
 const BUTTON_WORD = 16;
+/**
+ * The hero's Mac is read at a glance, so its screen holds two things, each
+ * large enough to read there: the mark, and under it the one button.
+ */
+const BIG_MARK = 18;
+const BIG_BUTTON = { height: 14, width: 52, x: (SCREEN.width - 52) / 2, y: 41 };
 /** How far the button gives under the press, and the ring the press sends out. */
 const DIP = 0.06;
 const RING_GROW = 0.5;
@@ -120,22 +126,35 @@ const styles = create({
   },
 });
 
-/** Which of the app's steps is on the screen. */
-export type MacAppScreen = 'apps' | 'connect' | 'sending';
+/** Which of the app's steps is on the screen, or `press`, the hero's mark and button alone. */
+export type MacAppScreen = 'apps' | 'connect' | 'press' | 'sending';
 
 /**
- * The button at the foot of the column, orange at rest. `pressed` deepens its
- * wash from `WASH` to `WASH_PRESSED`; it sinks `dip` of the way under the
- * press and sends out a ring as `ring` goes from 0 to 1.
+ * The app's one button, at `box`, orange at rest. `pressed` deepens its wash
+ * from `WASH` to `WASH_PRESSED`; it sinks `dip` of the way under the press
+ * and sends out a ring as `ring` goes from 0 to 1. `word` is the length of
+ * the bar that stands for the word on it; the hero's large button has none.
  */
-function PrimaryButton({ dip, pressed, ring }: { dip: number; pressed: number; ring: number }) {
-  const middle = { x: BUTTON.x + BUTTON.width / 2, y: BUTTON.y + BUTTON.height / 2 };
+function PrimaryButton({
+  box = BUTTON,
+  dip,
+  pressed,
+  ring,
+  word = BUTTON_WORD,
+}: {
+  box?: { height: number; width: number; x: number; y: number };
+  dip: number;
+  pressed: number;
+  ring: number;
+  word?: number;
+}) {
+  const middle = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   const shape = {
-    height: BUTTON.height,
-    rx: BUTTON.height / 2,
-    width: BUTTON.width,
-    x: -BUTTON.width / 2,
-    y: -BUTTON.height / 2,
+    height: box.height,
+    rx: box.height / 2,
+    width: box.width,
+    x: -box.width / 2,
+    y: -box.height / 2,
   };
   return (
     <>
@@ -145,7 +164,7 @@ function PrimaryButton({ dip, pressed, ring }: { dip: number; pressed: number; r
           {...shape}
           {...props(styles.button)}
         />
-        <path d={`M${-BUTTON_WORD / 2} 0 h${BUTTON_WORD}`} {...props(styles.word)} />
+        {word > 0 ? <path d={`M${-word / 2} 0 h${word}`} {...props(styles.word)} /> : null}
       </g>
       {ring > 0 && ring < 1 ? (
         <rect
@@ -245,7 +264,8 @@ function Progress({ progress }: { progress: number }) {
  * feeds ticked. Both end in the button, `pressed`, given `dip` and sending
  * out `ring` as the press lands. `sending` fills its bar as far as `progress`
  * in the button's place. Lines stand for the words, which no screen this
- * small could hold.
+ * small could hold. `press` is the hero's: the mark and the button, large,
+ * and nothing else.
  */
 export function MacApp({
   dip = 0,
@@ -262,6 +282,16 @@ export function MacApp({
   ring?: number;
   screen: MacAppScreen;
 }) {
+  if (screen === 'press') {
+    return (
+      <>
+        <g transform={`translate(${(SCREEN.width - BIG_MARK) / 2} 12)`}>
+          <BrandMark size={BIG_MARK} />
+        </g>
+        <PrimaryButton box={BIG_BUTTON} dip={dip} pressed={pressed} ring={ring} word={0} />
+      </>
+    );
+  }
   return (
     <>
       <path d={`M0 ${TITLE_BAR} H${SCREEN.width}`} {...props(styles.faint)} />

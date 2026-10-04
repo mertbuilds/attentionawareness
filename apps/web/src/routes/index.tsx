@@ -1,21 +1,26 @@
 import { Button } from '@attentionawareness/ui';
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
+import { usePostHog } from '@posthog/react';
 import { create, defaultMarker, props, when } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { AngleDown, Check } from 'reicon-react';
+import { PaperLetter } from '../components/bill-paper.tsx';
+import { ExtensionBrowser } from '../components/extension-browser.tsx';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { HeroPhone } from '../components/hero-phone.tsx';
 import { HowItWorks } from '../components/how-it-works.tsx';
 import { MacDownload } from '../components/mac-download.tsx';
+import { OtherUses } from '../components/other-uses.tsx';
 import { ScreenShots } from '../components/screen-shots.tsx';
-import { Signature } from '../components/signature.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
+import { SupportSection } from '../components/support-section.tsx';
 import { UsesGrid } from '../components/uses-grid.tsx';
 import { brandBar } from '../lib/brand-bar.stylex.ts';
 import { blur, duration, easing } from '../lib/motion.stylex.ts';
+import { SECTION } from '../lib/sections.ts';
 import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
 
@@ -31,6 +36,22 @@ export const Route = createFileRoute('/')({
 const SECTION_GAP = '96px';
 /** The column every section stands in, and the first screen too once it is stacked. */
 const COLUMN_WIDTH = 760;
+/** The sign-off's lines: the name before its first comma, the place and date after it. */
+function signLines(text: string): Array<string> {
+  const comma = text.indexOf(',');
+  return comma === -1 ? [text] : [text.slice(0, comma).trim(), text.slice(comma + 1).trim()];
+}
+/** The question about losing data, which the line under the download goes to. */
+const FAQ_DATA_ID = 'faq-data';
+/** The id the download's section had, kept as an empty anchor for old links. */
+const OLD_DOWNLOAD_ID = 'pricing';
+/** The extension's privacy page. */
+const EXTENSION_PRIVACY_PATH = '/extension/privacy';
+/**
+ * The face the letter is typed in: Special Elite, a worn typewriter's, which
+ * the site serves itself, then a typewriter face the reader's own system has.
+ */
+const LETTER_FACE = "'Special Elite', 'Courier New', ui-monospace, monospace";
 /**
  * The first screen side by side: wider than the column, so the words keep a
  * readable measure next to the phone.
@@ -38,12 +59,6 @@ const COLUMN_WIDTH = 760;
 const HERO_WIDTH = 1040;
 /** The phone's column beside the words, as wide as the phone is drawn there. */
 const HERO_PHONE_WIDTH = 272;
-/** The places on the page that can be linked to, and the ids they use. */
-const PROOF_ID = 'proof';
-const WAY_OUT_ID = 'way-out';
-const STORY_ID = 'story';
-/** The two ways and their prices, which the header's pricing link goes down to. */
-const PRICING_ID = 'pricing';
 /** The manual way out, on a page of its own. */
 const GUIDE_URL = '/guide';
 /** Every link off this site carries utm tags, so the visit is traced to this page. */
@@ -76,7 +91,7 @@ const styles = create({
     scrollMarginBlockStart: `calc(${brandBar.height} + ${spacing.s6})`,
   },
   // The last word before the footer: one line, the download under it, then
-  // its price and the free way, all in the middle of the column.
+  // its price and the guide, all in the middle of the column.
   closing: {
     alignItems: 'center',
     display: 'flex',
@@ -120,6 +135,24 @@ const styles = create({
   // them.
   downloadCentered: {
     alignItems: 'center',
+  },
+  // The extension's three parts, a step further apart than the lines inside
+  // each: what it is and the way to it, the drawing, then what it does.
+  extension: {
+    gap: spacing.s8,
+  },
+  // The way to it, on one line with what it costs, right under the lead.
+  extensionAction: {
+    alignItems: 'center',
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: spacing.s3,
+  },
+  // The title, the lead and the action, close together as one block.
+  extensionHead: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s4,
   },
   // The track an answer grows and shrinks in, from no height to its own. It
   // takes no padding, or a closed answer would keep a strip of it.
@@ -261,20 +294,11 @@ const styles = create({
   accentWord: {
     color: accent.base,
   },
-  // The download and the free way, and the price close under them.
+  // The download, and the price close under it.
   heroAction: {
     alignItems: 'flex-start',
     display: 'flex',
     flexDirection: 'column',
-    gap: spacing.s3,
-  },
-  // The download and the free way beside it, on their feet, so a phone's
-  // note over its button leaves the two buttons level. They stack where the
-  // row runs out.
-  heroButtons: {
-    alignItems: 'flex-end',
-    display: 'flex',
-    flexWrap: 'wrap',
     gap: spacing.s3,
   },
   heroPrice: {
@@ -311,6 +335,34 @@ const styles = create({
     // The containing block the footer's graph paper measures itself against.
     position: 'relative',
   },
+  // The sheet the story is written on: the column's width, with room around
+  // the words, less of it on a phone. Everything on it is typed. The face has
+  // one weight, so nothing on the sheet is thickened to make a bolder one.
+  letter: {
+    boxSizing: 'border-box',
+    fontFamily: LETTER_FACE,
+    fontSynthesis: 'none',
+    paddingBlock: {
+      '@media (min-width: 640px)': spacing.s12,
+      default: spacing.s8,
+    },
+    paddingInline: {
+      '@media (min-width: 640px)': spacing.s12,
+      default: spacing.s6,
+    },
+  },
+  // The letter's title stands in the middle of the sheet, in the typewriter's
+  // one weight, half as large again as the lines. What is written under it
+  // starts at the left, as a letter does.
+  letterTitle: {
+    fontSize: {
+      '@media (min-width: 640px)': 28,
+      default: 25,
+    },
+    fontWeight: font.weightRegular,
+    letterSpacing: 'normal',
+    textAlign: 'center',
+  },
   // One way out: its name, what it is, what it keeps, then its button at the
   // foot, level with the other card's.
   plan: {
@@ -337,21 +389,28 @@ const styles = create({
     gap: spacing.s4,
     maxWidth: '40ch',
   },
-  // The button takes what height is left, so both stand at the foot.
-  planButton: {
+  // A card's button with a line about backing up under it, at the card's
+  // foot.
+  planFoot: {
+    alignItems: 'flex-start',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s3,
     marginBlockStart: 'auto',
+  },
+  // The line under a card's button. Side by side, each card keeps room for
+  // two lines of it, so the two buttons stand level whichever line is longer.
+  planNote: {
+    minHeight: {
+      '@media (min-width: 640px)': '3em',
+      default: 0,
+    },
   },
   // The name, and what it is close under it.
   planHead: {
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s1,
-  },
-  planNote: {
-    fontSize: font.sizeMd,
-    lineHeight: 1.5,
-    margin: 0,
-    textWrap: 'pretty',
   },
   // The app's price is in its card's orange.
   planPrice: {
@@ -439,9 +498,16 @@ const styles = create({
     margin: 0,
     textWrap: 'balance',
   },
-  // Two times at the display size, their digits at one width.
-  stat: {
-    fontVariantNumeric: 'tabular-nums',
+  // A line of the sign-off, on a line of its own.
+  signLine: {
+    display: 'block',
+  },
+  // The sign-off stands at the end of the line, under the letter it closes,
+  // a step clear of its last paragraph. Its lines start under one another.
+  signOff: {
+    alignSelf: 'flex-end',
+    marginBlockStart: spacing.s4,
+    maxWidth: '100%',
   },
   story: {
     display: 'flex',
@@ -449,15 +515,30 @@ const styles = create({
     gap: spacing.s4,
     maxWidth: 640,
   },
-  // Paragraphs of prose, so the ink is pulled a step toward the page.
+  // Paragraphs of prose, so the ink is pulled a step toward the page. Typed
+  // at a size that sets about 65 letters to a line where the sheet is at its
+  // full width.
   storyLine: {
     color: `color-mix(in srgb, ${colors.fg} 80%, ${colors.bg})`,
-    fontSize: 18,
-    lineHeight: 1.7,
+    fontSize: {
+      '@media (min-width: 640px)': 19,
+      default: 17,
+    },
+    lineHeight: 1.6,
     margin: 0,
     textWrap: 'pretty',
   },
 });
+
+/** The questions that can be asked for by name, each told when one is. */
+const askers = new Set<(anchor: string) => void>();
+
+/** Opens the question with that anchor, as a link to it does when pressed. */
+function askQuestion(anchor: string) {
+  for (const asker of askers) {
+    asker(anchor);
+  }
+}
 
 /**
  * One question, closed until it is pressed. Its answer opens under it and
@@ -465,14 +546,48 @@ const styles = create({
  * is inert: out of the tab order and unread by a screen reader, though it
  * stays in the page to animate.
  */
-function Question({ answer, question }: { answer: string; question: string }) {
+function Question({
+  anchor,
+  answer,
+  question,
+}: {
+  /** The id a link elsewhere on the page goes to. Gone to, the answer opens. */
+  anchor?: string | undefined;
+  answer: string;
+  question: string;
+}) {
   const id = useId();
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (anchor === undefined) {
+      return;
+    }
+    const openIfHere = () => {
+      if (window.location.hash === `#${anchor}`) {
+        setOpen(true);
+      }
+    };
+    // A link to it that is pressed asks for it by name: with the address
+    // already here, the press changes nothing the browser would tell of.
+    const openIfAsked = (asked: string) => {
+      if (asked === anchor) {
+        setOpen(true);
+      }
+    };
+    openIfHere();
+    window.addEventListener('hashchange', openIfHere);
+    askers.add(openIfAsked);
+    return () => {
+      window.removeEventListener('hashchange', openIfHere);
+      askers.delete(openIfAsked);
+    };
+  }, [anchor]);
   const questionId = `${id}-question`;
   const answerId = `${id}-answer`;
 
   return (
-    <div {...props(styles.faqItem)}>
+    <div id={anchor} {...props(styles.faqItem, anchor !== undefined && styles.anchor)}>
       <h3 {...props(styles.faqHeading)}>
         <button
           aria-controls={answerId}
@@ -534,6 +649,7 @@ function Promises({
 }
 
 function HomePage() {
+  const posthog = usePostHog();
   // The word the claim turns on, wherever a language puts it, so the words
   // around it keep their own order in every language.
   const [titleBefore, titleAfter] = m.home_hero_title({ permanently: LINK_SLOT }).split(LINK_SLOT);
@@ -545,12 +661,7 @@ function HomePage() {
     m.home_hero_promise_sticks(),
   ];
 
-  // The browser half: the extension, in the middle of the sentence, and the
-  // store it is added from.
-  const [socialBefore, socialAfter] = m
-    .home_social_computer({ extension: LINK_SLOT })
-    .split(LINK_SLOT);
-
+  // What the browser extension does: a short name each, and a line under it.
   // The post the story links out to, in the middle of the sentence that tells
   // it, so the words around it keep their own order in every language.
   const [storyBefore, storyAfter] = m.home_story_path({ post: LINK_SLOT }).split(LINK_SLOT);
@@ -565,18 +676,18 @@ function HomePage() {
     .home_story_attention({ attention: SECOND_SLOT, aware: LINK_SLOT })
     .split(SLOTS);
 
-  // What the price buys, each with its tick.
+  // What the app gives, each with its tick.
   const promises = [
-    m.home_how_promise_subscription(),
+    m.home_how_promise_free(),
     m.home_how_promise_keep(),
     m.home_how_promise_trial(),
     m.home_how_promise_add(),
   ];
 
-  // What the free guide is, each with its tick.
+  // What the manual way is, each with its tick.
   const guidePromises = [
     m.home_how_guide_steps(),
-    m.home_how_guide_configurator(),
+    m.home_how_guide_free(),
     m.home_how_guide_erase(),
   ];
 
@@ -584,13 +695,16 @@ function HomePage() {
   const [closeBefore, closeAfter] = m.home_close_title({ better: LINK_SLOT }).split(LINK_SLOT);
 
   const objections = [
+    { desc: m.home_faq_free_desc(), term: m.home_faq_free_term() },
+    { desc: m.home_faq_money_desc(), term: m.home_faq_money_term() },
     { desc: m.home_faq_screen_time_desc(), term: m.home_faq_screen_time_term() },
     { desc: m.home_faq_supervision_desc(), term: m.home_faq_supervision_term() },
     { desc: m.home_faq_trial_desc(), term: m.home_faq_trial_term() },
     { desc: m.home_faq_choice_desc(), term: m.home_faq_choice_term() },
-    { desc: m.home_faq_data_desc(), term: m.home_faq_data_term() },
+    { anchor: FAQ_DATA_ID, desc: m.home_faq_data_desc(), term: m.home_faq_data_term() },
     { desc: m.home_faq_fail_desc(), term: m.home_faq_fail_term() },
     { desc: m.home_faq_see_desc(), term: m.home_faq_see_term() },
+    { desc: m.home_faq_source_desc(), term: m.home_faq_source_term() },
     { desc: m.home_faq_undo_desc(), term: m.home_faq_undo_term() },
     { desc: m.home_faq_mac_desc(), term: m.home_faq_mac_term() },
     { desc: m.home_faq_other_platforms_desc(), term: m.home_faq_other_platforms_term() },
@@ -602,7 +716,7 @@ function HomePage() {
       first section. */}
       <GridTexture />
       {/* The first screen: the claim, why it lasts, and the download with its
-      price and the free way beside it, next to the phone the feeds leave. */}
+      price, next to the phone the feeds leave. */}
       <header {...props(styles.hero)}>
         <div {...props(styles.heroText)}>
           <h1 {...props(styles.displayTitle)}>
@@ -612,12 +726,7 @@ function HomePage() {
           </h1>
           <Promises promises={heroPromises} style={styles.heroPromises} />
           <div {...props(styles.heroAction)}>
-            <div {...props(styles.heroButtons)}>
-              <MacDownload placement="hero" />
-              <Button render={<a href={GUIDE_URL} />} variant="outline">
-                {m.home_hero_diy_cta()}
-              </Button>
-            </div>
+            <MacDownload placement="hero" />
             <p {...props(styles.heroPrice)}>{m.home_hero_price()}</p>
           </div>
         </div>
@@ -637,13 +746,16 @@ function HomePage() {
         </section>
 
         {/* How it works: what the Mac app does, in three steps, then the two
-        ways to it: the app, with what it costs and keeps, and the free guide
-        that starts the phone over. */}
-        <section {...props(styles.section, styles.anchor)} id={WAY_OUT_ID}>
+        ways to it, both free: the app, with what it keeps, and the guide that
+        starts the phone over. */}
+        <section {...props(styles.section, styles.anchor)} id={SECTION.wayOut}>
           <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
           <p {...props(styles.sectionBody)}>{m.home_how_lead()}</p>
           <HowItWorks />
-          <div id={PRICING_ID} {...props(styles.plans, styles.anchor)}>
+          <p {...props(styles.sectionBody)}>{m.home_how_backup()}</p>
+          {/* Where links from before the two ways were named the download still land. */}
+          <span id={OLD_DOWNLOAD_ID} {...props(styles.anchor)} />
+          <div id={SECTION.download} {...props(styles.plans, styles.anchor)}>
             <div {...props(styles.plan, styles.planApp)}>
               <div {...props(styles.planBody)}>
                 <div {...props(styles.planHead)}>
@@ -652,7 +764,15 @@ function HomePage() {
                 </div>
                 <Promises promises={promises} />
               </div>
-              <MacDownload placement="pricing" style={styles.planButton} />
+              <div {...props(styles.planFoot)}>
+                <MacDownload placement="download" />
+                <p {...props(styles.planSub, styles.planNote)}>
+                  <a href={`#${FAQ_DATA_ID}`} onClick={() => askQuestion(FAQ_DATA_ID)}>
+                    {m.home_how_backup_note_link()}
+                  </a>
+                  {m.home_how_backup_note({ link: LINK_SLOT }).split(LINK_SLOT)[1]}
+                </p>
+              </div>
             </div>
             <div {...props(styles.plan)}>
               <div {...props(styles.planBody)}>
@@ -660,20 +780,22 @@ function HomePage() {
                   <h3 {...props(styles.planTitle)}>{m.home_how_guide_title()}</h3>
                   <p {...props(styles.planSub)}>{m.home_how_guide_sub()}</p>
                 </div>
-                <p {...props(styles.planNote)}>{m.home_how_guide_note()}</p>
                 <Promises checkStyle={styles.planQuietCheck} promises={guidePromises} />
               </div>
-              <Button render={<a href={GUIDE_URL} />} style={styles.planButton} variant="outline">
-                {m.home_how_guide_cta()}
-              </Button>
+              <div {...props(styles.planFoot)}>
+                <Button render={<a href={GUIDE_URL} />} variant="outline">
+                  {m.home_how_guide_cta()}
+                </Button>
+                <p {...props(styles.planSub, styles.planNote)}>{m.home_how_guide_note()}</p>
+              </div>
             </div>
           </div>
         </section>
 
         {/* That it works, once the way is told: the before in words, my own
         screen time after. */}
-        <section {...props(styles.section, styles.anchor)} id={PROOF_ID}>
-          <h2 {...props(styles.displayTitle, styles.stat)}>{m.home_proof_title()}</h2>
+        <section {...props(styles.section, styles.anchor)} id={SECTION.proof}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_proof_title()}</h2>
           <p {...props(styles.sectionBody)}>{m.home_proof_lead()}</p>
           <ScreenShots
             caption={m.home_proof_caption()}
@@ -694,64 +816,110 @@ function HomePage() {
           />
         </section>
 
-        {/* Not against the networks, only their feeds, and the browser half
-        of the same idea: the extension that takes the feeds off the computer. */}
+        {/* What else the same setup blocks: any app or website, not only the
+        feeds. */}
         <section {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_social_title()}</h2>
-          <p {...props(styles.sectionBody)}>{m.home_social_body()}</p>
-          <p {...props(styles.sectionBody)}>
-            {socialBefore}
-            <a href={STORE_URL} rel="noreferrer" target="_blank">
-              {m.home_social_link()}
-            </a>
-            {socialAfter}
-          </p>
+          <h2 {...props(styles.sectionTitle)}>{m.home_other_title()}</h2>
+          <p {...props(styles.sectionBody)}>{m.home_other_lead()}</p>
+          <OtherUses />
         </section>
 
-        <section {...props(styles.section)}>
+        {/* The same idea on the computer: the browser extension and the way
+        to it, then the drawing of what it hides on the three sites it knows,
+        with what it does on each under it. */}
+        <section {...props(styles.section, styles.extension, styles.anchor)} id={SECTION.extension}>
+          <div {...props(styles.extensionHead)}>
+            <h2 {...props(styles.sectionTitle)}>{m.home_ext_title()}</h2>
+            <p {...props(styles.sectionBody)}>{m.home_ext_lead()}</p>
+            <p {...props(styles.sectionBody)}>{m.home_ext_honest()}</p>
+            <div {...props(styles.extensionAction)}>
+              <Button
+                aria-label={m.home_ext_cta_label()}
+                onClick={() =>
+                  posthog.capture('extension_install_clicked', { placement: 'extension_section' })
+                }
+                render={<a href={STORE_URL} rel="noreferrer" target="_blank" />}
+              >
+                {m.home_ext_cta()}
+              </Button>
+              <p {...props(styles.heroPrice)}>
+                {m.home_ext_note()} <a href={EXTENSION_PRIVACY_PATH}>{m.home_ext_privacy()}</a>
+              </p>
+            </div>
+          </div>
+          <ExtensionBrowser />
+        </section>
+
+        {/* Why everything is free, and the way to support the work: the
+        founder's words beside a stamp, like the corner of an envelope. */}
+        <section {...props(styles.anchor)} id={SECTION.support}>
+          <SupportSection titleStyle={styles.displayTitle} />
+        </section>
+
+        {/* Who made this and why, told rather than argued: a letter on a
+        sheet of paper, signed at its foot. */}
+        <section {...props(styles.anchor)} id={SECTION.story}>
+          <PaperLetter ink={styles.section} style={styles.letter}>
+            <h2 {...props(styles.sectionTitle, styles.letterTitle)}>{m.home_story_title()}</h2>
+            <div {...props(styles.story)}>
+              <p {...props(styles.storyLine)}>{m.home_story_people()}</p>
+              <ScreenShots
+                caption={m.home_story_shot_caption()}
+                shots={[
+                  {
+                    alt: m.home_story_shot_friend_1(),
+                    height: 640,
+                    src: '/media/screentime-friends/friend-1-week-sep-14.webp',
+                    width: 800,
+                  },
+                ]}
+              />
+              <p {...props(styles.storyLine)}>
+                {attentionParts.map((part) => {
+                  const word = attentionWords.get(part);
+                  return word === undefined ? (
+                    part
+                  ) : (
+                    <span key={part} {...props(styles.accentWord)}>
+                      {word}
+                    </span>
+                  );
+                })}
+              </p>
+              {/* Not against the networks, only what their feeds take. */}
+              <p {...props(styles.storyLine)}>{m.home_story_social()}</p>
+              <p {...props(styles.storyLine)}>
+                {storyBefore}
+                <a href={STORY_URL} rel="noreferrer" target="_blank">
+                  {m.home_story_path_link()}
+                </a>
+                {storyAfter}
+              </p>
+              {/* The sign-off, typed: the name, then the place and date under it. */}
+              <p {...props(styles.storyLine, styles.signOff)}>
+                {signLines(m.home_story_sign()).map((line) => (
+                  <span key={line} {...props(styles.signLine)}>
+                    {line}
+                  </span>
+                ))}
+              </p>
+            </div>
+          </PaperLetter>
+        </section>
+
+        {/* The questions, last of the sections: after them only the line the
+        page closes on. */}
+        <section {...props(styles.section, styles.anchor)} id={SECTION.faq}>
           <h2 {...props(styles.sectionTitle)}>{m.home_faq_title()}</h2>
           <div>
             {objections.map((objection) => (
-              <Question answer={objection.desc} key={objection.term} question={objection.term} />
+              <Question
+                anchor={'anchor' in objection ? objection.anchor : undefined}
+                answer={objection.desc}
+                key={objection.term}
+                question={objection.term}
+              />
             ))}
-          </div>
-        </section>
-
-        {/* Who made this and why, told rather than argued. */}
-        <section {...props(styles.section, styles.anchor)} id={STORY_ID}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_story_title()}</h2>
-          <div {...props(styles.story)}>
-            <p {...props(styles.storyLine)}>{m.home_story_people()}</p>
-            <ScreenShots
-              shots={[
-                {
-                  alt: m.home_story_shot_friend_1(),
-                  height: 640,
-                  src: '/media/screentime-friends/friend-1-week-sep-14.webp',
-                  width: 800,
-                },
-              ]}
-            />
-            <p {...props(styles.storyLine)}>
-              {attentionParts.map((part) => {
-                const word = attentionWords.get(part);
-                return word === undefined ? (
-                  part
-                ) : (
-                  <span key={part} {...props(styles.accentWord)}>
-                    {word}
-                  </span>
-                );
-              })}
-            </p>
-            <p {...props(styles.storyLine)}>
-              {storyBefore}
-              <a href={STORY_URL} rel="noreferrer" target="_blank">
-                {m.home_story_path_link()}
-              </a>
-              {storyAfter}
-            </p>
-            <Signature />
           </div>
         </section>
 
@@ -763,7 +931,7 @@ function HomePage() {
           </h2>
           <MacDownload placement="closing" style={styles.downloadCentered} />
           <p {...props(styles.closingNote)}>
-            <span>{m.home_how_app_price()}</span>
+            <span>{m.home_hero_price()}</span>
             <a href={GUIDE_URL}>{m.home_close_diy()}</a>
           </p>
         </section>

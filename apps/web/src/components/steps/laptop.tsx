@@ -40,6 +40,12 @@ const styles = create({
 });
 
 /**
+ * A laptop drawn larger than a step draws it, as the hero does, keeps its
+ * lines at the page's own width with `hairline`, as the phone beside it does.
+ */
+const HAIRLINE = 'non-scaling-stroke';
+
+/**
  * The Mac the steps draw, a laptop open on the desk, and the plug in its
  * side shown as far as `plugged`. A `solid` laptop hides what is drawn behind
  * it. `children` are drawn on its display, from the display's top left
@@ -47,18 +53,22 @@ const styles = create({
  */
 export function Laptop({
   children,
+  hairline = false,
   plugged,
   solid = false,
 }: {
   children: ReactNode;
+  hairline?: boolean;
   plugged: number;
   solid?: boolean;
 }) {
+  const line = hairline ? HAIRLINE : undefined;
   return (
     <>
       <rect
         height={LID.height}
         rx={LID.radius}
+        vectorEffect={line}
         width={LID.width}
         x={LID.x}
         y={LID.y}
@@ -67,17 +77,19 @@ export function Laptop({
       <rect
         height={SCREEN.height}
         rx={SCREEN.radius}
+        vectorEffect={line}
         width={SCREEN.width}
         x={SCREEN.x}
         y={SCREEN.y}
         {...props(styles.faint)}
       />
       <g transform={`translate(${SCREEN.x} ${SCREEN.y})`}>{children}</g>
-      <path d={BASE} {...props(styles.line, solid && styles.solid)} />
+      <path d={BASE} vectorEffect={line} {...props(styles.line, solid && styles.solid)} />
       <rect
         height={MAC_PLUG.height}
         opacity={plugged}
         rx={1}
+        vectorEffect={line}
         width={MAC_PLUG.width}
         x={MAC_PLUG.x}
         y={MAC_PLUG.y}

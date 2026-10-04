@@ -202,6 +202,8 @@ const DialogOverlay = ({ className, style, ...props }: DialogOverlayProps) => (
 
 export type DialogContentProps = Omit<DialogPrimitive.Popup.Props, 'style'> & {
   className?: string;
+  /** Styles for the backdrop this content brings with it. */
+  overlayStyle?: StyleXStyles;
   showCloseButton?: boolean;
   style?: StyleXStyles;
 };
@@ -209,12 +211,13 @@ export type DialogContentProps = Omit<DialogPrimitive.Popup.Props, 'style'> & {
 const DialogContent = ({
   children,
   className,
+  overlayStyle,
   showCloseButton = true,
   style,
   ...props
 }: DialogContentProps) => (
   <DialogPortal>
-    <DialogOverlay />
+    <DialogOverlay style={overlayStyle} />
     <DialogPrimitive.Popup
       className={(state) =>
         stylexProps(

@@ -5,14 +5,21 @@ import { useLocation } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { flushSync } from 'react-dom';
+import { Heart } from 'reicon-react';
 import { brandBar } from '../lib/brand-bar.stylex.ts';
 import { morph } from '../lib/morph.ts';
 import { duration, easing } from '../lib/motion.stylex.ts';
+import { SECTION } from '../lib/sections.ts';
 import { m } from '../paraglide/messages.js';
 import { BrandMark } from './brand-mark.tsx';
 import { MacCta, useMacDownload, useSendToMac } from './mac-download.tsx';
+import { SiteMenu } from './site-menu.tsx';
 
 const MARK_SIZE = 24;
+/** The heart before the support link, as tall as the link's letters are set. */
+const HEART_SIZE = 14;
+/** A line as heavy as the letters beside it, in the icon's own 24-unit grid. */
+const HEART_STROKE = 2.25;
 /**
  * The pill holds the download, 28px tall, with this much room around it, so
  * the pill is as round as the button plus the room.
@@ -20,16 +27,31 @@ const MARK_SIZE = 24;
 const PILL_INSET = 6;
 const PILL_HEIGHT = 28 + 2 * PILL_INSET;
 /**
+ * In the pill the mark is a circle as far from the pill's end as from its
+ * top and its foot, the same room the download has at the other end, so both
+ * ends are round inside round: the circle's radius is the pill's less that
+ * room.
+ */
+const PILL_MARK = PILL_HEIGHT - 2 * PILL_INSET;
+/**
  * How far down the page the pill takes over, and how far back up the open
  * header returns. The gap between them keeps a page resting near one line
  * from flipping between the two.
  */
 const PILL_FROM = 48;
 const OPEN_FROM = 16;
-/** The home page's sections, by the ids it gives them. */
-const HOW_HASH = '#way-out';
-const PRICING_HASH = '#pricing';
-const WHY_HASH = '#story';
+/**
+ * The header's links, in the order they stand: the home page's sections, by
+ * the ids it gives them, then the blog, a page of its own. `name` is what the
+ * morph carries each one by.
+ */
+const LINKS = [
+  { hash: `#${SECTION.wayOut}`, label: m.nav_how, name: 'header-how' },
+  { hash: `#${SECTION.support}`, heart: true, label: m.nav_support, name: 'header-support' },
+  { hash: `#${SECTION.story}`, label: m.nav_why, name: 'header-why' },
+  { hash: `#${SECTION.faq}`, label: m.nav_faq, name: 'header-faq' },
+  { label: m.nav_blog, name: 'header-blog', path: '/blog' },
+] as const;
 
 const styles = create({
   // The row of items, laid out as the open strip or as the pill. Every item
@@ -41,31 +63,31 @@ const styles = create({
     position: 'relative',
   },
   // Open: the name at one edge and the download at the other, and the links
-  // in the middle of the strip between two equal sides. On a phone the one
-  // link left goes over to the download, so the name keeps the room.
+  // in the middle of the strip between two equal sides. A window too narrow
+  // for the links keeps the name and, at the other edge, the menu's button.
   barOpen: {
     columnGap: spacing.s4,
     display: 'grid',
     gridTemplateColumns: {
-      '@media (min-width: 640px)': 'minmax(0, 1fr) auto minmax(0, 1fr)',
-      default: 'minmax(0, 1fr) auto auto',
+      '@media (min-width: 768px)': 'minmax(0, 1fr) auto minmax(0, 1fr)',
+      default: 'minmax(0, 1fr) auto',
     },
     paddingInline: spacing.s4,
   },
   // The pill: the mark, the links and the download, in the middle of
-  // the strip and only as wide as they are.
+  // the strip and only as wide as they are. On a narrow window it is the mark,
+  // the download and the menu's button.
   barPill: {
     alignSelf: 'center',
     display: 'flex',
     gap: {
-      '@media (min-width: 640px)': spacing.s6,
-      default: spacing.s4,
+      '@media (min-width: 768px)': spacing.s6,
+      default: spacing.s3,
     },
     height: PILL_HEIGHT,
     justifySelf: 'center',
     paddingBlock: PILL_INSET,
-    paddingInlineEnd: PILL_INSET,
-    paddingInlineStart: spacing.s2,
+    paddingInline: PILL_INSET,
   },
   brand: {
     alignItems: 'center',
@@ -98,6 +120,15 @@ const styles = create({
   // page does.
   download: {
     justifySelf: 'end',
+  },
+  // A narrow window's open strip has room for the name or the download, not
+  // both. The name stays; the download is in the menu there, and comes back
+  // in the pill, which has no name.
+  downloadRoomy: {
+    display: {
+      '@media (min-width: 768px)': 'inline-flex',
+      default: 'none',
+    },
   },
   // The strip at the top of the window: it starts under the work-in-progress
   // strip, stays at the top once that has scrolled away, and gives its own
@@ -136,18 +167,26 @@ const styles = create({
     transitionTimingFunction: easing.out,
     whiteSpace: 'nowrap',
   },
-  // How it works and why go on a phone, so the name, the price and the
-  // download keep one line. The pill has no name to make room for, so there
-  // only how it works goes.
-  linkWide: {
-    display: {
-      '@media (min-width: 640px)': 'inline',
-      default: 'none',
-    },
+  // The support link and the heart before it, in one row and one colour.
+  linkHeart: {
+    alignItems: 'center',
+    display: 'inline-flex',
+    gap: spacing.s1,
   },
-  // The mark, as an item of its own, so it can move without the name.
+  // In the pill the way home is the mark alone, so its focus line is round too.
+  brandPill: {
+    borderRadius: '50%',
+  },
+  // The mark, as an item of its own, so it can move without the name. It is
+  // cut to the tile's own corner in the open strip, and to a circle in the
+  // pill. The morph carries it live, from the one shape to the other.
   mark: {
+    borderRadius: '12.5%',
     display: 'flex',
+    overflow: 'hidden',
+  },
+  markRound: {
+    borderRadius: '50%',
   },
   // An item the morph carries, by the name a view transition knows it by.
   morph: (name: string) => ({
@@ -159,13 +198,15 @@ const styles = create({
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
   },
+  // The links in a row, on a window wide enough for all of them beside the
+  // name. Under that they are in the menu.
   nav: {
     alignItems: 'center',
-    display: 'flex',
-    gap: {
-      '@media (min-width: 640px)': spacing.s6,
-      default: spacing.s4,
+    display: {
+      '@media (min-width: 768px)': 'flex',
+      default: 'none',
     },
+    gap: spacing.s6,
     position: 'relative',
   },
   // The ground behind the row: nothing while the header is open, and the
@@ -203,23 +244,34 @@ const styles = create({
 });
 
 /**
- * The name, top left on every page and the way home, the home page's two
- * sections and its price in the middle, and the download across from the
- * name. Once the page has run a little way under it, the same items gather
- * into a pill in the middle, the mark alone for the name. The download starts
- * the file at once, as every download on the site does; on a phone or a
- * tablet, which cannot run the app, it sends the link on to a Mac instead.
+ * The name, top left on every page and the way home, the home page's
+ * sections, its support link with a heart before it, and the blog in the
+ * middle, and the download across from the name. Once the page has run a
+ * little way under it, the same items gather into a pill in the middle, the
+ * mark alone for the name, and round there, as the pill's end and the
+ * download at the other end are. A window too narrow for the links has the menu's
+ * button of two lines at the far edge instead, and the links in the menu it
+ * opens. The download starts the file at once, as every download on the site
+ * does; on a phone or a tablet, which cannot run the app, it sends the link
+ * on to a Mac instead.
  */
 export function SiteHeader() {
   const [pill, setPill] = useState(false);
   const bar = useRef<HTMLDivElement>(null);
   const surface = useRef<HTMLSpanElement>(null);
+  const mark = useRef<HTMLSpanElement>(null);
   const home = useLocation({ select: (location) => location.pathname === '/' });
   // On the home page a bare hash scrolls in place; with the path in front the
   // browser would load the page again and drop its query.
   const page = home ? '' : '/';
   const download = useMacDownload('header');
   const sendToMac = useSendToMac();
+  const links = LINKS.map((link) => ({
+    heart: 'heart' in link,
+    href: 'path' in link ? link.path : page + link.hash,
+    label: link.label(),
+    name: link.name,
+  }));
 
   // The pill takes over past one line and gives way above another. Only a
   // change between the two moves anything; the page as it first loads is
@@ -240,6 +292,7 @@ export function SiteHeader() {
       }
       morph({
         gather: next,
+        live: mark.current === null ? [] : [mark.current],
         root,
         surface: ground,
         update: () => flushSync(() => setPill(next)),
@@ -251,7 +304,11 @@ export function SiteHeader() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const morphStyle = [styles.download, styles.morph('header-download')];
+  const morphStyle = [
+    styles.download,
+    !pill && styles.downloadRoomy,
+    styles.morph('header-download'),
+  ];
   let downloadButton: ReactNode;
   if (download.kind === 'unreleased') {
     downloadButton = (
@@ -292,9 +349,14 @@ export function SiteHeader() {
           ref={surface}
           {...props(styles.surface, pill && styles.surfacePill)}
         />
-        <a aria-label={m.site_name()} data-plain="" href="/" {...props(styles.brand)}>
-          <span data-morph="header-mark" {...props(styles.mark, styles.morph('header-mark'))}>
-            <BrandMark size={MARK_SIZE} />
+        <a
+          aria-label={m.site_name()}
+          data-plain=""
+          href="/"
+          {...props(styles.brand, pill && styles.brandPill)}
+        >
+          <span ref={mark} {...props(styles.mark, pill && styles.markRound)}>
+            <BrandMark size={pill ? PILL_MARK : MARK_SIZE} />
           </span>
           <span
             data-morph="header-name"
@@ -303,33 +365,24 @@ export function SiteHeader() {
             {m.site_name()}
           </span>
         </a>
-        <nav {...props(styles.nav)}>
-          <a
-            data-morph="header-how"
-            data-plain=""
-            href={page + HOW_HASH}
-            {...props(styles.link, styles.linkWide, styles.morph('header-how'))}
-          >
-            {m.nav_how()}
-          </a>
-          <a
-            data-morph="header-pricing"
-            data-plain=""
-            href={page + PRICING_HASH}
-            {...props(styles.link, styles.morph('header-pricing'))}
-          >
-            {m.nav_pricing()}
-          </a>
-          <a
-            data-morph="header-why"
-            data-plain=""
-            href={page + WHY_HASH}
-            {...props(styles.link, !pill && styles.linkWide, styles.morph('header-why'))}
-          >
-            {m.nav_why()}
-          </a>
+        <nav aria-label={m.nav_site()} {...props(styles.nav)}>
+          {links.map((link) => (
+            <a
+              data-morph={link.name}
+              data-plain=""
+              href={link.href}
+              key={link.name}
+              {...props(styles.link, link.heart && styles.linkHeart, styles.morph(link.name))}
+            >
+              {link.heart && (
+                <Heart aria-hidden="true" size={HEART_SIZE} strokeWidth={HEART_STROKE} />
+              )}
+              {link.label}
+            </a>
+          ))}
         </nav>
         {downloadButton}
+        <SiteMenu anchor={bar} links={links} morph="header-menu" />
       </div>
     </header>
   );

@@ -4,6 +4,7 @@ import { unplugin as stylex } from '@stylexjs/unplugin';
 import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
+import { blogPosts } from './vite.blog.ts';
 
 export default defineConfig(({ command, mode }) => {
   // The repo-root .env (loaded via envDir below) sets NODE_ENV=development, and Vite
@@ -41,6 +42,7 @@ export default defineConfig(({ command, mode }) => {
     // VITE_* vars live in the repo-root .env (single env file for the whole monorepo).
     envDir: '../..',
     plugins: [
+      blogPosts(),
       cloudflare({ viteEnvironment: { name: 'ssr' } }),
       tanstackStart(),
       react({ compiler: true }),

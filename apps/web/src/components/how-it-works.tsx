@@ -5,12 +5,18 @@ import type { ReactNode } from 'react';
 import { drawing } from '../lib/motion.stylex.ts';
 import { useLessMotion } from '../lib/use-less-motion.ts';
 import { useSeen } from '../lib/use-seen.ts';
+import type { WideLine } from '../lib/use-seen.ts';
 import { useTabHidden } from '../lib/use-tab-hidden.ts';
 import { m } from '../paraglide/messages.js';
 import { BillFilters } from './bill-paper.tsx';
 import { InfoTip } from './info-tip.tsx';
 import { ChooseGraphic, PlugGraphic, StaysGraphic } from './steps/index.ts';
 
+/**
+ * On a wide window a drawing plays once this much of it is on screen, as a
+ * step did before `SEEN`.
+ */
+const WIDE_SEEN: WideLine = { amount: 0.6 };
 /** The turn in which every step goes back to its start, before the first plays again. */
 const BACK = -1;
 /** The last run of non-blank characters in a title: its last word. */
@@ -183,7 +189,11 @@ export function HowItWorks() {
   const plug = useRef<SVGSVGElement>(null);
   const choose = useRef<SVGSVGElement>(null);
   const stays = useRef<SVGSVGElement>(null);
-  const seen = [useSeen(plug), useSeen(choose), useSeen(stays)];
+  const seen = [
+    useSeen(plug, { desktop: WIDE_SEEN }),
+    useSeen(choose, { desktop: WIDE_SEEN }),
+    useSeen(stays, { desktop: WIDE_SEEN }),
+  ];
   const items = [plug, choose, stays];
   const hidden = useTabHidden();
   const reduced = useLessMotion();

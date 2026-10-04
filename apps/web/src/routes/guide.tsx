@@ -7,6 +7,7 @@ import { GridTexture } from '../components/grid-texture.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { brandBar } from '../lib/brand-bar.stylex.ts';
 import { layout } from '../lib/layout.ts';
+import { SECTION } from '../lib/sections.ts';
 import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
 
@@ -30,7 +31,7 @@ const CONFIGURATOR_URL = 'https://apps.apple.com/app/apple-configurator/id103712
 /** The free profile builder. */
 const BUILD_PATH = '/build';
 /** The Mac app is offered on the home page. */
-const APP_PATH = '/#way-out';
+const APP_PATH = `/#${SECTION.wayOut}`;
 /**
  * Where a link stands inside a sentence, the way the footer does it: the
  * message carries the link as a placeholder and is split on it, so the words

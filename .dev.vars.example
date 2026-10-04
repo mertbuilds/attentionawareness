@@ -10,3 +10,6 @@ SIGNING_KEY_PKCS8_PEM="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY---
 # (apps/web/src/lib/mac-analytics.ts). Left empty, nothing is sent.
 OPENPANEL_CLIENT_ID=""
 OPENPANEL_CLIENT_SECRET=""
+# Optional. A PostHog personal API key with the `query:read` scope on the site's
+# project, for the numbers on /open. Left empty, the page links to the dashboard.
+POSTHOG_PERSONAL_API_KEY=""
