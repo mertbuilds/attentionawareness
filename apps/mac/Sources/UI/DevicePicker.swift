@@ -70,7 +70,7 @@ struct DevicePicker: View {
         switch device.pairingState {
         case .trustPending, .locked:
             return "Tap Trust on it"
-        case .untrusted:
+        case .untrusted, .needsReplug:
             return "Unplug it and plug it back in"
         case .paired:
             return nil

@@ -12,6 +12,10 @@ enum PairingState: String, Equatable {
     case locked
     /// The user answered the Trust dialog with Don't Trust.
     case untrusted
+    /// This Mac gave up on pairing over this connection: it could not hear
+    /// the answer to Trust, or could not keep the record. Only unplugging
+    /// iPhone and plugging it in again starts over.
+    case needsReplug
 }
 
 /// One iPhone on the USB bus, as lockdown describes it. Every field except the

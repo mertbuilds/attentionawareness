@@ -55,13 +55,16 @@ listens on the insecure notification proxy (`TrustObserver`) for
 `request_pair`, which comes once Trust is tapped and the passcode entered, and
 then sends one Pair. UserDeniedPairing is final until the iPhone leaves the
 cable. The handshake runs on every read, so a record saved by anything on
-this Mac is used at once. If the proxy cannot be started, the read gives up
-after two minutes and asks for a replug. A Pair the iPhone accepted whose
-record is still refused is a failure ("couldn't keep the pairing"), not a
-wait for Trust. Outside the job and Ready, the wizard reads the cable every
-2.5 seconds while an iPhone on it is locked, waits for Trust or could not be
-read, because an unlock sends no event, and reads nothing while every iPhone
-is paired.
+this Mac is used at once. If no `request_pair` is heard two minutes after
+Trust showed (the proxy did not start, Don't Trust, or the alert closed with
+the screen lock), the read asks for a replug, and a `request_pair` that comes
+later still sends its one Pair. A Pair the iPhone accepted whose record is
+still refused is a failure ("couldn't keep the pairing") on every read until
+a replug, not a wait for Trust. Both keep the iPhone listed as needing a
+replug, so the connect screen and the restart wait say "Unplug iPhone".
+Outside the job and Ready, the wizard reads the cable every 2.5 seconds while
+an iPhone on it is locked, waits for Trust or could not be read, because an
+unlock sends no event, and reads nothing while every iPhone is paired.
 
 A Debug build takes `--debug-forget-pairing`: it gives the Mac's own pair
 record for the iPhone on the cable a HostID the iPhone does not know, which

@@ -38,8 +38,12 @@ struct PairingTests {
         #expect(throws: DeviceError.trustPending) { try phone.open() }
         #expect(phone.dialogShown)
         let pairs = phone.pairs
-        for _ in 0..<40 {
+        for _ in 0..<39 {
             #expect(throws: DeviceError.trustPending) { try phone.open() }
+        }
+        // Past the limit the read asks for a replug, and still sends no Pair.
+        for _ in 0..<10 {
+            #expect(throws: DeviceError.trustUnseen) { try phone.open() }
         }
         #expect(phone.pairs == pairs)
         #expect(!phone.denied)
@@ -118,13 +122,82 @@ struct PairingTests {
         #expect(phone.pairs == 1)
     }
 
+    /// Don't Trust, or a Trust alert that closed with the screen lock, posts
+    /// nothing. The watch is alive, and the read still ends in a replug.
+    @Test func trustWithNoAnswerHeardEndsInAReplugAndALateTapStillPairs() throws {
+        let phone = FakeLockdown()
+        phone.tick = 10
+        phone.forget()
+        #expect(throws: DeviceError.trustPending) { try phone.open() }
+        #expect(phone.liveObservers == 1)
+        #expect(firstFailureAfterTrust(phone) == .trustUnseen)
+        for _ in 0..<5 {
+            #expect(throws: DeviceError.trustUnseen) { try phone.open() }
+        }
+        #expect(phone.pairs == 1)
+        #expect(phone.liveObservers == 1)
+        phone.accept()
+        try phone.open()
+        #expect(phone.pairs == 2)
+        #expect(phone.macRecordIsKnown)
+    }
+
+    @Test func dontTrustWithNoNotificationEndsInAReplugThroughTheLimit() {
+        let phone = FakeLockdown()
+        phone.tick = 10
+        phone.forget()
+        #expect(throws: DeviceError.trustPending) { try phone.open() }
+        phone.deny()
+        #expect(firstFailureAfterTrust(phone) == .trustUnseen)
+        #expect(phone.pairs == 1)
+        #expect(DeviceError.trustUnseen.pairingState == .needsReplug)
+        phone.replug()
+        #expect(throws: DeviceError.trustPending) { try phone.open() }
+        #expect(phone.pairs == 2)
+    }
+
     @Test func aRecordTheMacCouldNotKeepIsAFailureNotAWaitForTrust() {
         let phone = FakeLockdown()
         phone.forget()
         phone.accept()
         phone.loseSavedRecord = true
         #expect(throws: DeviceError.pairRecordRejected) { try phone.open() }
-        #expect(DeviceError.pairRecordRejected.pairingState == nil)
+        #expect(DeviceError.pairRecordRejected.pairingState == .needsReplug)
+    }
+
+    @Test func aRecordTheMacCouldNotKeepStaysAFailureUntilAReplug() throws {
+        let phone = FakeLockdown()
+        phone.forget()
+        phone.accept()
+        phone.loseSavedRecord = true
+        #expect(throws: DeviceError.pairRecordRejected) { try phone.open() }
+        #expect(phone.pairs == 1)
+        for _ in 0..<5 {
+            #expect(throws: DeviceError.pairRecordRejected) { try phone.open() }
+        }
+        phone.trust.notified("phone", name: TrustWatch.requestPair)
+        #expect(throws: DeviceError.pairRecordRejected) { try phone.open() }
+        #expect(phone.pairs == 1)
+        phone.replug()
+        phone.loseSavedRecord = false
+        try phone.open()
+        #expect(phone.pairs == 2)
+        #expect(phone.macRecordIsKnown)
+    }
+
+    @Test func anOldWatchThatEndsLeavesTheNewOneInPlace() {
+        let trust = TrustWatch()
+        let now = Date()
+        let old = NSObject()
+        let new = NSObject()
+        trust.startObserving("phone", at: now, with: { old })
+        trust.notified("phone", name: "", by: ObjectIdentifier(old))
+        #expect(trust.isObserving["phone"] == false)
+        trust.startObserving("phone", at: now + TrustWatch.observeRetryInterval, with: { new })
+        trust.notified("phone", name: "", by: ObjectIdentifier(old))
+        #expect(trust.isObserving["phone"] == true)
+        trust.notified("phone", name: "", by: ObjectIdentifier(new))
+        #expect(trust.isObserving["phone"] == false)
     }
 
     @Test func aPairOutAlreadyIsNotSentTwice() {
@@ -157,6 +230,16 @@ struct PairingTests {
     @Test func theLogNeverCarriesAUdid() {
         #expect(DeviceLog.text(DeviceError.deviceUnavailable(udid: "00008030-0001")) == "deviceUnavailable")
         #expect(DeviceLog.text(DeviceError.lockdownFailed(code: -21)) == "lockdownFailed -21")
+    }
+
+    /// Reads until the answer is no longer "Tap Trust", well past the limit.
+    private func firstFailureAfterTrust(_ phone: FakeLockdown) -> DeviceError? {
+        for _ in 0..<20 {
+            do { try phone.open() } catch let thrown as DeviceError where thrown != .trustPending {
+                return thrown
+            } catch {}
+        }
+        return nil
     }
 
     private func settles(_ condition: () -> Bool) async -> Bool {

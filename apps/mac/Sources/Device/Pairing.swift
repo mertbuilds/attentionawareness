@@ -83,6 +83,8 @@ enum Pairing {
             case .stuck:
                 DeviceLog.logger.error("Trust was shown and no answer came that the Mac can hear")
                 throw DeviceError.trustUnseen
+            case .rejected:
+                throw DeviceError.pairRecordRejected
             case .pair(let reason):
                 let paired = pair()
                 trust.record(udid, answer: paired, at: now)
@@ -96,6 +98,7 @@ enum Pairing {
                     // for the person, and "Tap Trust" would never end.
                     if status == LOCKDOWN_E_INVALID_HOST_ID {
                         DeviceLog.logger.error("pair succeeded but the record was not accepted")
+                        trust.rejected(udid)
                         throw DeviceError.pairRecordRejected
                     }
                     if status == LOCKDOWN_E_SUCCESS { trust.forget(udid) }
@@ -160,6 +163,7 @@ extension DeviceError {
         case .trustPending: return .trustPending
         case .locked: return .locked
         case .trustDenied: return .untrusted
+        case .trustUnseen, .pairRecordRejected: return .needsReplug
         default: return nil
         }
     }
@@ -175,8 +179,8 @@ final class TrustWatch: @unchecked Sendable {
     /// How long a locked iPhone, or one that failed a Pair for another
     /// reason, is left before the next Pair.
     static let retryInterval: TimeInterval = 2
-    /// How long Trust may sit on screen with no way to hear the answer before
-    /// the read gives up and asks for a replug.
+    /// How long Trust may sit on screen with no answer heard before the read
+    /// asks for a replug. A `request_pair` that comes later still pairs.
     static let unheardLimit: TimeInterval = 120
     /// How long after a failed start the proxy is tried again.
     static let observeRetryInterval: TimeInterval = 5
@@ -188,6 +192,7 @@ final class TrustWatch: @unchecked Sendable {
         case pair(String)
         case hold(lockdownd_error_t)
         case stuck
+        case rejected
     }
 
     private enum Stage {
@@ -201,6 +206,9 @@ final class TrustWatch: @unchecked Sendable {
         /// The iPhone posted `request_pair`: Trust was tapped.
         case trustTapped
         case denied
+        /// Pair went through and the record was still refused. Only a replug
+        /// starts over.
+        case rejected
     }
 
     private struct Entry {
@@ -226,13 +234,15 @@ final class TrustWatch: @unchecked Sendable {
             case .pairOut:
                 decision = .hold(LOCKDOWN_E_INVALID_HOST_ID)
             case .dialog(let since):
-                decision = entry.observer == nil && now.timeIntervalSince(since) >= Self.unheardLimit
+                decision = now.timeIntervalSince(since) >= Self.unheardLimit
                     ? .stuck
                     : .hold(LOCKDOWN_E_PAIRING_DIALOG_RESPONSE_PENDING)
             case .trustTapped:
                 decision = .pair("request_pair")
             case .denied:
                 decision = .hold(LOCKDOWN_E_USER_DENIED_PAIRING)
+            case .rejected:
+                decision = .rejected
             }
             if case .pair = decision { entry.stage = .pairOut }
             entries[udid] = entry
@@ -253,6 +263,15 @@ final class TrustWatch: @unchecked Sendable {
             default:
                 entry.stage = .retry(at: now, answer: answer)
             }
+            entries[udid] = entry
+        }
+    }
+
+    /// Pair went through and the handshake still refused the record.
+    func rejected(_ udid: String) {
+        lock.withLock {
+            var entry = entries[udid] ?? Entry()
+            entry.stage = .rejected
             entries[udid] = entry
         }
     }
@@ -281,19 +300,19 @@ final class TrustWatch: @unchecked Sendable {
         release(extra)
     }
 
-    /// A notification from the iPhone. An empty name means the watch lost
-    /// its connection.
-    func notified(_ udid: String, name: String) {
+    /// A notification from the iPhone. An empty name means the watch `by`
+    /// lost its connection; a newer watch is left alone.
+    func notified(_ udid: String, name: String, by observer: ObjectIdentifier? = nil) {
         DeviceLog.logger.notice("notification: \(name.isEmpty ? "watch ended" : name, privacy: .public)")
         let changed: Bool = lock.withLock {
             guard var entry = entries[udid] else { return false }
             if name.isEmpty {
+                guard let current = entry.observer, ObjectIdentifier(current) == observer else { return false }
                 // Dropped on another thread: the watch is still running this
                 // callback, and freeing it here would wait on itself.
-                let observer = entry.observer
                 entry.observer = nil
                 entries[udid] = entry
-                release(observer)
+                release(current)
                 return false
             }
             guard name == Self.requestPair else { return false }

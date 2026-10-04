@@ -45,16 +45,17 @@ final class TrustObserver {
         }
 
         let context = Unmanaged.passRetained(Context(udid: udid, watch: watch))
+        self.device = device
+        self.client = client
+        self.context = context
+        // Set before the callback's thread starts, so it reads it safely.
+        context.takeUnretainedValue().observer = ObjectIdentifier(self)
         np_set_notify_callback(client, trustNotificationCallback, context.toOpaque())
         let names = [TrustWatch.requestPair, TrustWatch.requestHostBUID]
         let cStrings = names.map { strdup($0) }
         var spec: [UnsafePointer<CChar>?] = cStrings.map { UnsafePointer($0) } + [nil]
         np_observe_notifications(client, &spec)
         cStrings.forEach { free($0) }
-
-        self.device = device
-        self.client = client
-        self.context = context
     }
 
     deinit {
@@ -66,6 +67,9 @@ final class TrustObserver {
     fileprivate final class Context {
         let udid: String
         let watch: TrustWatch
+        /// The observer this context belongs to, so a watch that ended is
+        /// told apart from a newer one.
+        var observer: ObjectIdentifier?
 
         init(udid: String, watch: TrustWatch) {
             self.udid = udid
@@ -101,5 +105,5 @@ private let trustNotificationCallback: np_notify_cb_t = { name, userData in
     if notification == TrustWatch.requestHostBUID {
         context.sendHostBUID()
     }
-    context.watch.notified(context.udid, name: notification)
+    context.watch.notified(context.udid, name: notification, by: context.observer)
 }
