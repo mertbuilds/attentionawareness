@@ -1,9 +1,8 @@
 import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { Popover } from '@base-ui/react/popover';
-import { create, keyframes, props } from '@stylexjs/stylex';
+import { create, defaultMarker, keyframes, props } from '@stylexjs/stylex';
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Heart } from 'reicon-react';
 import { onDownloadStarted } from '../lib/download-started.ts';
 import { blur, distance, duration, easing, scale } from '../lib/motion.stylex.ts';
 import { WIDE_QUERY } from '../lib/wide.ts';
@@ -12,6 +11,7 @@ import { MacDownload } from './mac-download.tsx';
 import { ThemeSwitch } from './preferences.tsx';
 import { MenuLines, menuButton } from './site-menu-button.tsx';
 import type { MenuProps } from './site-menu.tsx';
+import { SupportHeart } from './support-heart.tsx';
 
 /** How far the page may run under an open menu before the menu closes, in pixels. */
 const SCROLL_CLOSE = 24;
@@ -165,7 +165,7 @@ function Item({
       data-plain=""
       href={href}
       onClick={onPick}
-      {...props(styles.item, styles.itemIn, styles.after(place * STAGGER))}
+      {...props(styles.item, styles.itemIn, styles.after(place * STAGGER), defaultMarker())}
     >
       {children}
     </a>
@@ -244,9 +244,7 @@ export function SiteMenuPanel({
             <nav aria-label={m.nav_menu()} {...props(styles.list)}>
               {links.map((link, place) => (
                 <Item href={link.href} key={link.href} onPick={pick} place={place}>
-                  {link.heart === true && (
-                    <Heart aria-hidden="true" size={HEART_SIZE} strokeWidth={HEART_STROKE} />
-                  )}
+                  {link.heart === true && <SupportHeart size={HEART_SIZE} stroke={HEART_STROKE} />}
                   {link.label}
                 </Item>
               ))}

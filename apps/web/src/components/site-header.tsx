@@ -1,11 +1,10 @@
 import { Button } from '@attentionawareness/ui';
 import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
-import { create, props } from '@stylexjs/stylex';
+import { create, defaultMarker, props } from '@stylexjs/stylex';
 import { useLocation } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { flushSync } from 'react-dom';
-import { Heart } from 'reicon-react';
 import { brandBar } from '../lib/brand-bar.stylex.ts';
 import { morph } from '../lib/morph.ts';
 import { duration, easing } from '../lib/motion.stylex.ts';
@@ -14,6 +13,7 @@ import { m } from '../paraglide/messages.js';
 import { BrandMark } from './brand-mark.tsx';
 import { MacCta, useMacDownload } from './mac-download.tsx';
 import { SiteMenu } from './site-menu.tsx';
+import { SupportHeart } from './support-heart.tsx';
 
 const MARK_SIZE = 24;
 /** The heart before the support link, as tall as the link's letters are set. */
@@ -394,11 +394,14 @@ export function SiteHeader() {
               {...(link.name === SUPPORT_LINK && { 'data-aa-computer': '' })}
               href={link.href}
               key={link.name}
-              {...props(styles.link, link.heart && styles.linkHeart, styles.morph(link.name))}
-            >
-              {link.heart && (
-                <Heart aria-hidden="true" size={HEART_SIZE} strokeWidth={HEART_STROKE} />
+              {...props(
+                styles.link,
+                link.heart && styles.linkHeart,
+                styles.morph(link.name),
+                defaultMarker(),
               )}
+            >
+              {link.heart && <SupportHeart size={HEART_SIZE} stroke={HEART_STROKE} />}
               {link.label}
             </a>
           ))}
@@ -413,10 +416,11 @@ export function SiteHeader() {
           <Button
             data-morph="header-phone-support"
             render={<a href={`${page}#${SECTION.support}`} />}
-            style={[styles.download, styles.morph('header-phone-support')]}
+            style={[styles.download, styles.morph('header-phone-support'), defaultMarker()]}
+            variant="outline"
           >
             <span {...props(styles.supportCta)}>
-              <Heart aria-hidden="true" size={HEART_SIZE} strokeWidth={HEART_STROKE} />
+              <SupportHeart size={HEART_SIZE} stroke={HEART_STROKE} />
               {m.nav_support()}
             </span>
           </Button>
