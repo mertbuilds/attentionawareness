@@ -81,6 +81,11 @@ enum UISmoke {
             RestrictionsBuilder(model: sampleModel([sampleDevice]), sitesExpanded: true),
             into: folder
         )
+        // The lists changed from the recommended ones, which is the one time
+        // the builder offers to reset them.
+        let changed = sampleModel([sampleDevice])
+        changed.draft.addSite("news.ycombinator.com")
+        report("restrictions-changed", RestrictionsBuilder(model: changed), into: folder)
         // The same list once the reader has kept another site open, which is
         // the default hole and the typed one both marked open.
         let customException = sampleModel([sampleDevice])
