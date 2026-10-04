@@ -6,6 +6,7 @@ import { m } from '../paraglide/messages.js';
 import { GridTexture } from './grid-texture.tsx';
 import { ThemeSwitch } from './preferences.tsx';
 
+const BLOG_PATH = '/blog';
 /** Every link to one of Mert's own sites carries utm tags, so the visit is traced to this site. */
 const BUILDER_URL =
   'https://mertbuilds.com/?utm_source=attentionawareness.com&utm_medium=referral&utm_campaign=footer';
@@ -28,6 +29,12 @@ const PAPER_HEIGHT = '240px';
 const PAPER_TOP = 'linear-gradient(to bottom, transparent, black 144px)';
 
 const styles = create({
+  // The blog link and the theme control, together at the row's far end.
+  end: {
+    alignItems: 'center',
+    display: 'flex',
+    gap: spacing.s4,
+  },
   footer: {
     display: 'flex',
     flexDirection: 'column',
@@ -67,8 +74,8 @@ const styles = create({
 });
 
 /**
- * The same footer on every page: what this is, who made it, and the theme
- * control. A page with one more line of its own passes it in, and it sits above
+ * The same footer on every page: what this is, who made it, the way to the
+ * blog and the theme control. A page with one more line of its own passes it in, and it sits above
  * the shared row.
  */
 export function SiteFooter({ children }: { children?: ReactNode | undefined }) {
@@ -86,7 +93,12 @@ export function SiteFooter({ children }: { children?: ReactNode | undefined }) {
           </a>
           {appleAfter}
         </p>
-        <ThemeSwitch />
+        <div {...props(styles.end)}>
+          <p {...props(layout.muted, styles.line)}>
+            <a href={BLOG_PATH}>{m.gen_footer_blog()}</a>
+          </p>
+          <ThemeSwitch />
+        </div>
       </div>
     </footer>
   );

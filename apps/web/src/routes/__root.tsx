@@ -55,8 +55,11 @@ export const Route = createRootRoute({
   head: ({ match, matches }) => {
     // The address a page is known by: the site's own host and the path of the
     // deepest match, which is the page itself. A path no route answers is
-    // marked on the root match and has no address of its own.
-    const url = match._notFound ? undefined : `${SITE_URL}${matches.at(-1)?.pathname ?? '/'}`;
+    // marked on the root match and has no address of its own. An index route
+    // under a path names itself with a closing slash (`/blog/`), which the
+    // address does not have.
+    const path = (matches.at(-1)?.pathname ?? '/').replace(/(?<=.)\/$/u, '');
+    const url = match._notFound ? undefined : `${SITE_URL}${path}`;
     // What the site promises, in the hero's own words. The share cards lead with it.
     const tagline = m.home_hero_title({ permanently: m.home_hero_title_accent() });
     const description = `${SITE_NAME}. ${m.home_meta_description()}`;

@@ -130,3 +130,107 @@ html[data-aa-wip-off] {
 html[data-aa-wip-off] [data-aa-wip] {
   display: none;
 }
+
+/*
+ * A blog post's body. It reaches the page as HTML compiled from the post's
+ * Markdown file (`vite.blog.ts`), so its elements carry no class and StyleX
+ * cannot reach them: these rules do, from the `data-prose` box the post is
+ * poured into. The measure and the ink are the home page's story; headings are
+ * medium, never bold.
+ */
+[data-prose] {
+  color: color-mix(in srgb, var(--kya-fg) 80%, var(--kya-bg));
+  font-size: 18px;
+  line-height: 1.7;
+  max-width: 640px;
+  text-wrap: pretty;
+}
+
+[data-prose] > * {
+  margin-block: 0;
+}
+
+[data-prose] > * + * {
+  margin-block-start: 16px;
+}
+
+[data-prose] h2,
+[data-prose] h3,
+[data-prose] strong,
+[data-prose] th {
+  color: var(--kya-fg);
+  font-weight: 500;
+}
+
+[data-prose] h2 {
+  font-size: 24px;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+[data-prose] h3 {
+  font-size: 18px;
+  line-height: 1.4;
+  text-wrap: balance;
+}
+
+[data-prose] > * + h2 {
+  margin-block-start: 48px;
+}
+
+[data-prose] > * + h3 {
+  margin-block-start: 32px;
+}
+
+[data-prose] ul,
+[data-prose] ol {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-inline-start: 24px;
+}
+
+/* A step's number at one width, so ten steps keep one left edge. */
+[data-prose] li::marker {
+  color: var(--kya-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+[data-prose] blockquote {
+  border-inline-start: 1px solid var(--kya-border);
+  color: var(--kya-muted);
+  margin-inline: 0;
+  padding-inline-start: 16px;
+}
+
+/* A table is the one thing wider than a phone: its box scrolls, the page
+   never does. */
+[data-prose] [data-table] {
+  overflow-x: auto;
+}
+
+[data-prose] table {
+  border-collapse: collapse;
+  font-size: 16px;
+  line-height: 1.5;
+  min-width: 560px;
+  width: 100%;
+}
+
+[data-prose] th,
+[data-prose] td {
+  border-block-end: 1px solid var(--kya-border);
+  padding: 8px 16px 8px 0;
+  text-align: start;
+  vertical-align: top;
+}
+
+/* The sources under a post: the same list, a step smaller and quieter. A long
+   address breaks where it must instead of pushing the page sideways. */
+[data-prose='small'] {
+  color: var(--kya-muted);
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}

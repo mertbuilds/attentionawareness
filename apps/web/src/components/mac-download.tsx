@@ -22,7 +22,7 @@ type Release = {
 };
 
 /** Where on the site a download stands, which its event carries. */
-type Placement = 'closing' | 'header' | 'hero' | 'pricing';
+type Placement = 'blog' | 'closing' | 'header' | 'hero' | 'pricing';
 
 /**
  * What a download does: nothing before the first release, nothing yet while
