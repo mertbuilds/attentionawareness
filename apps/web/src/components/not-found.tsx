@@ -1,69 +1,6 @@
 import { Button } from '@attentionawareness/ui';
-import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
-import { create, props } from '@stylexjs/stylex';
-import { brandBar } from '../lib/brand-bar.stylex.ts';
-import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
-import { GridTexture } from './grid-texture.tsx';
-import { SiteFooter } from './site-footer.tsx';
-
-const styles = create({
-  // The footer's column, the same width every other page sets it in.
-  foot: {
-    maxWidth: 760,
-    width: '100%',
-  },
-  // The line and the way home, in the middle of what the footer leaves.
-  message: {
-    alignItems: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    flexGrow: 1,
-    gap: spacing.s6,
-    justifyContent: 'center',
-    textAlign: 'center',
-  },
-  page: {
-    alignItems: 'center',
-    backgroundColor: colors.bg,
-    // The padding counts inside the window's height, so the footer stands at
-    // its foot rather than a scroll below it.
-    boxSizing: 'border-box',
-    color: colors.fg,
-    display: 'flex',
-    flexDirection: 'column',
-    fontFamily: font.family,
-    gap: {
-      '@media (min-width: 640px)': spacing.s16,
-      default: spacing.s12,
-    },
-    // The stacking context that keeps the grid layer above the page's own
-    // background instead of behind it.
-    isolation: 'isolate',
-    minHeight: `calc(100vh - ${wip.height})`,
-    paddingBlockEnd: spacing.s16,
-    // The header strip stands over the top of the page, so the first line
-    // starts clear of it.
-    paddingBlockStart: {
-      '@media (min-width: 640px)': 96,
-      default: `calc(${brandBar.height} + ${spacing.s6})`,
-    },
-    paddingInline: spacing.s4,
-    // The containing block the grid layer measures itself against.
-    position: 'relative',
-  },
-  title: {
-    fontSize: {
-      '@media (min-width: 640px)': 36,
-      default: 28,
-    },
-    fontWeight: font.weightRegular,
-    letterSpacing: '-0.02em',
-    lineHeight: 1.1,
-    margin: 0,
-    textWrap: 'balance',
-  },
-});
+import { PageColumn, PageFoot, PageHeader, PageRoot } from './page.tsx';
 
 /**
  * What a path the site does not have answers with. The server still sends it
@@ -71,17 +8,17 @@ const styles = create({
  */
 export function NotFound() {
   return (
-    <main {...props(styles.page)}>
-      <GridTexture />
-      <div {...props(styles.message)}>
-        <h1 {...props(styles.title)}>{m.not_found_title()}</h1>
-        <Button render={<a href="/" />} variant="outline">
-          {m.not_found_home()}
-        </Button>
-      </div>
-      <div {...props(styles.foot)}>
-        <SiteFooter />
-      </div>
-    </main>
+    <PageRoot>
+      <PageHeader centered eyebrow={m.page_eyebrow_not_found()} fill title={m.not_found_title()}>
+        <div>
+          <Button render={<a href="/" />} variant="outline">
+            {m.not_found_home()}
+          </Button>
+        </div>
+      </PageHeader>
+      <PageColumn width="wide">
+        <PageFoot />
+      </PageColumn>
+    </PageRoot>
   );
 }
