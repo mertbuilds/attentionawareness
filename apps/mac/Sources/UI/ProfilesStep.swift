@@ -174,31 +174,28 @@ struct ProfilesStep: View {
     @ViewBuilder
     private var actions: some View {
         if failure != nil {
-            PrimaryButton(title: "Try Again") {
-                model.installMoreProfile()
-            }
             Button("Cancel") {
                 model.forgetProfileFailure()
             }
-            .controlSize(.large)
+            PrimaryButton(title: "Try Again") {
+                model.installMoreProfile()
+            }
         } else if case .guide(let prompt) = model.profile.stage {
             // The check reads the iPhone back, which needs it unlocked. Install
             // Again re-sends the download when it needs re-sending.
-            PrimaryButton(title: ProfileGuideCopy.confirmTitle(for: prompt)) {
-                model.confirmProfileInstalled()
-            }
             Button("Install Again") {
                 model.installMoreProfile()
             }
-            .controlSize(.large)
-        } else if !model.profile.isRunning {
-            PrimaryButton(title: "Install") {
-                model.installMoreProfile()
+            PrimaryButton(title: ProfileGuideCopy.confirmTitle(for: prompt)) {
+                model.confirmProfileInstalled()
             }
+        } else if !model.profile.isRunning {
             Button("Done") {
                 model.closeProfiles()
             }
-            .controlSize(.large)
+            PrimaryButton(title: "Install") {
+                model.installMoreProfile()
+            }
         }
     }
 }

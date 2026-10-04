@@ -51,15 +51,14 @@ struct ReadyStep: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         } actions: {
-            PrimaryButton(title: verb, enabled: model.checksPass) {
-                model.startJob()
-            }
             // Back to Connect, to pick another iPhone. Nothing has been sent to
             // this one yet, so there is nothing to undo.
             Button("Back") {
                 model.back()
             }
-            .controlSize(.large)
+            PrimaryButton(title: verb, enabled: model.checksPass) {
+                model.startJob()
+            }
         }
     }
 

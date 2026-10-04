@@ -51,7 +51,6 @@ struct ConnectStep: View {
                 Button("Manage Restrictions") {
                     model.manageRestrictions()
                 }
-                .controlSize(.large)
             } else {
                 PrimaryButton(title: "Continue") {
                     model.start()

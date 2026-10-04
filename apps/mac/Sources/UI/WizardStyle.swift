@@ -123,6 +123,10 @@ enum SiteLink {
 
 /// The shape every step shares: a title, a sentence under it, the step's own
 /// content, whatever went wrong, and the buttons at the bottom.
+///
+/// The buttons sit at the trailing edge, the way a Mac dialog places them:
+/// the filled one last, and every other one a standard bordered button before
+/// it.
 struct StepLayout<Content: View, Actions: View>: View {
     let title: String
     let lead: String?
@@ -181,11 +185,18 @@ struct StepLayout<Content: View, Actions: View>: View {
             HStack(spacing: 10) {
                 actions
             }
+            .buttonStyle(.bordered)
+            // The window tints its controls orange, which would colour the
+            // words of a bordered button too. The filled one sets its own.
+            .tint(nil)
+            .controlSize(.large)
+            .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        // Every plain button on a step takes the orange. The filled one sets
-        // its own style, so it wins over this. It sits here rather than on the
-        // window so a step drawn on its own carries it too.
+        // Every plain button in the content of a step takes the orange. The
+        // buttons at the bottom and the filled one set their own style, so
+        // they win over this. It sits here rather than on the window so a
+        // step drawn on its own carries it too.
         .buttonStyle(TextButton())
     }
 }
@@ -339,9 +350,8 @@ extension View {
     }
 }
 
-/// A button that is only its words. A step has at most one filled button, so
-/// everything beside it would otherwise be grey system furniture. The orange
-/// is what says these are the things you can press.
+/// A button that is only its words, for the small actions inside the content
+/// of a step. The orange is what says these are the things you can press.
 struct TextButton: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         RingedLabel(configuration: configuration)

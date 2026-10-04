@@ -212,15 +212,15 @@ struct JobStep: View {
             if phase.isRunning {
                 cancel
             } else if case .checkOnIPhone = phase {
+                tryAgain(from: .restore)
                 PrimaryButton(title: "It's Supervised") {
                     model.advance()
                 }
-                tryAgain(from: .restore)
             } else if case .failed(let failure) = phase {
+                cancel
                 PrimaryButton(title: "Try Again") {
                     model.retryJob(from: failure.retry)
                 }
-                cancel
             } else if case .phoneGone = phase {
                 cancel
             }
@@ -231,13 +231,11 @@ struct JobStep: View {
         Button("Cancel") {
             model.cancelJob()
         }
-        .controlSize(.large)
     }
 
     private func tryAgain(from piece: JobFailure.Retry) -> some View {
         Button("Try Again") {
             model.retryJob(from: piece)
         }
-        .controlSize(.large)
     }
 }
