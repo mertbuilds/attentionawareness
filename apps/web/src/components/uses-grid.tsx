@@ -1,19 +1,16 @@
 import { accent, tint } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
-import { inView, useInView } from 'motion/react';
+import { inView } from 'motion/react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ComponentType } from 'react';
+import { layout } from '../lib/layout.ts';
 import { blur, clock, distance, drawing, duration, easing } from '../lib/motion.stylex.ts';
 import { useLessMotion } from '../lib/use-less-motion.ts';
+import { SEEN, useSeen } from '../lib/use-seen.ts';
 import { useTabHidden } from '../lib/use-tab-hidden.ts';
 import { m } from '../paraglide/messages.js';
 
-/**
- * A tile comes in once its top is this far up the window, so the tiles of a
- * row, whatever their height, come in together.
- */
-const SEEN = '0px 0px -10% 0px';
 /**
  * The grid's times, in milliseconds. Tiles that come on screen together rise
  * one after another, `stagger` apart, the motion scale's large stagger. Gains
@@ -258,17 +255,17 @@ const sink = keyframes({
 });
 /** The light of a video on the phone in bed. */
 const flicker = keyframes({
-  '00%': { fillOpacity: 0.35 },
-  '10%': { fillOpacity: 0.35 },
-  '14%': { fillOpacity: 0 },
-  '18%': { fillOpacity: 0.6 },
-  '22%': { fillOpacity: 0.1 },
-  '26%': { fillOpacity: 0.5 },
-  '30%': { fillOpacity: 0 },
-  '34%': { fillOpacity: 0.6 },
-  '38%': { fillOpacity: 0.15 },
-  '44%': { fillOpacity: 0.35 },
-  to: { fillOpacity: 0.35 },
+  '00%': { fillOpacity: '0.35' },
+  '10%': { fillOpacity: '0.35' },
+  '14%': { fillOpacity: '0' },
+  '18%': { fillOpacity: '0.6' },
+  '22%': { fillOpacity: '0.1' },
+  '26%': { fillOpacity: '0.5' },
+  '30%': { fillOpacity: '0' },
+  '34%': { fillOpacity: '0.6' },
+  '38%': { fillOpacity: '0.15' },
+  '44%': { fillOpacity: '0.35' },
+  to: { fillOpacity: '0.35' },
 });
 /** The play button asking to be pressed, twice. */
 const pulse = keyframes({
@@ -588,18 +585,6 @@ const styles = create({
     animationTimingFunction: 'linear',
     transformBox: 'fill-box',
     transformOrigin: 'center',
-  },
-  // Read by a screen reader, never seen.
-  spoken: {
-    borderWidth: 0,
-    clip: 'rect(0, 0, 0, 0)',
-    height: '1px',
-    margin: '-1px',
-    overflow: 'hidden',
-    padding: 0,
-    position: 'absolute',
-    whiteSpace: 'nowrap',
-    width: '1px',
   },
   // How long a tile's drawing waits before it first plays, in milliseconds.
   starts: (ms: number) => ({
@@ -1361,9 +1346,9 @@ function Loss({
         />
       </svg>
       <span>
-        {before ? <span {...props(styles.spoken)}>{before}</span> : null}
+        {before ? <span {...props(layout.spoken)}>{before}</span> : null}
         <span {...props(styles.struck, play && [styles.once, styles.strike])}>{text}</span>
-        {after ? <span {...props(styles.spoken)}>{after}</span> : null}
+        {after ? <span {...props(layout.spoken)}>{after}</span> : null}
       </span>
     </li>
   );
@@ -1377,8 +1362,10 @@ function Loss({
  *
  * The server draws every tile finished, so none waits on the script. Only a
  * tile still under the window once the page has come alive hides, and rises
- * once its top comes up the window, `stagger` after the one before it when
- * they come up together, as a row does. As a loss rises its icon moves and it
+ * once its top has come up the window as far as `SEEN`, where it is in full
+ * view, `stagger` after the one before it when they come up together, as a
+ * row does. Tiles of one row come up together whatever their height, since
+ * it is their tops that are watched. As a loss rises its icon moves and it
  * is struck through, once, and it stays struck. As a gain rises its drawing
  * plays from the start, and from then on it plays again every three to four
  * seconds, each gain on its own time; a gain already on screen starts playing
@@ -1388,7 +1375,7 @@ function Loss({
 export function UsesGrid() {
   const grid = useRef<HTMLUListElement>(null);
   const reduced = useLessMotion();
-  const seen = useInView(grid);
+  const seen = useSeen(grid);
   const hidden = useTabHidden();
   // Which tiles were under the window as the page came alive, by place.
   const [below, setBelow] = useState<ReadonlyArray<boolean>>([]);

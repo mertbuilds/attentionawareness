@@ -2,6 +2,7 @@ import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
 import { backOut, easeInOut } from 'motion/react';
+import type { Ref } from 'react';
 import { drawing, easing } from '../../lib/motion.stylex.ts';
 import { HEIGHT, WIDTH } from './box.ts';
 import { Cable } from './cable.tsx';
@@ -144,14 +145,20 @@ const styles = create({
  * once each time `play` turns on and stands with the chosen feeds still there
  * while it is off. With less motion it stands locked.
  */
-export function StaysGraphic({ play }: { play: boolean }) {
+export function StaysGraphic({
+  play,
+  ref,
+}: {
+  play: boolean;
+  ref?: Ref<SVGSVGElement> | undefined;
+}) {
   const at = usePlayhead(play, drawing.stepStays);
   const travel = stretch(at, TRAVEL.from, TRAVEL.to, easeInOut);
   const shown = stretch(at, BADGE_FROM, BADGE_FROM + 0.18);
   const shut = stretch(at, BADGE_FROM + 0.12, BADGE_FROM + 0.28, backOut);
 
   return (
-    <svg aria-hidden="true" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} {...props(styles.graphic)}>
+    <svg aria-hidden="true" ref={ref} viewBox={`0 0 ${WIDTH} ${HEIGHT}`} {...props(styles.graphic)}>
       <g transform={transform(MAC)}>
         <Laptop plugged={1}>
           <MacApp progress={travel} screen="sending" />

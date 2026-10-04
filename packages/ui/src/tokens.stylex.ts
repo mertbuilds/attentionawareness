@@ -21,6 +21,8 @@ export const colors = defineConsts({
   error: 'var(--kya-error)',
   fg: 'var(--kya-fg)',
   muted: 'var(--kya-muted)',
+  // The shadow under a raised surface: faint on the white page, deep on the black one.
+  shadow: 'var(--kya-shadow)',
 });
 
 /** Single radius token. 4px everywhere. */

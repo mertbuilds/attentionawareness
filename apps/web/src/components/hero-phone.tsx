@@ -1,9 +1,10 @@
 import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
-import { cancelFrame, easeInOut, frame, useInView } from 'motion/react';
+import { cancelFrame, easeInOut, frame } from 'motion/react';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useLessMotion } from '../lib/use-less-motion.ts';
+import { useSeen } from '../lib/use-seen.ts';
 import { useTabHidden } from '../lib/use-tab-hidden.ts';
 import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
@@ -335,13 +336,14 @@ function KeptIcon({ glyph }: { glyph: Glyph }) {
  *
  * The clean screen is drawn over the live one and stands in for it at the
  * loop's end, so the live one can be put back where it started unseen and the
- * full screen crossfades in over the clean one. The loop holds while the
- * phone is off screen or the tab is put away. The server draws the full
- * screen, and with less motion the clean one stands there, the Mac gone.
+ * full screen crossfades in over the clean one. The loop sets off once the
+ * phone is in view and holds while it is off screen or the tab is put away.
+ * The server draws the full screen, and with less motion the clean one stands
+ * there, the Mac gone.
  */
 export function HeroPhone() {
   const phone = useRef<HTMLDivElement>(null);
-  const seen = useInView(phone);
+  const seen = useSeen(phone);
   const hidden = useTabHidden();
   const reduced = useLessMotion();
   const looped = useLoop(seen && !hidden && !reduced);

@@ -1,8 +1,9 @@
 import { colors, font } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
-import { useInView } from 'motion/react';
 import { useId, useRef } from 'react';
+import { layout } from '../lib/layout.ts';
 import { drawing } from '../lib/motion.stylex.ts';
+import { useSeen } from '../lib/use-seen.ts';
 import { m } from '../paraglide/messages.js';
 import { SIGNATURES } from './signature-glyphs.ts';
 import type { Line } from './signature-glyphs.ts';
@@ -10,8 +11,6 @@ import { stretch, usePlayhead } from './steps/playhead.ts';
 
 /** The name is written as large as type this many pixels tall. */
 const SIZE = 48;
-/** How much of the signature has to be on screen before the pen starts. */
-const SEEN = 0.8;
 /**
  * The pen lifting between two strokes, as long as it takes to write this
  * many units of line, and moving down from the name to the place line.
@@ -54,18 +53,6 @@ const styles = create({
     margin: 0,
     maxWidth: '100%',
   },
-  // Read by a screen reader and found by a search, never seen.
-  spoken: {
-    borderWidth: 0,
-    clip: 'rect(0, 0, 0, 0)',
-    height: '1px',
-    margin: '-1px',
-    overflow: 'hidden',
-    padding: 0,
-    position: 'absolute',
-    whiteSpace: 'nowrap',
-    width: '1px',
-  },
   written: {
     display: 'block',
     height: 'auto',
@@ -104,7 +91,7 @@ export function Signature() {
   const text = m.home_story_sign();
   const signature = SIGNATURES[text];
   const sign = useRef<HTMLParagraphElement>(null);
-  const seen = useInView(sign, { amount: SEEN, once: true });
+  const seen = useSeen(sign, { once: true });
   const at = usePlayhead(seen, drawing.signature);
   const id = useId();
 
@@ -122,7 +109,7 @@ export function Signature() {
   const strokes = timeline(lines.map(({ line }) => line));
   return (
     <p ref={sign} {...props(styles.sign)}>
-      <span {...props(styles.spoken)}>{text}</span>
+      <span {...props(layout.spoken)}>{text}</span>
       <svg
         aria-hidden="true"
         height={(signature.height * SIZE) / 1000}

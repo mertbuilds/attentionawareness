@@ -1,5 +1,13 @@
-import { animate, clamp, cubicBezier, useMotionValue, useMotionValueEvent } from 'motion/react';
-import { useLayoutEffect, useState } from 'react';
+import {
+  animate,
+  clamp,
+  cubicBezier,
+  easeInOut,
+  useMotionValue,
+  useMotionValueEvent,
+} from 'motion/react';
+import { useLayoutEffect, useRef, useState } from 'react';
+import { drawing } from '../../lib/motion.stylex.ts';
 import { useLessMotion } from '../../lib/use-less-motion.ts';
 
 /** `easing.smoothOut`, as a function the drawings can ease a stretch by. */
@@ -7,14 +15,19 @@ const smoothOut = cubicBezier(0.22, 1, 0.36, 1);
 
 /**
  * How far a step has played, from 0 to 1, over `seconds`. It plays once from
- * the start each time `play` turns on and goes back to the start when it
- * turns off. It stands at the end for a reader who asked for less motion, and
- * for a page that has not run its script.
+ * the start each time `play` turns on. When `play` turns off it goes back to
+ * the start: at once before it has ever played, and wound back over
+ * `drawing.stepBack` after, so a drawing that plays again is seen to be
+ * undone first. It stands at the end for a reader who asked for less motion,
+ * and for a page that has not run its script.
  */
 export function usePlayhead(play: boolean, seconds: number): number {
   const reduced = useLessMotion();
   const clock = useMotionValue(1);
   const [at, setAt] = useState(1);
+  // Until it has played, it stands at the end only because the server drew
+  // it there, and there is nothing to wind back.
+  const played = useRef(false);
   useMotionValueEvent(clock, 'change', setAt);
 
   // Before the browser paints, so a step put on the page never shows its end
@@ -24,12 +37,18 @@ export function usePlayhead(play: boolean, seconds: number): number {
       clock.set(1);
       return;
     }
-    clock.set(0);
-    if (!play) {
+    if (play) {
+      played.current = true;
+      clock.set(0);
+      const playing = animate(clock, 1, { duration: seconds, ease: 'linear' });
+      return () => playing.stop();
+    }
+    if (!played.current) {
+      clock.set(0);
       return;
     }
-    const controls = animate(clock, 1, { duration: seconds, ease: 'linear' });
-    return () => controls.stop();
+    const back = animate(clock, 0, { duration: drawing.stepBack, ease: easeInOut });
+    return () => back.stop();
   }, [clock, play, reduced, seconds]);
 
   return reduced ? 1 : at;

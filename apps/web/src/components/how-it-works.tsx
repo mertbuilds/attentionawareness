@@ -1,16 +1,18 @@
 import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
-import { useInView } from 'motion/react';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { drawing } from '../lib/motion.stylex.ts';
+import { useLessMotion } from '../lib/use-less-motion.ts';
+import { useSeen } from '../lib/use-seen.ts';
+import { useTabHidden } from '../lib/use-tab-hidden.ts';
 import { m } from '../paraglide/messages.js';
 import { BillFilters } from './bill-paper.tsx';
 import { InfoTip } from './info-tip.tsx';
 import { ChooseGraphic, PlugGraphic, StaysGraphic } from './steps/index.ts';
 
-/** How much of a step has to be on screen before its drawing plays. */
-const SEEN = 0.6;
+/** The turn in which every step goes back to its start, before the first plays again. */
+const BACK = -1;
 /** The last run of non-blank characters in a title: its last word. */
 const LAST_WORD = /\S*$/u;
 /**
@@ -103,10 +105,34 @@ const styles = create({
 });
 
 /**
+ * The turn after `turn`, and how many seconds until it. A step on screen
+ * plays to its end and one off screen gives up its turn at once. Once every
+ * step on screen has played they rest, and then go back to their start.
+ */
+function following(
+  turn: number,
+  seen: ReadonlyArray<boolean>,
+  seconds: ReadonlyArray<number>,
+): { next: number; wait: number } {
+  if (!seen.includes(true)) {
+    return { next: 0, wait: 0 };
+  }
+  if (turn === BACK) {
+    return { next: 0, wait: drawing.stepBack };
+  }
+  if (seen.some((on, index) => on && index >= turn)) {
+    return { next: turn + 1, wait: seen[turn] === true ? (seconds[turn] ?? 0) : 0 };
+  }
+  return { next: BACK, wait: drawing.stepRest };
+}
+
+/**
  * Which steps play: each while it is on screen, though not before the one
  * whose turn it is has played to its end, so steps that come on screen
- * together play one after another. A step off screen gives up its turn at
- * once, and once none is on screen the turn goes back to the first.
+ * together play one after another. Once every step on screen has played they
+ * stand finished for a rest, go back to their start together and play again,
+ * over and over while one is on screen. A step off screen gives up its turn
+ * at once, and once none is on screen the turn goes back to the first.
  */
 function useInTurn(
   seen: ReadonlyArray<boolean>,
@@ -114,10 +140,7 @@ function useInTurn(
 ): ReadonlyArray<boolean> {
   // Every step before this one has had its turn.
   const [turn, setTurn] = useState(0);
-  const anySeen = seen.includes(true);
-  const waiting = seen.some((on, index) => on && index >= turn);
-  const wait = seen[turn] === true ? (seconds[turn] ?? 0) : 0;
-  const next = !anySeen ? 0 : waiting && turn < seen.length - 1 ? turn + 1 : turn;
+  const { next, wait } = following(turn, seen, seconds);
 
   useEffect(() => {
     if (next === turn) {
@@ -149,21 +172,23 @@ function StepTitle({ mark, text }: { mark: ReactNode; text: string }) {
 
 /**
  * How the Mac app works, in three steps, each with its drawing over its
- * title and line. A drawing plays as its step comes on screen, and steps on
- * screen together play in order.
+ * title and line. A step is on screen while its drawing is, whatever of its
+ * words still shows. A drawing plays as it comes on screen, steps on screen
+ * together play in order, and they play again after a rest for as long as
+ * they are on screen. Off screen, or with the tab put away, a step goes back
+ * to its start, so it plays from there when it is back. With less motion
+ * every drawing stands finished.
  */
 export function HowItWorks() {
-  const plug = useRef<HTMLLIElement>(null);
-  const choose = useRef<HTMLLIElement>(null);
-  const stays = useRef<HTMLLIElement>(null);
-  const seen = [
-    useInView(plug, { amount: SEEN }),
-    useInView(choose, { amount: SEEN }),
-    useInView(stays, { amount: SEEN }),
-  ];
+  const plug = useRef<SVGSVGElement>(null);
+  const choose = useRef<SVGSVGElement>(null);
+  const stays = useRef<SVGSVGElement>(null);
+  const seen = [useSeen(plug), useSeen(choose), useSeen(stays)];
   const items = [plug, choose, stays];
+  const hidden = useTabHidden();
+  const reduced = useLessMotion();
   const playing = useInTurn(
-    seen,
+    seen.map((on) => on && !hidden && !reduced),
     STEPS.map((step) => step.seconds),
   );
 
@@ -173,8 +198,8 @@ export function HowItWorks() {
       <BillFilters />
       <ol {...props(styles.list)}>
         {STEPS.map(({ Graphic, ...step }, index) => (
-          <li key={step.key} ref={items[index]} {...props(styles.step)}>
-            <Graphic play={playing[index] === true} />
+          <li key={step.key} {...props(styles.step)}>
+            <Graphic play={playing[index] === true} ref={items[index]} />
             <h3 {...props(styles.stepTitle)}>
               <span {...props(styles.number)}>{index + 1}</span>{' '}
               <StepTitle

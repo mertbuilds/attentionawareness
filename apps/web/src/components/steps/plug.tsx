@@ -2,6 +2,7 @@ import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
 import { easeInOut } from 'motion/react';
+import type { Ref } from 'react';
 import { drawing } from '../../lib/motion.stylex.ts';
 import { HEIGHT, WIDTH } from './box.ts';
 import { Cable } from './cable.tsx';
@@ -74,7 +75,13 @@ const styles = create({
  * iPhone and shows its card once the phone is lit. It plays once each time `play` turns on
  * and stands unplugged while it is off. With less motion it stands lit.
  */
-export function PlugGraphic({ play }: { play: boolean }) {
+export function PlugGraphic({
+  play,
+  ref,
+}: {
+  play: boolean;
+  ref?: Ref<SVGSVGElement> | undefined;
+}) {
   const at = usePlayhead(play, drawing.stepPlug);
   const macPlug = stretch(at, 0, 0.08);
   // Whatever runs along the cable eases in as well as out, so it is seen to
@@ -93,7 +100,7 @@ export function PlugGraphic({ play }: { play: boolean }) {
   const port = PHONE.x + PHONE.width / 2;
 
   return (
-    <svg aria-hidden="true" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} {...props(styles.graphic)}>
+    <svg aria-hidden="true" ref={ref} viewBox={`0 0 ${WIDTH} ${HEIGHT}`} {...props(styles.graphic)}>
       <Laptop plugged={macPlug}>
         <MacApp found={lit} screen="connect" />
       </Laptop>
