@@ -19,7 +19,16 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { inflateSync } from 'node:zlib';
 
-const PAGES = ['/', '/guide', '/open', '/blog'];
+const PAGES = [
+  '/',
+  '/guide',
+  '/open',
+  '/blog',
+  '/blog/turn-iphone-into-dumbphone',
+  '/extension/privacy',
+  '/build',
+  '/nothing-here',
+];
 /** How long Safari gets to load and draw a page, in milliseconds. */
 const SETTLE = 9000;
 /** The corner that must stay the page's ground: this many pixels in, and the top two fifths. */
