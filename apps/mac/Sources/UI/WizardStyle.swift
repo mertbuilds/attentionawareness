@@ -3,11 +3,27 @@ import SwiftUI
 /// The few looks the window does not get from the system.
 ///
 /// Everything else is system: system font, system colours, native controls,
-/// light and dark. The one colour of our own is the accent, and it is only
-/// ever the primary button, the progress bar and the tick on the last step.
+/// light and dark. The one colour of our own is the orange of the site, and it
+/// is only ever the primary button, the progress bar, the tick on the last
+/// step and the figures of the cost story.
 enum WizardStyle {
     /// The accent of the site and the extension, #ff4f00.
     static let accent = Color(.sRGB, red: 1, green: 0.310, blue: 0, opacity: 1)
+
+    /// The tint of the primary button, #b83800: the same orange, darker.
+    /// macOS lightens a tint when it fills a button, so the site's orange
+    /// came out as #f17236, where the white words read at 2.9 to 1. This one
+    /// comes out as #ba5622, where they read at 4.7 to 1, in light and dark.
+    static let accentFill = Color(.sRGB, red: 0.722, green: 0.220, blue: 0, opacity: 1)
+
+    /// Orange words on the window: the site's orange in dark, where it reads
+    /// at 5 to 1, and #b83800 in light, where the site's own reads at only
+    /// 3.3 to 1 on white and this one at 5.8.
+    static let accentText = Color(nsColor: NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            ? NSColor(srgbRed: 1, green: 0.310, blue: 0, alpha: 1)
+            : NSColor(srgbRed: 0.722, green: 0.220, blue: 0, alpha: 1)
+    })
 
     /// The same orange, lifted and softened, for the ring macOS draws around
     /// whatever holds the keyboard. A ring at full strength competes with the
@@ -389,7 +405,7 @@ struct PrimaryButton: View {
     var body: some View {
         Button(title, action: action)
             .buttonStyle(.borderedProminent)
-            .tint(WizardStyle.accent)
+            .tint(WizardStyle.accentFill)
             .controlSize(.large)
             .accentFocusRing(Capsule())
             .disabled(!enabled)

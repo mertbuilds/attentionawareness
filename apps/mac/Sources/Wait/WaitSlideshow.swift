@@ -200,7 +200,7 @@ struct WaitSlideView: View {
 
     /// The sentence, with the figure in the accent.
     static func sentence(_ slide: WaitSlide) -> some View {
-        Text("\(slide.before)\(Text(slide.figure).foregroundStyle(WizardStyle.accent))\(slide.after)")
+        Text("\(slide.before)\(Text(slide.figure).foregroundStyle(WizardStyle.accentText))\(slide.after)")
             .font(.callout)
             .foregroundStyle(.secondary)
             .multilineTextAlignment(.center)
