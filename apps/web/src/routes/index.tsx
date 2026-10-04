@@ -36,6 +36,11 @@ const SECTION_GAP = '96px';
 /** The column every section stands in, and the first screen too once it is stacked. */
 const COLUMN_WIDTH = 760;
 /**
+ * The face the letter is typed in: Special Elite, a worn typewriter's, which
+ * the site serves itself, then a typewriter face the reader's own system has.
+ */
+const LETTER_FACE = "'Special Elite', 'Courier New', ui-monospace, monospace";
+/**
  * The first screen side by side: wider than the column, so the words keep a
  * readable measure next to the phone.
  */
@@ -365,9 +370,12 @@ const styles = create({
     position: 'relative',
   },
   // The sheet the story is written on: the column's width, with room around
-  // the words, less of it on a phone.
+  // the words, less of it on a phone. Everything on it is typed. The face has
+  // one weight, so nothing on the sheet is thickened to make a bolder one.
   letter: {
     boxSizing: 'border-box',
+    fontFamily: LETTER_FACE,
+    fontSynthesis: 'none',
     paddingBlock: {
       '@media (min-width: 640px)': spacing.s12,
       default: spacing.s8,
@@ -377,9 +385,16 @@ const styles = create({
       default: spacing.s6,
     },
   },
-  // The letter's title stands in the middle of the sheet. What is written
-  // under it starts at the left, as a letter does.
+  // The letter's title stands in the middle of the sheet, in the typewriter's
+  // one weight, half as large again as the lines. What is written under it
+  // starts at the left, as a letter does.
   letterTitle: {
+    fontSize: {
+      '@media (min-width: 640px)': 28,
+      default: 25,
+    },
+    fontWeight: font.weightRegular,
+    letterSpacing: 'normal',
     textAlign: 'center',
   },
   // One way out: its name, what it is, what it keeps, then its button at the
@@ -510,11 +525,16 @@ const styles = create({
     gap: spacing.s4,
     maxWidth: 640,
   },
-  // Paragraphs of prose, so the ink is pulled a step toward the page.
+  // Paragraphs of prose, so the ink is pulled a step toward the page. Typed
+  // at a size that sets about 65 letters to a line where the sheet is at its
+  // full width.
   storyLine: {
     color: `color-mix(in srgb, ${colors.fg} 80%, ${colors.bg})`,
-    fontSize: 18,
-    lineHeight: 1.7,
+    fontSize: {
+      '@media (min-width: 640px)': 19,
+      default: 17,
+    },
+    lineHeight: 1.6,
     margin: 0,
     textWrap: 'pretty',
   },

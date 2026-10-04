@@ -29,6 +29,8 @@ apps/web/src/routeTree.gen.ts
 
 # licensed fonts — fetched by scripts/fetch-fonts.sh, never committed
 packages/ui/fonts/*.woff2
+# Special Elite is under the Apache License 2.0, so its file is in the repo
+!packages/ui/fonts/SpecialElite-Regular.woff2
 
 # os
 .DS_Store

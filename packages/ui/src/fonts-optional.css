@@ -4,8 +4,11 @@
  * paint, and in the fallback for the whole visit when they are not, so it
  * never changes face on screen. A page that does not preload them would get
  * the fallback every time, which is why the extension keeps `./fonts.css`.
+ *
+ * The face of the home page's letter comes with it (`./fonts-letter.css`).
  */
 @import './fonts-fallback.css';
+@import './fonts-letter.css';
 
 @font-face {
   font-display: optional;

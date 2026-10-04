@@ -95,6 +95,7 @@ repo layout and the full workflow live in [AGENTS.md](AGENTS.md).
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE). Files that are not ours are listed, with their
+licenses, in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
 Made by Mert Duzgun. <https://mertbuilds.com>
