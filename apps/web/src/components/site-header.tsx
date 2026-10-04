@@ -5,6 +5,7 @@ import { useLocation } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { flushSync } from 'react-dom';
+import { Heart } from 'reicon-react';
 import { brandBar } from '../lib/brand-bar.stylex.ts';
 import { morph } from '../lib/morph.ts';
 import { duration, easing } from '../lib/motion.stylex.ts';
@@ -13,6 +14,10 @@ import { BrandMark } from './brand-mark.tsx';
 import { MacCta, useMacDownload, useSendToMac } from './mac-download.tsx';
 
 const MARK_SIZE = 24;
+/** The heart before the support link, as tall as the link's letters are set. */
+const HEART_SIZE = 14;
+/** A line as heavy as the letters beside it, in the icon's own 24-unit grid. */
+const HEART_STROKE = 2.25;
 /**
  * The pill holds the download, 28px tall, with this much room around it, so
  * the pill is as round as the button plus the room.
@@ -113,6 +118,14 @@ const styles = create({
     position: 'sticky',
     zIndex: 30,
   },
+  // On a phone the open strip has no room for the heart beside the name, so
+  // the link stands alone there. The pill has no name, and keeps the heart.
+  heartWide: {
+    display: {
+      '@media (min-width: 640px)': 'block',
+      default: 'none',
+    },
+  },
   hidden: {
     display: 'none',
   },
@@ -135,6 +148,12 @@ const styles = create({
     transitionProperty: 'color',
     transitionTimingFunction: easing.out,
     whiteSpace: 'nowrap',
+  },
+  // The support link and the heart before it, in one row and one colour.
+  linkHeart: {
+    alignItems: 'center',
+    display: 'inline-flex',
+    gap: spacing.s1,
   },
   // How it works and why go on a phone, so the name, the support link and
   // the download keep one line. The pill has no name to make room for, so there
@@ -204,8 +223,8 @@ const styles = create({
 
 /**
  * The name, top left on every page and the way home, the home page's two
- * sections and its support link in the middle, and the download across from
- * the name. Once the page has run a little way under it, the same items gather
+ * sections and its support link, a heart before it, in the middle, and the
+ * download across from the name. Once the page has run a little way under it, the same items gather
  * into a pill in the middle, the mark alone for the name. The download starts
  * the file at once, as every download on the site does; on a phone or a
  * tablet, which cannot run the app, it sends the link on to a Mac instead.
@@ -316,8 +335,14 @@ export function SiteHeader() {
             data-morph="header-support"
             data-plain=""
             href={page + SUPPORT_HASH}
-            {...props(styles.link, styles.morph('header-support'))}
+            {...props(styles.link, styles.linkHeart, styles.morph('header-support'))}
           >
+            <Heart
+              aria-hidden="true"
+              size={HEART_SIZE}
+              strokeWidth={HEART_STROKE}
+              {...props(!pill && styles.heartWide)}
+            />
             {m.nav_support()}
           </a>
           <a
