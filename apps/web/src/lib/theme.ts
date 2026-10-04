@@ -32,15 +32,28 @@ function systemKnown(): boolean {
 /** The page's ground in each theme, as `--background` in `theme.css` has it. */
 export const THEME_GROUND = { dark: '#000000', light: '#ffffff' } as const;
 
+/** The one `theme-color` meta a chosen theme owns. React never renders it. */
+const GROUND_META = 'aa-theme-color';
+
 /**
- * Tells the browser the ground of the theme in use, through the two
- * `theme-color` metas in the head, one per system theme. A theme chosen here
- * goes into both; back on the system's, each gets its own again.
+ * Tells the browser the ground of the theme in use. The head has two
+ * `theme-color` metas, one per system theme, which React renders and nothing
+ * here touches. A theme chosen here gets a meta of its own with no `media`,
+ * put first in the head so the browser takes it; back on the system's, that
+ * meta goes and the two speak again.
  */
 function nameGround(attribute: ThemeAttribute): void {
-  for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')) {
-    const own = meta.media.includes('dark') ? 'dark' : 'light';
-    meta.content = THEME_GROUND[attribute ?? own];
+  const own = document.getElementById(GROUND_META);
+  if (attribute === undefined || attribute === null) {
+    own?.remove();
+    return;
+  }
+  const meta = own ?? document.createElement('meta');
+  meta.id = GROUND_META;
+  meta.setAttribute('name', 'theme-color');
+  meta.setAttribute('content', THEME_GROUND[attribute]);
+  if (own === null) {
+    document.head.prepend(meta);
   }
 }
 
@@ -49,14 +62,14 @@ export const THEME_KEY = 'aa-theme';
 
 /**
  * Puts a kept choice on the page before it paints, so a reader who chose a
- * theme never sees the other one first. It runs in the head, after the two
- * `theme-color` metas, and does by hand what `applyTheme` does.
+ * theme never sees the other one first. It runs in the head and does by hand
+ * what `applyTheme` does, the meta of its own included.
  */
 export const THEME_SCRIPT =
   `try{var t=localStorage.getItem('${THEME_KEY}');if(t==='light'||t==='dark'){` +
   "var d=document.documentElement;d.setAttribute('data-theme',t);d.setAttribute('data-theme-choice',t);" +
   `var g=t==='dark'?'${THEME_GROUND.dark}':'${THEME_GROUND.light}';` +
-  "document.querySelectorAll('meta[name=\"theme-color\"]').forEach(function(m){m.setAttribute('content',g)})" +
+  `var m=document.createElement('meta');m.id='${GROUND_META}';m.name='theme-color';m.content=g;document.head.prepend(m)` +
   '}}catch(e){}';
 
 /** The kept choice. A browser that keeps nothing, or refuses to say, is on the system's. */
