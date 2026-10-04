@@ -402,7 +402,7 @@ struct RemoveButton: View {
         }
         .buttonStyle(.borderless)
         .foregroundStyle(armed ? WizardStyle.accentText : Color.secondary)
-        .accessibilityLabel(armed ? "Remove \(what), tap again to confirm" : "Remove \(what)")
+        .accessibilityLabel(armed ? "Remove \(what), click again to confirm" : "Remove \(what)")
         .help(armed ? "Click again to remove \(what)" : "Remove \(what)")
         // A question left standing is a question nobody answered, so it takes
         // itself back rather than waiting to be clicked by accident later.

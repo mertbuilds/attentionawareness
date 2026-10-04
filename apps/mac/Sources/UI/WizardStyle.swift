@@ -67,8 +67,8 @@ struct InfoButton: View {
                 .foregroundStyle(.secondary)
         }
         .buttonStyle(.plain)
-        .help("More")
-        .accessibilityLabel("More")
+        .help("More Information")
+        .accessibilityLabel("More Information")
         .popover(isPresented: $shown, arrowEdge: .bottom) {
             InfoPopoverContent(text: text, image: image)
         }
