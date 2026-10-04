@@ -340,7 +340,7 @@ export function SiteMenu({
           {...props(styles.positioner)}
         >
           <Popover.Popup aria-label={m.nav_menu()} {...props(styles.panel)}>
-            <nav {...props(styles.list)}>
+            <nav aria-label={m.nav_menu()} {...props(styles.list)}>
               {links.map((link, place) => (
                 <Item href={link.href} key={link.href} onPick={pick} place={place}>
                   {link.heart === true && (

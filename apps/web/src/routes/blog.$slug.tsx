@@ -1,6 +1,7 @@
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { createFileRoute, notFound } from '@tanstack/react-router';
+import { useId } from 'react';
 import { BlogPage } from '../components/blog-page.tsx';
 import { MacDownload } from '../components/mac-download.tsx';
 import { loadPost, postDay } from '../lib/blog.ts';
@@ -113,6 +114,7 @@ function BlogPost() {
   // The router's hooks come out untyped in this repo, so the data takes its
   // type from the loader that returned it.
   const { next, post }: Awaited<ReturnType<typeof load>> = Route.useLoaderData();
+  const nextTitle = useId();
 
   return (
     <BlogPage
@@ -145,8 +147,10 @@ function BlogPost() {
       </aside>
 
       {next.length > 0 && (
-        <nav {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>{m.blog_next_title()}</h2>
+        <nav aria-labelledby={nextTitle} {...props(styles.section)}>
+          <h2 id={nextTitle} {...props(styles.sectionTitle)}>
+            {m.blog_next_title()}
+          </h2>
           <ul {...props(styles.list)}>
             {next.map((sibling) => (
               <li key={sibling.slug}>
