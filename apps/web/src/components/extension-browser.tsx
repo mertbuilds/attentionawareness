@@ -1,8 +1,9 @@
 import { accent } from '@attentionawareness/ui/accent.stylex';
-import { colors } from '@attentionawareness/ui/tokens.stylex';
+import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { cancelFrame, frame } from 'motion/react';
 import { useEffect, useId, useRef, useState } from 'react';
+import { duration, easing } from '../lib/motion.stylex.ts';
 import { useLessMotion } from '../lib/use-less-motion.ts';
 import { useSeen } from '../lib/use-seen.ts';
 import { useTabHidden } from '../lib/use-tab-hidden.ts';
@@ -33,6 +34,8 @@ const STILL = [
 ] as const;
 /** Where the loop stands for a reader who asked for less motion: the first site, clean. */
 const REST = 3000;
+/** A site's icon in the address bar, its corners cut as an app icon's are: a quarter of its side. */
+const FAVICON = { radius: 2.5, size: 10, x: 96, y: 8 };
 /** How small a feed is, and how blurred, by the time it is gone. */
 const GONE_SCALE = 0.94;
 const GONE_BLUR = 2;
@@ -76,11 +79,12 @@ function videos(y: number, mark: Mark = {}): Array<Part> {
  * layout of each, and on it the parts the extension hides. `icon` is the
  * site's own app icon in `public/media/apps`, by bundle id.
  */
-const SITES: ReadonlyArray<{ icon: string; parts: ReadonlyArray<Part> }> = [
+const SITES: ReadonlyArray<{ icon: string; name: () => string; parts: ReadonlyArray<Part> }> = [
   // A video site: the row of short videos goes, with its entry in the menu,
   // and the rows of videos under it move up.
   {
     icon: 'com.google.ios.youtube',
+    name: m.home_ext_site_youtube,
     parts: [
       { h: 12, kind: 'box', r: 6, w: 120, x: 120, y: 34 },
       ...entry(42),
@@ -107,6 +111,7 @@ const SITES: ReadonlyArray<{ icon: string; parts: ReadonlyArray<Part> }> = [
   // suggests. Stories, posts and the reader's own profile stay.
   {
     icon: 'com.burbn.instagram',
+    name: m.home_ext_site_instagram,
     parts: [
       ...entry(42),
       ...entry(58),
@@ -138,6 +143,7 @@ const SITES: ReadonlyArray<{ icon: string; parts: ReadonlyArray<Part> }> = [
   // underline.
   {
     icon: 'com.atebits.Tweetie2',
+    name: m.home_ext_site_x,
     parts: [
       ...entry(42),
       ...entry(58),
@@ -176,6 +182,19 @@ const SITES: ReadonlyArray<{ icon: string; parts: ReadonlyArray<Part> }> = [
 const LOOP = TURN * SITES.length;
 
 const styles = create({
+  // The drawing under the row of sites it plays.
+  browser: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s3,
+  },
+  // The edge of a site's icon, so a white or a black one still holds its shape.
+  edge: {
+    fill: 'none',
+    stroke: colors.border,
+    strokeWidth: 1,
+    vectorEffect: 'non-scaling-stroke',
+  },
   // A feed: in the one orange, so it is seen before it goes.
   feed: {
     fill: `color-mix(in srgb, ${accent.base} 10%, transparent)`,
@@ -198,6 +217,64 @@ const styles = create({
     strokeWidth: 1,
     vectorEffect: 'non-scaling-stroke',
   },
+  // One site in the row over the drawing: its icon and its name, quiet until
+  // its page is the one playing.
+  site: {
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderColor: {
+      ':hover': colors.muted,
+      default: colors.border,
+    },
+    borderRadius: 999,
+    borderStyle: 'solid',
+    borderWidth: 1,
+    color: {
+      ':hover': colors.fg,
+      default: colors.muted,
+    },
+    cursor: 'pointer',
+    display: 'inline-flex',
+    fontFamily: 'inherit',
+    fontSize: font.sizeSm,
+    gap: spacing.s2,
+    height: 28,
+    lineHeight: 1,
+    outlineColor: colors.muted,
+    outlineOffset: 2,
+    outlineStyle: {
+      ':focus-visible': 'solid',
+      default: 'none',
+    },
+    outlineWidth: 1,
+    paddingInlineEnd: spacing.s3,
+    paddingInlineStart: spacing.s2,
+    transitionDuration: duration.quick,
+    transitionProperty: 'border-color, color',
+    transitionTimingFunction: easing.out,
+  },
+  // The app icon's corner, a quarter of its side, and an edge, so a white or a
+  // black icon still holds its shape on the page.
+  siteIcon: {
+    borderRadius: 4,
+    boxSizing: 'border-box',
+    display: 'block',
+    height: 16,
+    outlineColor: colors.border,
+    outlineOffset: -1,
+    outlineStyle: 'solid',
+    outlineWidth: 1,
+    width: 16,
+  },
+  sitePlaying: {
+    borderColor: colors.fg,
+    color: colors.fg,
+  },
+  sites: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: spacing.s2,
+  },
   // A feed on its way out, blurring as it fades.
   going: (filter: string) => ({
     filter,
@@ -211,12 +288,13 @@ const styles = create({
 });
 
 /**
- * How far into the loop the drawing is, in milliseconds. It moves with the
- * clock only while `running` and holds where it is otherwise; with `rewound`
- * it goes back to the start, so it plays from there next. While the page
- * stands still it is not drawn again.
+ * How far into the loop the drawing is, in milliseconds, and a way to send it
+ * to another point of the loop, from where it goes on. It moves with the clock
+ * only while `running` and holds where it is otherwise; with `rewound` it goes
+ * back to the start, so it plays from there next. While the page stands still
+ * it is not drawn again.
  */
-function useLoop(running: boolean, rewound: boolean): number {
+function useLoop(running: boolean, rewound: boolean): [number, (to: number) => void] {
   const [now, setNow] = useState(0);
   const clock = useRef(0);
 
@@ -248,7 +326,12 @@ function useLoop(running: boolean, rewound: boolean): number {
     return () => cancelFrame(tick);
   }, [running]);
 
-  return rewound ? 0 : now;
+  function jump(to: number) {
+    clock.current = to;
+    setNow(to);
+  }
+
+  return [rewound ? 0 : now, jump];
 }
 
 /** One site's page, `at` milliseconds into its turn. */
@@ -303,19 +386,23 @@ function Page({ at, site }: { at: number; site: number }) {
  * does in it: a site's page with its feeds in orange, the feeds blurring away
  * one after another, and the rest of the page closing up. It does this for
  * the three sites it ships rules for, one after another, each under its own
- * icon in the address bar, and starts over. It plays while it is on screen,
- * holds while the tab is put away and goes back to its start off screen. The
- * server draws the first site with its feeds on it, and with less motion the
- * same site stands clean.
+ * icon in the address bar, and starts over. The row over the window names the
+ * three and marks the one playing; pressing one sends the drawing to that
+ * site, and it goes on from there. It plays while it is on screen, holds while
+ * the tab is put away and goes back to its start off screen. The server draws
+ * the first site with its feeds on it, and with less motion a site stands
+ * clean.
  */
 export function ExtensionBrowser() {
   const drawing = useRef<SVGSVGElement>(null);
   const seen = useSeen(drawing);
   const hidden = useTabHidden();
   const reduced = useLessMotion();
-  const looped = useLoop(seen && !hidden && !reduced, !seen);
-  const now = reduced ? REST : looped;
+  const [looped, jump] = useLoop(seen && !hidden && !reduced, !seen);
+  // With less motion the site the reader picked stands clean.
+  const now = reduced ? Math.floor(looped / TURN) * TURN + REST : looped;
   const clip = useId();
+  const corners = useId();
 
   const site = Math.floor(now / TURN) % SITES.length;
   const next = (site + 1) % SITES.length;
@@ -326,50 +413,92 @@ export function ExtensionBrowser() {
     { at, opacity: 1 - leaving, site },
     { at: 0, opacity: leaving, site: next },
   ];
+  // The site named in the row: the one coming in, once it is the plainer of the two.
+  const playing = leaving > 0.5 ? next : site;
 
   return (
-    <svg
-      aria-label={m.home_ext_drawing()}
-      ref={drawing}
-      role="img"
-      viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-      {...props(styles.graphic)}
-    >
-      <defs>
-        <clipPath id={clip}>
-          <rect height={HEIGHT - BAR - 1} width={WIDTH - 2} x={1} y={BAR} />
-        </clipPath>
-      </defs>
-      <rect
-        height={HEIGHT - 1}
-        rx={CORNER}
-        width={WIDTH - 1}
-        x={0.5}
-        y={0.5}
-        {...props(styles.line)}
-      />
-      <path d={`M0.5 ${BAR} H${WIDTH - 0.5}`} {...props(styles.line)} />
-      {[14, 24, 34].map((x) => (
-        <circle cx={x} cy={BAR / 2} key={x} r={3} {...props(styles.line)} />
-      ))}
-      <rect height={14} rx={7} width={136} x={92} y={6} {...props(styles.line)} />
-      {pages.map((page) =>
-        page.opacity > 0 ? (
-          <g key={page.site} opacity={page.opacity}>
-            <image
-              height={10}
-              href={`/media/apps/${SITES[page.site]?.icon}.webp`}
-              width={10}
-              x={96}
-              y={8}
+    <div {...props(styles.browser)}>
+      <div aria-label={m.home_ext_sites()} role="group" {...props(styles.sites)}>
+        {SITES.map((entry, index) => (
+          <button
+            aria-pressed={index === playing}
+            key={entry.icon}
+            onClick={() => jump(index * TURN)}
+            type="button"
+            {...props(styles.site, index === playing && styles.sitePlaying)}
+          >
+            <img
+              alt=""
+              height={16}
+              src={`/media/apps/${entry.icon}.webp`}
+              width={16}
+              {...props(styles.siteIcon)}
             />
-            <rect height={3} rx={1.5} width={56} x={110} y={11.5} {...props(styles.words)} />
-            <g clipPath={`url(#${clip})`}>
-              <Page at={page.at} site={page.site} />
+            {entry.name()}
+          </button>
+        ))}
+      </div>
+      <svg
+        aria-label={m.home_ext_drawing()}
+        ref={drawing}
+        role="img"
+        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+        {...props(styles.graphic)}
+      >
+        <defs>
+          <clipPath id={clip}>
+            <rect height={HEIGHT - BAR - 1} width={WIDTH - 2} x={1} y={BAR} />
+          </clipPath>
+          <clipPath id={corners}>
+            <rect
+              height={FAVICON.size}
+              rx={FAVICON.radius}
+              width={FAVICON.size}
+              x={FAVICON.x}
+              y={FAVICON.y}
+            />
+          </clipPath>
+        </defs>
+        <rect
+          height={HEIGHT - 1}
+          rx={CORNER}
+          width={WIDTH - 1}
+          x={0.5}
+          y={0.5}
+          {...props(styles.line)}
+        />
+        <path d={`M0.5 ${BAR} H${WIDTH - 0.5}`} {...props(styles.line)} />
+        {[14, 24, 34].map((x) => (
+          <circle cx={x} cy={BAR / 2} key={x} r={3} {...props(styles.line)} />
+        ))}
+        <rect height={14} rx={7} width={136} x={92} y={6} {...props(styles.line)} />
+        {pages.map((page) =>
+          page.opacity > 0 ? (
+            <g key={page.site} opacity={page.opacity}>
+              <image
+                clipPath={`url(#${corners})`}
+                height={FAVICON.size}
+                href={`/media/apps/${SITES[page.site]?.icon}.webp`}
+                width={FAVICON.size}
+                x={FAVICON.x}
+                y={FAVICON.y}
+              />
+              <rect
+                height={FAVICON.size}
+                rx={FAVICON.radius}
+                width={FAVICON.size}
+                x={FAVICON.x}
+                y={FAVICON.y}
+                {...props(styles.edge)}
+              />
+              <rect height={3} rx={1.5} width={56} x={110} y={11.5} {...props(styles.words)} />
+              <g clipPath={`url(#${clip})`}>
+                <Page at={page.at} site={page.site} />
+              </g>
             </g>
-          </g>
-        ) : null,
-      )}
-    </svg>
+          ) : null,
+        )}
+      </svg>
+    </div>
   );
 }

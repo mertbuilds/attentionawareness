@@ -129,22 +129,58 @@ const styles = create({
   downloadCentered: {
     alignItems: 'center',
   },
-  // The extension: its drawing beside what it does, and over it on a phone.
+  // The extension's three parts, a step further apart than the lines inside
+  // each: what it is and the way to it, the drawing, then what it does.
   extension: {
-    alignItems: 'center',
-    display: 'grid',
     gap: spacing.s8,
-    gridTemplateColumns: {
-      '@media (min-width: 768px)': 'minmax(0, 11fr) minmax(0, 9fr)',
-      default: 'minmax(0, 1fr)',
-    },
   },
-  // What it does, then the way to it and what it costs.
-  extensionWords: {
-    alignItems: 'flex-start',
+  // The way to it, on one line with what it costs, right under the lead.
+  extensionAction: {
+    alignItems: 'center',
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: spacing.s3,
+  },
+  // The title, the lead and the action, close together as one block.
+  extensionHead: {
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s4,
+  },
+  // One thing it does: a short name, then a quiet line, a step smaller than
+  // the page's prose so the drawing over them leads.
+  extensionPoint: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s1,
+  },
+  extensionPointBody: {
+    color: colors.muted,
+    fontSize: font.sizeSm,
+    lineHeight: 1.5,
+    margin: 0,
+    textWrap: 'pretty',
+  },
+  extensionPointTitle: {
+    fontSize: font.sizeMd,
+    fontWeight: font.weightRegular,
+    lineHeight: 1.5,
+    margin: 0,
+  },
+  // Three side by side where they fit, one under the other on a phone.
+  extensionPoints: {
+    display: 'grid',
+    gap: {
+      '@media (min-width: 768px)': spacing.s6,
+      default: spacing.s4,
+    },
+    gridTemplateColumns: {
+      '@media (min-width: 768px)': 'repeat(3, minmax(0, 1fr))',
+      default: 'minmax(0, 1fr)',
+    },
+    listStyle: 'none',
+    margin: 0,
+    padding: 0,
   },
   // The track an answer grows and shrinks in, from no height to its own. It
   // takes no padding, or a closed answer would keep a strip of it.
@@ -551,11 +587,11 @@ function HomePage() {
     m.home_hero_promise_sticks(),
   ];
 
-  // What the browser extension does, each with its tick.
+  // What the browser extension does: a short name each, and a line under it.
   const extensionPoints = [
-    m.home_ext_point_sites(),
-    m.home_ext_point_accounts(),
-    m.home_ext_point_custom(),
+    { body: m.home_ext_point_sites(), title: m.home_ext_point_sites_title() },
+    { body: m.home_ext_point_accounts(), title: m.home_ext_point_accounts_title() },
+    { body: m.home_ext_point_custom(), title: m.home_ext_point_custom_title() },
   ];
 
   // The post the story links out to, in the middle of the sentence that tells
@@ -705,21 +741,29 @@ function HomePage() {
           <OtherUses />
         </section>
 
-        {/* The same idea on the computer: the browser extension, what it
-        hides on the three sites it knows, and how to add another. */}
-        <section {...props(styles.section, styles.anchor)} id={EXTENSION_ID}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_ext_title()}</h2>
-          <p {...props(styles.sectionBody)}>{m.home_ext_lead()}</p>
-          <div {...props(styles.extension)}>
-            <ExtensionBrowser />
-            <div {...props(styles.extensionWords)}>
-              <Promises promises={extensionPoints} />
+        {/* The same idea on the computer: the browser extension and the way
+        to it, the drawing of what it hides on the three sites it knows, then
+        what it does in three short points. */}
+        <section {...props(styles.section, styles.extension, styles.anchor)} id={EXTENSION_ID}>
+          <div {...props(styles.extensionHead)}>
+            <h2 {...props(styles.sectionTitle)}>{m.home_ext_title()}</h2>
+            <p {...props(styles.sectionBody)}>{m.home_ext_lead()}</p>
+            <div {...props(styles.extensionAction)}>
               <Button render={<a href={STORE_URL} rel="noreferrer" target="_blank" />}>
                 {m.home_ext_cta()}
               </Button>
               <p {...props(styles.heroPrice)}>{m.home_ext_note()}</p>
             </div>
           </div>
+          <ExtensionBrowser />
+          <ul {...props(styles.extensionPoints)}>
+            {extensionPoints.map((point) => (
+              <li key={point.title} {...props(styles.extensionPoint)}>
+                <h3 {...props(styles.extensionPointTitle)}>{point.title}</h3>
+                <p {...props(styles.extensionPointBody)}>{point.body}</p>
+              </li>
+            ))}
+          </ul>
         </section>
 
         {/* Why everything is free, and the way to support the work, in a box
