@@ -361,8 +361,12 @@ file at `https://attentionawareness.com/mac/<file>`:
   serves a dmg as immutable for a year, so a name is never used twice: the
   build number is in it, and the script stops when the site already serves
   that name.
-- `mac/latest.json`, `{ version, build, url, size, sha256, date }` for the
-  download page, where `url` is the dmg on the site.
+- `mac/latest.json`, `{ version, build, url, filename, size, sha256, date }`
+  for the download page, where `url` is the dmg on the site and `filename` is
+  the name a person should get on disk, `attention-awareness-<version>.dmg`,
+  with no build number. The download link sets it as its `download` attribute;
+  `cf r2 objects put` cannot store a Content-Disposition, so the bucket cannot
+  say it.
 - `mac/appcast.xml`, the feed Sparkle reads (`SUFeedURL`), written by
   `generate_appcast` with `https://attentionawareness.com/mac/` as
   `--download-url-prefix`. The feed already published is the input, read from
