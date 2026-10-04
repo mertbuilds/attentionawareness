@@ -6,8 +6,10 @@ import type { ReactNode } from 'react';
 import { NotFound } from '../components/not-found.tsx';
 import { SiteHeader } from '../components/site-header.tsx';
 import { SupportPopup } from '../components/support-popup.tsx';
+import { posts } from '../lib/blog.ts';
 import { clientEnv } from '../lib/env.ts';
 import { MOBILE_SCRIPT } from '../lib/mobile.ts';
+import { OG_SIZE, ogImage } from '../lib/og.ts';
 import { openPanelReplay, posthogReplay } from '../lib/replay.ts';
 import { SITE_URL } from '../lib/structured-data.ts';
 import { THEME_GROUND, THEME_SCRIPT } from '../lib/theme.ts';
@@ -55,7 +57,8 @@ const ANALYTICS_SCRIPT =
   `window.op('init',{clientId:'${ANALYTICS_CLIENT_ID}',apiUrl:'/op',trackScreenViews:true,trackOutgoingLinks:false,trackAttributes:false,` +
   `sessionReplay:${JSON.stringify(openPanelReplay)}});` +
   "var s=document.createElement('script');s.src='/op/op1.js';s.async=true;document.head.appendChild(s)}";
-const OG_IMAGE = `${SITE_URL}/og.png`;
+/** The posts by slug, for the share card a post's address shows. */
+const SLUGS = posts.map((post) => post.slug);
 
 export const Route = createRootRoute({
   component: RootComponent,
@@ -75,6 +78,9 @@ export const Route = createRootRoute({
       permanently: m.home_hero_title_accent(),
     });
     const description = `${SITE_NAME}. ${m.home_meta_description()}`;
+    // Every page shows its own share card, and a path with none the home
+    // page's. A page names what its card says in its own head (`og:image:alt`).
+    const image = ogImage(url === undefined ? '/' : path, SLUGS);
     return {
       links: [
         // The SVG first: it inverts with the browser's own theme. The PNG is
@@ -128,16 +134,16 @@ export const Route = createRootRoute({
         { content: description, property: 'og:description' },
         { content: 'website', property: 'og:type' },
         { content: url ?? SITE_URL, property: 'og:url' },
-        { content: OG_IMAGE, property: 'og:image' },
+        { content: image, property: 'og:image' },
         // The picture's size, so a share card is laid out before the file is in,
-        // and its words, which are the tagline.
-        { content: '1200', property: 'og:image:width' },
-        { content: '630', property: 'og:image:height' },
+        // and its words, the home card's tagline unless the page says its own.
+        { content: String(OG_SIZE.width), property: 'og:image:width' },
+        { content: String(OG_SIZE.height), property: 'og:image:height' },
         { content: tagline, property: 'og:image:alt' },
         // A path no route answers is not a page to list.
         ...(match._notFound ? [{ content: 'noindex', name: 'robots' }] : []),
         { content: 'summary_large_image', name: 'twitter:card' },
-        { content: OG_IMAGE, name: 'twitter:image' },
+        { content: image, name: 'twitter:image' },
       ],
     };
   },

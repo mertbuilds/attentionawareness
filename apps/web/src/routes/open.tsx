@@ -21,6 +21,7 @@ export const Route = createFileRoute('/open')({
       { content: m.open_description(), name: 'description' },
       { content: m.open_head_title(), property: 'og:title' },
       { content: m.open_description(), property: 'og:description' },
+      { content: m.open_title(), property: 'og:image:alt' },
     ],
   }),
   // Read on the Worker, so the page arrives with its numbers in it. The

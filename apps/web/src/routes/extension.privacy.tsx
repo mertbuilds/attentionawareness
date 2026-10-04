@@ -11,6 +11,7 @@ export const Route = createFileRoute('/extension/privacy')({
       { content: m.ext_privacy_lead(), name: 'description' },
       { content: m.ext_privacy_head_title(), property: 'og:title' },
       { content: m.ext_privacy_lead(), property: 'og:description' },
+      { content: m.ext_privacy_title(), property: 'og:image:alt' },
     ],
   }),
 });
