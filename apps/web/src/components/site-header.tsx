@@ -12,7 +12,7 @@ import { duration, easing } from '../lib/motion.stylex.ts';
 import { SECTION } from '../lib/sections.ts';
 import { m } from '../paraglide/messages.js';
 import { BrandMark } from './brand-mark.tsx';
-import { MacCta, sendLabel, ShareCta, useMacDownload, useSendToMac } from './mac-download.tsx';
+import { MacCta, useMacDownload } from './mac-download.tsx';
 import { SiteMenu } from './site-menu.tsx';
 
 const MARK_SIZE = 24;
@@ -40,6 +40,8 @@ const PILL_MARK = PILL_HEIGHT - 2 * PILL_INSET;
  */
 const PILL_FROM = 48;
 const OPEN_FROM = 16;
+/** The support link, which a phone has as its button instead. */
+const SUPPORT_LINK = 'header-support';
 /**
  * The header's links, in the order they stand: the home page's sections, by
  * the ids it gives them, then the blog, a page of its own. `name` is what the
@@ -47,7 +49,7 @@ const OPEN_FROM = 16;
  */
 const LINKS = [
   { hash: `#${SECTION.wayOut}`, label: m.nav_how, name: 'header-how' },
-  { hash: `#${SECTION.support}`, heart: true, label: m.nav_support, name: 'header-support' },
+  { hash: `#${SECTION.support}`, heart: true, label: m.nav_support, name: SUPPORT_LINK },
   { hash: `#${SECTION.story}`, label: m.nav_why, name: 'header-why' },
   { hash: `#${SECTION.faq}`, label: m.nav_faq, name: 'header-faq' },
   { label: m.nav_blog, name: 'header-blog', path: '/blog' },
@@ -147,6 +149,11 @@ const styles = create({
     position: 'sticky',
     zIndex: 30,
   },
+  // A wrapper that leaves no box of its own, so what is in it stands in the
+  // row as if it were not wrapped.
+  contents: {
+    display: 'contents',
+  },
   hidden: {
     display: 'none',
   },
@@ -175,6 +182,12 @@ const styles = create({
   },
   // The support link and the heart before it, in one row and one colour.
   linkHeart: {
+    alignItems: 'center',
+    display: 'inline-flex',
+    gap: spacing.s1,
+  },
+  // The heart and the word on a phone's support button, in one row.
+  supportCta: {
     alignItems: 'center',
     display: 'inline-flex',
     gap: spacing.s1,
@@ -258,8 +271,9 @@ const styles = create({
  * download at the other end are. A window too narrow for the links has the menu's
  * button of two lines at the far edge instead, and the links in the menu it
  * opens. The download starts the file at once, as every download on the site
- * does; on a phone or a tablet, which cannot run the app, it is the share
- * link that sends the page on to a Mac instead.
+ * does; a phone or a tablet, which cannot run the app, has a support button
+ * there instead, to the support section, and the menu sends the link on to a
+ * Mac.
  */
 export function SiteHeader() {
   const [pill, setPill] = useState(false);
@@ -271,7 +285,6 @@ export function SiteHeader() {
   // browser would load the page again and drop its query.
   const page = home ? '' : '/';
   const download = useMacDownload('header');
-  const sendToMac = useSendToMac();
   const links = LINKS.map((link) => ({
     heart: 'heart' in link,
     href: 'path' in link ? link.path : page + link.hash,
@@ -323,22 +336,12 @@ export function SiteHeader() {
       </Button>
     );
   } else if (download.kind === 'send') {
-    downloadButton = (
-      <Button data-morph="header-download" onClick={() => void sendToMac.send()} style={morphStyle}>
-        <ShareCta label={sendLabel(sendToMac.copied)} />
-      </Button>
-    );
+    // A phone has the support button in its place.
+    downloadButton = null;
   } else if (download.kind === 'reading') {
-    // The server cannot tell a phone, so it draws both and the mark the head
-    // script puts on a phone's root shows the one that will stay.
     downloadButton = (
       <Button data-morph="header-download" disabled style={morphStyle}>
-        <span data-aa-computer="">
-          <MacCta label={m.nav_download()} />
-        </span>
-        <span data-aa-phone="">
-          <ShareCta label={m.mac_download_share()} />
-        </span>
+        <MacCta label={m.nav_download()} />
       </Button>
     );
   } else {
@@ -383,6 +386,7 @@ export function SiteHeader() {
             <a
               data-morph={link.name}
               data-plain=""
+              {...(link.name === SUPPORT_LINK && { 'data-aa-computer': '' })}
               href={link.href}
               key={link.name}
               {...props(styles.link, link.heart && styles.linkHeart, styles.morph(link.name))}
@@ -394,7 +398,28 @@ export function SiteHeader() {
             </a>
           ))}
         </nav>
-        {downloadButton}
+        {/* The server cannot tell a phone, so it draws both buttons, and the
+            mark the head script puts on a phone's root shows the one that
+            stays: the download on a computer, the support on a phone. */}
+        <span data-aa-computer="" {...props(styles.contents)}>
+          {downloadButton}
+        </span>
+        <span data-aa-phone="" {...props(styles.contents)}>
+          <Button
+            data-morph="header-phone-support"
+            render={<a href={`${page}#${SECTION.support}`} />}
+            style={[
+              styles.download,
+              !pill && styles.downloadRoomy,
+              styles.morph('header-phone-support'),
+            ]}
+          >
+            <span {...props(styles.supportCta)}>
+              <Heart aria-hidden="true" size={HEART_SIZE} strokeWidth={HEART_STROKE} />
+              {m.nav_support()}
+            </span>
+          </Button>
+        </span>
         <SiteMenu anchor={bar} links={links} morph="header-menu" />
       </div>
     </header>

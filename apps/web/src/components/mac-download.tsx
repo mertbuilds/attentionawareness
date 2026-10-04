@@ -5,7 +5,6 @@ import { create, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { MouseEvent, ReactNode } from 'react';
-import { Share } from 'reicon-react';
 import { announceDownload } from '../lib/download-started.ts';
 import { parseRelease } from '../lib/mac-release.ts';
 import type { Release } from '../lib/mac-release.ts';
@@ -96,23 +95,10 @@ export function MacCta({ label }: { label: string }) {
 }
 
 /**
- * A phone's label after the share icon, sized and laid out as a computer's is
- * after the Apple mark.
- */
-export function ShareCta({ label }: { label: string }) {
-  return (
-    <span {...props(styles.cta)}>
-      <Share aria-hidden="true" size="1em" />
-      <span {...props(styles.label)}>{label}</span>
-    </span>
-  );
-}
-
-/**
  * What a phone's button says: share, where the phone has a share sheet, else
  * copy, and once copied, that it is.
  */
-export function sendLabel(copied: boolean): string {
+function sendLabel(copied: boolean): string {
   if ('share' in navigator) {
     return m.mac_download_share();
   }
