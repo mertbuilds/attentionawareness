@@ -64,7 +64,7 @@ There is no button to ignore it, and no way to remove it on the iPhone itself. T
 
 ### With the free Mac app
 
-You need a Mac with Apple Silicon and macOS 14 or later, a cable, and about one afternoon. The app is free, with no account and no subscription. You can support the work if you want, but you never have to.
+You need a Mac with Apple silicon and macOS 14 or later, a cable, and about one afternoon. The app is free, with no account and no subscription. You can support the work if you want, but you never have to.
 
 1. Download the app from [attentionawareness.com](/) and open it.
 2. Plug in the iPhone with a cable.
@@ -186,7 +186,7 @@ Download the [free Mac app](/) and run it in trial mode this weekend. If you wou
       "tool": [
         {
           "@type": "HowToTool",
-          "name": "Mac with Apple Silicon and macOS 14 or later"
+          "name": "Mac with Apple silicon and macOS 14 or later"
         },
         {
           "@type": "HowToTool",

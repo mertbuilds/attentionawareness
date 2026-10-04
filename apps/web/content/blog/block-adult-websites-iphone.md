@@ -56,7 +56,7 @@ Supervision is a mode Apple built for schools and companies. A supervised iPhone
 
 Our [free Mac app](/) puts your iPhone into supervised mode without erasing it. It makes a fresh backup, changes one setting in that backup, and restores it. Your photos, messages and apps stay. Back up your iPhone first, with Finder or iCloud.
 
-1. Download the app on a Mac with Apple Silicon and macOS 14 or later, and connect the iPhone with a cable.
+1. Download the app on a Mac with Apple silicon and macOS 14 or later, and connect the iPhone with a cable.
 2. Let the app back up and restore the phone. Plan for about one afternoon.
 3. Choose your rules: Apple's adult website filter, websites to block, and apps to hide.
 4. Start in trial mode. You can still remove the profile in Settings, so you can test it first.

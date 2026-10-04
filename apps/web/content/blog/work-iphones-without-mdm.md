@@ -71,7 +71,7 @@ A locked profile cannot be removed on the iPhone itself. Undoing it takes erasin
 | ----------------- | ------------------------------------------------------------------- | -------------------------------------------------- |
 | Data on the phone | Stays. The app makes a backup, changes one setting, and restores it | Erased first. Only what syncs to iCloud comes back |
 | Good for          | Phones already in use                                               | New company phones, where erasing is normal        |
-| You need          | Mac with Apple Silicon, macOS 14 or later, a cable                  | Mac, Apple Configurator (free from Apple), a cable |
+| You need          | Mac with Apple silicon, macOS 14 or later, a cable                  | Mac, Apple Configurator (free from Apple), a cable |
 | Effort            | The app does the steps                                              | You follow a written guide                         |
 | Account           | None                                                                | None                                               |
 
