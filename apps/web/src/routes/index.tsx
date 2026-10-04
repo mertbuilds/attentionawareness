@@ -20,7 +20,7 @@ import { SupportSection } from '../components/support-section.tsx';
 import { ThanksPopup } from '../components/thanks-popup.tsx';
 import { UsesGrid } from '../components/uses-grid.tsx';
 import { brandBar } from '../lib/brand-bar.stylex.ts';
-import { blur, duration, easing } from '../lib/motion.stylex.ts';
+import { duration, easing } from '../lib/motion.stylex.ts';
 import { SECTION } from '../lib/sections.ts';
 import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
@@ -174,22 +174,12 @@ const styles = create({
   faqAnswerOpen: {
     gridTemplateRows: '1fr',
   },
-  // What the track cuts off while it is short, coming into focus as it opens.
+  // What the track cuts off while it is short. Only the track moves: a fade
+  // or a blur here makes the text a layer of its own, and Safari on iOS
+  // draws that layer a pixel higher or lower in each frame of the growth.
   faqClip: {
-    filter: `blur(${blur.small})`,
     minHeight: 0,
-    opacity: 0,
     overflow: 'hidden',
-    transitionDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0ms',
-      default: duration.fast,
-    },
-    transitionProperty: 'opacity, filter',
-    transitionTimingFunction: easing.smoothOut,
-  },
-  faqClipOpen: {
-    filter: 'blur(0)',
-    opacity: 1,
   },
   faqHeading: {
     margin: 0,
@@ -618,7 +608,7 @@ function Question({
         role="region"
         {...props(styles.faqAnswer, open && styles.faqAnswerOpen)}
       >
-        <div {...props(styles.faqClip, open && styles.faqClipOpen)}>
+        <div {...props(styles.faqClip)}>
           <p {...props(styles.faqText)}>{answer}</p>
         </div>
       </div>
