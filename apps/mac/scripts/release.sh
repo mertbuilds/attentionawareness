@@ -167,6 +167,15 @@ dmg_name() {
   echo "attention-awareness-$1-$2.dmg"
 }
 
+# The name a person should get on disk: the version alone. The build number in
+# the stored name is only there to keep every url new, and next to the version
+# it reads like a second version. `cf r2 objects put` cannot store a
+# Content-Disposition, so the name travels in latest.json as `filename` and the
+# download link on the site hands it to the browser.
+download_name() {
+  echo "attention-awareness-$1.dmg"
+}
+
 # Sparkle compares CFBundleVersion, so an item whose build number is not above
 # every published one is never offered. The site serves a dmg as immutable for
 # a year, so a name it has served once is never uploaded again.
@@ -373,6 +382,7 @@ cat > "$SITE_DIR/latest.json" <<JSON
   "version": "$VERSION",
   "build": "$BUILD",
   "url": "$DMG_URL",
+  "filename": "$(download_name "$VERSION")",
   "size": $DMG_SIZE,
   "sha256": "$DMG_SHA",
   "date": "$RELEASE_DATE"
