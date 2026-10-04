@@ -203,6 +203,10 @@ struct JobPhaseTests {
             JobPhase.restartHint(pairing: nil)
                 == "When it is back, unlock it with your passcode. If it asks, tap Trust."
         )
+        #expect(
+            JobPhase.restartHint(pairing: nil, method: .seed)
+                == "When it is back, unlock it with your passcode. It then asks to trust this Mac again: tap Trust."
+        )
         #expect(JobPhase.restartHint(pairing: .locked) == "Unlock iPhone.")
         #expect(JobPhase.restartHint(pairing: .trustPending) == "Tap Trust on iPhone.")
         #expect(JobPhase.restartHint(pairing: .untrusted) == "Tap Trust on iPhone.")

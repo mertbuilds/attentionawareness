@@ -54,10 +54,37 @@ struct RestartWaitTests {
         start(model, .seed)
         #expect(await waitUntil { bus.reads >= 4 })
         #expect(model.job == .restarting)
-        #expect(model.restartHint == "When it is back, unlock it with your passcode. If it asks, tap Trust.")
+        #expect(model.restartHint == "When it is back, unlock it with your passcode. It then asks to trust this Mac again: tap Trust.")
         bus.show(.back(supervised: true))
         #expect(await waitUntil { model.job == .checkOnIPhone(reportedSupervised: true) })
         bus.release()
+    }
+
+    /// The second run on the real iPhone. The fast method's restore made the
+    /// iPhone forget this Mac, so after the restart it refused the Mac's pair
+    /// record. It came back locked, then asked to trust this Mac, and the
+    /// wait only goes on once the Mac has paired again.
+    @Test func aPhoneThatForgotTheMacIsPairedAgainAfterTheRestart() async {
+        let phone = PhoneOnCable()
+        let model = WaitingModel(
+            watcher: DeviceWatcher(reading: { phone.read() }, passTimeout: 0.05),
+            engine: BackupEngine(sample: .idle, progress: 0),
+            seedEngine: nil
+        )
+        model.reboot = 2
+        model.onSent = { phone.restart() }
+        start(model, .seed)
+        #expect(await waitUntil { phone.restarted && model.restartHint.hasPrefix("When it is back") })
+        phone.comeBack()
+        #expect(await waitUntil { model.restartHint == "Unlock iPhone." })
+        phone.lockdown.locked = false
+        #expect(await waitUntil { phone.lockdown.dialogShown })
+        #expect(await waitUntil { model.restartHint == "Tap Trust on iPhone." })
+        #expect(model.job == .restarting)
+        phone.lockdown.accepted = true
+        #expect(await waitUntil { model.job == .checkOnIPhone(reportedSupervised: true) })
+        #expect(phone.lockdown.macRecordIsKnown)
+        #expect(model.sends == 1)
     }
 
     @Test(arguments: [SupervisionMethod.seed, .fullCopy])
@@ -295,6 +322,44 @@ struct RestartWaitTests {
             }
             if wait > 0 { Thread.sleep(forTimeInterval: wait) }
             return lock.withLock { snapshot }
+        }
+    }
+}
+
+/// An iPhone on the cable whose reads go through the real pairing step, the
+/// way `DeviceWatcher.read()` makes them, against a fake lockdown.
+private final class PhoneOnCable: @unchecked Sendable {
+    let lockdown = FakeLockdown()
+    private let lock = NSLock()
+    private var plugged = true
+    private var restartedOnce = false
+
+    var restarted: Bool { lock.withLock { restartedOnce } }
+
+    /// The fast method's restore and restart: the iPhone leaves the cable,
+    /// forgets this Mac and comes back locked.
+    func restart() {
+        lockdown.forget()
+        lockdown.locked = true
+        lock.withLock {
+            plugged = false
+            restartedOnce = true
+        }
+    }
+
+    func comeBack() {
+        lock.withLock { plugged = true }
+    }
+
+    func read() -> DeviceWatcher.Snapshot {
+        guard lock.withLock({ plugged }) else { return .away }
+        do {
+            try lockdown.open()
+            return .back(supervised: true)
+        } catch let error as DeviceError {
+            return error.pairingState.map { .back($0) } ?? .unread
+        } catch {
+            return .unread
         }
     }
 }

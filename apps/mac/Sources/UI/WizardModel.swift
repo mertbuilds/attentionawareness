@@ -1050,6 +1050,7 @@ class WizardModel: ObservableObject {
             // the screen says what to do and the reading goes on underneath.
             // After this long an iPhone that answers is one that is back,
             // whether or not a read ever missed it.
+            DeviceLog.logger.notice("restart wait: timed out, offering Check Again")
             job = .phoneGone
             phoneLeftForRestart = true
             guard await waitForPhone(until: nil), !Task.isCancelled else { return }
@@ -1494,8 +1495,12 @@ class WizardModel: ObservableObject {
             seen = watcher.passes
             let readable = device?.pairingState == .paired
             if !readable {
+                if !phoneLeftForRestart {
+                    DeviceLog.logger.notice("restart wait: iPhone left or is not readable")
+                }
                 phoneLeftForRestart = true
             } else if phoneLeftForRestart, cloudConfiguration != nil {
+                DeviceLog.logger.notice("restart wait: iPhone is back and paired")
                 return true
             }
         }
@@ -1505,7 +1510,10 @@ class WizardModel: ObservableObject {
     /// What the restart wait asks of the person, from what the last read of
     /// the iPhone said.
     var restartHint: String {
-        JobPhase.restartHint(pairing: phoneLeftForRestart ? device?.pairingState : nil)
+        JobPhase.restartHint(
+            pairing: phoneLeftForRestart ? device?.pairingState : nil,
+            method: activeMethod
+        )
     }
 
     /// Ask the iPhone what it is now, every five seconds for three minutes,

@@ -28,8 +28,12 @@ skip list and managed setup-completion preferences. The hardware retest of
 this correction, on the owner's iPhone on 2026-10-04 with app version 0.4.2,
 went through: the iPhone came back supervised with its data kept. One fault
 showed, in the app and not in the method: the wait after the restart did not
-find the iPhone again until the cable was pulled and put back, which 0.4.3
-corrects (see the wait below). One iPhone is one test, so the method stays
+find the iPhone again until the cable was pulled and put back. The restore
+resets the iPhone's pairing records, so after the restart it refuses this
+Mac's pair record (InvalidHostID). macOS pairs again only when the iPhone is
+plugged in, and right after the restart that is while it is still locked, so
+nothing paired again until the cable was pulled. 0.4.3 pairs again itself
+(see the wait below). One iPhone is one test, so the method stays
 experimental, and unit tests do not establish that local data survives a
 restore.
 
@@ -39,10 +43,20 @@ iPhone is back on the cable before it answers. It only counts a read made
 after one that missed the iPhone, so the answer from before the restart ends
 nothing. While it waits it says what is missing: "Unlock iPhone." for an
 iPhone that is locked, "Tap Trust on iPhone." for one that asks for trust.
+Every lockdown session that meets InvalidHostID sends Pair once (`Pairing` in
+`Sources/Device/Pairing.swift`): a locked iPhone answers that it needs its
+passcode, an unlocked one shows Trust, and once Trust is tapped the next Pair
+saves a new record through usbmuxd and the read goes on.
 After 5 minutes for the fast method and 15 for the full copy the screen
 becomes "iPhone Didn't Reconnect" with Check Again, and the reading goes on
 underneath. Check Again reads the iPhone and nothing else: it sends no
 configuration and restarts nothing.
+
+The device layer writes every read's outcome to the Mac's log under the
+subsystem `com.attentionawareness.mac`, category `device`: pairing states,
+lockdown error codes, and the restart wait's steps, never a udid or a device
+name. To read a run back:
+`/usr/bin/log show --last 30m --info --predicate 'subsystem == "com.attentionawareness.mac"'`.
 
 The full copy's patch logic was ported from a Python tool that did the same
 thing by hand; that tool is retired and is not in this repo.

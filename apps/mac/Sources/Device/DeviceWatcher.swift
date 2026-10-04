@@ -199,6 +199,10 @@ final class DeviceWatcher: ObservableObject {
 
     private func apply(_ snapshot: Snapshot) {
         passes += 1
+        let states = snapshot.devices.map(\.pairingState.rawValue)
+        if states != devices.map(\.pairingState.rawValue) {
+            DeviceLog.logger.notice("devices now: \(states.isEmpty ? "none" : states.joined(separator: ", "), privacy: .public)")
+        }
         devices = snapshot.devices
         cloudConfigurations = snapshot.cloudConfigurations
         installedProfiles = snapshot.installedProfiles
@@ -225,6 +229,7 @@ final class DeviceWatcher: ObservableObject {
         var snapshot = Snapshot()
         let listed = ConnectedDevice.usbListing()
         snapshot.onCable = listed
+        if listed == nil { DeviceLog.logger.error("read: usbmuxd did not list devices") }
         for udid in listed ?? [] {
             do {
                 let device = try ConnectedDevice.read(udid: udid)
@@ -238,19 +243,26 @@ final class DeviceWatcher: ObservableObject {
                 // (leaving those entries unset) and never marks the device in
                 // error. The device still shows as paired and the next poll
                 // fills supervision in.
-                if device.pairingState == .paired {
-                    do {
-                        let mcInstall = try MCInstall(udid: udid)
-                        snapshot.cloudConfigurations[udid] = try mcInstall.cloudConfiguration()
-                        snapshot.installedProfiles[udid] = try mcInstall.profileList()
-                    } catch {
-                        continue
-                    }
+                guard device.pairingState == .paired else {
+                    DeviceLog.logger.info("read: \(device.pairingState.rawValue, privacy: .public)")
+                    continue
+                }
+                do {
+                    let mcInstall = try MCInstall(udid: udid)
+                    let configuration = try mcInstall.cloudConfiguration()
+                    snapshot.cloudConfigurations[udid] = configuration
+                    snapshot.installedProfiles[udid] = try mcInstall.profileList()
+                    DeviceLog.logger.info("read: paired, supervised \(configuration.isSupervised, privacy: .public)")
+                } catch {
+                    DeviceLog.logger.error("read: paired, MCInstall failed: \(DeviceLog.text(error), privacy: .public)")
+                    continue
                 }
             } catch DeviceError.deviceUnavailable {
                 // The phone was unplugged between the list and the read.
+                DeviceLog.logger.info("read: unplugged during the read")
                 continue
             } catch {
+                DeviceLog.logger.error("read: failed: \(DeviceLog.text(error), privacy: .public)")
                 snapshot.error = error.localizedDescription
             }
         }
