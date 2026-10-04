@@ -286,6 +286,7 @@
   "blog_title": "Blog",
   "blog_lead": "How to block apps and websites on an iPhone so they stay blocked. Apple's own settings first, then the way that cannot be switched off.",
   "blog_minutes": "{minutes} minute read",
+  "blog_author": "By Mert Duzgun",
   "blog_cta_title": "Make the block permanent",
   "blog_cta_body": "The free Mac app blocks the apps and websites you choose on an iPhone, for good. It does not erase the iPhone. Back up first.",
   "blog_cta_manual": "Do it manually via Apple Configurator",

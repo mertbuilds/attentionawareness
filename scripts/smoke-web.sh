@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Smoke-test the built web Worker before it ships. Serves the output of
 # `pnpm --filter @attentionawareness/web build` with the production preview and
-# requires HTTP 200 and the brand in the <title> for each page, or exits 1.
+# requires HTTP 200, a <title> and the brand as the site name for each page,
+# or exits 1. Posts leave the brand out of their title, so the title is not
+# where the brand is checked.
 # The pages render without the Worker's secrets, so CI needs none.
 set -euo pipefail
 
@@ -9,7 +11,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PORT="${SMOKE_PORT:-4173}"
 BASE="http://localhost:$PORT"
 PAGES=(/ /guide /open /blog /blog/why-screen-time-does-not-work)
-EXPECT='attention awareness</title>'
+TITLE='<title>[^<]+</title>'
+EXPECT='content="attention awareness" property="og:site_name"'
 LOG="$(mktemp)"
 BODY="$(mktemp)"
 
@@ -52,10 +55,10 @@ done
 failed=0
 for page in "${PAGES[@]}"; do
   status="$(curl -s -o "$BODY" -w '%{http_code}' --max-time 30 "$BASE$page" || true)"
-  if [[ "$status" == 200 ]] && grep -qF "$EXPECT" "$BODY"; then
+  if [[ "$status" == 200 ]] && grep -qE "$TITLE" "$BODY" && grep -qF "$EXPECT" "$BODY"; then
     echo "smoke: $page ok"
   else
-    echo "smoke: $page answered $status without '$EXPECT'"
+    echo "smoke: $page answered $status without a title or '$EXPECT'"
     failed=1
   fi
 done

@@ -1,6 +1,6 @@
 ---
 title: "iPhone parental controls your child can't turn off"
-description: "Set up Apple's parental controls on iPhone the right way, see where kids get around them, and learn the stronger option: a locked profile."
+description: "Set up Apple's parental controls on iPhone the right way, see where kids get around them, and learn the stronger option: a locked profile they cannot remove."
 slug: iphone-parental-controls-kids-cannot-turn-off
 date: 2026-10-04
 primary_keyword: 'parental controls iphone'
@@ -157,7 +157,7 @@ Set up Family Sharing and a secret passcode today. If the limits do not hold, tr
       "@type": "BlogPosting",
       "@id": "https://attentionawareness.com/blog/iphone-parental-controls-kids-cannot-turn-off#article",
       "headline": "iPhone parental controls your child can't turn off",
-      "description": "Set up Apple's parental controls on iPhone the right way, see where kids get around them, and learn the stronger option: a locked profile.",
+      "description": "Set up Apple's parental controls on iPhone the right way, see where kids get around them, and learn the stronger option: a locked profile they cannot remove.",
       "image": "https://attentionawareness.com/og.png",
       "url": "https://attentionawareness.com/blog/iphone-parental-controls-kids-cannot-turn-off",
       "mainEntityOfPage": "https://attentionawareness.com/blog/iphone-parental-controls-kids-cannot-turn-off",
