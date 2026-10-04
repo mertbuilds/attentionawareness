@@ -394,6 +394,15 @@ prints each upload command instead, and `--no-notarize` skips the notary
 service and stapling. `--no-notarize` is refused without `--dry-run`, because
 Gatekeeper stops a dmg that is not notarized on every Mac but this one.
 
+The picture behind the dmg window is `scripts/dmg-background.png` and its
+`@2x` twin, both tracked, and dmgbuild joins them into one retina picture. They
+are drawn by `scripts/dmg-background.html`: black, like the site in its dark
+theme, with a gray tile behind each icon, because Finder draws the icon labels
+black in light appearance and white in dark and only a mid gray reads under
+both. After a change to the html, run `bash scripts/render-dmg-background.sh`
+and commit the two pictures. The icon positions live in
+`scripts/dmg-settings.py` and again at the top of the html.
+
 ## Auto-update
 
 [Sparkle 2](https://sparkle-project.org) comes in as a Swift package, declared in
