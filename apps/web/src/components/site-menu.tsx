@@ -6,11 +6,10 @@ import type { ReactNode, RefObject } from 'react';
 import { Heart } from 'reicon-react';
 import { onDownloadStarted } from '../lib/download-started.ts';
 import { blur, distance, duration, easing, scale } from '../lib/motion.stylex.ts';
+import { WIDE_QUERY } from '../lib/wide.ts';
 import { m } from '../paraglide/messages.js';
 import { MacDownload } from './mac-download.tsx';
 
-/** The window width the header's own links come back at, and the menu goes. */
-const WIDE_QUERY = '(min-width: 768px)';
 /** How far the page may run under an open menu before the menu closes, in pixels. */
 const SCROLL_CLOSE = 24;
 /** One item of the menu after the one before it, in milliseconds, as they come in. */

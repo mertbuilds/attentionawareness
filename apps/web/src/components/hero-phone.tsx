@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useLessMotion } from '../lib/use-less-motion.ts';
 import { useSeen } from '../lib/use-seen.ts';
+import type { WideLine } from '../lib/use-seen.ts';
 import { useTabHidden } from '../lib/use-tab-hidden.ts';
 import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
@@ -448,6 +449,9 @@ function ScreenTime({ dropped, was }: { dropped: number; was: number }) {
   );
 }
 
+/** On a wide window the loop sets off with any of the phone in the window, as it did before `SEEN`. */
+const WIDE_SEEN: WideLine = {};
+
 /**
  * The hero's iPhone and what the page promises, told on it: the full home
  * screen, then a small Mac in front of it with the cable run into the phone,
@@ -467,7 +471,7 @@ function ScreenTime({ dropped, was }: { dropped: number; was: number }) {
  */
 export function HeroPhone() {
   const phone = useRef<HTMLDivElement>(null);
-  const seen = useSeen(phone);
+  const seen = useSeen(phone, { desktop: WIDE_SEEN });
   const hidden = useTabHidden();
   const reduced = useLessMotion();
   const looped = useLoop(seen && !hidden && !reduced);
