@@ -685,7 +685,8 @@ function Page({ at, site }: { at: number; site: number }) {
  * line behind it is taken back. Pressing a name sends the
  * drawing to that site, with the line at its start, and it goes on from
  * there, or stands there until the drawing is on screen and can play. The
- * left and right arrows go from one name to the next. It plays
+ * left and right arrows go from one name to the next, the row is one stop in
+ * the tab order, and the loop holds while the keyboard's focus is in it. It plays
  * while it is on screen, holds while the tab is put away, the line with it,
  * and goes back to its start off screen. The server draws the first site
  * with its feeds on it, and with less motion a site stands clean and the
@@ -701,7 +702,10 @@ export function ExtensionBrowser() {
   const route = useRef<Route | null>(null);
   // The line's path, drawn anew when the row of names is measured anew.
   const [paths, setPaths] = useState<ReadonlyArray<string>>([]);
-  const [looped, jump] = useLoop(seen && !hidden && !reduced, !seen, line, route);
+  // Whether the keyboard's focus is in the row of names: the loop holds then,
+  // so the name a reader is on does not change under them.
+  const [held, setHeld] = useState(false);
+  const [looped, jump] = useLoop(seen && !hidden && !reduced && !held, !seen, line, route);
 
   // The names are as wide as their words, so the line's path is read off the
   // row as it is laid out, and again whenever a name or the row changes size:
@@ -766,7 +770,18 @@ export function ExtensionBrowser() {
 
   return (
     <div {...props(styles.browser)}>
-      <div aria-label={m.home_ext_sites()} ref={row} role="tablist" {...props(styles.sites)}>
+      <div
+        aria-label={m.home_ext_sites()}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget)) {
+            setHeld(false);
+          }
+        }}
+        onFocus={(event) => setHeld(event.target.matches(':focus-visible'))}
+        ref={row}
+        role="tablist"
+        {...props(styles.sites)}
+      >
         {SITES.map((entry, index) => (
           <button
             aria-controls={panel}
@@ -776,6 +791,8 @@ export function ExtensionBrowser() {
             onClick={() => jump(index * TURN)}
             onKeyDown={(event) => onKey(event, index)}
             role="tab"
+            // One stop in the tab order for the row; the arrows go between names.
+            tabIndex={index === site ? 0 : -1}
             type="button"
             {...props(styles.site, index === site && styles.sitePlaying)}
           >
