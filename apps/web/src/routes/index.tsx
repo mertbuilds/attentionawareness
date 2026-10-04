@@ -809,13 +809,7 @@ function HomePage() {
       question: m.home_faq_manual_term(),
     },
     {
-      answer: [
-        text(m.home_faq_other_platforms_a1()),
-        dots([
-          m.home_faq_other_platforms_item_windows(),
-          m.home_faq_other_platforms_item_android(),
-        ]),
-      ],
+      answer: [text(m.home_faq_other_platforms_a1()), text(m.home_faq_other_platforms_a2())],
       question: m.home_faq_other_platforms_term(),
     },
   ];
