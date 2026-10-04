@@ -66,6 +66,11 @@ Outside the job and Ready, the wizard reads the cable every 2.5 seconds while
 an iPhone on it is locked, waits for Trust or could not be read, because an
 unlock sends no event, and reads nothing while every iPhone is paired.
 
+After 5 minutes for the fast method and 15 for the full copy the screen
+becomes "iPhone Didn't Reconnect" with Check Again, and the reading goes on
+underneath. Check Again reads the iPhone and nothing else: it sends no
+configuration and restarts nothing.
+
 A Debug build takes `--debug-forget-pairing`: it gives the Mac's own pair
 record for the iPhone on the cable a HostID the iPhone does not know, which
 is the state the restore leaves, then opens the window. It touches nothing on
@@ -77,10 +82,6 @@ with either method, but the flag it writes takes supervision off, so it
 starts on a supervised iPhone, ends once the iPhone says it is not
 supervised, skips the Restrictions step and sends no count. The window says
 so over every step. The next launch without the flag supervises again.
-After 5 minutes for the fast method and 15 for the full copy the screen
-becomes "iPhone Didn't Reconnect" with Check Again, and the reading goes on
-underneath. Check Again reads the iPhone and nothing else: it sends no
-configuration and restarts nothing.
 
 The device layer writes every read's outcome to the Mac's log under the
 subsystem `com.attentionawareness.mac`, category `device`: pairing states,
