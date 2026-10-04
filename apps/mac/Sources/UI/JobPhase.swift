@@ -143,15 +143,15 @@ enum JobPhase: Equatable {
     var body: String? {
         switch self {
         case .encrypting:
-            return "Enter the passcode on iPhone to turn on encryption. The prompt can take a few seconds to appear. Keep the cable connected."
+            return "Enter the passcode on iPhone to turn on encryption. The prompt can take a few seconds to appear. Keep iPhone connected."
         case .connecting:
-            return "If iPhone asks, tap Trust This Computer and enter the passcode. Keep it unlocked and the cable connected."
+            return "If iPhone asks, tap Trust This Computer and enter the passcode. Keep iPhone unlocked and connected."
         case .checkOnIPhone(let reportedSupervised):
             let look =
                 "Unlock iPhone and look at the top of Settings. It should say 'This iPhone is supervised.' Then continue to install the restrictions. Keep iPhone connected."
             return reportedSupervised ? "iPhone reports it's supervised. " + look : look
         case .phoneGone:
-            return "Unlock iPhone and keep the cable in."
+            return "Unlock iPhone. Keep iPhone connected."
         case .failed(let failure):
             return failure.fix
         case .copying, .preparing, .waitingForFindMy, .restoring, .finishing,
