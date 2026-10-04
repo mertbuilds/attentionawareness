@@ -7,9 +7,11 @@ enum DeviceError: LocalizedError, Equatable {
     case eventSubscriptionFailed(code: Int32)
     /// The iPhone was in the device list but could not be opened.
     case deviceUnavailable(udid: String)
-    /// The iPhone is waiting for an answer to the Trust dialog, or it is
-    /// locked with a passcode.
+    /// The iPhone is waiting for an answer to the Trust dialog.
     case trustPending
+    /// The iPhone is locked with a passcode, which is what it is after every
+    /// restart until somebody enters it.
+    case locked
     /// The Trust dialog was answered with Don't Trust.
     case trustDenied
     /// The lockdown handshake failed for a reason that is not about trust.
@@ -36,6 +38,8 @@ enum DeviceError: LocalizedError, Equatable {
             return "iPhone \(udid) is no longer connected. Plug it back in with a cable."
         case .trustPending:
             return "iPhone hasn't trusted this Mac yet. Unlock it and tap Trust."
+        case .locked:
+            return "iPhone is locked. Unlock it with its passcode."
         case .trustDenied:
             return "iPhone refused to trust this Mac. Unplug it, plug it back in and tap Trust."
         case .lockdownFailed(let code):

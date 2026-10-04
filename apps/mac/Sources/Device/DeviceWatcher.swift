@@ -9,6 +9,15 @@ import Foundation
 /// is asked for its lockdown values and its supervision state. Reading is done
 /// off the main queue because a lockdown handshake on a locked phone can take a
 /// second or two.
+///
+/// One pass is out at a time and a second one asked for meanwhile runs after
+/// it, so reads never pile up. A phone that is starting can hold a read for
+/// minutes, each lockdown value waiting out its own timeout, so the next pass
+/// stops waiting for one that is still out after `passTimeout` and starts
+/// beside it on a connection of its own. The slow one still lands when it
+/// comes back, unless a newer one landed first. Every call a pass makes has a
+/// timeout of its own, so each one ends, and no more than `maxPassesOut` are
+/// ever out together.
 @MainActor
 final class DeviceWatcher: ObservableObject {
     /// Every iPhone on the cable right now, in the order usbmuxd lists them.
@@ -28,16 +37,41 @@ final class DeviceWatcher: ObservableObject {
     /// pass went through.
     @Published private(set) var lastError: String?
 
-    private let readQueue = DispatchQueue(label: "com.attentionawareness.mac.device-read")
+    /// How many reads of the cable have landed. A wait that needs an answer
+    /// newer than the one already published counts from here.
+    private(set) var passes = 0
+
+    /// How long a pass is given before the next one stops waiting for it.
+    static let passTimeout: TimeInterval = 20
+    /// How many passes may be out at once. Past this the next one waits for
+    /// one of them to come back.
+    static let maxPassesOut = 4
+
+    private let readQueue = DispatchQueue(
+        label: "com.attentionawareness.mac.device-read",
+        attributes: .concurrent
+    )
     private var subscription: idevice_subscription_context_t?
     private var relay: DeviceEventRelay?
-    /// True for a watcher that was handed its phones. It reads no bus, which
-    /// is what `reload()` and `show(...)` both turn on.
-    private let isSample: Bool
+    /// What one pass runs, or nil for a watcher that was handed its phones.
+    /// That one reads no bus, which is what `reload()` and `show(...)` both
+    /// turn on.
+    private let reader: (@Sendable () -> Snapshot)?
+    private var isSample: Bool { reader == nil }
+    private let passTimeout: TimeInterval
+    /// The newest pass that was started.
+    private var passID = 0
+    /// The pass whose answer is published. An older one lands nowhere.
+    private var landedID = 0
+    /// When the newest pass started, or nil once it is back.
+    private var passStartedAt: Date?
+    private var passesOut = 0
+    private var wantsAnotherPass = false
 
     /// Subscribes to device events and reads whatever is already plugged in.
     init() {
-        isSample = false
+        reader = { DeviceWatcher.read() }
+        passTimeout = Self.passTimeout
         let relay = DeviceEventRelay { [weak self] in
             MainActor.assumeIsolated { self?.reload() }
         }
@@ -69,11 +103,21 @@ final class DeviceWatcher: ObservableObject {
         cloudConfigurations: [String: CloudConfiguration] = [:],
         installedProfiles: [String: [InstalledProfile]] = [:]
     ) {
-        isSample = true
+        reader = nil
+        passTimeout = Self.passTimeout
         self.devices = devices
         onCable = devices.map(\.udid)
         self.cloudConfigurations = cloudConfigurations
         self.installedProfiles = installedProfiles
+    }
+
+    /// A watcher that reads through `reader` in place of the bus and hears no
+    /// events, so every pass is one somebody asked for. The tests use it to
+    /// say what each read of the cable finds, and how long it takes.
+    init(reading reader: @escaping @Sendable () -> Snapshot, passTimeout: TimeInterval = DeviceWatcher.passTimeout) {
+        self.reader = reader
+        self.passTimeout = passTimeout
+        apply(reader())
     }
 
     /// Hand a sample watcher another set of phones, so the hidden `--demo`
@@ -90,6 +134,7 @@ final class DeviceWatcher: ObservableObject {
         self.cloudConfigurations = cloudConfigurations
         self.installedProfiles = installedProfiles
         lastError = nil
+        passes += 1
         onCable = devices.map(\.udid)
     }
 
@@ -113,15 +158,47 @@ final class DeviceWatcher: ObservableObject {
     /// top of it.
     func reload() {
         guard !isSample else { return }
+        if let passStartedAt {
+            let overdue = Date().timeIntervalSince(passStartedAt) >= passTimeout
+            guard overdue, passesOut < Self.maxPassesOut else {
+                wantsAnotherPass = true
+                return
+            }
+        }
+        startPass()
+    }
+
+    private func startPass() {
+        guard let reader else { return }
+        passID += 1
+        let id = passID
+        passStartedAt = Date()
+        passesOut += 1
+        wantsAnotherPass = false
         readQueue.async { [weak self] in
-            let snapshot = DeviceWatcher.read()
+            let snapshot = reader()
             DispatchQueue.main.async {
-                MainActor.assumeIsolated { self?.apply(snapshot) }
+                MainActor.assumeIsolated { self?.finishPass(id, with: snapshot) }
             }
         }
     }
 
+    private func finishPass(_ id: Int, with snapshot: Snapshot) {
+        passesOut -= 1
+        // A slow pass still lands, as long as nothing newer has. One that
+        // comes back after a newer answer says what is no longer true.
+        if id > landedID {
+            landedID = id
+            apply(snapshot)
+        }
+        // Only the newest pass clears the clock: an older one coming back
+        // says nothing about the one still out.
+        if id == passID { passStartedAt = nil }
+        if wantsAnotherPass { reload() }
+    }
+
     private func apply(_ snapshot: Snapshot) {
+        passes += 1
         devices = snapshot.devices
         cloudConfigurations = snapshot.cloudConfigurations
         installedProfiles = snapshot.installedProfiles
@@ -134,7 +211,7 @@ final class DeviceWatcher: ObservableObject {
     }
 
     /// The result of one pass over the bus.
-    private struct Snapshot {
+    struct Snapshot: Sendable {
         var devices: [ConnectedDevice] = []
         /// What usbmuxd listed, or nil when it would not answer.
         var onCable: [String]?

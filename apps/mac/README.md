@@ -21,12 +21,28 @@ responsible for lost data. The Ready screen says so, and Supervise stays off
 for both methods until the person ticks "I backed up my iPhone".
 
 The fast method uses an isolated temporary seed folder, never the full-copy
-backup folder, and it makes no backup of its own. It is not proven on hardware.
-The first test on an iPhone SE running iOS 26.6.2 applied supervision but
-reopened Setup Assistant and redownloaded photos from iCloud. The seed now
-includes Nugget's setup-screen skip list and managed setup-completion
-preferences. The hardware retest of this correction is still open; unit tests
-do not establish that local data survives a restore.
+backup folder, and it makes no backup of its own. The first test on an iPhone
+SE running iOS 26.6.2 applied supervision but reopened Setup Assistant and
+redownloaded photos from iCloud. The seed now includes Nugget's setup-screen
+skip list and managed setup-completion preferences. The hardware retest of
+this correction, on the owner's iPhone on 2026-10-04 with app version 0.4.2,
+went through: the iPhone came back supervised with its data kept. One fault
+showed, in the app and not in the method: the wait after the restart did not
+find the iPhone again until the cable was pulled and put back, which 0.4.3
+corrects (see the wait below). One iPhone is one test, so the method stays
+experimental, and unit tests do not establish that local data survives a
+restore.
+
+After the restart, for both methods, the job reads the iPhone every two
+seconds on its own and waits on no connect or disconnect, because a restarted
+iPhone is back on the cable before it answers. It only counts a read made
+after one that missed the iPhone, so the answer from before the restart ends
+nothing. While it waits it says what is missing: "Unlock iPhone." for an
+iPhone that is locked, "Tap Trust on iPhone." for one that asks for trust.
+After 5 minutes for the fast method and 15 for the full copy the screen
+becomes "iPhone Didn't Reconnect" with Check Again, and the reading goes on
+underneath. Check Again reads the iPhone and nothing else: it sends no
+configuration and restarts nothing.
 
 The full copy's patch logic was ported from a Python tool that did the same
 thing by hand; that tool is retired and is not in this repo.
@@ -285,7 +301,9 @@ AA_SITE_URL=https://aa.localhost \
 - `Sources/Device/` is the device layer: `DeviceWatcher` publishes the iPhones on
   the cable and re-reads them on every connect and disconnect, along with every
   udid usbmuxd lists, read or not, which is what says a phone was unplugged
-  rather than slow to answer. `Lockdown` reads
+  rather than slow to answer. One read is out at a time; when it is still out
+  after 20 seconds the next starts beside it, at most four together, and the
+  slow one still lands unless a newer one landed first. `Lockdown` reads
   the values the wizard checks, `MCInstall` reads supervision and installs a
   profile over USB.
 - `Sources/Profile/` is the profile the Restrictions screen installs: `ProfileConfig`

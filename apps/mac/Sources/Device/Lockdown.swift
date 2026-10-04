@@ -5,8 +5,11 @@ import Foundation
 enum PairingState: String, Equatable {
     /// The handshake worked, so every lockdown value and service is available.
     case paired
-    /// The phone is showing the Trust dialog, or it is locked with a passcode.
+    /// The phone is showing the Trust dialog, or has not got to it yet.
     case trustPending
+    /// The phone is locked with a passcode and answers nothing until it is
+    /// entered, which is how every restart leaves it.
+    case locked
     /// The user answered the Trust dialog with Don't Trust.
     case untrusted
 }
@@ -89,6 +92,8 @@ struct ConnectedDevice: Identifiable, Equatable {
             )
         } catch DeviceError.trustPending {
             return readBeforeTrust(udid: udid, pairingState: .trustPending)
+        } catch DeviceError.locked {
+            return readBeforeTrust(udid: udid, pairingState: .locked)
         } catch DeviceError.trustDenied {
             return readBeforeTrust(udid: udid, pairingState: .untrusted)
         }
@@ -153,8 +158,9 @@ final class LockdownSession {
             // reports one of these transient states rather than success. Treat
             // them all as "keep waiting" so the UI shows the calm waiting step
             // and the watcher polls until pairing completes.
+            case LOCKDOWN_E_PASSWORD_PROTECTED:
+                throw DeviceError.locked
             case LOCKDOWN_E_PAIRING_DIALOG_RESPONSE_PENDING,
-                 LOCKDOWN_E_PASSWORD_PROTECTED,
                  LOCKDOWN_E_INVALID_HOST_ID,
                  LOCKDOWN_E_INVALID_CONF,
                  LOCKDOWN_E_MUX_ERROR,

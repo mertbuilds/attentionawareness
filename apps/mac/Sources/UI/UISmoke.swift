@@ -586,6 +586,7 @@ enum UISmoke {
                 )
             ),
             ("restarting", waiting(.restarting, on: samplePhone(findMyOn: false))),
+            ("restarting-locked", backLocked()),
             ("check-on-iphone", waiting(.checkOnIPhone(reportedSupervised: true), on: samplePhone(findMyOn: false))),
             ("phone-gone", waiting(.phoneGone, on: samplePhone(findMyOn: false))),
             (
@@ -670,6 +671,15 @@ enum UISmoke {
 
     /// One phase with no transfer under it: the bar has nothing to measure, or
     /// there is no bar at all.
+    /// The restart wait once the iPhone is back on the cable and locked.
+    private static func backLocked() -> WizardModel {
+        let model = WizardModel(watcher: sampleWatcher([sampleLockedDevice]))
+        model.show(WizardModel.Sample(
+            step: .job, udid: sampleLockedDevice.udid, job: .restarting, phoneLeftForRestart: true
+        ))
+        return model
+    }
+
     private static func waiting(_ job: JobPhase, on phone: ConnectedDevice) -> WizardModel {
         let model = WizardModel(watcher: sampleWatcher([phone]))
         model.show(WizardModel.Sample(step: .job, udid: phone.udid, job: job))
@@ -786,6 +796,22 @@ enum UISmoke {
         dataCapacity: nil,
         dataAvailable: nil,
         pairingState: .trustPending
+    )
+
+    /// An iPhone that restarted and is waiting for its passcode.
+    private static let sampleLockedDevice = ConnectedDevice(
+        udid: "33333333-3333333333333333",
+        name: "iPhone",
+        productType: "iPhone15,2",
+        marketingName: "iPhone 14 Pro",
+        iosVersion: "26.6.2",
+        findMyOn: nil,
+        backupEncrypted: nil,
+        cloudBackupOn: nil,
+        lastCloudBackup: nil,
+        dataCapacity: nil,
+        dataAvailable: nil,
+        pairingState: .locked
     )
 
     /// An iPhone that answered the Trust dialog with Don't Trust, which is the

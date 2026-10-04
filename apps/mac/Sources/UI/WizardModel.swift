@@ -24,9 +24,18 @@ class WizardModel: ObservableObject {
     /// folder, which needs no Full Disk Access, unlike the folder Finder uses.
     static var backupRoot: URL { BackupFolder.applicationSupportRoot }
 
-    /// How long the iPhone is given to come back on the cable after the restore
-    /// reboots it.
-    private static let rebootTimeout: TimeInterval = 15 * 60
+    /// How long the iPhone is given to come back and answer after the restart,
+    /// before the screen offers Check Again. The full copy gets longer: the
+    /// iPhone works through everything that was sent back before it answers.
+    /// The fast method only restarts, which takes a minute or two and then
+    /// waits on the passcode.
+    func rebootTimeout(for method: SupervisionMethod) -> TimeInterval {
+        method == .seed ? 5 * 60 : 15 * 60
+    }
+    /// How often the iPhone is read while the job waits for it to come back.
+    var restartPollInterval: Duration { .seconds(2) }
+    /// How long Check Again reads for before the screen offers it again.
+    var checkAgainTimeout: TimeInterval { 20 }
     /// How often the iPhone is read again while a check is waiting for it.
     private static let pollInterval = Duration.seconds(3)
     /// How often a seed operation that is still stopping is asked about again.
@@ -152,6 +161,10 @@ class WizardModel: ObservableObject {
     /// them lands on a later run, even one about the same iPhone.
     private var run = 0
     private var jobGeneration = 0
+    /// True once a read made during the restart wait has missed the iPhone or
+    /// found it locked, which is what tells the iPhone after the restart from
+    /// the one before it.
+    @Published private var phoneLeftForRestart = false
     private var seedOperationRun: Int?
     /// What sends the anonymous count. Nil sends nothing, which is every
     /// model but the window's own: the demo, the smoke and the tests.
@@ -284,6 +297,9 @@ class WizardModel: ObservableObject {
         var restore = RestoreState()
         /// Where the job screen is, so each of its phases can be drawn.
         var job: JobPhase?
+        /// True where the restart wait has already missed the iPhone, so the
+        /// line it shows for an iPhone that is back and locked can be drawn.
+        var phoneLeftForRestart = false
         var profile = ProfileState()
         /// What the search field over the blocked list is showing, so a step
         /// can be drawn with rows under it.
@@ -320,6 +336,7 @@ class WizardModel: ObservableObject {
         estimate = sample.estimate
         patch = sample.patch
         restore = sample.restore
+        phoneLeftForRestart = sample.phoneLeftForRestart
         job = sample.job
         profile = sample.profile
         appSearch = sample.appSearch
@@ -542,6 +559,7 @@ class WizardModel: ObservableObject {
         iconTask = nil
         askedForIcons = []
         errorMessage = nil
+        phoneLeftForRestart = false
         step = .connect
         watcher.reload()
     }
@@ -938,6 +956,7 @@ class WizardModel: ObservableObject {
         stopJob()
         poll?.cancel()
         errorMessage = nil
+        phoneLeftForRestart = false
         // The first phase is written here rather than in the task, so no frame
         // is ever drawn with the phase the last attempt ended on.
         switch piece {
@@ -998,14 +1017,41 @@ class WizardModel: ObservableObject {
             }
         }
         guard !Task.isCancelled else { return }
+        // The last read still says the iPhone is here, because it was made
+        // before the restart. The wait holds until a read has missed it.
+        phoneLeftForRestart = false
+        await finishAfterRestart(waiting: rebootTimeout(for: activeMethod))
+    }
+
+    /// Look for the iPhone again from the screen that says it did not come
+    /// back. Nothing is sent to it and it is not restarted: this is the end of
+    /// the job alone, the read and what follows it.
+    func checkPhoneAgain() {
+        guard step == .job, job == .phoneGone else { return }
+        stopJob()
+        // Written here rather than in the task, as the first phase of a job
+        // is, so no frame is drawn between the press and the read.
         job = .restarting
-        if await waitForPhone(until: Date().addingTimeInterval(Self.rebootTimeout)) == false {
+        jobTask = Task { [weak self] in
+            guard let self else { return }
+            await self.finishAfterRestart(waiting: self.checkAgainTimeout)
+        }
+    }
+
+    /// The end of the job, from the restart on: wait for the iPhone, ask it
+    /// what it is, and put the question to the person.
+    private func finishAfterRestart(waiting timeout: TimeInterval) async {
+        job = .restarting
+        if await waitForPhone(until: Date().addingTimeInterval(timeout)) == false {
             // A wait cut short by Cancel has moved the run already, and a
             // phase written now would land on the step that replaced it.
             guard !Task.isCancelled else { return }
             // A phone that is still booting is not a phone that is gone, so
             // the screen says what to do and the reading goes on underneath.
+            // After this long an iPhone that answers is one that is back,
+            // whether or not a read ever missed it.
             job = .phoneGone
+            phoneLeftForRestart = true
             guard await waitForPhone(until: nil), !Task.isCancelled else { return }
             job = .restarting
         }
@@ -1425,22 +1471,41 @@ class WizardModel: ObservableObject {
         }.value
     }
 
-    /// Read the bus until the iPhone is back and has answered MCInstall again,
-    /// or until `deadline`. True when it came back. A nil deadline waits for
-    /// as long as the job is left running, which is what the screen offers
-    /// once the quarter of an hour is up.
+    /// Read the iPhone every two seconds until it is back and has answered
+    /// MCInstall again, or until `deadline`. True when it came back. A nil
+    /// deadline waits for as long as the job is left running, which is what
+    /// goes on under the screen that offers Check Again.
+    ///
+    /// It asks for a read itself and waits on no connect or disconnect: an
+    /// iPhone that restarts is back on the cable before it will answer, and
+    /// nothing is heard from the cable when it starts to. Only a read that
+    /// landed after the wait began counts, and only once a read has missed
+    /// the iPhone, because the answer from before the restart looks the same
+    /// as the one after it.
     ///
     /// The demo replaces it with a pause and a phone that comes back.
     func waitForPhone(until deadline: Date?) async -> Bool {
+        var seen = watcher.passes
         while !Task.isCancelled {
             if let deadline, Date() >= deadline { return false }
-            try? await Task.sleep(for: Self.pollInterval)
             watcher.reload()
-            if device?.pairingState == .paired, cloudConfiguration != nil {
+            try? await Task.sleep(for: restartPollInterval)
+            guard watcher.passes > seen else { continue }
+            seen = watcher.passes
+            let readable = device?.pairingState == .paired
+            if !readable {
+                phoneLeftForRestart = true
+            } else if phoneLeftForRestart, cloudConfiguration != nil {
                 return true
             }
         }
         return false
+    }
+
+    /// What the restart wait asks of the person, from what the last read of
+    /// the iPhone said.
+    var restartHint: String {
+        JobPhase.restartHint(pairing: phoneLeftForRestart ? device?.pairingState : nil)
     }
 
     /// Ask the iPhone what it is now, every five seconds for three minutes,

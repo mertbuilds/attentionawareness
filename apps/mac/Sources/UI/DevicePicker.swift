@@ -68,7 +68,7 @@ struct DevicePicker: View {
     /// under the list says, once a phone is chosen.
     static func state(_ device: ConnectedDevice) -> String? {
         switch device.pairingState {
-        case .trustPending:
+        case .trustPending, .locked:
             return "Tap Trust on it"
         case .untrusted:
             return "Unplug it and plug it back in"
