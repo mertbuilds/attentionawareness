@@ -377,6 +377,11 @@ const styles = create({
       default: spacing.s6,
     },
   },
+  // The letter's title stands in the middle of the sheet. What is written
+  // under it starts at the left, as a letter does.
+  letterTitle: {
+    textAlign: 'center',
+  },
   // One way out: its name, what it is, what it keeps, then its button at the
   // foot, level with the other card's.
   plan: {
@@ -790,7 +795,7 @@ function HomePage() {
         sheet of paper, signed at its foot. */}
         <section {...props(styles.anchor)} id={STORY_ID}>
           <PaperLetter ink={styles.section} style={styles.letter}>
-            <h2 {...props(styles.sectionTitle)}>{m.home_story_title()}</h2>
+            <h2 {...props(styles.sectionTitle, styles.letterTitle)}>{m.home_story_title()}</h2>
             <div {...props(styles.story)}>
               <p {...props(styles.storyLine)}>{m.home_story_people()}</p>
               <ScreenShots
