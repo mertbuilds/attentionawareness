@@ -268,35 +268,12 @@ const styles = create({
   accentWord: {
     color: accent.base,
   },
-  // The download and the guide, and the price close under them.
+  // The download, and the price close under it.
   heroAction: {
     alignItems: 'flex-start',
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s3,
-  },
-  // The download and the guide beside it, on their feet, so a phone's
-  // note over its button leaves the two buttons level. They stack where the
-  // row runs out.
-  heroButtons: {
-    alignItems: 'flex-end',
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: spacing.s3,
-  },
-  // The manual way's full name where the row has room for it beside the
-  // download, and its short name on a phone.
-  heroManualLong: {
-    display: {
-      '@media (min-width: 640px)': 'inline',
-      default: 'none',
-    },
-  },
-  heroManualShort: {
-    display: {
-      '@media (min-width: 640px)': 'none',
-      default: 'inline',
-    },
   },
   heroPrice: {
     color: colors.muted,
@@ -464,6 +441,12 @@ const styles = create({
     textAlign: 'center',
   },
   // The button stands a step clear of the lines it follows.
+  story: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s4,
+    maxWidth: 640,
+  },
   supportButton: {
     marginBlockStart: spacing.s2,
   },
@@ -479,16 +462,6 @@ const styles = create({
     lineHeight: 1.5,
     margin: 0,
     textWrap: 'balance',
-  },
-  // Two times at the display size, their digits at one width.
-  stat: {
-    fontVariantNumeric: 'tabular-nums',
-  },
-  story: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s4,
-    maxWidth: 640,
   },
   // Paragraphs of prose, so the ink is pulled a step toward the page.
   storyLine: {
@@ -647,7 +620,7 @@ function HomePage() {
       first section. */}
       <GridTexture />
       {/* The first screen: the claim, why it lasts, and the download with its
-      price and the guide beside it, next to the phone the feeds leave. */}
+      price, next to the phone the feeds leave. */}
       <header {...props(styles.hero)}>
         <div {...props(styles.heroText)}>
           <h1 {...props(styles.displayTitle)}>
@@ -657,13 +630,7 @@ function HomePage() {
           </h1>
           <Promises promises={heroPromises} style={styles.heroPromises} />
           <div {...props(styles.heroAction)}>
-            <div {...props(styles.heroButtons)}>
-              <MacDownload placement="hero" />
-              <Button render={<a href={GUIDE_URL} />} variant="outline">
-                <span {...props(styles.heroManualLong)}>{m.home_hero_diy_cta()}</span>
-                <span {...props(styles.heroManualShort)}>{m.home_hero_diy_cta_short()}</span>
-              </Button>
-            </div>
+            <MacDownload placement="hero" />
             <p {...props(styles.heroPrice)}>{m.home_hero_price()}</p>
           </div>
         </div>
@@ -731,7 +698,7 @@ function HomePage() {
         {/* That it works, once the way is told: the before in words, my own
         screen time after. */}
         <section {...props(styles.section, styles.anchor)} id={PROOF_ID}>
-          <h2 {...props(styles.displayTitle, styles.stat)}>{m.home_proof_title()}</h2>
+          <h2 {...props(styles.displayTitle)}>{m.home_proof_title()}</h2>
           <p {...props(styles.sectionBody)}>{m.home_proof_lead()}</p>
           <ScreenShots
             caption={m.home_proof_caption()}

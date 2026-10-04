@@ -225,7 +225,6 @@ const styles = create({
   },
   stat: {
     fontSize: font.sizeLg,
-    fontVariantNumeric: 'tabular-nums',
     fontWeight: font.weightMedium,
     lineHeight: 1.3,
     margin: 0,
