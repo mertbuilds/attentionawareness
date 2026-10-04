@@ -528,6 +528,16 @@ const styles = create({
   },
 });
 
+/** The questions that can be asked for by name, each told when one is. */
+const askers = new Set<(anchor: string) => void>();
+
+/** Opens the question with that anchor, as a link to it does when pressed. */
+function askQuestion(anchor: string) {
+  for (const asker of askers) {
+    asker(anchor);
+  }
+}
+
 /**
  * One question, closed until it is pressed. Its answer opens under it and
  * leaves the others as they are, so two can be read at once. A closed answer
@@ -556,9 +566,20 @@ function Question({
         setOpen(true);
       }
     };
+    // A link to it that is pressed asks for it by name: with the address
+    // already here, the press changes nothing the browser would tell of.
+    const openIfAsked = (asked: string) => {
+      if (asked === anchor) {
+        setOpen(true);
+      }
+    };
     openIfHere();
     window.addEventListener('hashchange', openIfHere);
-    return () => window.removeEventListener('hashchange', openIfHere);
+    askers.add(openIfAsked);
+    return () => {
+      window.removeEventListener('hashchange', openIfHere);
+      askers.delete(openIfAsked);
+    };
   }, [anchor]);
   const questionId = `${id}-question`;
   const answerId = `${id}-answer`;
@@ -742,7 +763,9 @@ function HomePage() {
               <div {...props(styles.planFoot)}>
                 <MacDownload placement="pricing" />
                 <p {...props(styles.planSub, styles.planNote)}>
-                  <a href={`#${FAQ_DATA_ID}`}>{m.home_how_backup_note_link()}</a>
+                  <a href={`#${FAQ_DATA_ID}`} onClick={() => askQuestion(FAQ_DATA_ID)}>
+                    {m.home_how_backup_note_link()}
+                  </a>
                   {m.home_how_backup_note({ link: LINK_SLOT }).split(LINK_SLOT)[1]}
                 </p>
               </div>
