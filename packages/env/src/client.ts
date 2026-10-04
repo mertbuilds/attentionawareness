@@ -1,9 +1,10 @@
-import { z } from 'zod';
+// The mini build: this runs on every page, and the full one adds about 20 KB gzip to each.
+import { z } from 'zod/mini';
 
 const clientSchema = z.object({
-  VITE_POSTHOG_HOST: z.url().optional(),
-  VITE_POSTHOG_KEY: z.string().min(1).optional(),
-  VITE_SENTRY_DSN: z.url().optional(),
+  VITE_POSTHOG_HOST: z.optional(z.url()),
+  VITE_POSTHOG_KEY: z.optional(z.string().check(z.minLength(1))),
+  VITE_SENTRY_DSN: z.optional(z.url()),
 });
 
 export type ClientEnv = z.infer<typeof clientSchema>;

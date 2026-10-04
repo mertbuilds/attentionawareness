@@ -1,11 +1,11 @@
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
-import { usePostHog } from '@posthog/react';
 import { create, defaultMarker, firstThatWorks, keyframes, props, when } from '@stylexjs/stylex';
 import { useLocation } from '@tanstack/react-router';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode, RefObject } from 'react';
 import { Heart, Star } from 'reicon-react';
+import { posthog } from '../lib/analytics.ts';
 import { posts } from '../lib/blog.ts';
 import { GITHUB_MARK, REPO_URL } from '../lib/github.ts';
 import { layout } from '../lib/layout.ts';
@@ -476,6 +476,8 @@ function Column({ links, title }: { links: ReadonlyArray<FooterLink>; title: str
   );
 }
 
+const onGitHub = () => posthog.capture('github_clicked', { placement: 'footer' });
+
 /**
  * The same footer on every page, and the whole site in it: the name and what
  * this is, the way to the code and the ask for a star, the product, the blog's
@@ -489,7 +491,6 @@ function Column({ links, title }: { links: ReadonlyArray<FooterLink>; title: str
  * in, and it sits above the last row.
  */
 export function SiteFooter({ children }: { children?: ReactNode | undefined }) {
-  const posthog = usePostHog();
   const footer = useRef<HTMLElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const stars = useStars(footer);
@@ -525,7 +526,6 @@ export function SiteFooter({ children }: { children?: ReactNode | undefined }) {
   }, []);
 
   const rising = below && !reduced;
-  const onGitHub = () => posthog.capture('github_clicked', { placement: 'footer' });
 
   const product: ReadonlyArray<FooterLink> = [
     { href: `${page}#${SECTION.download}`, label: m.footer_product_download() },

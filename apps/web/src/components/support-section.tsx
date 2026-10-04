@@ -1,12 +1,12 @@
 import { Button } from '@attentionawareness/ui';
 import { accent, tint } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
-import { usePostHog } from '@posthog/react';
 import { create, defaultMarker, keyframes, props, when } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { useId, useLayoutEffect, useRef, useState } from 'react';
 import type { Ref } from 'react';
 import { Heart } from 'reicon-react';
+import { posthog } from '../lib/analytics.ts';
 import { blur, distance, duration, easing } from '../lib/motion.stylex.ts';
 import { supportUrl } from '../lib/support.ts';
 import { prefersLessMotion, useLessMotion } from '../lib/use-less-motion.ts';
@@ -630,7 +630,6 @@ function Stamp({
  * less motion everything stands still.
  */
 export function SupportSection({ titleStyle }: { titleStyle: StyleXStyles }) {
-  const posthog = usePostHog();
   const section = useRef<HTMLDivElement>(null);
   const stampHeart = useRef<SVGGElement>(null);
   const reduced = useLessMotion();

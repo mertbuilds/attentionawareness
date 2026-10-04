@@ -1,11 +1,11 @@
 import { Button } from '@attentionawareness/ui';
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
-import { usePostHog } from '@posthog/react';
 import { create, defaultMarker, props, when } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
-import { useEffect, useId, useState } from 'react';
+import { lazy, Suspense, useEffect, useId, useState } from 'react';
+import type { ComponentProps, FC } from 'react';
 import { AngleDown, Check } from 'reicon-react';
 import { PaperLetter } from '../components/bill-paper.tsx';
 import { ExtensionBrowser } from '../components/extension-browser.tsx';
@@ -19,19 +19,33 @@ import { OtherUses } from '../components/other-uses.tsx';
 import { ScreenShots } from '../components/screen-shots.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { SupportSection } from '../components/support-section.tsx';
-import { ThanksPopup } from '../components/thanks-popup.tsx';
+import type { ThanksPopup as ThanksPopupComponent } from '../components/thanks-popup.tsx';
 import { UsesGrid } from '../components/uses-grid.tsx';
+import { posthog } from '../lib/analytics.ts';
 import { brandBar } from '../lib/brand-bar.stylex.ts';
 import { duration, easing } from '../lib/motion.stylex.ts';
 import { SECTION } from '../lib/sections.ts';
 import { homeSchema, schemaMeta } from '../lib/structured-data.ts';
 import { m } from '../paraglide/messages.js';
 
+/**
+ * The thank-you is fetched only for a reader the support checkout sends back.
+ * A chunk that does not load leaves no popup.
+ */
+const ThanksPopup = lazy(
+  (): Promise<{ default: FC<ComponentProps<typeof ThanksPopupComponent>> }> =>
+    import('../components/thanks-popup.tsx').then(
+      (popup) => ({ default: popup.ThanksPopup }),
+      () => ({ default: () => null }),
+    ),
+);
+
 export const Route = createFileRoute('/')({
   component: HomePage,
   // The site, the Mac app and the questions below, as data a search engine reads.
   head: () => ({
     meta: [
+      { title: `${m.home_head_title()} · ${SITE_NAME}` },
       schemaMeta(
         homeSchema({
           description: m.home_meta_description(),
@@ -105,6 +119,8 @@ const CHEVRON_STROKE = 2.25;
 /** The tick before a promise, in pixels, drawn with the chevron's line. */
 const CHECK_SIZE = 16;
 
+/** The hero's paper is centred on the hero, reaches toward its edges and is gone before the corners. */
+const HERO_PAPER_MASK = 'radial-gradient(ellipse at 50% 45%, black 40%, transparent 92%)';
 /** The closing's paper fades out from behind the line and the button. */
 const CLOSING_PAPER_MASK = 'radial-gradient(ellipse at 50% 42%, black 25%, transparent 68%)';
 
@@ -135,6 +151,13 @@ const styles = create({
     gap: spacing.s2,
     lineHeight: 1.5,
     margin: 0,
+  },
+  // The hero's graph paper: its squares are centred on the page, and it is
+  // clearest in the middle of the hero and gone before the sides.
+  heroPaper: {
+    backgroundPosition: 'center top',
+    maskImage: HERO_PAPER_MASK,
+    WebkitMaskImage: HERO_PAPER_MASK,
   },
   // The hero's graph paper again behind the last word: the window's whole
   // width, from the page's own left edge so its squares line up with the
@@ -794,8 +817,9 @@ function homeQuestions(): ReadonlyArray<{
 }
 
 function HomePage() {
-  const posthog = usePostHog();
   const { thanks } = Route.useSearch();
+  // Kept for the visit: the popup takes the mark off the address as it opens.
+  const [thanked] = useState(thanks === 1);
   const navigate = Route.useNavigate();
   // The two words the claim turns on, in orange wherever a language puts
   // them, so the words around them keep their own order in every language.
@@ -846,7 +870,7 @@ function HomePage() {
     <main {...props(styles.page)}>
       {/* The graph paper the first screen stands on, fading out before the
       first section. */}
-      <GridTexture />
+      <GridTexture style={styles.heroPaper} />
       {/* The first screen: the claim, why it lasts, and the download with its
       price, next to the phone the feeds leave. */}
       <header {...props(styles.hero)}>
@@ -1061,11 +1085,15 @@ function HomePage() {
 
         <SiteFooter />
       </div>
-      <ThanksPopup
-        // The mark goes off the address, in place: the page stays where it is.
-        onShown={() => void navigate({ replace: true, resetScroll: false, search: {} })}
-        show={thanks === 1}
-      />
+      {thanked ? (
+        <Suspense fallback={null}>
+          <ThanksPopup
+            // The mark goes off the address, in place: the page stays where it is.
+            onShown={() => void navigate({ replace: true, resetScroll: false, search: {} })}
+            show={thanks === 1}
+          />
+        </Suspense>
+      ) : null}
     </main>
   );
 }

@@ -642,6 +642,8 @@ export function ExtensionBrowser() {
             <img
               alt=""
               height={16}
+              // Far down the page: lazy, so React does not preload it in the head.
+              loading="lazy"
               src={`/media/apps/${entry.icon}.webp`}
               width={16}
               {...props(styles.siteIcon)}

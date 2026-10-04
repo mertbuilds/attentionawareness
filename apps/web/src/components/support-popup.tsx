@@ -1,8 +1,8 @@
 import { Button } from '@attentionawareness/ui';
-import { usePostHog } from '@posthog/react';
 import { props } from '@stylexjs/stylex';
 import { useEffect, useRef, useState } from 'react';
 import { Heart } from 'reicon-react';
+import { posthog } from '../lib/analytics.ts';
 import { onDownloadStarted } from '../lib/download-started.ts';
 import { shareUrl } from '../lib/share.ts';
 import { supportUrl } from '../lib/support.ts';
@@ -35,7 +35,6 @@ const SUPPORT_URL = supportUrl('download-popup');
  * (`popup-shell.tsx`).
  */
 export function SupportPopup() {
-  const posthog = usePostHog();
   const [open, setOpen] = useState(false);
   // The button whose download this answers, and where on the site it stands.
   const button = useRef<HTMLElement | null>(null);
@@ -56,7 +55,7 @@ export function SupportPopup() {
         setOpen(true);
         posthog.capture('support_popup_shown', { placement: download.placement });
       }),
-    [posthog],
+    [],
   );
 
   function close() {

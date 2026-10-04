@@ -25,15 +25,15 @@ const out = path.join(web, 'public');
 const blogDir = path.join(web, 'content/blog');
 const fonts = path.join(root, 'packages/ui/fonts');
 
-const messages = JSON.parse(readFileSync(path.join(web, 'messages/en.json'), 'utf8')) as Record<
-  string,
-  string
->;
+const messages: unknown = JSON.parse(readFileSync(path.join(web, 'messages/en.json'), 'utf8'));
 
 /** A message by its key, or the run stops: a card never shows a missing word. */
 function message(key: string): string {
-  const value = messages[key];
-  if (value === undefined) {
+  if (typeof messages !== 'object' || messages === null) {
+    throw new Error('render-og: messages/en.json is not an object');
+  }
+  const value: unknown = Object.entries(messages).find(([name]) => name === key)?.[1];
+  if (typeof value !== 'string') {
     throw new Error(`render-og: no message "${key}"`);
   }
   return value;

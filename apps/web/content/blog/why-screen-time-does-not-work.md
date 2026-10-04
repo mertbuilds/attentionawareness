@@ -5,13 +5,23 @@ og_title: "Why Screen Time doesn't work, and **what does**"
 slug: why-screen-time-does-not-work
 date: 2026-10-04
 primary_keyword: 'screen time not working'
-reading_minutes: 6
+reading_minutes: 7
 read_next: turn-iphone-into-dumbphone, block-any-app-iphone
 ---
 
 If Screen Time is not working for you, the cause is usually not a bug. Screen Time lets the person who set a limit skip that limit, and on your own iPhone that person is you. A limit holds only when you cannot remove it yourself.
 
 I am Mert. I make attention awareness. My screen time went from more than 5 hours a day to 1 hour 45 minutes. I tried a lot of tools on the way. The one that stuck is the last one in this post.
+
+## Quick fixes to try first
+
+1. **Let another person set the passcode.** Ask them to choose the code and to enter their own Apple Account for Screen Time Passcode Recovery. Then your Apple Account cannot reset the code.
+2. **Remove the app from Always Allowed.** Apps on that list work at all times, whatever your schedule and limits say. In Settings, open Screen Time, then Always Allowed, tap Edit and remove the app.
+3. **Make the schedule block, not remind.** On iOS 26 and earlier, open Screen Time, then Downtime, and turn on Block at Downtime. Without it, the phone only reminds you, and you can keep using the apps. This option needs a Screen Time passcode.
+4. **Limit the app's website too.** On iOS 27, a Time Allowance also counts the app's website when the app declares one. On iOS 26 and earlier, open Content & Privacy Restrictions > App Store, Media, Web, & Games > Web Content, choose Limit Adult Websites, then add the website under Never Allow.
+5. **Use the same limits on your iPad and Mac.** In Screen Time, open Manage Screen Time and turn on Share Across Devices. Before iOS 27, the switch is on the Screen Time page itself. Your limits and schedules then apply on every device signed in to your Apple Account.
+
+If these do not hold, here is why, and what does.
 
 ## What Screen Time is good for
 
@@ -30,7 +40,7 @@ Apple renamed parts of Screen Time in iOS 27. I use the iOS 27 names and give th
 3. Set a daily limit. Tap Time Allowances (called App Limits before iOS 27). Before iOS 27, tap Add Limit next.
 4. Set hours with no apps. Tap Screen Time Schedule (called Downtime before iOS 27) and turn the schedule on.
 5. Set a passcode. Tap Manage Screen Time, then Lock Screen Time Settings, and enter a four-digit code.
-6. On iOS 26 and earlier, make the limits block. In the schedule, turn on Block at Downtime. In each app limit, turn on Block at End of Limit. Both options need the passcode from step 5.
+6. On iOS 26 and earlier, make the schedule block. Tap Downtime and turn on Block at Downtime. Apple says limits can be ignored by default, and this is the setting it gives to stop that.
 
 Even then, Screen Time has four ways out.
 
@@ -94,7 +104,7 @@ In trial mode you can remove the profile in Settings. Use it for a week before y
 
 - It does not work on Android or Windows. It is for iPhone only today.
 - It does not set time limits. A hidden app is hidden all day.
-- It does not block everything. Apple's adult filter is a filter and it misses some sites.
+- It does not block everything. Apple's adult filter is a filter and it misses some websites.
 - It is not a medical treatment.
 
 ## Which option fits you
@@ -117,7 +127,7 @@ Set a Screen Time passcode, so the limit screen asks for a code. Ask someone you
 
 ### Can I remove the Ignore Limit button?
 
-Yes. Set a Screen Time passcode. On iOS 26 and earlier, also turn on Block at End of Limit for each app limit. The button goes away, but anyone who knows the code can still get in.
+Yes. Set a Screen Time passcode. On iOS 26 and earlier, also turn on Block at Downtime, which Apple gives as the way to stop limits being ignored. The limit screen then asks for the passcode, but anyone who knows the code can still get in.
 
 ### Do I have to erase my iPhone to supervise it?
 
@@ -142,7 +152,7 @@ If Screen Time is enough for you, keep it. If you tap Ignore Limit most nights, 
       "url": "https://attentionawareness.com/blog/why-screen-time-does-not-work",
       "mainEntityOfPage": "https://attentionawareness.com/blog/why-screen-time-does-not-work",
       "datePublished": "2026-10-04",
-      "dateModified": "2026-10-04",
+      "dateModified": "2026-10-05",
       "inLanguage": "en",
       "author": {
         "@type": "Person",
@@ -184,7 +194,7 @@ If Screen Time is enough for you, keep it. If you tap Ignore Limit most nights, 
           "name": "Can I remove the Ignore Limit button?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Yes. Set a Screen Time passcode. On iOS 26 and earlier, also turn on Block at End of Limit for each app limit. The button goes away, but anyone who knows the code can still get in."
+            "text": "Yes. Set a Screen Time passcode. On iOS 26 and earlier, also turn on Block at Downtime, which Apple gives as the way to stop limits being ignored. The limit screen then asks for the passcode, but anyone who knows the code can still get in."
           }
         },
         {
@@ -206,6 +216,7 @@ If Screen Time is enough for you, keep it. If you tap Ignore Limit most nights, 
 - [Apple, "Set up Screen Time for yourself on iPhone" (iOS 27)](https://support.apple.com/guide/iphone/set-up-screen-time-for-yourself-iphbfa595995/ios)
 - [Apple, "Set Screen Time Schedules and Time Allowances" (iOS 27)](https://support.apple.com/guide/iphone/set-schedules-and-time-allowances-iphb0c7313c9/ios)
 - [Apple, "Set schedules with Screen Time on iPhone" (iOS 26)](https://support.apple.com/guide/iphone/set-schedules-with-screen-time-iphb0c7313c9/26/ios/26)
+- [Apple, "Block apps, app downloads, websites, and purchases on iPhone" (iOS 26)](https://support.apple.com/guide/iphone/iph3ff83f3b1/26/ios/26)
 - [Apple, "Create, change, or remove a Screen Time passcode on iPhone" (iOS 27)](https://support.apple.com/guide/iphone/create-change-remove-a-screen-time-passcode-iph272b4c4bd/ios)
 - [Apple, "Change your Screen Time passcode on an iPhone or iPad"](https://support.apple.com/en-us/102677)
 - [Apple, "Set up parental controls to manage your child's iPhone or iPad"](https://support.apple.com/en-us/105121)

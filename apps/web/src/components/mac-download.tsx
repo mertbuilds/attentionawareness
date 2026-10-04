@@ -1,10 +1,10 @@
 import { Button } from '@attentionawareness/ui';
 import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
-import { usePostHog } from '@posthog/react';
 import { create, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { MouseEvent, ReactNode } from 'react';
+import { posthog } from '../lib/analytics.ts';
 import { announceDownload } from '../lib/download-started.ts';
 import { parseRelease } from '../lib/mac-release.ts';
 import type { Release } from '../lib/mac-release.ts';
@@ -185,7 +185,6 @@ function useIsMobile(): boolean {
  * server's page and a click before it comes alive carry no link to start.
  */
 export function useMacDownload(placement: Placement): Download {
-  const posthog = usePostHog();
   const release = useLatestRelease();
   const mobile = useIsMobile();
 
@@ -218,7 +217,6 @@ export function useMacDownload(placement: Placement): Download {
  * site sends the same link.
  */
 export function useSendToMac(): { copied: boolean; send: () => Promise<void> } {
-  const posthog = usePostHog();
   const [copied, setCopied] = useState(false);
 
   async function send() {

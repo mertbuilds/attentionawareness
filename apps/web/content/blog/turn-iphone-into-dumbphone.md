@@ -1,5 +1,5 @@
 ---
-title: 'Turn your iPhone into a dumbphone, free'
+title: 'How to turn your iPhone into a dumb phone'
 description: 'Keep camera, maps, bank and messages. Remove the addictive feeds for good. Five ways to make an iPhone a dumb phone, compared, with free setup steps.'
 og_title: 'Turn your iPhone into a **dumb phone**, free'
 slug: turn-iphone-into-dumbphone
@@ -9,7 +9,7 @@ reading_minutes: 6
 read_next: why-screen-time-does-not-work, block-any-app-iphone
 ---
 
-You can turn an iPhone into a dumbphone without buying a new phone. Put the iPhone in Apple's supervised mode, then install a locked profile that removes the addictive feed apps and their websites. Camera, maps, bank and messages stay. My Mac app does this for free in about one afternoon.
+You can turn an iPhone into a dumb phone without buying a new phone. Put the iPhone in Apple's supervised mode, then install a locked profile that removes the addictive feed apps and their websites. Camera, maps, bank and messages stay. My Mac app does this for free in about one afternoon.
 
 ## What people mean by a dumbphone
 
@@ -146,7 +146,7 @@ Download the [free Mac app](/) and run it in trial mode this weekend. If you wou
     {
       "@type": "BlogPosting",
       "@id": "https://attentionawareness.com/blog/turn-iphone-into-dumbphone#article",
-      "headline": "Turn your iPhone into a dumbphone, free",
+      "headline": "How to turn your iPhone into a dumb phone",
       "description": "Keep camera, maps, bank and messages. Remove the addictive feeds for good. Five ways to make an iPhone a dumb phone, compared, with free setup steps.",
       "image": "https://attentionawareness.com/og/blog/turn-iphone-into-dumbphone.png",
       "url": "https://attentionawareness.com/blog/turn-iphone-into-dumbphone",

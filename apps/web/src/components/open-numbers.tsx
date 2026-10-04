@@ -1,9 +1,9 @@
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
-import { usePostHog } from '@posthog/react';
 import { create, keyframes, props } from '@stylexjs/stylex';
 import { useId, useState } from 'react';
 import type { KeyboardEvent, PointerEvent } from 'react';
+import { posthog } from '../lib/analytics.ts';
 import { layout } from '../lib/layout.ts';
 import { distance, duration, easing } from '../lib/motion.stylex.ts';
 import { DASHBOARD_URL, DIRECT } from '../lib/open-numbers.ts';
@@ -416,6 +416,9 @@ function List({
   );
 }
 
+/** A press on the public dashboard's link, by where the link stands. */
+const check = (placement: string) => () => posthog.capture('open_dashboard_clicked', { placement });
+
 /**
  * The numbers themselves, drawn by the site from what the Worker read from
  * PostHog: the totals, the days, and three short lists. Under them, how old
@@ -424,10 +427,6 @@ function List({
  * Why: `docs/adr/0007-open-numbers.md`.
  */
 export function OpenNumbers({ answer }: { answer: OpenNumbersAnswer }) {
-  const posthog = usePostHog();
-  const check = (placement: string) => () =>
-    posthog.capture('open_dashboard_clicked', { placement });
-
   if (answer === null) {
     const [before, after] = m.open_numbers_failed({ dashboard: LINK_SLOT }).split(LINK_SLOT);
     return (

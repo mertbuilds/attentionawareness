@@ -27,7 +27,9 @@ export const Route = createFileRoute('/blog/$slug')({
       ? {}
       : {
           meta: [
-            { title: `${loaderData.post.title} · ${SITE_NAME}` },
+            // The post's own title, without the brand: with it most titles run
+            // past what a search result shows.
+            { title: loaderData.post.title },
             { content: loaderData.post.description, name: 'description' },
             { content: loaderData.post.title, property: 'og:title' },
             { content: loaderData.post.description, property: 'og:description' },
@@ -63,6 +65,9 @@ async function load({ params }: { params: { slug: string } }) {
 /** The brand in prose, the way the root document spells it. */
 const SITE_NAME = 'attention awareness';
 const BLOG_PATH = '/blog';
+/** The author's own site. Every link to one of Mert's sites carries utm tags. */
+const AUTHOR_URL =
+  'https://mertbuilds.com/?utm_source=attentionawareness.com&utm_medium=referral&utm_campaign=blog-author';
 /** The manual way, on a page of its own. */
 const GUIDE_PATH = '/guide';
 
@@ -138,6 +143,9 @@ function BlogPost() {
             {postDay(post.date)}
           </time>,
           m.blog_minutes({ minutes: post.minutes }),
+          <a href={AUTHOR_URL} key="author" rel="noreferrer" target="_blank">
+            {m.blog_author()}
+          </a>,
         ]}
         title={post.heading}
       >

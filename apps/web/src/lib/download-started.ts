@@ -13,16 +13,30 @@ export type StartedDownload = {
 type Listener = (download: StartedDownload) => void;
 
 const listeners = new Set<Listener>();
+/** A download that started before anyone listened, kept for the first to come. */
+let unheard: StartedDownload | undefined;
 
 export function announceDownload(download: StartedDownload): void {
+  if (listeners.size === 0) {
+    unheard = download;
+    return;
+  }
   for (const listener of listeners) {
     listener(download);
   }
 }
 
-/** Calls `listener` for every download that starts, until the returned function is called. */
+/**
+ * Calls `listener` for every download that starts, until the returned
+ * function is called, and at once for one that started before anyone listened.
+ */
 export function onDownloadStarted(listener: Listener): () => void {
   listeners.add(listener);
+  if (unheard !== undefined) {
+    const download = unheard;
+    unheard = undefined;
+    listener(download);
+  }
   return () => {
     listeners.delete(listener);
   };
