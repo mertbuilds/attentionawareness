@@ -162,10 +162,12 @@ const styles = create({
   // What is written on a letter. The ink is put on block by block rather
   // than on this layer (`data-paper` in `app.css`): a letter is long and its
   // signature moves, and one filter over all of it would be drawn again with
-  // every stroke of the pen.
+  // every stroke of the pen. It comes after the paper and is positioned, so
+  // it is drawn over it, but it takes no z-index: that would close it off as
+  // a layer of its own, and the blocks' ink would multiply with nothing
+  // instead of with the paper under them.
   letterInk: {
     position: 'relative',
-    zIndex: 1,
   },
   // The surface the shader draws, filling the back layer.
   paper: {
