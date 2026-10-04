@@ -348,7 +348,11 @@ type FooterLink = {
   onClick?: () => void;
 };
 
-/** The repo's star count, asked of GitHub once a page and kept for the tab's session. */
+/**
+ * The repo's star count, asked of GitHub once a page and kept for the tab's
+ * session. Only a count GitHub gave is kept: an answer that failed is not, so
+ * the next page asks again.
+ */
 let starsAsked: Promise<number> | undefined;
 
 async function askStars(): Promise<number> {
@@ -360,7 +364,7 @@ async function askStars(): Promise<number> {
   } catch {
     // No storage to read: GitHub is asked.
   }
-  let count = 0;
+  let count: number | undefined;
   try {
     const response = await fetch(REPO_API);
     const repo: unknown = response.ok ? await response.json() : undefined;
@@ -374,6 +378,10 @@ async function askStars(): Promise<number> {
     }
   } catch {
     // GitHub did not answer. The count stays off the page.
+  }
+  if (count === undefined) {
+    starsAsked = undefined;
+    return 0;
   }
   try {
     sessionStorage.setItem(STARS_KEY, String(count));
