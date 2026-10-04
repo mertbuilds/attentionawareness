@@ -10,7 +10,12 @@ import { m } from '../paraglide/messages.js';
  * marked in it as `**words**`.
  */
 export type AnswerBlock =
-  | { kind: 'text'; text: string }
+  | {
+      kind: 'text';
+      /** A link inside the sentence, standing where `ANSWER_LINK` is in the text. */
+      link?: { href: string; label: string } | undefined;
+      text: string;
+    }
   | {
       items: ReadonlyArray<string>;
       kind: 'list';
@@ -19,6 +24,9 @@ export type AnswerBlock =
       mark: 'check' | 'dot';
     }
   | { kind: 'path'; label: string; steps: ReadonlyArray<string> };
+
+/** Where a text block's link stands in its message. */
+export const ANSWER_LINK = '\u0000';
 
 /** The marks that carry meaning to the eye; each is hidden from a screen reader. */
 const ARROW = '→';
@@ -115,9 +123,12 @@ function Emphasis({ text }: { text: string }) {
 
 function Block({ block }: { block: AnswerBlock }) {
   if (block.kind === 'text') {
+    const [before = '', after = ''] = block.text.split(ANSWER_LINK);
     return (
       <p {...props(styles.plain)}>
-        <Emphasis text={block.text} />
+        <Emphasis text={before} />
+        {block.link !== undefined && <a href={block.link.href}>{block.link.label}</a>}
+        <Emphasis text={after} />
       </p>
     );
   }

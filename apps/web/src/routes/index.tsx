@@ -9,7 +9,7 @@ import { useEffect, useId, useState } from 'react';
 import { AngleDown, Check } from 'reicon-react';
 import { PaperLetter } from '../components/bill-paper.tsx';
 import { ExtensionBrowser } from '../components/extension-browser.tsx';
-import { FaqAnswer } from '../components/faq-answer.tsx';
+import { ANSWER_LINK, FaqAnswer } from '../components/faq-answer.tsx';
 import type { AnswerBlock } from '../components/faq-answer.tsx';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { HeroPhone } from '../components/hero-phone.tsx';
@@ -804,7 +804,14 @@ function HomePage() {
       question: m.home_faq_source_term(),
     },
     {
-      answer: [text(m.home_faq_manual_a1()), text(m.home_faq_manual_a2())],
+      answer: [
+        {
+          kind: 'text',
+          link: { href: '/guide', label: m.home_faq_manual_a1_link() },
+          text: m.home_faq_manual_a1({ guide: ANSWER_LINK }),
+        },
+        text(m.home_faq_manual_a2()),
+      ],
       question: m.home_faq_manual_term(),
     },
     {
