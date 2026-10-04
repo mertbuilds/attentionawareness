@@ -833,7 +833,6 @@ function HomePage() {
           <div {...props(styles.extensionHead)}>
             <h2 {...props(styles.sectionTitle)}>{m.home_ext_title()}</h2>
             <p {...props(styles.sectionBody)}>{m.home_ext_lead()}</p>
-            <p {...props(styles.sectionBody)}>{m.home_ext_honest()}</p>
             <div {...props(styles.extensionAction)}>
               <Button
                 aria-label={m.home_ext_cta_label()}
