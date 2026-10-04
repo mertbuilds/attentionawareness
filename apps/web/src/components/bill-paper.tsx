@@ -1,8 +1,17 @@
 import { colors } from '@attentionawareness/ui/tokens.stylex';
+import type { PaperTextureProps } from '@paper-design/shaders-react';
 import { create, keyframes, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
-import { lazy, Suspense, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import type { ReactNode, RefObject } from 'react';
+import {
+  Component,
+  lazy,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
+import type { FC, ReactNode, RefObject } from 'react';
 import { duration, easing } from '../lib/motion.stylex.ts';
 import { subscribeTheme } from '../lib/theme.ts';
 import { useLessMotion } from '../lib/use-less-motion.ts';
@@ -53,17 +62,42 @@ const SHEET_FILTER = {
   light: `url(#${SHEET_EDGE_FILTER_ID}) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.12)) drop-shadow(0 12px 32px rgba(0, 0, 0, 0.18))`,
 } as const;
 
+/** What stands in for the texture when its code cannot be had: nothing, over the plain paper. */
+const NoTexture: FC<PaperTextureProps> = () => null;
+
 /**
  * The texture is WebGL, so it is loaded only where there is a canvas to draw
  * into, and only once a letter is near the window: the page's first paint
- * never waits for it.
+ * never waits for it. It is an extra: a chunk that does not load leaves the
+ * plain paper, and never takes the page down with it.
  */
-const PaperTexture = lazy(async () => {
-  // Named in the import itself, so the chunk carries this one shader and not
-  // the library's others.
-  const { PaperTexture: texture } = await import('@paper-design/shaders-react');
-  return { default: texture };
+const PaperTexture = lazy(async (): Promise<{ default: FC<PaperTextureProps> }> => {
+  try {
+    // Named in the import itself, so the chunk carries this one shader and
+    // not the library's others.
+    const { PaperTexture: texture } = await import('@paper-design/shaders-react');
+    return { default: texture };
+  } catch {
+    return { default: NoTexture };
+  }
 });
+
+/**
+ * Holds what is drawn inside it to itself: if the texture throws as it is
+ * drawn, a browser whose WebGL gives out part way, it draws nothing in its
+ * place, and the sheet stays the plain paper with its words.
+ */
+class OrNothing extends Component<{ children: ReactNode }, { failed: boolean }> {
+  override state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  override render() {
+    return this.state.failed ? null : this.props.children;
+  }
+}
 
 /** The texture comes in over the plain paper under it rather than at once. */
 const appear = keyframes({
@@ -445,7 +479,11 @@ export function PaperLetter({
           theme === 'light' && styles.backLetterLight,
         )}
       >
-        {textured ? <PaperSurface key={theme} theme={theme} /> : null}
+        {textured ? (
+          <OrNothing key={theme}>
+            <PaperSurface theme={theme} />
+          </OrNothing>
+        ) : null}
       </div>
       <div {...props(styles.letterInk, ink)}>{children}</div>
     </div>
