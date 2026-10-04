@@ -2,6 +2,7 @@
 title: 'Free Apple MDM, or no MDM: lock down work iPhones'
 heading: 'Lock down work iPhones without an MDM server, free'
 description: "Apple's own MDM is now free. Here is when a small business needs it, and how to lock 1 to 20 work iPhones by cable with no MDM server at all."
+og_title: 'Lock down work iPhones **without an MDM server**, free'
 slug: work-iphones-without-mdm
 date: 2026-10-04
 primary_keyword: 'apple mdm free'
@@ -153,7 +154,7 @@ Start with one phone and trial mode. Back up each phone first. Get [the free Mac
       "headline": "Free Apple MDM, or no MDM: lock down work iPhones",
       "alternativeHeadline": "Lock down work iPhones without an MDM server, free",
       "description": "Apple's own MDM is now free. Here is when a small business needs it, and how to lock 1 to 20 work iPhones by cable with no MDM server at all.",
-      "image": "https://attentionawareness.com/og.png",
+      "image": "https://attentionawareness.com/og/blog/work-iphones-without-mdm.png",
       "url": "https://attentionawareness.com/blog/work-iphones-without-mdm",
       "mainEntityOfPage": "https://attentionawareness.com/blog/work-iphones-without-mdm",
       "datePublished": "2026-10-04",

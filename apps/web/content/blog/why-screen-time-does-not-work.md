@@ -1,6 +1,7 @@
 ---
 title: "Why Screen Time doesn't work, and what does"
 description: 'Screen Time limits fail for adults because you can skip them in one tap. Here is why, what stronger tools do, and the one setup with no button to press.'
+og_title: "Why Screen Time doesn't work, and **what does**"
 slug: why-screen-time-does-not-work
 date: 2026-10-04
 primary_keyword: 'screen time not working'
@@ -147,7 +148,7 @@ If Screen Time is enough for you, keep it. If you tap Ignore Limit most nights, 
       "@id": "https://attentionawareness.com/blog/why-screen-time-does-not-work#article",
       "headline": "Why Screen Time doesn't work, and what does",
       "description": "Screen Time limits fail for adults because you can skip them in one tap. Here is why, what stronger tools do, and the one setup with no button to press.",
-      "image": "https://attentionawareness.com/og.png",
+      "image": "https://attentionawareness.com/og/blog/why-screen-time-does-not-work.png",
       "url": "https://attentionawareness.com/blog/why-screen-time-does-not-work",
       "mainEntityOfPage": "https://attentionawareness.com/blog/why-screen-time-does-not-work",
       "datePublished": "2026-10-04",

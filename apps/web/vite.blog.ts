@@ -3,6 +3,7 @@ import path from 'node:path';
 import { Marked } from 'marked';
 import type { Plugin } from 'vite';
 import type { Post, PostMeta } from './src/lib/blog.ts';
+import { splitEmphasis } from './src/lib/emphasis.ts';
 
 /**
  * Compiles the blog posts in `content/blog/*.md` while Vite builds, so the
@@ -76,12 +77,20 @@ function readFrontmatter(block: string, file: string): Map<string, string> {
   return fields;
 }
 
-function compile(source: string, file: string): Post {
+/** A post's frontmatter and the rest of the file. The share cards' script reads it too. */
+export function splitPost(
+  source: string,
+  file: string,
+): { body: string; fields: Map<string, string> } {
   const parts = FRONTMATTER.exec(source);
   if (parts === null) {
     throw new Error(`${file}: a post starts with frontmatter between two --- lines`);
   }
-  const fields = readFrontmatter(parts[1] ?? '', file);
+  return { body: parts[2] ?? '', fields: readFrontmatter(parts[1] ?? '', file) };
+}
+
+function compile(source: string, file: string): Post {
+  const { body: content, fields } = splitPost(source, file);
   const field = (key: string): string => {
     const value = fields.get(key);
     if (value === undefined || value === '') {
@@ -109,7 +118,7 @@ function compile(source: string, file: string): Post {
   field('primary_keyword');
   const title = field('title');
 
-  const [body = '', ...rest] = (parts[2] ?? '').split(SECTIONS);
+  const [body = '', ...rest] = content.split(SECTIONS);
   const sections = new Map<string, string>();
   for (let index = 0; index < rest.length; index += 2) {
     sections.set(rest[index] ?? '', rest[index + 1] ?? '');
@@ -138,10 +147,16 @@ function compile(source: string, file: string): Post {
     }
   }
 
+  const heading = fields.get('heading') || title;
   return {
+    // The share card's line may be shorter than the heading, its accent words
+    // between `**` marks (`scripts/render-og.ts`); here, the words alone.
+    card: splitEmphasis(fields.get('og_title') || heading)
+      .map((run) => run.text)
+      .join(''),
     date,
     description: field('description'),
-    heading: fields.get('heading') || title,
+    heading,
     html: render(body),
     minutes,
     next,

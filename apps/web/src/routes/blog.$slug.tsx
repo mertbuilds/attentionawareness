@@ -33,6 +33,7 @@ export const Route = createFileRoute('/blog/$slug')({
             { content: loaderData.post.description, name: 'description' },
             { content: loaderData.post.title, property: 'og:title' },
             { content: loaderData.post.description, property: 'og:description' },
+            { content: loaderData.post.card, property: 'og:image:alt' },
             { content: 'article', property: 'og:type' },
             { content: loaderData.post.date, property: 'article:published_time' },
             { 'script:ld+json': loaderData.post.schema },

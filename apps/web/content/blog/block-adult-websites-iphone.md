@@ -2,6 +2,7 @@
 title: 'How to block porn on an iPhone for good'
 heading: 'How to block adult websites on an iPhone for good'
 description: "Turn on Apple's adult website filter in Screen Time, see why it is easy to undo, and lock it on a supervised iPhone so it cannot be switched off."
+og_title: 'Block adult websites on an iPhone **for good**'
 slug: block-adult-websites-iphone
 date: 2026-10-04
 primary_keyword: 'how to block porn on iphone'
@@ -156,7 +157,7 @@ Turn on Limit Adult Websites in Screen Time today. If you find yourself turning 
       "headline": "How to block porn on an iPhone for good",
       "alternativeHeadline": "How to block adult websites on an iPhone for good",
       "description": "Turn on Apple's adult website filter in Screen Time, see why it is easy to undo, and lock it on a supervised iPhone so it cannot be switched off.",
-      "image": "https://attentionawareness.com/og.png",
+      "image": "https://attentionawareness.com/og/blog/block-adult-websites-iphone.png",
       "url": "https://attentionawareness.com/blog/block-adult-websites-iphone",
       "mainEntityOfPage": "https://attentionawareness.com/blog/block-adult-websites-iphone",
       "datePublished": "2026-10-04",

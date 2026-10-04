@@ -99,7 +99,7 @@ export function homeSchema({
         applicationCategory: 'UtilitiesApplication',
         description,
         downloadUrl: `${SITE_URL}/`,
-        image: `${SITE_URL}/og.png`,
+        image: `${SITE_URL}/og/home.png`,
         isAccessibleForFree: true,
         license: 'https://www.gnu.org/licenses/agpl-3.0.html',
         name,
