@@ -1,6 +1,8 @@
 packages:
   - apps/*
   - packages/*
+  # the Mac app is Swift, built by Xcode, and no part of the workspace
+  - '!apps/mac'
 allowBuilds:
   '@sentry/cli': true
   core-js: false

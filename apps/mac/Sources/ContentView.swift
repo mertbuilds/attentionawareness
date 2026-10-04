@@ -1,0 +1,87 @@
+import SwiftUI
+
+/// The one window: one step at a time, and nothing under it.
+struct ContentView: View {
+    // The model is handed in by one initialiser or the other rather than
+    // written here with a default, so the demo's window cannot build a wizard
+    // that watches the real bus on its way to the one it was given.
+    @StateObject private var model: WizardModel
+
+    // Where the keyboard rests when the window opens. Without it macOS makes
+    // the loud button the first responder the moment a step appears and rings
+    // it before a key is pressed. Focus lands on this instead, and the ring is
+    // held off only here, so every real control keeps its own.
+    @FocusState private var resting: Bool
+
+    /// The window as the app opens it, against the iPhones on the cable.
+    init() {
+        _model = StateObject(wrappedValue: WizardModel())
+    }
+
+    /// The window drawn from a model that was made somewhere else, which is
+    /// the hidden `--demo` path: the same views and the same wizard, against a
+    /// phone that is not there.
+    init(demo model: WizardModel) {
+        _model = StateObject(wrappedValue: model)
+    }
+
+    var body: some View {
+        ScrollView {
+            WizardStepContent(step: model.step, model: model)
+                .frame(maxWidth: WizardStyle.contentWidth, alignment: .leading)
+                .padding(28)
+                .frame(maxWidth: .infinity)
+        }
+        .background(Color(nsColor: .windowBackgroundColor))
+        // macOS rings whatever holds the keyboard in the system accent, which
+        // is blue on most Macs. The window tints itself instead, and the
+        // controls that are meant to be loud carry the full accent of their
+        // own, so only the ring takes the softer tone.
+        .tint(WizardStyle.accentSoft)
+        // A ringless place for the keyboard to sit when the window opens, so no
+        // button starts focused. Tab moves from here into the buttons, where
+        // the ring belongs. `.userInitiated` is what makes this win over the
+        // loud button, which the system would otherwise focus first.
+        .background {
+            Color.clear
+                .focusable()
+                .focused($resting)
+                .focusEffectDisabled()
+                .accessibilityHidden(true)
+        }
+        .defaultFocus($resting, true, priority: .userInitiated)
+    }
+}
+
+/// The step on screen.
+///
+/// It takes the step rather than reading it off the model, so the hidden
+/// `--ui-smoke` flag can build every one of them in turn without walking the
+/// wizard through a real iPhone.
+struct WizardStepContent: View {
+    let step: WizardStep
+    @ObservedObject var model: WizardModel
+
+    /// Whether this step offers a way back. Nothing steps back out of work
+    /// that is already running.
+    private var showsBack: Bool {
+        model.step.allowsBack && !model.isBusy
+    }
+
+    var body: some View {
+        switch step {
+        case .connect:
+            ConnectStep(model: model)
+        case .ready:
+            ReadyStep(model: model)
+        case .job:
+            JobStep(model: model)
+        case .restrictions:
+            RestrictionsStep(model: model)
+        case .done:
+            DoneStep(model: model)
+        case .profiles:
+            ProfilesStep(model: model)
+        }
+    }
+}

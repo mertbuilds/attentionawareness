@@ -40,6 +40,7 @@ import { controls } from '../lib/controls.ts';
 import { layout } from '../lib/layout.ts';
 import { presets } from '../lib/profile/index.ts';
 import type { BlockedApp, ProfileConfig } from '../lib/profile/index.ts';
+import { replayMask } from '../lib/replay.ts';
 import { SECTION } from '../lib/sections.ts';
 import { normalizeUrl, sitesForApp, sitesForApps } from '../lib/sites.ts';
 import { wip } from '../lib/wip.stylex.ts';
@@ -913,7 +914,8 @@ function PreviewMore({
         </button>
       }
     >
-      <span {...props(styles.previewList)}>
+      {/* The tip opens in a portal, outside the page's own mark. */}
+      <span {...replayMask} {...props(styles.previewList)}>
         {items.map((item) => (
           <span key={item}>{item}</span>
         ))}
@@ -1667,7 +1669,8 @@ function BuildPage() {
   const [macBefore, macAfter] = m.build_mac({ mac: LINK_SLOT }).split(LINK_SLOT);
 
   return (
-    <main {...props(styles.page)}>
+    // Everything here may name what the visitor blocks: replay masks it all.
+    <main {...replayMask} {...props(styles.page)}>
       <GridTexture />
       <header {...props(styles.hero)}>
         <h1 {...props(styles.heroTitle)}>{m.gen_step2_title()}</h1>

@@ -8,6 +8,7 @@ import { SiteHeader } from '../components/site-header.tsx';
 import { SupportPopup } from '../components/support-popup.tsx';
 import { WipBanner } from '../components/wip-banner.tsx';
 import { clientEnv } from '../lib/env.ts';
+import { openPanelReplay, posthogReplay } from '../lib/replay.ts';
 import { THEME_GROUND } from '../lib/theme.ts';
 import { m } from '../paraglide/messages.js';
 import fontsStylesheet from '@attentionawareness/ui/fonts-optional.css?url';
@@ -43,12 +44,13 @@ const ANALYTICS_CLIENT_ID = '7969381f-4a54-484b-abe4-79148bce2206';
 /**
  * Loads the analytics through the site's own proxy. Page views, no link or
  * attribute tracking, and nothing at all from an automated browser.
- * Session replay records one visit in ten, every input and text masked.
+ * Session replay records one visit in ten, every input masked and nothing
+ * a visitor chose recorded (`../lib/replay.ts`).
  */
 const ANALYTICS_SCRIPT =
   'if(!navigator.webdriver){window.op=window.op||function(){(window.op.q=window.op.q||[]).push(arguments)};' +
   `window.op('init',{clientId:'${ANALYTICS_CLIENT_ID}',apiUrl:'/op',trackScreenViews:true,trackOutgoingLinks:false,trackAttributes:false,` +
-  'sessionReplay:{enabled:true,sampleRate:0.1,maskAllInputs:true,maskAllText:true}});' +
+  `sessionReplay:${JSON.stringify(openPanelReplay)}});` +
   "var s=document.createElement('script');s.src='/op/op1.js';s.async=true;document.head.appendChild(s)}";
 const OG_IMAGE = `${SITE_URL}/og.png`;
 
@@ -164,20 +166,11 @@ function Providers({ children }: { children: ReactNode }) {
           environment: import.meta.env.MODE,
           serviceName: 'attentionawareness-web',
         },
-        // /build shows the apps and sites a visitor blocks in text, labels,
-        // titles, App Store icons and App Store requests; none of it may reach
-        // PostHog. Replay keeps `class`, which StyleX draws the page with.
+        // /build shows the apps and sites a visitor blocks; autocapture keeps
+        // no text or attributes anywhere, and replay masks the marked parts.
         mask_all_element_attributes: true,
         mask_all_text: true,
-        session_recording: {
-          blockSelector: 'img[src*="mzstatic.com"]',
-          maskAllInputs: true,
-          maskAttributeFn: (name, value) =>
-            ['alt', 'aria-label', 'title'].includes(name) ? '*' : value,
-          maskCapturedNetworkRequestFn: (request) =>
-            /itunes\.apple\.com|mzstatic\.com/u.test(request.name) ? null : request,
-          maskTextSelector: '*',
-        },
+        session_recording: posthogReplay,
         // The project lives in PostHog EU; api_host may be our own proxy domain.
         ui_host: 'https://eu.posthog.com',
       }}

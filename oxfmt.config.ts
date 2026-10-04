@@ -16,6 +16,7 @@ export default defineConfig({
     '.wrangler',
     'pnpm-lock.yaml',
     '.claude/skills',
+    'apps/mac',
   ],
   singleQuote: true,
 });
