@@ -9,23 +9,17 @@ The Mac app is free (ADR-0006), so the site earns nothing by itself. If the traf
 ## Decision
 
 - `/open` shows the numbers, says what the site tracks, and asks a sponsor to write. The link is a `mailto:`, and a click on it is the PostHog event `sponsor_clicked` (`placement`: open). No sponsor is on the site yet; the first one is still a decision of its own.
-- The numbers are a shared PostHog dashboard in a frame: "attentionawareness open numbers" (dashboard 995524 in the EU project). Its address is `VITE_OPEN_DASHBOARD_URL`, `https://eu.posthog.com/embedded/<token>`, a build-time value wired like the PostHog key: a GitHub repository variable that `deploy.yml` passes to the build, `.env` locally. The sharing token is public by design. Without the value the page says the numbers are not public yet.
-- Every insight on the dashboard is a count over the last 30 days, filtered to the host `attentionawareness.com`: visitors, page views, both by day, referring domains, paths, countries, `mac_download_started`, `support_clicked`, and guide and blog reads. No person properties, no addresses, no replays, and nothing from the profile builder's events. A new insight on that dashboard is public the moment it is added, so it has to meet the same rule.
-- `OpenNumbers` (`src/components/open-numbers.tsx`) is the only code that knows of the frame. It takes its height from the `posthog:dimensions` message the dashboard posts, and treats that message as the sign that the frame loaded. A frame that stays silent for ten seconds gives way to a line with a link to the dashboard, since a blocker that lists posthog.com stops the frame. The frame is sandboxed the way PostHog's own embed code is: scripts, its own origin and popups.
-- Theme: the dashboard's sharing setting is "System", and PostHog ignores a `?theme=` in the address for a dashboard shared after July 2025. A frame reads the system theme from the `color-scheme` of the element that holds it, so `OpenNumbers` sets that to the page's theme, forced or not, and the dashboard follows without a reload.
-- Width: from a 1200px window the block is 1100px wide, wider than the page's 760px column, because the dashboard sets its tiles two to a row only from 1024px. Under that it is one tile per row.
-- The PostHog header and the "Made with PostHog" line stay: taking them off is a paid add-on.
-
-## Options
-
-- A server function on the Worker that asks PostHog's query API with a personal API key, cached at the edge, drawn with the site's own components. It looks native and no blocker stops it. It needs a secret on the Worker, a cache, and charts of our own, and the site stays client-first (AGENTS.md). Not now.
-- The frame. No server code, no secret, live, and PostHog draws the charts. It is another site's frame: it does not wear the site's type, and a blocker can stop it.
-
-The frame is the simplest thing that works. The page around `OpenNumbers` knows nothing of PostHog, so the first option can take its place later without a change to the route.
+- The site draws the numbers itself, from what the Worker reads from PostHog. The first version showed a shared PostHog dashboard in a frame; the owner did not want PostHog's own look inside the site, so the frame left the same day.
+- The read is one HogQL query to PostHog's query API (`src/lib/open-numbers.server.ts`), with a personal API key that can only read queries of the site's project: the Worker secret `POSTHOG_PERSONAL_API_KEY`. The key never leaves the Worker. The route's loader calls a server function (`src/lib/open-numbers-fn.ts`), so the page arrives with its numbers in it and works without scripts.
+- The query counts what the public dashboard "attentionawareness open numbers" (995524 in the EU project) counts, with its filters: page views on the host `attentionawareness.com`, from the first second of the day 30 days ago to now, in UTC, and visitors as distinct persons. It adds `mac_download_started`, `support_clicked`, guide and blog reads, and the Mac app's `supervision_finished`, which has no host and is counted wherever it came from. Totals only: no person, no address, nothing from the profile builder's events. The referrer list leaves out the site itself and PostHog's own pages, which the dashboard shows.
+- PostHog is asked at most once in fifteen minutes. The answer is held by the isolate and in the Cache API of its data centre, and requests that arrive during an ask wait for that one. A failed ask serves the answer from before for another fifteen minutes. With none to serve, the page says the numbers did not load and links to the dashboard, and PostHog is asked again after a minute. No KV namespace: the Cache API does the job.
+- Under the numbers the page says how old they are and links to the shared dashboard, so anyone can check them against PostHog: `https://eu.posthog.com/shared/<token>`, a constant in `src/lib/open-numbers.ts`. The sharing token is public by design. A click is the event `open_dashboard_clicked` (`placement`: numbers or failed). A new insight on that dashboard is public the moment it is added, so it has to hold counts only.
+- The chart is two lines of inline SVG drawn by our own code, with the same values in a table for a reader who cannot see it. No chart library.
 
 ## Consequences
 
-- A reader with a blocker sees a link, not numbers.
-- The frame loads from eu.posthog.com, so PostHog sees the address of a reader who opens `/open`.
-- The route is its own chunk, and the frame is only on that page, so no other page loads more for it.
+- The site has a third piece of server code, beside the OpenPanel proxy and the profile signer, and one more secret that has to be set before `cf deploy`.
+- The cache is per data centre, so "once in fifteen minutes" holds for each one. The site's traffic is far under PostHog's query limits either way.
+- The numbers are up to fifteen minutes old, and older while PostHog does not answer. The page says how old.
+- The route is its own chunk, so no other page loads more for it.
 - The sponsor address is `hi@attentionawareness.com`, which Cloudflare Email Routing forwards to the owner's inbox. The site sends no mail of its own.
