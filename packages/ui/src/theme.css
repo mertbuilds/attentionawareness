@@ -172,10 +172,9 @@ a:not([data-slot='button']):not([data-plain]):focus-visible {
 }
 
 /*
- * Selected text is on the accent, the same orange as `accent.base`, in both
- * themes. The words go black on it: white on this orange is too faint.
+ * Selected text is on the accent, the same orange as `accent.base`, at half
+ * strength in both themes. The words keep their own colour on it.
  */
 ::selection {
-  background-color: #ff4f00;
-  color: #000000;
+  background-color: rgb(255 79 0 / 0.5);
 }
