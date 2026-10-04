@@ -329,9 +329,9 @@ struct RestrictionsBuilder: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        // A checkbox takes the system accent, which is blue on most Macs.
-        // Everything the app switches on is orange.
-        .tint(WizardStyle.accent)
+        // The builder is also drawn outside a step, so it names the shared
+        // checkbox itself rather than relying on the step's.
+        .toggleStyle(BrandCheckbox())
     }
 
     /// One storefront as the menu names it, which is the flag and the country.

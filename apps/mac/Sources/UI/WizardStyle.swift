@@ -217,6 +217,7 @@ struct StepLayout<Content: View, Actions: View>: View {
         // win over this. It sits here rather than on the window so a step
         // drawn on its own carries it too.
         .buttonStyle(StandardButton())
+        .toggleStyle(BrandCheckbox())
     }
 }
 
@@ -377,6 +378,18 @@ struct StandardButton: PrimitiveButtonStyle {
         Button(configuration)
             .buttonStyle(.bordered)
             .tint(nil)
+    }
+}
+
+/// Every checkbox in the app: the native one, in the brand orange. A checkbox
+/// would otherwise take the window's tint, the softer orange of the focus
+/// ring, and the system accent, which is blue on most Macs, outside it. Being
+/// the native toggle, it keeps what VoiceOver says, Space and the focus ring.
+struct BrandCheckbox: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Toggle(configuration)
+            .toggleStyle(.checkbox)
+            .tint(WizardStyle.accent)
     }
 }
 
