@@ -13,6 +13,7 @@ struct RestartWaitTests {
     func aLockedPhoneHoldsTheWaitUntilItIsUnlocked(_ method: SupervisionMethod) async {
         let bus = Bus(.back())
         let model = makeModel(bus)
+        model.reboot = 2
         model.onSent = { bus.show(.back(.locked)) }
         start(model, method)
         #expect(await waitUntil { model.restartHint == "Unlock iPhone." })
@@ -30,6 +31,7 @@ struct RestartWaitTests {
     @Test func aPhoneThatAsksForTrustSaysSoAndThenGoesOn() async {
         let bus = Bus(.back())
         let model = makeModel(bus)
+        model.reboot = 2
         model.onSent = { bus.show(.back(.trustPending)) }
         start(model, .seed)
         #expect(await waitUntil { model.restartHint == "Tap Trust on iPhone." })
@@ -44,8 +46,9 @@ struct RestartWaitTests {
     @Test func aPhoneThatStaysOnTheCableIsFoundWithoutAnyConnectEvent() async {
         let bus = Bus(.back())
         let model = makeModel(bus)
+        model.reboot = 2
         model.onSent = {
-            bus.holdNextRead()
+            bus.holdNextRead(returning: .unread)
             bus.show(.unread)
         }
         start(model, .seed)
@@ -116,12 +119,13 @@ struct RestartWaitTests {
         #expect(model.job == .checkOnIPhone(reportedSupervised: true))
     }
 
-    /// A read that never returns holds up nothing: the next one starts beside
-    /// it once the pass is given up.
-    @Test func aReadThatHangsDoesNotHoldTheNextOne() async {
+    /// A read that hangs holds up nothing: the next one starts beside it, and
+    /// when the old one comes back at last its answer lands nowhere, because
+    /// a newer one already has.
+    @Test func aReadThatHangsDoesNotHoldTheNextOneOrLandOverIt() async {
         let bus = Bus(.away)
         let watcher = DeviceWatcher(reading: { bus.read() }, passTimeout: 0.05)
-        bus.holdNextRead()
+        bus.holdNextRead(returning: .back(.locked))
         watcher.reload()
         bus.show(.back(supervised: true))
         #expect(await waitUntil {
@@ -129,6 +133,44 @@ struct RestartWaitTests {
             return watcher.devices.first?.pairingState == .paired
         })
         bus.release()
+        await pause()
+        #expect(watcher.devices.first?.pairingState == .paired)
+        #expect(watcher.cloudConfigurations["phone"]?.isSupervised == true)
+    }
+
+    /// An iPhone that answers slowly but steadily: every read takes longer
+    /// than the next one waits, and each still lands.
+    @Test func readsThatAreAlwaysSlowStillLand() async {
+        let bus = Bus(.away)
+        let watcher = DeviceWatcher(reading: { bus.read() }, passTimeout: 0.03)
+        bus.delay = 0.1
+        bus.show(.back(supervised: true))
+        let before = watcher.passes
+        #expect(await waitUntil {
+            watcher.reload()
+            return watcher.passes >= before + 3
+        })
+        #expect(watcher.devices.first?.pairingState == .paired)
+        #expect(bus.mostOut <= DeviceWatcher.maxPassesOut)
+    }
+
+    /// A newer answer is never replaced by an older one that comes back late.
+    @Test func anOlderReadNeverLandsOverANewerOne() async {
+        let bus = Bus(.away)
+        let watcher = DeviceWatcher(reading: { bus.read() }, passTimeout: 0.03)
+        bus.holdNextRead(returning: .away)
+        watcher.reload()
+        bus.show(.back(supervised: true))
+        #expect(await waitUntil {
+            watcher.reload()
+            return watcher.devices.first?.pairingState == .paired
+        })
+        await pause()
+        let passes = watcher.passes
+        bus.release()
+        await pause()
+        #expect(watcher.passes == passes)
+        #expect(watcher.onCable == ["phone"])
     }
 
     // MARK: - The pieces
@@ -169,7 +211,11 @@ struct RestartWaitTests {
         var onSent: () -> Void = {}
         var useSeedEngine = false
 
-        override func rebootTimeout(for method: SupervisionMethod) -> TimeInterval { 0.4 }
+        /// Short where a test waits for it to run out, and long where a test
+        /// reads the screen before it does.
+        var reboot: TimeInterval = 0.4
+
+        override func rebootTimeout(for method: SupervisionMethod) -> TimeInterval { reboot }
         override var restartPollInterval: Duration { .milliseconds(10) }
         override var checkAgainTimeout: TimeInterval { 0.2 }
         override var diskSpace: DiskSpace { DiskSpace(needed: 100, free: 1_000, assumed: false) }
@@ -198,23 +244,34 @@ struct RestartWaitTests {
     private final class Bus: @unchecked Sendable {
         private let lock = NSLock()
         private var snapshot: DeviceWatcher.Snapshot
-        private var hold: DispatchSemaphore?
+        private var hold: (gate: DispatchSemaphore, answer: DeviceWatcher.Snapshot)?
         private var held: [DispatchSemaphore] = []
         private var count = 0
+        private var out = 0
+        private var peak = 0
+        private var wait: TimeInterval = 0
 
         init(_ snapshot: DeviceWatcher.Snapshot) {
             self.snapshot = snapshot
         }
 
         var reads: Int { lock.withLock { count } }
+        /// The most reads that were ever out at once.
+        var mostOut: Int { lock.withLock { peak } }
+        /// How long every read takes.
+        var delay: TimeInterval {
+            get { lock.withLock { wait } }
+            set { lock.withLock { wait = newValue } }
+        }
 
         func show(_ snapshot: DeviceWatcher.Snapshot) {
             lock.withLock { self.snapshot = snapshot }
         }
 
-        /// The next read does not come back until `release()`.
-        func holdNextRead() {
-            lock.withLock { hold = DispatchSemaphore(value: 0) }
+        /// The next read does not come back until `release()`, and then says
+        /// `answer`, which is what it found when it started.
+        func holdNextRead(returning answer: DeviceWatcher.Snapshot) {
+            lock.withLock { hold = (DispatchSemaphore(value: 0), answer) }
         }
 
         func release() {
@@ -222,14 +279,21 @@ struct RestartWaitTests {
         }
 
         func read() -> DeviceWatcher.Snapshot {
-            let hold = lock.withLock {
+            let (hold, wait) = lock.withLock {
                 count += 1
+                out += 1
+                peak = max(peak, out)
                 let hold = self.hold
                 self.hold = nil
-                if let hold { held.append(hold) }
-                return hold
+                if let hold { held.append(hold.gate) }
+                return (hold, self.wait)
             }
-            hold?.wait()
+            defer { lock.withLock { out -= 1 } }
+            if let hold {
+                hold.gate.wait()
+                return hold.answer
+            }
+            if wait > 0 { Thread.sleep(forTimeInterval: wait) }
             return lock.withLock { snapshot }
         }
     }

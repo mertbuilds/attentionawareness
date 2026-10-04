@@ -301,8 +301,9 @@ AA_SITE_URL=https://aa.localhost \
 - `Sources/Device/` is the device layer: `DeviceWatcher` publishes the iPhones on
   the cable and re-reads them on every connect and disconnect, along with every
   udid usbmuxd lists, read or not, which is what says a phone was unplugged
-  rather than slow to answer. One read is out at a time, and one that is still
-  out after 20 seconds is given up so the next is not held behind it. `Lockdown` reads
+  rather than slow to answer. One read is out at a time; when it is still out
+  after 20 seconds the next starts beside it, at most four together, and the
+  slow one still lands unless a newer one landed first. `Lockdown` reads
   the values the wizard checks, `MCInstall` reads supervision and installs a
   profile over USB.
 - `Sources/Profile/` is the profile the Restrictions screen installs: `ProfileConfig`

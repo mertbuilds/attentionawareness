@@ -12,9 +12,12 @@ import Foundation
 ///
 /// One pass is out at a time and a second one asked for meanwhile runs after
 /// it, so reads never pile up. A phone that is starting can hold a read for
-/// minutes, each lockdown value waiting out its own timeout, so a pass that
-/// is still out after `passTimeout` is given up and the next one starts
-/// beside it on a connection of its own.
+/// minutes, each lockdown value waiting out its own timeout, so the next pass
+/// stops waiting for one that is still out after `passTimeout` and starts
+/// beside it on a connection of its own. The slow one still lands when it
+/// comes back, unless a newer one landed first. Every call a pass makes has a
+/// timeout of its own, so each one ends, and no more than `maxPassesOut` are
+/// ever out together.
 @MainActor
 final class DeviceWatcher: ObservableObject {
     /// Every iPhone on the cable right now, in the order usbmuxd lists them.
@@ -40,6 +43,9 @@ final class DeviceWatcher: ObservableObject {
 
     /// How long a pass is given before the next one stops waiting for it.
     static let passTimeout: TimeInterval = 20
+    /// How many passes may be out at once. Past this the next one waits for
+    /// one of them to come back.
+    static let maxPassesOut = 4
 
     private let readQueue = DispatchQueue(
         label: "com.attentionawareness.mac.device-read",
@@ -53,10 +59,13 @@ final class DeviceWatcher: ObservableObject {
     private let reader: (@Sendable () -> Snapshot)?
     private var isSample: Bool { reader == nil }
     private let passTimeout: TimeInterval
-    /// The pass whose answer is still wanted. An older one lands nowhere.
+    /// The newest pass that was started.
     private var passID = 0
-    /// When the pass that is out started, or nil while none is.
+    /// The pass whose answer is published. An older one lands nowhere.
+    private var landedID = 0
+    /// When the newest pass started, or nil once it is back.
     private var passStartedAt: Date?
+    private var passesOut = 0
     private var wantsAnotherPass = false
 
     /// Subscribes to device events and reads whatever is already plugged in.
@@ -149,9 +158,12 @@ final class DeviceWatcher: ObservableObject {
     /// top of it.
     func reload() {
         guard !isSample else { return }
-        if let passStartedAt, Date().timeIntervalSince(passStartedAt) < passTimeout {
-            wantsAnotherPass = true
-            return
+        if let passStartedAt {
+            let overdue = Date().timeIntervalSince(passStartedAt) >= passTimeout
+            guard overdue, passesOut < Self.maxPassesOut else {
+                wantsAnotherPass = true
+                return
+            }
         }
         startPass()
     }
@@ -161,6 +173,7 @@ final class DeviceWatcher: ObservableObject {
         passID += 1
         let id = passID
         passStartedAt = Date()
+        passesOut += 1
         wantsAnotherPass = false
         readQueue.async { [weak self] in
             let snapshot = reader()
@@ -171,11 +184,17 @@ final class DeviceWatcher: ObservableObject {
     }
 
     private func finishPass(_ id: Int, with snapshot: Snapshot) {
-        // A pass that was given up answers a question nobody is asking now.
-        guard id == passID else { return }
-        passStartedAt = nil
-        apply(snapshot)
-        if wantsAnotherPass { startPass() }
+        passesOut -= 1
+        // A slow pass still lands, as long as nothing newer has. One that
+        // comes back after a newer answer says what is no longer true.
+        if id > landedID {
+            landedID = id
+            apply(snapshot)
+        }
+        // Only the newest pass clears the clock: an older one coming back
+        // says nothing about the one still out.
+        if id == passID { passStartedAt = nil }
+        if wantsAnotherPass { reload() }
     }
 
     private func apply(_ snapshot: Snapshot) {
