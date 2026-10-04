@@ -19,6 +19,12 @@ enum UISmoke {
         let folder = arguments.count > flag + 1
             ? URL(fileURLWithPath: arguments[flag + 1], isDirectory: true)
             : nil
+        // `--appearance light` or `--appearance dark` draws the pictures that
+        // way, whatever this Mac is set to. Without it they follow the Mac.
+        if let named = arguments.firstIndex(of: "--appearance"), arguments.count > named + 1 {
+            appearance = NSAppearance(named: arguments[named + 1] == "dark" ? .darkAqua : .aqua)
+            NSApplication.shared.appearance = appearance
+        }
         // The steps that are about a run which has not started are drawn with
         // nothing on the cable, from a watcher that reads no bus. A real one
         // would put whatever iPhone happens to be plugged in into the
@@ -865,6 +871,9 @@ enum UISmoke {
         )
     }
 
+    /// The appearance the pictures are drawn in, or nil to follow the Mac.
+    private static var appearance: NSAppearance?
+
     private static func report(_ name: String, _ view: some View, into folder: URL?) {
         let host = NSHostingView(rootView: AnyView(view.frame(width: WizardStyle.contentWidth)))
         host.layoutSubtreeIfNeeded()
@@ -873,15 +882,28 @@ enum UISmoke {
         guard let folder, size.width > 0, size.height > 0 else { return }
         // `ImageRenderer` draws the text too, which `cacheDisplay` on the
         // hosting view does not.
+        let dark = appearance.map { $0.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua }
         let renderer = ImageRenderer(
             content: view
                 .frame(width: WizardStyle.contentWidth)
                 .padding(20)
                 .background(Color(nsColor: .windowBackgroundColor))
+                // The tint the window gives every step, so a bordered button
+                // is drawn here the way the window draws it.
+                .tint(WizardStyle.accentSoft)
+                .transformEnvironment(\.colorScheme) { scheme in
+                    if let dark { scheme = dark ? .dark : .light }
+                }
         )
         renderer.scale = 2
+        var rendered: NSImage?
+        if let appearance {
+            appearance.performAsCurrentDrawingAppearance { rendered = renderer.nsImage }
+        } else {
+            rendered = renderer.nsImage
+        }
         guard
-            let image = renderer.nsImage,
+            let image = rendered,
             let tiff = image.tiffRepresentation,
             let bitmap = NSBitmapImageRep(data: tiff),
             let png = bitmap.representation(using: .png, properties: [:])

@@ -191,7 +191,8 @@ is sent to an iPhone.
 `--ui-smoke` builds every step of the wizard offscreen and prints the size each
 one asks for, so the window can be checked on a Mac whose display is asleep. Add
 a folder, `--ui-smoke /tmp/shots`, and it writes a picture of each step there as
-well. It also unplugs the iPhone from each step past Connect and exits non-zero
+well. Add `--appearance light` or `--appearance dark` to draw them that way,
+whatever this Mac is set to. It also unplugs the iPhone from each step past Connect and exits non-zero
 when one of them lands on a step other than the one it should.
 
 `--demo` opens the real window on a wizard that reaches no iPhone, no disk and
