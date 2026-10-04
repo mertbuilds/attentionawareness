@@ -162,7 +162,10 @@ const styles = create({
     borderStyle: 'none',
     borderWidth: 0,
     color: {
-      ':hover': colors.fg,
+      ':hover': {
+        '@media (hover: hover)': colors.fg,
+        default: null,
+      },
       default: colors.muted,
     },
     cursor: 'pointer',
@@ -249,7 +252,10 @@ const styles = create({
   moreSummary: {
     alignItems: 'center',
     color: {
-      ':hover': colors.fg,
+      ':hover': {
+        '@media (hover: hover)': colors.fg,
+        default: null,
+      },
       default: colors.muted,
     },
     cursor: 'pointer',
@@ -385,7 +391,10 @@ const styles = create({
   // The one destructive colour on the page: it means "this click deletes".
   removeArmed: {
     color: {
-      ':hover': colors.error,
+      ':hover': {
+        '@media (hover: hover)': colors.error,
+        default: null,
+      },
       default: colors.error,
     },
     fontWeight: font.weightMedium,
@@ -405,7 +414,10 @@ const styles = create({
     borderStyle: 'none',
     borderWidth: 0,
     color: {
-      ':hover': colors.fg,
+      ':hover': {
+        '@media (hover: hover)': colors.fg,
+        default: null,
+      },
       default: colors.muted,
     },
     cursor: 'pointer',
@@ -528,7 +540,10 @@ const styles = create({
     borderStyle: 'none',
     borderWidth: 0,
     color: {
-      ':hover': colors.fg,
+      ':hover': {
+        '@media (hover: hover)': colors.fg,
+        default: null,
+      },
       default: colors.muted,
     },
     cursor: 'pointer',
@@ -540,7 +555,10 @@ const styles = create({
   },
   siteActionArmed: {
     color: {
-      ':hover': colors.error,
+      ':hover': {
+        '@media (hover: hover)': colors.error,
+        default: null,
+      },
       default: colors.error,
     },
     fontSize: 12,
@@ -646,7 +664,10 @@ const styles = create({
     borderStyle: 'none',
     borderWidth: 0,
     color: {
-      ':hover': colors.fg,
+      ':hover': {
+        '@media (hover: hover)': colors.fg,
+        default: null,
+      },
       default: colors.muted,
     },
     cursor: 'pointer',
@@ -718,7 +739,10 @@ const styles = create({
   storefrontOption: {
     alignItems: 'center',
     backgroundColor: {
-      ':hover': colors.border,
+      ':hover': {
+        '@media (hover: hover)': colors.border,
+        default: null,
+      },
       default: 'transparent',
     },
     borderRadius: radius.base,

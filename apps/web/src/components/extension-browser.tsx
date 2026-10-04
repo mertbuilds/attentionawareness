@@ -298,14 +298,20 @@ const styles = create({
     alignItems: 'center',
     backgroundColor: 'transparent',
     borderColor: {
-      ':hover': colors.muted,
+      ':hover': {
+        '@media (hover: hover)': colors.muted,
+        default: null,
+      },
       default: colors.border,
     },
     borderRadius: 999,
     borderStyle: 'solid',
     borderWidth: PILL.border,
     color: {
-      ':hover': colors.fg,
+      ':hover': {
+        '@media (hover: hover)': colors.fg,
+        default: null,
+      },
       default: colors.muted,
     },
     cursor: 'pointer',

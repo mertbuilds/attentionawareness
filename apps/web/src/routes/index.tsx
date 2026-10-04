@@ -208,7 +208,10 @@ const styles = create({
   faqChevron: {
     color: {
       default: colors.muted,
-      [when.ancestor(':hover')]: colors.fg,
+      [when.ancestor(':hover')]: {
+        '@media (hover: hover)': colors.fg,
+        default: null,
+      },
     },
     flexShrink: 0,
     transform: 'none',

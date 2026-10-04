@@ -48,7 +48,10 @@ const styles = create({
     justifyContent: 'center',
     lineHeight: 1,
     opacity: {
-      ':hover': 1,
+      ':hover': {
+        '@media (hover: hover)': 1,
+        default: null,
+      },
       default: 0.7,
     },
     padding: 0,

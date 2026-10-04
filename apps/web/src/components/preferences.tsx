@@ -39,7 +39,10 @@ const styles = create({
     borderWidth: 0,
     boxSizing: 'border-box',
     color: {
-      ':hover': colors.fg,
+      ':hover': {
+        '@media (hover: hover)': colors.fg,
+        default: null,
+      },
       default: colors.muted,
     },
     cursor: 'pointer',

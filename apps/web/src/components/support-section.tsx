@@ -246,7 +246,10 @@ const styles = create({
     animationName: {
       '@media (prefers-reduced-motion: reduce)': 'none',
       default: null,
-      [when.ancestor(':hover')]: beat,
+      [when.ancestor(':hover')]: {
+        '@media (hover: hover)': beat,
+        default: null,
+      },
     },
     animationTimingFunction: easing.bounce,
     color: accent.base,
@@ -656,9 +659,10 @@ export function SupportSection({ titleStyle }: { titleStyle: StyleXStyles }) {
         <p {...props(styles.line, part(2))}>{m.home_support_ask()}</p>
         <Button
           onClick={() => posthog.capture('support_clicked', { placement: 'support_section' })}
-          onPointerEnter={() => {
-            // The stamp's heart answers the button's: one beat, on top of its own.
-            if (!prefersLessMotion()) {
+          onPointerEnter={(event) => {
+            // The stamp's heart answers the button's: one beat, on top of its
+            // own. A finger does not hover, so a tap does not set it off.
+            if (event.pointerType !== 'touch' && !prefersLessMotion()) {
               stampHeart.current?.animate(
                 [
                   { transform: 'scale(1)' },

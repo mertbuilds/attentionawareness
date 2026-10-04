@@ -225,7 +225,10 @@ const styles = create({
   link: {
     alignItems: 'center',
     color: {
-      ':hover': colors.fg,
+      ':hover': {
+        '@media (hover: hover)': colors.fg,
+        default: null,
+      },
       default: colors.muted,
     },
     display: 'inline-flex',
@@ -325,7 +328,10 @@ const styles = create({
     inset: 0,
     opacity: {
       default: 0,
-      [when.ancestor(':hover')]: 1,
+      [when.ancestor(':hover')]: {
+        '@media (hover: hover)': 1,
+        default: null,
+      },
     },
     position: 'absolute',
     transitionDuration: duration.quick,

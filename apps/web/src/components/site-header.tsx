@@ -92,7 +92,10 @@ const styles = create({
   brand: {
     alignItems: 'center',
     color: {
-      ':hover': colors.fg,
+      ':hover': {
+        '@media (hover: hover)': colors.fg,
+        default: null,
+      },
       default: colors.muted,
     },
     display: 'inline-flex',
@@ -149,7 +152,10 @@ const styles = create({
   },
   link: {
     color: {
-      ':hover': colors.fg,
+      ':hover': {
+        '@media (hover: hover)': colors.fg,
+        default: null,
+      },
       default: colors.muted,
     },
     fontSize: font.sizeSm,

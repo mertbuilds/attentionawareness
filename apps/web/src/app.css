@@ -14,6 +14,23 @@ body {
   overscroll-behavior-y: none;
 }
 
+/*
+ * A tap on a phone draws no gray box over what was tapped, and waits for no
+ * second tap to zoom: every control shows its own state instead.
+ */
+a,
+button,
+summary,
+label,
+input,
+select,
+textarea,
+[role='button'],
+[role='tab'] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
 /* Jumps down the page are eased - for everyone who has not asked for less
    motion. */
 @media (prefers-reduced-motion: no-preference) {

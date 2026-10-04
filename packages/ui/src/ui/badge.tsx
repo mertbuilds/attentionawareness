@@ -62,11 +62,17 @@ const styles = create({
   },
   variantGhost: {
     backgroundColor: {
-      ':hover': colors.muted,
+      ':hover': {
+        '@media (hover: hover)': colors.muted,
+        default: null,
+      },
       default: 'transparent',
     },
     color: {
-      ':hover': colors.mutedForeground,
+      ':hover': {
+        '@media (hover: hover)': colors.mutedForeground,
+        default: null,
+      },
       default: 'inherit',
     },
   },
@@ -74,7 +80,10 @@ const styles = create({
     backgroundColor: 'transparent',
     color: colors.primary,
     textDecorationLine: {
-      ':hover': 'underline',
+      ':hover': {
+        '@media (hover: hover)': 'underline',
+        default: null,
+      },
       default: 'none',
     },
     textUnderlineOffset: '4px',

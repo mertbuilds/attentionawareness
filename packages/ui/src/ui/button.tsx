@@ -74,16 +74,25 @@ const styles = create({
   },
   default: {
     backgroundColor: {
-      ':hover': `color-mix(in oklab, ${colors.primary} 80%, transparent)`,
+      ':hover': {
+        '@media (hover: hover)': `color-mix(in oklab, ${colors.primary} 80%, transparent)`,
+        default: null,
+      },
       default: colors.primary,
     },
     color: colors.primaryForeground,
   },
   destructive: {
     backgroundColor: {
-      ':hover': `color-mix(in oklab, ${colors.destructive} 20%, transparent)`,
+      ':hover': {
+        '@media (hover: hover)': `color-mix(in oklab, ${colors.destructive} 20%, transparent)`,
+        default: null,
+      },
       ':is(.dark, .dark *)': `color-mix(in oklab, ${colors.destructive} 20%, transparent)`,
-      ':is(.dark, .dark *):hover': `color-mix(in oklab, ${colors.destructive} 30%, transparent)`,
+      ':is(.dark, .dark *):hover': {
+        '@media (hover: hover)': `color-mix(in oklab, ${colors.destructive} 30%, transparent)`,
+        default: null,
+      },
       default: `color-mix(in oklab, ${colors.destructive} 10%, transparent)`,
     },
     boxShadow: {
@@ -95,12 +104,21 @@ const styles = create({
   },
   ghost: {
     backgroundColor: {
-      ':hover': colors.muted,
-      ':is(.dark, .dark *):hover': `color-mix(in oklab, ${colors.muted} 50%, transparent)`,
+      ':hover': {
+        '@media (hover: hover)': colors.muted,
+        default: null,
+      },
+      ':is(.dark, .dark *):hover': {
+        '@media (hover: hover)': `color-mix(in oklab, ${colors.muted} 50%, transparent)`,
+        default: null,
+      },
       default: 'transparent',
     },
     color: {
-      ':hover': colors.foreground,
+      ':hover': {
+        '@media (hover: hover)': colors.foreground,
+        default: null,
+      },
       default: 'inherit',
     },
   },
@@ -108,16 +126,25 @@ const styles = create({
     backgroundColor: 'transparent',
     color: colors.primary,
     textDecorationLine: {
-      ':hover': 'underline',
+      ':hover': {
+        '@media (hover: hover)': 'underline',
+        default: null,
+      },
       default: 'none',
     },
     textUnderlineOffset: '4px',
   },
   outline: {
     backgroundColor: {
-      ':hover': colors.muted,
+      ':hover': {
+        '@media (hover: hover)': colors.muted,
+        default: null,
+      },
       ':is(.dark, .dark *)': `color-mix(in oklab, ${colors.input} 30%, transparent)`,
-      ':is(.dark, .dark *):hover': `color-mix(in oklab, ${colors.input} 50%, transparent)`,
+      ':is(.dark, .dark *):hover': {
+        '@media (hover: hover)': `color-mix(in oklab, ${colors.input} 50%, transparent)`,
+        default: null,
+      },
       default: colors.background,
     },
     borderColor: {
@@ -127,13 +154,19 @@ const styles = create({
     borderStyle: 'solid',
     borderWidth: '1px',
     color: {
-      ':hover': colors.foreground,
+      ':hover': {
+        '@media (hover: hover)': colors.foreground,
+        default: null,
+      },
       default: 'inherit',
     },
   },
   secondary: {
     backgroundColor: {
-      ':hover': `color-mix(in oklch, ${colors.secondary}, ${colors.foreground} 5%)`,
+      ':hover': {
+        '@media (hover: hover)': `color-mix(in oklch, ${colors.secondary}, ${colors.foreground} 5%)`,
+        default: null,
+      },
       default: colors.secondary,
     },
     color: colors.secondaryForeground,

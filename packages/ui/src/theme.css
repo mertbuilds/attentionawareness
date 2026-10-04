@@ -157,8 +157,10 @@ a:not([data-slot='button']):not([data-plain]):visited {
   color: inherit;
 }
 
-a:not([data-slot='button']):not([data-plain]):hover {
-  text-decoration-thickness: 2px;
+@media (hover: hover) {
+  a:not([data-slot='button']):not([data-plain]):hover {
+    text-decoration-thickness: 2px;
+  }
 }
 
 /* With the keyboard's focus on it, a link wears the line the header's and the
