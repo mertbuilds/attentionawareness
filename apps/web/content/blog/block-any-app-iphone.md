@@ -77,11 +77,11 @@ I use this setup on my own iPhone. My screen time went from more than 5 hours a 
 
 ## How to block YouTube, Instagram, TikTok and X
 
-For each one, block the app and the website. If you block only the app, the website in Safari gives you the same feed.
+For each one, block the app and the website. If you block only the app, the website in Safari gives you the same addictive feed.
 
 ### YouTube
 
-Block the YouTube app and youtube.com. If you need YouTube for work, keep it on the computer. Our free browser extension removes the feed there.
+Block the YouTube app and youtube.com. If you need YouTube for work, keep it on the computer. Our free browser extension hides Shorts there.
 
 ### Instagram
 

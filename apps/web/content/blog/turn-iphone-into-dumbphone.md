@@ -1,6 +1,6 @@
 ---
 title: 'Turn your iPhone into a dumbphone, free'
-description: 'Keep camera, maps, bank and messages. Remove the feeds for good. Five ways to make an iPhone a dumb phone, compared, with free step by step setup.'
+description: 'Keep camera, maps, bank and messages. Remove the addictive feeds for good. Five ways to make an iPhone a dumb phone, compared, with free setup steps.'
 slug: turn-iphone-into-dumbphone
 date: 2026-10-04
 primary_keyword: 'turn iphone into dumb phone'
@@ -8,7 +8,7 @@ reading_minutes: 6
 read_next: why-screen-time-does-not-work, block-any-app-iphone
 ---
 
-You can turn an iPhone into a dumbphone without buying a new phone. Put the iPhone in Apple's supervised mode, then install a locked profile that removes the feed apps and their websites. Camera, maps, bank and messages stay. Our Mac app does this for free in about one afternoon.
+You can turn an iPhone into a dumbphone without buying a new phone. Put the iPhone in Apple's supervised mode, then install a locked profile that removes the addictive feed apps and their websites. Camera, maps, bank and messages stay. Our Mac app does this for free in about one afternoon.
 
 ## What people mean by a dumbphone
 
@@ -99,7 +99,7 @@ Start small. You can add blocks later, but with a locked profile you cannot take
 
 I am Mert. I built this, and I use it on my own iPhone. My screen time was more than 5 hours a day. It is now 1 hour 45 minutes a day on average, with 72 pickups a day.
 
-On my computer, our free browser extension removes the feeds from X, YouTube and Instagram and keeps the accounts.
+On my computer, our free browser extension hides the addictive feeds on X, YouTube and Instagram and keeps the accounts.
 
 The idea is not mine. I started from Stepan Parunashvili's post ["iPhone dumbphone"](https://stopa.io/post/297). He supervised his own iPhone with Apple Configurator and cut his use from about 4 hours a day to about 2.
 
@@ -148,7 +148,7 @@ Download the [free Mac app](/) and run it in trial mode this weekend. If you wou
       "@type": "BlogPosting",
       "@id": "https://attentionawareness.com/blog/turn-iphone-into-dumbphone#article",
       "headline": "Turn your iPhone into a dumbphone, free",
-      "description": "Keep camera, maps, bank and messages. Remove the feeds for good. Five ways to make an iPhone a dumb phone, compared, with free step by step setup.",
+      "description": "Keep camera, maps, bank and messages. Remove the addictive feeds for good. Five ways to make an iPhone a dumb phone, compared, with free setup steps.",
       "image": "https://attentionawareness.com/og.png",
       "url": "https://attentionawareness.com/blog/turn-iphone-into-dumbphone",
       "mainEntityOfPage": "https://attentionawareness.com/blog/turn-iphone-into-dumbphone",
