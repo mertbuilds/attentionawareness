@@ -559,6 +559,7 @@ class WizardModel: ObservableObject {
         iconTask = nil
         askedForIcons = []
         errorMessage = nil
+        phoneLeftForRestart = false
         step = .connect
         watcher.reload()
     }
@@ -955,6 +956,7 @@ class WizardModel: ObservableObject {
         stopJob()
         poll?.cancel()
         errorMessage = nil
+        phoneLeftForRestart = false
         // The first phase is written here rather than in the task, so no frame
         // is ever drawn with the phase the last attempt ended on.
         switch piece {
