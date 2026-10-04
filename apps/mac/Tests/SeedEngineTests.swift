@@ -12,6 +12,37 @@ struct SeedEngineTests {
         #expect(!engine.restoreApplied)
     }
 
+    @Test(arguments: ["27.0", "27.1", nil, "26.0"] as [String?])
+    func theDebugValueLetsBothGateReadsThrough(_ version: String?) async throws {
+        let phone = Phone(version: version)
+        let engine = SeedEngine(operations: phone.operations)
+        try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
+        #expect(phone.events == ["version", "configuration", "version", "restore", "restart"])
+        #expect(engine.phase == .done)
+    }
+
+    @Test func theDebugValueSendsUnsupervisedOnIOS27() async throws {
+        let phone = Phone(version: "27.0")
+        phone.policy = ["IsSupervised": true]
+        let engine = SeedEngine(operations: phone.operations)
+        try await engine.supervise(udid: "phone", supervised: false, allowsFastOnAnyIOS: true)
+        #expect(phone.content?["IsSupervised"] as? Bool == false)
+        #expect(engine.phase == .done)
+    }
+
+    @Test func aRestartRetryOnIOS27IsHeldToTheValueItIsGiven() async throws {
+        let phone = Phone(version: "27.0")
+        phone.restartError = true
+        let engine = SeedEngine(operations: phone.operations)
+        await #expect(throws: SeedRunError.self) { try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true) }
+        #expect(engine.restoreApplied)
+        phone.restartError = false
+        await #expect(throws: SeedRunError.refused(.iosNotSupportedYet)) { try await engine.restart(udid: "phone") }
+        try await engine.restart(udid: "phone", allowsFastOnAnyIOS: true)
+        #expect(phone.events.filter { $0 == "restart" }.count == 2)
+        #expect(engine.phase == .done)
+    }
+
     @Test func versionIsRecheckedImmediatelyBeforeRestore() async throws {
         let phone = Phone(version: "26.1")
         phone.versions = ["26.1", "27.0"]

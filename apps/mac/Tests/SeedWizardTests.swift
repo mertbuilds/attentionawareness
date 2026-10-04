@@ -165,6 +165,39 @@ struct SeedWizardTests {
         #expect(model.events.isEmpty)
     }
 
+    @Test(arguments: ["27.0", "27.1", nil] as [String?])
+    func theDebugValueLetsFastBePickedByHandAndRunOnIOS27AndUnknown(_ version: String?) async throws {
+        let model = makeModel(version: version, allowsFastOnAnyIOS: true)
+        model.freshVersion = version
+        model.start()
+        #expect(model.supervisionMethod == .fullCopy)
+        #expect(model.fastRefusal == nil)
+        model.selectSupervisionMethod(.seed)
+        #expect(model.supervisionMethod == .seed)
+        model.watcher.show(devices: [phone(version: version)])
+        #expect(model.supervisionMethod == .seed)
+        model.confirmBackup(true)
+        #expect(model.checksPass)
+        model.startJob()
+        #expect(await waitUntil { model.job == .checkOnIPhone(reportedSupervised: true) })
+        #expect(model.events == ["version", "seed", "phone", "confirm"])
+    }
+
+    @Test func theDebugValueTakesTheFastRunThroughBothGuardsOnIOS27() async throws {
+        let calls = SeedCalls()
+        calls.failRestart = false
+        calls.version = "27.0"
+        let engine = SeedEngine(operations: calls.operations)
+        let model = makeModel(version: "27.0", seedEngine: engine, allowsFastOnAnyIOS: true)
+        model.useSeedEngine = true
+        model.freshVersion = "27.0"
+        ready(model)
+        model.startJob()
+        #expect(await waitUntil { model.job == .checkOnIPhone(reportedSupervised: true) })
+        #expect(calls.restoreCount == 1)
+        #expect(calls.restartCount == 1)
+    }
+
     @Test func freshVersionRefusalStopsBeforeAnyWork() async throws {
         let model = makeModel()
         model.freshVersion = "27.0"
@@ -344,11 +377,14 @@ struct SeedWizardTests {
         #expect(calls.restartCount == 2)
     }
 
-    private func makeModel(version: String? = "26.0", seedEngine: SeedEngine? = nil) -> RoutingModel {
+    private func makeModel(
+        version: String? = "26.0", seedEngine: SeedEngine? = nil, allowsFastOnAnyIOS: Bool = false
+    ) -> RoutingModel {
         RoutingModel(
             watcher: DeviceWatcher(sample: [phone(version: version)]),
             engine: BackupEngine(sample: .idle, progress: 0),
-            seedEngine: seedEngine
+            seedEngine: seedEngine,
+            allowsFastOnAnyIOS: allowsFastOnAnyIOS
         )
     }
 
@@ -436,11 +472,12 @@ struct SeedWizardTests {
         var restoreCount = 0
         var restartCount = 0
         var failRestart = true
+        var version: String? = "26.0"
         var holdConfiguration = false
         var heldConfiguration: CheckedContinuation<Void, Never>?
         var operations: SeedEngine.Operations {
             .init(
-                readVersion: { _ in "26.0" },
+                readVersion: { _ in self.version },
                 readConfiguration: { _ in
                     if self.holdConfiguration { await withCheckedContinuation { self.heldConfiguration = $0 } }
                     return try PropertyListSerialization.data(fromPropertyList: [:], format: .xml, options: 0)

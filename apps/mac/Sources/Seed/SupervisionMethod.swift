@@ -22,8 +22,13 @@ enum SupervisionMethod: Hashable {
 
     /// The method a run is on: the one the person picked by hand while this
     /// version still offers it, else the default for the version.
-    static func method(pickedByHand: SupervisionMethod?, iosVersion: String?) -> SupervisionMethod {
-        if let pickedByHand, offered(iosVersion: iosVersion).contains(pickedByHand) { return pickedByHand }
+    static func method(
+        pickedByHand: SupervisionMethod?, iosVersion: String?, allowsFastOnAnyIOS: Bool = false
+    ) -> SupervisionMethod {
+        if let pickedByHand,
+           offered(iosVersion: iosVersion, allowsFastOnAnyIOS: allowsFastOnAnyIOS).contains(pickedByHand) {
+            return pickedByHand
+        }
         return defaultMethod(iosVersion: iosVersion)
     }
 
@@ -76,10 +81,19 @@ enum SupervisionMethod: Hashable {
         return major <= newestSeedMajorVersion ? nil : .iosNotSupportedYet
     }
 
+    /// The refusal a run is held to. `allowsFastOnAnyIOS` is the debug
+    /// `--debug-fast-ios27` flag (`DebugFastIOS27`), always false in Release:
+    /// with it nothing is refused, and the default and the tag stay as they
+    /// are without it.
+    static func fastRefusal(iosVersion: String?, allowsFastOnAnyIOS: Bool) -> Refusal? {
+        allowsFastOnAnyIOS ? nil : fastRefusal(iosVersion: iosVersion)
+    }
+
     /// The methods an iPhone is offered, the default first. The full copy is
     /// offered on every version, a new or unreadable one included.
-    static func offered(iosVersion: String?) -> [SupervisionMethod] {
-        fastRefusal(iosVersion: iosVersion) == nil ? [.seed, .fullCopy] : [.fullCopy]
+    static func offered(iosVersion: String?, allowsFastOnAnyIOS: Bool = false) -> [SupervisionMethod] {
+        if fastRefusal(iosVersion: iosVersion) == nil { return [.seed, .fullCopy] }
+        return allowsFastOnAnyIOS ? [.fullCopy, .seed] : [.fullCopy]
     }
 
     /// The first number of a version. Every part has to be digits and nothing

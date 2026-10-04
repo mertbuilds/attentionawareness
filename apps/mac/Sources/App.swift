@@ -66,6 +66,9 @@ struct AttentionAwarenessApp: App {
         // `--debug-unsupervise` turns the run round, so it takes supervision
         // off iPhone. See `DebugUnsupervise`.
         DebugUnsupervise.announceIfAsked()
+        // `--debug-fast-ios27` lets the fast method run on iOS 27 and later.
+        // See `DebugFastIOS27`.
+        DebugFastIOS27.announceIfAsked()
         #endif
 
         // `--demo` opens the window on a wizard that reaches no iPhone, no

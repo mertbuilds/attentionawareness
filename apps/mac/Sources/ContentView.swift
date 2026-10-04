@@ -34,11 +34,14 @@ struct ContentView: View {
         }
         #if DEBUG
         .safeAreaInset(edge: .top, spacing: 0) {
-            if !model.supervises {
-                Text(DebugUnsupervise.label)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .padding(.top, 8)
+            if !model.supervises || model.allowsFastOnAnyIOS {
+                VStack(spacing: 2) {
+                    if !model.supervises { Text(DebugUnsupervise.label) }
+                    if model.allowsFastOnAnyIOS { Text(DebugFastIOS27.label) }
+                }
+                .font(.caption)
+                .foregroundStyle(.red)
+                .padding(.top, 8)
             }
         }
         #endif

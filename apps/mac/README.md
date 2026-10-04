@@ -88,6 +88,14 @@ starts on a supervised iPhone, ends once the iPhone says it is not
 supervised, skips the Restrictions step and sends no count. The window says
 so over every step. The next launch without the flag supervises again.
 
+A Debug build also takes `--debug-fast-ios27`, for testing the fast method
+on an empty test iPhone with iOS 27 or later, or one that gives no version.
+There the restore is expected to erase the iPhone. Fast can then be picked by
+hand and runs past both version checks; the full copy stays the default and
+fast stays "(experimental)". Below iOS 27 nothing changes. The window shows a
+red line over every step, and the launch says so in Terminal and in the log.
+It combines with `--debug-unsupervise`. A Release build has neither flag.
+
 The device layer writes every read's outcome to the Mac's log under the
 subsystem `com.attentionawareness.mac`, category `device`: pairing states,
 lockdown error codes, and the restart wait's steps, never a udid or a device
@@ -245,7 +253,7 @@ the connected phone; the corrected two-payload seed still needs a hardware retes
 
 The fast method's iOS 27 refusal follows [Apple's managed-device restore documentation](https://support.apple.com/guide/deployment/restore-managed-apple-devices-depd44f04xc4/1/web/1.0)
 and [Nugget's iOS 27 data-loss warning](https://github.com/leminlimez/Nugget#readme).
-There is no version override for the fast method. The full copy has no version
+A Release build has no version override for the fast method. The full copy has no version
 check: it runs on iOS 27 and later as it did before the fast method existed.
 
 `--patch <backup folder>` loads a backup folder, plans the change, applies it

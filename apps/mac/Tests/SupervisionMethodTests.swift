@@ -65,6 +65,35 @@ struct SupervisionMethodTests {
         #expect(SupervisionMethod.fastRefusal(iosVersion: version) == .iosVersionUnknown)
     }
 
+    /// `allowsFastOnAnyIOS` is the debug `--debug-fast-ios27` value: fast can
+    /// be picked by hand, and the default and the tag stay as they are.
+    @Test(arguments: ["27.0", "27.1", "27", nil, "", "abc"] as [String?])
+    func theDebugValueOffersFastOnIOS27AndUnknownAndKeepsTheDefaultAndTag(_ version: String?) {
+        #expect(SupervisionMethod.fastRefusal(iosVersion: version, allowsFastOnAnyIOS: true) == nil)
+        #expect(SupervisionMethod.fastRefusal(iosVersion: version, allowsFastOnAnyIOS: false) != nil)
+        #expect(SupervisionMethod.offered(iosVersion: version, allowsFastOnAnyIOS: true) == [.fullCopy, .seed])
+        #expect(SupervisionMethod.offered(iosVersion: version, allowsFastOnAnyIOS: false) == [.fullCopy])
+        #expect(SupervisionMethod.method(pickedByHand: .seed, iosVersion: version, allowsFastOnAnyIOS: true) == .seed)
+        #expect(SupervisionMethod.method(pickedByHand: .seed, iosVersion: version, allowsFastOnAnyIOS: false) == .fullCopy)
+        #expect(SupervisionMethod.method(pickedByHand: nil, iosVersion: version, allowsFastOnAnyIOS: true) == .fullCopy)
+        #expect(SupervisionMethod.defaultMethod(iosVersion: version) == .fullCopy)
+        #expect(SupervisionMethod.tag(of: .seed, iosVersion: version) == "experimental")
+        #expect(SupervisionMethod.label(of: .seed, iosVersion: version) == "Fast (experimental)")
+    }
+
+    @Test(arguments: ["26.0", "26.6.2", "17.6.1"])
+    func theDebugValueChangesNothingOnIOS26(_ version: String) {
+        for allows in [false, true] {
+            #expect(SupervisionMethod.fastRefusal(iosVersion: version, allowsFastOnAnyIOS: allows) == nil)
+            #expect(SupervisionMethod.offered(iosVersion: version, allowsFastOnAnyIOS: allows) == [.seed, .fullCopy])
+            #expect(SupervisionMethod.method(pickedByHand: nil, iosVersion: version, allowsFastOnAnyIOS: allows) == .seed)
+            #expect(
+                SupervisionMethod.method(pickedByHand: .fullCopy, iosVersion: version, allowsFastOnAnyIOS: allows)
+                    == .fullCopy
+            )
+        }
+    }
+
     @Test func aRefusalSaysWhyFastIsOffAndWhatToUse() {
         #expect(SupervisionMethod.Refusal.iosNotSupportedYet.message
             == "Fast does not work on iOS 27 or later yet. Use full copy.")

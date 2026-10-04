@@ -184,6 +184,10 @@ class WizardModel: ObservableObject {
     /// off, skips the Restrictions step and sends no count, which only the
     /// debug `--debug-unsupervise` flag asks for (`DebugUnsupervise`).
     let supervises: Bool
+    /// True lets the fast method run on iOS 27 and later and on an unknown
+    /// version, with the default and the tag as they are. Only the debug
+    /// `--debug-fast-ios27` flag asks for it (`DebugFastIOS27`).
+    let allowsFastOnAnyIOS: Bool
 
     /// A model that watches the real USB bus, which is what the window uses.
     /// It is the only one that sends the anonymous count, and the only one
@@ -193,14 +197,17 @@ class WizardModel: ObservableObject {
         OldSupervisionKey.remove()
         #if DEBUG
         let supervises = !DebugUnsupervise.isOn
+        let allowsFastOnAnyIOS = DebugFastIOS27.isOn
         #else
         let supervises = true
+        let allowsFastOnAnyIOS = false
         #endif
         self.init(
             watcher: DeviceWatcher(),
             engine: BackupEngine(),
             finishedEvent: SupervisionEventSender.send,
-            supervises: supervises
+            supervises: supervises,
+            allowsFastOnAnyIOS: allowsFastOnAnyIOS
         )
     }
 
@@ -222,13 +229,15 @@ class WizardModel: ObservableObject {
         engine: BackupEngine,
         seedEngine: SeedEngine? = nil,
         finishedEvent: ((SupervisionFinishedEvent) -> Void)? = nil,
-        supervises: Bool = true
+        supervises: Bool = true,
+        allowsFastOnAnyIOS: Bool = false
     ) {
         self.watcher = watcher
         self.engine = engine
         self.seedEngine = seedEngine ?? SeedEngine(backupEngine: engine)
         self.finishedEvent = finishedEvent
         self.supervises = supervises
+        self.allowsFastOnAnyIOS = allowsFastOnAnyIOS
         relays = [
             watcher.objectWillChange.sink { [weak self] in self?.objectWillChange.send() },
             engine.objectWillChange.sink { [weak self] in self?.objectWillChange.send() },
@@ -906,14 +915,18 @@ class WizardModel: ObservableObject {
     /// Why the fast method is not offered for this iPhone, in one line. Nil
     /// when it is. The full copy is offered whatever the version.
     var fastRefusal: String? {
-        SupervisionMethod.fastRefusal(iosVersion: device?.iosVersion)?.message
+        SupervisionMethod.fastRefusal(
+            iosVersion: device?.iosVersion, allowsFastOnAnyIOS: allowsFastOnAnyIOS
+        )?.message
     }
 
     var requiresFullCopy: Bool { supervisionMethod == .fullCopy }
 
     func selectSupervisionMethod(_ method: SupervisionMethod) {
         guard step == .ready, !isBusy else { return }
-        guard SupervisionMethod.offered(iosVersion: device?.iosVersion).contains(method) else { return }
+        guard SupervisionMethod.offered(
+            iosVersion: device?.iosVersion, allowsFastOnAnyIOS: allowsFastOnAnyIOS
+        ).contains(method) else { return }
         methodPickedByHand = method
         supervisionMethod = method
         jobMethod = nil
@@ -927,7 +940,8 @@ class WizardModel: ObservableObject {
               let phone = devices.first(where: { $0.udid == udid })
         else { return }
         supervisionMethod = SupervisionMethod.method(
-            pickedByHand: methodPickedByHand, iosVersion: phone.iosVersion
+            pickedByHand: methodPickedByHand, iosVersion: phone.iosVersion,
+            allowsFastOnAnyIOS: allowsFastOnAnyIOS
         )
     }
 
@@ -1136,6 +1150,14 @@ class WizardModel: ObservableObject {
         // are installed.
         let reportedSupervised = await confirmWhatTheIPhoneIs()
         guard !Task.isCancelled else { return }
+        let supervisedRead = isSupervised.map { "\($0)" } ?? "not read"
+        DeviceLog.logger.notice(
+            "restart check: supervised \(supervisedRead, privacy: .public), run wants \(self.supervises, privacy: .public)"
+        )
+        if allowsFastOnAnyIOS, activeMethod == .seed, let udid {
+            let setup = await readSetupState(udid: udid)
+            DeviceLog.logger.notice("restart check: \(setup, privacy: .public)")
+        }
         restore.stage = .finished
         restore.supervisedAfterwards = isSupervised
         guard supervises else { return endUnsupervising(confirmed: reportedSupervised) }
@@ -1170,13 +1192,23 @@ class WizardModel: ObservableObject {
         return try await Task.detached { try SeedDevice.iosVersion(udid: udid) }.value
     }
 
+    /// What the iPhone says about its activation and Setup Assistant after a
+    /// fast run under `--debug-fast-ios27`, for the log alone. The demo and
+    /// the tests run an engine that runs nothing, so nothing is read there.
+    func readSetupState(udid: String) async -> String {
+        guard engine.canRunHelper else { return "setup state not read" }
+        return await Task.detached { SeedDevice.setupState(udid: udid) }.value
+    }
+
     /// Only the fast method is held to a version. The full copy runs on
     /// whatever the iPhone has.
     private func verifyFastSupportsIOS(udid: String) async throws {
         let version = try await readDeviceIOSVersion(udid: udid)
         try Task.checkCancellation()
+        DeviceLog.logger.notice("fast check: iOS \(version ?? "not given", privacy: .public)")
         if let refusal = SupervisionMethod.fastRefusal(iosVersion: version) {
-            throw SeedRunError.refused(refusal)
+            guard allowsFastOnAnyIOS else { throw SeedRunError.refused(refusal) }
+            DeviceLog.logger.notice("fast check: \(String(describing: refusal), privacy: .public) let through by the debug flag")
         }
     }
 
@@ -1211,9 +1243,11 @@ class WizardModel: ObservableObject {
                 try await Task.sleep(for: Self.seedIdleInterval)
             }
             if restartingOnly {
-                try await seedEngine.restart(udid: udid)
+                try await seedEngine.restart(udid: udid, allowsFastOnAnyIOS: allowsFastOnAnyIOS)
             } else {
-                try await seedEngine.supervise(udid: udid, supervised: supervises)
+                try await seedEngine.supervise(
+                    udid: udid, supervised: supervises, allowsFastOnAnyIOS: allowsFastOnAnyIOS
+                )
             }
             try Task.checkCancellation()
         } catch {

@@ -8,6 +8,20 @@ enum SeedDevice {
         try LockdownSession(udid: udid).string(key: "ProductVersion")
     }
 
+    /// Whether the iPhone is activated and past Setup Assistant, as one line
+    /// for the log. A value the iPhone does not give reads "not given".
+    static func setupState(udid: String) -> String {
+        do {
+            let session = try LockdownSession(udid: udid)
+            let activation = session.string(key: "ActivationState") ?? "not given"
+            let setupDone = session.bool(domain: "com.apple.purplebuddy", key: "SetupDone")
+                .map { "\($0)" } ?? "not given"
+            return "activation \(activation), setup done \(setupDone)"
+        } catch {
+            return "setup state not read: \(DeviceLog.text(error))"
+        }
+    }
+
     static func cloudConfiguration(udid: String) throws -> Data {
         Data(try MCInstall(udid: udid).cloudConfiguration(requireAcknowledgement: true).raw.utf8)
     }
