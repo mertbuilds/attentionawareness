@@ -160,8 +160,11 @@ class WizardModel: ObservableObject {
     private var finishedEventSent = false
 
     /// A model that watches the real USB bus, which is what the window uses.
-    /// It is the only one that sends the anonymous count.
+    /// It is the only one that sends the anonymous count, and the only one
+    /// that takes the key of a paid version out of the Keychain.
     convenience init() {
+        // Can be removed in a later version, with `OldSupervisionKey`.
+        OldSupervisionKey.remove()
         self.init(
             watcher: DeviceWatcher(),
             engine: BackupEngine(),
