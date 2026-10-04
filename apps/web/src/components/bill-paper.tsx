@@ -185,6 +185,16 @@ const styles = create({
     isolation: 'isolate',
     position: 'relative',
   },
+  // A letter is a layer of its own. Safari on iOS draws what a filter that
+  // displaces reaches past its element as a black box in the top corner of
+  // the layer the element is drawn in, while the element is off screen. In
+  // the page's own layer that corner is the top of the page, over the name
+  // in the header, and a letter is off screen there. In a layer of its own,
+  // nothing is drawn while the letter is away. A scrap needs none of this:
+  // it is a tip, in the page only while it is open.
+  rootLetter: {
+    transform: 'translateZ(0)',
+  },
   shader: {
     height: '100%',
     width: '100%',
@@ -470,7 +480,7 @@ export function PaperLetter({
       data-ink={theme ?? undefined}
       data-paper="letter"
       ref={sheet}
-      {...props(styles.root, style)}
+      {...props(styles.root, styles.rootLetter, style)}
     >
       <div
         aria-hidden="true"
