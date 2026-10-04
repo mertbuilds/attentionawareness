@@ -405,8 +405,8 @@ const styles = create({
     animationTimingFunction: easing.smoothOut,
   },
   // The words on the left, the stamp to their right and level with their
-  // top, where a stamp sits on an envelope. On a narrow window the stamp
-  // comes first, small, and the words under it.
+  // top, where a stamp sits on an envelope. On a phone the stamp comes
+  // first, large and in the middle, and the words under it.
   section: {
     alignItems: 'start',
     columnGap: spacing.s12,
@@ -419,17 +419,26 @@ const styles = create({
       '@media (min-width: 768px)': 'minmax(0, 1fr) auto',
       default: 'minmax(0, 1fr)',
     },
-    rowGap: spacing.s6,
+    rowGap: {
+      '@media (min-width: 768px)': spacing.s6,
+      default: spacing.s8,
+    },
   },
-  // The stamp, as wide as a real one reads at beside the words.
+  // The stamp, as wide as a real one reads at beside the words. On a phone
+  // it is the section's picture: most of the column wide, in its middle, and
+  // never wider than it stays sharp at.
   stamp: {
     display: 'block',
     gridArea: 'stamp',
     height: 'auto',
+    justifySelf: {
+      '@media (min-width: 768px)': 'auto',
+      default: 'center',
+    },
     overflow: 'visible',
     width: {
       '@media (min-width: 768px)': 220,
-      default: 148,
+      default: 'min(80%, 300px)',
     },
   },
   // What the stamp is worth, and whose it is, in the stamp's own small type.
