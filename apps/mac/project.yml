@@ -21,7 +21,7 @@ settings:
     # nothing to link against.
     ARCHS: arm64
     MARKETING_VERSION: '0.4.0'
-    CURRENT_PROJECT_VERSION: '4'
+    CURRENT_PROJECT_VERSION: '5'
     ENABLE_HARDENED_RUNTIME: YES
     GENERATE_INFOPLIST_FILE: NO
   configs:
