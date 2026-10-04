@@ -104,8 +104,6 @@ enum SiteLink {
         string: "https://attentionawareness.com/"
             + "?utm_source=share&utm_medium=mac_app&utm_campaign=supervision_done"
     )
-    /// The pay-what-you-want page, on the last step and in the Help menu.
-    /// Polar keeps the three campaign fields with the checkout.
     /// The browser extension in the Chrome Web Store, on the last step. It
     /// carries a campaign of its own, because it is a link from the app to
     /// one of our own.
@@ -114,6 +112,8 @@ enum SiteLink {
             + "lgcijcijcndmggjiioibfcmppndfakee"
             + "?utm_source=mac-app&utm_medium=referral&utm_campaign=done"
     )
+    /// The pay-what-you-want page, on the last step and in the Help menu.
+    /// Polar keeps the three campaign fields with the checkout.
     static let support = URL(
         string: "https://buy.polar.sh/polar_cl_ftX1jafCvlNQXeQZRhjMjBLd2ChzzBp1LTIY63l0MBh"
             + "?utm_source=mac_app&utm_medium=app&utm_campaign=supervision_done"
