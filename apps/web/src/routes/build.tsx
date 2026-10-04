@@ -9,7 +9,6 @@ import {
   FieldLabel,
   Input,
   Label,
-  Separator,
   Skeleton,
 } from '@attentionawareness/ui';
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
@@ -22,8 +21,7 @@ import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
 import { Check } from 'reicon-react';
 import { AppArtwork, artworkStyles } from '../components/app-artwork.tsx';
 import type { MetaCache } from '../components/app-artwork.tsx';
-import { GridTexture } from '../components/grid-texture.tsx';
-import { SiteFooter } from '../components/site-footer.tsx';
+import { PageFoot, PageHeader, page } from '../components/page.tsx';
 import { Tip } from '../components/tip.tsx';
 import type { AppResult } from '../lib/app-search.ts';
 import {
@@ -35,7 +33,6 @@ import {
   storefrontLabel,
   storefronts,
 } from '../lib/app-search.ts';
-import { brandBar } from '../lib/brand-bar.stylex.ts';
 import { controls } from '../lib/controls.ts';
 import { layout } from '../lib/layout.ts';
 import { presets } from '../lib/profile/index.ts';
@@ -180,41 +177,19 @@ const styles = create({
     padding: 0,
     width: 28,
   },
+  // The wide column of the site's other pages, so the head and every section
+  // share a left edge.
   content: {
+    boxSizing: 'border-box',
     display: 'flex',
     flexDirection: 'column',
     gap: {
       '@media (min-width: 640px)': spacing.s16,
       default: spacing.s12,
     },
-    maxWidth: 760,
+    maxWidth: `calc(760px + 2 * ${spacing.s4})`,
+    paddingInline: spacing.s4,
     width: '100%',
-  },
-  // Same column as `content`, so the hero and every section share a left edge.
-  hero: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s4,
-    maxWidth: 760,
-    width: '100%',
-  },
-  heroTitle: {
-    fontSize: {
-      '@media (min-width: 640px)': 36,
-      default: 28,
-    },
-    fontWeight: font.weightRegular,
-    letterSpacing: '-0.02em',
-    lineHeight: 1.1,
-    margin: 0,
-    textWrap: 'balance',
-  },
-  lead: {
-    color: colors.muted,
-    fontSize: 18,
-    lineHeight: 1.5,
-    margin: 0,
-    textWrap: 'pretty',
   },
   list: {
     display: 'flex',
@@ -265,6 +240,14 @@ const styles = create({
     listStyleType: 'none',
     width: 'fit-content',
   },
+  // The two lines under the lead: a step quieter and smaller.
+  headNote: {
+    color: colors.muted,
+    fontSize: font.sizeMd,
+    margin: 0,
+  },
+  // The frame of the site's other pages (`PageRoot`), kept here because the
+  // replay mask goes on this element.
   page: {
     alignItems: 'center',
     backgroundColor: colors.bg,
@@ -272,23 +255,12 @@ const styles = create({
     display: 'flex',
     flexDirection: 'column',
     fontFamily: font.family,
-    gap: {
-      '@media (min-width: 640px)': spacing.s16,
-      default: spacing.s12,
-    },
-    // The stacking context that keeps the grid layer above the page's own
+    // The stacking context that keeps the head's paper above the page's own
     // background instead of behind it.
     isolation: 'isolate',
     minHeight: `calc(100vh - ${wip.height})`,
+    overflowX: 'clip',
     paddingBlockEnd: spacing.s16,
-    // The header strip stands over the top of the page, so the first line
-    // starts clear of it.
-    paddingBlockStart: {
-      '@media (min-width: 640px)': 96,
-      default: `calc(${brandBar.height} + ${spacing.s6})`,
-    },
-    paddingInline: spacing.s4,
-    // The containing block the grid layer measures itself against.
     position: 'relative',
   },
   // The profile as a picture of itself: the icons it hides, the hosts it
@@ -525,14 +497,6 @@ const styles = create({
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s6,
-  },
-  sectionTitle: {
-    fontSize: font.sizeLg,
-    fontWeight: font.weightRegular,
-    letterSpacing: '-0.01em',
-    lineHeight: 1.2,
-    margin: 0,
-    textWrap: 'balance',
   },
   // The × that arms and drops a row, and the + that adds one.
   siteAction: {
@@ -1695,25 +1659,23 @@ function BuildPage() {
   return (
     // Everything here may name what the visitor blocks: replay masks it all.
     <main {...replayMask} {...props(styles.page)}>
-      <GridTexture />
-      <header {...props(styles.hero)}>
-        <h1 {...props(styles.heroTitle)}>{m.gen_step2_title()}</h1>
-        <p {...props(styles.lead)}>{m.build_lead()}</p>
-        <p {...props(styles.body)}>
+      <PageHeader eyebrow={m.page_eyebrow_build()} title={m.gen_step2_title()} wide>
+        <p {...props(page.flush)}>{m.build_lead()}</p>
+        <p {...props(styles.headNote)}>
           {guideBefore}
           <a href={GUIDE_URL}>{m.build_guide_link()}</a>
           {guideAfter}
         </p>
-        <p {...props(styles.body)}>
+        <p {...props(styles.headNote)}>
           {macBefore}
           <a href={MAC_URL}>{m.build_mac_link()}</a>
           {macAfter}
         </p>
-      </header>
+      </PageHeader>
 
       <div {...props(styles.content)}>
         <section {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>{m.build_apps_title()}</h2>
+          <h2 {...props(page.sectionTitle)}>{m.build_apps_title()}</h2>
           <p {...props(styles.body)}>{m.build_apps_body()}</p>
           <div ref={searchWrap} {...props(styles.searchWrap)}>
             <div {...props(styles.searchBar)}>
@@ -1899,7 +1861,7 @@ function BuildPage() {
         </section>
 
         <section {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>{m.gen_web_title()}</h2>
+          <h2 {...props(page.sectionTitle)}>{m.gen_web_title()}</h2>
           <div aria-label={m.gen_web_mode_label()} role="radiogroup" {...props(styles.choice)}>
             <Label style={styles.regular}>
               <input
@@ -2065,7 +2027,7 @@ function BuildPage() {
         </section>
 
         <section {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>{m.gen_restrictions_title()}</h2>
+          <h2 {...props(page.sectionTitle)}>{m.gen_restrictions_title()}</h2>
           {filter.mode === 'deny' ? (
             <Label style={styles.regular}>
               <input
@@ -2142,7 +2104,7 @@ function BuildPage() {
         <section {...props(styles.section)}>
           <Card>
             <CardHeader>
-              <CardTitle style={styles.sectionTitle}>{m.gen_output_title()}</CardTitle>
+              <CardTitle style={page.sectionTitle}>{m.gen_output_title()}</CardTitle>
             </CardHeader>
             <CardContent {...props(styles.section)}>
               <div {...props(styles.preview)}>
@@ -2230,7 +2192,7 @@ function BuildPage() {
         </section>
 
         <section {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>{m.gen_install_title()}</h2>
+          <h2 {...props(page.sectionTitle)}>{m.gen_install_title()}</h2>
           <ol {...props(styles.steps)}>
             <li>{m.build_install_1()}</li>
             <li>{m.build_install_2()}</li>
@@ -2240,9 +2202,7 @@ function BuildPage() {
           <p {...props(layout.muted)}>{m.gen_install_note()}</p>
         </section>
 
-        <Separator />
-
-        <SiteFooter />
+        <PageFoot />
       </div>
     </main>
   );
