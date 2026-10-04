@@ -10,8 +10,9 @@ import AppKit
 /// recording permission, because the app only draws its own window.
 ///
 /// `--demo-step <step>` lands the demo on that step first (for example
-/// `ready`, where the backup box is also ticked), and `--appearance light` or
-/// `--appearance dark` draws the window that way.
+/// `ready`, where the backup box is also ticked), `--demo-fails` makes the
+/// job that step starts fail, and `--appearance light` or `--appearance dark`
+/// draws the window that way.
 @MainActor
 enum DemoSnapshot {
     static func scheduleIfAsked(_ model: DemoWizardModel, _ arguments: [String] = CommandLine.arguments) {
@@ -24,19 +25,26 @@ enum DemoSnapshot {
             .flatMap { arguments.count > $0 + 1 ? WizardStep(rawValue: arguments[$0 + 1]) : nil }
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(1.5))
+            if arguments.contains("--demo-fails") {
+                model.conditions.outcome = .fails
+            }
             if let step {
                 model.jump(to: step)
                 if step == .ready {
                     model.confirmBackup(true)
                 }
             }
-            try? await Task.sleep(for: .seconds(1.5))
+            // A job runs in about half a minute in the demo, and one that is
+            // to fail fails during the copy.
+            try? await Task.sleep(for: .seconds(step == .job ? 15 : 1.5))
             NSApplication.shared.activate(ignoringOtherApps: true)
             try? await Task.sleep(for: .seconds(0.5))
-            guard let view = NSApplication.shared.windows.first(where: { $0.isVisible })?.contentView,
-                  let png = picture(of: view)
-            else {
-                print("demo-snapshot: no window")
+            guard let view = NSApplication.shared.windows.first(where: { $0.isVisible })?.contentView else {
+                print("demo-snapshot: no window", NSApplication.shared.windows.map { "\($0.className) visible=\($0.isVisible) frame=\($0.frame)" })
+                exit(1)
+            }
+            guard let png = picture(of: view) else {
+                print("demo-snapshot: the window server gave no picture")
                 exit(1)
             }
             try? png.write(to: file)
