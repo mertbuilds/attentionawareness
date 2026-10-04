@@ -82,10 +82,9 @@ const AT = {
 const FEEDS_GO = { fade: 400, from: 3850, stagger: 150 };
 const APPS_CLOSE = { from: 4950, slide: 700, stagger: 40 };
 /**
- * Where the loop stands when it is not moving: the result, the lower screen
- * time with what it was under it. The server draws it there, a reader who
- * asked for less motion keeps it, and the loop sets off from there, so the
- * page a script comes alive on is the page the server sent.
+ * Where the phone stands for a reader who asked for less motion: the result,
+ * the lower screen time with what it was under it. Nobody else is shown it
+ * before the loop has played up to it.
  */
 const REST = 10_200;
 /** The stretches where nothing moves: the full phone before the Mac, and the result. */
@@ -300,14 +299,16 @@ const styles = create({
 });
 
 /**
- * How far into its turn the loop is, in milliseconds. It starts from `REST`,
- * moves with the clock only while `running` and holds where it is otherwise,
- * so it goes on from there rather than leaping ahead by the time it stood.
- * While the phone stands still the page is not drawn again.
+ * How far into its turn the loop is, in milliseconds. It starts from the
+ * start of the turn, the full home screen, which is what the server draws,
+ * so the page a script comes alive on is the page the server sent. It moves
+ * with the clock only while `running` and holds where it is otherwise, so it
+ * goes on from there rather than leaping ahead by the time it stood. While
+ * the phone stands still the page is not drawn again.
  */
 function useLoop(running: boolean): number {
-  const [now, setNow] = useState(REST);
-  const clock = useRef(REST);
+  const [now, setNow] = useState(0);
+  const clock = useRef(0);
 
   useEffect(() => {
     if (!running) {
@@ -465,9 +466,10 @@ const WIDE_SEEN: WideLine = {};
  * The home screen is put back where it started while Screen Time stands over
  * it, unseen, so the full one is what crossfades back in. The loop sets off
  * once the phone is in view and holds while it is off screen or the tab is
- * put away. It starts from the result: the server draws the phone there, with
- * the lower screen time and what it was, and with less motion that is where
- * it stays.
+ * put away. It starts from the full home screen, which is what the server
+ * draws and what a page without scripts keeps. With less motion the phone
+ * stands at the result instead, the lower screen time and what it was, once
+ * the page has come alive.
  */
 export function HeroPhone() {
   const phone = useRef<HTMLDivElement>(null);
