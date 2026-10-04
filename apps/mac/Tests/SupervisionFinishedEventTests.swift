@@ -117,6 +117,7 @@ struct SupervisionFinishedEventTests {
         model.startOver()
         model.start()
         #expect(model.step == .ready)
+        model.selectSupervisionMethod(.fullCopy)
         model.confirmBackup(true)
         model.password = "pw"
         model.startJob()

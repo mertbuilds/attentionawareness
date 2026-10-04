@@ -60,7 +60,11 @@ class WizardModel: ObservableObject {
     let watcher: DeviceWatcher
     let engine: BackupEngine
     let seedEngine: SeedEngine
-    @Published private(set) var supervisionMethod = SupervisionMethod.defaultMethod
+    @Published private(set) var supervisionMethod = SupervisionMethod.defaultMethod(iosVersion: nil)
+    /// The method the person picked by hand on Ready for this iPhone. Nil
+    /// until they pick one, and while it is nil the method follows the
+    /// version the iPhone reports.
+    private var methodPickedByHand: SupervisionMethod?
     /// The person has said they backed up the iPhone themselves, with Finder
     /// or iCloud. No run of either method starts until they have.
     @Published private(set) var backupConfirmed = false
@@ -247,6 +251,11 @@ class WizardModel: ObservableObject {
             watcher.$onCable.sink { [weak self] onCable in
                 self?.cableRead(onCable)
             },
+            // A version that arrives or changes after Ready is on screen moves
+            // the method with it, unless the person picked one by hand.
+            watcher.$devices.sink { [weak self] devices in
+                self?.followDefaultMethod(devices)
+            },
             engine.$phase.sink { [weak self] phase in
                 self?.helperMoved(to: phase)
             },
@@ -302,7 +311,7 @@ class WizardModel: ObservableObject {
     /// network, and nothing here starts any work.
     struct Sample {
         var step: WizardStep = .connect
-        var supervisionMethod = SupervisionMethod.defaultMethod
+        var supervisionMethod = SupervisionMethod.defaultMethod(iosVersion: nil)
         var backupConfirmed = false
         var udid: String?
         var backupFolder: URL?
@@ -345,6 +354,7 @@ class WizardModel: ObservableObject {
     func show(_ sample: Sample) {
         step = sample.step
         supervisionMethod = sample.supervisionMethod
+        methodPickedByHand = sample.supervisionMethod
         backupConfirmed = sample.backupConfirmed
         udid = sample.udid
         selectedUdid = sample.udid
@@ -455,7 +465,8 @@ class WizardModel: ObservableObject {
         // may be another iPhone.
         finderBackup = .notLooked
         backupRemovalFailure = nil
-        supervisionMethod = .defaultMethod
+        methodPickedByHand = nil
+        supervisionMethod = .defaultMethod(iosVersion: device.iosVersion)
         backupConfirmed = false
         jobMethod = nil
         finishedEventSent = false
@@ -559,7 +570,8 @@ class WizardModel: ObservableObject {
         udid = nil
         selectedUdid = nil
         password = ""
-        supervisionMethod = .defaultMethod
+        methodPickedByHand = nil
+        supervisionMethod = .defaultMethod(iosVersion: nil)
         backupConfirmed = false
         jobMethod = nil
         seedOperationRun = nil
@@ -902,8 +914,21 @@ class WizardModel: ObservableObject {
     func selectSupervisionMethod(_ method: SupervisionMethod) {
         guard step == .ready, !isBusy else { return }
         guard SupervisionMethod.offered(iosVersion: device?.iosVersion).contains(method) else { return }
+        methodPickedByHand = method
         supervisionMethod = method
         jobMethod = nil
+    }
+
+    /// Put Ready on the method for the version the iPhone this run is about
+    /// now reports, keeping a pick made by hand while that version offers it.
+    /// `devices` is the read that is landing, which `device` does not hold yet.
+    private func followDefaultMethod(_ devices: [ConnectedDevice]) {
+        guard step == .ready, !isBusy, let udid,
+              let phone = devices.first(where: { $0.udid == udid })
+        else { return }
+        supervisionMethod = SupervisionMethod.method(
+            pickedByHand: methodPickedByHand, iosVersion: phone.iosVersion
+        )
     }
 
     /// Take the tick that says the person backed up the iPhone themselves.

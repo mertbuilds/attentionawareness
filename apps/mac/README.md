@@ -3,17 +3,22 @@
 Native macOS app (SwiftUI, macOS 14+) that supervises a connected iPhone and
 installs restrictions over USB. There are two methods:
 
-| iOS on the iPhone | Full copy (default) | Fast (experimental) |
+| iOS on the iPhone | Full copy | Fast |
 | --- | --- | --- |
-| 26 and earlier | yes | yes, picked by hand |
-| 27 and later | yes | no |
-| missing or unreadable version | yes | no |
+| 26 and earlier | yes | yes, the default, "Fast (recommended)" |
+| 27 and later | yes, the default | no, shown as "Fast (experimental)" |
+| missing or unreadable version | yes, the default | no, shown as "Fast (experimental)" |
 
-The full copy backs up the iPhone, patches the copy and restores it. It is the
-default on every iOS version and is not held to a version. The fast method
-restores a small configuration backup and restarts the iPhone. It is
-experimental, it is never picked by default, and the Ready screen only offers
-it on iOS 26 and earlier, with no lower limit in the code.
+The full copy backs up the iPhone, patches the copy and restores it. It is
+not held to a version. The fast method restores a small configuration backup
+and restarts the iPhone. On iOS 26 and earlier it is the default, with no
+lower limit in the code. On iOS 27 and later, and when the iPhone gives no
+version, the full copy is the default and fast is shown as experimental but
+cannot be picked, because the seed restore refuses those versions (see
+`--seed` below). The rule is `SupervisionMethod` in
+`Sources/Seed/SupervisionMethod.swift`. The default follows the version the
+iPhone reports until the person picks a method by hand, and that pick is kept
+for that iPhone.
 
 Back up the iPhone first, with Finder or iCloud. The app does not erase the
 iPhone, but things can go wrong, and that backup is the way back. We are not
@@ -33,9 +38,9 @@ resets the iPhone's pairing records, so after the restart it refuses this
 Mac's pair record (InvalidHostID). macOS pairs again only when the iPhone is
 plugged in, and right after the restart that is while it is still locked, so
 nothing paired again until the cable was pulled. 0.4.3 pairs again itself
-(see the wait below). One iPhone is one test, so the method stays
-experimental, and unit tests do not establish that local data survives a
-restore.
+(see the wait below). Since that run went through, fast is the default below
+iOS 27. iOS 27 is not tested, and unit tests do not establish that local data
+survives a restore.
 
 After the restart, for both methods, the job reads the iPhone every two
 seconds on its own and waits on no connect or disconnect, because a restarted

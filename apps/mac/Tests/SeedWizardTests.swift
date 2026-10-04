@@ -3,22 +3,47 @@ import Testing
 
 @MainActor
 struct SeedWizardTests {
-    @Test func fullCopyIsTheDefaultOnEveryNewRun() {
+    @Test func fastIsTheDefaultOnEveryNewRunOfAnIOS26IPhone() {
         let model = makeModel()
+        // No iPhone picked yet, so no version: the full copy.
         #expect(model.supervisionMethod == .fullCopy)
         #expect(WizardModel.Sample().supervisionMethod == .fullCopy)
         model.start()
-        #expect(model.supervisionMethod == .fullCopy)
-        #expect(model.requiresFullCopy)
-        model.selectSupervisionMethod(.seed)
+        #expect(model.supervisionMethod == .seed)
+        #expect(!model.requiresFullCopy)
+        model.selectSupervisionMethod(.fullCopy)
         model.confirmBackup(true)
         model.back()
         model.start()
-        #expect(model.supervisionMethod == .fullCopy)
+        #expect(model.supervisionMethod == .seed)
         #expect(!model.backupConfirmed)
-        model.selectSupervisionMethod(.seed)
+        model.selectSupervisionMethod(.fullCopy)
         model.startOver()
         #expect(model.supervisionMethod == .fullCopy)
+    }
+
+    @Test func theDefaultFollowsTheVersionUntilAMethodIsPickedByHand() {
+        let model = makeModel(version: nil)
+        model.start()
+        #expect(model.supervisionMethod == .fullCopy)
+        model.watcher.show(devices: [phone(version: "26.4.1")])
+        #expect(model.supervisionMethod == .seed)
+        model.watcher.show(devices: [phone(version: "27.0")])
+        #expect(model.supervisionMethod == .fullCopy)
+        model.watcher.show(devices: [phone(version: "26.4.1")])
+        #expect(model.supervisionMethod == .seed)
+        model.selectSupervisionMethod(.fullCopy)
+        model.watcher.show(devices: [phone(version: "26.4.1")])
+        #expect(model.supervisionMethod == .fullCopy)
+    }
+
+    @Test(arguments: [SupervisionMethod.fullCopy, .seed])
+    func aPickByHandSurvivesAReReadOfTheSameIPhone(_ method: SupervisionMethod) {
+        let model = makeModel(version: "26.4.1")
+        model.start()
+        model.selectSupervisionMethod(method)
+        model.watcher.show(devices: [phone(version: "26.4.1")])
+        #expect(model.supervisionMethod == method)
     }
 
     @Test func seedNeedsNeitherFullCopySpaceNorPassword() {
@@ -60,13 +85,13 @@ struct SeedWizardTests {
     }
 
     @Test(arguments: ["26.0", "26.6.2", "17.6.1"])
-    func iOS26AndOlderDefaultToFullCopyWithFastSelectable(_ version: String) {
+    func iOS26AndOlderDefaultToFastWithFullCopySelectable(_ version: String) {
         let model = makeModel(version: version)
         model.start()
-        #expect(model.supervisionMethod == .fullCopy)
-        #expect(model.fastRefusal == nil)
-        model.selectSupervisionMethod(.seed)
         #expect(model.supervisionMethod == .seed)
+        #expect(model.fastRefusal == nil)
+        model.selectSupervisionMethod(.fullCopy)
+        #expect(model.supervisionMethod == .fullCopy)
     }
 
     @Test func startClearsALeftoverWhicheverMethodFollows() async throws {
@@ -320,15 +345,19 @@ struct SeedWizardTests {
     }
 
     private func makeModel(version: String? = "26.0", seedEngine: SeedEngine? = nil) -> RoutingModel {
-        let phone = ConnectedDevice(
+        RoutingModel(
+            watcher: DeviceWatcher(sample: [phone(version: version)]),
+            engine: BackupEngine(sample: .idle, progress: 0),
+            seedEngine: seedEngine
+        )
+    }
+
+    private func phone(version: String?) -> ConnectedDevice {
+        ConnectedDevice(
             udid: "phone", name: "Test iPhone", productType: nil, marketingName: nil,
             iosVersion: version, findMyOn: false, backupEncrypted: true,
             cloudBackupOn: nil, lastCloudBackup: nil, dataCapacity: nil, dataAvailable: nil,
             pairingState: .paired
-        )
-        return RoutingModel(
-            watcher: DeviceWatcher(sample: [phone]), engine: BackupEngine(sample: .idle, progress: 0),
-            seedEngine: seedEngine
         )
     }
 

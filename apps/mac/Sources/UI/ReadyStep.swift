@@ -20,8 +20,8 @@ struct ReadyStep: View {
                         get: { model.supervisionMethod },
                         set: { model.selectSupervisionMethod($0) }
                     )) {
-                        Text("Full copy and restore").tag(SupervisionMethod.fullCopy)
-                        Text("Fast (experimental)").tag(SupervisionMethod.seed)
+                        Text(methodLabel(.fullCopy)).tag(SupervisionMethod.fullCopy)
+                        Text(methodLabel(.seed)).tag(SupervisionMethod.seed)
                     }
                     // The heading names it on screen. VoiceOver still reads
                     // the picker's own title.
@@ -83,11 +83,13 @@ struct ReadyStep: View {
             .fixedSize(horizontal: false, vertical: true)
     }
 
+    /// A method's name with its tag, for the iPhone this run is about.
+    private func methodLabel(_ method: SupervisionMethod) -> String {
+        SupervisionMethod.label(of: method, iosVersion: model.device?.iosVersion)
+    }
+
     /// What the fast method is, said while it is the one picked.
-    static let fastWarning = """
-        Fast is experimental. It is not tested enough on real iPhones yet. It restores a small \
-        configuration and restarts iPhone.
-        """
+    static let fastWarning = "Fast restores a small configuration and restarts iPhone."
 
     /// What the run is called, which the button says and nothing else does.
     private var verb: String { "Supervise" }

@@ -6,15 +6,41 @@ import Foundation
 /// is a part of the run the tests can run.
 enum SupervisionMethod: Hashable {
     /// The fast way: restore the cloud configuration and Setup Assistant
-    /// completion preferences from a small backup. Experimental: it is not
-    /// proven on real iPhones yet, so it is only ever picked by hand.
+    /// completion preferences from a small backup. The default on iOS 26 and
+    /// older, where it went through on a real iPhone.
     case seed
     /// The full way: copy the whole iPhone, patch the copy, put it back.
-    /// The proven method, and the one every run starts on.
+    /// The default on iOS 27 and later, and wherever the version is unknown.
     case fullCopy
 
-    /// The method a run uses until somebody picks the other one.
-    static let defaultMethod: SupervisionMethod = .fullCopy
+    /// The method a run starts on for an iPhone with this version, until the
+    /// person picks the other one: fast wherever it is offered, the full copy
+    /// everywhere else.
+    static func defaultMethod(iosVersion: String?) -> SupervisionMethod {
+        fastRefusal(iosVersion: iosVersion) == nil ? .seed : .fullCopy
+    }
+
+    /// The method a run is on: the one the person picked by hand while this
+    /// version still offers it, else the default for the version.
+    static func method(pickedByHand: SupervisionMethod?, iosVersion: String?) -> SupervisionMethod {
+        if let pickedByHand, offered(iosVersion: iosVersion).contains(pickedByHand) { return pickedByHand }
+        return defaultMethod(iosVersion: iosVersion)
+    }
+
+    /// The word in brackets after a method's name on the Ready screen, or nil
+    /// for none. Only the fast method carries one: recommended where it is the
+    /// default, experimental everywhere else.
+    static func tag(of method: SupervisionMethod, iosVersion: String?) -> String? {
+        guard method == .seed else { return nil }
+        return defaultMethod(iosVersion: iosVersion) == .seed ? "recommended" : "experimental"
+    }
+
+    /// What the Ready screen calls a method for an iPhone with this version.
+    static func label(of method: SupervisionMethod, iosVersion: String?) -> String {
+        let name = method == .seed ? "Fast" : "Full copy and restore"
+        guard let tag = tag(of: method, iosVersion: iosVersion) else { return name }
+        return "\(name) (\(tag))"
+    }
 
     /// Why an iPhone is not offered the fast method. The full copy is never
     /// refused by version.
@@ -53,7 +79,7 @@ enum SupervisionMethod: Hashable {
     /// The methods an iPhone is offered, the default first. The full copy is
     /// offered on every version, a new or unreadable one included.
     static func offered(iosVersion: String?) -> [SupervisionMethod] {
-        fastRefusal(iosVersion: iosVersion) == nil ? [.fullCopy, .seed] : [.fullCopy]
+        fastRefusal(iosVersion: iosVersion) == nil ? [.seed, .fullCopy] : [.fullCopy]
     }
 
     /// The first number of a version. Every part has to be digits and nothing
