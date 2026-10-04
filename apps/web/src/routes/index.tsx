@@ -14,7 +14,6 @@ import { HowItWorks } from '../components/how-it-works.tsx';
 import { MacDownload } from '../components/mac-download.tsx';
 import { OtherUses } from '../components/other-uses.tsx';
 import { ScreenShots } from '../components/screen-shots.tsx';
-import { Signature } from '../components/signature.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { SupportSection } from '../components/support-section.tsx';
 import { UsesGrid } from '../components/uses-grid.tsx';
@@ -40,6 +39,11 @@ const COLUMN_WIDTH = 760;
  * The face the letter is typed in: Special Elite, a worn typewriter's, which
  * the site serves itself, then a typewriter face the reader's own system has.
  */
+/** The sign-off's lines: the name before its first comma, the place and date after it. */
+function signLines(text: string): Array<string> {
+  const comma = text.indexOf(',');
+  return comma === -1 ? [text] : [text.slice(0, comma).trim(), text.slice(comma + 1).trim()];
+}
 const LETTER_FACE = "'Special Elite', 'Courier New', ui-monospace, monospace";
 /**
  * The first screen side by side: wider than the column, so the words keep a
@@ -509,6 +513,17 @@ const styles = create({
     margin: 0,
     textWrap: 'balance',
   },
+  // A line of the sign-off, on a line of its own.
+  signLine: {
+    display: 'block',
+  },
+  // The sign-off stands at the end of the line, under the letter it closes,
+  // a step clear of its last paragraph. Its lines start under one another.
+  signOff: {
+    alignSelf: 'flex-end',
+    marginBlockStart: spacing.s4,
+    maxWidth: '100%',
+  },
   story: {
     display: 'flex',
     flexDirection: 'column',
@@ -840,7 +855,14 @@ function HomePage() {
                 </a>
                 {storyAfter}
               </p>
-              <Signature style={styles.storyLine} />
+              {/* The sign-off, typed: the name, then the place and date under it. */}
+              <p {...props(styles.storyLine, styles.signOff)}>
+                {signLines(m.home_story_sign()).map((line) => (
+                  <span key={line} {...props(styles.signLine)}>
+                    {line}
+                  </span>
+                ))}
+              </p>
             </div>
           </PaperLetter>
         </section>

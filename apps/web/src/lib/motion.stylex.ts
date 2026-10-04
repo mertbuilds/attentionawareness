@@ -66,13 +66,11 @@ export const scale = defineConsts({
  * above fits them; they are kept together here so they can be slowed or
  * quickened at once. The way out's three steps play over `stepPlug`,
  * `stepChoose` and `stepStays`, one after another, stand finished for
- * `stepRest`, go back to their start over `stepBack` and play again. At the
- * foot of the story the name is signed by hand over `signature`. In the
+ * `stepRest`, go back to their start over `stepBack` and play again. In the
  * uses, a loss's icon moves and the loss is struck through over `loss`.
  */
 export const drawing = defineConsts({
   loss: 2.4,
-  signature: 1.6,
   stepBack: 0.4,
   stepChoose: 3.2,
   stepPlug: 3.4,
