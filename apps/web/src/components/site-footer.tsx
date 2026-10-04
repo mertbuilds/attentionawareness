@@ -96,7 +96,13 @@ const NAME_SHOWN = 0.84;
 const NAME_INK = colors.fg;
 /** Only a browser that paints text with a background lets the letters go clear. */
 const CLIPS_TEXT = '@supports ((background-clip: text) or (-webkit-background-clip: text))';
-const NAME_RUN = `linear-gradient(to bottom, ${colors.fg} 30%, ${accent.base} 85%)`;
+/**
+ * The orange laid over the ink, which is the box's own colour under it. The
+ * gradient itself names no theme colour: WebKit keeps a gradient painted
+ * into text as it was when the theme changes on an open page, while it
+ * repaints a changed background colour.
+ */
+const NAME_RUN = `linear-gradient(to bottom, transparent 30%, ${accent.base} 85%)`;
 /** The room the page shells leave under the footer, which the footer takes back. */
 const PAGE_FOOT = spacing.s16;
 /**
@@ -308,7 +314,14 @@ const styles = create({
   // so WebKit never meets the clip and the rise's moving layer on one element.
   nameInk: {
     backgroundClip: 'text',
-    backgroundImage: NAME_RUN,
+    backgroundColor: {
+      [CLIPS_TEXT]: NAME_INK,
+      default: null,
+    },
+    backgroundImage: {
+      [CLIPS_TEXT]: NAME_RUN,
+      default: null,
+    },
     color: NAME_INK,
     display: 'block',
     height: '100%',
