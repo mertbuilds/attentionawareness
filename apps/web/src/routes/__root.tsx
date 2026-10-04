@@ -5,6 +5,7 @@ import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-r
 import type { ReactNode } from 'react';
 import { NotFound } from '../components/not-found.tsx';
 import { SiteHeader } from '../components/site-header.tsx';
+import { SupportPopup } from '../components/support-popup.tsx';
 import { WipBanner } from '../components/wip-banner.tsx';
 import { clientEnv } from '../lib/env.ts';
 import { m } from '../paraglide/messages.js';
@@ -197,6 +198,7 @@ function RootDocument({ children }: { children: ReactNode }) {
           <WipBanner />
           <SiteHeader />
           {children}
+          <SupportPopup />
         </Providers>
         <Scripts />
       </body>

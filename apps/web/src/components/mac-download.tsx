@@ -4,7 +4,8 @@ import { usePostHog } from '@posthog/react';
 import { create, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import type { ReactNode } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
+import { announceDownload } from '../lib/download-started.ts';
 import { m } from '../paraglide/messages.js';
 
 /**
@@ -33,7 +34,7 @@ type Download =
   | { kind: 'unreleased' }
   | { kind: 'reading' }
   | { kind: 'send' }
-  | { kind: 'file'; start: () => void; url: string };
+  | { kind: 'file'; start: (event: MouseEvent<HTMLElement>) => void; url: string };
 
 const styles = create({
   // The Apple mark on the download button, sized to the label.
@@ -190,7 +191,12 @@ export function useMacDownload(placement: Placement): Download {
   }
   return {
     kind: 'file',
-    start: () => posthog.capture('mac_download_started', { placement }),
+    // The click goes on to the file untouched. The page is only told that it
+    // has started, and by which button.
+    start: (event) => {
+      posthog.capture('mac_download_started', { placement });
+      announceDownload({ button: event.currentTarget, placement });
+    },
     url: release.url,
   };
 }

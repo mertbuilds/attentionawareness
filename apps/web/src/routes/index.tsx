@@ -18,6 +18,7 @@ import { SiteFooter } from '../components/site-footer.tsx';
 import { UsesGrid } from '../components/uses-grid.tsx';
 import { brandBar } from '../lib/brand-bar.stylex.ts';
 import { blur, duration, easing } from '../lib/motion.stylex.ts';
+import { supportUrl } from '../lib/support.ts';
 import { wip } from '../lib/wip.stylex.ts';
 import { m } from '../paraglide/messages.js';
 
@@ -54,8 +55,7 @@ const GUIDE_URL = '/guide';
 const STORE_URL =
   'https://chromewebstore.google.com/detail/attention-awareness/lgcijcijcndmggjiioibfcmppndfakee?utm_source=attentionawareness.com&utm_medium=referral&utm_campaign=home';
 /** The checkout where a reader pays what they want to support the work. */
-const SUPPORT_URL =
-  'https://buy.polar.sh/polar_cl_ftX1jafCvlNQXeQZRhjMjBLd2ChzzBp1LTIY63l0MBh?utm_source=attentionawareness.com&utm_medium=referral&utm_campaign=support';
+const SUPPORT_URL = supportUrl('support');
 /** The post this started from, linked out of the paragraph that tells it. */
 const STORY_URL = 'https://stopa.io/post/297';
 /**
