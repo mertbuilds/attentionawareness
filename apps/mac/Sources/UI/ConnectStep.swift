@@ -47,7 +47,7 @@ struct ConnectStep: View {
         if let device = model.device, device.pairingState == .paired {
             // Which button shows is the only thing that says whether the
             // phone is supervised already, so the card carries no such row.
-            if model.isSupervised == true {
+            if model.offersManageRestrictions {
                 Button("Manage Restrictions") {
                     model.manageRestrictions()
                 }

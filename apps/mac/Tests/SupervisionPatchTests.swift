@@ -134,6 +134,56 @@ final class SupervisionPatchTests {
         #expect(plan.newBytes == data)
     }
 
+    /// The debug run that takes supervision off writes false, drops a
+    /// supervising identity and checks for false afterwards. `<false/>` is
+    /// longer than `<true/>`, so the file can change size either way.
+    @Test func unsupervisingWritesFalseAndDropsTheIdentity() throws {
+        var content = BackupFixture.baseContent
+        content["IsSupervised"] = true
+        content["CloudConfigurationUIComplete"] = true
+        content["OrganizationMagic"] = "magic"
+        content["SupervisorHostCertificates"] = [Data([1, 2, 3])]
+        let directory = try BackupFixture.makeBackup(in: root, content: content)
+        let backup = try BackupFolder.load(at: directory)
+
+        let plan = try SupervisionPatch.plan(backup: backup, supervised: false)
+        #expect(plan.changes == [
+            "IsSupervised: true -> false",
+            "OrganizationMagic: present -> missing",
+            "SupervisorHostCertificates: present -> missing",
+        ])
+
+        let patch = SupervisionPatch(backup: backup)
+        try patch.apply(plan)
+        let size = try patch.verify(supervised: false)
+        #expect(try MBFileBlob.readSize(try #require(try backup.supervisionRow()).blob) == size)
+        #expect(try backup.supervisionState() == false)
+        let patched = try PropertyListSerialization.propertyList(
+            from: try backup.readContent(),
+            options: [],
+            format: nil
+        ) as? [String: Any]
+        #expect(patched?["OrganizationMagic"] == nil)
+        #expect(patched?["SupervisorHostCertificates"] == nil)
+        #expect(SupervisionPatch.boolean(patched?["CloudConfigurationUIComplete"]) == true)
+        #expect(throws: PatchError.self) { try patch.verify() }
+    }
+
+    @Test func supervisingKeepsAnIdentityTheBackupAlreadyHas() throws {
+        var content = BackupFixture.baseContent
+        content["OrganizationMagic"] = "magic"
+        let data = try PropertyListSerialization.data(fromPropertyList: content, format: .xml, options: 0)
+
+        let plan = try SupervisionPatch.plan(original: data, recordedSize: data.count)
+        #expect(plan.changes == ["IsSupervised: false -> true", "CloudConfigurationUIComplete: false -> true"])
+        let patched = try PropertyListSerialization.propertyList(
+            from: plan.newBytes,
+            options: [],
+            format: nil
+        ) as? [String: Any]
+        #expect(patched?["OrganizationMagic"] as? String == "magic")
+    }
+
     // A file that changes size, so the recorded size is written again
 
     @Test func aBinaryPatchUpdatesTheRecordedSize() throws {

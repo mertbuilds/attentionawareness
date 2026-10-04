@@ -67,6 +67,13 @@ A Debug build takes `--debug-forget-pairing`: it gives the Mac's own pair
 record for the iPhone on the cable a HostID the iPhone does not know, which
 is the state the restore leaves, then opens the window. It touches nothing on
 the iPhone, and a replug lets macOS pair again.
+
+A Debug build also takes `--debug-unsupervise`, for running the supervise
+flow many times on one iPhone without erasing it. The run is the usual one,
+with either method, but the flag it writes takes supervision off, so it
+starts on a supervised iPhone, ends once the iPhone says it is not
+supervised, skips the Restrictions step and sends no count. The window says
+so over every step. The next launch without the flag supervises again.
 After 5 minutes for the fast method and 15 for the full copy the screen
 becomes "iPhone Didn't Reconnect" with Check Again, and the reading goes on
 underneath. Check Again reads the iPhone and nothing else: it sends no

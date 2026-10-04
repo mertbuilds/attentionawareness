@@ -100,6 +100,16 @@ struct JobFailure: Equatable {
         }
     }
 
+    /// A run that takes supervision off, which only the debug
+    /// `--debug-unsupervise` flag starts, where iPhone still says it is
+    /// supervised after the restart.
+    static let stillSupervised = JobFailure(
+        title: "iPhone Is Still Supervised",
+        fix: "Check Settings on iPhone. Try Again sends the change again.",
+        raw: "",
+        retry: .restore
+    )
+
     /// The one thing to do about a cable that let go, which is what nearly
     /// every transfer failure comes down to.
     private static let reconnect = "Reconnect iPhone, then try again."
