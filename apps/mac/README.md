@@ -231,7 +231,7 @@ thing that makes the app trust a certificate the system does not know, for that
 one host:
 
 ```sh
-AA_SITE_URL=https://attentionawareness.localhost \
+AA_SITE_URL=https://aa.localhost \
   "build/Build/Products/Debug/attention awareness.app/Contents/MacOS/attention awareness" \
   --sign-profile /tmp/aa.mobileconfig
 ```

@@ -69,7 +69,7 @@ pnpm install
 pnpm dev   # mprocs: web + storybook
 ```
 
-`pnpm dev` serves the app on https://attentionawareness.localhost through
+`pnpm dev` serves the app on https://aa.localhost through
 [portless](https://portless.sh). The proxy is a one-time setup:
 `sudo pnpm exec portless proxy start --https`.
 

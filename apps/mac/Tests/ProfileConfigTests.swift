@@ -101,9 +101,9 @@ struct ProfileConfigTests {
         #expect(ProfileSigner(environment: [:]).trustsSelfSignedCertificate == false)
 
         let dev = ProfileSigner(environment: [
-            ProfileSigner.siteVariable: "https://attentionawareness.localhost",
+            ProfileSigner.siteVariable: "https://aa.localhost",
         ])
-        #expect(dev.site.absoluteString == "https://attentionawareness.localhost")
+        #expect(dev.site.absoluteString == "https://aa.localhost")
         #expect(dev.trustsSelfSignedCertificate)
     }
 }
