@@ -1,9 +1,16 @@
-import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { usePostHog } from '@posthog/react';
-import { create, props } from '@stylexjs/stylex';
+import { props } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
-import { BlogPage } from '../components/blog-page.tsx';
 import { OpenNumbers } from '../components/open-numbers.tsx';
+import {
+  Callout,
+  PageColumn,
+  PageFoot,
+  PageHeader,
+  PageRoot,
+  Prose,
+  page,
+} from '../components/page.tsx';
 import { m } from '../paraglide/messages.js';
 
 export const Route = createFileRoute('/open')({
@@ -32,44 +39,6 @@ const SPONSOR_EMAIL = 'hi@attentionawareness.com';
 /** Where the link stands in the sentence, as the footer does it. */
 const LINK_SLOT = '\u0000';
 
-const styles = create({
-  body: {
-    color: colors.muted,
-    lineHeight: 1.5,
-    margin: 0,
-    textWrap: 'pretty',
-  },
-  lead: {
-    color: colors.muted,
-    fontSize: 18,
-    lineHeight: 1.5,
-    margin: 0,
-    textWrap: 'pretty',
-  },
-  list: {
-    color: colors.muted,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s2,
-    lineHeight: 1.5,
-    margin: 0,
-    paddingInlineStart: spacing.s6,
-  },
-  section: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s3,
-  },
-  sectionTitle: {
-    fontSize: font.sizeLg,
-    fontWeight: font.weightRegular,
-    letterSpacing: '-0.01em',
-    lineHeight: 1.2,
-    margin: 0,
-    textWrap: 'balance',
-  },
-});
-
 function Open() {
   const posthog = usePostHog();
   const answer = Route.useLoaderData();
@@ -77,39 +46,51 @@ function Open() {
   const [sponsorBefore, sponsorAfter] = m.open_sponsor_body({ write: LINK_SLOT }).split(LINK_SLOT);
 
   return (
-    <BlogPage below={<p {...props(styles.lead)}>{m.open_lead()}</p>} heading={m.open_title()}>
-      <section {...props(styles.section)}>
-        <h2 {...props(styles.sectionTitle)}>{m.open_numbers_title()}</h2>
-        <p {...props(styles.body)}>{m.open_numbers_body()}</p>
-        <OpenNumbers answer={answer} />
-      </section>
+    <PageRoot>
+      <PageHeader eyebrow={m.page_eyebrow_open()} title={m.open_title()} wide>
+        <p {...props(page.flush)}>{m.open_lead()}</p>
+      </PageHeader>
 
-      <section {...props(styles.section)}>
-        <h2 {...props(styles.sectionTitle)}>{m.open_track_title()}</h2>
-        <ul {...props(styles.list)}>
-          <li>{m.open_track_posthog()}</li>
-          <li>{m.open_track_cookie()}</li>
-          <li>{m.open_track_builder()}</li>
-          <li>{m.open_track_openpanel()}</li>
-          <li>{m.open_track_iphone()}</li>
-          <li>{m.open_track_mac()}</li>
-          <li>{m.open_track_mac_updates()}</li>
-        </ul>
-      </section>
+      <PageColumn width="wide">
+        <section {...props(page.section)}>
+          <h2 {...props(page.sectionTitle)}>{m.open_numbers_title()}</h2>
+          <p {...props(page.text)}>{m.open_numbers_body()}</p>
+          <OpenNumbers answer={answer} />
+        </section>
 
-      <section {...props(styles.section)}>
-        <h2 {...props(styles.sectionTitle)}>{m.open_sponsor_title()}</h2>
-        <p {...props(styles.body)}>
-          {sponsorBefore}
-          <a
-            href={mailto}
-            onClick={() => posthog.capture('sponsor_clicked', { placement: 'open' })}
-          >
-            {m.open_sponsor_link()}
-          </a>
-          {sponsorAfter}
-        </p>
-      </section>
-    </BlogPage>
+        <section {...props(page.section)}>
+          <h2 {...props(page.sectionTitle)}>{m.open_track_title()}</h2>
+          <Prose>
+            <ul>
+              <li>{m.open_track_posthog()}</li>
+              <li>{m.open_track_cookie()}</li>
+              <li>{m.open_track_builder()}</li>
+              <li>{m.open_track_openpanel()}</li>
+              <li>{m.open_track_iphone()}</li>
+              <li>{m.open_track_mac()}</li>
+              <li>{m.open_track_mac_updates()}</li>
+            </ul>
+          </Prose>
+        </section>
+
+        <Callout as="section">
+          <h2 {...props(page.sectionTitle)}>{m.open_sponsor_title()}</h2>
+          <Prose>
+            <p>
+              {sponsorBefore}
+              <a
+                href={mailto}
+                onClick={() => posthog.capture('sponsor_clicked', { placement: 'open' })}
+              >
+                {m.open_sponsor_link()}
+              </a>
+              {sponsorAfter}
+            </p>
+          </Prose>
+        </Callout>
+
+        <PageFoot />
+      </PageColumn>
+    </PageRoot>
   );
 }

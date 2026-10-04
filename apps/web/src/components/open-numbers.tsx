@@ -1,3 +1,4 @@
+import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { usePostHog } from '@posthog/react';
 import { create, keyframes, props } from '@stylexjs/stylex';
@@ -8,6 +9,7 @@ import { distance, duration, easing } from '../lib/motion.stylex.ts';
 import { DASHBOARD_URL, DIRECT } from '../lib/open-numbers.ts';
 import type { OpenDay, OpenNumbersAnswer, OpenRow } from '../lib/open-numbers.ts';
 import { m } from '../paraglide/messages.js';
+import { card } from './page.tsx';
 
 const NUMBER = new Intl.NumberFormat('en-US');
 /** A day as the reader says it, in the UTC the days are counted in. */
@@ -29,7 +31,7 @@ const rise = keyframes({
 
 const styles = create({
   bar: {
-    backgroundColor: colors.fg,
+    backgroundColor: accent.base,
     borderRadius: radius.base,
     display: 'block',
     height: '100%',
@@ -44,13 +46,13 @@ const styles = create({
     animationTimingFunction: easing.smoothOut,
     display: 'flex',
     flexDirection: 'column',
-    gap: spacing.s8,
-    marginBlockStart: spacing.s3,
+    gap: spacing.s4,
+    marginBlockStart: spacing.s2,
   },
   chart: {
     display: 'flex',
     flexDirection: 'column',
-    gap: spacing.s2,
+    gap: spacing.s3,
   },
   chartEnds: {
     display: 'flex',
@@ -84,7 +86,7 @@ const styles = create({
     stroke: colors.muted,
   },
   lineVisitors: {
-    stroke: colors.fg,
+    stroke: accent.base,
   },
   list: {
     display: 'flex',
@@ -176,16 +178,18 @@ const styles = create({
     fontSize: font.sizeSm,
   },
   stats: {
-    columnGap: spacing.s4,
+    columnGap: spacing.s3,
     display: 'grid',
     gridTemplateColumns: {
       '@media (min-width: 640px)': 'repeat(3, minmax(0, 1fr))',
       default: 'repeat(2, minmax(0, 1fr))',
     },
     margin: 0,
-    rowGap: spacing.s6,
+    rowGap: spacing.s3,
   },
+  // The numbers are what the page is for, so they carry the orange.
   statValue: {
+    color: accent.base,
     fontSize: 32,
     fontVariantNumeric: 'tabular-nums',
     fontWeight: font.weightRegular,
@@ -197,7 +201,7 @@ const styles = create({
     backgroundColor: colors.muted,
   },
   swatchVisitors: {
-    backgroundColor: colors.fg,
+    backgroundColor: accent.base,
   },
   track: {
     backgroundColor: colors.border,
@@ -279,7 +283,7 @@ function Chart({ days }: { days: ReadonlyArray<OpenDay> }) {
   };
 
   return (
-    <div {...props(styles.chart)}>
+    <div {...props(card, styles.chart)}>
       <div {...props(styles.chartHead)}>
         <p aria-hidden="true" {...props(styles.quiet)}>
           {readout}
@@ -452,7 +456,7 @@ export function OpenNumbers({ answer }: { answer: OpenNumbersAnswer }) {
     <div {...props(styles.block)}>
       <dl {...props(styles.stats)}>
         {stats.map((stat) => (
-          <div key={stat.label} {...props(styles.stat)}>
+          <div key={stat.label} {...props(card, styles.stat)}>
             <dt {...props(styles.statLabel)}>{stat.label}</dt>
             <dd {...props(styles.statValue)}>{NUMBER.format(stat.value)}</dd>
           </div>
@@ -461,7 +465,7 @@ export function OpenNumbers({ answer }: { answer: OpenNumbersAnswer }) {
 
       <Chart days={numbers.days} />
 
-      <div {...props(styles.lists)}>
+      <div {...props(card, styles.lists)}>
         <List
           empty={m.open_list_empty()}
           rows={numbers.referrers}
