@@ -10,7 +10,7 @@ The Mac app was sold: one key for one supervision, bought on Polar and checked b
 
 - The Mac app, the manual guide and the browser extension are free. The Mac app drops its key step in the release that goes out with this. The site does not say free before that release is out.
 - Support is a pay-what-you-want checkout on Polar. The site only links to it: from the support section, the footer and the popup after a download. `src/lib/support.ts` builds the link, and its utm campaign names the place. The site has no billing code, no webhook, no account and no key.
-- The popup after a download opens every time a download starts on a computer, and keeps no state.
+- The popup after a download opens every time a download starts on a computer, and keeps no state. It opens in the same press and offers two ways to support: the checkout, and sharing the site's address.
 - The footer shows how many stars the repo has. The reader's browser asks GitHub's public API for it, with no token, and only once the footer is close to the window. A count GitHub gave is kept for the tab's session. A failed answer is not kept. The Worker takes no part in it.
 
 ## Consequences

@@ -3,20 +3,19 @@ import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { usePostHog } from '@posthog/react';
 import { create, keyframes, props } from '@stylexjs/stylex';
 import { useEffect, useRef, useState } from 'react';
-import { Heart } from 'reicon-react';
+import { Heart, Share } from 'reicon-react';
 import { onDownloadStarted } from '../lib/download-started.ts';
 import { blur, distance, duration, easing, scale } from '../lib/motion.stylex.ts';
 import { supportUrl } from '../lib/support.ts';
 import { m } from '../paraglide/messages.js';
 
-/**
- * How long after the click the popup waits, in milliseconds: the browser shows
- * its own sign of the download first, so the popup never looks like it stands
- * between the reader and the file.
- */
-const OPEN_DELAY = 800;
+/** The site's address as a shared link carries it, so a visit from one is traced to the popup. */
+const SHARE_URL =
+  'https://attentionawareness.com/?utm_source=share&utm_medium=popup&utm_campaign=download';
+/** How long the share button says the link was copied, in milliseconds. */
+const COPIED_MS = 2000;
+/** An icon on a button, as tall as the button's letters are set. */
 const SUPPORT_URL = supportUrl('download-popup');
-/** The heart on the support button, as tall as the button's letters are set. */
 const HEART_SIZE = 14;
 
 /** The heart's one beat: past its size and back. */
@@ -27,10 +26,18 @@ const beat = keyframes({
 });
 
 const styles = create({
+  // The two ways to support, side by side. In a narrow window they stand one
+  // under the other, each as wide as the panel.
   actions: {
-    alignItems: 'center',
+    alignItems: {
+      '@media (max-width: 479px)': 'stretch',
+      default: 'center',
+    },
     display: 'flex',
-    flexWrap: 'wrap',
+    flexDirection: {
+      '@media (max-width: 479px)': 'column',
+      default: 'row',
+    },
     gap: spacing.s2,
     marginBlockStart: spacing.s2,
   },
@@ -155,13 +162,18 @@ const styles = create({
 });
 
 /**
- * The thank-you after a download has started, with the way to support the
- * work. One of it stands on every page, and any download button on a computer
- * opens it, a moment after its file has started, so the file is never held up.
- * It opens after every download, and nothing is kept of it: a download that
- * starts while it is open, or about to open, leaves it as it is. Escape, a
- * press outside it, its close button and "Maybe later" all close it, and
- * focus goes back to the button that started the download.
+ * The thank-you after a download has started, with two ways to support the
+ * work: the checkout, and sharing the site. One of it stands on every page,
+ * and any download button on a computer opens it in the same press. The
+ * button is a link to the file and the press goes on to it untouched, so the
+ * popup never stands between the reader and the file. It opens after every
+ * download, and nothing is kept of it: a download that starts while it is open
+ * leaves it as it is. Escape, a press outside it and its close button close
+ * it, and focus goes back to the button that started the download.
+ *
+ * Share hands the site's address to the system's share sheet where the
+ * browser has one. Where it has none the address goes to the clipboard, and
+ * the button says so for a moment, aloud too.
  */
 export function SupportPopup() {
   const posthog = usePostHog();
@@ -171,32 +183,61 @@ export function SupportPopup() {
   const placement = useRef('');
   // Whether the popup is open, for the listener, which outlives a render.
   const shown = useRef(false);
+  const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    let timer: number | undefined;
-    const stop = onDownloadStarted((download) => {
-      // One popup at a time: open, or about to open, it stays as it is.
-      if (shown.current || timer !== undefined) {
-        return;
-      }
-      button.current = download.button;
-      placement.current = download.placement;
-      timer = window.setTimeout(() => {
-        timer = undefined;
+  useEffect(
+    () =>
+      onDownloadStarted((download) => {
+        // One popup at a time: open, it stays as it is.
+        if (shown.current) {
+          return;
+        }
+        button.current = download.button;
+        placement.current = download.placement;
         shown.current = true;
         setOpen(true);
         posthog.capture('support_popup_shown', { placement: download.placement });
-      }, OPEN_DELAY);
-    });
-    return () => {
-      stop();
-      window.clearTimeout(timer);
-    };
-  }, [posthog]);
+      }),
+    [posthog],
+  );
+
+  // The button goes back to its own word a moment after the link was copied.
+  useEffect(() => {
+    if (!copied) {
+      return;
+    }
+    const timer = window.setTimeout(() => setCopied(false), COPIED_MS);
+    return () => window.clearTimeout(timer);
+  }, [copied]);
 
   function close() {
     shown.current = false;
     setOpen(false);
+  }
+
+  async function share() {
+    // Not every browser on a computer has a share sheet.
+    const sheet: typeof navigator.share | undefined = navigator.share;
+    if (sheet !== undefined) {
+      posthog.capture('support_popup_share_clicked', { method: 'native' });
+      try {
+        await navigator.share({
+          text: m.support_popup_share_text(),
+          title: m.site_name(),
+          url: SHARE_URL,
+        });
+      } catch {
+        // The sheet was closed. Nothing to say.
+      }
+      return;
+    }
+    posthog.capture('support_popup_share_clicked', { method: 'copy' });
+    try {
+      await navigator.clipboard.writeText(SHARE_URL);
+      setCopied(true);
+    } catch {
+      // The clipboard refused. The button keeps offering it.
+    }
   }
 
   return (
@@ -235,7 +276,12 @@ export function SupportPopup() {
             </span>
             {m.home_support_cta()}
           </Button>
-          <DialogClose render={<Button variant="ghost">{m.support_popup_later()}</Button>} />
+          <Button onClick={() => void share()} variant="outline">
+            <Share aria-hidden="true" size={HEART_SIZE} />
+            <span aria-live="polite">
+              {copied ? m.mac_download_copied() : m.support_popup_share()}
+            </span>
+          </Button>
         </div>
         <DialogClose aria-label={m.sheet_close()} {...props(styles.close)}>
           ×
