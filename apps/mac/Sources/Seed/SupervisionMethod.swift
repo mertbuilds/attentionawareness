@@ -59,7 +59,7 @@ enum SupervisionMethod: Hashable {
     /// The first number of a version. Every part has to be digits and nothing
     /// else, and no iPhone runs a version 0, so anything short of that is no
     /// version at all.
-    private static func majorVersion(of version: String?) -> Int? {
+    static func majorVersion(of version: String?) -> Int? {
         guard let version else { return nil }
         let parts = version.split(separator: ".", omittingEmptySubsequences: false)
         guard parts.allSatisfy({ part in !part.isEmpty && part.allSatisfy { $0.isASCII && $0.isNumber } }),

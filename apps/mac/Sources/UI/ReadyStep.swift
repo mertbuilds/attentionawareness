@@ -45,6 +45,10 @@ struct ReadyStep: View {
                     : Self.fastWarning)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                Text(SupervisionFinishedEvent.disclosure)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         } actions: {
             PrimaryButton(title: verb, enabled: model.checksPass) {

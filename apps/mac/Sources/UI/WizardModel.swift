@@ -14,7 +14,8 @@ import Foundation
 ///
 /// Nothing is written anywhere but the backup folder and the two numbers
 /// `TransferRate` keeps, which are a measurement of how fast this Mac moves
-/// bytes over the cable. No history, no analytics. The backup folder is
+/// bytes over the cable. No history, and one anonymous count sent when a
+/// supervision finishes (`SupervisionFinishedEvent`). The backup folder is
 /// written for one run and taken away at the end of it, so a run that goes
 /// through leaves nothing of the iPhone on this Mac.
 @MainActor
@@ -152,10 +153,20 @@ class WizardModel: ObservableObject {
     private var run = 0
     private var jobGeneration = 0
     private var seedOperationRun: Int?
+    /// What sends the anonymous count. Nil sends nothing, which is every
+    /// model but the window's own: the demo, the smoke and the tests.
+    let finishedEvent: ((SupervisionFinishedEvent) -> Void)?
+    /// True once this run has sent its count, so one run sends one.
+    private var finishedEventSent = false
 
     /// A model that watches the real USB bus, which is what the window uses.
+    /// It is the only one that sends the anonymous count.
     convenience init() {
-        self.init(watcher: DeviceWatcher())
+        self.init(
+            watcher: DeviceWatcher(),
+            engine: BackupEngine(),
+            finishedEvent: SupervisionEventSender.send
+        )
     }
 
     /// A model that runs an engine of its own, which is every model but the
@@ -174,11 +185,13 @@ class WizardModel: ObservableObject {
     init(
         watcher: DeviceWatcher,
         engine: BackupEngine,
-        seedEngine: SeedEngine? = nil
+        seedEngine: SeedEngine? = nil,
+        finishedEvent: ((SupervisionFinishedEvent) -> Void)? = nil
     ) {
         self.watcher = watcher
         self.engine = engine
         self.seedEngine = seedEngine ?? SeedEngine(backupEngine: engine)
+        self.finishedEvent = finishedEvent
         relays = [
             watcher.objectWillChange.sink { [weak self] in self?.objectWillChange.send() },
             engine.objectWillChange.sink { [weak self] in self?.objectWillChange.send() },
@@ -402,6 +415,7 @@ class WizardModel: ObservableObject {
         supervisionMethod = .defaultMethod
         backupConfirmed = false
         jobMethod = nil
+        finishedEventSent = false
         clearLeftoverBackup(of: device.udid)
         go(to: .ready)
     }
@@ -462,10 +476,31 @@ class WizardModel: ObservableObject {
         go(to: .connect)
     }
 
-    /// Move on to whatever comes after the step on screen.
+    /// Move on to whatever comes after the step on screen. Moving on from the
+    /// job is the person pressing It's Supervised, which is the moment the
+    /// supervision finished and the one moment the anonymous count is sent.
     func advance() {
         guard let next = step.next else { return }
+        if step == .job, let job, WizardGate.confirmsSupervision(job) {
+            sendFinishedEvent()
+        }
         go(to: next)
+    }
+
+    /// Send the anonymous count for this run, once. A failure to send is
+    /// never heard of here, so it cannot hold the wizard up.
+    private func sendFinishedEvent() {
+        guard let finishedEvent, !finishedEventSent else { return }
+        finishedEventSent = true
+        finishedEvent(
+            SupervisionFinishedEvent(
+                appVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+                    ?? "unknown",
+                method: activeMethod,
+                iosVersion: device?.iosVersion,
+                macosMajor: ProcessInfo.processInfo.operatingSystemVersion.majorVersion
+            )
+        )
     }
 
     /// Forget this run and ask for a phone again. It is what Done does, and
@@ -485,6 +520,7 @@ class WizardModel: ObservableObject {
         backupConfirmed = false
         jobMethod = nil
         seedOperationRun = nil
+        finishedEventSent = false
         backupFolder = nil
         restoreBytes = nil
         finderBackup = .notLooked

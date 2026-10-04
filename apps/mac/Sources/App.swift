@@ -132,7 +132,7 @@ struct AttentionAwarenessApp: App {
 }
 
 /// What the About window says under the version: the license, that there is
-/// no warranty, and where the source code is.
+/// no warranty, the one count the app sends, and where the source code is.
 private enum AboutNotice {
     static let text = "Free software under the GNU Affero General Public License, version 3. "
         + "It comes with no warranty. The license texts are inside the app, in Contents/Resources."
@@ -146,7 +146,10 @@ private enum AboutNotice {
             .foregroundColor: NSColor.labelColor,
             .paragraphStyle: paragraph,
         ]
-        let credits = NSMutableAttributedString(string: text, attributes: attributes)
+        let credits = NSMutableAttributedString(
+            string: text + "\n\n" + SupervisionFinishedEvent.disclosure,
+            attributes: attributes
+        )
         if let url = SiteLink.source {
             var link = attributes
             link[.link] = url

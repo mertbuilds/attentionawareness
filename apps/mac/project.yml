@@ -163,6 +163,9 @@ targets:
       # Seed writer and device integration, tested with injected operations.
       # No test opens or changes a real iPhone.
       - Sources/Seed
+      # The one anonymous count: what is in it and the request that carries
+      # it. No test sends one.
+      - Sources/Event
       # The step order, what each step demands before it runs and what the
       # phone has to say about the profile before the backup can go are the
       # parts of the window that need neither SwiftUI nor an iPhone, so they
@@ -197,6 +200,10 @@ targets:
       # timeline a demo transfer runs to is tested with the rest.
       - Sources/Demo/DemoScript.swift
       - Sources/Demo/DemoConditions.swift
+      # The demo's wizard and the world it reads, so a test can see that it
+      # is built with nothing to send the anonymous count.
+      - Sources/Demo/DemoModel.swift
+      - Sources/Demo/DemoWorld.swift
       # The cost story the job screen plays is values under its drawings: the
       # site's figures, the slides in order and the clock they play to, and
       # the run the weekends make past their line.
