@@ -73,6 +73,10 @@ const styles = create({
     display: 'block',
     flexShrink: 0,
   },
+  // The way to the post, at the foot of its card, level with its neighbour's.
+  more: {
+    marginBlockStart: 'auto',
+  },
   rise: {
     animationDuration: duration.verySlow,
     animationFillMode: 'backwards',
@@ -87,13 +91,31 @@ const styles = create({
   },
 });
 
-/** One thing the same setup blocks: its icon, its name and what it means. */
-type Use = { body: () => string; Icon: IconComponent; title: () => string };
+/**
+ * One thing the same setup blocks: its icon, its name and what it means, and
+ * the blog post that shows how, by its slug, where there is one.
+ */
+type Use = { body: () => string; Icon: IconComponent; post?: string; title: () => string };
 
 const USES: ReadonlyArray<Use> = [
-  { body: m.home_other_adult_body, Icon: EyeSlash, title: m.home_other_adult_title },
-  { body: m.home_other_any_body, Icon: Grid, title: m.home_other_any_title },
-  { body: m.home_other_kids_body, Icon: Users, title: m.home_other_kids_title },
+  {
+    body: m.home_other_adult_body,
+    Icon: EyeSlash,
+    post: 'block-adult-websites-iphone',
+    title: m.home_other_adult_title,
+  },
+  {
+    body: m.home_other_any_body,
+    Icon: Grid,
+    post: 'block-any-app-iphone',
+    title: m.home_other_any_title,
+  },
+  {
+    body: m.home_other_kids_body,
+    Icon: Users,
+    post: 'iphone-parental-controls-kids-cannot-turn-off',
+    title: m.home_other_kids_title,
+  },
   { body: m.home_other_work_body, Icon: Briefcase, title: m.home_other_work_title },
 ];
 
@@ -131,6 +153,16 @@ function UseCard({ place, use }: { place: number; use: Use }) {
       <Icon aria-hidden="true" size={ICON} {...props(styles.icon)} />
       <h3 {...props(styles.title)}>{use.title()}</h3>
       <p {...props(styles.body)}>{use.body()}</p>
+      {use.post !== undefined && (
+        <p {...props(styles.body, styles.more)}>
+          <a
+            aria-label={m.home_other_read_how_label({ title: use.title() })}
+            href={`/blog/${use.post}`}
+          >
+            {m.home_other_read_how()}
+          </a>
+        </p>
+      )}
     </li>
   );
 }
@@ -138,7 +170,7 @@ function UseCard({ place, use }: { place: number; use: Use }) {
 /**
  * What else the same setup blocks, past the feeds: Apple's adult website
  * filter, any app or website, a child's iPhone and a work iPhone, each a
- * quiet card.
+ * quiet card, with a link to the post that shows how where one is written.
  */
 export function OtherUses() {
   return (

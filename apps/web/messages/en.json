@@ -46,6 +46,8 @@
   "home_other_kids_body": "Parents can block what they choose on a child's iPhone. The child cannot remove it.",
   "home_other_work_title": "Work iPhones",
   "home_other_work_body": "A company can block adult websites and distracting apps, so the phone is for work.",
+  "home_other_read_how": "Read how",
+  "home_other_read_how_label": "Read how: {title}",
   "home_social_title": "I'm not against social media",
   "home_social_body": "X and LinkedIn gave me real opportunities. Used on purpose, they're great. After a while, the feed starts to take more than it gives.",
   "home_social_computer": "On the computer, {extension} keeps your accounts and removes the feeds. It's free and open source.",
