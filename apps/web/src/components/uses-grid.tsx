@@ -709,27 +709,6 @@ function riseStyle({ hidden, wait }: Rise) {
   return hidden ? styles.tileHidden : wait === null ? null : [styles.tileRise, styles.after(wait)];
 }
 
-/**
- * Plays a gain's drawing again from the top of its turn. Every part is put
- * back to where the first turn started, `first` milliseconds in, so each
- * keeps its own place in the turn. The tile's own rise is left alone, and so
- * are the parts marked `data-steady`, the lights and the clouds, which only
- * go round and would jump if they were put back.
- */
-function replay(tile: HTMLElement, first: number) {
-  const kept = new Set(tile.getAnimations());
-  for (const steady of tile.querySelectorAll('[data-steady]')) {
-    for (const motion of steady.getAnimations()) {
-      kept.add(motion);
-    }
-  }
-  for (const part of tile.getAnimations({ subtree: true })) {
-    if (!kept.has(part)) {
-      part.currentTime = first;
-    }
-  }
-}
-
 /** Lines of code on the laptop's display, each `[x, y, length]`. */
 const CODE = [
   [38, 28, 46],
@@ -846,7 +825,6 @@ function BookArt({ play }: Playing) {
       <circle
         cx={MOON.x}
         cy={MOON.y}
-        data-steady
         r={11}
         {...props(styles.halo, play && [styles.loop, styles.glow])}
       />
@@ -858,7 +836,6 @@ function BookArt({ play }: Playing) {
       {STARS.map((star) => (
         <path
           d={star.d}
-          data-steady
           key={star.d}
           vectorEffect={HAIRLINE}
           {...props(
@@ -1054,7 +1031,6 @@ function OutsideArt({ play }: Playing) {
       <circle
         cx={SUN.x}
         cy={SUN.y}
-        data-steady
         r={SUN.r + 5}
         {...props(styles.halo, play && [styles.loop, styles.glow])}
       />
@@ -1067,14 +1043,12 @@ function OutsideArt({ play }: Playing) {
       />
       <path
         d={RAYS}
-        data-steady
         vectorEffect={HAIRLINE}
         {...props(styles.line, styles.gold, play && [styles.loop, styles.spin])}
       />
       {CLOUDS.map((cloud) => (
         <path
           d={cloud.d}
-          data-steady
           key={cloud.d}
           vectorEffect={HAIRLINE}
           {...props(
@@ -1250,8 +1224,8 @@ const TILES: ReadonlyArray<Tile> = [
 
 /**
  * Something the phone is for again, its drawing over its words. The drawing
- * plays over and over once `first`, how long its first turn waits, is known,
- * and a mouse coming onto the tile plays it again at once.
+ * plays over and over once `first`, how long its first turn waits, is known.
+ * A pointer on the tile lifts it and leaves the drawing to play on.
  */
 function Gain({
   area,
@@ -1274,11 +1248,6 @@ function Gain({
 }) {
   return (
     <li
-      onPointerEnter={(event) => {
-        if (first !== null && event.pointerType === 'mouse') {
-          replay(event.currentTarget, first);
-        }
-      }}
       {...props(
         styles.tile,
         styles.gain,
