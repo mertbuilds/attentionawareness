@@ -361,24 +361,28 @@ const styles = create({
     letterSpacing: 'normal',
     textAlign: 'center',
   },
-  // One way out: its name, what it is, what it keeps, then its button at the
-  // foot, level with the other card's.
+  // The way out: the app's card, in the orange the page recommends it by.
+  // Its name, what it is and what it keeps, with its button and the line
+  // about backing up beside them at the card's foot on a wide window, and
+  // under them on a narrow one.
   plan: {
-    alignItems: 'flex-start',
-    borderColor: colors.border,
+    alignItems: {
+      '@media (min-width: 768px)': 'end',
+      default: 'start',
+    },
+    backgroundColor: `color-mix(in srgb, ${accent.base} 6%, ${colors.bg})`,
+    borderColor: accent.base,
     borderRadius: radius.base,
     borderStyle: 'solid',
     borderWidth: '1px',
     boxSizing: 'border-box',
-    display: 'flex',
-    flexDirection: 'column',
+    display: 'grid',
     gap: spacing.s6,
+    gridTemplateColumns: {
+      '@media (min-width: 768px)': 'minmax(0, 1fr) auto',
+      default: 'minmax(0, 1fr)',
+    },
     padding: spacing.s6,
-  },
-  // The app is the way the page recommends, so its card carries the orange.
-  planApp: {
-    backgroundColor: `color-mix(in srgb, ${accent.base} 6%, ${colors.bg})`,
-    borderColor: accent.base,
   },
   // The words of a card, held to a short measure where the card runs wide.
   planBody: {
@@ -387,22 +391,13 @@ const styles = create({
     gap: spacing.s4,
     maxWidth: '40ch',
   },
-  // A card's button with a line about backing up under it, at the card's
-  // foot.
+  // The card's button with the line about backing up under it.
   planFoot: {
     alignItems: 'flex-start',
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s3,
-    marginBlockStart: 'auto',
-  },
-  // The line under a card's button. Side by side, each card keeps room for
-  // two lines of it, so the two buttons stand level whichever line is longer.
-  planNote: {
-    minHeight: {
-      '@media (min-width: 640px)': '3em',
-      default: 0,
-    },
+    maxWidth: '32ch',
   },
   // The name, and what it is close under it.
   planHead: {
@@ -413,10 +408,6 @@ const styles = create({
   // The app's price is in its card's orange.
   planPrice: {
     color: accent.base,
-  },
-  // The guide's ticks in the ink, so its card stays quiet.
-  planQuietCheck: {
-    color: colors.fg,
   },
   planSub: {
     color: colors.muted,
@@ -431,16 +422,6 @@ const styles = create({
     letterSpacing: '-0.01em',
     lineHeight: 1.2,
     margin: 0,
-  },
-  // The two ways side by side, as tall as each other, where both fit; the app
-  // first and the guide under it where they do not.
-  plans: {
-    display: 'grid',
-    gap: spacing.s4,
-    gridTemplateColumns: {
-      '@media (min-width: 640px)': 'repeat(2, minmax(0, 1fr))',
-      default: 'minmax(0, 1fr)',
-    },
   },
   // One promise: its tick, then its words, wrapping clear of the tick in even
   // lines.
@@ -620,15 +601,7 @@ function Question({
 }
 
 /** Promises in a list, each after its tick. */
-function Promises({
-  checkStyle,
-  promises,
-  style,
-}: {
-  checkStyle?: StyleXStyles;
-  promises: ReadonlyArray<string>;
-  style?: StyleXStyles;
-}) {
+function Promises({ promises, style }: { promises: ReadonlyArray<string>; style?: StyleXStyles }) {
   return (
     <ul {...props(styles.promises, style)}>
       {promises.map((promise) => (
@@ -637,7 +610,7 @@ function Promises({
             aria-hidden="true"
             size={CHECK_SIZE}
             strokeWidth={CHEVRON_STROKE}
-            {...props(styles.promiseCheck, checkStyle)}
+            {...props(styles.promiseCheck)}
           />
           {promise}
         </li>
@@ -682,13 +655,6 @@ function HomePage() {
     m.home_how_promise_keep(),
     m.home_how_promise_trial(),
     m.home_how_promise_add(),
-  ];
-
-  // What the manual way is, each with its tick.
-  const guidePromises = [
-    m.home_how_guide_steps(),
-    m.home_how_guide_free(),
-    m.home_how_guide_erase(),
   ];
 
   // The word the closing line turns on, in orange wherever a language puts it.
@@ -745,9 +711,8 @@ function HomePage() {
           </p>
         </section>
 
-        {/* How it works: what the Mac app does, in three steps, then the two
-        ways to it, both free: the app, with what it keeps, and the guide that
-        starts the phone over. */}
+        {/* How it works: what the Mac app does, in three steps, then the app
+        itself, free, with what it keeps and its download. */}
         <section {...props(styles.section, styles.anchor)} id={SECTION.wayOut}>
           <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
           <p {...props(styles.sectionBody)}>{m.home_how_lead()}</p>
@@ -755,39 +720,22 @@ function HomePage() {
           <p {...props(styles.sectionBody)}>{m.home_how_backup()}</p>
           {/* Where links from before the two ways were named the download still land. */}
           <span id={OLD_DOWNLOAD_ID} {...props(styles.anchor)} />
-          <div id={SECTION.download} {...props(styles.plans, styles.anchor)}>
-            <div {...props(styles.plan, styles.planApp)}>
-              <div {...props(styles.planBody)}>
-                <div {...props(styles.planHead)}>
-                  <h3 {...props(styles.planTitle, styles.planPrice)}>{m.home_how_app_price()}</h3>
-                  <p {...props(styles.planSub)}>{m.home_how_app_sub()}</p>
-                </div>
-                <Promises promises={promises} />
+          <div id={SECTION.download} {...props(styles.plan, styles.anchor)}>
+            <div {...props(styles.planBody)}>
+              <div {...props(styles.planHead)}>
+                <h3 {...props(styles.planTitle, styles.planPrice)}>{m.home_how_app_price()}</h3>
+                <p {...props(styles.planSub)}>{m.home_how_app_sub()}</p>
               </div>
-              <div {...props(styles.planFoot)}>
-                <MacDownload placement="download" />
-                <p {...props(styles.planSub, styles.planNote)}>
-                  <a href={`#${FAQ_DATA_ID}`} onClick={() => askQuestion(FAQ_DATA_ID)}>
-                    {m.home_how_backup_note_link()}
-                  </a>
-                  {m.home_how_backup_note({ link: LINK_SLOT }).split(LINK_SLOT)[1]}
-                </p>
-              </div>
+              <Promises promises={promises} />
             </div>
-            <div {...props(styles.plan)}>
-              <div {...props(styles.planBody)}>
-                <div {...props(styles.planHead)}>
-                  <h3 {...props(styles.planTitle)}>{m.home_how_guide_title()}</h3>
-                  <p {...props(styles.planSub)}>{m.home_how_guide_sub()}</p>
-                </div>
-                <Promises checkStyle={styles.planQuietCheck} promises={guidePromises} />
-              </div>
-              <div {...props(styles.planFoot)}>
-                <Button render={<a href={GUIDE_URL} />} variant="outline">
-                  {m.home_how_guide_cta()}
-                </Button>
-                <p {...props(styles.planSub, styles.planNote)}>{m.home_how_guide_note()}</p>
-              </div>
+            <div {...props(styles.planFoot)}>
+              <MacDownload placement="download" />
+              <p {...props(styles.planSub)}>
+                <a href={`#${FAQ_DATA_ID}`} onClick={() => askQuestion(FAQ_DATA_ID)}>
+                  {m.home_how_backup_note_link()}
+                </a>
+                {m.home_how_backup_note({ link: LINK_SLOT }).split(LINK_SLOT)[1]}
+              </p>
             </div>
           </div>
         </section>
