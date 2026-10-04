@@ -27,6 +27,13 @@ const HEART_STROKE = 2.25;
 const PILL_INSET = 6;
 const PILL_HEIGHT = 28 + 2 * PILL_INSET;
 /**
+ * In the pill the mark is a circle as far from the pill's end as from its
+ * top and its foot, the same room the download has at the other end, so both
+ * ends are round inside round: the circle's radius is the pill's less that
+ * room.
+ */
+const PILL_MARK = PILL_HEIGHT - 2 * PILL_INSET;
+/**
  * How far down the page the pill takes over, and how far back up the open
  * header returns. The gap between them keeps a page resting near one line
  * from flipping between the two.
@@ -80,8 +87,7 @@ const styles = create({
     height: PILL_HEIGHT,
     justifySelf: 'center',
     paddingBlock: PILL_INSET,
-    paddingInlineEnd: PILL_INSET,
-    paddingInlineStart: spacing.s2,
+    paddingInline: PILL_INSET,
   },
   brand: {
     alignItems: 'center',
@@ -167,9 +173,20 @@ const styles = create({
     display: 'inline-flex',
     gap: spacing.s1,
   },
-  // The mark, as an item of its own, so it can move without the name.
+  // In the pill the way home is the mark alone, so its focus line is round too.
+  brandPill: {
+    borderRadius: '50%',
+  },
+  // The mark, as an item of its own, so it can move without the name. It is
+  // cut to the tile's own corner in the open strip, and to a circle in the
+  // pill. The morph carries it live, from the one shape to the other.
   mark: {
+    borderRadius: '12.5%',
     display: 'flex',
+    overflow: 'hidden',
+  },
+  markRound: {
+    borderRadius: '50%',
   },
   // An item the morph carries, by the name a view transition knows it by.
   morph: (name: string) => ({
@@ -231,7 +248,8 @@ const styles = create({
  * sections, its support link with a heart before it, and the blog in the
  * middle, and the download across from the name. Once the page has run a
  * little way under it, the same items gather into a pill in the middle, the
- * mark alone for the name. A window too narrow for the links has the menu's
+ * mark alone for the name, and round there, as the pill's end and the
+ * download at the other end are. A window too narrow for the links has the menu's
  * button of two lines at the far edge instead, and the links in the menu it
  * opens. The download starts the file at once, as every download on the site
  * does; on a phone or a tablet, which cannot run the app, it sends the link
@@ -241,6 +259,7 @@ export function SiteHeader() {
   const [pill, setPill] = useState(false);
   const bar = useRef<HTMLDivElement>(null);
   const surface = useRef<HTMLSpanElement>(null);
+  const mark = useRef<HTMLSpanElement>(null);
   const home = useLocation({ select: (location) => location.pathname === '/' });
   // On the home page a bare hash scrolls in place; with the path in front the
   // browser would load the page again and drop its query.
@@ -273,6 +292,7 @@ export function SiteHeader() {
       }
       morph({
         gather: next,
+        live: mark.current === null ? [] : [mark.current],
         root,
         surface: ground,
         update: () => flushSync(() => setPill(next)),
@@ -329,9 +349,14 @@ export function SiteHeader() {
           ref={surface}
           {...props(styles.surface, pill && styles.surfacePill)}
         />
-        <a aria-label={m.site_name()} data-plain="" href="/" {...props(styles.brand)}>
-          <span data-morph="header-mark" {...props(styles.mark, styles.morph('header-mark'))}>
-            <BrandMark size={MARK_SIZE} />
+        <a
+          aria-label={m.site_name()}
+          data-plain=""
+          href="/"
+          {...props(styles.brand, pill && styles.brandPill)}
+        >
+          <span ref={mark} {...props(styles.mark, pill && styles.markRound)}>
+            <BrandMark size={pill ? PILL_MARK : MARK_SIZE} />
           </span>
           <span
             data-morph="header-name"

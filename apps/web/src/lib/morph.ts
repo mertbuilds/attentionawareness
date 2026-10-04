@@ -22,6 +22,13 @@ import { prefersLessMotion } from './use-less-motion.ts';
  * The surface is not a snapshot in either case: it stays live, so the page
  * blurs through it the whole way. With less motion, the layout only changes.
  *
+ * An item that changes shape between the two layouts is passed as `live` and
+ * is no snapshot either. A view transition can only fade one picture of an
+ * item into another, and a square fading into a circle reads as a blink, not
+ * as a change of shape. A live item is moved and resized by hand instead, as
+ * the surface is, and its corners go from the old radius to the new one over
+ * the same motion, so it is one shape the whole way.
+ *
  * A view transition eases each step of its own keyframes as well, which on
  * top of the pace hurries the items. Gathering, that brings them in ahead of
  * the surface closing around them. Opening back out it would fling them past
@@ -42,6 +49,8 @@ const WORD_HERE = { filter: 'blur(0)', opacity: 1 };
 const SPREADING = 'morph-spreading';
 
 type Box = { opacity: string; radius: string; rect: DOMRect };
+/** A live item before the change: where it stood and how round its corners were. */
+type Shape = { radius: string; rect: DOMRect };
 /**
  * A marked item before the change: where it stood, its parent, and a copy of
  * it as it was drawn then, to leave in its place if it goes.
@@ -120,6 +129,41 @@ function growSurface(surface: HTMLElement, from: Box, pace: Pace) {
         opacity: style.opacity,
         right: '0px',
         top: '0px',
+      },
+    ],
+    travel(pace, 0),
+  );
+}
+
+/** Where a live item is drawn now and how round, motion included, and its running motion stopped. */
+function shapeOf(element: HTMLElement): Shape {
+  const { borderRadius } = getComputedStyle(element);
+  return { radius: borderRadius, rect: settle(element) };
+}
+
+/**
+ * A live item from its old box and corners to the ones the layout gives it
+ * now. `ahead` is for one carried beside the pictures of a view transition
+ * that run ahead of the surface, under the browser's own ease: it keeps
+ * their pace, under the same ease.
+ */
+function reshape(element: HTMLElement, from: Shape, pace: Pace, ahead: boolean) {
+  const to = element.getBoundingClientRect();
+  if (to.width === 0 || to.height === 0) {
+    return;
+  }
+  element.animate(
+    [
+      {
+        borderRadius: from.radius,
+        easing: ahead ? 'ease' : 'linear',
+        transform: `translate(${from.rect.left - to.left}px, ${from.rect.top - to.top}px) scale(${from.rect.width / to.width}, ${from.rect.height / to.height})`,
+        transformOrigin: '0 0',
+      },
+      {
+        borderRadius: getComputedStyle(element).borderRadius,
+        transform: 'none',
+        transformOrigin: '0 0',
       },
     ],
     travel(pace, 0),
@@ -224,11 +268,14 @@ function retime(order: Array<string>, pace: Pace) {
  */
 export function morph({
   gather,
+  live = [],
   root,
   surface,
   update,
 }: {
   gather: boolean;
+  /** The items that change shape, carried live and not as pictures. */
+  live?: ReadonlyArray<HTMLElement>;
   root: HTMLElement;
   surface: HTMLElement;
   update: () => void;
@@ -239,6 +286,12 @@ export function morph({
   }
   const pace = gather ? GATHER : SPREAD;
   const from = surfaceBox(surface);
+  const shapes = live.map((element) => ({ element, from: shapeOf(element) }));
+  const reshapeLive = (ahead: boolean) => {
+    for (const shape of shapes) {
+      reshape(shape.element, shape.from, pace, ahead);
+    }
+  };
   const standing = marked(root);
   const orderAfter = () => [...new Set([...standing.keys(), ...marked(root).keys()])];
 
@@ -251,7 +304,12 @@ export function morph({
     // `ready` rejects when a newer transition cuts this one short, and then
     // there is nothing left to time or grow.
     transition.ready.then(() => retime(orderAfter(), pace)).catch(() => {});
-    transition.updateCallbackDone.then(() => growSurface(surface, from, pace)).catch(() => {});
+    transition.updateCallbackDone
+      .then(() => {
+        growSurface(surface, from, pace);
+        reshapeLive(pace.ahead);
+      })
+      .catch(() => {});
     return;
   }
 
@@ -267,4 +325,5 @@ export function morph({
   const order = orderAfter();
   slide(root, before, order, pace);
   growSurface(surface, from, pace);
+  reshapeLive(false);
 }
