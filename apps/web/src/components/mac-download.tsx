@@ -6,6 +6,8 @@ import type { StyleXStyles } from '@stylexjs/stylex';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { MouseEvent, ReactNode } from 'react';
 import { announceDownload } from '../lib/download-started.ts';
+import { parseRelease } from '../lib/mac-release.ts';
+import type { Release } from '../lib/mac-release.ts';
 import { SECTION } from '../lib/sections.ts';
 import { m } from '../paraglide/messages.js';
 
@@ -17,11 +19,6 @@ import { m } from '../paraglide/messages.js';
 const LATEST_URL = '/mac/latest.json';
 /** Where the download stands on the home page: the link a phone sends on to a Mac. */
 const DOWNLOAD_PATH = `/#${SECTION.wayOut}`;
-
-/** The field of `latest.json` this component reads. The rest is the updater's. */
-type Release = {
-  url: string;
-};
 
 /** Where on the site a download stands, which its event carries. */
 type Placement = 'blog' | 'closing' | 'download' | 'header' | 'hero';
@@ -35,7 +32,13 @@ type Download =
   | { kind: 'unreleased' }
   | { kind: 'reading' }
   | { kind: 'send' }
-  | { kind: 'file'; start: (event: MouseEvent<HTMLElement>) => void; url: string };
+  | {
+      /** The name the browser saves the file under. */
+      filename: string;
+      kind: 'file';
+      start: (event: MouseEvent<HTMLElement>) => void;
+      url: string;
+    };
 
 const styles = create({
   // The Apple mark on the download button, sized to the label.
@@ -103,8 +106,8 @@ function readLatest(): Promise<Release | null> {
       if (!response.ok) {
         return null;
       }
-      const payload = (await response.json()) as Partial<Release>;
-      return typeof payload.url === 'string' ? { url: payload.url } : null;
+      const payload: unknown = await response.json();
+      return parseRelease(payload);
     } catch {
       // No release yet, or the network refused it. The button stays off.
       return null;
@@ -191,6 +194,7 @@ export function useMacDownload(placement: Placement): Download {
     return { kind: 'reading' };
   }
   return {
+    filename: release.filename,
     kind: 'file',
     // The click goes on to the file untouched. The page is only told that it
     // has started, and by which button.
@@ -279,7 +283,10 @@ export function MacDownload({ placement, style }: { placement: Placement; style?
     action = <Button disabled>{cta}</Button>;
   } else {
     action = (
-      <Button onClick={download.start} render={<a download href={download.url} />}>
+      <Button
+        onClick={download.start}
+        render={<a download={download.filename} href={download.url} />}
+      >
         {cta}
       </Button>
     );

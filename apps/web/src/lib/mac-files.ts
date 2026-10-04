@@ -17,6 +17,14 @@ const DMG_CACHE = 'public, max-age=31536000, immutable';
 /** The feed and `latest.json` change with every release. */
 const FEED_CACHE = 'public, max-age=300';
 
+/**
+ * A dmg's key, `mac/attention-awareness-<version>-<build>.dmg`, or without the
+ * build from before it joined the name. The first group is the name a person
+ * should get on disk, less `.dmg`: the build number is only there to keep
+ * every URL new, and next to the version it reads like a second version.
+ */
+const DMG_KEY = /^mac\/(attention-awareness-\d+(?:\.\d+)*)(?:-\d+)?\.dmg$/u;
+
 type ByteRange = { length: number; offset: number };
 
 /** What R2 hands back. `body` is missing when a precondition failed. */
@@ -43,6 +51,10 @@ function fileHeaders(file: MacFile, key: string): Headers {
   headers.set('accept-ranges', 'bytes');
   headers.set('cache-control', key.endsWith('.dmg') ? DMG_CACHE : FEED_CACHE);
   headers.set('etag', file.httpEtag);
+  const savedName = DMG_KEY.exec(key)?.[1];
+  if (savedName !== undefined) {
+    headers.set('content-disposition', `attachment; filename="${savedName}.dmg"`);
+  }
   return headers;
 }
 
