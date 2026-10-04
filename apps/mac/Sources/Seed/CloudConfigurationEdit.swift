@@ -25,6 +25,8 @@ struct CloudConfigurationEdit {
     ]
     /// Nugget's add_skip_setup list, including the post-restore panes.
     /// https://github.com/leminlimez/Nugget/blob/5d6a0e561034727cbad6b8080001cc8f4b763c4b/src/devicemanagement/device_manager.py#L348-L430
+    /// The file is the same, byte for byte, at commit 26e0c50e, which
+    /// THIRD_PARTY_NOTICES.md names for the rest.
     static let setupPanes = [
         "Location",
         "Restore",

@@ -20,6 +20,13 @@ of those parts from TrollRestore.
 | Nugget       | leminlimez               | AGPL-3.0 | <https://github.com/leminlimez/Nugget> (read at commit `26e0c50ec114ca3a4ff6ab2fb4ae309abfd39fa1`)              |
 | TrollRestore | James Gill (JJTech0130)  | MIT      | <https://github.com/JJTech0130/TrollRestore> (read at commit `082f2520556b9aa8e2b8d6661b81a954ee35966b`)        |
 
+Two Nugget commits are named. The table has `26e0c50e` (2026-09-24), and the
+link in `Sources/Seed/CloudConfigurationEdit.swift` has
+`5d6a0e561034727cbad6b8080001cc8f4b763c4b` (2026-09-19). The three Nugget
+files this app takes from, `src/restore/mbdb.py`, `src/restore/backup.py` and
+`src/devicemanagement/device_manager.py`, are the same byte for byte at both
+commits.
+
 What was taken, and where it is:
 
 - `Sources/Seed/Mbdb.swift`: the `Manifest.mbdb` writer is a Swift port of
