@@ -73,8 +73,11 @@ export function watchByWidth(watch: () => () => void): () => void {
  * turns off only once the element has left the window altogether, so nothing
  * stops or starts over while it is still in sight. In a window so tall that
  * the page ends before the element gets that far, it turns on once the page
- * can scroll no further with the element in the window. With `once` it stays
- * on from the first time.
+ * can scroll no further with the element in the window. It also turns on
+ * when the keyboard's focus comes into the element, which a key can do
+ * before the reader has scrolled that far: what waits out of sight for this
+ * never keeps a focused link out of sight. With `once` it stays on from the
+ * first time.
  */
 export function useSeen(
   ref: RefObject<Element | null>,
@@ -123,10 +126,13 @@ export function useSeen(
     };
     window.addEventListener('scroll', atEnd, { passive: true });
     atEnd();
+    const onFocus = () => setSeen(true);
+    element.addEventListener('focusin', onFocus);
     if (once) {
       return () => {
         stopEntering();
         window.removeEventListener('scroll', atEnd);
+        element.removeEventListener('focusin', onFocus);
       };
     }
     const leaving = new IntersectionObserver((entries) => {
@@ -139,6 +145,7 @@ export function useSeen(
       stopEntering();
       leaving.disconnect();
       window.removeEventListener('scroll', atEnd);
+      element.removeEventListener('focusin', onFocus);
     };
   }, [amount, margin, once, ref, ruled]);
 
