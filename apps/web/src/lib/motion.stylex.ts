@@ -51,15 +51,18 @@ export const scale = defineConsts({
  * The page's drawings, in seconds. They tell rather than respond, so no token
  * above fits them; they are kept together here so they can be slowed or
  * quickened at once. The way out's three steps play over `stepPlug`,
- * `stepChoose` and `stepStays`, one after another, and at the foot of the
- * story its signature writes itself over `signature`. In the uses, a loss's
- * icon moves and the loss is struck through over `loss`.
+ * `stepChoose` and `stepStays`, one after another, stand finished for
+ * `stepRest`, go back to their start over `stepBack` and play again. At the
+ * foot of the story its signature writes itself over `signature`. In the
+ * uses, a loss's icon moves and the loss is struck through over `loss`.
  */
 export const drawing = defineConsts({
   loss: 2.4,
   signature: 3,
+  stepBack: 0.4,
   stepChoose: 3.2,
   stepPlug: 3.4,
+  stepRest: 1.8,
   stepStays: 3,
 });
 

@@ -2,6 +2,7 @@ import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { easeInOut } from 'motion/react';
+import type { Ref } from 'react';
 import { drawing } from '../../lib/motion.stylex.ts';
 import { HEIGHT, WIDTH } from './box.ts';
 import { AppGlyph, AppSquare, FEEDS, FeedIcon, type Glyph, ICON } from './phone.tsx';
@@ -137,7 +138,13 @@ function pointerAt(at: number): { x: number; y: number } {
  * are. It plays once each time `play` turns on and stands with nothing ticked
  * while it is off. With less motion it stands ticked.
  */
-export function ChooseGraphic({ play }: { play: boolean }) {
+export function ChooseGraphic({
+  play,
+  ref,
+}: {
+  play: boolean;
+  ref?: Ref<SVGSVGElement> | undefined;
+}) {
   const at = usePlayhead(play, drawing.stepChoose);
   const picks = new Map(
     PICKS.map((row, order) => [row, { feed: FEEDS[order], ...tickAt(at, order) }]),
@@ -145,7 +152,7 @@ export function ChooseGraphic({ play }: { play: boolean }) {
   const pointer = pointerAt(at);
 
   return (
-    <svg aria-hidden="true" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} {...props(styles.graphic)}>
+    <svg aria-hidden="true" ref={ref} viewBox={`0 0 ${WIDTH} ${HEIGHT}`} {...props(styles.graphic)}>
       <rect
         height={WINDOW.height}
         rx={WINDOW.radius}

@@ -9,7 +9,8 @@ function subscribeLessMotion(onChange: () => void): () => void {
   return () => query.removeEventListener('change', onChange);
 }
 
-function prefersLessMotion(): boolean {
+/** Whether the reader asks for less motion right now, read in the browser. */
+export function prefersLessMotion(): boolean {
   return window.matchMedia(LESS_MOTION).matches;
 }
 

@@ -185,10 +185,7 @@ const styles = create({
     borderRadius: 0,
     borderStyle: 'solid',
     borderWidth: 1,
-    boxShadow: {
-      '@media (prefers-color-scheme: dark)': '0 8px 32px rgba(0, 0, 0, 0.5)',
-      default: '0 8px 32px rgba(0, 0, 0, 0.08)',
-    },
+    boxShadow: `0 8px 32px ${colors.shadow}`,
     boxSizing: 'border-box',
     inset: 0,
     opacity: 0,
