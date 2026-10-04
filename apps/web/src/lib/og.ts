@@ -27,8 +27,9 @@ const BLOG_PREFIX = '/blog/';
  * them, shows the home page's.
  */
 export function ogImagePath(path: string, slugs: ReadonlyArray<string>): string {
-  if (Object.hasOwn(OG_PAGES, path)) {
-    return `/og/${OG_PAGES[path as keyof typeof OG_PAGES]}.png`;
+  const page = new Map<string, string>(Object.entries(OG_PAGES)).get(path);
+  if (page !== undefined) {
+    return `/og/${page}.png`;
   }
   const slug = path.startsWith(BLOG_PREFIX) ? path.slice(BLOG_PREFIX.length) : undefined;
   if (slug !== undefined && slugs.includes(slug)) {
