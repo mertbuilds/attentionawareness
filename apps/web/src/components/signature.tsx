@@ -10,7 +10,7 @@ import type { Line } from './signature-glyphs.ts';
 import { stretch, usePlayhead } from './steps/playhead.ts';
 
 /** The name is written as large as type this many pixels tall. */
-const SIZE = 48;
+const SIZE = 29;
 /**
  * The pen lifting between two strokes, as long as it takes to write this
  * many units of line, and moving down from the name to the place line.
