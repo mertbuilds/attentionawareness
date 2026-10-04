@@ -9,6 +9,12 @@ import { create, props } from '@stylexjs/stylex';
 export type Shot = {
   alt: string;
   height: number;
+  /**
+   * The picture is what is on the card, with room around it in the card's own
+   * colour right to its edges (`scripts/pad-proof-shots.sh`), so the frame
+   * shows all of it.
+   */
+  padded?: boolean;
   src: string;
   width: number;
 };
@@ -53,8 +59,7 @@ const styles = create({
     },
     maxWidth,
   }),
-  // A squircle window onto the card, zoomed past the phone's own margin and
-  // corners so only the card itself shows, at the same shape for every shot.
+  // A squircle window onto the card, at the same shape for every shot.
   frame: {
     borderColor: colors.border,
     borderRadius: 32,
@@ -75,8 +80,12 @@ const styles = create({
   shot: {
     display: 'block',
     height: 'auto',
-    transform: 'scale(1.06)',
     width: '100%',
+  },
+  // A picture that still has the phone's margin and the card's corners in it
+  // is zoomed past them.
+  shotZoomed: {
+    transform: 'scale(1.06)',
   },
 });
 
@@ -104,7 +113,7 @@ export function ScreenShots({ caption, shots }: { caption?: string; shots: Reado
               loading="lazy"
               src={shot.src}
               width={shot.width}
-              {...props(styles.shot)}
+              {...props(styles.shot, shot.padded !== true && styles.shotZoomed)}
             />
           </div>
         ))}

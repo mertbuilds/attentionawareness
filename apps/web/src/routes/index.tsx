@@ -802,13 +802,15 @@ function HomePage() {
             shots={[
               {
                 alt: m.home_proof_shot_time(),
-                height: 684,
+                height: 672,
+                padded: true,
                 src: '/media/screentime-mert/mert-after-screen-time.webp',
                 width: 800,
               },
               {
                 alt: m.home_proof_shot_pickups(),
-                height: 511,
+                height: 672,
+                padded: true,
                 src: '/media/screentime-mert/mert-after-pickups.webp',
                 width: 800,
               },
