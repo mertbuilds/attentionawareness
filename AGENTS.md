@@ -31,7 +31,10 @@ builder (`/build`) came back on 2026-09-30 as the profile step of the
 manual path (`/guide`), which erases the iPhone; the Mac app is the
 path that keeps the data. Both are free, and so is the extension (decision
 2026-10-04): the Mac app loses its license key step in its next release, and
-the site must not say free before that release is out. The home page links a
+the site must not say free before that release is out. The same release makes
+the Mac app's code public under AGPL-3.0; the site, the extension and the
+shared packages are MIT. The site's "open source" lines ship with it, and
+name the licences only in the FAQ. The home page links a
 pay-what-you-want Polar checkout for readers who want to support the work. Why:
 `docs/adr/0006-free-with-support.md`.
 

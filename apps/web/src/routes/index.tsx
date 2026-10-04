@@ -675,6 +675,7 @@ function HomePage() {
     { anchor: FAQ_DATA_ID, desc: m.home_faq_data_desc(), term: m.home_faq_data_term() },
     { desc: m.home_faq_fail_desc(), term: m.home_faq_fail_term() },
     { desc: m.home_faq_see_desc(), term: m.home_faq_see_term() },
+    { desc: m.home_faq_source_desc(), term: m.home_faq_source_term() },
     { desc: m.home_faq_undo_desc(), term: m.home_faq_undo_term() },
     { desc: m.home_faq_mac_desc(), term: m.home_faq_mac_term() },
     { desc: m.home_faq_other_platforms_desc(), term: m.home_faq_other_platforms_term() },
