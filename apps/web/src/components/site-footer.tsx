@@ -579,7 +579,7 @@ export function SiteFooter({ children }: { children?: ReactNode | undefined }) {
       {children}
       <div {...props(styles.last)}>
         <p {...props(layout.muted, styles.line, styles.credit)}>
-          {m.footer_made()} {appleBefore}
+          {appleBefore}
           <a href={BUILDER_URL} rel="noreferrer" target="_blank">
             {m.gen_footer_builder()}
           </a>
