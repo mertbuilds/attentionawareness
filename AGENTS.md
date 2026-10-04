@@ -109,6 +109,7 @@ Web app (`apps/web`): `pnpm --filter @attentionawareness/web dev` (:3000 standal
 - Build and test, from `apps/mac`: `bash scripts/build-libimobiledevice.sh` and `bash scripts/vendor.sh` fill `Vendor/` once (gitignored; the second one falls back to Homebrew for a dev build), then `xcodegen generate`, then `xcodebuild test -project AttentionAwareness.xcodeproj -scheme AttentionAwareness -destination 'platform=macOS,arch=arm64'`. The tests need no iPhone and open no window.
 - Agents never run the app against a real iPhone: no `--backup`, `--restore`, `--seed`, `--probe` or `--devices`, and no opening the window to drive it. The tests, `--ui-smoke` and `--demo` reach no phone.
 - `scripts/release.sh` signs, notarizes and uploads a release. Only the owner runs it.
+- The app sends one anonymous event, `supervision_finished`, when a supervision finishes, and nothing else, ever. A debug build sends nothing. The body and what is never sent: `docs/adr/0009-mac-app-one-anonymous-event.md` and `apps/mac/README.md`. A new event or a new property needs a new ADR.
 - CI does not build the Mac app. The JS checks ignore `apps/mac` (`pnpm-workspace.yaml`, `oxlint.config.ts`, `oxfmt.config.ts`, `lefthook.yml`).
 
 ## Testing

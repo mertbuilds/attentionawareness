@@ -31,6 +31,12 @@ do not establish that local data survives a restore.
 The full copy's patch logic was ported from a Python tool that did the same
 thing by hand; that tool is retired and is not in this repo.
 
+The app is free. There is no license key, no price and no account. People who
+want to can support the work on a pay-what-you-want page, and the last screen
+of a run that went through says so once, with a Support this project button
+and a Share button. The Help menu has Support this project as well. The app
+never asks again.
+
 The app is open source under the GNU Affero General Public License, version 3
 (`AGPL-3.0-only`): see [License](#license) at the end of this file and
 [LICENSE](LICENSE). What the app takes or bundles from others, and under which
@@ -52,6 +58,51 @@ restore is through, unplugging goes back to Connect again, so Check on iPhone
 and the Restrictions guide both ask to keep iPhone connected. The last screen
 stays up while it names a backup folder that would not go, because it is the
 one place that folder is named.
+
+## What the app sends
+
+When a supervision finishes, the app sends one anonymous count, so the owner
+can see that supervisions finish. It is sent when the person presses It's
+Supervised at the end of the job, once for each run. Nothing is sent at
+launch, on a failure or on a cancel, and nothing is sent again later.
+
+The request is a `POST` to `https://e.attentionawareness.com/i/v0/e/`, the
+site's own proxy in front of its PostHog project, with this body:
+
+```json
+{
+  "api_key": "phc_DfvN33UTDFBHJfUfC46o4aKL33aGLR7qEmEJYfWjh9gi",
+  "event": "supervision_finished",
+  "distinct_id": "<a new random UUID for every event>",
+  "properties": {
+    "app_version": "0.4.0",
+    "method": "full_copy",
+    "ios_major": 26,
+    "macos_major": 15,
+    "$process_person_profile": false,
+    "$geoip_disable": true
+  }
+}
+```
+
+- `method` is `full_copy` or `fast`. `ios_major` is the first number of the
+  iOS version, and it is left out when the iPhone gave no version.
+- `distinct_id` is made new for each event and is not stored, so two counts
+  cannot be tied to each other or to a person. `api_key` is the public key
+  the website ships to every browser.
+- Nothing names the iPhone, the Mac or the person, and nothing about the
+  blocked apps and sites is sent, not even how many.
+- The request carries the IP address of the Mac, as every request does. The
+  body asks PostHog to make no person profile and to work out no place from
+  that address.
+- The request has a timeout of 5 seconds and is never sent again. A failure is
+  silent and changes nothing in the app.
+- A debug build sends nothing, so `--demo`, `--ui-smoke` and the tests send
+  nothing. There is no switch to turn the count off in a Release build.
+
+The code is `Sources/Event/`, the Ready screen and the About window say the
+same in one line, and the reasons are in
+`docs/adr/0009-mac-app-one-anonymous-event.md` at the root of the repo.
 
 ## Build
 
@@ -190,6 +241,10 @@ AA_SITE_URL=https://attentionawareness.localhost \
   run; `DemoWorld` makes the iPhones and backups out of those switches;
   `DemoModel` is the wizard with every method that reaches the world replaced;
   `DemoBar` is the bar itself.
+- `Sources/Event/` is the one anonymous count: `SupervisionFinishedEvent` is
+  what is in it, as values the tests read key by key, and
+  `SupervisionEventSender` is the request that carries it. Only the window's
+  own model is handed the sender; the demo, the smoke and the tests get none.
 - `Sources/Device/` is the device layer: `DeviceWatcher` publishes the iPhones on
   the cable and re-reads them on every connect and disconnect, along with every
   udid usbmuxd lists, read or not, which is what says a phone was unplugged
