@@ -44,8 +44,7 @@ licenses, is in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 The window is the wizard: Connect, Ready, Supervising, Restrictions, Done, one
 screen at a time. Both methods run on the Supervising screen; full-copy also
-copies and patches there. Unsupervising walks the same screens, leaves the
-restrictions out and mirrors the words, so it is four.
+copies and patches there.
 
 Unplugging the iPhone a run is about takes the window back to Connect from
 any step, and unplugging any other iPhone changes nothing. A copy in progress
@@ -186,8 +185,7 @@ check: it runs on iOS 27 and later as it did before the fast method existed.
 `--patch <backup folder>` loads a backup folder, plans the change, applies it
 and checks it, printing the flag before and after and the folder the untouched
 copy went to, which is how the patch layer is checked against a real backup
-without the wizard. `--unsupervise` takes the flag off again instead of setting
-it, and `BACKUP_PASSWORD` carries the password of an encrypted backup. Nothing
+without the wizard. `BACKUP_PASSWORD` carries the password of an encrypted backup. Nothing
 is sent to an iPhone.
 
 `--ui-smoke` builds every step of the wizard offscreen and prints the size each

@@ -115,12 +115,9 @@ The form on the Privacy tab, answer by answer.
 https://attentionawareness.com/extension/privacy
 ```
 
-The site is not live yet. Until it is, use the policy in the repo:
+The site is live and the page answers, so this is the URL to paste. The same
+policy is in the repo, which is public:
 
 ```
 https://github.com/mertbuilds/attentionawareness/blob/main/apps/extension/PRIVACY.md
 ```
-
-That URL needs the repository to be public, and the dashboard checks that the
-URL answers. Whichever of the two is reachable on submission day is the one to
-paste.
