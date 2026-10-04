@@ -76,9 +76,9 @@ None of this means your child is bad. Children are curious, and a rule with an o
 
 Supervision is a mode Apple built for iPhones owned by schools and companies. A supervised iPhone accepts a profile, a small settings file with rules, and you can lock it. A locked profile can:
 
-- hide and block the apps you choose, even if they are installed. The App Store stays on.
+- hide and [block the apps you choose](/blog/block-any-app-iphone), even if they are installed. The App Store stays on.
 - block the websites you choose.
-- turn on Apple's adult website filter. It works in Safari and in apps that use the system web view.
+- turn on [Apple's adult website filter](/blog/block-adult-websites-iphone). It works in Safari and in apps that use the system web view.
 
 Nobody can remove a locked profile in Settings. There is no passcode to guess.
 

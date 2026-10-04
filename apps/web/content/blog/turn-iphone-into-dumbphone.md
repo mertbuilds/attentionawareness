@@ -105,7 +105,7 @@ The idea is not mine. I started from Stepan Parunashvili's post ["iPhone dumbpho
 
 - It does not work on Android or from Windows. It is iPhone only today, from a Mac.
 - It does not block everything. It blocks only the apps and websites on your list.
-- The adult website filter is Apple's own filter. It works in Safari and in apps that use the system web view. It does not catch every site.
+- The [adult website filter](/blog/block-adult-websites-iphone) is Apple's own filter. It works in Safari and in apps that use the system web view. It does not catch every site.
 - It is not a medical treatment. If your phone use comes with deeper distress, please talk to a professional.
 
 ## How to undo it

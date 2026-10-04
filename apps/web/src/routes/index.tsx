@@ -24,10 +24,23 @@ import { UsesGrid } from '../components/uses-grid.tsx';
 import { brandBar } from '../lib/brand-bar.stylex.ts';
 import { duration, easing } from '../lib/motion.stylex.ts';
 import { SECTION } from '../lib/sections.ts';
+import { homeSchema, schemaMeta } from '../lib/structured-data.ts';
 import { m } from '../paraglide/messages.js';
 
 export const Route = createFileRoute('/')({
   component: HomePage,
+  // The site, the Mac app and the questions below, as data a search engine reads.
+  head: () => ({
+    meta: [
+      schemaMeta(
+        homeSchema({
+          description: m.home_meta_description(),
+          name: SITE_NAME,
+          questions: homeQuestions(),
+        }),
+      ),
+    ],
+  }),
   // The support checkout sends the reader back with `thanks=1`, among marks
   // of its own. Nothing else on the address means anything to the page.
   validateSearch: (search: Record<string, unknown>): { thanks?: 1 } =>
@@ -47,6 +60,8 @@ function signLines(text: string): Array<string> {
   const comma = text.indexOf(',');
   return comma === -1 ? [text] : [text.slice(0, comma).trim(), text.slice(comma + 1).trim()];
 }
+/** The brand in prose, the way the root document spells it. */
+const SITE_NAME = 'attention awareness';
 /** The question about losing data, which the line under the download goes to. */
 const FAQ_DATA_ID = 'faq-data';
 /** The id the download's section had, kept as an empty anchor for old links. */
@@ -644,60 +659,17 @@ function Promises({ promises, style }: { promises: ReadonlyArray<string>; style?
   );
 }
 
-function HomePage() {
-  const posthog = usePostHog();
-  const { thanks } = Route.useSearch();
-  const navigate = Route.useNavigate();
-  // The two words the claim turns on, in orange wherever a language puts
-  // them, so the words around them keep their own order in every language.
-  const titleWords = new Map([
-    [LINK_SLOT, m.home_hero_title_distraction()],
-    [SECOND_SLOT, m.home_hero_title_accent()],
-  ]);
-  const titleParts = m
-    .home_hero_title({ distraction: LINK_SLOT, permanently: SECOND_SLOT })
-    .split(SLOTS);
-
-  // Why the lock lasts, each with its tick.
-  const heroPromises = [
-    m.home_hero_promise_install(),
-    m.home_hero_promise_keep(),
-    m.home_hero_promise_sticks(),
-  ];
-
-  // What the browser extension does: a short name each, and a line under it.
-  // The post the story links out to, in the middle of the sentence that tells
-  // it, so the words around it keep their own order in every language.
-  const [storyBefore, storyAfter] = m.home_story_path({ post: LINK_SLOT }).split(LINK_SLOT);
-
-  // The two words the story's turn rests on, in orange wherever a language
-  // puts them in the sentence.
-  const attentionWords = new Map([
-    [LINK_SLOT, m.home_story_attention_aware()],
-    [SECOND_SLOT, m.home_story_attention_attention()],
-  ]);
-  const attentionParts = m
-    .home_story_attention({ attention: SECOND_SLOT, aware: LINK_SLOT })
-    .split(SLOTS);
-
-  // What the app gives, each with its tick.
-  const promises = [
-    m.home_how_promise_free(),
-    m.home_how_promise_keep(),
-    m.home_how_promise_trial(),
-    m.home_how_promise_add(),
-  ];
-
-  // The word the closing line turns on, in orange wherever a language puts it.
-  const [closeBefore, closeAfter] = m.home_close_title({ better: LINK_SLOT }).split(LINK_SLOT);
-
-  // The questions in the order a new visitor asks them, each answer block
-  // under block.
-  const questions: ReadonlyArray<{
-    anchor?: string;
-    answer: ReadonlyArray<AnswerBlock>;
-    question: string;
-  }> = [
+/**
+ * The questions in the order a new visitor asks them, each answer block
+ * under block. The page draws them, and its head tells search engines the
+ * same ones.
+ */
+function homeQuestions(): ReadonlyArray<{
+  anchor?: string;
+  answer: ReadonlyArray<AnswerBlock>;
+  question: string;
+}> {
+  return [
     {
       answer: [text(m.home_faq_free_a1()), text(m.home_faq_free_a2())],
       question: m.home_faq_free_term(),
@@ -819,6 +791,56 @@ function HomePage() {
       question: m.home_faq_other_platforms_term(),
     },
   ];
+}
+
+function HomePage() {
+  const posthog = usePostHog();
+  const { thanks } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  // The two words the claim turns on, in orange wherever a language puts
+  // them, so the words around them keep their own order in every language.
+  const titleWords = new Map([
+    [LINK_SLOT, m.home_hero_title_distraction()],
+    [SECOND_SLOT, m.home_hero_title_accent()],
+  ]);
+  const titleParts = m
+    .home_hero_title({ distraction: LINK_SLOT, permanently: SECOND_SLOT })
+    .split(SLOTS);
+
+  // Why the lock lasts, each with its tick.
+  const heroPromises = [
+    m.home_hero_promise_install(),
+    m.home_hero_promise_keep(),
+    m.home_hero_promise_sticks(),
+  ];
+
+  // What the browser extension does: a short name each, and a line under it.
+  // The post the story links out to, in the middle of the sentence that tells
+  // it, so the words around it keep their own order in every language.
+  const [storyBefore, storyAfter] = m.home_story_path({ post: LINK_SLOT }).split(LINK_SLOT);
+
+  // The two words the story's turn rests on, in orange wherever a language
+  // puts them in the sentence.
+  const attentionWords = new Map([
+    [LINK_SLOT, m.home_story_attention_aware()],
+    [SECOND_SLOT, m.home_story_attention_attention()],
+  ]);
+  const attentionParts = m
+    .home_story_attention({ attention: SECOND_SLOT, aware: LINK_SLOT })
+    .split(SLOTS);
+
+  // What the app gives, each with its tick.
+  const promises = [
+    m.home_how_promise_free(),
+    m.home_how_promise_keep(),
+    m.home_how_promise_trial(),
+    m.home_how_promise_add(),
+  ];
+
+  // The word the closing line turns on, in orange wherever a language puts it.
+  const [closeBefore, closeAfter] = m.home_close_title({ better: LINK_SLOT }).split(LINK_SLOT);
+
+  const questions = homeQuestions();
 
   return (
     <main {...props(styles.page)}>
