@@ -237,6 +237,10 @@ const styles = create({
     overflow: 'visible',
     width: '100%',
   },
+  // The page's ground inside the phone, so the hero's paper stops at its edge.
+  ground: {
+    fill: colors.bg,
+  },
   hero: {
     alignItems: 'center',
     display: 'flex',
@@ -521,6 +525,14 @@ export function HeroPhone() {
           viewBox={`${PHONE.x} ${PHONE.y} ${PHONE.width} ${PHONE.height}`}
           {...props(styles.frame)}
         >
+          <rect
+            height={PHONE.height}
+            rx={PHONE.radius}
+            width={PHONE.width}
+            x={PHONE.x}
+            y={PHONE.y}
+            {...props(styles.ground)}
+          />
           <PhoneFrame dock={1 - panel} hairline />
           {panel > 0 ? (
             <g opacity={panel} transform={`translate(0 ${PANEL_RISE * (1 - panelIn)})`}>
