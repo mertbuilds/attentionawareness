@@ -53,7 +53,9 @@ function fetchPanel(): Promise<Panel> {
  * Until it is in, the button of two lines stands in the header by itself,
  * looking exactly as the menu's own will, so nothing moves when the menu
  * takes its place. Pressed before then, it crosses its lines at once, fetches
- * the menu if it is not on its way, and the menu opens as it lands.
+ * the menu if it is not on its way, and the menu opens as it lands. A fetch
+ * that fails is tried once more, and if that fails too the page is loaded
+ * again, so the button is never left doing nothing.
  */
 export function SiteMenu(menu: MenuProps) {
   const [Panel, setPanel] = useState<Panel | null>(null);
@@ -100,11 +102,14 @@ export function SiteMenu(menu: MenuProps) {
   async function press() {
     setWanted(true);
     try {
-      const panel = await fetchPanel();
+      // Asked for twice: a fetch that fails once often goes through the next time.
+      const panel = await fetchPanel().catch(fetchPanel);
       setPanel(() => panel);
     } catch {
-      // No menu to open: the button goes back to its two lines.
-      setWanted(false);
+      // The menu's code is not to be had, most likely because the site was
+      // put out anew since this page was loaded and the old file is gone.
+      // Loading the page again brings the new one, and a menu that works.
+      window.location.reload();
     }
   }
 

@@ -226,10 +226,14 @@ export function SupportPopup() {
           title: m.site_name(),
           url: SHARE_URL,
         });
-      } catch {
-        // The sheet was closed. Nothing to say.
+        return;
+      } catch (error) {
+        // The reader closed the sheet: nothing to say. Anything else, and the
+        // sheet did not work, so the link is copied as it is without one.
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return;
+        }
       }
-      return;
     }
     posthog.capture('support_popup_share_clicked', { method: 'copy' });
     try {

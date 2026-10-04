@@ -365,7 +365,7 @@ export function SiteHeader() {
             {m.site_name()}
           </span>
         </a>
-        <nav {...props(styles.nav)}>
+        <nav aria-label={m.nav_site()} {...props(styles.nav)}>
           {links.map((link) => (
             <a
               data-morph={link.name}
