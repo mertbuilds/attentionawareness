@@ -26,7 +26,6 @@ const font = path.join(root, 'packages/ui/fonts/SuisseIntl-Medium.woff2');
 const MARK = 'aa';
 const BLACK = '#000000';
 const WHITE = '#ffffff';
-const GRAY = '#8a8a8a';
 /** The dev build's tab: iOS blue, so a dev tab is never mistaken for the site. */
 const DEV_BLUE = '#0a84ff';
 /**
@@ -82,38 +81,6 @@ body { background: ${bg}; }
   width: ${size}px;
 }</style><div class="mark">${MARK}</div>`;
 
-/**
- * The hero's headline, read from its own messages (`home_hero_title`,
- * `home_hero_title_distraction` and `home_hero_title_accent`), so the share
- * card never drifts from the page. Only the two accent words are orange.
- */
-const hero = JSON.parse(readFileSync(path.join(root, 'apps/web/messages/en.json'), 'utf8')) as {
-  home_hero_title: string;
-  home_hero_title_accent: string;
-  home_hero_title_distraction: string;
-};
-const OG_TITLE = hero.home_hero_title
-  .replace('{distraction}', `<em>${hero.home_hero_title_distraction}</em>`)
-  .replace('{permanently}', `<em>${hero.home_hero_title_accent}</em>`);
-const ORANGE = '#ff4f00';
-/** The page's graph paper: the same 40px ruling, the same faint white line. */
-const OG_LINE = 'rgba(255, 255, 255, 0.08)';
-
-const ogPage = `<style>${face}${reset}
-body { height: 630px; overflow: hidden; position: relative; width: 1200px; }
-.grid {
-  background-image: linear-gradient(${OG_LINE} 1px, transparent 1px), linear-gradient(90deg, ${OG_LINE} 1px, transparent 1px);
-  background-size: 40px 40px;
-  inset: 0;
-  -webkit-mask-image: radial-gradient(ellipse at 30% 40%, black 30%, transparent 80%);
-  position: absolute;
-}
-.brand { align-items: center; color: ${GRAY}; display: flex; font-size: 26px; gap: 14px; left: 80px; position: absolute; top: 72px; }
-.mark { align-items: center; background: ${WHITE}; border-radius: 6px; color: ${BLACK}; display: flex; font-size: 22px; height: 40px; justify-content: center; letter-spacing: -0.02em; width: 40px; }
-.title { bottom: 96px; font-size: 84px; left: 80px; letter-spacing: -0.03em; line-height: 1.08; position: absolute; right: 80px; text-wrap: balance; }
-em { color: ${ORANGE}; font-style: normal; }
-</style><div class="grid"></div><div class="brand"><div class="mark">${MARK}</div>attentionawareness.com</div><div class="title">${OG_TITLE}</div>`;
-
 const browser = await chromium.launch();
 const page = await browser.newPage({ deviceScaleFactor: 1 });
 
@@ -127,12 +94,6 @@ for (const icon of icons) {
   const where = path.relative(root, path.join(icon.dir, icon.file));
   process.stdout.write(`render-brand: ${where} (${icon.size}x${icon.size})\n`);
 }
-
-await page.setViewportSize({ height: 630, width: 1200 });
-await page.setContent(ogPage);
-await page.evaluate(() => document.fonts.ready);
-await page.screenshot({ path: path.join(out, 'og.png') });
-process.stdout.write('render-brand: og.png (1200x630)\n');
 
 /**
  * The same mark as outlines. Type in an SVG would mean shipping the font, and

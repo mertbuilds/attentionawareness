@@ -6,6 +6,8 @@
 
 /** What a list of posts shows of one post. */
 export type PostMeta = {
+  /** The words on the post's share card: `og_title` where it has one, else the heading. */
+  card: string;
   /** The day it was published, as YYYY-MM-DD. */
   date: string;
   description: string;

@@ -1,6 +1,7 @@
 ---
 title: "How to block an app on an iPhone so it can't come back"
 description: 'Four ways to block an app on an iPhone: delete it, limit it, stop installs, or lock it out for good. Real steps, and what each way leaves open.'
+og_title: "Block any app on an iPhone **so it can't come back**"
 slug: block-any-app-iphone
 date: 2026-10-04
 primary_keyword: 'how to block an app on iphone'
@@ -144,7 +145,7 @@ For company phones, see [how to lock down work iPhones without an MDM server](/b
       "@id": "https://attentionawareness.com/blog/block-any-app-iphone#article",
       "headline": "How to block an app on an iPhone so it can't come back",
       "description": "Four ways to block an app on an iPhone: delete it, limit it, stop installs, or lock it out for good. Real steps, and what each way leaves open.",
-      "image": "https://attentionawareness.com/og.png",
+      "image": "https://attentionawareness.com/og/blog/block-any-app-iphone.png",
       "url": "https://attentionawareness.com/blog/block-any-app-iphone",
       "mainEntityOfPage": "https://attentionawareness.com/blog/block-any-app-iphone",
       "datePublished": "2026-10-04",

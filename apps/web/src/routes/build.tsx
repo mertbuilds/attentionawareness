@@ -50,6 +50,7 @@ export const Route = createFileRoute('/build')({
       { content: m.build_description(), name: 'description' },
       { content: m.build_head_title(), property: 'og:title' },
       { content: m.build_description(), property: 'og:description' },
+      { content: m.gen_step2_title(), property: 'og:image:alt' },
     ],
   }),
 });

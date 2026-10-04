@@ -1,6 +1,7 @@
 ---
 title: 'Turn your iPhone into a dumbphone, free'
 description: 'Keep camera, maps, bank and messages. Remove the addictive feeds for good. Five ways to make an iPhone a dumb phone, compared, with free setup steps.'
+og_title: 'Turn your iPhone into a **dumb phone**, free'
 slug: turn-iphone-into-dumbphone
 date: 2026-10-04
 primary_keyword: 'turn iphone into dumb phone'
@@ -147,7 +148,7 @@ Download the [free Mac app](/) and run it in trial mode this weekend. If you wou
       "@id": "https://attentionawareness.com/blog/turn-iphone-into-dumbphone#article",
       "headline": "Turn your iPhone into a dumbphone, free",
       "description": "Keep camera, maps, bank and messages. Remove the addictive feeds for good. Five ways to make an iPhone a dumb phone, compared, with free setup steps.",
-      "image": "https://attentionawareness.com/og.png",
+      "image": "https://attentionawareness.com/og/blog/turn-iphone-into-dumbphone.png",
       "url": "https://attentionawareness.com/blog/turn-iphone-into-dumbphone",
       "mainEntityOfPage": "https://attentionawareness.com/blog/turn-iphone-into-dumbphone",
       "datePublished": "2026-10-04",
