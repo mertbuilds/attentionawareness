@@ -850,7 +850,7 @@ function HomePage() {
                 </a>
                 {storyAfter}
               </p>
-              <Signature />
+              <Signature style={styles.storyLine} />
             </div>
           </PaperLetter>
         </section>

@@ -5,7 +5,7 @@ import path from 'node:path';
  * Writes the story's signature as the outlines of its letters, set in Great
  * Vibes, and the pen strokes that write them.
  *
- * The page loads no web font for two lines of handwriting. The font is read
+ * The page loads no web font for one line of handwriting. The font is read
  * from the google/fonts repository at a pinned commit and never enters the
  * repo; the module this writes carries only the shapes of the signature's own
  * words, as filled paths.
@@ -18,8 +18,8 @@ import path from 'node:path';
  * strokes as they are drawn, each as wide as the ink it has to uncover.
  *
  * Each locale's `home_story_sign` is split at its first comma: the name
- * before it is set large, the place and date after it at half the size,
- * under the name and flush with its right edge.
+ * before it is what is written here. The place and date after it are typed
+ * by the page, under the name typed again.
  *
  *   node scripts/render-signature.ts
  */
@@ -34,10 +34,6 @@ const FONT_URL =
 
 /** The name is set this many units to the em: the scale the page sizes it by. */
 const EM = 1000;
-/** The place and date, set at this share of the name's size. */
-const PLACE_SCALE = 0.5;
-/** The air between the foot of the name and the head of the place line. */
-const LINE_GAP = 120;
 /** Room around the ink, so the box cuts no edge of a letter. */
 const PAD = 8;
 
@@ -1079,28 +1075,16 @@ function pens(commands: ReadonlyArray<Command>, size: number): Array<Pen> {
   }));
 }
 
-function signature(font: Font, text: string) {
-  const comma = text.indexOf(',');
-  const name = set(font, text.slice(0, comma).trim(), EM);
-  const place = set(font, text.slice(comma + 1).trim(), EM * PLACE_SCALE);
-  const nameBox = box(name);
-  const placeBox = box(place);
-  const width = Math.ceil(
-    Math.max(nameBox.maxX - nameBox.minX, placeBox.maxX - placeBox.minX) + 2 * PAD,
+function signature(font: Font, name: string) {
+  const paths = set(font, name, EM);
+  const ink = box(paths);
+  const commands = outline(
+    paths.map((glyph: GlyphPath) => glyph.translate(PAD - ink.minX, PAD - ink.minY)),
   );
-  const placeTop = PAD + nameBox.maxY - nameBox.minY + LINE_GAP;
-  const height = Math.ceil(placeTop + placeBox.maxY - placeBox.minY + PAD);
-  const line = (paths: ReadonlyArray<GlyphPath>, ink: Box, top: number, size: number) => {
-    const commands = outline(
-      paths.map((glyph) => glyph.translate(width - PAD - ink.maxX, top - ink.minY)),
-    );
-    return { d: data(commands), pens: pens(commands, size) };
-  };
   return {
-    height,
-    name: line(name, nameBox, PAD, EM),
-    place: line(place, placeBox, placeTop, EM * PLACE_SCALE),
-    width,
+    height: Math.ceil(ink.maxY - ink.minY + 2 * PAD),
+    name: { d: data(commands), pens: pens(commands, EM) },
+    width: Math.ceil(ink.maxX - ink.minX + 2 * PAD),
   };
 }
 
@@ -1114,7 +1098,7 @@ if (!('layout' in face)) {
 }
 const font = face as Font;
 
-const texts = new Set(
+const names = new Set(
   readdirSync(messages)
     .filter((file) => file.endsWith('.json'))
     .map((file) => {
@@ -1124,7 +1108,7 @@ const texts = new Set(
       if (typeof text !== 'string' || !text.includes(',')) {
         throw new Error(`${file}: home_story_sign needs a name, a comma, then the place`);
       }
-      return text;
+      return text.slice(0, text.indexOf(',')).trim();
     }),
 );
 
@@ -1135,12 +1119,11 @@ ${written.pens.map((pen) => `        { d: '${pen.d}', length: ${pen.length}, wid
       ],
     }`;
 
-const entries = [...texts].sort().map((text) => {
-  const written = signature(font, text);
-  return `  ${JSON.stringify(text)}: {
+const entries = [...names].sort().map((name) => {
+  const written = signature(font, name);
+  return `  ${JSON.stringify(name)}: {
     height: ${written.height},
     name: ${line(written.name)},
-    place: ${line(written.place)},
     width: ${written.width},
   },`;
 });
@@ -1162,16 +1145,14 @@ writeFileSync(
  */
 export type Pen = { d: string; length: number; width: number };
 
-/** One line of the signature, filled, and the strokes that write it, in order. */
+/** The signature's line, filled, and the strokes that write it, in order. */
 export type Line = { d: string; pens: ReadonlyArray<Pen> };
 
 /**
- * The signature, keyed by the message it writes: the name, then the place
- * and date under it, in a box \`width\` by \`height\` units.
+ * The signature, keyed by the name it writes, in a box \`width\` by
+ * \`height\` units.
  */
-export const SIGNATURES: Readonly<
-  Record<string, { height: number; name: Line; place: Line; width: number }>
-> = {
+export const SIGNATURES: Readonly<Record<string, { height: number; name: Line; width: number }>> = {
 ${entries.join('\n')}
 };
 `,
