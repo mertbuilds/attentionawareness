@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ComponentType, RefObject } from 'react';
+import { reloadOnce } from '../lib/chunk-error.ts';
 import { WIDE_QUERY } from '../lib/wide.ts';
 import { m } from '../paraglide/messages.js';
 import { MenuLines, menuButton } from './site-menu-button.tsx';
@@ -55,7 +56,7 @@ function fetchPanel(): Promise<Panel> {
  * takes its place. Pressed before then, it crosses its lines at once, fetches
  * the menu if it is not on its way, and the menu opens as it lands. A fetch
  * that fails is tried once more, and if that fails too the page is loaded
- * again, so the button is never left doing nothing.
+ * again, once, so the button is never left doing nothing.
  */
 export function SiteMenu(menu: MenuProps) {
   const [Panel, setPanel] = useState<Panel | null>(null);
@@ -108,8 +109,11 @@ export function SiteMenu(menu: MenuProps) {
     } catch {
       // The menu's code is not to be had, most likely because the site was
       // put out anew since this page was loaded and the old file is gone.
-      // Loading the page again brings the new one, and a menu that works.
-      window.location.reload();
+      // Loading the page again, once, brings the new one, and a menu that
+      // works. Past that, the button goes back to how it stood.
+      if (!reloadOnce()) {
+        setWanted(false);
+      }
     }
   }
 

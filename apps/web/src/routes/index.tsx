@@ -9,6 +9,8 @@ import { useEffect, useId, useState } from 'react';
 import { AngleDown, Check } from 'reicon-react';
 import { PaperLetter } from '../components/bill-paper.tsx';
 import { ExtensionBrowser } from '../components/extension-browser.tsx';
+import { FaqAnswer } from '../components/faq-answer.tsx';
+import type { AnswerBlock } from '../components/faq-answer.tsx';
 import { GridTexture } from '../components/grid-texture.tsx';
 import { HeroPhone } from '../components/hero-phone.tsx';
 import { HowItWorks } from '../components/how-it-works.tsx';
@@ -193,15 +195,6 @@ const styles = create({
       default: '1px',
     },
   },
-  // Quieter than the question, and clear of the chevron above it.
-  faqText: {
-    color: colors.muted,
-    lineHeight: 1.5,
-    margin: 0,
-    paddingBlockEnd: spacing.s4,
-    paddingInlineEnd: spacing.s8,
-    textWrap: 'pretty',
-  },
   // The chevron at the end of the row. It waits in the muted ink, pointing
   // down, and darkens when the row is pointed at; an open answer turns it
   // over to point up.
@@ -361,24 +354,29 @@ const styles = create({
     letterSpacing: 'normal',
     textAlign: 'center',
   },
-  // One way out: its name, what it is, what it keeps, then its button at the
-  // foot, level with the other card's.
+  // The way out: the app's card, in the orange the page recommends it by.
+  // Its name, what it is and what it keeps, with its button and the line
+  // about backing up beside them at the card's foot on a wide window, and
+  // under them on a narrow one.
   plan: {
-    alignItems: 'flex-start',
-    borderColor: colors.border,
+    alignItems: {
+      '@media (min-width: 768px)': 'end',
+      default: 'start',
+    },
+    backgroundColor: `color-mix(in srgb, ${accent.base} 6%, ${colors.bg})`,
+    borderColor: accent.base,
     borderRadius: radius.base,
     borderStyle: 'solid',
     borderWidth: '1px',
     boxSizing: 'border-box',
-    display: 'flex',
-    flexDirection: 'column',
+    display: 'grid',
     gap: spacing.s6,
+    gridTemplateColumns: {
+      '@media (min-width: 768px)': 'minmax(0, 1fr) auto',
+      default: 'minmax(0, 1fr)',
+    },
     padding: spacing.s6,
-  },
-  // The app is the way the page recommends, so its card carries the orange.
-  planApp: {
-    backgroundColor: `color-mix(in srgb, ${accent.base} 6%, ${colors.bg})`,
-    borderColor: accent.base,
+    position: 'relative',
   },
   // The words of a card, held to a short measure where the card runs wide.
   planBody: {
@@ -387,22 +385,13 @@ const styles = create({
     gap: spacing.s4,
     maxWidth: '40ch',
   },
-  // A card's button with a line about backing up under it, at the card's
-  // foot.
+  // The card's button with the line about backing up under it.
   planFoot: {
     alignItems: 'flex-start',
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s3,
-    marginBlockStart: 'auto',
-  },
-  // The line under a card's button. Side by side, each card keeps room for
-  // two lines of it, so the two buttons stand level whichever line is longer.
-  planNote: {
-    minHeight: {
-      '@media (min-width: 640px)': '3em',
-      default: 0,
-    },
+    maxWidth: '32ch',
   },
   // The name, and what it is close under it.
   planHead: {
@@ -413,10 +402,6 @@ const styles = create({
   // The app's price is in its card's orange.
   planPrice: {
     color: accent.base,
-  },
-  // The guide's ticks in the ink, so its card stays quiet.
-  planQuietCheck: {
-    color: colors.fg,
   },
   planSub: {
     color: colors.muted,
@@ -431,16 +416,6 @@ const styles = create({
     letterSpacing: '-0.01em',
     lineHeight: 1.2,
     margin: 0,
-  },
-  // The two ways side by side, as tall as each other, where both fit; the app
-  // first and the guide under it where they do not.
-  plans: {
-    display: 'grid',
-    gap: spacing.s4,
-    gridTemplateColumns: {
-      '@media (min-width: 640px)': 'repeat(2, minmax(0, 1fr))',
-      default: 'minmax(0, 1fr)',
-    },
   },
   // One promise: its tick, then its words, wrapping clear of the tick in even
   // lines.
@@ -468,6 +443,11 @@ const styles = create({
     listStyle: 'none',
     margin: 0,
     padding: 0,
+  },
+  // A mark at the top of the card that holds it, taking no room there.
+  outOfFlow: {
+    insetBlockStart: 0,
+    position: 'absolute',
   },
   section: {
     display: 'flex',
@@ -551,7 +531,7 @@ function Question({
 }: {
   /** The id a link elsewhere on the page goes to. Gone to, the answer opens. */
   anchor?: string | undefined;
-  answer: string;
+  answer: ReadonlyArray<AnswerBlock>;
   question: string;
 }) {
   const id = useId();
@@ -612,23 +592,25 @@ function Question({
         {...props(styles.faqAnswer, open && styles.faqAnswerOpen)}
       >
         <div {...props(styles.faqClip)}>
-          <p {...props(styles.faqText)}>{answer}</p>
+          <FaqAnswer blocks={answer} />
         </div>
       </div>
     </div>
   );
 }
 
+/** An answer's block of a sentence or two. */
+function text(words: string): AnswerBlock {
+  return { kind: 'text', text: words };
+}
+
+/** An answer's list, one item under another, under its name if it has one. */
+function dots(items: ReadonlyArray<string>, label?: string): AnswerBlock {
+  return { items, kind: 'list', label, mark: 'dot' };
+}
+
 /** Promises in a list, each after its tick. */
-function Promises({
-  checkStyle,
-  promises,
-  style,
-}: {
-  checkStyle?: StyleXStyles;
-  promises: ReadonlyArray<string>;
-  style?: StyleXStyles;
-}) {
+function Promises({ promises, style }: { promises: ReadonlyArray<string>; style?: StyleXStyles }) {
   return (
     <ul {...props(styles.promises, style)}>
       {promises.map((promise) => (
@@ -637,7 +619,7 @@ function Promises({
             aria-hidden="true"
             size={CHECK_SIZE}
             strokeWidth={CHEVRON_STROKE}
-            {...props(styles.promiseCheck, checkStyle)}
+            {...props(styles.promiseCheck)}
           />
           {promise}
         </li>
@@ -684,30 +666,135 @@ function HomePage() {
     m.home_how_promise_add(),
   ];
 
-  // What the manual way is, each with its tick.
-  const guidePromises = [
-    m.home_how_guide_steps(),
-    m.home_how_guide_free(),
-    m.home_how_guide_erase(),
-  ];
-
   // The word the closing line turns on, in orange wherever a language puts it.
   const [closeBefore, closeAfter] = m.home_close_title({ better: LINK_SLOT }).split(LINK_SLOT);
 
-  const objections = [
-    { desc: m.home_faq_free_desc(), term: m.home_faq_free_term() },
-    { desc: m.home_faq_money_desc(), term: m.home_faq_money_term() },
-    { desc: m.home_faq_screen_time_desc(), term: m.home_faq_screen_time_term() },
-    { desc: m.home_faq_supervision_desc(), term: m.home_faq_supervision_term() },
-    { desc: m.home_faq_trial_desc(), term: m.home_faq_trial_term() },
-    { desc: m.home_faq_choice_desc(), term: m.home_faq_choice_term() },
-    { anchor: FAQ_DATA_ID, desc: m.home_faq_data_desc(), term: m.home_faq_data_term() },
-    { desc: m.home_faq_fail_desc(), term: m.home_faq_fail_term() },
-    { desc: m.home_faq_see_desc(), term: m.home_faq_see_term() },
-    { desc: m.home_faq_source_desc(), term: m.home_faq_source_term() },
-    { desc: m.home_faq_undo_desc(), term: m.home_faq_undo_term() },
-    { desc: m.home_faq_mac_desc(), term: m.home_faq_mac_term() },
-    { desc: m.home_faq_other_platforms_desc(), term: m.home_faq_other_platforms_term() },
+  // The questions in the order a new visitor asks them, each answer block
+  // under block.
+  const questions: ReadonlyArray<{
+    anchor?: string;
+    answer: ReadonlyArray<AnswerBlock>;
+    question: string;
+  }> = [
+    {
+      answer: [text(m.home_faq_free_a1()), text(m.home_faq_free_a2())],
+      question: m.home_faq_free_term(),
+    },
+    {
+      answer: [text(m.home_faq_screen_time_a1()), text(m.home_faq_screen_time_a2())],
+      question: m.home_faq_screen_time_term(),
+    },
+    {
+      answer: [text(m.home_faq_supervision_a1()), text(m.home_faq_supervision_a2())],
+      question: m.home_faq_supervision_term(),
+    },
+    {
+      answer: [
+        text(m.home_faq_needs_a1()),
+        dots([
+          m.home_faq_needs_item_friend(),
+          m.home_faq_needs_item_phone(),
+          m.home_faq_needs_item_copy(),
+        ]),
+      ],
+      question: m.home_faq_needs_term(),
+    },
+    {
+      anchor: FAQ_DATA_ID,
+      answer: [
+        text(m.home_faq_data_a1()),
+        {
+          kind: 'path',
+          label: m.home_faq_data_icloud(),
+          steps: [
+            m.home_faq_data_icloud_settings(),
+            m.home_faq_data_icloud_name(),
+            m.home_faq_data_icloud_icloud(),
+            m.home_faq_data_icloud_backup(),
+            m.home_faq_data_back_up_now(),
+          ],
+        },
+        {
+          kind: 'path',
+          label: m.home_faq_data_finder(),
+          steps: [
+            m.home_faq_data_finder_connect(),
+            m.home_faq_data_finder_select(),
+            m.home_faq_data_back_up_now(),
+          ],
+        },
+        {
+          items: [
+            m.home_faq_data_stays_photos(),
+            m.home_faq_data_stays_messages(),
+            m.home_faq_data_stays_logins(),
+            m.home_faq_data_stays_health(),
+          ],
+          kind: 'list',
+          label: m.home_faq_data_stays(),
+          mark: 'check',
+        },
+        text(m.home_faq_data_changes()),
+        dots(
+          [
+            m.home_faq_data_before_find_my(),
+            m.home_faq_data_before_space(),
+            m.home_faq_data_before_password(),
+          ],
+          m.home_faq_data_before(),
+        ),
+      ],
+      question: m.home_faq_data_term(),
+    },
+    { answer: [text(m.home_faq_time_a1())], question: m.home_faq_time_term() },
+    {
+      answer: [text(m.home_faq_fail_a1()), text(m.home_faq_fail_a2())],
+      question: m.home_faq_fail_term(),
+    },
+    {
+      answer: [text(m.home_faq_trial_a1()), text(m.home_faq_trial_a2())],
+      question: m.home_faq_trial_term(),
+    },
+    {
+      answer: [
+        text(m.home_faq_undo_a1()),
+        dots([m.home_faq_undo_item_erase(), m.home_faq_undo_item_configurator()]),
+        text(m.home_faq_undo_a2()),
+      ],
+      question: m.home_faq_undo_term(),
+    },
+    {
+      answer: [
+        text(m.home_faq_apps_a1()),
+        dots([m.home_faq_apps_item_store(), m.home_faq_apps_item_rest()]),
+      ],
+      question: m.home_faq_apps_term(),
+    },
+    {
+      answer: [text(m.home_faq_see_a1()), text(m.home_faq_see_a2())],
+      question: m.home_faq_see_term(),
+    },
+    {
+      answer: [
+        text(m.home_faq_source_a1()),
+        dots([m.home_faq_source_item_mac(), m.home_faq_source_item_rest()]),
+      ],
+      question: m.home_faq_source_term(),
+    },
+    {
+      answer: [text(m.home_faq_manual_a1()), text(m.home_faq_manual_a2())],
+      question: m.home_faq_manual_term(),
+    },
+    {
+      answer: [
+        text(m.home_faq_other_platforms_a1()),
+        dots([
+          m.home_faq_other_platforms_item_windows(),
+          m.home_faq_other_platforms_item_android(),
+        ]),
+      ],
+      question: m.home_faq_other_platforms_term(),
+    },
   ];
 
   return (
@@ -745,49 +832,31 @@ function HomePage() {
           </p>
         </section>
 
-        {/* How it works: what the Mac app does, in three steps, then the two
-        ways to it, both free: the app, with what it keeps, and the guide that
-        starts the phone over. */}
+        {/* How it works: what the Mac app does, in three steps, then the app
+        itself, free, with what it keeps and its download. */}
         <section {...props(styles.section, styles.anchor)} id={SECTION.wayOut}>
           <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
           <p {...props(styles.sectionBody)}>{m.home_how_lead()}</p>
           <HowItWorks />
-          <p {...props(styles.sectionBody)}>{m.home_how_backup()}</p>
-          {/* Where links from before the two ways were named the download still land. */}
-          <span id={OLD_DOWNLOAD_ID} {...props(styles.anchor)} />
-          <div id={SECTION.download} {...props(styles.plans, styles.anchor)}>
-            <div {...props(styles.plan, styles.planApp)}>
-              <div {...props(styles.planBody)}>
-                <div {...props(styles.planHead)}>
-                  <h3 {...props(styles.planTitle, styles.planPrice)}>{m.home_how_app_price()}</h3>
-                  <p {...props(styles.planSub)}>{m.home_how_app_sub()}</p>
-                </div>
-                <Promises promises={promises} />
+          <div id={SECTION.download} {...props(styles.plan, styles.anchor)}>
+            {/* Where links from before the two ways were named the download
+            still land. Out of the card's grid, so it takes no cell. */}
+            <span id={OLD_DOWNLOAD_ID} {...props(styles.anchor, styles.outOfFlow)} />
+            <div {...props(styles.planBody)}>
+              <div {...props(styles.planHead)}>
+                <h3 {...props(styles.planTitle, styles.planPrice)}>{m.home_how_app_price()}</h3>
+                <p {...props(styles.planSub)}>{m.home_how_app_sub()}</p>
               </div>
-              <div {...props(styles.planFoot)}>
-                <MacDownload placement="download" />
-                <p {...props(styles.planSub, styles.planNote)}>
-                  <a href={`#${FAQ_DATA_ID}`} onClick={() => askQuestion(FAQ_DATA_ID)}>
-                    {m.home_how_backup_note_link()}
-                  </a>
-                  {m.home_how_backup_note({ link: LINK_SLOT }).split(LINK_SLOT)[1]}
-                </p>
-              </div>
+              <Promises promises={promises} />
             </div>
-            <div {...props(styles.plan)}>
-              <div {...props(styles.planBody)}>
-                <div {...props(styles.planHead)}>
-                  <h3 {...props(styles.planTitle)}>{m.home_how_guide_title()}</h3>
-                  <p {...props(styles.planSub)}>{m.home_how_guide_sub()}</p>
-                </div>
-                <Promises checkStyle={styles.planQuietCheck} promises={guidePromises} />
-              </div>
-              <div {...props(styles.planFoot)}>
-                <Button render={<a href={GUIDE_URL} />} variant="outline">
-                  {m.home_how_guide_cta()}
-                </Button>
-                <p {...props(styles.planSub, styles.planNote)}>{m.home_how_guide_note()}</p>
-              </div>
+            <div {...props(styles.planFoot)}>
+              <MacDownload placement="download" />
+              <p {...props(styles.planSub)}>
+                <a href={`#${FAQ_DATA_ID}`} onClick={() => askQuestion(FAQ_DATA_ID)}>
+                  {m.home_how_backup_note_link()}
+                </a>
+                {m.home_how_backup_note({ link: LINK_SLOT }).split(LINK_SLOT)[1]}
+              </p>
             </div>
           </div>
         </section>
@@ -913,12 +982,12 @@ function HomePage() {
         <section {...props(styles.section, styles.anchor)} id={SECTION.faq}>
           <h2 {...props(styles.sectionTitle)}>{m.home_faq_title()}</h2>
           <div>
-            {objections.map((objection) => (
+            {questions.map((entry) => (
               <Question
-                anchor={'anchor' in objection ? objection.anchor : undefined}
-                answer={objection.desc}
-                key={objection.term}
-                question={objection.term}
+                anchor={entry.anchor}
+                answer={entry.answer}
+                key={entry.question}
+                question={entry.question}
               />
             ))}
           </div>

@@ -79,16 +79,15 @@ const NAME_TRACKING = -0.04;
 const NAME_WIDTH = 8.663;
 const NAME_BEARING = 0.038;
 /**
- * How much of the name's line stands above the page's bottom edge, in ems.
- * The line is one em tall and its letters sit on a line 0.809 em down it,
- * 0.538 em tall, so this shows a little under six tenths of them and the
- * edge cuts the rest.
+ * How much of the name's line is shown, in ems. The line is one em tall and
+ * its letters sit on a line 0.809 em down it; the name has no letter that
+ * hangs below that line, and its round letters dip a hair under it, so this
+ * shows every letter whole and cuts only the empty foot of the line.
  */
-const NAME_SHOWN = 0.58;
+const NAME_SHOWN = 0.84;
 /**
  * The name's ink: a quiet share of the page's own, so it reads as a watermark
- * under the links and not as a title. It thins toward the page's edge, which
- * cuts it.
+ * under the links and not as a title. It thins toward the page's edge.
  */
 const NAME_INK = `color-mix(in srgb, ${colors.fg} 28%, transparent)`;
 const NAME_THINS = 'linear-gradient(to bottom, black 15%, rgb(0 0 0 / 0.3))';
@@ -174,13 +173,14 @@ const styles = create({
   },
   // The footer runs down to the page's own bottom edge: it takes back the
   // room every page shell leaves under it, and keeps the room the name stands
-  // in instead, as tall as the name is shown, and a step of air over it.
+  // in instead, as tall as the name is shown, with a step of air over it and
+  // one under it.
   footer: {
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s8,
     marginBlockEnd: `calc(-1 * ${PAGE_FOOT})`,
-    paddingBlockEnd: `calc((100vw - 2 * ${spacing.s4}) / ${NAME_WIDTH} * ${NAME_SHOWN} + ${spacing.s4})`,
+    paddingBlockEnd: `calc((100vw - 2 * ${spacing.s4}) / ${NAME_WIDTH} * ${NAME_SHOWN} + 2 * ${spacing.s4})`,
   },
   // A column's name: in the ink, over links that are a step quieter. As tall
   // as the mark beside it, so the four columns start on one line.
@@ -263,9 +263,7 @@ const styles = create({
   mark: {
     flexShrink: 0,
   },
-  // The name, as large as the row is wide. Its line starts at the top of the
-  // stage and runs out under it, so the stage's edge cuts the letters. The
-  // type size is read off the stage's own width, or off the window's where a
+  // The name, as large as the row is wide, every letter whole. The type size is read off the stage's own width, or off the window's where a
   // browser has no container units.
   name: {
     color: NAME_INK,
@@ -309,15 +307,16 @@ const styles = create({
     animationName: rise,
     animationTimingFunction: easing.smoothOut,
   },
-  // Where the name stands: on the page's bottom edge, the window's whole
-  // width, hung from the page root as the paper is. It cuts what runs past it,
-  // so the name never pushes the page sideways or makes it longer, and it is
-  // under everything the page draws.
+  // Where the name stands: a step over the page's bottom edge, the window's
+  // whole width, hung from the page root as the paper is. It cuts what runs
+  // past it, so the name never pushes the page sideways or makes it longer,
+  // and it is under everything the page draws.
   stage: {
     containerType: 'inline-size',
     insetBlockEnd: 0,
     insetInline: 0,
     overflow: 'hidden',
+    paddingBlockEnd: spacing.s4,
     pointerEvents: 'none',
     position: 'absolute',
     userSelect: 'none',
@@ -474,7 +473,8 @@ function Column({ links, title }: { links: ReadonlyArray<FooterLink>; title: str
  * this is, the way to the code and the ask for a star, the product, the blog's
  * posts and the project in three columns of links, then who made it, the
  * privacy page and the theme control in a last row. Under all of it the name
- * is set as large as the window is wide, cut by the page's bottom edge. The
+ * is set as large as the window is wide, whole, fading toward the page's
+ * bottom edge. The
  * server draws the name in place. Still under the window once the page has
  * come alive, it hides and rises as the reader reaches the page's end. With
  * less motion it stands still. A page with one more line of its own passes it
