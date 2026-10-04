@@ -92,16 +92,22 @@ site's own proxy in front of its PostHog project, with this body:
   the website ships to every browser.
 - Nothing names the iPhone, the Mac or the person, and nothing about the
   blocked apps and sites is sent, not even how many.
-- The request carries the IP address of the Mac, as every request does. The
-  body asks PostHog to make no person profile and to work out no place from
-  that address.
+- The request carries the IP address of the Mac, as every request does, and
+  the proxy and PostHog see it in transit. The body asks PostHog to make no
+  person profile, and it turns off the place lookup from that address.
+  Whether PostHog stores the address with the event is a setting of the
+  PostHog project ("IP data capture"), not something the app controls. It
+  must be set to discard for the count to hold no address.
 - The request has a timeout of 5 seconds and is never sent again. A failure is
   silent and changes nothing in the app.
 - A debug build sends nothing, so `--demo`, `--ui-smoke` and the tests send
   nothing. There is no switch to turn the count off in a Release build.
 
-The code is `Sources/Event/`, the Ready screen and the About window say the
-same in one line, and the reasons are in
+The Ready screen and the About window say it in these words: "When a
+supervision finishes, the app sends one anonymous count. It holds the app
+version, the method, and the first number of the iOS version and of the macOS
+version. Nothing that names you or your iPhone." The code is `Sources/Event/`,
+and the reasons are in
 `docs/adr/0009-mac-app-one-anonymous-event.md` at the root of the repo.
 
 ## Build

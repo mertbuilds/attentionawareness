@@ -31,8 +31,9 @@ struct SupervisionFinishedEvent: Equatable, Sendable {
     /// What the Ready screen and the About window say about the count.
     static let disclosure =
         "When a supervision finishes, the app sends one anonymous count. "
-        + "It holds the app version, the method, the iOS version and the macOS version. "
-        + "Nothing about you or your iPhone."
+        + "It holds the app version, the method, and the first number of the iOS version "
+        + "and of the macOS version. "
+        + "Nothing that names you or your iPhone."
 
     /// The body PostHog's capture endpoint takes.
     ///

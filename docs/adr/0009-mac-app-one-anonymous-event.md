@@ -14,7 +14,7 @@ Date: 2026-10-04. Status: accepted.
 - The event goes to the site's PostHog project through the proxy `https://e.attentionawareness.com/i/v0/e/` (ADR-0004), with the public client key the website already ships.
 - The request has a timeout of 5 seconds. A failure is silent and changes nothing in the wizard. Nothing is queued on disk.
 - A debug build sends nothing. So the demo (`--demo`), the tests and the offscreen smoke (`--ui-smoke`) send nothing. Only a Release build of the real window sends.
-- The app says so on the Ready screen and in the About window, and `apps/mac/README.md` shows the body.
+- The app says so on the Ready screen and in the About window: "When a supervision finishes, the app sends one anonymous count. It holds the app version, the method, and the first number of the iOS version and of the macOS version. Nothing that names you or your iPhone." `apps/mac/README.md` shows the body.
 - There is no switch to turn it off. The count names nobody, and a switch would add a setting and a stored choice to an app that stores nothing else. Anyone who wants none can block `e.attentionawareness.com` or build from source.
 
 ## The body
