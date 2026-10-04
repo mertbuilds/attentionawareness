@@ -209,7 +209,10 @@ struct JobPhaseTests {
         )
         #expect(JobPhase.restartHint(pairing: .locked) == "Unlock iPhone.")
         #expect(JobPhase.restartHint(pairing: .trustPending) == "Tap Trust on iPhone.")
-        #expect(JobPhase.restartHint(pairing: .untrusted) == "Tap Trust on iPhone.")
+        #expect(
+            JobPhase.restartHint(pairing: .untrusted)
+                == "iPhone did not trust this Mac. Unplug iPhone, plug it in again, then tap Trust."
+        )
         #expect(JobPhase.restartHint(pairing: .paired) == "Keep iPhone unlocked and connected.")
     }
 

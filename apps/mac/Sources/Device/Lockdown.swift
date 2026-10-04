@@ -148,7 +148,8 @@ final class LockdownSession {
                 try Pairing.open(
                     udid: udid,
                     handshake: { lockdownd_client_new_with_handshake(device, &client, Self.label) },
-                    pair: { Self.pair(device) }
+                    pair: { Self.pair(device) },
+                    observe: { TrustObserver(udid: udid, watch: .shared) }
                 )
             } else {
                 let status = lockdownd_client_new(device, &client, Self.label)

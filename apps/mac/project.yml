@@ -221,6 +221,7 @@ targets:
       - Sources/Device/DeviceWatcher.swift
       - Sources/Device/Lockdown.swift
       - Sources/Device/Pairing.swift
+      - Sources/Device/TrustObserver.swift
       - Sources/Device/MCInstall.swift
       - Sources/Device/Plist.swift
       - Sources/Device/Errors.swift

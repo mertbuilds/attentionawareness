@@ -12,91 +12,133 @@ struct PairingTests {
         #expect(phone.pairs == 0)
     }
 
-    @Test func aPhoneThatForgotTheMacWhileLockedAsksForThePasscode() {
+    @Test func aLockedPhoneIsAskedAgainEveryTwoSeconds() {
         let phone = FakeLockdown()
+        phone.tick = 0
         phone.forget()
         phone.locked = true
         #expect(throws: DeviceError.locked) { try phone.open() }
+        phone.advance(1)
+        #expect(throws: DeviceError.locked) { try phone.open() }
         #expect(phone.pairs == 1)
+        phone.advance(1)
+        #expect(throws: DeviceError.locked) { try phone.open() }
+        #expect(phone.pairs == 2)
         #expect(!phone.dialogShown)
     }
 
-    @Test func aPhoneThatForgotTheMacShowsTrustAndOpensOnceItIsTapped() throws {
+    /// The owner's run: a second Pair while he typed the passcode cancelled
+    /// it, and the iPhone said no until the cable was pulled.
+    @Test func trustOnScreenGetsNoSecondPairHoweverLongItTakes() {
         let phone = FakeLockdown()
-        phone.forget()
-        #expect(throws: DeviceError.trustPending) { try phone.open() }
-        #expect(phone.dialogShown)
-        // The dialog is still up on the next read, and nothing has changed.
-        #expect(throws: DeviceError.trustPending) { try phone.open() }
-        phone.accepted = true
-        try phone.open()
-        #expect(phone.macRecordIsKnown)
-        let pairs = phone.pairs
-        try phone.open()
-        #expect(phone.pairs == pairs)
-    }
-
-    @Test func aTrustDialogOnScreenIsNotSentAnotherPairForFiveSeconds() throws {
-        let phone = FakeLockdown()
-        phone.tick = 0
-        phone.forget()
-        #expect(throws: DeviceError.trustPending) { try phone.open() }
-        #expect(phone.pairs == 1)
-        phone.advance(2)
-        #expect(throws: DeviceError.trustPending) { try phone.open() }
-        phone.advance(2)
-        #expect(throws: DeviceError.trustPending) { try phone.open() }
-        #expect(phone.pairs == 1)
-        phone.accepted = true
-        phone.advance(1)
-        try phone.open()
-        #expect(phone.pairs == 2)
-    }
-
-    @Test func aLockedPhoneIsAskedAgainAfterTwoSeconds() {
-        let phone = FakeLockdown()
-        phone.tick = 0
         phone.forget()
         phone.locked = true
         #expect(throws: DeviceError.locked) { try phone.open() }
-        phone.advance(1)
-        #expect(throws: DeviceError.locked) { try phone.open() }
-        #expect(phone.pairs == 1)
-        phone.advance(1)
         phone.locked = false
         #expect(throws: DeviceError.trustPending) { try phone.open() }
-        #expect(phone.pairs == 2)
         #expect(phone.dialogShown)
+        let pairs = phone.pairs
+        for _ in 0..<40 {
+            #expect(throws: DeviceError.trustPending) { try phone.open() }
+        }
+        #expect(phone.pairs == pairs)
+        #expect(!phone.denied)
     }
 
-    @Test func aPairOutAlreadyIsNotSentTwice() {
-        let throttle = PairThrottle()
-        let now = Date()
-        #expect(throttle.reserve("phone", at: now) == nil)
-        #expect(throttle.reserve("phone", at: now) == LOCKDOWN_E_INVALID_HOST_ID)
-        #expect(throttle.reserve("other", at: now) == nil)
+    @Test func requestPairSendsOnePairAndThePhoneIsPaired() throws {
+        let phone = FakeLockdown()
+        phone.forget()
+        #expect(throws: DeviceError.trustPending) { try phone.open() }
+        #expect(phone.pairs == 1)
+        phone.accept()
+        try phone.open()
+        #expect(phone.pairs == 2)
+        #expect(phone.macRecordIsKnown)
+        try phone.open()
+        #expect(phone.pairs == 2)
+    }
+
+    @Test func theFakeSaysNoToAPairSentWhileThePasscodeIsTyped() {
+        let phone = FakeLockdown()
+        phone.forget()
+        #expect(phone.pair() == LOCKDOWN_E_PAIRING_DIALOG_RESPONSE_PENDING)
+        #expect(phone.pair() == LOCKDOWN_E_USER_DENIED_PAIRING)
+    }
+
+    @Test func dontTrustEndsThePairingUntilThePhoneIsPluggedInAgain() throws {
+        let phone = FakeLockdown()
+        phone.forget()
+        #expect(throws: DeviceError.trustPending) { try phone.open() }
+        phone.deny()
+        // The answer comes with the next Pair, and none follows it.
+        phone.trust.notified("phone", name: TrustWatch.requestPair)
+        #expect(throws: DeviceError.trustDenied) { try phone.open() }
+        let pairs = phone.pairs
+        for _ in 0..<10 {
+            #expect(throws: DeviceError.trustDenied) { try phone.open() }
+        }
+        #expect(phone.pairs == pairs)
+        #expect(DeviceError.trustDenied.pairingState == .untrusted)
+        #expect(
+            DeviceError.trustDenied.errorDescription
+                == "iPhone did not trust this Mac. Unplug iPhone, plug it in again, then tap Trust."
+        )
+        phone.replug()
+        #expect(throws: DeviceError.trustPending) { try phone.open() }
+        #expect(phone.pairs == pairs + 1)
+    }
+
+    @Test func theWatchGoesWhenThePhoneLeavesOrIsPaired() async throws {
+        let phone = FakeLockdown()
+        phone.forget()
+        #expect(throws: DeviceError.trustPending) { try phone.open() }
+        #expect(phone.liveObservers == 1)
+        phone.replug()
+        #expect(await settles { phone.liveObservers == 0 })
+        #expect(throws: DeviceError.trustPending) { try phone.open() }
+        #expect(phone.liveObservers == 1)
+        phone.accept()
+        try phone.open()
+        #expect(await settles { phone.liveObservers == 0 })
+    }
+
+    @Test func trustThatCannotBeHeardEndsInAReplugNotAWaitForever() {
+        let phone = FakeLockdown()
+        phone.canObserve = false
+        phone.tick = 10
+        phone.forget()
+        #expect(throws: DeviceError.trustPending) { try phone.open() }
+        var error: DeviceError?
+        for _ in 0..<20 where error == nil {
+            do { try phone.open() } catch let thrown as DeviceError where thrown != .trustPending {
+                error = thrown
+            } catch {}
+        }
+        #expect(error == .trustUnseen)
+        #expect(phone.pairs == 1)
     }
 
     @Test func aRecordTheMacCouldNotKeepIsAFailureNotAWaitForTrust() {
         let phone = FakeLockdown()
         phone.forget()
-        phone.accepted = true
+        phone.accept()
         phone.loseSavedRecord = true
         #expect(throws: DeviceError.pairRecordRejected) { try phone.open() }
         #expect(DeviceError.pairRecordRejected.pairingState == nil)
     }
 
-    @Test func dontTrustIsReported() {
-        let phone = FakeLockdown()
-        phone.forget()
-        phone.denied = true
-        #expect(throws: DeviceError.trustDenied) { try phone.open() }
+    @Test func aPairOutAlreadyIsNotSentTwice() {
+        let trust = TrustWatch()
+        let now = Date()
+        #expect(trust.next("phone", at: now) == .pair("first"))
+        #expect(trust.next("phone", at: now) == .hold(LOCKDOWN_E_INVALID_HOST_ID))
+        #expect(trust.next("other", at: now) == .pair("first"))
     }
 
     @Test func otherFailuresAreNotAnsweredWithPair() {
         var pairs = 0
         #expect(throws: DeviceError.lockdownFailed(code: LOCKDOWN_E_RECEIVE_TIMEOUT.rawValue)) {
-            try Pairing.open(udid: "phone", throttle: PairThrottle(), handshake: { LOCKDOWN_E_RECEIVE_TIMEOUT }, pair: {
+            try Pairing.open(udid: "phone", trust: TrustWatch(), handshake: { LOCKDOWN_E_RECEIVE_TIMEOUT }, pair: {
                 pairs += 1
                 return LOCKDOWN_E_SUCCESS
             })
@@ -116,13 +158,25 @@ struct PairingTests {
         #expect(DeviceLog.text(DeviceError.deviceUnavailable(udid: "00008030-0001")) == "deviceUnavailable")
         #expect(DeviceLog.text(DeviceError.lockdownFailed(code: -21)) == "lockdownFailed -21")
     }
+
+    private func settles(_ condition: () -> Bool) async -> Bool {
+        let deadline = ContinuousClock.now + .seconds(3)
+        while !condition(), ContinuousClock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+        return condition()
+    }
 }
 
 /// An iPhone's lockdown as far as trust goes. The Mac holds one pair record,
 /// the iPhone the host ids it trusts. A restore that resets the iPhone's
-/// pairing empties that list; Pair makes a new record, as libimobiledevice
-/// does, and the iPhone takes it only once the person has tapped Trust.
+/// pairing empties that list. Pair makes a new record, as libimobiledevice
+/// does: the first one shows Trust, one sent while the person is still
+/// answering cancels it and the iPhone says no until the cable is pulled,
+/// and once Trust is tapped and the passcode entered the iPhone posts
+/// `request_pair` and the next Pair goes through.
 final class FakeLockdown: @unchecked Sendable {
+    let trust = TrustWatch()
     private let lock = NSLock()
     private var known: Set<Int> = [1]
     private var record: Int? = 1
@@ -132,39 +186,18 @@ final class FakeLockdown: @unchecked Sendable {
     private var isLocked = false
     private var hasAccepted = false
     private var hasDenied = false
+    private var clock = Date(timeIntervalSinceReferenceDate: 0)
+    private var step: TimeInterval = 3
+    private var refuseSavedRecord = false
+    private var observing = true
+    private var observers = 0
 
     var locked: Bool {
         get { lock.withLock { isLocked } }
         set { lock.withLock { isLocked = newValue } }
     }
-    var accepted: Bool {
-        get { lock.withLock { hasAccepted } }
-        set { lock.withLock { hasAccepted = newValue } }
-    }
-    var denied: Bool {
-        get { lock.withLock { hasDenied } }
-        set { lock.withLock { hasDenied = newValue } }
-    }
-    var pairs: Int { lock.withLock { pairCount } }
-    var dialogShown: Bool { lock.withLock { dialog } }
-    var macRecordIsKnown: Bool { lock.withLock { record.map(known.contains) ?? false } }
-
-    /// What the fast method's restore does to the iPhone's side of trust.
-    func forget() {
-        lock.withLock {
-            known = []
-            dialog = false
-            hasAccepted = false
-        }
-    }
-
-    /// Each iPhone gets its own throttle, on a clock the test moves. Every
-    /// read moves it on by `tick`, the way the Mac's reads are spaced.
-    let throttle = PairThrottle()
-    private var clock = Date(timeIntervalSinceReferenceDate: 0)
-    private var step: TimeInterval = 3
-    private var refuseSavedRecord = false
-
+    /// Every read moves the clock on by this much, the way the Mac's reads
+    /// are spaced.
     var tick: TimeInterval {
         get { lock.withLock { step } }
         set { lock.withLock { step = newValue } }
@@ -174,9 +207,49 @@ final class FakeLockdown: @unchecked Sendable {
         get { lock.withLock { refuseSavedRecord } }
         set { lock.withLock { refuseSavedRecord = newValue } }
     }
+    /// Whether the iPhone starts the insecure notification proxy.
+    var canObserve: Bool {
+        get { lock.withLock { observing } }
+        set { lock.withLock { observing = newValue } }
+    }
+    var pairs: Int { lock.withLock { pairCount } }
+    var dialogShown: Bool { lock.withLock { dialog } }
+    var denied: Bool { lock.withLock { hasDenied } }
+    var liveObservers: Int { lock.withLock { observers } }
+    var macRecordIsKnown: Bool { lock.withLock { record.map(known.contains) ?? false } }
 
     func advance(_ seconds: TimeInterval) {
         lock.withLock { clock += seconds }
+    }
+
+    /// What the fast method's restore does to the iPhone's side of trust.
+    func forget() {
+        lock.withLock {
+            known = []
+            dialog = false
+            hasAccepted = false
+            hasDenied = false
+        }
+    }
+
+    /// The person taps Trust and enters the passcode.
+    func accept() {
+        lock.withLock { hasAccepted = true }
+        trust.notified("phone", name: TrustWatch.requestPair)
+    }
+
+    /// The person taps Don't Trust.
+    func deny() {
+        lock.withLock { hasDenied = true }
+    }
+
+    /// The cable is pulled and put back: the iPhone forgets its answer.
+    func replug() {
+        lock.withLock {
+            dialog = false
+            hasDenied = false
+        }
+        trust.forget("phone")
     }
 
     func open() throws {
@@ -184,7 +257,10 @@ final class FakeLockdown: @unchecked Sendable {
             clock += step
             return clock
         }
-        try Pairing.open(udid: "phone", throttle: throttle, now: now, handshake: handshake, pair: pair)
+        try Pairing.open(
+            udid: "phone", trust: trust, now: now, handshake: handshake, pair: pair,
+            observe: { canObserve ? Observer(self) : nil }
+        )
     }
 
     /// `lockdownd_client_new_with_handshake`: pairs on its own only when the
@@ -200,15 +276,29 @@ final class FakeLockdown: @unchecked Sendable {
             pairCount += 1
             if isLocked { return LOCKDOWN_E_PASSWORD_PROTECTED }
             if hasDenied { return LOCKDOWN_E_USER_DENIED_PAIRING }
-            guard hasAccepted else {
-                dialog = true
-                return LOCKDOWN_E_PAIRING_DIALOG_RESPONSE_PENDING
+            if hasAccepted {
+                let host = nextHost
+                nextHost += 1
+                known.insert(host)
+                if !refuseSavedRecord { record = host }
+                dialog = false
+                return LOCKDOWN_E_SUCCESS
             }
-            let host = nextHost
-            nextHost += 1
-            known.insert(host)
-            if !refuseSavedRecord { record = host }
-            return LOCKDOWN_E_SUCCESS
+            if dialog {
+                hasDenied = true
+                return LOCKDOWN_E_USER_DENIED_PAIRING
+            }
+            dialog = true
+            return LOCKDOWN_E_PAIRING_DIALOG_RESPONSE_PENDING
         }
+    }
+
+    private final class Observer {
+        private let phone: FakeLockdown
+        init(_ phone: FakeLockdown) {
+            self.phone = phone
+            phone.lock.withLock { phone.observers += 1 }
+        }
+        deinit { phone.lock.withLock { phone.observers -= 1 } }
     }
 }

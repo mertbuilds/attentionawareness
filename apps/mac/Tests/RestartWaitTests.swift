@@ -81,7 +81,7 @@ struct RestartWaitTests {
         #expect(await waitUntil { phone.lockdown.dialogShown })
         #expect(await waitUntil { model.restartHint == "Tap Trust on iPhone." })
         #expect(model.job == .restarting)
-        phone.lockdown.accepted = true
+        phone.lockdown.accept()
         #expect(await waitUntil { model.job == .checkOnIPhone(reportedSupervised: true) })
         #expect(phone.lockdown.macRecordIsKnown)
         #expect(model.sends == 1)

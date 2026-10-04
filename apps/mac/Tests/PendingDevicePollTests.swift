@@ -17,7 +17,7 @@ struct PendingDevicePollTests {
         cable.lockdown.locked = false
         #expect(await waitUntil { model.watcher.devices.first?.pairingState == .trustPending })
         #expect(cable.lockdown.dialogShown)
-        cable.lockdown.accepted = true
+        cable.lockdown.accept()
         #expect(await waitUntil { model.watcher.devices.first?.pairingState == .paired })
         // Once it is paired the reading stops.
         let reads = cable.reads

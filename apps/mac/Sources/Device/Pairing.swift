@@ -30,6 +30,7 @@ enum DeviceLog {
         case .requestRefused(let request, _): return "requestRefused \(request)"
         case .profileRejected: return "profileRejected"
         case .pairRecordRejected: return "pairRecordRejected"
+        case .trustUnseen: return "trustUnseen"
         }
     }
 }
@@ -39,43 +40,54 @@ enum DeviceLog {
 ///
 /// The fast method's restore resets the iPhone's pairing records, so after
 /// the restart the iPhone refuses the Mac's record with InvalidHostID. On a
-/// record that exists, `lockdownd_client_new_with_handshake` never pairs: it
-/// only pairs when the Mac has no record at all. And macOS pairs again only
-/// when the iPhone is plugged in, which right after a restart is while it is
-/// still locked, so it gives up. Nothing sent Pair again until the cable was
-/// pulled. Here the Mac sends it itself: the iPhone asks for the passcode or
-/// shows Trust, and once the person taps it the next Pair goes through and
-/// libimobiledevice saves the new record where every later handshake reads it.
+/// record that exists, `lockdownd_client_new_with_handshake` never pairs, and
+/// macOS pairs again only when the iPhone is plugged in, which right after a
+/// restart is while it is still locked. So the Mac sends Pair itself, the
+/// way usbmuxd's preflight does:
+///
+/// - Pair while the iPhone is locked, every 2 seconds. A locked iPhone shows
+///   nothing and answers PasswordProtected.
+/// - The first Pair after the unlock shows Trust. From then on no Pair is
+///   sent on a timer: a second Pair while the person types the passcode
+///   cancels it, and the iPhone answers UserDeniedPairing until the cable is
+///   pulled. The Mac waits for the iPhone's `request_pair` notification on
+///   the insecure notification proxy, which comes once Trust is tapped and
+///   the passcode entered, and sends Pair once more.
+/// - UserDeniedPairing is final until the iPhone leaves the cable.
+///
+/// The handshake still runs on every read, so a record that anything on this
+/// Mac saved, macOS's usbmuxd included, is used at once.
 enum Pairing {
-    /// Runs `handshake`, and on InvalidHostID sends `pair` and runs the
-    /// handshake once more when the iPhone said yes. Throws the state the
-    /// iPhone is in otherwise.
-    ///
-    /// Each Pair makes a new pair record, and what a Pair every two seconds
-    /// does to a Trust dialog already on screen is not known, so `throttle`
-    /// spaces them out per iPhone. In between, the handshake still runs: it
-    /// goes through as soon as anything on this Mac has saved a record the
-    /// iPhone accepts.
+    /// Runs `handshake`, and on InvalidHostID sends `pair` when `trust` says
+    /// it is time. `observe` starts the watch for the iPhone's notifications;
+    /// it returns nil when the iPhone would not start the proxy.
     static func open(
         udid: String,
-        throttle: PairThrottle = .shared,
+        trust: TrustWatch = .shared,
         now: Date = Date(),
         handshake: () -> lockdownd_error_t,
-        pair: () -> lockdownd_error_t
+        pair: () -> lockdownd_error_t,
+        observe: () -> AnyObject? = { nil }
     ) throws {
         var status = handshake()
         if status == LOCKDOWN_E_SUCCESS {
-            throttle.forget(udid)
-        } else if status == LOCKDOWN_E_INVALID_HOST_ID {
-            if let held = throttle.reserve(udid, at: now) {
-                DeviceLog.logger.debug("pair skipped, last answer \(name(held), privacy: .public)")
-                status = held
-            } else {
-                DeviceLog.logger.debug("pair sent")
+            trust.forget(udid)
+            return
+        }
+        if status == LOCKDOWN_E_INVALID_HOST_ID {
+            trust.startObserving(udid, at: now, with: observe)
+            switch trust.next(udid, at: now) {
+            case .hold(let answer):
+                DeviceLog.logger.debug("pair held, last answer \(name(answer), privacy: .public)")
+                status = answer
+            case .stuck:
+                DeviceLog.logger.error("Trust was shown and no answer came that the Mac can hear")
+                throw DeviceError.trustUnseen
+            case .pair(let reason):
                 let paired = pair()
-                throttle.record(udid, answer: paired, at: now)
+                trust.record(udid, answer: paired, at: now)
                 DeviceLog.logger.notice(
-                    "pair after InvalidHostID: \(name(paired), privacy: .public) (\(paired.rawValue, privacy: .public))"
+                    "pair (\(reason, privacy: .public)): \(name(paired), privacy: .public) (\(paired.rawValue, privacy: .public))"
                 )
                 if paired == LOCKDOWN_E_SUCCESS {
                     status = handshake()
@@ -86,7 +98,7 @@ enum Pairing {
                         DeviceLog.logger.error("pair succeeded but the record was not accepted")
                         throw DeviceError.pairRecordRejected
                     }
-                    if status == LOCKDOWN_E_SUCCESS { throttle.forget(udid) }
+                    if status == LOCKDOWN_E_SUCCESS { trust.forget(udid) }
                 } else {
                     status = paired
                 }
@@ -153,50 +165,179 @@ extension DeviceError {
     }
 }
 
-/// When each iPhone was last sent Pair and what it answered, so a Pair is
-/// not sent again too soon. Reads run on several threads, so a Pair is
-/// reserved before it is sent and a second read meanwhile sends none.
-final class PairThrottle: @unchecked Sendable {
-    static let shared = PairThrottle()
+/// Where each iPhone that has forgotten this Mac is with trusting it again,
+/// and the watch on its notifications. Reads run on several threads and the
+/// notifications arrive on the library's own, so everything goes through one
+/// lock, and a Pair is reserved before it is sent so no two go out.
+final class TrustWatch: @unchecked Sendable {
+    static let shared = TrustWatch()
 
-    /// How long an answer stands before the next Pair. A locked iPhone shows
-    /// nothing, so it is asked again soon; a Trust dialog on screen is left
-    /// alone longer.
-    static func interval(after answer: lockdownd_error_t) -> TimeInterval {
-        switch answer {
-        case LOCKDOWN_E_PASSWORD_PROTECTED: return 2
-        case LOCKDOWN_E_PAIRING_DIALOG_RESPONSE_PENDING, LOCKDOWN_E_USER_DENIED_PAIRING: return 5
-        default: return 0
-        }
+    /// How long a locked iPhone, or one that failed a Pair for another
+    /// reason, is left before the next Pair.
+    static let retryInterval: TimeInterval = 2
+    /// How long Trust may sit on screen with no way to hear the answer before
+    /// the read gives up and asks for a replug.
+    static let unheardLimit: TimeInterval = 120
+    /// How long after a failed start the proxy is tried again.
+    static let observeRetryInterval: TimeInterval = 5
+
+    static let requestPair = "com.apple.mobile.lockdown.request_pair"
+    static let requestHostBUID = "com.apple.mobile.lockdown.request_host_buid"
+
+    enum Decision: Equatable {
+        case pair(String)
+        case hold(lockdownd_error_t)
+        case stuck
     }
 
-    private struct Attempt {
-        var at: Date
-        var answer: lockdownd_error_t?
+    private enum Stage {
+        /// The last Pair failed with this answer at this time and may go
+        /// again after `retryInterval`.
+        case retry(at: Date, answer: lockdownd_error_t)
+        /// A Pair is out.
+        case pairOut
+        /// Trust is on screen since this time.
+        case dialog(since: Date)
+        /// The iPhone posted `request_pair`: Trust was tapped.
+        case trustTapped
+        case denied
+    }
+
+    private struct Entry {
+        var stage: Stage?
+        var observer: AnyObject?
+        var lastObserveTry: Date?
     }
 
     private let lock = NSLock()
-    private var attempts: [String: Attempt] = [:]
+    private var entries: [String: Entry] = [:]
+    /// Called when a notification changes what the next read should do.
+    var onChange: (@Sendable () -> Void)?
 
-    /// Nil when a Pair may be sent now, and marks it as out. Otherwise the
-    /// answer the read reports instead: the last one, or InvalidHostID while
-    /// a Pair is still out.
-    func reserve(_ udid: String, at now: Date) -> lockdownd_error_t? {
+    func next(_ udid: String, at now: Date) -> Decision {
         lock.withLock {
-            if let last = attempts[udid] {
-                guard let answer = last.answer else { return LOCKDOWN_E_INVALID_HOST_ID }
-                if now.timeIntervalSince(last.at) < Self.interval(after: answer) { return answer }
+            var entry = entries[udid] ?? Entry()
+            let decision: Decision
+            switch entry.stage {
+            case nil:
+                decision = .pair("first")
+            case .retry(let at, let answer):
+                decision = now.timeIntervalSince(at) >= Self.retryInterval ? .pair("again") : .hold(answer)
+            case .pairOut:
+                decision = .hold(LOCKDOWN_E_INVALID_HOST_ID)
+            case .dialog(let since):
+                decision = entry.observer == nil && now.timeIntervalSince(since) >= Self.unheardLimit
+                    ? .stuck
+                    : .hold(LOCKDOWN_E_PAIRING_DIALOG_RESPONSE_PENDING)
+            case .trustTapped:
+                decision = .pair("request_pair")
+            case .denied:
+                decision = .hold(LOCKDOWN_E_USER_DENIED_PAIRING)
             }
-            attempts[udid] = Attempt(at: now, answer: nil)
-            return nil
+            if case .pair = decision { entry.stage = .pairOut }
+            entries[udid] = entry
+            return decision
         }
     }
 
     func record(_ udid: String, answer: lockdownd_error_t, at now: Date) {
-        lock.withLock { attempts[udid] = Attempt(at: now, answer: answer) }
+        lock.withLock {
+            var entry = entries[udid] ?? Entry()
+            switch answer {
+            case LOCKDOWN_E_PAIRING_DIALOG_RESPONSE_PENDING:
+                if case .dialog = entry.stage {} else { entry.stage = .dialog(since: now) }
+            case LOCKDOWN_E_USER_DENIED_PAIRING:
+                entry.stage = .denied
+            case LOCKDOWN_E_SUCCESS:
+                entry.stage = .dialog(since: now)
+            default:
+                entry.stage = .retry(at: now, answer: answer)
+            }
+            entries[udid] = entry
+        }
     }
 
-    func forget(_ udid: String) {
-        lock.withLock { _ = attempts.removeValue(forKey: udid) }
+    /// Starts the watch on the iPhone's notifications once per connection,
+    /// and again a few seconds after a start that failed.
+    func startObserving(_ udid: String, at now: Date, with make: () -> AnyObject?) {
+        let due = lock.withLock {
+            var entry = entries[udid] ?? Entry()
+            if entry.observer != nil { return false }
+            if let last = entry.lastObserveTry, now.timeIntervalSince(last) < Self.observeRetryInterval { return false }
+            entry.lastObserveTry = now
+            entries[udid] = entry
+            return true
+        }
+        guard due else { return }
+        let observer = make()
+        DeviceLog.logger.notice("notification watch \(observer == nil ? "not started" : "started", privacy: .public)")
+        guard let observer else { return }
+        let extra: AnyObject? = lock.withLock {
+            guard var entry = entries[udid], entry.observer == nil else { return observer }
+            entry.observer = observer
+            entries[udid] = entry
+            return nil
+        }
+        release(extra)
     }
+
+    /// A notification from the iPhone. An empty name means the watch lost
+    /// its connection.
+    func notified(_ udid: String, name: String) {
+        DeviceLog.logger.notice("notification: \(name.isEmpty ? "watch ended" : name, privacy: .public)")
+        let changed: Bool = lock.withLock {
+            guard var entry = entries[udid] else { return false }
+            if name.isEmpty {
+                // Dropped on another thread: the watch is still running this
+                // callback, and freeing it here would wait on itself.
+                let observer = entry.observer
+                entry.observer = nil
+                entries[udid] = entry
+                release(observer)
+                return false
+            }
+            guard name == Self.requestPair else { return false }
+            switch entry.stage {
+            case .dialog, .retry: break
+            default: return false
+            }
+            entry.stage = .trustTapped
+            entries[udid] = entry
+            return true
+        }
+        if changed { onChange?() }
+    }
+
+    /// The iPhone is paired or left the cable: its state and its watch go.
+    func forget(_ udid: String) {
+        let observer = lock.withLock { entries.removeValue(forKey: udid)?.observer }
+        release(observer)
+    }
+
+    /// Forgets every iPhone that is not in `udids`.
+    func keep(only udids: [String]) {
+        let observers: [AnyObject] = lock.withLock {
+            let gone = entries.keys.filter { !udids.contains($0) }
+            return gone.compactMap { entries.removeValue(forKey: $0)?.observer }
+        }
+        observers.forEach(release)
+    }
+
+    var isObserving: [String: Bool] {
+        lock.withLock { entries.mapValues { $0.observer != nil } }
+    }
+
+    /// Lets go of a watch away from every lock and every thread that may be
+    /// inside its callback: freeing one waits for its thread to stop.
+    private func release(_ observer: AnyObject?) {
+        guard let observer else { return }
+        let box = ObserverBox(observer)
+        DispatchQueue.global(qos: .utility).async { box.drop() }
+    }
+}
+
+private final class ObserverBox: @unchecked Sendable {
+    private var observer: AnyObject?
+    init(_ observer: AnyObject) { self.observer = observer }
+    func drop() { observer = nil }
 }

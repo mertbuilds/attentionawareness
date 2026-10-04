@@ -76,6 +76,9 @@ final class DeviceWatcher: ObservableObject {
             MainActor.assumeIsolated { self?.reload() }
         }
         self.relay = relay
+        // The iPhone saying Trust was tapped is heard on another thread, and
+        // the next read is what sends the Pair.
+        TrustWatch.shared.onChange = { [weak relay] in relay?.fire() }
 
         var context: idevice_subscription_context_t?
         let status = idevice_events_subscribe(
@@ -235,7 +238,11 @@ final class DeviceWatcher: ObservableObject {
         var snapshot = Snapshot()
         let listed = ConnectedDevice.usbListing()
         snapshot.onCable = listed
-        if listed == nil { DeviceLog.logger.error("read: usbmuxd did not list devices") }
+        if let listed {
+            TrustWatch.shared.keep(only: listed)
+        } else {
+            DeviceLog.logger.error("read: usbmuxd did not list devices")
+        }
         for udid in listed ?? [] {
             do {
                 let device = try ConnectedDevice.read(udid: udid)
@@ -310,5 +317,10 @@ private let deviceEventCallback: idevice_event_cb_t = { event, userData in
     guard let event, let userData else { return }
     // Network devices are ignored: this app works over the cable only.
     guard event.pointee.conn_type == CONNECTION_USBMUXD else { return }
+    // A denial and a Trust dialog both belong to one connection, so an
+    // iPhone that leaves the cable starts over.
+    if event.pointee.event == IDEVICE_DEVICE_REMOVE, let udid = event.pointee.udid {
+        TrustWatch.shared.forget(String(cString: udid))
+    }
     Unmanaged<DeviceEventRelay>.fromOpaque(userData).takeUnretainedValue().fire()
 }

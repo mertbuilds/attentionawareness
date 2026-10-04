@@ -172,8 +172,10 @@ enum JobPhase: Equatable {
         switch pairing {
         case .locked:
             return "Unlock iPhone."
-        case .trustPending, .untrusted:
+        case .trustPending:
             return "Tap Trust on iPhone."
+        case .untrusted:
+            return "iPhone did not trust this Mac. Unplug iPhone, plug it in again, then tap Trust."
         case .paired:
             return "Keep iPhone unlocked and connected."
         case nil where method == .seed:

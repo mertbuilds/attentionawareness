@@ -16,6 +16,8 @@ enum DeviceError: LocalizedError, Equatable {
     case trustDenied
     /// The iPhone accepted Pair, yet refused the record this Mac saved for it.
     case pairRecordRejected
+    /// Trust was shown, and the Mac has no way to hear the answer.
+    case trustUnseen
     /// The lockdown handshake failed for a reason that is not about trust.
     case lockdownFailed(code: Int32)
     /// The iPhone refused to start a service.
@@ -43,7 +45,9 @@ enum DeviceError: LocalizedError, Equatable {
         case .locked:
             return "iPhone is locked. Unlock it with its passcode."
         case .trustDenied:
-            return "iPhone refused to trust this Mac. Unplug it, plug it back in and tap Trust."
+            return "iPhone did not trust this Mac. Unplug iPhone, plug it in again, then tap Trust."
+        case .trustUnseen:
+            return "This Mac can't tell whether iPhone trusted it. Unplug iPhone, plug it in again, then tap Trust."
         case .pairRecordRejected:
             return "iPhone trusted this Mac, but this Mac couldn't keep the pairing. Unplug iPhone and plug it in again."
         case .lockdownFailed(let code):

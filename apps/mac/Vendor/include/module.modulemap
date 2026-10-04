@@ -8,6 +8,7 @@ module CImobileDevice {
     header "libimobiledevice/diagnostics_relay.h"
     header "libimobiledevice/property_list_service.h"
     header "libimobiledevice/service.h"
+    header "libimobiledevice/notification_proxy.h"
     header "plist/plist.h"
     header "usbmuxd.h"
     export *
