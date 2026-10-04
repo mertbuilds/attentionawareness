@@ -92,10 +92,17 @@ function videos(y: number, mark: Mark = {}): Array<Part> {
  * layout of each, and on it the parts the extension hides. `icon` is the
  * site's own app icon in `public/media/apps`, by bundle id.
  */
-const SITES: ReadonlyArray<{ icon: string; name: () => string; parts: ReadonlyArray<Part> }> = [
+const SITES: ReadonlyArray<{
+  /** What the extension hides on the site and what stays, in a sentence or two. */
+  does: () => string;
+  icon: string;
+  name: () => string;
+  parts: ReadonlyArray<Part>;
+}> = [
   // A video site: the row of short videos goes, with its entry in the menu,
   // and the rows of videos under it move up.
   {
+    does: m.home_ext_does_youtube,
     icon: 'com.google.ios.youtube',
     name: m.home_ext_site_youtube,
     parts: [
@@ -123,6 +130,7 @@ const SITES: ReadonlyArray<{ icon: string; name: () => string; parts: ReadonlyAr
   // A photo site: the short videos' entry in the menu goes, and the people it
   // suggests. Stories, posts and the reader's own profile stay.
   {
+    does: m.home_ext_does_instagram,
     icon: 'com.burbn.instagram',
     name: m.home_ext_site_instagram,
     parts: [
@@ -155,6 +163,7 @@ const SITES: ReadonlyArray<{ icon: string; name: () => string; parts: ReadonlyAr
   // the box of trends. The tab of the people they follow stays, and gets the
   // underline.
   {
+    does: m.home_ext_does_x,
     icon: 'com.atebits.Tweetie2',
     name: m.home_ext_site_x,
     parts: [
@@ -200,6 +209,56 @@ const styles = create({
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s3,
+  },
+  // The points stand a step further under the drawing than the names over it.
+  pointsGap: {
+    marginBlockStart: spacing.s3,
+  },
+  // What the extension does on one site: the site's name, then a quiet line,
+  // a step smaller than the page's prose so the drawing over them leads. The
+  // ones whose site is not playing stand back.
+  point: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s1,
+    opacity: 0.5,
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0ms',
+      default: duration.slow,
+    },
+    transitionProperty: 'opacity',
+    transitionTimingFunction: easing.inOut,
+  },
+  pointBody: {
+    color: colors.muted,
+    fontSize: font.sizeSm,
+    lineHeight: 1.5,
+    margin: 0,
+    textWrap: 'pretty',
+  },
+  pointPlaying: {
+    opacity: 1,
+  },
+  pointTitle: {
+    fontSize: font.sizeMd,
+    fontWeight: font.weightRegular,
+    lineHeight: 1.5,
+    margin: 0,
+  },
+  // Three side by side where they fit, one under the other on a phone.
+  points: {
+    display: 'grid',
+    gap: {
+      '@media (min-width: 768px)': spacing.s6,
+      default: spacing.s4,
+    },
+    gridTemplateColumns: {
+      '@media (min-width: 768px)': 'repeat(3, minmax(0, 1fr))',
+      default: 'minmax(0, 1fr)',
+    },
+    listStyle: 'none',
+    margin: 0,
+    padding: 0,
   },
   // The edge of a site's icon, so a white or a black one still holds its shape.
   edge: {
@@ -801,6 +860,15 @@ export function ExtensionBrowser() {
           )}
         </svg>
       </div>
+      {/* What it does on each site, the playing one in full ink. */}
+      <ul {...props(styles.points, styles.pointsGap)}>
+        {SITES.map((entry, index) => (
+          <li key={entry.icon} {...props(styles.point, index === site && styles.pointPlaying)}>
+            <h3 {...props(styles.pointTitle)}>{entry.name()}</h3>
+            <p {...props(styles.pointBody)}>{entry.does()}</p>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

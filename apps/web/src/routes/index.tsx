@@ -1,6 +1,7 @@
 import { Button } from '@attentionawareness/ui';
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
+import { usePostHog } from '@posthog/react';
 import { create, defaultMarker, props, when } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
@@ -46,6 +47,8 @@ function signLines(text: string): Array<string> {
 }
 /** The question about losing data, which the line under the download goes to. */
 const FAQ_DATA_ID = 'faq-data';
+/** The extension's privacy page. */
+const EXTENSION_PRIVACY_PATH = '/extension/privacy';
 const LETTER_FACE = "'Special Elite', 'Courier New', ui-monospace, monospace";
 /**
  * The first screen side by side: wider than the column, so the words keep a
@@ -148,41 +151,6 @@ const styles = create({
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s4,
-  },
-  // One thing it does: a short name, then a quiet line, a step smaller than
-  // the page's prose so the drawing over them leads.
-  extensionPoint: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s1,
-  },
-  extensionPointBody: {
-    color: colors.muted,
-    fontSize: font.sizeSm,
-    lineHeight: 1.5,
-    margin: 0,
-    textWrap: 'pretty',
-  },
-  extensionPointTitle: {
-    fontSize: font.sizeMd,
-    fontWeight: font.weightRegular,
-    lineHeight: 1.5,
-    margin: 0,
-  },
-  // Three side by side where they fit, one under the other on a phone.
-  extensionPoints: {
-    display: 'grid',
-    gap: {
-      '@media (min-width: 768px)': spacing.s6,
-      default: spacing.s4,
-    },
-    gridTemplateColumns: {
-      '@media (min-width: 768px)': 'repeat(3, minmax(0, 1fr))',
-      default: 'minmax(0, 1fr)',
-    },
-    listStyle: 'none',
-    margin: 0,
-    padding: 0,
   },
   // The track an answer grows and shrinks in, from no height to its own. It
   // takes no padding, or a closed answer would keep a strip of it.
@@ -652,6 +620,7 @@ function Promises({
 }
 
 function HomePage() {
+  const posthog = usePostHog();
   // The word the claim turns on, wherever a language puts it, so the words
   // around it keep their own order in every language.
   const [titleBefore, titleAfter] = m.home_hero_title({ permanently: LINK_SLOT }).split(LINK_SLOT);
@@ -664,12 +633,6 @@ function HomePage() {
   ];
 
   // What the browser extension does: a short name each, and a line under it.
-  const extensionPoints = [
-    { body: m.home_ext_point_sites(), title: m.home_ext_point_sites_title() },
-    { body: m.home_ext_point_accounts(), title: m.home_ext_point_accounts_title() },
-    { body: m.home_ext_point_custom(), title: m.home_ext_point_custom_title() },
-  ];
-
   // The post the story links out to, in the middle of the sentence that tells
   // it, so the words around it keep their own order in every language.
   const [storyBefore, storyAfter] = m.home_story_path({ post: LINK_SLOT }).split(LINK_SLOT);
@@ -825,28 +788,29 @@ function HomePage() {
         </section>
 
         {/* The same idea on the computer: the browser extension and the way
-        to it, the drawing of what it hides on the three sites it knows, then
-        what it does in three short points. */}
+        to it, then the drawing of what it hides on the three sites it knows,
+        with what it does on each under it. */}
         <section {...props(styles.section, styles.extension, styles.anchor)} id={SECTION.extension}>
           <div {...props(styles.extensionHead)}>
             <h2 {...props(styles.sectionTitle)}>{m.home_ext_title()}</h2>
             <p {...props(styles.sectionBody)}>{m.home_ext_lead()}</p>
+            <p {...props(styles.sectionBody)}>{m.home_ext_honest()}</p>
             <div {...props(styles.extensionAction)}>
-              <Button render={<a href={STORE_URL} rel="noreferrer" target="_blank" />}>
+              <Button
+                aria-label={m.home_ext_cta_label()}
+                onClick={() =>
+                  posthog.capture('extension_install_clicked', { placement: 'extension_section' })
+                }
+                render={<a href={STORE_URL} rel="noreferrer" target="_blank" />}
+              >
                 {m.home_ext_cta()}
               </Button>
-              <p {...props(styles.heroPrice)}>{m.home_ext_note()}</p>
+              <p {...props(styles.heroPrice)}>
+                {m.home_ext_note()} <a href={EXTENSION_PRIVACY_PATH}>{m.home_ext_privacy()}</a>
+              </p>
             </div>
           </div>
           <ExtensionBrowser />
-          <ul {...props(styles.extensionPoints)}>
-            {extensionPoints.map((point) => (
-              <li key={point.title} {...props(styles.extensionPoint)}>
-                <h3 {...props(styles.extensionPointTitle)}>{point.title}</h3>
-                <p {...props(styles.extensionPointBody)}>{point.body}</p>
-              </li>
-            ))}
-          </ul>
         </section>
 
         {/* Why everything is free, and the way to support the work: the

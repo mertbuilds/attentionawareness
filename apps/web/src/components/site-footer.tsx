@@ -505,7 +505,12 @@ export function SiteFooter({ children }: { children?: ReactNode | undefined }) {
     { href: GUIDE_PATH, label: m.footer_product_guide() },
     { href: BUILD_PATH, label: m.footer_product_build() },
     { href: `${page}#${SECTION.extension}`, label: m.footer_product_extension() },
-    { external: true, href: STORE_URL, label: m.footer_product_store() },
+    {
+      external: true,
+      href: STORE_URL,
+      label: m.footer_product_store(),
+      onClick: () => posthog.capture('extension_install_clicked', { placement: 'footer' }),
+    },
   ];
   const blog: ReadonlyArray<FooterLink> = [
     ...POSTS.filter(({ slug }) => posts.some((post) => post.slug === slug)).map(
