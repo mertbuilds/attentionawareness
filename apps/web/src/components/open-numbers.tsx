@@ -13,6 +13,8 @@ const PATIENCE = 10_000;
 const HOLD = 480;
 /** The frame's own line, top and bottom, which its height has to hold as well. */
 const EDGES = 2;
+/** The block's width on a wide window, past the dashboard's two-column mark. */
+const WIDE = '1100px';
 const LIGHT = '(prefers-color-scheme: light)';
 /** Where the link stands in the sentence, as the footer does it. */
 const LINK_SLOT = '\u0000';
@@ -21,9 +23,15 @@ type Theme = 'dark' | 'light';
 type Status = 'late' | 'loading' | 'ready';
 
 const styles = create({
+  // Wider than the page's column where the window has the room: from 1024px
+  // the dashboard sets its tiles side by side, under that one per row.
   block: {
     display: 'flex',
     flexDirection: 'column',
+    marginInline: {
+      '@media (min-width: 1200px)': `calc((100% - ${WIDE}) / 2)`,
+      default: 0,
+    },
     position: 'relative',
   },
   frame: {
@@ -32,9 +40,17 @@ const styles = create({
     borderStyle: 'solid',
     borderWidth: '1px',
     boxSizing: 'border-box',
-    colorScheme: 'normal',
     display: 'block',
     width: '100%',
+  },
+  // The dashboard follows the reader's system theme, and a frame takes that
+  // from the colour scheme of the element that holds it. So the page's own
+  // theme, forced or not, is handed down here.
+  frameDark: {
+    colorScheme: 'dark',
+  },
+  frameLight: {
+    colorScheme: 'light',
   },
   // Loaded and measured out of sight, so the frame can still say it is there.
   frameWaiting: {
@@ -156,12 +172,16 @@ export function OpenNumbers() {
       {theme && (
         <iframe
           height={height + EDGES}
-          key={theme}
           ref={frame}
           referrerPolicy="no-referrer"
-          src={`${dashboard}?theme=${theme}`}
+          sandbox="allow-scripts allow-same-origin allow-popups"
+          src={dashboard}
           title={m.open_numbers_frame()}
-          {...props(styles.frame, status !== 'ready' && styles.frameWaiting)}
+          {...props(
+            styles.frame,
+            theme === 'dark' ? styles.frameDark : styles.frameLight,
+            status !== 'ready' && styles.frameWaiting,
+          )}
         />
       )}
     </div>
