@@ -167,7 +167,7 @@ private struct CheckForUpdatesButton: View {
     @State private var canCheck = false
 
     var body: some View {
-        Button("Check for Updates") {
+        Button("Check for Updates…") {
             updater.checkForUpdates()
         }
         .disabled(!canCheck)
