@@ -119,8 +119,8 @@ const CHEVRON_STROKE = 2.25;
 /** The tick before a promise, in pixels, drawn with the chevron's line. */
 const CHECK_SIZE = 16;
 
-/** The hero's paper is centred on the hero and fades out toward every side. */
-const HERO_PAPER_MASK = 'radial-gradient(ellipse at 50% 45%, black 20%, transparent 70%)';
+/** The hero's paper is centred on the hero, reaches toward its edges and is gone before the corners. */
+const HERO_PAPER_MASK = 'radial-gradient(ellipse at 50% 45%, black 40%, transparent 92%)';
 /** The closing's paper fades out from behind the line and the button. */
 const CLOSING_PAPER_MASK = 'radial-gradient(ellipse at 50% 42%, black 25%, transparent 68%)';
 
