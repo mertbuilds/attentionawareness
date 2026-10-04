@@ -4,6 +4,7 @@ import { canonicalRedirect } from './lib/canonical.ts';
 import { macFileEvent, sendMacEvent } from './lib/mac-analytics.ts';
 import { macFileResponse } from './lib/mac-files.ts';
 import type { MacFilesBucket } from './lib/mac-files.ts';
+import { setOpenNumbersKey } from './lib/open-numbers.server.ts';
 import { removedPathRedirect } from './lib/redirects.ts';
 import { setSigningSecrets } from './lib/signing-secrets.ts';
 import { paraglideMiddleware } from './paraglide/server.js';
@@ -14,6 +15,7 @@ interface WorkerEnv {
   MAC_FILES: MacFilesBucket;
   OPENPANEL_CLIENT_ID?: string;
   OPENPANEL_CLIENT_SECRET?: string;
+  POSTHOG_PERSONAL_API_KEY?: string;
   SIGNING_CERT_PEM?: string;
   SIGNING_CHAIN_PEM?: string;
   SIGNING_KEY_PKCS8_PEM?: string;
@@ -50,6 +52,7 @@ export default {
     // Bindings reach a Worker's fetch and nothing else, so the signing route
     // is handed them here rather than reading an env it cannot see.
     setSigningSecrets(env);
+    setOpenNumbersKey(env);
     const { createWorkersLogger } = await import('evlog/workers');
     const log = createWorkersLogger(request, { executionCtx: ctx });
     const url = new URL(request.url);

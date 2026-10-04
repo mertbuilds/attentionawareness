@@ -16,12 +16,19 @@ export const Route = createFileRoute('/open')({
       { content: m.open_description(), property: 'og:description' },
     ],
   }),
+  // Read on the Worker, so the page arrives with its numbers in it. The
+  // function is fetched only here: a loader is part of every page's first
+  // script, and the code that calls the Worker is not small.
+  loader: async () => {
+    const { getOpenNumbers } = await import('../lib/open-numbers-fn.ts');
+    return getOpenNumbers();
+  },
 });
 
 /** The brand in prose, the way the root document spells it. */
 const SITE_NAME = 'attention awareness';
-/** Where a sponsor writes to, with the subject already filled in. */
-const SPONSOR_MAILTO = `mailto:hi@attentionawareness.com?subject=${encodeURIComponent('Sponsoring attentionawareness.com')}`;
+/** Where a sponsor writes to. */
+const SPONSOR_EMAIL = 'hi@attentionawareness.com';
 /** Where the link stands in the sentence, as the footer does it. */
 const LINK_SLOT = '\u0000';
 
@@ -65,6 +72,8 @@ const styles = create({
 
 function Open() {
   const posthog = usePostHog();
+  const answer = Route.useLoaderData();
+  const mailto = `mailto:${SPONSOR_EMAIL}?subject=${encodeURIComponent(m.open_sponsor_subject())}`;
   const [sponsorBefore, sponsorAfter] = m.open_sponsor_body({ write: LINK_SLOT }).split(LINK_SLOT);
 
   return (
@@ -72,7 +81,7 @@ function Open() {
       <section {...props(styles.section)}>
         <h2 {...props(styles.sectionTitle)}>{m.open_numbers_title()}</h2>
         <p {...props(styles.body)}>{m.open_numbers_body()}</p>
-        <OpenNumbers />
+        <OpenNumbers answer={answer} />
       </section>
 
       <section {...props(styles.section)}>
@@ -84,6 +93,7 @@ function Open() {
           <li>{m.open_track_openpanel()}</li>
           <li>{m.open_track_iphone()}</li>
           <li>{m.open_track_mac()}</li>
+          <li>{m.open_track_mac_updates()}</li>
         </ul>
       </section>
 
@@ -92,7 +102,7 @@ function Open() {
         <p {...props(styles.body)}>
           {sponsorBefore}
           <a
-            href={SPONSOR_MAILTO}
+            href={mailto}
             onClick={() => posthog.capture('sponsor_clicked', { placement: 'open' })}
           >
             {m.open_sponsor_link()}
