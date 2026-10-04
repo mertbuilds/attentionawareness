@@ -9,6 +9,7 @@
     "deploy": "pnpm build && cf deploy --prebuilt",
     "dev": "vite dev",
     "preview": "vite preview",
+    "test": "node --test 'src/**/*.test.ts'",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
