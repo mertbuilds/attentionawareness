@@ -649,9 +649,15 @@ function HomePage() {
   const posthog = usePostHog();
   const { thanks } = Route.useSearch();
   const navigate = Route.useNavigate();
-  // The word the claim turns on, wherever a language puts it, so the words
-  // around it keep their own order in every language.
-  const [titleBefore, titleAfter] = m.home_hero_title({ permanently: LINK_SLOT }).split(LINK_SLOT);
+  // The two words the claim turns on, in orange wherever a language puts
+  // them, so the words around them keep their own order in every language.
+  const titleWords = new Map([
+    [LINK_SLOT, m.home_hero_title_distraction()],
+    [SECOND_SLOT, m.home_hero_title_accent()],
+  ]);
+  const titleParts = m
+    .home_hero_title({ distraction: LINK_SLOT, permanently: SECOND_SLOT })
+    .split(SLOTS);
 
   // Why the lock lasts, each with its tick.
   const heroPromises = [
@@ -824,9 +830,16 @@ function HomePage() {
       <header {...props(styles.hero)}>
         <div {...props(styles.heroText)}>
           <h1 {...props(styles.displayTitle)}>
-            {titleBefore}
-            <span {...props(styles.accentWord)}>{m.home_hero_title_accent()}</span>
-            {titleAfter}
+            {titleParts.map((part) => {
+              const word = titleWords.get(part);
+              return word === undefined ? (
+                part
+              ) : (
+                <span key={part} {...props(styles.accentWord)}>
+                  {word}
+                </span>
+              );
+            })}
           </h1>
           <Promises promises={heroPromises} style={styles.heroPromises} />
           <div {...props(styles.heroAction)}>

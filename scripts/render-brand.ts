@@ -83,18 +83,18 @@ body { background: ${bg}; }
 }</style><div class="mark">${MARK}</div>`;
 
 /**
- * The hero's headline, read from its own messages (`home_hero_title` and
- * `home_hero_title_accent`), so the share card never drifts from the page.
- * Only the accent word is orange.
+ * The hero's headline, read from its own messages (`home_hero_title`,
+ * `home_hero_title_distraction` and `home_hero_title_accent`), so the share
+ * card never drifts from the page. Only the two accent words are orange.
  */
 const hero = JSON.parse(readFileSync(path.join(root, 'apps/web/messages/en.json'), 'utf8')) as {
   home_hero_title: string;
   home_hero_title_accent: string;
+  home_hero_title_distraction: string;
 };
-const OG_TITLE = hero.home_hero_title.replace(
-  '{permanently}',
-  `<em>${hero.home_hero_title_accent}</em>`,
-);
+const OG_TITLE = hero.home_hero_title
+  .replace('{distraction}', `<em>${hero.home_hero_title_distraction}</em>`)
+  .replace('{permanently}', `<em>${hero.home_hero_title_accent}</em>`);
 const ORANGE = '#ff4f00';
 /** The page's graph paper: the same 40px ruling, the same faint white line. */
 const OG_LINE = 'rgba(255, 255, 255, 0.08)';

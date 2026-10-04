@@ -77,7 +77,10 @@ export const Route = createRootRoute({
     const path = named.length > 1 && named.endsWith('/') ? named.slice(0, -1) : named;
     const url = match._notFound ? undefined : `${SITE_URL}${path}`;
     // What the site promises, in the hero's own words. The share cards lead with it.
-    const tagline = m.home_hero_title({ permanently: m.home_hero_title_accent() });
+    const tagline = m.home_hero_title({
+      distraction: m.home_hero_title_distraction(),
+      permanently: m.home_hero_title_accent(),
+    });
     const description = `${SITE_NAME}. ${m.home_meta_description()}`;
     return {
       links: [
