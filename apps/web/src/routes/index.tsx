@@ -728,15 +728,6 @@ function HomePage() {
           <SupportSection titleStyle={styles.displayTitle} />
         </section>
 
-        <section {...props(styles.section, styles.anchor)} id={FAQ_ID}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_faq_title()}</h2>
-          <div>
-            {objections.map((objection) => (
-              <Question answer={objection.desc} key={objection.term} question={objection.term} />
-            ))}
-          </div>
-        </section>
-
         {/* Who made this and why, told rather than argued. */}
         <section {...props(styles.section, styles.anchor)} id={STORY_ID}>
           <h2 {...props(styles.sectionTitle)}>{m.home_story_title()}</h2>
@@ -774,6 +765,17 @@ function HomePage() {
               {storyAfter}
             </p>
             <Signature />
+          </div>
+        </section>
+
+        {/* The questions, last of the sections: after them only the line the
+        page closes on. */}
+        <section {...props(styles.section, styles.anchor)} id={FAQ_ID}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_faq_title()}</h2>
+          <div>
+            {objections.map((objection) => (
+              <Question answer={objection.desc} key={objection.term} question={objection.term} />
+            ))}
           </div>
         </section>
 
