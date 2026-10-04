@@ -91,7 +91,7 @@ Nobody can remove a locked profile in Settings. There is no passcode to guess.
 | Protected by              | A four-digit passcode     | No off switch in Settings                              |
 | How to undo               | Change the settings       | Erase the iPhone, or use a Mac with Apple Configurator |
 
-Use both. Keep Ask to Buy on, and use the profile for the few apps and sites that must stay blocked.
+Use both. Keep Ask to Buy on, and use the profile for the few apps and websites that must stay blocked.
 
 There are two free ways to do it:
 
@@ -123,7 +123,7 @@ Stay with Screen Time if the passcode is still secret and the limits hold, or if
 
 Paid parental control apps can add activity reports. They cost a monthly fee. Try Apple's free controls first.
 
-Consider supervision when the same app or site keeps coming back after you block it.
+Consider supervision when the same app or website keeps coming back after you block it.
 
 ## Questions parents ask
 
