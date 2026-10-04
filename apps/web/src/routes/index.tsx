@@ -843,7 +843,7 @@ function HomePage() {
                 {m.home_ext_cta()}
               </Button>
               <p {...props(styles.heroPrice)}>
-                {m.home_ext_note()} <a href={EXTENSION_PRIVACY_PATH}>{m.home_ext_privacy()}</a>
+                <a href={EXTENSION_PRIVACY_PATH}>{m.home_ext_privacy()}</a>
               </p>
             </div>
           </div>
