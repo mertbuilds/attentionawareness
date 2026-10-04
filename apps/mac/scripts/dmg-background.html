@@ -25,7 +25,11 @@
 html,body{margin:0;padding:0}*{box-sizing:border-box}
 #c{position:relative;width:680px;height:540px;overflow:hidden;background:var(--ground);
    font-family:'Suisse',-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+/* The grid fades toward the edges, as on the site (grid-texture.tsx): full
+   strength around the headline and the icons, black before the window ends. */
 #grid{position:absolute;inset:0;opacity:0.45;
+   -webkit-mask-image:radial-gradient(ellipse 48% 50% at 50% 45%,black 35%,transparent 100%);
+   mask-image:radial-gradient(ellipse 48% 50% at 50% 45%,black 35%,transparent 100%);
    background-image:linear-gradient(var(--border) 1px,transparent 1px),
                     linear-gradient(90deg,var(--border) 1px,transparent 1px);
    background-size:40px 40px}
