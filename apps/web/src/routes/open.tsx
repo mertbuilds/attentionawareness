@@ -20,12 +20,8 @@ export const Route = createFileRoute('/open')({
 
 /** The brand in prose, the way the root document spells it. */
 const SITE_NAME = 'attention awareness';
-/**
- * Where a sponsor writes to. NOT CONFIRMED: the site names no address of its
- * own yet, so the owner has to confirm this one, or make the mailbox, before
- * the page goes live.
- */
-const SPONSOR_EMAIL = 'hello@attentionawareness.com';
+/** Where a sponsor writes to, with the subject already filled in. */
+const SPONSOR_MAILTO = `mailto:hi@attentionawareness.com?subject=${encodeURIComponent('Sponsoring attentionawareness.com')}`;
 /** Where the link stands in the sentence, as the footer does it. */
 const LINK_SLOT = '\u0000';
 
@@ -96,7 +92,7 @@ function Open() {
         <p {...props(styles.body)}>
           {sponsorBefore}
           <a
-            href={`mailto:${SPONSOR_EMAIL}`}
+            href={SPONSOR_MAILTO}
             onClick={() => posthog.capture('sponsor_clicked', { placement: 'open' })}
           >
             {m.open_sponsor_link()}
