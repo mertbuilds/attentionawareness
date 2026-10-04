@@ -119,6 +119,8 @@ const CHEVRON_STROKE = 2.25;
 /** The tick before a promise, in pixels, drawn with the chevron's line. */
 const CHECK_SIZE = 16;
 
+/** The hero's paper is centred on the hero and fades out toward every side. */
+const HERO_PAPER_MASK = 'radial-gradient(ellipse at 50% 45%, black 20%, transparent 70%)';
 /** The closing's paper fades out from behind the line and the button. */
 const CLOSING_PAPER_MASK = 'radial-gradient(ellipse at 50% 42%, black 25%, transparent 68%)';
 
@@ -149,6 +151,13 @@ const styles = create({
     gap: spacing.s2,
     lineHeight: 1.5,
     margin: 0,
+  },
+  // The hero's graph paper: its squares are centred on the page, and it is
+  // clearest in the middle of the hero and gone before the sides.
+  heroPaper: {
+    backgroundPosition: 'center top',
+    maskImage: HERO_PAPER_MASK,
+    WebkitMaskImage: HERO_PAPER_MASK,
   },
   // The hero's graph paper again behind the last word: the window's whole
   // width, from the page's own left edge so its squares line up with the
@@ -861,7 +870,7 @@ function HomePage() {
     <main {...props(styles.page)}>
       {/* The graph paper the first screen stands on, fading out before the
       first section. */}
-      <GridTexture />
+      <GridTexture style={styles.heroPaper} />
       {/* The first screen: the claim, why it lasts, and the download with its
       price, next to the phone the feeds leave. */}
       <header {...props(styles.hero)}>
