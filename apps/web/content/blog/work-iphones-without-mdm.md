@@ -1,7 +1,7 @@
 ---
 title: 'Free Apple MDM, or no MDM: lock down work iPhones'
 heading: 'Lock down work iPhones without an MDM server, free'
-description: "Apple's own MDM is now free. Here is when a small business needs it, and how to lock 1 to 20 work iPhones by cable with no server at all."
+description: "Apple's own MDM is now free. Here is when a small business needs it, and how to lock 1 to 20 work iPhones by cable with no MDM server at all."
 slug: work-iphones-without-mdm
 date: 2026-10-04
 primary_keyword: 'apple mdm free'
@@ -9,7 +9,7 @@ reading_minutes: 6
 read_next: block-any-app-iphone, why-screen-time-does-not-work
 ---
 
-You have two free ways to lock down company iPhones. The first is Apple's own MDM, which is built into Apple Business and has been free since April 2026. The second needs no server and no account: you supervise each iPhone once by cable and install a locked profile that blocks the apps and websites you choose.
+You have two free ways to lock down company iPhones. The first is Apple's own MDM, which is built into Apple Business and has been free since April 2026. The second needs no MDM server and no account: you supervise each iPhone once by cable and install a locked profile that blocks the apps and websites you choose.
 
 This post is for an owner or office manager with 1 to 20 company iPhones and no IT department.
 
@@ -51,7 +51,7 @@ This is enough if you trust the team and only want a light rule. It is weak as a
 
 Supervision is Apple's mode for devices that a company or school owns. Apple says supervision "generally denotes that the device is owned by the organization, which provides additional control over its configuration and restrictions."
 
-A supervised iPhone accepts restrictions that a normal iPhone refuses. It also accepts a profile that the user cannot remove in Settings. Most people get supervision through an MDM. You can also turn it on by cable from a Mac, with no server.
+A supervised iPhone accepts restrictions that a normal iPhone refuses. It also accepts a profile that the user cannot remove in Settings. Most people get supervision through an MDM. You can also turn it on by cable from a Mac, with no MDM server.
 
 ## What you can do without a server
 
@@ -63,11 +63,11 @@ You supervise each iPhone once, by cable. Then you install one locked profile. T
 
 Phone, Messages, Mail, Maps, the camera and your work apps keep working. The App Store stays on.
 
-A locked profile cannot be removed in Settings. The only way to undo it is to erase the iPhone.
+A locked profile cannot be removed on the iPhone itself. Undoing it takes erasing the iPhone, or a Mac with Apple Configurator.
 
 ## The two free ways to do it
 
-|                   | The free Mac app                                                    | The manual way with Apple Configurator             |
+|                   | The free Mac app                                                    | Manually via Apple Configurator                    |
 | ----------------- | ------------------------------------------------------------------- | -------------------------------------------------- |
 | Data on the phone | Stays. The app makes a backup, changes one setting, and restores it | Erased first. Only what syncs to iCloud comes back |
 | Good for          | Phones already in use                                               | New company phones, where erasing is normal        |
@@ -79,17 +79,17 @@ The Mac app is at [attentionawareness.com](/). The manual steps are in [the manu
 
 ## How this compares to an MDM
 
-|                                | Cable and locked profile                            | MDM                           |
-| ------------------------------ | --------------------------------------------------- | ----------------------------- |
-| Change the rules               | You need the phone and the cable again              | From your desk                |
-| Erase a lost phone             | No. Use Find My with the Apple Account on the phone | Yes                           |
-| List of all devices            | No                                                  | Yes                           |
-| Install work apps for everyone | No                                                  | Yes                           |
-| Set up many phones at once     | No. One phone at a time                             | Yes                           |
-| See or track the phone         | Nobody can                                          | The admin sees device details |
-| Server, account, monthly fee   | None                                                | An account, sometimes a fee   |
+|                                  | Cable and locked profile                            | MDM                           |
+| -------------------------------- | --------------------------------------------------- | ----------------------------- |
+| Change the rules                 | You need the phone and the cable again              | From your desk                |
+| Erase a lost phone               | No. Use Find My with the Apple Account on the phone | Yes                           |
+| List of all devices              | No                                                  | Yes                           |
+| Install work apps for everyone   | No                                                  | Yes                           |
+| Set up many phones at once       | No. One phone at a time                             | Yes                           |
+| See or track the phone           | Nobody can                                          | The admin sees device details |
+| MDM server, account, monthly fee | None                                                | An account, sometimes a fee   |
 
-With no server, nothing reports back to you or to me. The phone is limited, and the employee keeps their privacy.
+With no MDM server, nothing on the phone reports back to you or to me. The phone is limited, and the employee keeps their privacy.
 
 ## Set up 5 phones, step by step
 
@@ -127,11 +127,11 @@ Yes. Apple Configurator on a Mac can supervise an iPhone by cable with no MDM. A
 
 ### Can an employee remove the locked profile?
 
-Not in Settings. The only way is to erase the iPhone. Restoring a backup made before supervision also removes supervision.
+Not on the iPhone itself. An employee who erases the iPhone removes it, and so does restoring a backup made before supervision. A Mac with Apple Configurator can remove it too.
 
 ### Can I see what employees do on the phone?
 
-No. There is no server, so nobody can see or track the phone. If you need device reports, you need an MDM.
+No. The phone is not enrolled in an MDM server, so nobody can see or track it. If you need device reports, you need an MDM.
 
 ### What happens when an employee leaves?
 
@@ -139,7 +139,7 @@ Erase the iPhone. Then supervise it again and install the profile for the next p
 
 ## Next step
 
-Start with one phone and trial mode. Get [the free Mac app](/) if the phones have data on them, or follow [the manual way with Apple Configurator](/guide) for new phones.
+Start with one phone and trial mode. Get [the free Mac app](/) if the phones have data on them, or do it [manually via Apple Configurator](/guide) for new phones.
 
 ## Schema
 
@@ -152,7 +152,7 @@ Start with one phone and trial mode. Get [the free Mac app](/) if the phones hav
       "@id": "https://attentionawareness.com/blog/work-iphones-without-mdm#article",
       "headline": "Free Apple MDM, or no MDM: lock down work iPhones",
       "alternativeHeadline": "Lock down work iPhones without an MDM server, free",
-      "description": "Apple's own MDM is now free. Here is when a small business needs it, and how to lock 1 to 20 work iPhones by cable with no server at all.",
+      "description": "Apple's own MDM is now free. Here is when a small business needs it, and how to lock 1 to 20 work iPhones by cable with no MDM server at all.",
       "image": "https://attentionawareness.com/og.png",
       "url": "https://attentionawareness.com/blog/work-iphones-without-mdm",
       "mainEntityOfPage": "https://attentionawareness.com/blog/work-iphones-without-mdm",
@@ -269,7 +269,7 @@ Start with one phone and trial mode. Get [the free Mac app](/) if the phones hav
           "name": "Can an employee remove the locked profile?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Not in Settings. The only way is to erase the iPhone. Restoring a backup made before supervision also removes supervision."
+            "text": "Not on the iPhone itself. An employee who erases the iPhone removes it, and so does restoring a backup made before supervision. A Mac with Apple Configurator can remove it too."
           }
         },
         {
@@ -277,7 +277,7 @@ Start with one phone and trial mode. Get [the free Mac app](/) if the phones hav
           "name": "Can I see what employees do on the phone?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "No. There is no server, so nobody can see or track the phone. If you need device reports, you need an MDM."
+            "text": "No. The phone is not enrolled in an MDM server, so nobody can see or track it. If you need device reports, you need an MDM."
           }
         },
         {
@@ -307,3 +307,4 @@ Start with one phone and trial mode. Get [the free Mac app](/) if the phones hav
 - [Apple, "Create, change, or remove a Screen Time passcode" (iOS 27)](https://support.apple.com/guide/iphone/create-change-remove-a-screen-time-passcode-iph272b4c4bd/ios)
 - [Jamf Now](https://www.jamf.com/products/jamf-now/)
 - [SimpleMDM for small business](https://simplemdm.com/use-case/smb/)
+- [Apple, "Add or remove configuration profiles in Apple Configurator for Mac"](https://support.apple.com/guide/apple-configurator-mac/add-or-remove-configuration-profiles-cadb67fcd4f/mac)

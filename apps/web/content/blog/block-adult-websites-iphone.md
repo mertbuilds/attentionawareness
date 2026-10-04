@@ -62,20 +62,20 @@ Our [free Mac app](/) puts your iPhone into supervised mode without erasing it. 
 4. Start in trial mode. You can still remove the profile in Settings, so you can test it first.
 5. When you are sure, plug in one more time and lock the profile.
 
-The app is free. It needs no account and no subscription. It installs nothing on the iPhone, and there is no server, so nobody can see or track the phone.
+The app is free. It needs no account and no subscription. It installs no app on the iPhone, only a profile. The profile blocks things and reports nothing, so nobody can see or track the phone. To sign the profile, the app sends the list of what you block to this site once. The site does not store the list, and gets nothing that names you or your iPhone.
 
-### Option 2: the manual way with Apple Configurator
+### Option 2: manually via Apple Configurator
 
 The [manual guide](/guide) does the same with Apple Configurator, Apple's own free Mac tool. Apple Configurator erases the iPhone first. Only what syncs to iCloud comes back. You can make the profile with our [profile builder](/build).
 
 ### Which way fits you
 
-|                               | Screen Time            | Free Mac app     | Manual way with Apple Configurator |
-| ----------------------------- | ---------------------- | ---------------- | ---------------------------------- |
-| Needs a Mac                   | No                     | Yes              | Yes                                |
-| Erases the iPhone             | No                     | No               | Yes                                |
-| Can be turned off in Settings | Yes, with the passcode | No, once locked  | No, once locked                    |
-| How to undo                   | Change the setting     | Erase the iPhone | Erase the iPhone                   |
+|                               | Screen Time            | Free Mac app                                           | Manually via Apple Configurator                        |
+| ----------------------------- | ---------------------- | ------------------------------------------------------ | ------------------------------------------------------ |
+| Needs a Mac                   | No                     | Yes                                                    | Yes                                                    |
+| Erases the iPhone             | No                     | No                                                     | Yes                                                    |
+| Can be turned off in Settings | Yes, with the passcode | No, once locked                                        | No, once locked                                        |
+| How to undo                   | Change the setting     | Erase the iPhone, or use a Mac with Apple Configurator | Erase the iPhone, or use a Mac with Apple Configurator |
 
 All three are free.
 
@@ -104,7 +104,7 @@ A filter is a tool, not treatment. If this topic affects your daily life, a doct
 
 ## How to undo it
 
-The only way to remove a locked profile is to erase the iPhone: Settings > General > Transfer or Reset iPhone > Erase All Content and Settings. Restoring a backup made before supervision also removes supervision. Decide before you lock, and use trial mode first.
+A locked profile cannot be removed on the iPhone itself. To remove it, erase the iPhone: Settings > General > Transfer or Reset iPhone > Erase All Content and Settings. Restoring a backup made before supervision does the same. A Mac with Apple Configurator can also remove a profile from a supervised iPhone. Decide before you lock, and use trial mode first.
 
 ## FAQ
 
@@ -118,7 +118,7 @@ Yes. Apple's adult website filter is built into every iPhone. Our Mac app, which
 
 ### Can I block websites on an iPhone permanently?
 
-Yes, on a supervised iPhone. A locked profile with a list of blocked websites cannot be removed in Settings. The only way to remove it is to erase the iPhone.
+Yes, on a supervised iPhone. A locked profile with a list of blocked websites cannot be removed on the iPhone itself. Removing it takes erasing the iPhone, or a Mac with Apple Configurator.
 
 ### Does the filter work in Chrome and other browsers?
 
@@ -126,7 +126,7 @@ It works in Safari and in apps that use the iPhone's system web view. Browsers a
 
 ## Start with the built-in filter, then lock it
 
-Turn on Limit Adult Websites in Screen Time today. If you find yourself turning it off, lock it with the [free Mac app](/), which keeps your data, or do it [manually with Apple Configurator](/guide).
+Turn on Limit Adult Websites in Screen Time today. If you find yourself turning it off, lock it with the [free Mac app](/), which keeps your data, or do it [manually via Apple Configurator](/guide).
 
 ## Schema
 
@@ -236,7 +236,7 @@ Turn on Limit Adult Websites in Screen Time today. If you find yourself turning 
           "name": "Can I block websites on an iPhone permanently?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Yes, on a supervised iPhone. A locked profile with a list of blocked websites cannot be removed in Settings. The only way to remove it is to erase the iPhone."
+            "text": "Yes, on a supervised iPhone. A locked profile with a list of blocked websites cannot be removed on the iPhone itself. Removing it takes erasing the iPhone, or a Mac with Apple Configurator."
           }
         },
         {
@@ -264,3 +264,4 @@ Turn on Limit Adult Websites in Screen Time today. If you find yourself turning 
 - [Apple, "Set up Screen Time for yourself on iPhone"](https://support.apple.com/guide/iphone/set-up-screen-time-for-yourself-iphbfa595995/27/ios/27)
 - [Apple, "Erase iPhone"](https://support.apple.com/guide/iphone/erase-iphone-iph7a2a9399b/27/ios/27)
 - [Apple, "Web Content Filter device management payload settings"](https://support.apple.com/guide/deployment/web-content-filter-payload-settings-depc77c9609/web)
+- [Apple, "Add or remove configuration profiles in Apple Configurator for Mac"](https://support.apple.com/guide/apple-configurator-mac/add-or-remove-configuration-profiles-cadb67fcd4f/mac)

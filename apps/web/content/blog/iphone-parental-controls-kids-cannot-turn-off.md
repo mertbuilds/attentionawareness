@@ -8,7 +8,7 @@ reading_minutes: 7
 read_next: why-screen-time-does-not-work, block-adult-websites-iphone
 ---
 
-Parental controls on iPhone work best when you set them from your own phone, through Family Sharing, with a Screen Time passcode your child does not know. That stops most changes. If your child still finds a way around the limits, the stronger option is to supervise the iPhone and lock a profile on it. A locked profile cannot be removed in Settings. Only erasing the iPhone undoes it.
+Parental controls on iPhone work best when you set them from your own phone, through Family Sharing, with a Screen Time passcode your child does not know. That stops most changes. If your child still finds a way around the limits, the stronger option is to supervise the iPhone and lock a profile on it. A locked profile cannot be removed on the iPhone itself. Undoing it takes erasing the iPhone, or a Mac with Apple Configurator.
 
 Start with Apple's own controls. They are free, and for many families they are enough.
 
@@ -82,21 +82,21 @@ Supervision is a mode Apple built for iPhones owned by schools and companies. A 
 
 Nobody can remove a locked profile in Settings. There is no passcode to guess.
 
-|                           | Apple's parental controls | Supervised iPhone with a locked profile |
-| ------------------------- | ------------------------- | --------------------------------------- |
-| Set up from               | Your iPhone               | A Mac with a cable                      |
-| Time limits and schedules | Yes                       | No                                      |
-| Purchase approval         | Yes                       | No                                      |
-| Block apps and websites   | Yes                       | Yes                                     |
-| Protected by              | A four-digit passcode     | No off switch in Settings               |
-| How to undo               | Change the settings       | Erase the iPhone                        |
+|                           | Apple's parental controls | Supervised iPhone with a locked profile                |
+| ------------------------- | ------------------------- | ------------------------------------------------------ |
+| Set up from               | Your iPhone               | A Mac with a cable                                     |
+| Time limits and schedules | Yes                       | No                                                     |
+| Purchase approval         | Yes                       | No                                                     |
+| Block apps and websites   | Yes                       | Yes                                                    |
+| Protected by              | A four-digit passcode     | No off switch in Settings                              |
+| How to undo               | Change the settings       | Erase the iPhone, or use a Mac with Apple Configurator |
 
 Use both. Keep Ask to Buy on, and use the profile for the few apps and sites that must stay blocked.
 
 There are two free ways to do it:
 
 1. **The attention awareness Mac app.** [The Mac app](/) supervises the iPhone without erasing it. It makes a fresh backup, changes one setting in it and restores it. Photos, messages and apps stay. It needs a Mac with Apple Silicon and macOS 14 or later, and no account.
-2. **The manual way with Apple Configurator**, Apple's own Mac tool. [The manual guide](/guide) erases the iPhone first. Only what syncs to iCloud comes back.
+2. **Manually via Apple Configurator**, Apple's own Mac tool. [The manual guide](/guide) erases the iPhone first. Only what syncs to iCloud comes back.
 
 I use this setup on my own iPhone. My screen time went from more than 5 hours a day to 1 hour 45 minutes.
 
@@ -106,8 +106,8 @@ I use this setup on my own iPhone. My screen time went from more than 5 hours a 
 - **Plan one afternoon.** You need the Mac, a cable and the child's iPhone. The backup and restore take time.
 - **Back up first.** Keep an iCloud backup too.
 - **Test before you lock.** In trial mode the profile can be removed in Settings. Making it permanent later takes one more plug-in.
-- **It is hard to undo by design.** To remove it you erase the iPhone.
-- **Nobody can watch the phone.** No app is installed on the iPhone, and there is no server. It blocks things. It does not report anything.
+- **It is hard to undo by design.** It cannot be removed on the iPhone itself. To remove it you erase the iPhone, or use a Mac with Apple Configurator.
+- **Nobody can watch the phone.** No app is installed on the iPhone, and the phone is not connected to any server. The profile blocks things. It does not report anything.
 
 ## What this cannot do
 
@@ -115,6 +115,7 @@ I use this setup on my own iPhone. My screen time went from more than 5 hours a 
 - It does not block everything. Apple's adult website filter misses some sites.
 - It works on iPhone only today.
 - It does not survive an erase. A child who erases the iPhone removes the profile, and loses what is on the phone.
+- A Mac with Apple Configurator can remove the profile. For that a child needs the Mac, a cable and the iPhone's passcode.
 
 ## When Apple's built-in controls are enough
 
@@ -144,7 +145,7 @@ Not in Settings. Erasing the iPhone removes it. Restoring a backup made before s
 
 ## Next steps
 
-Set up Family Sharing and a secret passcode today. If the limits do not hold, try the locked profile in trial mode with the [free Mac app](/), or do it [manually with Apple Configurator](/guide).
+Set up Family Sharing and a secret passcode today. If the limits do not hold, try the locked profile in trial mode with the [free Mac app](/), or do it [manually via Apple Configurator](/guide).
 
 ## Schema
 
@@ -271,3 +272,4 @@ Set up Family Sharing and a secret passcode today. If the limits do not hold, tr
 - [TechCrunch, "Apple puts parents back in control of kids' iPhone use"](https://techcrunch.com/2026/06/08/apple-puts-parents-back-in-control-of-kids-iphone-use/)
 - [Protect Young Eyes, "12 ingenious iOS Screen Time hacks"](https://www.protectyoungeyes.com/blog-articles/12-ingenious-screen-time-hacks-how-to-beat-them)
 - [Cloudwards, "How kids hack iOS parent controls"](https://www.cloudwards.net/how-to-hack-screen-time/)
+- [Apple, "Add or remove configuration profiles in Apple Configurator for Mac"](https://support.apple.com/guide/apple-configurator-mac/add-or-remove-configuration-profiles-cadb67fcd4f/mac)

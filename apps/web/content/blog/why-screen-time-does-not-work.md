@@ -61,12 +61,12 @@ This is not weakness. A rule that asks for a new decision every night will lose 
 
 These are good products. Each one still leaves a way out.
 
-| Tool      | What it does                                                                                                    | The way out                                                                                         |
-| --------- | --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| Opal      | Blocks apps in sessions. The strictest paid setting does not let you end a session early.                       | Sessions end. The app works through a Screen Time permission that you gave in Settings.             |
-| one sec   | Makes you wait and breathe before an app opens.                                                                 | You can wait and then open the app. The pause runs on a Shortcuts automation that you can turn off. |
-| Brick     | A small device, about $59 in reviews from October 2026. You tap your iPhone on it to block and to unblock apps. | The device is in your home. The app also gives 5 emergency unlocks.                                 |
-| ScreenZen | Free. Adds a wait before apps open, with daily limits.                                                          | You can wait through the delay.                                                                     |
+| Tool      | What it does                                                                              | The way out                                                                                         |
+| --------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Opal      | Blocks apps in sessions. The strictest paid setting does not let you end a session early. | Sessions end. The app works through a Screen Time permission that you gave in Settings.             |
+| one sec   | Makes you wait and breathe before an app opens.                                           | You can wait and then open the app. The pause runs on a Shortcuts automation that you can turn off. |
+| Brick     | A small device you buy once. You tap your iPhone on it to block and to unblock apps.      | The device is in your home. The app also gives 5 emergency unlocks.                                 |
+| ScreenZen | Free. Adds a wait before apps open, with daily limits.                                    | You can wait through the delay.                                                                     |
 
 For many people the added effort is enough. Try one first. To block one app only, see [how to block any app on an iPhone](/blog/block-any-app-iphone).
 
@@ -77,7 +77,7 @@ For the iPhones they hand out, schools and companies use supervision. A supervis
 You can do this on your own iPhone in two free ways.
 
 - **The free Mac app.** [attention awareness](/) supervises your iPhone without erasing it. It makes a fresh backup, changes one setting in it and restores it. Your photos, messages and apps stay. Then it installs a profile that hides the apps you choose and blocks the websites you choose. No account, no app on the iPhone, and nobody can see or track the phone.
-- **The manual way with Apple Configurator.** [The manual guide](/guide) does the same with Apple Configurator. It erases the iPhone first. Only what syncs to iCloud comes back.
+- **Manually via Apple Configurator.** [The manual guide](/guide) does the same with Apple Configurator. It erases the iPhone first. Only what syncs to iCloud comes back.
 
 The profile can also turn on Apple's adult website filter. See [how to block adult websites on an iPhone](/blog/block-adult-websites-iphone) and [how to turn an iPhone into a dumbphone](/blog/turn-iphone-into-dumbphone).
 
@@ -85,7 +85,7 @@ What it takes:
 
 - You need a Mac with Apple Silicon and macOS 14 or later, and a cable.
 - It takes about one afternoon.
-- If you lock the profile, the only way to undo it is to erase the iPhone.
+- If you lock the profile, you cannot undo it on the iPhone itself. That takes erasing the iPhone, or a Mac with Apple Configurator.
 
 In trial mode you can remove the profile in Settings. Use it for a week before you lock anything.
 
@@ -120,7 +120,7 @@ Yes. Set a Screen Time passcode. On iOS 26 and earlier, also turn on Block at En
 
 ### Do I have to erase my iPhone to supervise it?
 
-Not with the free Mac app. It uses a backup and restore, so your data stays. The manual way with Apple Configurator does erase the iPhone.
+Not with the free Mac app. It uses a backup and restore, so your data stays. Doing it manually via Apple Configurator does erase the iPhone.
 
 ## Start with the trial
 
@@ -191,7 +191,7 @@ If Screen Time is enough for you, keep it. If you tap Ignore Limit most nights, 
           "name": "Do I have to erase my iPhone to supervise it?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Not with the free Mac app. It uses a backup and restore, so your data stays. The manual way with Apple Configurator does erase the iPhone."
+            "text": "Not with the free Mac app. It uses a backup and restore, so your data stays. Doing it manually via Apple Configurator does erase the iPhone."
           }
         }
       ]
@@ -216,3 +216,4 @@ If Screen Time is enough for you, keep it. If you tap Ignore Limit most nights, 
 - [Tom's Guide, Brick review](https://www.tomsguide.com/phones/brick-review)
 - [Consumer Reports, "Can Brick solve my screen time problem?"](https://www.consumerreports.org/electronics-computers/cell-phones/can-brick-solve-my-screen-time-problem-a3152096219/)
 - [WhistleOut, ScreenZen review](https://www.whistleout.com/CellPhones/Apps/screenzen-app-review)
+- [Apple, "Add or remove configuration profiles in Apple Configurator for Mac"](https://support.apple.com/guide/apple-configurator-mac/add-or-remove-configuration-profiles-cadb67fcd4f/mac)

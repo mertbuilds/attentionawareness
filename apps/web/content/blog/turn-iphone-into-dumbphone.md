@@ -18,15 +18,13 @@ Most people who want one do not want fewer tools. They want fewer feeds. They pi
 
 ## Five ways to do it, compared
 
-| Way                                     | Cost                                                                       | What you lose                              | How easy to undo                            |
-| --------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------ | ------------------------------------------- |
-| Buy a Light Phone or flip phone         | About $100 for a flip phone, several hundred dollars for a Light Phone III | Bank app, good camera, most messaging apps | Very easy. Your iPhone is still in a drawer |
-| Minimalist launcher or grayscale        | Free, or a small fee for a dumb phone app                                  | Nothing                                    | Very easy. A few taps                       |
-| Screen Time limits                      | Free, built in                                                             | Nothing                                    | Very easy. One tap, or a passcode you know  |
-| App blockers (Opal, one sec, Brick)     | About $20 to $100 a year, or about $59 once for Brick                      | Nothing, when the block is off             | Easy to medium. You control the blocker     |
-| Supervised iPhone with a locked profile | Free                                                                       | Only the apps and sites you choose         | Hard. You must erase the iPhone             |
-
-The prices of other products are from reviews read in October 2026. They may have changed.
+| Way                                     | Cost                                                   | What you lose                              | How easy to undo                            |
+| --------------------------------------- | ------------------------------------------------------ | ------------------------------------------ | ------------------------------------------- |
+| Buy a Light Phone or flip phone         | The price of a new phone                               | Bank app, good camera, most messaging apps | Very easy. Your iPhone is still in a drawer |
+| Minimalist launcher or grayscale        | Free, or a small fee for a dumb phone app              | Nothing                                    | Very easy. A few taps                       |
+| Screen Time limits                      | Free, built in                                         | Nothing                                    | Very easy. One tap, or a passcode you know  |
+| App blockers (Opal, one sec, Brick)     | A yearly fee for most, a device you buy once for Brick | Nothing, when the block is off             | Easy to medium. You control the blocker     |
+| Supervised iPhone with a locked profile | Free                                                   | Only the apps and sites you choose         | Hard. Not possible on the iPhone itself     |
 
 ### Buy a Light Phone or a flip phone
 
@@ -60,7 +58,7 @@ These are good tools, and they help many people. The limit is the same for all: 
 
 Supervision is a mode Apple built for iPhones that schools and companies own. A supervised iPhone accepts rules a normal iPhone refuses. A profile can hide chosen apps, block chosen websites, and be locked so nobody can remove it in Settings.
 
-There is no button to ignore it. The only way out is to erase the iPhone, and that takes too long to do at 1 a.m.
+There is no button to ignore it, and no way to remove it on the iPhone itself. The way out is to erase the iPhone, or to use a Mac with Apple Configurator. Both take too long to do at 1 a.m.
 
 ## How to turn your iPhone into a dumbphone with supervision
 
@@ -75,7 +73,7 @@ You need a Mac with Apple Silicon and macOS 14 or later, a cable, and about one 
 5. Choose trial mode first. A trial profile can be removed in Settings, so you can test your list.
 6. When the list feels right, plug in once more and make it permanent.
 
-### The manual way with Apple Configurator
+### Manually via Apple Configurator
 
 The [manual guide](/guide) does the same with Apple's own free tool. But Apple Configurator erases the iPhone first. Only what syncs to iCloud comes back.
 
@@ -114,7 +112,7 @@ The idea is not mine. I started from Stepan Parunashvili's post ["iPhone dumbpho
 
 In trial mode, remove the profile in Settings.
 
-With a locked profile, you must erase the iPhone: Settings > General > Transfer or Reset iPhone > Erase All Content and Settings. Then set it up as new, or restore a backup from before supervision.
+With a locked profile, there is nothing to tap on the iPhone. Erase it: Settings > General > Transfer or Reset iPhone > Erase All Content and Settings. Then set it up as new, or restore a backup from before supervision. A Mac with Apple Configurator can also remove the profile.
 
 ## Frequently asked questions
 
@@ -124,11 +122,11 @@ No. Apple has no setting with that name. The closest built-in options are Screen
 
 ### Will I lose my photos and messages?
 
-Not with the Mac app. It backs up the iPhone, changes one setting in the backup, and restores it. With the manual way with Apple Configurator, the iPhone is erased and only what syncs to iCloud comes back.
+Not with the Mac app. It backs up the iPhone, changes one setting in the backup, and restores it. If you do it manually via Apple Configurator, the iPhone is erased and only what syncs to iCloud comes back.
 
 ### Do I need a dumb phone app on the iPhone?
 
-No. Nothing is installed on the iPhone. The Mac app sets it up over a cable, and after that the iPhone does not need the Mac.
+No. No app is installed on the iPhone, only a profile that blocks what you chose. The Mac app sets it up over a cable, and after that the iPhone does not need the Mac.
 
 ### Can someone see or control my phone after this?
 
@@ -251,7 +249,7 @@ Download the [free Mac app](/) and run it in trial mode this weekend. If you wou
           "name": "Will I lose my photos and messages?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Not with the Mac app. It backs up the iPhone, changes one setting in the backup, and restores it. With the manual way with Apple Configurator, the iPhone is erased and only what syncs to iCloud comes back."
+            "text": "Not with the Mac app. It backs up the iPhone, changes one setting in the backup, and restores it. If you do it manually via Apple Configurator, the iPhone is erased and only what syncs to iCloud comes back."
           }
         },
         {
@@ -259,7 +257,7 @@ Download the [free Mac app](/) and run it in trial mode this weekend. If you wou
           "name": "Do I need a dumb phone app on the iPhone?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "No. Nothing is installed on the iPhone. The Mac app sets it up over a cable, and after that the iPhone does not need the Mac."
+            "text": "No. No app is installed on the iPhone, only a profile that blocks what you chose. The Mac app sets it up over a cable, and after that the iPhone does not need the Mac."
           }
         },
         {
@@ -288,3 +286,4 @@ Download the [free Mac app](/) and run it in trial mode this weekend. If you wou
 - [Apple, "Prepare an iPhone, iPad, or Apple TV manually in Apple Configurator for Mac"](https://support.apple.com/guide/apple-configurator-mac/prepare-an-iphone-ipad-or-apple-tv-manually-cad99bc2a859/mac)
 - [Apple, "Supervise devices with Apple Configurator for Mac"](https://support.apple.com/guide/apple-configurator-mac/supervise-devices-apd9e4f64088/mac)
 - [Brick](https://getbrick.com/)
+- [Apple, "Add or remove configuration profiles in Apple Configurator for Mac"](https://support.apple.com/guide/apple-configurator-mac/add-or-remove-configuration-profiles-cadb67fcd4f/mac)

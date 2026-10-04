@@ -14,12 +14,12 @@ Below are the steps for each way, and what each one leaves open. Apple renamed p
 
 ## The four ways, side by side
 
-| Method                                                | Can you undo it in a weak moment?                                                                    | Does the app come back?              |
-| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------ |
-| Delete the app                                        | Yes. Download it again from the App Store.                                                           | Yes, in about 30 seconds             |
-| Screen Time time limit                                | Yes. Apple lets you ignore the limit, or you change the setting.                                     | Yes, the same day                    |
-| Installing apps turned off                            | Yes, if you know the Screen Time passcode. You can also reset that passcode with your Apple Account. | Yes, after you turn installs back on |
-| Blocked by app on a supervised iPhone, locked profile | No. The only way is to erase the iPhone.                                                             | No                                   |
+| Method                                                | Can you undo it in a weak moment?                                                                               | Does the app come back?              |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| Delete the app                                        | Yes. Download it again from the App Store.                                                                      | Yes, in about 30 seconds             |
+| A time limit in Screen Time                           | Yes. Apple lets you ignore the limit, or you change the setting.                                                | Yes, the same day                    |
+| Installing apps turned off                            | Yes, if you know the Screen Time passcode. You can also reset that passcode with your Apple Account.            | Yes, after you turn installs back on |
+| Blocked by app on a supervised iPhone, locked profile | No. It cannot be removed on the iPhone itself. That takes erasing the iPhone, or a Mac with Apple Configurator. | No                                   |
 
 ## Way 1: delete the app
 
@@ -63,13 +63,13 @@ Supervised mode is the Apple mode that schools and companies use for their iPhon
 - The app disappears, even if it is installed.
 - The App Store stays on, so you can install every other app.
 - You can block websites in the same profile, so the app's website is closed too.
-- You can lock the profile. Then nobody can remove it in Settings. The only way to undo it is to erase the iPhone.
+- You can lock the profile. Then nobody can remove it on the iPhone itself. Undoing it takes erasing the iPhone, or a Mac with Apple Configurator.
 
 There are two free ways to set this up.
 
 **The free Mac app.** [attention awareness](/) supervises your iPhone without erasing it. It makes a fresh backup, changes one setting in it, and restores it. Your photos, messages and apps stay. Then it installs the profile. You need a Mac with Apple Silicon and macOS 14 or later, a cable, and about one afternoon. There is no payment, no account and no app on the iPhone. Nobody can see or track the phone.
 
-**The manual way with Apple Configurator.** The [manual guide](/guide) does the same with Apple Configurator on a Mac. It erases the iPhone first. Only what syncs to iCloud comes back.
+**Manually via Apple Configurator.** The [manual guide](/guide) does the same with Apple Configurator on a Mac. It erases the iPhone first. Only what syncs to iCloud comes back.
 
 Start in trial mode. In trial mode you can remove the profile in Settings. When the list is right, plug in once more to lock it.
 
@@ -129,7 +129,7 @@ Yes. In Content & Privacy Restrictions, open the list of allowed apps and featur
 
 ## Block the app once
 
-If deleting the app works for you, stop there. If the app comes back every time, use a block you cannot undo on the phone: the [free Mac app](/), which keeps your data, or the [manual way with Apple Configurator](/guide), which erases the iPhone first.
+If deleting the app works for you, stop there. If the app comes back every time, use a block you cannot undo on the phone: the [free Mac app](/), which keeps your data, or do it [manually via Apple Configurator](/guide), which erases the iPhone first.
 
 For company phones, see [how to lock down work iPhones without an MDM server](/blog/work-iphones-without-mdm).
 
@@ -223,3 +223,4 @@ For company phones, see [how to lock down work iPhones without an MDM server](/b
 - [Apple, "Manage your child's access to apps and app requests"](https://support.apple.com/en-us/125399)
 - [Apple, "Allow and deny apps and binaries on Apple devices"](https://support.apple.com/guide/deployment/allow-and-deny-apps-and-binaries-dep001044b08/web)
 - [Apple, "Review device management restrictions for Apple devices"](https://support.apple.com/guide/deployment/review-device-management-restrictions-dep739685973/web)
+- [Apple, "Add or remove configuration profiles in Apple Configurator for Mac"](https://support.apple.com/guide/apple-configurator-mac/add-or-remove-configuration-profiles-cadb67fcd4f/mac)
