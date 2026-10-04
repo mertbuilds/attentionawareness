@@ -8,6 +8,7 @@ import { SiteHeader } from '../components/site-header.tsx';
 import { SupportPopup } from '../components/support-popup.tsx';
 import { WipBanner } from '../components/wip-banner.tsx';
 import { clientEnv } from '../lib/env.ts';
+import { MOBILE_SCRIPT } from '../lib/mobile.ts';
 import { openPanelReplay, posthogReplay } from '../lib/replay.ts';
 import { THEME_GROUND, THEME_SCRIPT } from '../lib/theme.ts';
 import { m } from '../paraglide/messages.js';
@@ -213,6 +214,7 @@ function RootDocument({ children }: { children: ReactNode }) {
         />
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: WIP_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: MOBILE_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: CHECKOUT_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: ANALYTICS_SCRIPT }} />
       </head>

@@ -12,7 +12,7 @@ import { duration, easing } from '../lib/motion.stylex.ts';
 import { SECTION } from '../lib/sections.ts';
 import { m } from '../paraglide/messages.js';
 import { BrandMark } from './brand-mark.tsx';
-import { MacCta, useMacDownload, useSendToMac } from './mac-download.tsx';
+import { MacCta, sendLabel, ShareCta, useMacDownload, useSendToMac } from './mac-download.tsx';
 import { SiteMenu } from './site-menu.tsx';
 
 const MARK_SIZE = 24;
@@ -252,8 +252,8 @@ const styles = create({
  * download at the other end are. A window too narrow for the links has the menu's
  * button of two lines at the far edge instead, and the links in the menu it
  * opens. The download starts the file at once, as every download on the site
- * does; on a phone or a tablet, which cannot run the app, it sends the link
- * on to a Mac instead.
+ * does; on a phone or a tablet, which cannot run the app, it is the share
+ * link that sends the page on to a Mac instead.
  */
 export function SiteHeader() {
   const [pill, setPill] = useState(false);
@@ -319,13 +319,20 @@ export function SiteHeader() {
   } else if (download.kind === 'send') {
     downloadButton = (
       <Button data-morph="header-download" onClick={() => void sendToMac.send()} style={morphStyle}>
-        <MacCta label={sendToMac.copied ? m.mac_download_copied() : m.nav_download()} />
+        <ShareCta label={sendLabel(sendToMac.copied)} />
       </Button>
     );
   } else if (download.kind === 'reading') {
+    // The server cannot tell a phone, so it draws both and the mark the head
+    // script puts on a phone's root shows the one that will stay.
     downloadButton = (
       <Button data-morph="header-download" disabled style={morphStyle}>
-        <MacCta label={m.nav_download()} />
+        <span data-aa-computer="">
+          <MacCta label={m.nav_download()} />
+        </span>
+        <span data-aa-phone="">
+          <ShareCta label={m.mac_download_share()} />
+        </span>
       </Button>
     );
   } else {

@@ -5,9 +5,11 @@ import { create, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { MouseEvent, ReactNode } from 'react';
+import { Share } from 'reicon-react';
 import { announceDownload } from '../lib/download-started.ts';
 import { parseRelease } from '../lib/mac-release.ts';
 import type { Release } from '../lib/mac-release.ts';
+import { isMobileAgent } from '../lib/mobile.ts';
 import { SECTION } from '../lib/sections.ts';
 import { shareUrl } from '../lib/share.ts';
 import { m } from '../paraglide/messages.js';
@@ -94,6 +96,30 @@ export function MacCta({ label }: { label: string }) {
 }
 
 /**
+ * A phone's label after the share icon, sized and laid out as a computer's is
+ * after the Apple mark.
+ */
+export function ShareCta({ label }: { label: string }) {
+  return (
+    <span {...props(styles.cta)}>
+      <Share aria-hidden="true" size="1em" />
+      <span {...props(styles.label)}>{label}</span>
+    </span>
+  );
+}
+
+/**
+ * What a phone's button says: share, where the phone has a share sheet, else
+ * copy, and once copied, that it is.
+ */
+export function sendLabel(copied: boolean): string {
+  if ('share' in navigator) {
+    return m.mac_download_share();
+  }
+  return copied ? m.mac_download_copied() : m.mac_download_copy();
+}
+
+/**
  * The one read of `latest.json` every download on the page shares, so two
  * buttons cost one request. A read that finds nothing is not kept, so a page
  * opened later tries again.
@@ -147,17 +173,9 @@ function useLatestRelease(): Release | null | undefined {
   return release;
 }
 
-/**
- * A phone or a tablet, which cannot run the app: Android, an iPhone, an iPad,
- * or any browser that calls itself mobile. iPadOS asks for pages as a Mac
- * does, so a Mac that takes touch is counted as one too.
- */
+/** A phone or a tablet, which cannot run the app. */
 function isMobile(): boolean {
-  const { maxTouchPoints, userAgent } = navigator;
-  return (
-    /Android|iPhone|iPad|iPod|Mobi/.test(userAgent) ||
-    (/Macintosh/.test(userAgent) && maxTouchPoints > 1)
-  );
+  return isMobileAgent(navigator.userAgent, navigator.maxTouchPoints);
 }
 
 /** The device does not change under the page, so there is nothing to listen to. */
@@ -246,14 +264,7 @@ export function useSendToMac(): { copied: boolean; send: () => Promise<void> } {
  */
 function SendToMac() {
   const { copied, send } = useSendToMac();
-  const canShare = 'share' in navigator;
-
-  let label = m.mac_download_copy();
-  if (canShare) {
-    label = m.mac_download_share();
-  } else if (copied) {
-    label = m.mac_download_copied();
-  }
+  const label = sendLabel(copied);
 
   return (
     <>

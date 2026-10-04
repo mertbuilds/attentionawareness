@@ -143,6 +143,16 @@ html[data-aa-wip-off] [data-aa-wip] {
 }
 
 /*
+ * What a download says before the page has told a phone apart: the script in
+ * the head marks a phone's root before first paint, so a phone is never
+ * shown a download it cannot run (`lib/mobile.ts`).
+ */
+html[data-aa-mobile] [data-aa-computer],
+html:not([data-aa-mobile]) [data-aa-phone] {
+  display: none;
+}
+
+/*
  * The picked segment of a theme control (`components/preferences.tsx`), in
  * the page's ink. It is drawn from the choice on the root, which the script
  * in the head sets before first paint, so a kept choice is never shown as the
