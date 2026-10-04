@@ -11,9 +11,9 @@ import Foundation
 /// it.
 enum DoneCopy {
     /// The two plain lines the screen opens with: what the profile took away,
-    /// and the one practical thing left to do. The extension line, the share
-    /// line and the closing line are the view's, because each carries a link or
-    /// a weight a plain string can't.
+    /// and the one practical thing left to do. The extension line and the
+    /// closing line are the view's, because each carries a link or a weight a
+    /// plain string can't.
     static func lines(apps: Int, sites: Int) -> [String] {
         [
             blocked(apps: apps, sites: sites),
@@ -40,6 +40,15 @@ enum DoneCopy {
     /// The last line of the body, the one the whole run is for. The view gives
     /// it the weight the practical lines above it don't carry.
     static let closing = "Your future self will thank you."
+
+    /// The notice under the closing line: the app costs nothing, and there are
+    /// two ways to give something back.
+    static let support =
+        "The app is free. If it helps you, you can support the work. "
+        + "Pay what you want, or share it with a friend."
+
+    /// The words the share picker hands to whatever the person shares with.
+    static let shareMessage = "Permanently remove distraction from your iPhone. Free Mac app."
 
     /// Where to look on the iPhone for what the run set up, in one line. The
     /// smoke harness draws the info popover from it, picture and words both.

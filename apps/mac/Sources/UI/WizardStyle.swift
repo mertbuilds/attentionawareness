@@ -98,9 +98,18 @@ enum ProfileGuideCopy {
 /// which is the house rule for links between our own sites.
 enum SiteLink {
     static var help: URL? { url(path: "/", campaign: "help") }
-    /// The share line on the last step, which is the one place the app asks
-    /// for anything.
-    static var done: URL? { url(path: "/", campaign: "done") }
+    /// What the Share button on the last step hands on. Whoever opens it
+    /// arrives from a share, so it names that as its source.
+    static let share = URL(
+        string: "https://attentionawareness.com/"
+            + "?utm_source=share&utm_medium=mac_app&utm_campaign=supervision_done"
+    )
+    /// The pay-what-you-want page, on the last step and in the Help menu.
+    /// Polar keeps the three campaign fields with the checkout.
+    static let support = URL(
+        string: "https://buy.polar.sh/polar_cl_ftX1jafCvlNQXeQZRhjMjBLd2ChzzBp1LTIY63l0MBh"
+            + "?utm_source=mac_app&utm_medium=app&utm_campaign=supervision_done"
+    )
     /// Where the source code of the app is. The app is under the AGPL, so
     /// every copy says where to get the source. It is not one of our sites,
     /// so it carries no campaign.

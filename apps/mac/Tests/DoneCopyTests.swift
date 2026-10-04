@@ -52,6 +52,35 @@ struct DoneCopyTests {
         #expect(DoneCopy.closing == "Your future self will thank you.")
     }
 
+    // MARK: - Support and share
+
+    @Test func theNoticeSaysTheAppIsFreeAndAsksForSupportOrAShare() {
+        #expect(
+            DoneCopy.support
+                == "The app is free. If it helps you, you can support the work. "
+                + "Pay what you want, or share it with a friend."
+        )
+        #expect(DoneCopy.shareMessage == "Permanently remove distraction from your iPhone. Free Mac app.")
+    }
+
+    @Test func theSupportLinkOpensThePayWhatYouWantPageWithItsCampaign() throws {
+        let url = try #require(SiteLink.support)
+        #expect(
+            url.absoluteString
+                == "https://buy.polar.sh/polar_cl_ftX1jafCvlNQXeQZRhjMjBLd2ChzzBp1LTIY63l0MBh"
+                + "?utm_source=mac_app&utm_medium=app&utm_campaign=supervision_done"
+        )
+    }
+
+    @Test func theShareLinkIsTheSiteWithItsCampaign() throws {
+        let url = try #require(SiteLink.share)
+        #expect(
+            url.absoluteString
+                == "https://attentionawareness.com/"
+                + "?utm_source=share&utm_medium=mac_app&utm_campaign=supervision_done"
+        )
+    }
+
     // MARK: - The note behind the popover
 
     @Test func theNoteSaysWhereToLookForWhatTheRunSetUp() {

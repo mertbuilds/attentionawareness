@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// The last screen. A word of congratulations, what the run set up, and the way
-/// back to the start.
+/// The last screen. A word of congratulations, what the run set up, the one
+/// notice that asks for support and offers sharing, and the way back to the
+/// start.
 ///
 /// It says nothing about the copy or about supervision. The copy was
 /// scaffolding the app put up and took down again, and supervision was
@@ -32,13 +33,12 @@ struct DoneStep: View {
                 extensionPromo
 
                 closing
+
+                support
             }
         } actions: {
-            VStack(alignment: .leading, spacing: 12) {
-                PrimaryButton(title: "Done") {
-                    model.startOver()
-                }
-                share
+            PrimaryButton(title: "Done") {
+                model.startOver()
             }
         }
     }
@@ -64,9 +64,8 @@ struct DoneStep: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// Block the same feeds on the computer too. It sits with the share line
-    /// because both point somebody at one more of our own, and it carries the
-    /// same campaign every link from the app to one of ours does.
+    /// Block the same feeds on the computer too. It carries the same campaign
+    /// every link from the app to one of ours does.
     private var extensionPromo: some View {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
             Text("Block the same feeds on your computer with the")
@@ -81,18 +80,29 @@ struct DoneStep: View {
     }
 
     /// The one thing the app ever asks for, at the one moment somebody has a
-    /// supervised iPhone in their hand and a reason to mean it.
-    private var share: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 4) {
-            Text("Know someone who needs this?")
-                .foregroundStyle(.secondary)
-            if let url = SiteLink.done {
-                Link("attentionawareness.com", destination: url)
-                    .foregroundStyle(WizardStyle.accent)
+    /// supervised iPhone in their hand and a reason to mean it. It is part of
+    /// the screen and blocks nothing: Done and closing the window work the
+    /// same with or without it, and no later launch brings it back.
+    private var support: some View {
+        Card {
+            Text(DoneCopy.support)
+                .font(.callout)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 16) {
+                if let url = SiteLink.support {
+                    Link(destination: url) {
+                        Label("Support this project", systemImage: "heart.fill")
+                    }
+                    .buttonStyle(.bordered)
+                }
+                if let url = SiteLink.share {
+                    ShareLink(item: url, message: Text(DoneCopy.shareMessage)) {
+                        Label("Share", systemImage: "square.and.arrow.up")
+                    }
+                }
             }
+            .padding(.top, 4)
         }
-        .font(.callout)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// The closing line, in the primary colour and a touch of weight so it
@@ -104,8 +114,8 @@ struct DoneStep: View {
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// The browser extension in the Chrome Web Store, with the same campaign the
-    /// share line carries, because it is a link from the app to one of our own.
+    /// The browser extension in the Chrome Web Store, with a campaign of its
+    /// own, because it is a link from the app to one of our own.
     private static let extensionURL = URL(
         string: "https://chromewebstore.google.com/detail/attention-awareness/"
             + "lgcijcijcndmggjiioibfcmppndfakee"

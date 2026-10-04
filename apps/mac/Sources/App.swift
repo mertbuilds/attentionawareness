@@ -111,6 +111,9 @@ struct AttentionAwarenessApp: App {
                 if let url = SiteLink.source {
                     Link("Source Code", destination: url)
                 }
+                if let url = SiteLink.support {
+                    Link("Support this project", destination: url)
+                }
             }
             // Demo mode only, in a debug build only. The app as it ships has
             // no Demo menu.
