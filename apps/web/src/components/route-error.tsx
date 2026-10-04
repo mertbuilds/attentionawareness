@@ -1,53 +1,51 @@
-import { Button } from '@attentionawareness/ui';
-import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
-import { create, props } from '@stylexjs/stylex';
 import type { ErrorComponentProps } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { isChunkLoadError, mayReload, reloadOnce } from '../lib/chunk-error.ts';
 import { m } from '../paraglide/messages.js';
 
-const styles = create({
+/**
+ * The view's whole look, set on its elements, so it reads well even when the
+ * failure took the site's stylesheet with it: the system's colours for the
+ * light and the dark theme, and the system's font.
+ */
+const PLAIN = {
   actions: {
     alignItems: 'center',
     display: 'flex',
     flexWrap: 'wrap',
-    gap: spacing.s3,
+    gap: 12,
     justifyContent: 'center',
   },
-  body: {
-    color: colors.muted,
-    lineHeight: 1.5,
-    margin: 0,
-    maxWidth: '40ch',
-    textWrap: 'pretty',
+  body: { lineHeight: 1.5, margin: 0, maxWidth: '40ch', opacity: 0.7 },
+  button: {
+    background: 'CanvasText',
+    border: 0,
+    borderRadius: 999,
+    color: 'Canvas',
+    font: 'inherit',
+    padding: '6px 14px',
   },
-  // The words and the two ways on, in the middle of the window.
+  link: { color: 'inherit' },
   page: {
     alignItems: 'center',
-    backgroundColor: colors.bg,
-    boxSizing: 'border-box',
-    color: colors.fg,
+    background: 'Canvas',
+    color: 'CanvasText',
+    colorScheme: 'light dark',
     display: 'flex',
     flexDirection: 'column',
-    fontFamily: font.family,
-    gap: spacing.s6,
+    fontFamily: 'system-ui, sans-serif',
+    gap: 16,
+    inset: 0,
     justifyContent: 'center',
-    minHeight: '100vh',
-    paddingInline: spacing.s4,
+    padding: '0 16px',
+    // Over the whole window, so a header the stylesheet no longer draws is
+    // not seen under it.
+    position: 'fixed',
     textAlign: 'center',
+    zIndex: 100,
   },
-  title: {
-    fontSize: {
-      '@media (min-width: 640px)': 36,
-      default: 28,
-    },
-    fontWeight: font.weightRegular,
-    letterSpacing: '-0.02em',
-    lineHeight: 1.1,
-    margin: 0,
-    textWrap: 'balance',
-  },
-});
+  title: { fontSize: 28, fontWeight: 400, letterSpacing: '-0.02em', lineHeight: 1.1, margin: 0 },
+} as const;
 
 /**
  * What a page that failed shows. A page opened before the site was put out
@@ -73,14 +71,16 @@ export function RouteError({ error }: ErrorComponentProps) {
   }
 
   return (
-    <main {...props(styles.page)}>
-      <h1 {...props(styles.title)}>{m.error_title()}</h1>
-      <p {...props(styles.body)}>{m.error_body()}</p>
-      <div {...props(styles.actions)}>
-        <Button onClick={() => window.location.reload()}>{m.error_reload()}</Button>
-        <Button render={<a href="/" />} variant="outline">
+    <main style={PLAIN.page}>
+      <h1 style={PLAIN.title}>{m.error_title()}</h1>
+      <p style={PLAIN.body}>{m.error_body()}</p>
+      <div style={PLAIN.actions}>
+        <button onClick={() => window.location.reload()} style={PLAIN.button} type="button">
+          {m.error_reload()}
+        </button>
+        <a href="/" style={PLAIN.link}>
           {m.not_found_home()}
-        </Button>
+        </a>
       </div>
     </main>
   );
