@@ -107,10 +107,7 @@ const styles = create({
   // that out too. With less motion it is there or it is not.
   panel: {
     animationName: 'none',
-    boxShadow: {
-      '@media (prefers-color-scheme: dark)': `0 0 0 1px ${colors.border}, 0 12px 40px rgba(0, 0, 0, 0.35)`,
-      default: `0 0 0 1px ${colors.border}, 0 12px 40px rgba(0, 0, 0, 0.12)`,
-    },
+    boxShadow: `0 0 0 1px ${colors.border}, 0 12px 40px ${colors.shadow}`,
     display: 'flex',
     filter: {
       ':is([data-ending-style])': 'blur(0)',
