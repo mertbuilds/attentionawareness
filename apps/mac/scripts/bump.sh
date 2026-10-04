@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Set the marketing version and add one to the build number.
 #
-#   bash scripts/bump.sh 0.2.0
+#   bash scripts/bump.sh 0.4.1
 #
 # Both live in project.yml, which is the source of truth for the Xcode project,
 # so this is the only place either of them is edited. Sparkle compares the build

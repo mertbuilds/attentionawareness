@@ -109,6 +109,14 @@ same in one line, and the reasons are in
 Apple Silicon only, macOS 14 and up. The vendored C libraries are built arm64
 with a deployment target of 14.0, and the app carries no Intel slice.
 
+You need:
+
+- Xcode, with its command line tools.
+- [Homebrew](https://brew.sh). `scripts/build-libimobiledevice.sh` installs
+  the autotools it needs through it.
+- xcodegen: `brew install xcodegen`.
+- For a release only, dmgbuild: `pip3 install --user dmgbuild`.
+
 Every command in this file runs from `apps/mac`. The scripts find that folder
 from their own place, so they also run from anywhere else.
 
@@ -120,6 +128,14 @@ xcodegen generate
 xcodebuild -scheme AttentionAwareness -configuration Debug build
 xcodebuild test -scheme AttentionAwareness -destination 'platform=macOS,arch=arm64'
 ```
+
+Run `scripts/vendor.sh` before `xcodegen generate`. It fills `Vendor/`, and
+without it xcodegen stops with "missing source directory" for
+`Vendor/bin/idevicebackup2`.
+
+A Debug build signs ad hoc (`CODE_SIGN_IDENTITY: '-'` in `project.yml`), so it
+needs no Developer ID and no Apple account. Only a release needs the Developer
+ID.
 
 The app lands at `build/Build/Products/Debug/attention awareness.app` when you
 pass `-derivedDataPath build`, otherwise in the usual DerivedData directory. A
@@ -133,6 +149,12 @@ It prints the number of connected iPhones and exits. `--probe` goes further and
 prints everything `Sources/Device/` reads from each connected iPhone as JSON,
 which is how the device layer is checked without the window. `--backup <udid>
 <root>` and `--restore <udid> <root>` run the backup engine from a terminal.
+
+`--restore` and `--seed` change the connected iPhone the way the window does,
+and they do not ask first. Back up the iPhone with Finder or iCloud before you
+use one. That backup is the way back, and we are not responsible for lost
+data. `--backup` only copies the iPhone. `--patch` changes a backup folder on
+this Mac and reaches no iPhone; it keeps an untouched copy and prints where.
 
 `--seed <udid>` runs the fast method without a window. It reads the current
 cloud configuration and preserves its other policy keys, checks the live iOS
@@ -299,7 +321,7 @@ AA_SITE_URL=https://attentionawareness.localhost \
 ## Release
 
 ```sh
-bash scripts/bump.sh 0.2.0        # marketing version, and one on the build number
+bash scripts/bump.sh 0.4.1        # the next marketing version, and one on the build number
 bash scripts/release.sh
 ```
 
