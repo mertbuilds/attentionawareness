@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import { brandBar } from '../lib/brand-bar.stylex.ts';
+import { GITHUB_MARK, REPO_URL } from '../lib/github.ts';
 import { morph } from '../lib/morph.ts';
 import { duration, easing } from '../lib/motion.stylex.ts';
 import { SECTION } from '../lib/sections.ts';
@@ -155,8 +156,25 @@ const styles = create({
   },
   // A wrapper that leaves no box of its own, so what is in it stands in the
   // row as if it were not wrapped.
+  // The computer's two buttons at the bar's end: GitHub, then the download.
+  actions: {
+    alignItems: 'center',
+    display: 'inline-flex',
+    gap: spacing.s2,
+    justifySelf: 'end',
+  },
   contents: {
     display: 'contents',
+  },
+  // A round icon button, as tall as the download beside it. A narrow window
+  // has no room for it, so it shows from the width the links show at.
+  github: {
+    display: {
+      '@media (min-width: 768px)': 'inline-flex',
+      default: 'none',
+    },
+    paddingInline: 0,
+    width: 28,
   },
   hidden: {
     display: 'none',
@@ -409,7 +427,18 @@ export function SiteHeader() {
         {/* The server cannot tell a phone, so it draws both buttons, and the
             mark the head script puts on a phone's root shows the one that
             stays: the download on a computer, the support on a phone. */}
-        <span data-aa-computer="" {...props(styles.contents)}>
+        <span data-aa-computer="" {...props(styles.actions)}>
+          <Button
+            aria-label={m.footer_github()}
+            data-morph="header-github"
+            render={<a href={REPO_URL} rel="noreferrer" target="_blank" />}
+            style={[styles.github, styles.morph('header-github')]}
+            variant="outline"
+          >
+            <svg aria-hidden="true" fill="currentColor" height={14} viewBox="0 0 16 16" width={14}>
+              <path d={GITHUB_MARK} />
+            </svg>
+          </Button>
           {downloadButton}
         </span>
         <span data-aa-phone="" {...props(styles.contents)}>
