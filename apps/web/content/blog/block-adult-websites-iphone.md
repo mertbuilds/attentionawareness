@@ -60,7 +60,7 @@ Two free examples:
 
 There are two ways to set one up on an iPhone:
 
-- **With the provider's app or profile.** Cloudflare's free app, 1.1.1.1: Faster Internet, works on Wi-Fi and on mobile data. In the app, tap the menu, then Advanced > Connection options, and choose 1.1.1.1 for Families. CleanBrowsing offers a profile for iOS.
+- **With the provider's app or profile.** Cloudflare's free app, 1.1.1.1: Faster Internet, works on Wi-Fi and on mobile data. In the app, tap the menu, then Advanced > Connection options. Under DNS settings, tap 1.1.1.1 for Families and choose the option that blocks malware and adult content. CleanBrowsing offers a profile for iOS.
 - **By hand, for one Wi-Fi network.** In Settings, tap Wi-Fi, tap the "i" next to the network, tap Configure DNS, choose Manual and add the two addresses. This covers only that Wi-Fi network, not mobile data.
 
 What it leaves open: you can switch off the app, remove the profile in Settings > General > VPN & Device Management, or set the Wi-Fi back to Automatic. A VPN app can send the lookups to another DNS service. So a DNS filter covers more apps than Apple's filter, but it is just as easy to switch off. The locked profile below uses Apple's filter. Once it is locked on a supervised iPhone, it cannot be removed in Settings.

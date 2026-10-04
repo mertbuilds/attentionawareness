@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 
 /** How long the page may stay busy before a task waiting for a quiet moment runs anyway, in milliseconds. */
 const IDLE_TIMEOUT_MS = 2000;
+/** How long to wait for a page that never finishes loading, in milliseconds. */
+const LOAD_TIMEOUT_MS = 5000;
 
 /**
  * Runs `task` once the page has loaded and the browser has a quiet moment,
@@ -22,8 +24,24 @@ export function whenIdle(task: () => void): () => void {
   if (document.readyState === 'complete') {
     idle();
   } else {
-    window.addEventListener('load', idle, { once: true });
-    cancel = () => window.removeEventListener('load', idle);
+    // A slow image or frame can hold the load event back for a long time, so
+    // the wait for it has its own limit. Whichever comes first runs, once.
+    let started = false;
+    const start = () => {
+      if (started) {
+        return;
+      }
+      started = true;
+      window.removeEventListener('load', start);
+      window.clearTimeout(limit);
+      idle();
+    };
+    const limit = window.setTimeout(start, LOAD_TIMEOUT_MS);
+    window.addEventListener('load', start, { once: true });
+    cancel = () => {
+      window.removeEventListener('load', start);
+      window.clearTimeout(limit);
+    };
   }
   return () => cancel?.();
 }

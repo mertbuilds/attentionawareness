@@ -18,7 +18,7 @@ I am Mert. I make attention awareness. My screen time went from more than 5 hour
 1. **Let another person set the passcode.** Ask them to choose the code and to enter their own Apple Account for Screen Time Passcode Recovery. Then your Apple Account cannot reset the code.
 2. **Remove the app from Always Allowed.** Apps on that list work at all times, whatever your schedule and limits say. In Settings, open Screen Time, then Always Allowed, tap Edit and remove the app.
 3. **Make the schedule block, not remind.** On iOS 26 and earlier, open Screen Time, then Downtime, and turn on Block at Downtime. Without it, the phone only reminds you, and you can keep using the apps. This option needs a Screen Time passcode.
-4. **Limit the app's website too.** On iOS 27, a Time Allowance also counts the app's website when the app declares one. On iOS 26 and earlier, add the website under Never Allow in Content & Privacy Restrictions > App Store, Media, Web, & Games > Web Content.
+4. **Limit the app's website too.** On iOS 27, a Time Allowance also counts the app's website when the app declares one. On iOS 26 and earlier, open Content & Privacy Restrictions > App Store, Media, Web, & Games > Web Content, choose Limit Adult Websites, then add the website under Never Allow.
 5. **Use the same limits on your iPad and Mac.** In Screen Time, open Manage Screen Time and turn on Share Across Devices. Before iOS 27, the switch is on the Screen Time page itself. Your limits and schedules then apply on every device signed in to your Apple Account.
 
 If these do not hold, here is why, and what does.
@@ -127,7 +127,7 @@ Set a Screen Time passcode, so the limit screen asks for a code. Ask someone you
 
 ### Can I remove the Ignore Limit button?
 
-Yes. Set a Screen Time passcode. On iOS 26 and earlier, also turn on Block at Downtime, which Apple gives as the way to stop limits being ignored. The button goes away, but anyone who knows the code can still get in.
+Yes. Set a Screen Time passcode. On iOS 26 and earlier, also turn on Block at Downtime, which Apple gives as the way to stop limits being ignored. The limit screen then asks for the passcode, but anyone who knows the code can still get in.
 
 ### Do I have to erase my iPhone to supervise it?
 
@@ -194,7 +194,7 @@ If Screen Time is enough for you, keep it. If you tap Ignore Limit most nights, 
           "name": "Can I remove the Ignore Limit button?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Yes. Set a Screen Time passcode. On iOS 26 and earlier, also turn on Block at Downtime, which Apple gives as the way to stop limits being ignored. The button goes away, but anyone who knows the code can still get in."
+            "text": "Yes. Set a Screen Time passcode. On iOS 26 and earlier, also turn on Block at Downtime, which Apple gives as the way to stop limits being ignored. The limit screen then asks for the passcode, but anyone who knows the code can still get in."
           }
         },
         {
