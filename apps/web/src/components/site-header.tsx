@@ -35,6 +35,9 @@ const OPEN_FROM = 16;
 const HOW_HASH = '#way-out';
 const SUPPORT_HASH = '#support';
 const WHY_HASH = '#story';
+const FAQ_HASH = '#faq';
+/** The blog, a page of its own. */
+const BLOG_PATH = '/blog';
 
 const styles = create({
   // The row of items, laid out as the open strip or as the pill. Every item
@@ -155,6 +158,14 @@ const styles = create({
     display: 'inline-flex',
     gap: spacing.s1,
   },
+  // The questions and the blog need a wider window than the other links: under
+  // it the name would be cut short to make room for them.
+  linkRoomy: {
+    display: {
+      '@media (min-width: 768px)': 'inline',
+      default: 'none',
+    },
+  },
   // How it works and why go on a phone, so the name, the support link and
   // the download keep one line. The pill has no name to make room for, so there
   // only how it works goes.
@@ -222,9 +233,9 @@ const styles = create({
 });
 
 /**
- * The name, top left on every page and the way home, the home page's two
- * sections and its support link, a heart before it, in the middle, and the
- * download across from the name. Once the page has run a little way under it, the same items gather
+ * The name, top left on every page and the way home, the home page's
+ * sections, its support link with a heart before it, and the blog in the
+ * middle, and the download across from the name. Once the page has run a little way under it, the same items gather
  * into a pill in the middle, the mark alone for the name. The download starts
  * the file at once, as every download on the site does; on a phone or a
  * tablet, which cannot run the app, it sends the link on to a Mac instead.
@@ -352,6 +363,22 @@ export function SiteHeader() {
             {...props(styles.link, !pill && styles.linkWide, styles.morph('header-why'))}
           >
             {m.nav_why()}
+          </a>
+          <a
+            data-morph="header-faq"
+            data-plain=""
+            href={page + FAQ_HASH}
+            {...props(styles.link, styles.linkRoomy, styles.morph('header-faq'))}
+          >
+            {m.nav_faq()}
+          </a>
+          <a
+            data-morph="header-blog"
+            data-plain=""
+            href={BLOG_PATH}
+            {...props(styles.link, styles.linkRoomy, styles.morph('header-blog'))}
+          >
+            {m.nav_blog()}
           </a>
         </nav>
         {downloadButton}

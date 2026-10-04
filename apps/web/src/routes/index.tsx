@@ -44,6 +44,7 @@ const HERO_PHONE_WIDTH = 272;
 const PROOF_ID = 'proof';
 const WAY_OUT_ID = 'way-out';
 const STORY_ID = 'story';
+const FAQ_ID = 'faq';
 /** The two ways, both free. Links from before the app was free still come down to it. */
 const PRICING_ID = 'pricing';
 /** Why everything is free and how to support the work, which the header's support link goes down to. */
@@ -703,7 +704,7 @@ function HomePage() {
           </p>
         </section>
 
-        <section {...props(styles.section)}>
+        <section {...props(styles.section, styles.anchor)} id={FAQ_ID}>
           <h2 {...props(styles.sectionTitle)}>{m.home_faq_title()}</h2>
           <div>
             {objections.map((objection) => (
