@@ -136,9 +136,9 @@ enum SiteLink {
 /// the filled one last, and every other one a standard bordered button before
 /// it.
 struct StepLayout<Content: View, Actions: View>: View {
-    /// The symbol above the title, for the one step that reports a result.
-    /// Nil is every other step, which opens on its title.
-    let symbol: String?
+    /// The symbol above the title, for a step that reports how something
+    /// ended. Nil is every other step, which opens on its title.
+    let symbol: StepSymbol?
     let title: String
     let lead: String?
     /// What the "i" beside the title holds, where the title is a claim about
@@ -152,7 +152,7 @@ struct StepLayout<Content: View, Actions: View>: View {
     let actions: Actions
 
     init(
-        symbol: String? = nil,
+        symbol: StepSymbol? = nil,
         title: String,
         lead: String? = nil,
         note: String? = nil,
@@ -174,13 +174,7 @@ struct StepLayout<Content: View, Actions: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             if let symbol {
-                // The title says the same thing in words, so VoiceOver skips
-                // the picture.
-                Image(systemName: symbol)
-                    .font(.system(size: 40))
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(WizardStyle.accent)
-                    .accessibilityHidden(true)
+                symbol.body
             }
 
             HStack(alignment: .firstTextBaseline, spacing: 8) {

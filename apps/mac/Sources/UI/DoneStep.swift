@@ -12,7 +12,7 @@ struct DoneStep: View {
 
     var body: some View {
         StepLayout(
-            symbol: "checkmark.circle.fill",
+            symbol: .done,
             title: WizardStep.done.title,
             error: model.errorMessage
         ) {

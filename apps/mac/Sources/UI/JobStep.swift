@@ -35,7 +35,7 @@ struct JobStep: View {
     @State private var storyClock = WaitClock()
 
     var body: some View {
-        StepLayout(title: title) {
+        StepLayout(symbol: symbol, title: title) {
             content
         } actions: {
             actions
@@ -83,6 +83,17 @@ struct JobStep: View {
         } completion: {
             storyPhase = nil
             storyLeaving = false
+        }
+    }
+
+    /// The warning sign over every end that is not the one the run is for:
+    /// a failure, and an iPhone that did not come back.
+    private var symbol: StepSymbol? {
+        switch phase {
+        case .failed, .phoneGone:
+            return .warning
+        default:
+            return nil
         }
     }
 

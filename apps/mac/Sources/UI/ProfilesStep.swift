@@ -10,7 +10,7 @@ struct ProfilesStep: View {
     @ObservedObject var model: WizardModel
 
     var body: some View {
-        StepLayout(title: title) {
+        StepLayout(symbol: failure == nil ? nil : .warning, title: title) {
             content
         } actions: {
             actions
