@@ -8,6 +8,9 @@ import { defineConsts } from '@stylexjs/stylex';
  */
 export const accent = defineConsts({
   base: '#ff4f00',
+  // The base as a soft light behind the foot of the page, at a strength set
+  // per theme in `src/theme.css`: less of it on the white ground.
+  glow: 'var(--kya-accent-glow)',
   // The base lifted and softened, for the ring around whatever holds keyboard
   // focus. Full strength there would fight the one control on the row that is
   // meant to be the loudest. Matches the Mac app's focus ring.

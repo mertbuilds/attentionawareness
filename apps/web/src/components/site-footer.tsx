@@ -1,3 +1,4 @@
+import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { usePostHog } from '@posthog/react';
 import { create, defaultMarker, firstThatWorks, keyframes, props, when } from '@stylexjs/stylex';
@@ -91,6 +92,15 @@ const NAME_SHOWN = 0.84;
  */
 const NAME_INK = `color-mix(in srgb, ${colors.fg} 28%, transparent)`;
 const NAME_THINS = 'linear-gradient(to bottom, black 15%, rgb(0 0 0 / 0.3))';
+/**
+ * The orange light the name fades into: the header band's glow on inner
+ * pages, turned to rise from the page's bottom edge. Wide and low, and gone
+ * by about half the name's height, so it tints the foot of the letters and
+ * the paper behind them and leaves the links above it alone.
+ */
+const GLOW = `radial-gradient(ellipse 70% 100% at 50% 100%, ${accent.glow}, transparent)`;
+/** How much of the shown name the glow climbs, from the page's bottom edge. */
+const GLOW_SHARE = 0.6;
 /** The room the page shells leave under the footer, which the footer takes back. */
 const PAGE_FOOT = spacing.s16;
 /**
@@ -197,6 +207,18 @@ const styles = create({
     opacity: 0,
     transform: `translateY(${distance.medium})`,
   },
+  // Under the name and over the paper, standing on the page's bottom edge.
+  glow: {
+    backgroundImage: GLOW,
+    height: firstThatWorks(
+      `calc((100cqi - 2 * ${spacing.s4}) / ${NAME_WIDTH} * ${NAME_SHOWN * GLOW_SHARE} + ${spacing.s4})`,
+      `calc((100vw - 2 * ${spacing.s4}) / ${NAME_WIDTH} * ${NAME_SHOWN * GLOW_SHARE} + ${spacing.s4})`,
+    ),
+    insetBlockEnd: 0,
+    insetInline: 0,
+    pointerEvents: 'none',
+    position: 'absolute',
+  },
   // The star before its link, and the box its filled twin is laid over. It
   // keeps its size where the words wrap.
   icon: {
@@ -279,6 +301,8 @@ const styles = create({
     // The first letter's ink, not its box, stands on the page's left edge.
     marginInlineStart: `calc(${spacing.s4} - ${NAME_BEARING}em)`,
     maskImage: NAME_THINS,
+    // Drawn over the glow, which is placed and would otherwise cover it.
+    position: 'relative',
     WebkitMaskImage: NAME_THINS,
     whiteSpace: 'nowrap',
   },
@@ -616,6 +640,7 @@ export function SiteFooter({ children }: { children?: ReactNode | undefined }) {
       </div>
       {/* The name is read out in the brand's line above, so this one is for the eye only. */}
       <div aria-hidden="true" ref={stage} {...props(styles.stage)}>
+        <span {...props(styles.glow)} />
         <span {...props(styles.name, rising && (seen ? styles.rise : styles.hidden))}>
           {m.site_name()}
         </span>
