@@ -245,6 +245,11 @@ AA_SITE_URL=https://attentionawareness.localhost \
   so never edit project settings in Xcode: edit `project.yml` and regenerate.
 - `Sources/` holds the Swift code, `Info.plist`, the entitlements (empty dict,
   no sandbox: the app needs usbmuxd and unsandboxed file access) and the icon.
+  `AppIcon.icns` is drawn by `scripts/render-app-icon.ts` from the brand mark's
+  outlines in `packages/ui/src/brand.ts`, on Apple's macOS icon grid;
+  `scripts/app-icon.svg` is the drawing. Run
+  `node apps/mac/scripts/render-app-icon.ts` from the repo root after a change
+  and commit both.
 - `Sources/UI/` is the window: `WizardStep` is the step order and nothing else,
   which is why the tests can run it; `BackupSafetyNet` works out whether the
   reader already has a backup of their own, from what the iPhone says about its
