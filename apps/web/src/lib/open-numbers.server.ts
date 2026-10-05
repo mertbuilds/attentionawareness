@@ -28,8 +28,7 @@ const NOT_REFERRERS = new Set([
 /**
  * Everything the page shows in one query, so one ask costs one request. The
  * filters are the public dashboard's own: page views on the live host, in the
- * dashboard's window, and visitors counted as distinct persons. The Mac app's
- * event has no host, so it is counted wherever it came from. Visits are
+ * dashboard's window, and visitors counted as distinct persons. Visits are
  * PostHog's sessions that hold one of those page views, as its web analytics
  * counts them: one row with the visits and the bounced ones, one with the
  * visits and their seconds added up. `abs` keeps the seconds an unsigned count,
@@ -64,7 +63,7 @@ select 'visits' as kind, 'seconds' as label, count() as visitors, sum(abs(second
 union all
 select 'event' as kind, event as label, count(distinct person_id) as visitors, count() as hits from events
 where timestamp >= toStartOfDay(now() - interval ${DAYS_BACK} day)
-  and ((event in ('mac_download_started', 'support_clicked') and properties.$host = 'attentionawareness.com') or event = 'supervision_finished')
+  and event = 'mac_download_started' and properties.$host = 'attentionawareness.com'
 group by label
 limit 200`;
 
@@ -254,8 +253,6 @@ export function shape(rows: Array<Row>, fetchedAt: number): OpenNumbers {
       'visitors',
     ),
     sessionSeconds: Math.round(share(seconds?.hits ?? 0, seconds?.visitors ?? 0)),
-    supervisions: one('event', 'supervision_finished')?.hits ?? 0,
-    supportClicks: one('event', 'support_clicked')?.hits ?? 0,
     views: total?.hits ?? 0,
     visitors: total?.visitors ?? 0,
   };

@@ -17,8 +17,6 @@ export type OpenNumbers = {
   referrers: Array<OpenRow>;
   /** How long a visit lasts on average, in whole seconds. */
   sessionSeconds: number;
-  supervisions: number;
-  supportClicks: number;
   views: number;
   visitors: number;
 };
