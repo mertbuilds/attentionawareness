@@ -80,7 +80,7 @@ const styles = create({
   // on its side, it scrolls in itself, and the page under it stays where it
   // is.
   panel: {
-    backgroundColor: colors.bg,
+    backgroundColor: colors.raised,
     borderColor: `color-mix(in srgb, ${colors.fg} 10%, transparent)`,
     borderRadius: 16,
     borderStyle: 'solid',

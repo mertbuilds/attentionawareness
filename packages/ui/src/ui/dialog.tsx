@@ -53,6 +53,9 @@ const styles = create({
     width: '1.75rem',
   },
   content: {
+    // What is inside stands on the panel, not on the page: an outline button
+    // rests on the panel's own ground.
+    '--background': colors.popover,
     animationDuration: '100ms',
     animationFillMode: 'forwards',
     backgroundColor: colors.popover,

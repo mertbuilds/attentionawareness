@@ -66,7 +66,7 @@ const styles = create({
   // 1px inset from its border.
   segmented: {
     alignItems: 'center',
-    backgroundColor: colors.bg,
+    backgroundColor: 'transparent',
     borderColor: colors.border,
     borderRadius: 999,
     borderStyle: 'solid',

@@ -30,7 +30,7 @@ function systemKnown(): boolean {
 }
 
 /** The page's ground in each theme, as `--background` in `theme.css` has it. */
-export const THEME_GROUND = { dark: '#000000', light: '#ffffff' } as const;
+export const THEME_GROUND = { dark: '#000000', light: '#fbfaf8' } as const;
 
 /** The one `theme-color` meta a chosen theme owns. React never renders it. */
 const GROUND_META = 'aa-theme-color';

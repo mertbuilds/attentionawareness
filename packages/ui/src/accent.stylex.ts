@@ -19,7 +19,7 @@ export const accent = defineConsts({
  * thing it is the colour of: the sun and the moon, a call that went through
  * and a tree's leaves, the sky. They are for drawings only, never for words
  * or controls. Each wraps a CSS custom property in `src/theme.css`, deeper on
- * the white page and lighter on the black one, so a thin line of it shows on
+ * the light page and lighter on the black one, so a thin line of it shows on
  * both.
  */
 export const tint = defineConsts({

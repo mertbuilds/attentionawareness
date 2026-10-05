@@ -28,7 +28,7 @@ const Sheet = lazy((): Promise<{ default: FC<ComponentProps<typeof SheetComponen
 
 const styles = create({
   popup: {
-    backgroundColor: colors.bg,
+    backgroundColor: colors.raised,
     borderColor: colors.border,
     borderRadius: 12,
     borderStyle: 'solid',

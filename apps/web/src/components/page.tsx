@@ -108,7 +108,7 @@ const styles = create({
     WebkitMaskImage: MASK,
   },
   callout: {
-    backgroundColor: `color-mix(in srgb, ${accent.base} 6%, ${colors.bg})`,
+    backgroundColor: `color-mix(in srgb, ${accent.base} 6%, ${colors.raised})`,
     borderColor: accent.base,
     borderRadius: radius.base,
     borderStyle: 'solid',
@@ -123,7 +123,7 @@ const styles = create({
     },
   },
   card: {
-    backgroundColor: colors.bg,
+    backgroundColor: colors.raised,
     borderColor: colors.border,
     borderRadius: radius.base,
     borderStyle: 'solid',
