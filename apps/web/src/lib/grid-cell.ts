@@ -82,21 +82,56 @@ export function enterTrail(
 }
 
 /**
- * A square's light: whether the pointer is in it, when that last changed, and
- * how strong it was then, from 0 to 1.
+ * The squares a straight stroke crosses from one square to another, in the
+ * order it crosses them: every one after `from`, up to `to` itself, and none
+ * when the two are the same. It is Bresenham's line: one square for each step
+ * along the longer way, so each touches the one before it by a side or by a
+ * corner and a slanted stroke is as thin as a level one.
  */
-export type Glow = { at: number; from: number; lit: boolean };
+export function cellsBetween(
+  from: { col: number; row: number },
+  to: { col: number; row: number },
+): Array<{ col: number; row: number }> {
+  const across = Math.abs(to.col - from.col);
+  const down = Math.abs(to.row - from.row);
+  const stepCol = Math.sign(to.col - from.col);
+  const stepRow = Math.sign(to.row - from.row);
+  const cells: Array<{ col: number; row: number }> = [];
+  let { col, row } = from;
+  let error = across - down;
+  while (col !== to.col || row !== to.row) {
+    const doubled = 2 * error;
+    if (doubled > -down) {
+      error -= down;
+      col += stepCol;
+    }
+    if (doubled < across) {
+      error += across;
+      row += stepRow;
+    }
+    cells.push({ col, row });
+  }
+  return cells;
+}
 
 /**
- * How strong a square's light is at `now`, from 0 to 1. Under the pointer it
- * rises to full over `fadeIn`, from wherever it was. Left, it goes out over
- * `fadeOut`, slowly at first and fast at the end, from wherever it was.
+ * A square's light: when the pointer came into it, how strong it was then,
+ * from 0 to 1, and when the pointer left it, if it has.
+ */
+export type Glow = { at: number; from: number; left: number | undefined };
+
+/**
+ * How strong a square's light is at `now`, from 0 to 1. From the moment the
+ * pointer comes in it rises to full over `fadeIn`, from wherever it was, and
+ * keeps rising after the pointer has gone, so a square crossed in one frame
+ * is as bright as one rested on. From the moment the pointer leaves it goes
+ * out over `fadeOut`, slowly at first and fast at the end.
  */
 export function glowStrength(glow: Glow, now: number, fadeIn: number, fadeOut: number): number {
-  const since = Math.max(0, now - glow.at);
-  if (glow.lit) {
-    return Math.min(1, glow.from + since / fadeIn);
+  const risen = Math.min(1, glow.from + Math.max(0, now - glow.at) / fadeIn);
+  if (glow.left === undefined) {
+    return risen;
   }
-  const gone = Math.min(1, since / fadeOut);
-  return glow.from * (1 - gone ** 3);
+  const gone = Math.min(1, Math.max(0, now - glow.left) / fadeOut);
+  return risen * (1 - gone ** 3);
 }

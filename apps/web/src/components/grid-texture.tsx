@@ -4,7 +4,7 @@ import { create, firstThatWorks, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { useEffect, useRef } from 'react';
 import type { RefObject } from 'react';
-import { cellAt, enterTrail, glowStrength, gridOrigin } from '../lib/grid-cell.ts';
+import { cellAt, cellsBetween, enterTrail, glowStrength, gridOrigin } from '../lib/grid-cell.ts';
 import type { Glow } from '../lib/grid-cell.ts';
 import { LESS_MOTION } from '../lib/use-less-motion.ts';
 
@@ -25,11 +25,18 @@ const FADE_IN = 80;
 const FADE_OUT = 3000;
 /**
  * The most squares alight or going out at once; past it the oldest is taken.
- * A pointer comes into one new square a frame at the most, so this is five
- * seconds of that at 60 frames a second: no stroke is cut before it has gone
- * out by itself.
+ * A stroke lights a square for every 40px it goes, so this is three seconds,
+ * the whole of a fade, at 8000px a second: no stroke a hand can make is cut
+ * before it has gone out by itself.
  */
-const TRAIL_CAP = 300;
+const TRAIL_CAP = 600;
+/**
+ * The longest the pointer may have stood still, in ms, for its next square to
+ * be joined to its last by a line. After a longer wait, or after it was off
+ * the grid, out of the window or in a tab put away, a new stroke starts where
+ * it is, and nothing is drawn across the hero.
+ */
+const STROKE_GAP = 100;
 
 /** A pointer that can rest over the page without pressing it: a mouse. */
 const HOVER_QUERY = '(hover: hover) and (pointer: fine)';
@@ -102,7 +109,40 @@ function lightSquares(grid: HTMLElement): () => void {
   let trail: Array<string> = [];
   let lit: string | undefined;
   let point: { x: number; y: number } | undefined;
+  // When the pointer last moved, when the last frame was drawn, and the move
+  // that frame had seen: all on the clock the frames keep.
+  let movedAt = 0;
+  let drawnAt = 0;
+  let drawnMoveAt = 0;
   let frame = 0;
+
+  // The pointer comes into a square at `at`, and leaves the one it was in.
+  const enter = (col: number, row: number, at: number) => {
+    leave(at);
+    const key = `${col}:${row}`;
+    const entered = enterTrail(trail, key, TRAIL_CAP);
+    trail = entered.trail;
+    if (entered.dropped !== undefined) {
+      glows.delete(entered.dropped);
+    }
+    // A square still going out lights again from the strength it has.
+    const back = glows.get(key);
+    glows.set(key, {
+      at,
+      col,
+      from: back === undefined ? 0 : glowStrength(back, at, FADE_IN, FADE_OUT),
+      left: undefined,
+      row,
+    });
+    lit = key;
+  };
+  const leave = (at: number) => {
+    const left = lit === undefined ? undefined : glows.get(lit);
+    if (left !== undefined) {
+      left.left = at;
+    }
+    lit = undefined;
+  };
 
   const queue = () => {
     if (frame === 0) {
@@ -121,31 +161,24 @@ function lightSquares(grid: HTMLElement): () => void {
       point === undefined ? undefined : cellAt(point, box, { cell: GRID_CELL, originX, originY });
     const key = cell === undefined ? undefined : `${cell.col}:${cell.row}`;
     if (key !== lit) {
-      // The square the pointer left starts to go out from the strength it had.
-      const left = lit === undefined ? undefined : glows.get(lit);
-      if (left !== undefined) {
-        left.from = glowStrength(left, now, FADE_IN, FADE_OUT);
-        left.at = now;
-        left.lit = false;
-      }
-      if (cell !== undefined && key !== undefined) {
-        const entered = enterTrail(trail, key, TRAIL_CAP);
-        trail = entered.trail;
-        if (entered.dropped !== undefined) {
-          glows.delete(entered.dropped);
+      const last = lit === undefined ? undefined : glows.get(lit);
+      if (cell === undefined) {
+        leave(now);
+      } else if (last === undefined || movedAt - drawnMoveAt > STROKE_GAP) {
+        enter(cell.col, cell.row, now);
+      } else {
+        // The squares the pointer crossed since the last frame, each come
+        // into a little after the one before it over the time between the
+        // two frames, so the stroke goes out from its start to its end.
+        const path = cellsBetween(last, cell);
+        const start = Math.max(drawnAt, now - STROKE_GAP);
+        for (const [index, step] of path.entries()) {
+          enter(step.col, step.row, start + ((now - start) * (index + 1)) / path.length);
         }
-        // A square still going out lights again from the strength it has.
-        const back = glows.get(key);
-        glows.set(key, {
-          at: now,
-          col: cell.col,
-          from: back === undefined ? 0 : glowStrength(back, now, FADE_IN, FADE_OUT),
-          lit: true,
-          row: cell.row,
-        });
       }
-      lit = key;
     }
+    drawnAt = now;
+    drawnMoveAt = movedAt;
 
     // One canvas pixel for one screen pixel, at any zoom.
     const width = Math.round(box.width * window.devicePixelRatio);
@@ -161,7 +194,7 @@ function lightSquares(grid: HTMLElement): () => void {
     const side = GRID_CELL - GRID_LINE;
     for (const [glowKey, glow] of glows) {
       const strength = glowStrength(glow, now, FADE_IN, FADE_OUT);
-      if (strength <= 0 && !glow.lit) {
+      if (glow.left !== undefined && now - glow.left >= FADE_OUT) {
         glows.delete(glowKey);
         continue;
       }
@@ -190,6 +223,7 @@ function lightSquares(grid: HTMLElement): () => void {
       return;
     }
     point = { x: event.clientX, y: event.clientY };
+    movedAt = event.timeStamp;
     queue();
   };
   const onLeave = () => {
