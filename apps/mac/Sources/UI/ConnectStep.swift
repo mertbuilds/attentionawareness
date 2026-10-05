@@ -74,6 +74,11 @@ struct ConnectStep: View {
                 ProgressView()
                     .controlSize(.small)
             } else if refusal != nil {
+                // Supervising comes first, so the guide is the filled button
+                // and the builder the bordered one before it.
+                Button("Open the Profile Builder") {
+                    if let url = SiteLink.profileBuilder { openURL(url) }
+                }
                 PrimaryButton(title: "Open the Guide") {
                     if let url = SiteLink.guide { openURL(url) }
                 }

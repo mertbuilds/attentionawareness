@@ -20,8 +20,8 @@ settings:
     # build for generic/platform=macOS also builds an Intel slice, which has
     # nothing to link against.
     ARCHS: arm64
-    MARKETING_VERSION: '0.4.4'
-    CURRENT_PROJECT_VERSION: '8'
+    MARKETING_VERSION: '0.4.5'
+    CURRENT_PROJECT_VERSION: '9'
     ENABLE_HARDENED_RUNTIME: YES
     GENERATE_INFOPLIST_FILE: NO
   configs:

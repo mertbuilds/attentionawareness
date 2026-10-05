@@ -7,17 +7,21 @@ small configuration backup and restarts the iPhone. Which iPhones get a run:
 | iOS on the iPhone | What the app does |
 | --- | --- |
 | 26 and earlier | runs the fast method |
-| 27 and later | no run: Connect shows "iOS 27 Is Not Supported Yet" and opens the manual guide |
-| missing or unreadable version | no run: Connect shows "Couldn't Read the iOS Version" and opens the same guide |
+| 27 and later | no run: Connect shows "iOS 27 Is Not Supported Yet" and opens the manual guide or the profile builder |
+| missing or unreadable version | no run: Connect shows "Couldn't Read the iOS Version" and opens the same guide or builder |
 
 The rule is `IOSSupport` in `Sources/Seed/IOSSupport.swift`: the first number
 of the version, compared as a number, 26 or below runs. A version that is
 missing or does not read is never taken for an earlier one, because a run on iOS
-27 can erase the iPhone. In place of Continue, Connect says why and has one
-button, Open the Guide, which opens the manual guide with Apple Configurator
-on the site (`SiteLink.guide`,
+27 can erase the iPhone. In place of Continue, Connect says why and has two
+buttons. Open the Guide, the filled one, opens the manual guide with Apple
+Configurator on the site (`SiteLink.guide`,
 `https://attentionawareness.com/guide?utm_source=mac-app&utm_medium=referral&utm_campaign=ios27_guide`).
-That way erases the iPhone, and the screen says so. The screen follows the
+That way erases the iPhone, and the screen says so.
+Open the Profile Builder, the bordered one before it, opens the profile
+builder on the site (`SiteLink.profileBuilder`,
+`https://attentionawareness.com/build?utm_source=mac-app&utm_medium=referral&utm_campaign=ios27_builder`),
+so the restrictions profile need not be made in Apple Configurator. The screen follows the
 iPhone Connect has picked: another iPhone on iOS 26 brings Continue back. An
 iPhone on iOS 27 that is already supervised, by Apple Configurator for
 example, still gets Manage Restrictions, because the restrictions profile does

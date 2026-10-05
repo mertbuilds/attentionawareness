@@ -91,6 +91,9 @@ enum SiteLink {
     /// The manual guide with Apple Configurator, for an iPhone the app does
     /// not supervise: iOS 27 and later, or a version it could not read.
     static var guide: URL? { url(path: "/guide", campaign: "ios27_guide") }
+    /// The profile builder on the site, offered beside the guide so the
+    /// restrictions profile need not be made in Apple Configurator.
+    static var profileBuilder: URL? { url(path: "/build", campaign: "ios27_builder") }
     /// What the Share button on the last step hands on. Whoever opens it
     /// arrives from a share, so it names that as its source.
     static let share = URL(

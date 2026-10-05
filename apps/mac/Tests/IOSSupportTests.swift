@@ -63,19 +63,36 @@ struct IOSSupportTests {
         #expect(IOSSupport.Refusal.iosNotSupportedYet.title == "iOS 27 Is Not Supported Yet")
         #expect(IOSSupport.Refusal.iosNotSupportedYet.guide == """
             This app cannot supervise an iPhone on iOS 27 yet. You can still supervise it by hand \
-            with Apple Configurator. That way erases iPhone, so back up first.
+            with Apple Configurator. That way erases iPhone, so back up first. You do not need to make \
+            the profile in Configurator. The profile builder on the site makes it for you, for free.
             """)
         #expect(IOSSupport.Refusal.iosVersionUnknown.title == "Couldn't Read the iOS Version")
         #expect(IOSSupport.Refusal.iosVersionUnknown.guide == """
             This app could not read the iOS version of this iPhone, so it does not supervise it. \
             On iOS 27, a run can erase iPhone. To read it again, unplug iPhone and plug it back in. \
             You can still supervise it by hand with Apple Configurator. That way erases iPhone, so \
-            back up first.
+            back up first. You do not need to make the profile in Configurator. The profile builder \
+            on the site makes it for you, for free.
             """)
     }
 
     @Test func theGuideLinkCarriesItsCampaign() {
         #expect(SiteLink.guide?.absoluteString == "https://attentionawareness.com/guide"
             + "?utm_source=mac-app&utm_medium=referral&utm_campaign=ios27_guide")
+    }
+
+    @Test(arguments: [IOSSupport.Refusal.iosNotSupportedYet, .iosVersionUnknown])
+    func bothGuideScreensPointToTheGuideAndTheProfileBuilder(_ refusal: IOSSupport.Refusal) {
+        #expect(refusal.guide.contains("by hand with Apple Configurator"))
+        #expect(refusal.guide.hasSuffix(
+            "The profile builder on the site makes it for you, for free."
+        ))
+        #expect(SiteLink.guide != nil)
+        #expect(SiteLink.profileBuilder != nil)
+    }
+
+    @Test func theProfileBuilderLinkCarriesItsCampaign() {
+        #expect(SiteLink.profileBuilder?.absoluteString == "https://attentionawareness.com/build"
+            + "?utm_source=mac-app&utm_medium=referral&utm_campaign=ios27_builder")
     }
 }
