@@ -147,10 +147,7 @@ const styles = create({
       },
       default: colors.background,
     },
-    borderColor: {
-      ':is(.dark, .dark *)': colors.input,
-      default: colors.border,
-    },
+    borderColor: colors.mutedForeground,
     borderStyle: 'solid',
     borderWidth: '1px',
     color: {
