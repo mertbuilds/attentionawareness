@@ -17,38 +17,38 @@
  */
 :root {
   color-scheme: light dark;
-  --background: #f7f7f5;
-  --foreground: #161616;
+  --background: #fbfaf8;
+  --foreground: #111111;
   --card: #ffffff;
-  --card-foreground: #161616;
+  --card-foreground: #111111;
   --popover: #ffffff;
-  --popover-foreground: #161616;
-  --primary: #161616;
+  --popover-foreground: #111111;
+  --primary: #111111;
   --primary-foreground: #ffffff;
-  --secondary: #eeeeeb;
-  --secondary-foreground: #161616;
-  --muted: #eeeeeb;
+  --secondary: #f2f0ed;
+  --secondary-foreground: #111111;
+  --muted: #f2f0ed;
   --muted-foreground: #8a8a8a;
-  --accent: #eeeeeb;
-  --accent-foreground: #161616;
+  --accent: #f2f0ed;
+  --accent-foreground: #111111;
   --destructive: #dc2626;
-  --border: #d2d2cf;
-  --input: #d2d2cf;
+  --border: #d8d6d2;
+  --input: #d8d6d2;
   --ring: #8a8a8a;
-  --sidebar: #f7f7f5;
-  --sidebar-foreground: #161616;
-  --sidebar-primary: #161616;
+  --sidebar: #fbfaf8;
+  --sidebar-foreground: #111111;
+  --sidebar-primary: #111111;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #eeeeeb;
-  --sidebar-accent-foreground: #161616;
-  --sidebar-border: #d2d2cf;
+  --sidebar-accent: #f2f0ed;
+  --sidebar-accent-foreground: #111111;
+  --sidebar-border: #d8d6d2;
   --sidebar-ring: #8a8a8a;
   --radius: 8px;
   --font-sans: 'Suisse Intl', 'Suisse Intl Fallback', 'Inter Variable', system-ui, sans-serif;
-  --kya-bg: #f7f7f5;
-  --kya-border: #d2d2cf;
+  --kya-bg: #fbfaf8;
+  --kya-border: #d8d6d2;
   --kya-error: #dc2626;
-  --kya-fg: #161616;
+  --kya-fg: #111111;
   --kya-muted: #8a8a8a;
   --kya-shadow: rgba(0, 0, 0, 0.08);
   --kya-tint-gold: #f0a500;
@@ -143,7 +143,7 @@
   color-scheme: light;
 }
 
-/* Links: foreground with underline in the black/white system — never browser
+/* Links: foreground with underline, in both themes — never browser
    blue/purple, and :visited must not diverge. These rules sit outside StyleX's
    layers, so they beat every component style: a Button rendered as an anchor
    has to be excluded by hand, or it draws a link underline through its pill.

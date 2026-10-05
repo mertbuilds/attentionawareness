@@ -24,13 +24,13 @@ const PAPER_GRAIN =
 
 /**
  * The paper the shader draws, one pair per theme. `back` is what PAPER above
- * resolves to (`--kya-bg` mixed 92% with `--kya-fg`): #e5e5e3 on light, #141414
+ * resolves to (`--kya-bg` mixed 92% with `--kya-fg`): #e8e7e6 on light, #141414
  * on dark. `front` is the light a fold catches, one shade over it. Both are
  * written out because a shader takes a color, not a `color-mix()`.
  */
 const PAPER_SHADER = {
   dark: { back: '#141414', front: '#262626' },
-  light: { back: '#e5e5e3', front: '#ffffff' },
+  light: { back: '#e8e7e6', front: '#ffffff' },
 } as const;
 /** One sheet, milled the same way every time. */
 const PAPER_SEED = 5.8;
@@ -48,7 +48,7 @@ const INK_FILTER_ID = 'bill-ink';
 /**
  * A scrap floats over the page: a tight shadow where it touches it, a wide
  * soft one under it. Both are chained after the edge filter, so they follow
- * the torn outline instead of a rectangle. A white page takes half the weight;
+ * the torn outline instead of a rectangle. A light page takes half the weight;
  * the dark pair on it reads as dirt rather than as shadow.
  */
 const PAPER_FILTER = {

@@ -24,7 +24,7 @@ export const colors = defineConsts({
   // The ground of what is raised over the page: a popup, a menu, a tip, a
   // card. White on the off-white page; the page's own black on the dark one.
   raised: 'var(--popover)',
-  // The shadow under a raised surface: faint on the white page, deep on the black one.
+  // The shadow under a raised surface: faint on the light page, deep on the black one.
   shadow: 'var(--kya-shadow)',
 });
 

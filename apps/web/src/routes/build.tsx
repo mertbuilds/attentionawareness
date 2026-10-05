@@ -406,6 +406,8 @@ const styles = create({
   // Hangs off the bar instead of pushing the grid down, so the page under it
   // never moves while the user types.
   resultsPanel: {
+    // An outline button in the list rests on the panel's ground, not the page's.
+    '--background': colors.raised,
     animationDuration: {
       '@media (prefers-reduced-motion: reduce)': '0ms',
       default: '150ms',
