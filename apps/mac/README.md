@@ -687,7 +687,9 @@ appcast and stops when the build number is not above it, once from
 
 `scripts/release.sh` builds Release, signs with the Developer ID, notarizes,
 staples, writes a dmg, signs the dmg for Sparkle and uploads three files to the
-private R2 bucket with `cf r2 objects put`, from Cloudflare's `cf` cli. The
+private R2 bucket. On a Mac it uploads with `cf r2 objects put`, from
+Cloudflare's `cf` cli; on the runner curl does, over S3 (see the note under
+the secrets table above). The
 script does not carry the bucket name: put it in
 `~/.config/attentionawareness/release.env` (mode 600) as `R2_BUCKET=<bucket>`,
 the bucket bound as `MAC_FILES` in `apps/web/cloudflare.config.ts` of this
@@ -702,8 +704,8 @@ file at `https://attentionawareness.com/mac/<file>`:
   for the download page, where `url` is the dmg on the site and `filename` is
   the name a person should get on disk, `attention-awareness-<version>.dmg`,
   with no build number. The download link sets it as its `download` attribute;
-  `cf r2 objects put` cannot store a Content-Disposition, so the bucket cannot
-  say it.
+  `cf r2 objects put` cannot store a Content-Disposition and the S3 upload
+  sends none, so the bucket cannot say it.
 - `mac/appcast.xml`, the feed Sparkle reads (`SUFeedURL`), written by
   `generate_appcast` with `https://attentionawareness.com/mac/` as
   `--download-url-prefix`. The feed already published is the input, read from
@@ -712,9 +714,10 @@ file at `https://attentionawareness.com/mac/<file>`:
 The dmg goes up first and the feed last, so neither small file ever points at a
 download that is not there. Each upload is live at once, with no site deploy in
 between. Everything is also left in `build/release/site/`, and the script prints
-every path it wrote. Uploading needs `cf auth login` with the Cloudflare account
+every path it wrote. On a Mac, uploading needs `cf auth login` with the Cloudflare account
 that holds the bucket, and a release without `--dry-run` checks that with
-`cf auth whoami` before it builds anything.
+`cf auth whoami` before it builds anything. Over S3 the same release reads
+`mac/latest.json` with the key pair before it builds.
 
 Release notes come from `release-notes/<version>.md` when that file is there,
 and from a two-line default when it is not. `generate_appcast` embeds the file

@@ -39,7 +39,8 @@
 #      generate_appcast cannot sign an update and no shipped copy of the app
 #      will accept one.
 #   4. `cf auth login` with the Cloudflare account that holds the bucket. cf is
-#      Cloudflare's cf cli, and it makes every R2 call here.
+#      Cloudflare's cf cli, and on a Mac it makes every R2 call here. On the
+#      runner curl makes them over S3: see R2_S3_ENDPOINT below.
 #   5. Put the bucket name in ~/.config/attentionawareness/release.env (mode
 #      600), as R2_BUCKET=<bucket>.
 #
@@ -58,9 +59,8 @@
 #                         with --aws-sigv4 and cf is not needed. The option
 #                         is in curl since 7.75; this is tested with 8.7.1,
 #                         the curl of macOS. cf cannot use such a token: its
-#                         calls go to
-#                         the Cloudflare REST API, which refuses a token that
-#                         is scoped to one bucket.
+#                         calls go to the Cloudflare REST API, which refuses a
+#                         token that is scoped to one bucket.
 
 set -euo pipefail
 
@@ -123,15 +123,34 @@ if [ -n "${R2_S3_ACCESS_KEY_ID:-}${R2_S3_SECRET_ACCESS_KEY:-}${R2_S3_ENDPOINT:-}
     echo "       R2_S3_ENDPOINT, or none of them." >&2
     exit 2
   fi
+  # The key pair signs requests to this host, so it is R2's own or nothing.
+  if ! [[ "$R2_S3_ENDPOINT" =~ ^https://[0-9a-f]{32}(\.(eu|fedramp))?\.r2\.cloudflarestorage\.com$ ]]; then
+    echo "error: R2_S3_ENDPOINT is not https://<account id>.r2.cloudflarestorage.com" >&2
+    echo "       (or its .eu or .fedramp form)." >&2
+    exit 2
+  fi
   R2_TRANSPORT=s3
+  # What the bucket answered, kept to show the reason when a request fails.
+  S3_BODY=$(mktemp)
+  trap 'rm -f "$S3_BODY"' EXIT
 fi
 
 # One signed request to the S3 endpoint. It prints the http status and nothing
 # else. The key pair goes to curl as a config on stdin, so it is in no argument
-# list and no log.
+# list and no log. curl signs again on every retry. --retry-all-errors is there
+# because without it a dropped connection is not tried again; a 4xx never is.
 s3_curl() {
   printf 'user = "%s:%s"\n' "$R2_S3_ACCESS_KEY_ID" "$R2_S3_SECRET_ACCESS_KEY" \
-    | curl -sS -K - --aws-sigv4 "aws:amz:auto:s3" -w '%{http_code}' "$@"
+    | curl -sS -K - --proto '=https' --aws-sigv4 "aws:amz:auto:s3" \
+      --connect-timeout 20 --retry 3 --retry-all-errors -w '%{http_code}' "$@"
+}
+
+# The first 500 bytes of the bucket's answer, which name the reason.
+s3_reason() {
+  if [ -s "$1" ]; then
+    head -c 500 "$1" >&2
+    echo >&2
+  fi
 }
 
 # Writes the object to a file. Returns 1 when it could not be read: through cf
@@ -144,12 +163,18 @@ r2_get() {
     cf r2 objects get "$key" --bucket-name "$R2_BUCKET" > "$file" 2> /dev/null
     return
   fi
-  STATUS=$(s3_curl -o "$file" "$R2_S3_ENDPOINT/$R2_BUCKET/$key") || STATUS="no response"
+  body="$file"
+  if [ "$file" = /dev/null ]; then
+    body="$S3_BODY"
+  fi
+  : > "$body"
+  STATUS=$(s3_curl -o "$body" "$R2_S3_ENDPOINT/$R2_BUCKET/$key") || STATUS="no response"
   case "$STATUS" in
     200) return 0 ;;
     404) return 1 ;;
     *)
       echo "error: could not read $key from the bucket over S3 ($STATUS)." >&2
+      s3_reason "$body"
       exit 1
       ;;
   esac
@@ -488,12 +513,17 @@ r2_put() {
     return
   fi
   echo "    $R2_BUCKET/$key"
-  # The Content-Type is all that is stored beside the object, as with cf.
-  STATUS=$(s3_curl -o /dev/null --upload-file "$file" -H "Content-Type: $type" "$url") || STATUS="no response"
+  # The Content-Type is all that is stored beside the object, as with cf. The
+  # hash goes into the signature, so the bucket refuses any other bytes.
+  sha=$(/usr/bin/shasum -a 256 "$file" | cut -d' ' -f1)
+  : > "$S3_BODY"
+  STATUS=$(s3_curl -o "$S3_BODY" --upload-file "$file" -H "Content-Type: $type" \
+    -H "x-amz-content-sha256: $sha" "$url") || STATUS="no response"
   case "$STATUS" in
     2??) ;;
     *)
       echo "error: could not upload $key to the bucket over S3 ($STATUS)." >&2
+      s3_reason "$S3_BODY"
       exit 1
       ;;
   esac
