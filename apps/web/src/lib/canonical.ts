@@ -1,6 +1,6 @@
 /** The one host the site answers on. Everything else is sent here. */
 const CANONICAL_ORIGIN = 'https://attentionawareness.com';
-const CANONICAL_HOST = 'attentionawareness.com';
+export const CANONICAL_HOST = 'attentionawareness.com';
 const WWW_HOST = 'www.attentionawareness.com';
 /**
  * Other domains that point at this same Worker and are sent to the canonical
@@ -9,6 +9,15 @@ const WWW_HOST = 'www.attentionawareness.com';
  * own subdomains, so `www.` rides along.
  */
 const ALIAS_DOMAINS = ['keepyourattention.com', 'dikkatfarkindaligi.com'];
+
+/**
+ * Whether a page or a request is on the live site, the only place analytics
+ * run: never in dev, a local build, a LAN address or a Workers preview. `www`
+ * and the old names serve no page, they move to the apex first.
+ */
+export function isLiveHost(hostname: string): boolean {
+  return hostname === CANONICAL_HOST;
+}
 
 /**
  * The alias domains and the `www` host are custom domains on this same Worker,

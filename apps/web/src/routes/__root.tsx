@@ -7,6 +7,7 @@ import { NotFound } from '../components/not-found.tsx';
 import { SiteHeader } from '../components/site-header.tsx';
 import { startAnalytics } from '../lib/analytics.ts';
 import { posts } from '../lib/blog.ts';
+import { CANONICAL_HOST, isLiveHost } from '../lib/canonical.ts';
 import { clientEnv } from '../lib/env.ts';
 import { useIdle } from '../lib/idle.ts';
 import { MOBILE_SCRIPT } from '../lib/mobile.ts';
@@ -29,7 +30,8 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
 }
 
 if (clientEnv.VITE_POSTHOG_KEY && clientEnv.VITE_POSTHOG_HOST && typeof window !== 'undefined') {
-  startAnalytics(clientEnv.VITE_POSTHOG_KEY, {
+  // Off the live site this loads nothing and every call does nothing.
+  startAnalytics(window.location.hostname, clientEnv.VITE_POSTHOG_KEY, {
     api_host: clientEnv.VITE_POSTHOG_HOST,
     capture_exceptions: {
       capture_console_errors: false,
@@ -52,7 +54,11 @@ if (clientEnv.VITE_POSTHOG_KEY && clientEnv.VITE_POSTHOG_HOST && typeof window !
   });
 }
 
-if (clientEnv.VITE_SENTRY_DSN && typeof window !== 'undefined') {
+if (
+  clientEnv.VITE_SENTRY_DSN &&
+  typeof window !== 'undefined' &&
+  isLiveHost(window.location.hostname)
+) {
   const Sentry = await import('@sentry/tanstackstart-react');
   Sentry.init({ dsn: clientEnv.VITE_SENTRY_DSN });
 }
@@ -85,12 +91,13 @@ const ICON_SUFFIX = import.meta.env.DEV ? '-dev' : '';
 const ANALYTICS_CLIENT_ID = '7969381f-4a54-484b-abe4-79148bce2206';
 /**
  * Loads the analytics through the site's own proxy. Page views, no link or
- * attribute tracking, and nothing at all from an automated browser.
+ * attribute tracking, and nothing at all from an automated browser or from
+ * any host but the live site (dev, a local build, a preview).
  * Session replay records one visit in ten, every input masked and nothing
  * a visitor chose recorded (`../lib/replay.ts`).
  */
 const ANALYTICS_SCRIPT =
-  'if(!navigator.webdriver){window.op=window.op||function(){(window.op.q=window.op.q||[]).push(arguments)};' +
+  `if(location.hostname===${JSON.stringify(CANONICAL_HOST)}&&!navigator.webdriver){window.op=window.op||function(){(window.op.q=window.op.q||[]).push(arguments)};` +
   `window.op('init',{clientId:'${ANALYTICS_CLIENT_ID}',apiUrl:'/op',trackScreenViews:true,trackOutgoingLinks:false,trackAttributes:false,` +
   `sessionReplay:${JSON.stringify(openPanelReplay)}});` +
   "var s=document.createElement('script');s.src='/op/op1.js';s.async=true;document.head.appendChild(s)}";

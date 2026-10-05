@@ -3,6 +3,7 @@
  * blocker can drop them: one OpenPanel event per dmg download and per Sparkle
  * feed check. The event goes out after the file is already on its way.
  */
+import { isLiveHost } from './canonical.ts';
 
 /** The self-hosted OpenPanel's event API, the same host `/op` proxies to. */
 const TRACK_URL = 'https://analytics.vinena.studio/api/track';
@@ -14,6 +15,13 @@ const APPCAST_PATH = '/mac/appcast.xml';
 const DMG_NAME = /^\/mac\/attention-awareness-(\d+(?:\.\d+)*)(?:-(\d+))?\.dmg$/u;
 /** Sparkle's agent is `<app name>/<app version> Sparkle/<sparkle version>`. */
 const SPARKLE_AGENT = /\/([^\s/]+) Sparkle\//u;
+/**
+ * A page on a dev server, a LAN address or a Workers preview. `latest.json`
+ * names the live dmg, so a download pressed on a local page reaches the live
+ * site; it is not counted.
+ */
+const LOCAL_REFERRER =
+  /(?:^|\.)(?:localhost|local)$|\.workers\.dev$|^\d{1,3}(?:\.\d{1,3}){3}$|^\[/u;
 /** The app's own requests say `attention awareness mac/<version>`. */
 const APP_AGENT = 'attention awareness mac/';
 
@@ -32,8 +40,8 @@ export type MacAnalyticsEnv = {
 /**
  * The event a response under `/mac/` counts as, or `null`. A download is a GET
  * of a dmg answered with the whole file or with a range from its first byte,
- * so a resumed or split download counts once and a HEAD, a 304 or a miss not
- * at all. A feed check is a GET of the appcast that was answered.
+ * so a resumed or split download counts once and a HEAD, a 304, a miss or a
+ * press on a local or preview page not at all. A feed check is a GET of the appcast that was answered.
  */
 export function macFileEvent(request: Request, url: URL, response: Response): MacEvent | null {
   if (request.method !== 'GET') {
@@ -56,13 +64,17 @@ export function macFileEvent(request: Request, url: URL, response: Response): Ma
   if (!fromFirstByte) {
     return null;
   }
-  const [, version, build] = DMG_NAME.exec(url.pathname) ?? [];
   const referrer = request.headers.get('referer');
+  const referrerHost = referrer === null ? undefined : URL.parse(referrer)?.hostname;
+  if (referrerHost !== undefined && LOCAL_REFERRER.test(referrerHost)) {
+    return null;
+  }
+  const [, version, build] = DMG_NAME.exec(url.pathname) ?? [];
   return {
     name: 'mac_download',
     properties: {
       build,
-      referrer_host: referrer === null ? undefined : URL.parse(referrer)?.hostname,
+      referrer_host: referrerHost,
       source: sparkleVersion !== undefined || agent.startsWith(APP_AGENT) ? 'sparkle' : 'browser',
       version,
     },
@@ -72,7 +84,8 @@ export function macFileEvent(request: Request, url: URL, response: Response): Ma
 /**
  * Sends the event to OpenPanel with the visitor's address and agent, so each
  * visitor is a device of their own. Never rejects, so the caller can hand it
- * to `waitUntil`, and skips silently without the client credentials.
+ * to `waitUntil`, and skips silently off the live site or without the
+ * client credentials.
  */
 export async function sendMacEvent(
   event: MacEvent,
@@ -81,7 +94,7 @@ export async function sendMacEvent(
 ): Promise<void> {
   const clientId = env.OPENPANEL_CLIENT_ID;
   const clientSecret = env.OPENPANEL_CLIENT_SECRET;
-  if (!clientId || !clientSecret) {
+  if (!clientId || !clientSecret || !isLiveHost(new URL(request.url).hostname)) {
     return;
   }
   const headers = new Headers({
