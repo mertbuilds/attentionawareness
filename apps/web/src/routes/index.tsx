@@ -719,15 +719,14 @@ function homeQuestions(): ReadonlyArray<{
     {
       answer: [
         text(m.home_faq_ios27_a1()),
+        text(m.home_faq_ios27_a2()),
         {
           kind: 'text',
-          link: { href: '/guide', label: m.home_faq_manual_a1_link() },
-          text: m.home_faq_ios27_a2({ guide: ANSWER_LINK }),
-        },
-        {
-          kind: 'text',
-          link: { href: '/build', label: m.home_faq_ios27_a3_link() },
-          text: m.home_faq_ios27_a3({ builder: ANSWER_LINK }),
+          link: {
+            href: '/blog/supervise-iphone-ios-27-without-erasing',
+            label: m.home_faq_ios27_a3_link(),
+          },
+          text: m.home_faq_ios27_a3({ post: ANSWER_LINK }),
         },
         text(m.home_faq_ios27_a4()),
       ],

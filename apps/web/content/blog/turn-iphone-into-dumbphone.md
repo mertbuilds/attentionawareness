@@ -9,7 +9,7 @@ reading_minutes: 6
 read_next: why-screen-time-does-not-work, block-any-app-iphone
 ---
 
-You can turn an iPhone into a dumb phone without buying a new phone. Put the iPhone in Apple's supervised mode, then install a locked profile that removes the addictive feed apps and their websites. Camera, maps, bank and messages stay. My Mac app does this for free in a few minutes, on iOS 26 and earlier.
+You can turn an iPhone into a dumb phone without buying a new phone. Put the iPhone in Apple's supervised mode, then install a locked profile that removes the addictive feed apps and their websites. Camera, maps, bank and messages stay. My Mac app does this for free in a few minutes, on iOS 27 and earlier.
 
 ## What people mean by a dumbphone
 
@@ -65,7 +65,7 @@ There is no button to ignore it, and no way to remove it on the iPhone itself. T
 
 ### With the free Mac app
 
-You need a Mac with Apple silicon and macOS 14 or later, an iPhone on iOS 26 or earlier, a cable, and a few minutes. The app is free, with no account and no subscription. You can support the work if you want, but you never have to.
+You need a Mac with Apple silicon and macOS 14 or later, an iPhone on iOS 27 or earlier, a cable, and a few minutes. The app is free, with no account and no subscription. You can support the work if you want, but you never have to.
 
 1. Download the app from [attentionawareness.com](/) and open it.
 2. Plug in the iPhone with a cable.
@@ -123,7 +123,7 @@ No. Apple has no setting with that name. The closest built-in options are Screen
 
 ### Will I lose my photos and messages?
 
-On iOS 26 and earlier, the Mac app does not erase the iPhone. It sends a small set of settings to the iPhone and restarts it. Back up first anyway, in case something goes wrong. If you do it manually via Apple Configurator, the iPhone is erased and only what syncs to iCloud comes back.
+On iOS 27 and earlier, the Mac app does not erase the iPhone. It sends a small set of settings to the iPhone and restarts it. Back up first anyway, in case something goes wrong. If you do it manually via Apple Configurator, the iPhone is erased and only what syncs to iCloud comes back.
 
 ### Do I need a dumb phone app on the iPhone?
 
@@ -152,7 +152,7 @@ Download the [free Mac app](/) and run it in trial mode this weekend. If you wou
       "url": "https://attentionawareness.com/blog/turn-iphone-into-dumbphone",
       "mainEntityOfPage": "https://attentionawareness.com/blog/turn-iphone-into-dumbphone",
       "datePublished": "2026-10-04",
-      "dateModified": "2026-10-04",
+      "dateModified": "2026-10-05",
       "inLanguage": "en",
       "author": {
         "@type": "Person",
@@ -250,7 +250,7 @@ Download the [free Mac app](/) and run it in trial mode this weekend. If you wou
           "name": "Will I lose my photos and messages?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "On iOS 26 and earlier, the Mac app does not erase the iPhone. It sends a small set of settings to the iPhone and restarts it. Back up first anyway, in case something goes wrong. If you do it manually via Apple Configurator, the iPhone is erased and only what syncs to iCloud comes back."
+            "text": "On iOS 27 and earlier, the Mac app does not erase the iPhone. It sends a small set of settings to the iPhone and restarts it. Back up first anyway, in case something goes wrong. If you do it manually via Apple Configurator, the iPhone is erased and only what syncs to iCloud comes back."
           }
         },
         {
