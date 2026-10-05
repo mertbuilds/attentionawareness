@@ -1,6 +1,6 @@
 # attention awareness
 
-> A free Mac app that blocks addictive feed apps and websites on an iPhone for good. It supervises an iPhone on iOS 26 or older and installs a locked profile, without erasing the iPhone. It does not support iOS 27 yet; on iOS 27 the manual guide is the way. No app is installed on the iPhone. There is also a free browser extension that hides the addictive feeds on YouTube, Instagram and X, a manual guide, a profile builder and a blog. Everything is free. The Mac app is open source under AGPL-3.0. The browser extension and the website are MIT.
+> A free Mac app that blocks addictive feed apps and websites on an iPhone for good. It supervises an iPhone on iOS 26 or earlier and installs a locked profile, without erasing the iPhone. It does not support iOS 27 yet; on iOS 27 the manual guide is the way. No app is installed on the iPhone. There is also a free browser extension that hides the addictive feeds on YouTube, Instagram and X, a manual guide, a profile builder and a blog. Everything is free. The Mac app is open source under AGPL-3.0. The browser extension and the website are MIT.
 
 ## Product
 
