@@ -37,6 +37,13 @@ const TRAIL_CAP = 600;
  * it is, and nothing is drawn across the hero.
  */
 const STROKE_GAP = 100;
+/**
+ * How long after the page last scrolled, or the window last changed size, a
+ * move of the pointer is not drawn, in ms. A hand on a trackpad drifts as it
+ * scrolls, and the page goes on by itself after the fingers lift: neither is
+ * a stroke. Short enough that drawing is back as the page comes to rest.
+ */
+const SCROLL_QUIET = 120;
 
 /** A pointer that can rest over the page without pressing it: a mouse. */
 const HOVER_QUERY = '(hover: hover) and (pointer: fine)';
@@ -83,8 +90,12 @@ const styles = create({
 
 const CANVAS_CLASS = props(styles.canvas).className ?? '';
 
-/** What one grid wants to hear of: the mouse moving, going, and the page shifting under it. */
-type Watcher = { leave: () => void; move: (event: PointerEvent) => void; shift: () => void };
+/** What one grid wants to hear of: the mouse moving, going, and the grid shifting under it. */
+type Watcher = {
+  leave: () => void;
+  move: (event: PointerEvent) => void;
+  shift: (event: Event) => void;
+};
 
 /** The grids in the window now. They share one set of listeners, however many they are. */
 const watchers = new Set<Watcher>();
@@ -104,9 +115,9 @@ function onPointerLeave() {
   }
 }
 
-function onShift() {
+function onShift(event: Event) {
   for (const watcher of watchers) {
-    watcher.shift();
+    watcher.shift(event);
   }
 }
 
@@ -114,8 +125,8 @@ function onShift() {
  * Tells `watcher` of the mouse until what it returns is called. The listeners
  * are on the window, since a grid lies under the words, the buttons and the
  * drawings and is itself unclickable; they go on with the first grid and come
- * off with the last. The page moving under a still pointer changes the square
- * as well, and a window of a new size moves the grid.
+ * off with the last. A scroll or a window of a new size moves the grid under
+ * the pointer, which is no stroke: a grid hears of it to stop drawing.
  */
 function watchPointer(watcher: Watcher): () => void {
   if (watchers.size === 0) {
@@ -167,6 +178,8 @@ function lightSquares(grid: HTMLElement): () => void {
   let movedAt = 0;
   let drawnAt = 0;
   let drawnMoveAt = 0;
+  // Until when moves are not drawn, after the grid shifted under the pointer.
+  let quietUntil = 0;
   let frame = 0;
 
   // The pointer comes into a square at `at`, and leaves the one it was in.
@@ -283,11 +296,23 @@ function lightSquares(grid: HTMLElement): () => void {
       queue();
     },
     move: (event) => {
+      if (event.timeStamp < quietUntil) {
+        return;
+      }
       point = { x: event.clientX, y: event.clientY };
       movedAt = event.timeStamp;
       queue();
     },
-    shift: queue,
+    // The pointer is no longer on the square it rested on, so that one goes
+    // out, and nothing lights until the pointer itself moves: the next move
+    // finds no square behind it and starts a new stroke.
+    shift: (event) => {
+      quietUntil = event.timeStamp + SCROLL_QUIET;
+      point = undefined;
+      if (lit !== undefined) {
+        queue();
+      }
+    },
   });
   return () => {
     stopWatching();
