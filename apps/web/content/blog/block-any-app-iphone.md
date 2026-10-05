@@ -80,7 +80,7 @@ Supervised mode is the Apple mode that schools and companies use for their iPhon
 
 There are two free ways to set this up.
 
-**The free Mac app.** [attention awareness](/) supervises your iPhone without erasing it, on iOS 27 and earlier. It sends a small set of settings to the iPhone and restarts it. Your photos, messages and apps stay. Back up your iPhone first, with Finder or iCloud. Then it installs the profile. You need a Mac with Apple silicon and macOS 14 or later, a cable, and a few minutes. On iOS 27 the steps on the iPhone differ a little. They are in [how to supervise an iPhone on iOS 27 without erasing it](/blog/supervise-iphone-ios-27-without-erasing). There is no payment, no account and no app on the iPhone. Nobody can see or track the phone.
+**The free Mac app.** [attention awareness](/) supervises your iPhone without erasing it, on iOS 27 and earlier. It sends a small set of settings to the iPhone and restarts it. Your photos and apps stay. Back up your iPhone first, with Finder or iCloud. Then it installs the profile. You need a Mac with Apple silicon and macOS 14 or later, a cable, and a few minutes. On iOS 27 the steps on the iPhone differ a little. They are in [how to supervise an iPhone on iOS 27 without erasing it](/blog/supervise-iphone-ios-27-without-erasing). There is no payment, no account and no app on the iPhone. Nobody can see or track the phone.
 
 **Manually via Apple Configurator.** The [manual guide](/guide) does the same with Apple Configurator on a Mac. It erases the iPhone first. Only what syncs to iCloud comes back.
 

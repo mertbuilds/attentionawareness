@@ -96,7 +96,7 @@ Use both. Keep Ask to Buy on, and use the profile for the few apps and websites 
 
 There are two free ways to do it:
 
-1. **The attention awareness Mac app.** [The Mac app](/) supervises the iPhone without erasing it, on iOS 27 and earlier. It sends a small set of settings to the iPhone and restarts it. Photos, messages and apps stay. It needs a Mac with Apple silicon and macOS 14 or later, and no account. On iOS 27 the steps on the iPhone differ a little. They are in [how to supervise an iPhone on iOS 27 without erasing it](/blog/supervise-iphone-ios-27-without-erasing).
+1. **The attention awareness Mac app.** [The Mac app](/) supervises the iPhone without erasing it, on iOS 27 and earlier. It sends a small set of settings to the iPhone and restarts it. Photos and apps stay. It needs a Mac with Apple silicon and macOS 14 or later, and no account. On iOS 27 the steps on the iPhone differ a little. They are in [how to supervise an iPhone on iOS 27 without erasing it](/blog/supervise-iphone-ios-27-without-erasing).
 2. **Manually via Apple Configurator**, Apple's own Mac tool. [The manual guide](/guide) erases the iPhone first. Only what syncs to iCloud comes back.
 
 I use this setup on my own iPhone. My screen time went from more than 5 hours a day to 1 hour 45 minutes.

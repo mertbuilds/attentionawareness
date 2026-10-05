@@ -87,7 +87,7 @@ For the iPhones they hand out, schools and companies use supervision. A supervis
 
 You can do this on your own iPhone in two free ways.
 
-- **The free Mac app.** [attention awareness](/) supervises your iPhone without erasing it, on iOS 27 and earlier. It sends a small set of settings to the iPhone and restarts it. Your photos, messages and apps stay. Back up your iPhone first, with Finder or iCloud. Then it installs a profile that hides the apps you choose and blocks the websites you choose. No account, no app on the iPhone, and nobody can see or track the phone.
+- **The free Mac app.** [attention awareness](/) supervises your iPhone without erasing it, on iOS 27 and earlier. It sends a small set of settings to the iPhone and restarts it. Your photos and apps stay. Back up your iPhone first, with Finder or iCloud. Then it installs a profile that hides the apps you choose and blocks the websites you choose. No account, no app on the iPhone, and nobody can see or track the phone.
 - **Manually via Apple Configurator.** [The manual guide](/guide) does the same with Apple Configurator. It erases the iPhone first. Only what syncs to iCloud comes back.
 
 The profile can also turn on Apple's adult website filter. See [how to block adult websites on an iPhone](/blog/block-adult-websites-iphone) and [how to turn an iPhone into a dumbphone](/blog/turn-iphone-into-dumbphone).
@@ -132,7 +132,7 @@ Yes. Set a Screen Time passcode. On iOS 26 and earlier, also turn on Block at Do
 
 ### Do I have to erase my iPhone to supervise it?
 
-Not with the free Mac app, on iOS 27 and earlier. It sends a small set of settings to the iPhone and restarts it, so your apps, photos and messages stay. Back up first anyway. Doing it manually via Apple Configurator does erase the iPhone.
+Not with the free Mac app, on iOS 27 and earlier. It sends a small set of settings to the iPhone and restarts it, so your apps and photos stay. Back up first anyway. Doing it manually via Apple Configurator does erase the iPhone.
 
 ## Start with the trial
 
@@ -203,7 +203,7 @@ If Screen Time is enough for you, keep it. If you tap Ignore Limit most nights, 
           "name": "Do I have to erase my iPhone to supervise it?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Not with the free Mac app, on iOS 27 and earlier. It sends a small set of settings to the iPhone and restarts it, so your apps, photos and messages stay. Back up first anyway. Doing it manually via Apple Configurator does erase the iPhone."
+            "text": "Not with the free Mac app, on iOS 27 and earlier. It sends a small set of settings to the iPhone and restarts it, so your apps and photos stay. Back up first anyway. Doing it manually via Apple Configurator does erase the iPhone."
           }
         }
       ]

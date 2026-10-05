@@ -69,7 +69,7 @@ You need a Mac with Apple silicon and macOS 14 or later, an iPhone on iOS 27 or 
 
 1. Download the app from [attentionawareness.com](/) and open it.
 2. Plug in the iPhone with a cable.
-3. Back up your iPhone first, with Finder or iCloud. Then let the app supervise the iPhone. It sends a small set of settings to the iPhone and restarts it. Photos, messages and apps stay.
+3. Back up your iPhone first, with Finder or iCloud. Then let the app supervise the iPhone. It sends a small set of settings to the iPhone and restarts it. Photos and apps stay.
 4. Pick the apps and websites to block.
 5. Choose trial mode first. A trial profile can be removed in Settings, so you can test your list.
 6. When the list feels right, plug in once more and make it permanent.
@@ -211,7 +211,7 @@ Download the [free Mac app](/) and run it in trial mode this weekend. If you wou
           "@type": "HowToStep",
           "position": 3,
           "name": "Supervise the iPhone",
-          "text": "Back up your iPhone first, with Finder or iCloud. Then let the app supervise the iPhone. It sends a small set of settings to the iPhone and restarts it. Photos, messages and apps stay."
+          "text": "Back up your iPhone first, with Finder or iCloud. Then let the app supervise the iPhone. It sends a small set of settings to the iPhone and restarts it. Photos and apps stay."
         },
         {
           "@type": "HowToStep",
