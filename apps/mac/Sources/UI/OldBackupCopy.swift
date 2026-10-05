@@ -5,15 +5,18 @@ import Foundation
 /// The full copy method wrote one folder per iPhone, and its untouched copies,
 /// under `Backups` in the app's own Application Support folder, and took them
 /// away when the run finished or when the next run started. That method is
-/// gone, so a copy left by a run that never finished is taken away at launch,
-/// with the two transfer rates the method wrote to the defaults. The fast
+/// gone, so a copy left by a run that never finished is moved to the Trash at
+/// launch, and the two transfer rates the method wrote to the defaults are
+/// removed. On iOS 27 that method erased iPhone, and the copy it kept is a
+/// normal encrypted backup that Finder can still restore, so it goes to the
+/// Trash and the person decides when to empty it. The fast
 /// method writes its seed under the temporary folder, never under `Backups`.
 /// This file and its one call can be removed in a later version, once the
 /// copies of 0.4.0 to 0.4.2 have updated.
 enum OldBackupCopy {
     /// What a call did, for the tests. The launch ignores it.
     enum Outcome: Equatable {
-        case removed
+        case trashed
         case nothingThere
         case refused
         case failed
@@ -37,13 +40,13 @@ enum OldBackupCopy {
         appFolder.appendingPathComponent(folderName)
     }
 
-    /// Take the old copy and the old defaults away. The defaults go at once;
-    /// the folder can hold tens of GB, so it goes on a background task and the
-    /// window does not wait for it.
+    /// Move the old copy to the Trash and remove the old defaults. The
+    /// defaults go at once; the folder can hold tens of GB, so it moves on a
+    /// background task and the window does not wait for it.
     static func removeAtLaunch() {
         removeDefaults()
         Task.detached(priority: .utility) {
-            _ = removeFolder()
+            _ = trashFolder()
         }
     }
 
@@ -53,17 +56,18 @@ enum OldBackupCopy {
         }
     }
 
-    /// Delete `folder` for good, but only when it is the `Backups` folder
+    /// Move `folder` to the Trash, but only when it is the `Backups` folder
     /// directly inside `appFolder`, neither of the two is a symbolic link and
-    /// the resolved path still says so. A link inside the folder is removed as
-    /// a link; what it points at is never touched.
+    /// the resolved path still says so. A link inside the folder moves as a
+    /// link; what it points at is never touched. When the move fails, the
+    /// folder stays where it is; it is never deleted instead.
     ///
     /// Nothing there is not an error. A refusal or a failure is one line in
     /// the log with no path, because the folders inside are named by UDIDs.
-    static func removeFolder(
+    static func trashFolder(
         _ folder: URL = folder,
         appFolder: URL = appFolder,
-        fileManager: FileManager = .default
+        moveToTrash: (URL) throws -> Void = { try FileManager.default.trashItem(at: $0, resultingItemURL: nil) }
     ) -> Outcome {
         guard let folderIsLink = isLink(folder) else { return .nothingThere }
         guard folder.lastPathComponent == folderName,
@@ -75,13 +79,13 @@ enum OldBackupCopy {
             return .refused
         }
         do {
-            try fileManager.removeItem(at: folder)
-            DeviceLog.logger.notice("old backup copy: removed")
-            return .removed
+            try moveToTrash(folder)
+            DeviceLog.logger.notice("old backup copy: moved to the Trash")
+            return .trashed
         } catch {
             let error = error as NSError
             DeviceLog.logger.notice(
-                "old backup copy: not removed, \(error.domain, privacy: .public) \(error.code, privacy: .public)"
+                "old backup copy: not moved to the Trash, \(error.domain, privacy: .public) \(error.code, privacy: .public)"
             )
             return .failed
         }

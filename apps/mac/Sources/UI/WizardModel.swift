@@ -135,8 +135,8 @@ class WizardModel: ObservableObject {
 
     /// A model that watches the real USB bus, which is what the window uses.
     /// It is the only one that sends the anonymous count, and the only one
-    /// that takes the key of a paid version out of the Keychain and the copy
-    /// of iPhone an older version kept off the disk.
+    /// that takes the key of a paid version out of the Keychain and moves the
+    /// copy of iPhone an older version kept to the Trash.
     convenience init() {
         // Can be removed in a later version, with `OldSupervisionKey`.
         OldSupervisionKey.remove()
