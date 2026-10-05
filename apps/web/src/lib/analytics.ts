@@ -1,4 +1,5 @@
 import type { PostHog, PostHogConfig } from 'posthog-js';
+import { isLiveHost } from './canonical.ts';
 import { whenIdle } from './idle.ts';
 
 type Call = (client: PostHog) => void;
@@ -15,12 +16,25 @@ function run(call: Call): void {
   }
 }
 
+/** How many calls wait for PostHog to load. */
+export function queuedCalls(): number {
+  return queue.length;
+}
+
 /**
  * Loads PostHog after the page is in and alive, so it is not part of what a
  * visitor waits for. Events sent before then wait in a queue and go after it
- * loads, in order. Without a call to this, nothing is sent and nothing waits.
+ * loads, in order. Off the live site, and without a call to this, nothing
+ * loads, nothing is sent and nothing waits.
  */
-export function startAnalytics(apiKey: string, options: Partial<PostHogConfig>): void {
+export function startAnalytics(
+  hostname: string,
+  apiKey: string,
+  options: Partial<PostHogConfig>,
+): void {
+  if (!isLiveHost(hostname)) {
+    return;
+  }
   started = true;
   whenIdle(() => {
     void import('posthog-js').then(
