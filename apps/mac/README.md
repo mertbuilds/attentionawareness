@@ -541,6 +541,94 @@ AA_SITE_URL=https://aa.localhost \
 
 ## Release
 
+A release is made by GitHub Actions (`.github/workflows/mac-release.yml`) on a
+macOS runner, so it needs no Mac of the owner's:
+
+1. In a pull request, run `bash scripts/bump.sh <version>` and write
+   `release-notes/<version>.md`. Merge it.
+2. Push the tag `mac-v<version>` on that commit of `main`:
+   `git tag mac-v0.5.1 && git push origin mac-v0.5.1`.
+3. Approve the run: the workflow waits for the reviewer of the environment
+   `mac-release`. Once approved it runs the tests, then
+   `scripts/release.sh`, and the uploads are live at once.
+
+The workflow stops before it reads a secret when the tag is not
+`mac-v<MARKETING_VERSION>` of `project.yml`, or when the commit is not on
+`main`. `release.sh` then holds the build number and the dmg name as it does on
+a Mac (see below).
+
+A dry run: Actions → Mac release → Run workflow, on `main`, with `dry_run`
+ticked (the default). It needs the same approval and does everything but the
+uploads, the notary service included. The dmg, `appcast.xml` and `latest.json`
+are kept for 7 days as the artifact `mac-release-dry-run`, which anyone signed
+in to GitHub can download, as with every artifact of a public repo. It only passes
+between the merge of a bump and its tag, because `release.sh` refuses a build
+number the site already has. A manual run with `dry_run` unticked is a real
+release of `main` without a tag.
+
+The risk, plainly: the Sparkle private key and the Developer ID certificate
+are in GitHub, and the two together can ship an update to every installed copy
+of the app. The environment's protection is the only guard. Whoever can approve
+a run of `mac-release`, or change that environment's settings, can ship. Keep
+the reviewer list to the owner, and keep `main` protected, since the workflow
+file that runs is the one on `main` or on the tagged commit.
+
+### One-time setup in GitHub
+
+In the repo's Settings → Environments, create `mac-release` with:
+
+- Required reviewers: the owner. Leave "Prevent self-review" off when the
+  owner is the only reviewer, or no one can approve the owner's own tag.
+- Deployment branches and tags: selected only, the branch `main` and the tag
+  pattern `mac-v*`.
+- "Allow administrators to bypass configured protection rules" off.
+
+Then the environment's secrets. They are environment secrets and not repo
+secrets, so no other workflow can read them:
+
+| Secret | What | How to make it |
+| --- | --- | --- |
+| `MAC_DEVELOPER_ID_P12_BASE64` | the Developer ID Application certificate with its private key | Keychain Access → login → My Certificates → open "Developer ID Application: Mert Duzgun (3HGP3W3TLD)", select the certificate and the key under it → Export 2 items → `.p12`, with a new password. Then `base64 -i developer-id.p12`. |
+| `MAC_DEVELOPER_ID_P12_PASSWORD` | the password of that `.p12` | the one typed at the export |
+| `MAC_NOTARY_API_KEY_P8_BASE64` | an App Store Connect API key, for the notary service | App Store Connect → Users and Access → Integrations → App Store Connect API → Team Keys → +, with the Developer role. The `.p8` downloads once. Then `base64 -i AuthKey_<key id>.p8`. |
+| `MAC_NOTARY_API_KEY_ID` | that key's Key ID | on the same page |
+| `MAC_NOTARY_API_ISSUER_ID` | the Issuer ID | at the top of the same page |
+| `MAC_SPARKLE_ED25519_PRIVATE_KEY` | the Sparkle EdDSA private key | the contents of `~/.config/attentionawareness/sparkle-ed25519.key` |
+| `MAC_CLOUDFLARE_API_TOKEN` | a Cloudflare API token for the one bucket | Cloudflare dashboard → R2 → Manage API tokens → Create API token, permission Object Read & Write, applied to the `MAC_FILES` bucket only. The secret is the token value, not the S3 key pair. |
+| `MAC_CLOUDFLARE_ACCOUNT_ID` | the Cloudflare account that holds the bucket | the account ID in the dashboard |
+
+And one environment variable, `MAC_R2_BUCKET`: the bucket name, the one bound
+as `MAC_FILES` in `apps/web/cloudflare.config.ts`.
+
+A secret goes in without passing the clipboard or a file in the repo, for
+example
+`base64 -i developer-id.p12 | gh secret set MAC_DEVELOPER_ID_P12_BASE64 --env mac-release`
+and
+`gh secret set MAC_SPARKLE_ED25519_PRIVATE_KEY --env mac-release < ~/.config/attentionawareness/sparkle-ed25519.key`.
+Delete the exported `.p12` and the `.p8` afterwards.
+
+On the runner the certificate goes into a keychain made for the run, the
+notary profile `attentionawareness-notary` is stored in that same keychain
+from the API key, and the Sparkle key is a file in the runner's temp folder.
+The last step deletes all three, also after a failure. `release.sh` is told
+where they are through `NOTARY_KEYCHAIN`, `SPARKLE_ED_KEY_FILE`, `R2_BUCKET`,
+`CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
+
+The release job reads no cache. It builds libimobiledevice and OpenSSL from
+source on every run, from the release tags in
+`scripts/build-libimobiledevice.sh`, and installs `cf` from the lockfile,
+because any workflow on `main` can write a cache and what this job builds is
+signed and shipped.
+
+Pull requests and pushes to `main` that touch `apps/mac` run the unit tests
+on the same runner image (`.github/workflows/mac-ci.yml`), with no secret.
+That job does keep the built libimobiledevice in a cache.
+
+### On a Mac
+
+The script still runs on the owner's Mac as before, with none of those
+variables set:
+
 ```sh
 bash scripts/bump.sh 0.4.1        # the next marketing version, and one on the build number
 bash scripts/release.sh

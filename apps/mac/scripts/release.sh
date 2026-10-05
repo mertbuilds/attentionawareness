@@ -42,6 +42,17 @@
 #      Cloudflare's cf cli, and it makes every R2 call here.
 #   5. Put the bucket name in ~/.config/attentionawareness/release.env (mode
 #      600), as R2_BUCKET=<bucket>.
+#
+# GitHub Actions runs this script too (.github/workflows/mac-release.yml), on a
+# runner that has none of that setup, so four things can come from the
+# environment. With none of them set the script runs as it always has:
+#   NOTARY_KEYCHAIN       the keychain that holds the notary profile, when it
+#                         is not the login keychain.
+#   SPARKLE_ED_KEY_FILE   the Sparkle private key file, when it is not the one
+#                         in ~/.config/attentionawareness.
+#   R2_BUCKET             the bucket, when release.env is not there.
+#   CLOUDFLARE_API_TOKEN  read by cf in place of `cf auth login`, with
+#                         CLOUDFLARE_ACCOUNT_ID beside it.
 
 set -euo pipefail
 
@@ -56,6 +67,16 @@ RELEASE_ENV="$HOME/.config/attentionawareness/release.env"
 SITE_URL="https://attentionawareness.com/mac"
 BUILD_DIR="build/release"
 SITE_DIR="$BUILD_DIR/site"
+
+# The notary profile is looked up in the login keychain unless NOTARY_KEYCHAIN
+# names another one.
+notary_tool() {
+  if [ -n "${NOTARY_KEYCHAIN:-}" ]; then
+    xcrun notarytool "$@" --keychain "$NOTARY_KEYCHAIN"
+  else
+    xcrun notarytool "$@"
+  fi
+}
 
 NOTARIZE=1
 DRY_RUN=0
@@ -74,7 +95,7 @@ if [ "$NOTARIZE" = 0 ] && [ "$DRY_RUN" = 0 ]; then
   exit 2
 fi
 
-if [ "$NOTARIZE" = 1 ] && ! NOTARY_OUT=$(xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" 2>&1); then
+if [ "$NOTARIZE" = 1 ] && ! NOTARY_OUT=$(notary_tool history --keychain-profile "$NOTARY_PROFILE" 2>&1); then
   echo "error: notarytool could not use profile '$NOTARY_PROFILE':" >&2
   printf '%s\n' "$NOTARY_OUT" | sed 's/^/         /' >&2
   echo "       if the profile is missing, create it with:" >&2
@@ -94,7 +115,12 @@ if [ "$DRY_RUN" = 0 ]; then
   # whoami exits 0 when nobody is logged in, so its answer is what is checked.
   echo "==> cloudflare login"
   WHOAMI=$(cf auth whoami 2>&1) || true
-  if ! grep -q '"authenticated": true' <<< "$WHOAMI" || grep -q '"tokenValid": false' <<< "$WHOAMI"; then
+  # tokenValid only says that cf could read the user or the account list. An
+  # API token scoped to one bucket can read neither, so with a token from the
+  # environment it is no reason to stop. The workflow reads the bucket once
+  # before it comes here, which is the test of such a token.
+  if ! grep -q '"authenticated": true' <<< "$WHOAMI" \
+    || { [ -z "${CLOUDFLARE_API_TOKEN:-}" ] && grep -q '"tokenValid": false' <<< "$WHOAMI"; }; then
     printf '%s\n' "$WHOAMI" >&2
     echo "error: cf is not logged in, so the release cannot reach the bucket." >&2
     echo "       run cf auth login, or run this script with --dry-run." >&2
@@ -253,7 +279,7 @@ fi
 # Sign from the exported key rather than the login keychain: reading the key out
 # of the keychain opens a dialog and waits for a person, and a release script
 # has to be able to finish on its own. The keychain still holds the same key.
-ED_KEY_FILE="$HOME/.config/attentionawareness/sparkle-ed25519.key"
+ED_KEY_FILE="${SPARKLE_ED_KEY_FILE:-$HOME/.config/attentionawareness/sparkle-ed25519.key}"
 sparkle_tool() {
   tool="$1"
   shift
@@ -273,7 +299,7 @@ if [ "$NOTARIZE" = 1 ]; then
   /usr/bin/ditto -c -k --keepParent "$APP" "$SUBMIT_ZIP"
 
   echo "==> submit to apple notary service (waits up to 30 min)"
-  xcrun notarytool submit "$SUBMIT_ZIP" \
+  notary_tool submit "$SUBMIT_ZIP" \
     --keychain-profile "$NOTARY_PROFILE" \
     --wait
 
@@ -314,7 +340,7 @@ codesign --sign "Developer ID Application: Mert Duzgun (${TEAM_ID})" --timestamp
 
 if [ "$NOTARIZE" = 1 ]; then
   echo "==> notarize dmg"
-  xcrun notarytool submit "$RELEASE_DMG" \
+  notary_tool submit "$RELEASE_DMG" \
     --keychain-profile "$NOTARY_PROFILE" \
     --wait
 

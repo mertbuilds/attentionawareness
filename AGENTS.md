@@ -129,9 +129,9 @@ Web app (`apps/web`): `pnpm --filter @attentionawareness/web dev` (:3000 standal
 - License: AGPL-3.0-only, because the fast method (`Sources/Seed/`) holds material adapted from Nugget, which is AGPL-3.0. Never copy code from `apps/mac` into the MIT parts of the repo. Code taken from another project needs an entry in `apps/mac/THIRD_PARTY_NOTICES.md`, its license text in `apps/mac/Resources/Licenses/` and a note at the type or function.
 - Build and test, from `apps/mac`: `bash scripts/build-libimobiledevice.sh` and `bash scripts/vendor.sh` fill `Vendor/` once (gitignored; the second one falls back to Homebrew for a dev build), then `xcodegen generate`, then `xcodebuild test -project AttentionAwareness.xcodeproj -scheme AttentionAwareness -destination 'platform=macOS,arch=arm64'`. The tests need no iPhone and open no window.
 - Agents never run the app against a real iPhone: no `--seed`, `--probe` or `--devices`, and no opening the window to drive it. The tests, `--ui-smoke` and `--demo` reach no phone.
-- `scripts/release.sh` signs, notarizes and uploads a release. Only the owner runs it.
+- `scripts/release.sh` signs, notarizes and uploads a release. GitHub Actions runs it (`mac-release.yml`, see **CI/CD**) and so can the owner on his Mac. Agents never run it without `--dry-run`, and never push a `mac-v*` tag unless asked.
 - The app sends one anonymous event, `supervision_finished`, when a supervision finishes, and nothing else, ever. A debug build sends nothing. The body and what is never sent: `docs/adr/0009-mac-app-one-anonymous-event.md` and `apps/mac/README.md`. A new event or a new property needs a new ADR.
-- CI does not build the Mac app. The JS checks ignore `apps/mac` (`pnpm-workspace.yaml`, `oxlint.config.ts`, `oxfmt.config.ts`, `lefthook.yml`).
+- `mac-ci.yml` runs the unit tests when `apps/mac` changes. The JS checks ignore `apps/mac` (`pnpm-workspace.yaml`, `oxlint.config.ts`, `oxfmt.config.ts`, `lefthook.yml`).
 
 ## Testing
 
@@ -152,6 +152,8 @@ Test the site in Safari on iOS, not only in Chromium. A change to the header, to
 - **CI** (`.github/workflows/ci.yml`, PRs + main): `checks` job = turbo lint/typecheck/build + `format:check` + `skills:check` + react-doctor (warnings shown, errors fail). Turbo remote cache activates when `TURBO_TOKEN`/`TURBO_TEAM` are configured.
 - **Deploy** (`deploy.yml`, push to main): web builds, `scripts/smoke-web.sh` checks that it renders, then `cf deploy --prebuilt` ships it to Cloudflare Workers (+ optional Sentry sourcemaps).
 - **Previews** (`preview.yml`): every PR uploads a Workers preview version with `cf workers versions create --prebuilt` and comments the URL (none while Preview URLs are off).
+- **Mac CI** (`mac-ci.yml`, PRs + main, only when `apps/mac/**` or the workflow changes): macOS runner, vendored libimobiledevice from a cache, `xcodegen generate`, `xcodebuild test`. No secrets.
+- **Mac release** (`mac-release.yml`, tag `mac-v<MARKETING_VERSION>` on a commit of `main`, or a manual run on `main` that is a dry run by default): waits for the reviewer of the environment `mac-release`, which holds every signing secret, then runs the tests and `apps/mac/scripts/release.sh`. The uploads are live at once. Setup and secrets: `apps/mac/README.md`, "Release".
 - Required repo config lives in README's "Going to production" checklist. CI must be green before merge; cubic reviews every PR.
 
 ## Rules
