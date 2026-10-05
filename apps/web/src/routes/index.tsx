@@ -724,7 +724,12 @@ function homeQuestions(): ReadonlyArray<{
           link: { href: '/guide', label: m.home_faq_manual_a1_link() },
           text: m.home_faq_ios27_a2({ guide: ANSWER_LINK }),
         },
-        text(m.home_faq_ios27_a3()),
+        {
+          kind: 'text',
+          link: { href: '/build', label: m.home_faq_ios27_a3_link() },
+          text: m.home_faq_ios27_a3({ builder: ANSWER_LINK }),
+        },
+        text(m.home_faq_ios27_a4()),
       ],
       question: m.home_faq_ios27_term(),
     },
