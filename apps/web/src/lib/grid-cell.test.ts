@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { cellAt, enterTrail, gridOrigin } from './grid-cell.ts';
+import { cellAt, enterTrail, glowStrength, gridOrigin } from './grid-cell.ts';
 
 const CELL = 40;
 /** A hero 1000 wide and 620 tall, 100 from the window's left and 50 from its top. */
@@ -105,9 +105,51 @@ test('a square the pointer comes back to moves to the end and drops nothing', ()
 test('a long sweep never holds more than the cap', () => {
   let trail: Array<string> = [];
   for (let step = 0; step < 500; step += 1) {
-    trail = enterTrail(trail, `${step}:0`, 24).trail;
+    trail = enterTrail(trail, `${step}:0`, 300).trail;
   }
-  assert.equal(trail.length, 24);
-  assert.equal(trail[0], '476:0');
+  assert.equal(trail.length, 300);
+  assert.equal(trail[0], '200:0');
   assert.equal(trail.at(-1), '499:0');
+});
+
+const IN = 80;
+const OUT = 3000;
+
+test('a square lights to full over the fade in and stays there', () => {
+  const glow = { at: 1000, from: 0, lit: true };
+  assert.equal(glowStrength(glow, 1000, IN, OUT), 0);
+  assert.equal(glowStrength(glow, 1040, IN, OUT), 0.5);
+  assert.equal(glowStrength(glow, 1080, IN, OUT), 1);
+  assert.equal(glowStrength(glow, 9000, IN, OUT), 1);
+});
+
+test('a square that was left holds its colour, then lets go', () => {
+  const glow = { at: 1000, from: 1, lit: false };
+  assert.equal(glowStrength(glow, 1000, IN, OUT), 1);
+  assert.ok(glowStrength(glow, 2000, IN, OUT) > 0.95);
+  assert.ok(glowStrength(glow, 3000, IN, OUT) > 0.7);
+  assert.ok(glowStrength(glow, 3700, IN, OUT) < 0.3);
+  assert.equal(glowStrength(glow, 4000, IN, OUT), 0);
+  assert.equal(glowStrength(glow, 9000, IN, OUT), 0);
+});
+
+test('a square left before it was full goes out from where it was', () => {
+  assert.equal(glowStrength({ at: 1000, from: 0.5, lit: false }, 1000, IN, OUT), 0.5);
+  assert.equal(glowStrength({ at: 1000, from: 0.5, lit: false }, 4000, IN, OUT), 0);
+});
+
+test('a square the pointer comes back to rises from where it was, never from nothing', () => {
+  // Left at 1000, two seconds gone: what it has then is where it lights from.
+  const fading = { at: 1000, from: 1, lit: false };
+  const from = glowStrength(fading, 3000, IN, OUT);
+  const back = { at: 3000, from, lit: true };
+  assert.equal(glowStrength(back, 3000, IN, OUT), from);
+  assert.ok(glowStrength(back, 3010, IN, OUT) > from);
+  assert.equal(glowStrength(back, 3080, IN, OUT), 1);
+  // Left again, its fade starts over from full.
+  assert.equal(glowStrength({ at: 5000, from: 1, lit: false }, 5000, IN, OUT), 1);
+});
+
+test('a time before the change counts as the change', () => {
+  assert.equal(glowStrength({ at: 1000, from: 1, lit: false }, 990, IN, OUT), 1);
 });

@@ -80,3 +80,23 @@ export function enterTrail(
   next.push(key);
   return { dropped, trail: next };
 }
+
+/**
+ * A square's light: whether the pointer is in it, when that last changed, and
+ * how strong it was then, from 0 to 1.
+ */
+export type Glow = { at: number; from: number; lit: boolean };
+
+/**
+ * How strong a square's light is at `now`, from 0 to 1. Under the pointer it
+ * rises to full over `fadeIn`, from wherever it was. Left, it goes out over
+ * `fadeOut`, slowly at first and fast at the end, from wherever it was.
+ */
+export function glowStrength(glow: Glow, now: number, fadeIn: number, fadeOut: number): number {
+  const since = Math.max(0, now - glow.at);
+  if (glow.lit) {
+    return Math.min(1, glow.from + since / fadeIn);
+  }
+  const gone = Math.min(1, since / fadeOut);
+  return glow.from * (1 - gone ** 3);
+}
