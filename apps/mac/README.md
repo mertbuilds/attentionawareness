@@ -568,7 +568,7 @@ build number and the dmg name as it does on a Mac (see below).
 
 A dry run: Actions → Mac release → Run workflow, on `main`, with `dry_run`
 ticked (the default). It needs the same approval and does everything but the
-uploads, the notary service included. It is not handed the Cloudflare token,
+uploads, the notary service included. It is not handed the bucket's key pair,
 and it reads the published appcast from the site. The dmg, `appcast.xml` and `latest.json`
 are kept for 7 days as the artifact `mac-release-dry-run`, which anyone signed
 in to GitHub can download, as with every artifact of a public repo. It only passes
@@ -618,8 +618,16 @@ secrets, so no other workflow can read them:
 | `MAC_NOTARY_API_KEY_ID` | that key's Key ID | on the same page |
 | `MAC_NOTARY_API_ISSUER_ID` | the Issuer ID | at the top of the same page |
 | `MAC_SPARKLE_ED25519_PRIVATE_KEY` | the Sparkle EdDSA private key | the contents of `~/.config/attentionawareness/sparkle-ed25519.key` |
-| `MAC_CLOUDFLARE_API_TOKEN` | a Cloudflare API token for the one bucket | Cloudflare dashboard → R2 → Manage API tokens → Create API token, permission Object Read & Write, applied to the `MAC_FILES` bucket only. The secret is the token value, not the S3 key pair. |
+| `MAC_R2_S3_ACCESS_KEY_ID` | the Access Key ID of an R2 API token for the one bucket | Cloudflare dashboard → R2 → API tokens → Create Account API token, permission Object Read & Write, applied to the `MAC_FILES` bucket only. The page shows the token value and an S3 key pair once. This secret is the Access Key ID. |
+| `MAC_R2_S3_SECRET_ACCESS_KEY` | the Secret Access Key of the same token | on the same page. The token value itself is not used and is stored nowhere. |
 | `MAC_CLOUDFLARE_ACCOUNT_ID` | the Cloudflare account that holds the bucket | the account ID in the dashboard |
+
+Why the key pair and not the token value: `cf r2 objects` goes through the
+Cloudflare REST API, and that API refuses a token scoped to one bucket with a
+403. It takes a token with R2 access to the whole account, which is more than
+this job needs. The S3 endpoint of R2 accepts the scoped token's key pair, and
+answers 403 for every other bucket. So on the runner `release.sh` makes its
+bucket calls with `curl --aws-sigv4` and no `cf`.
 
 And one environment variable, `MAC_R2_BUCKET`: the bucket name, the one bound
 as `MAC_FILES` in `apps/web/cloudflare.config.ts`.
@@ -635,17 +643,20 @@ On the runner the certificate goes into a keychain made for the run, the
 notary profile `attentionawareness-notary` is stored in that same keychain
 from the API key, and the Sparkle key is a file in the runner's temp folder.
 The last step deletes all three, also after a failure. `release.sh` is told
-where they are through `NOTARY_KEYCHAIN`, `SPARKLE_ED_KEY_FILE`, `R2_BUCKET`,
-`CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
+where they are through `NOTARY_KEYCHAIN`, `SPARKLE_ED_KEY_FILE` and
+`R2_BUCKET`. The bucket's key pair is never written to a file: the release
+step hands it over as `R2_S3_ACCESS_KEY_ID` and `R2_S3_SECRET_ACCESS_KEY`,
+with `R2_S3_ENDPOINT` (`https://<account id>.r2.cloudflarestorage.com`).
 
 The release job reads no cache, because any workflow on `main` can write a
 cache and what this job builds is signed and shipped. It builds
 libimobiledevice and OpenSSL from source on every run, and
 `scripts/build-libimobiledevice.sh` stops when a clone is not at the commit
-written beside its tag. Sparkle is pinned to a commit in `project.yml`. `cf`
-comes from the lockfile, dmgbuild from `scripts/dmgbuild-requirements.txt`
-with `pip install --require-hashes`, and xcodegen is a release binary checked
-against its sha256 in the workflow. To move dmgbuild, write the one line
+written beside its tag. Sparkle is pinned to a commit in `project.yml`.
+dmgbuild comes from `scripts/dmgbuild-requirements.txt` with
+`pip install --require-hashes`, and xcodegen is a release binary checked
+against its sha256 in the workflow. The job installs no node package and no
+`cf`: the uploads are made by the runner's own curl. To move dmgbuild, write the one line
 `dmgbuild==<version>` to a file `dmgbuild.in` and run
 `uv pip compile --generate-hashes --no-header --no-annotate dmgbuild.in -o scripts/dmgbuild-requirements.txt`,
 then put the comment at the top back. To move xcodegen, change the version and
