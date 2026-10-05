@@ -46,7 +46,7 @@ final class SeedEngine: ObservableObject {
                 // the pipes while the helper still has the device open.
                 let transfer = Task { @MainActor in
                     try await backupEngine.restore(
-                        udid: udid, from: folder, password: nil,
+                        udid: udid, from: folder,
                         system: true, settings: false, reboot: false, skipApps: true
                     )
                 }
@@ -91,7 +91,7 @@ final class SeedEngine: ObservableObject {
             let edit = CloudConfigurationEdit.plan(
                 current: try SeedDevice.configuration(from: current), supervised: supervised
             )
-            // This root is created by this run, never selected from BackupStore.
+            // This root is created by this run and removed at its end.
             let root = FileManager.default.temporaryDirectory
                 .appendingPathComponent("attentionawareness-seed-\(UUID().uuidString)")
             try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)

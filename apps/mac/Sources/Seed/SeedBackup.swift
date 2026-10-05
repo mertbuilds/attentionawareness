@@ -19,6 +19,11 @@ import Foundation
 /// Gill (JJTech0130). See THIRD_PARTY_NOTICES.md.
 enum SeedBackup {
     static let infoPlistName = "Info.plist"
+    static let manifestPlistName = "Manifest.plist"
+    /// Where the cloud configuration lives on the iPhone: its backup domain
+    /// and its path inside that domain.
+    static let supervisionDomain = "SysSharedContainerDomain-systemgroup.com.apple.configurationprofiles"
+    static let supervisionRelativePath = "Library/ConfigurationProfiles/CloudConfigurationDetails.plist"
     /// `mobile`, the owner and the group Nugget gives every record.
     static let owner: UInt32 = 501
     static let group: UInt32 = 501
@@ -26,7 +31,7 @@ enum SeedBackup {
     /// The name the cloud configuration file has in the folder: the SHA-1 of
     /// its domain, a dash and its path.
     static let contentFileName = Insecure.SHA1
-        .hash(data: Data("\(BackupFolder.supervisionDomain)-\(BackupFolder.supervisionRelativePath)".utf8))
+        .hash(data: Data("\(supervisionDomain)-\(supervisionRelativePath)".utf8))
         .map { String(format: "%02x", $0) }
         .joined()
 
@@ -46,17 +51,17 @@ enum SeedBackup {
     /// The records of Manifest.mbdb in the order a restore takes them: the
     /// root of the domain, each folder on the way down, then the file.
     static func records(content: Data, date: Date, inode: UInt64) -> [MbdbRecord] {
-        let domain = BackupFolder.supervisionDomain
+        let domain = supervisionDomain
         var records = [MbdbRecord.directory(domain: domain, path: "", owner: owner, group: group, date: date)]
         var parent = ""
-        for component in BackupFolder.supervisionRelativePath.split(separator: "/").dropLast() {
+        for component in supervisionRelativePath.split(separator: "/").dropLast() {
             parent = parent.isEmpty ? String(component) : "\(parent)/\(component)"
             records.append(.directory(domain: domain, path: parent, owner: owner, group: group, date: date))
         }
         records.append(
             .file(
                 domain: domain,
-                path: BackupFolder.supervisionRelativePath,
+                path: supervisionRelativePath,
                 contents: content,
                 owner: owner,
                 group: group,
@@ -94,10 +99,9 @@ enum SeedBackup {
     /// random inode. The setup file gets the next inode with wrapping addition,
     /// so even UInt64.max produces two distinct file inodes.
     ///
-    /// The folder has to be new. The full copy of the same iPhone is named by
-    /// the same UDID, and writing these files over that one would cost the
-    /// only way back, so a folder that is already there is refused and never
-    /// cleared. A write that fails part way takes its own folder away again.
+    /// The folder has to be new. A folder that is already there is not one
+    /// this write made, so it is refused and never cleared. A write that
+    /// fails part way takes its own folder away again.
     @discardableResult
     static func write(
         in root: URL,
@@ -106,8 +110,7 @@ enum SeedBackup {
         date: Date = Date(),
         inode: UInt64 = .random(in: .min ... .max)
     ) throws -> URL {
-        // A UDID names one folder directly inside the root and nothing else,
-        // which is the rule `BackupStore` keeps for the full copy.
+        // A UDID names one folder directly inside the root and nothing else.
         guard !udid.isEmpty, !udid.contains("/"), udid != ".", udid != ".." else {
             throw SeedError.notAFolderName(udid)
         }
@@ -130,7 +133,7 @@ enum SeedBackup {
             setupFileName: setupContent,
             Mbdb.fileName: try Mbdb.data(records: manifestRecords),
             BackupStatus.fileName: try plist(status),
-            BackupFolder.manifestPlistName: try plist(manifest),
+            manifestPlistName: try plist(manifest),
             infoPlistName: try plist([String: Any]()),
         ]
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)

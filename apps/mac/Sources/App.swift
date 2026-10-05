@@ -36,17 +36,10 @@ struct AttentionAwarenessApp: App {
             exit(0)
         }
 
-        // `--backup <udid> <root>` and `--restore <udid> <root>` run the
-        // backup engine from a terminal, print every phase change and exit 0
-        // or 1. They are how `Backup/` is checked against a real iPhone
-        // without the window. Ctrl+C cancels the run.
-        BackupCommandLine.runIfAsked()
+        // `--seed <udid>` runs the fast method from a terminal, prints every
+        // phase change and exits 0 or 1. It is how `Seed/` is checked against
+        // a real iPhone without the window. Ctrl+C cancels the run.
         SeedCommandLine.runIfAsked()
-
-        // `--patch <backup folder>` loads a backup folder, plans the change,
-        // applies it and checks it, printing every step. It is how `Patch/` is
-        // checked against a real backup without the window.
-        PatchCommandLine.runIfAsked()
 
         // `--sign-profile <file>` asks the site to sign the profile the
         // Restrictions screen installs and writes it, which is how the signing

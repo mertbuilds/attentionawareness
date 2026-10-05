@@ -5,6 +5,8 @@ import Foundation
 ///
 /// It holds four things and nothing else: the app version, the method, the
 /// first number of the iOS version and the first number of the macOS version.
+/// The method is always `fast` now that the fast method is the only one; the
+/// key stays so the counts read the same as the ones sent before.
 /// Nothing in it names the iPhone, this Mac or the person, and nothing about
 /// what was blocked goes with it. Why and what is never sent:
 /// `docs/adr/0009-mac-app-one-anonymous-event.md`.
@@ -12,8 +14,11 @@ import Foundation
 /// Nothing here reaches a network, which is why the tests read every key of
 /// it.
 struct SupervisionFinishedEvent: Equatable, Sendable {
+    /// What the `method` key always says. The full copy that sent `full_copy`
+    /// is gone from the app.
+    static let method = "fast"
+
     let appVersion: String
-    let method: SupervisionMethod
     /// The first number of the iOS version, such as 26. Nil when the iPhone
     /// gave no version, and then the key is left out.
     let iosMajor: Int?
@@ -21,9 +26,8 @@ struct SupervisionFinishedEvent: Equatable, Sendable {
 
     /// `iosVersion` is the version as the iPhone reports it, such as
     /// `26.6.2`. Only its first number is kept.
-    init(appVersion: String, method: SupervisionMethod, iosVersion: String?, macosMajor: Int) {
+    init(appVersion: String, iosVersion: String?, macosMajor: Int) {
         self.appVersion = appVersion
-        self.method = method
         self.iosMajor = IOSSupport.majorVersion(of: iosVersion)
         self.macosMajor = macosMajor
     }
@@ -47,7 +51,7 @@ struct SupervisionFinishedEvent: Equatable, Sendable {
             distinctID: distinctID.uuidString,
             properties: Payload.Properties(
                 appVersion: appVersion,
-                method: method == .fullCopy ? "full_copy" : "fast",
+                method: Self.method,
                 iosMajor: iosMajor,
                 macosMajor: macosMajor,
                 processPersonProfile: false,

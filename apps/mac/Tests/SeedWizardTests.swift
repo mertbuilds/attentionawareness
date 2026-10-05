@@ -10,14 +10,12 @@ struct SeedWizardTests {
         #expect(model.iosRefusal == nil)
         model.start()
         #expect(model.step == .ready)
-        #expect(model.supervisionMethod == .seed)
         #expect(!model.checksPass)
         model.confirmBackup(true)
         #expect(model.checksPass)
         model.startJob()
         #expect(await waitUntil { model.job == .checkOnIPhone(reportedSupervised: true) })
         #expect(model.events == ["version", "seed", "phone", "confirm"])
-        #expect(model.activeMethod == .seed)
     }
 
     @Test(arguments: ["27", "27.0", "27.2", "30.0", nil, "", "26.x"] as [String?])
@@ -46,13 +44,13 @@ struct SeedWizardTests {
     @Test func pluggingInAnotherIPhoneSwitchesBetweenTheGuideAndTheRun() {
         let model = makeModel(version: "27.2")
         #expect(model.showsManualGuide)
-        model.watcher.show(devices: [phone(version: "26.6.2", udid: "other")])
+        model.watcher.show(devices: [phone(version: "26.6.2", udid: "other")], cloudConfigurations: notSupervised("other"))
         #expect(!model.showsManualGuide)
         model.start()
         #expect(model.step == .ready)
         model.back()
         #expect(model.step == .connect)
-        model.watcher.show(devices: [phone(version: "27.0", udid: "third")])
+        model.watcher.show(devices: [phone(version: "27.0", udid: "third")], cloudConfigurations: notSupervised("third"))
         #expect(model.showsManualGuide)
         model.start()
         #expect(model.step == .connect)
@@ -61,7 +59,10 @@ struct SeedWizardTests {
     @Test func pickingTheOtherIPhoneOnTheCableFollowsTheScreen() {
         let model = makeModel(version: "27.2")
         let ios26 = phone(version: "26.6.2", udid: "other")
-        model.watcher.show(devices: [phone(version: "27.2"), ios26])
+        model.watcher.show(
+            devices: [phone(version: "27.2"), ios26],
+            cloudConfigurations: notSupervised("phone", "other")
+        )
         #expect(model.showsManualGuide)
         model.select(ios26)
         #expect(!model.showsManualGuide)
@@ -94,6 +95,30 @@ struct SeedWizardTests {
         #expect(calls.restartCount == 0)
     }
 
+    /// MCInstall can miss a read right after Trust. Until it answers, an
+    /// iOS 27 iPhone could be one supervised by hand, so it gets neither the
+    /// guide nor Continue, and the answer decides.
+    @Test func anIOS27IPhoneWhoseSupervisionIsUnreadWaitsForTheRead() {
+        let model = RoutingModel(
+            watcher: DeviceWatcher(sample: [phone(version: "27.2")]),
+            engine: BackupEngine(sample: .idle, progress: 0)
+        )
+        #expect(model.readsSupervisionFirst)
+        #expect(!model.showsManualGuide)
+        #expect(!model.offersManageRestrictions)
+        model.start()
+        #expect(model.step == .connect)
+        model.watcher.show(
+            devices: [phone(version: "27.2")],
+            cloudConfigurations: ["phone": CloudConfiguration(isSupervised: true, organizationName: "Me", raw: "<dict/>")]
+        )
+        #expect(!model.readsSupervisionFirst)
+        #expect(model.offersManageRestrictions)
+        #expect(!model.showsManualGuide)
+        model.watcher.show(devices: [phone(version: "27.2")], cloudConfigurations: notSupervised("phone"))
+        #expect(model.showsManualGuide)
+    }
+
     @Test func seedNeedsOnlyTheBackupTick() {
         let model = makeModel()
         ready(model, backupConfirmed: false)
@@ -102,12 +127,9 @@ struct SeedWizardTests {
         #expect(model.checksPass)
     }
 
-    @Test(arguments: [SupervisionMethod.fullCopy, .seed])
-    func neitherMethodStartsUntilTheirOwnBackupIsConfirmed(_ method: SupervisionMethod) async throws {
+    @Test func aRunDoesNotStartUntilTheOwnBackupIsConfirmed() async throws {
         let model = makeModel()
-        model.freeBytesWithoutLeftover = 1_000
-        ready(model, method: method, backupConfirmed: false)
-        model.password = "pw"
+        ready(model, backupConfirmed: false)
         #expect(!model.checksPass)
         model.startJob()
         #expect(model.step == .ready)
@@ -125,48 +147,6 @@ struct SeedWizardTests {
             responsible for lost data.
             """)
         #expect(BackupSafetyNet.confirmation == "I backed up my iPhone")
-    }
-
-    @Test func startClearsALeftoverWhicheverMethodFollows() async throws {
-        let model = makeModel()
-        model.leftoverOnDisk = true
-        model.start()
-        #expect(await waitUntil { model.clearedLeftoverBackup })
-        #expect(model.removals == 1)
-        #expect(!model.leftoverOnDisk)
-    }
-
-    @Test func cancelledFullCopyLeavesSuperviseUsable() async throws {
-        let model = makeModel()
-        model.freeBytesWithoutLeftover = 1_000
-        model.holdCopy = true
-        ready(model, method: .fullCopy)
-        model.password = "pw"
-        #expect(model.checksPass)
-        model.startJob()
-        #expect(await waitUntil { model.copyCompletion != nil })
-        let finish = try #require(model.copyCompletion)
-        #expect(model.diskSpace.passes == false)
-        model.cancelJob()
-        #expect(model.step == .ready)
-        #expect(await waitUntil { model.clearedLeftoverBackup })
-        #expect(model.removals == 1)
-        #expect(model.checksPass)
-        finish.resume()
-    }
-
-    @Test func cancelKeepsAFullCopyThatFinished() async throws {
-        let model = makeModel()
-        model.leftoverOnDisk = true
-        model.show(WizardModel.Sample(
-            step: .job, supervisionMethod: .fullCopy, udid: "phone",
-            backupFolder: URL(fileURLWithPath: "/finished/phone")
-        ))
-        model.cancelJob()
-        #expect(model.step == .ready)
-        for _ in 0..<5 { await Task.yield() }
-        #expect(model.removals == 0)
-        #expect(model.leftoverOnDisk)
     }
 
     @Test(arguments: ["27.0", "27.2", nil] as [String?])
@@ -211,34 +191,13 @@ struct SeedWizardTests {
         #expect(failure.fix == "This app cannot supervise iOS 27 or later yet. Nothing was sent to iPhone.")
     }
 
-    @Test func seedRoutingSkipsCopyPatchAndFullRestoreAndRemovesNothingOfItsOwn() async throws {
+    @Test func aRunReadsTheVersionSendsTheSeedAndWaitsForThePhone() async throws {
         let model = makeModel()
-        model.start()
-        #expect(await waitUntil { model.removals == 1 })
         ready(model)
         model.startJob()
         #expect(await waitUntil { model.job == .checkOnIPhone(reportedSupervised: true) })
         #expect(model.events == ["version", "seed", "phone", "confirm"])
-        #expect(model.removals == 1)
-        #expect(model.backupFolder == nil)
         #expect(model.restore.stage == .finished)
-        #expect(model.job == .checkOnIPhone(reportedSupervised: true))
-        model.show(WizardModel.Sample(
-            step: .done, supervisionMethod: .seed, udid: "phone", backupFolder: URL(fileURLWithPath: "/leftover/phone"),
-            restore: .init(stage: .finished, supervisedAfterwards: true), profile: .init(isConfirmed: true)
-        ))
-        model.deleteBackupIfTheRunIsDone()
-        #expect(model.removals == 1)
-    }
-
-    @Test func fullCopyRoutingRetainsItsThreeOperations() async throws {
-        let model = makeModel()
-        ready(model, method: .fullCopy)
-        model.password = "pw"
-        model.startJob()
-        #expect(await waitUntil { model.job == .checkOnIPhone(reportedSupervised: true) })
-        #expect(model.events == ["copy", "patch", "full restore", "phone", "confirm"])
-        #expect(model.activeMethod == .fullCopy)
     }
 
     @Test func unplugDuringSeedPreparationForgetsRunAndCannotLandAnOldAnswer() async throws {
@@ -255,7 +214,6 @@ struct SeedWizardTests {
         #expect(model.step == .connect)
         #expect(model.job == nil)
         #expect(!model.events.contains("phone"))
-        #expect(model.supervisionMethod == .seed)
     }
 
     @Test func failedSeedRestoreStaysRetryableWhenItsPhoneUnplugs() async throws {
@@ -378,11 +336,18 @@ struct SeedWizardTests {
         version: String? = "26.0", seedEngine: SeedEngine? = nil, allowsFastOnAnyIOS: Bool = false
     ) -> RoutingModel {
         RoutingModel(
-            watcher: DeviceWatcher(sample: [phone(version: version)]),
+            watcher: DeviceWatcher(sample: [phone(version: version)], cloudConfigurations: notSupervised("phone")),
             engine: BackupEngine(sample: .idle, progress: 0),
             seedEngine: seedEngine,
             allowsFastOnAnyIOS: allowsFastOnAnyIOS
         )
+    }
+
+    /// What MCInstall says about iPhones that are not supervised.
+    private func notSupervised(_ udids: String...) -> [String: CloudConfiguration] {
+        Dictionary(uniqueKeysWithValues: udids.map {
+            ($0, CloudConfiguration(isSupervised: false, organizationName: nil, raw: "<dict/>"))
+        })
     }
 
     private func phone(version: String?, udid: String = "phone") -> ConnectedDevice {
@@ -394,13 +359,8 @@ struct SeedWizardTests {
         )
     }
 
-    private func ready(
-        _ model: WizardModel, method: SupervisionMethod = .seed, backupConfirmed: Bool = true
-    ) {
-        model.show(WizardModel.Sample(
-            step: .ready, supervisionMethod: method, backupConfirmed: backupConfirmed,
-            udid: "phone"
-        ))
+    private func ready(_ model: WizardModel, backupConfirmed: Bool = true) {
+        model.show(WizardModel.Sample(step: .ready, backupConfirmed: backupConfirmed, udid: "phone"))
     }
 
     private func waitUntil(_ condition: () -> Bool) async -> Bool {
@@ -413,7 +373,6 @@ struct SeedWizardTests {
 
     private final class RoutingModel: WizardModel {
         var events: [String] = []
-        var removals = 0
         var freshVersion: String? = "26.0"
         var holdSeed = false
         var seedCompletion: CheckedContinuation<Void, Never>?
@@ -423,32 +382,9 @@ struct SeedWizardTests {
         var holdPhone = false
         var phoneCompletion: CheckedContinuation<Bool, Never>?
         var reportsSupervised = true
-        /// A copy that never finished, which takes the room the next one needs.
-        var leftoverOnDisk = false
-        var freeBytesWithoutLeftover: UInt64 = 0
-        var holdCopy = false
-        var copyCompletion: CheckedContinuation<Void, Never>?
 
-        override var diskSpace: DiskSpace {
-            DiskSpace(needed: 100, free: leftoverOnDisk ? 0 : freeBytesWithoutLeftover, assumed: false)
-        }
         override func readFinderBackup(of udid: String) async -> BackupSafetyNet.Finder { .nothingHere }
-        override func removeBackup(of udid: String) async -> BackupRemoval {
-            removals += 1
-            guard leftoverOnDisk else { return .nothingThere }
-            leftoverOnDisk = false
-            return .deleted
-        }
         override func readDeviceIOSVersion(udid: String) async throws -> String? { events.append("version"); return freshVersion }
-        override func copyTheIPhone() async throws {
-            events.append("copy")
-            guard holdCopy else { return }
-            leftoverOnDisk = true
-            await withCheckedContinuation { copyCompletion = $0 }
-            try Task.checkCancellation()
-        }
-        override func markTheCopy() async throws { events.append("patch") }
-        override func sendTheCopyBack() async throws { events.append("full restore") }
         override func sendSeedConfiguration(restartingOnly: Bool) async throws {
             defer { seedReturned = true }
             events.append(restartingOnly ? "seed restart" : "seed")

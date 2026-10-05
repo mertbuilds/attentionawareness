@@ -12,9 +12,7 @@ struct SupervisionFinishedEventTests {
     // MARK: - What is in it
 
     @Test func theBodyHoldsExactlyTheseKeys() throws {
-        let event = SupervisionFinishedEvent(
-            appVersion: "0.4.0", method: .fullCopy, iosVersion: "26.6.2", macosMajor: 15
-        )
+        let event = SupervisionFinishedEvent(appVersion: "0.4.0", iosVersion: "26.6.2", macosMajor: 15)
         let request = try #require(SupervisionEventSender.request(for: event, distinctID: Self.id))
         let body = try #require(request.httpBody)
         let json = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
@@ -28,23 +26,24 @@ struct SupervisionFinishedEventTests {
                 == ["app_version", "method", "ios_major", "macos_major", "$process_person_profile", "$geoip_disable"]
         )
         #expect(properties["app_version"] as? String == "0.4.0")
-        #expect(properties["method"] as? String == "full_copy")
+        #expect(properties["method"] as? String == "fast")
         #expect(properties["ios_major"] as? Int == 26)
         #expect(properties["macos_major"] as? Int == 15)
         #expect(properties["$process_person_profile"] as? Bool == false)
         #expect(properties["$geoip_disable"] as? Bool == true)
     }
 
-    @Test func theFastMethodIsNamedFast() {
-        let event = SupervisionFinishedEvent(appVersion: "0.4.0", method: .seed, iosVersion: "26.0", macosMajor: 15)
+    /// The fast method is the only one, and the key keeps the value it has
+    /// always sent for it, so the counts read the same as the older ones.
+    @Test func theMethodIsAlwaysFast() {
+        let event = SupervisionFinishedEvent(appVersion: "0.4.0", iosVersion: "26.0", macosMajor: 15)
         #expect(event.payload(distinctID: Self.id).properties.method == "fast")
+        #expect(SupervisionFinishedEvent.method == "fast")
     }
 
     @Test(arguments: [("26.6.2", 26), ("27.0", 27), ("17", 17)])
     func onlyTheFirstNumberOfTheIOSVersionIsKept(_ version: String, _ major: Int) throws {
-        let event = SupervisionFinishedEvent(
-            appVersion: "0.4.0", method: .fullCopy, iosVersion: version, macosMajor: 15
-        )
+        let event = SupervisionFinishedEvent(appVersion: "0.4.0", iosVersion: version, macosMajor: 15)
         #expect(event.iosMajor == major)
         let body = try JSONEncoder().encode(event.payload(distinctID: Self.id))
         #expect(!String(decoding: body, as: UTF8.self).contains(version + "\""))
@@ -52,9 +51,7 @@ struct SupervisionFinishedEventTests {
 
     @Test(arguments: [nil, "", "26.x"] as [String?])
     func anIPhoneThatGaveNoVersionLeavesTheKeyOut(_ version: String?) throws {
-        let event = SupervisionFinishedEvent(
-            appVersion: "0.4.0", method: .fullCopy, iosVersion: version, macosMajor: 15
-        )
+        let event = SupervisionFinishedEvent(appVersion: "0.4.0", iosVersion: version, macosMajor: 15)
         let body = try JSONEncoder().encode(event.payload(distinctID: Self.id))
         let json = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
         let properties = try #require(json["properties"] as? [String: Any])
@@ -62,7 +59,7 @@ struct SupervisionFinishedEventTests {
     }
 
     @Test func theRequestIsOneShortPostToTheSitesOwnProxy() throws {
-        let event = SupervisionFinishedEvent(appVersion: "0.4.0", method: .seed, iosVersion: "26.0", macosMajor: 15)
+        let event = SupervisionFinishedEvent(appVersion: "0.4.0", iosVersion: "26.0", macosMajor: 15)
         let request = try #require(SupervisionEventSender.request(for: event, distinctID: Self.id))
         #expect(request.url?.absoluteString == "https://e.attentionawareness.com/i/v0/e/")
         #expect(request.httpMethod == "POST")
@@ -85,11 +82,10 @@ struct SupervisionFinishedEventTests {
 
     // MARK: - When the wizard sends it
 
-    @Test(arguments: [SupervisionMethod.fullCopy, .seed])
-    func itIsSentOnceWhenThePersonSaysTheIPhoneIsSupervised(_ method: SupervisionMethod) async {
+    @Test func itIsSentOnceWhenThePersonSaysTheIPhoneIsSupervised() async {
         let sent = Sent()
         let model = makeModel(sent)
-        ready(model, method: method)
+        ready(model)
         model.startJob()
         #expect(await waitUntil { model.job == .checkOnIPhone(reportedSupervised: true) })
         // Reaching the question sends nothing: the answer is what counts.
@@ -97,7 +93,6 @@ struct SupervisionFinishedEventTests {
         model.advance()
         #expect(model.step == .restrictions)
         #expect(sent.events.count == 1)
-        #expect(sent.events.first?.method == method)
         #expect(sent.events.first?.iosMajor == 26)
         // The rest of the run, to the last screen, sends nothing more.
         model.advance()
@@ -108,7 +103,7 @@ struct SupervisionFinishedEventTests {
     @Test func aSecondIPhoneInTheSameSessionIsCountedAgain() async {
         let sent = Sent()
         let model = makeModel(sent)
-        ready(model, method: .seed)
+        ready(model)
         model.startJob()
         #expect(await waitUntil { model.job == .checkOnIPhone(reportedSupervised: true) })
         model.advance()
@@ -122,14 +117,13 @@ struct SupervisionFinishedEventTests {
         #expect(await waitUntil { model.job == .checkOnIPhone(reportedSupervised: true) })
         model.advance()
         #expect(sent.events.count == 2)
-        #expect(sent.events.map(\.method) == [.seed, .seed])
     }
 
     @Test func aRunThatFailsSendsNothing() async {
         let sent = Sent()
         let model = makeModel(sent)
         model.freshVersion = "27.0"
-        ready(model, method: .seed)
+        ready(model)
         model.startJob()
         #expect(await waitUntil { if case .failed = model.job { return true }; return false })
         model.cancelJob()
@@ -141,7 +135,7 @@ struct SupervisionFinishedEventTests {
         let sent = Sent()
         let model = makeModel(sent)
         model.holdPhone = true
-        ready(model, method: .seed)
+        ready(model)
         model.startJob()
         #expect(await waitUntil { model.phoneCompletion != nil })
         let wait = try #require(model.phoneCompletion)
@@ -173,11 +167,8 @@ struct SupervisionFinishedEventTests {
         )
     }
 
-    private func ready(_ model: WizardModel, method: SupervisionMethod) {
-        model.show(WizardModel.Sample(
-            step: .ready, supervisionMethod: method, backupConfirmed: true, udid: "phone"
-        ))
-        model.password = "pw"
+    private func ready(_ model: WizardModel) {
+        model.show(WizardModel.Sample(step: .ready, backupConfirmed: true, udid: "phone"))
     }
 
     private func waitUntil(_ condition: () -> Bool) async -> Bool {
@@ -200,13 +191,8 @@ struct SupervisionFinishedEventTests {
         var holdPhone = false
         var phoneCompletion: CheckedContinuation<Bool, Never>?
 
-        override var diskSpace: DiskSpace { DiskSpace(needed: 100, free: 1_000, assumed: false) }
         override func readFinderBackup(of udid: String) async -> BackupSafetyNet.Finder { .nothingHere }
-        override func removeBackup(of udid: String) async -> BackupRemoval { .nothingThere }
         override func readDeviceIOSVersion(udid: String) async throws -> String? { freshVersion }
-        override func copyTheIPhone() async throws {}
-        override func markTheCopy() async throws {}
-        override func sendTheCopyBack() async throws {}
         override func sendSeedConfiguration(restartingOnly: Bool) async throws {}
         override func waitForPhone(until deadline: Date?) async -> Bool {
             if holdPhone { return await withCheckedContinuation { phoneCompletion = $0 } }

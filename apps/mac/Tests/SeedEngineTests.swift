@@ -166,7 +166,7 @@ struct SeedEngineTests {
 
     @Test func seedRestoreArgumentsCannotRequestFullRestoreOrReboot() {
         let arguments = BackupEngine.restoreArguments(
-            udid: "phone", folder: URL(fileURLWithPath: "/isolated/phone"), password: nil,
+            udid: "phone", folder: URL(fileURLWithPath: "/isolated/phone"),
             system: true, settings: false, reboot: false, skipApps: true
         )
         #expect(arguments == ["-u", "phone", "restore", "--system", "--skip-apps", "--no-reboot", "/isolated"])

@@ -167,39 +167,6 @@ struct ProfileCheckTests {
         )
     }
 
-    // MARK: - What each one says
-
-    @Test func everyProblemEndsBySayingTheBackupWasKept() {
-        let problems: [ProfileCheck.Problem] = [
-            .notThere,
-            .notActive,
-            .wrongRemovalSetting(asked: true),
-            .wrongRemovalSetting(asked: false),
-        ]
-
-        for problem in problems {
-            #expect(
-                problem.sentence.hasSuffix("The copy was kept."),
-                "\(problem) says: \(problem.sentence)"
-            )
-        }
-    }
-
-    @Test func theTwoRemovalSentencesSayOppositeThings() {
-        #expect(
-            ProfileCheck.Problem.wrongRemovalSetting(asked: true).sentence
-                != ProfileCheck.Problem.wrongRemovalSetting(asked: false).sentence
-        )
-        #expect(
-            ProfileCheck.Problem.wrongRemovalSetting(asked: true).sentence
-                .contains("can be removed there")
-        )
-        #expect(
-            ProfileCheck.Problem.wrongRemovalSetting(asked: false).sentence
-                .contains("can't be removed there")
-        )
-    }
-
     // MARK: - Fixtures
 
     /// A profile this app put there. Every one it installs carries the

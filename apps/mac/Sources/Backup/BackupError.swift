@@ -17,10 +17,6 @@ enum BackupError: LocalizedError, Equatable {
     /// The helper stopped with an error. The sentence is already written for
     /// the window by `BackupError.sentence(lastError:exitCode:)`.
     case failed(String)
-    /// Turning encryption on did not take. The sentence is what the helper
-    /// said, already worded for the window; the job turns it into its own
-    /// headline about encryption.
-    case encryptionFailed(String)
 
     var errorDescription: String? {
         switch self {
@@ -32,12 +28,10 @@ enum BackupError: LocalizedError, Equatable {
         case .helperFailedToStart(let path, let reason):
             return "The backup helper at \(path) didn't start. macOS reported: \(reason)"
         case .noBackupFolder(let path):
-            return "There is no copy at \(path)."
+            return "There is nothing to restore at \(path)."
         case .cancelled:
-            return "The copy was cancelled."
+            return "The restore was cancelled."
         case .failed(let sentence):
-            return sentence
-        case .encryptionFailed(let sentence):
             return sentence
         }
     }
@@ -70,10 +64,6 @@ enum BackupError: LocalizedError, Equatable {
     private static let findMyOn = """
         Find My iPhone is still on, so iPhone refuses the restore.
         Open Settings, tap your name, tap Find My, and turn Find My iPhone off.
-        """
-    private static let wrongPassword = """
-        Wrong backup password.
-        This is the password set for encrypted backups, not the iPhone passcode.
         """
 
     /// `ERROR: Could not connect to lockdownd, error code -19`. This is the
@@ -118,15 +108,6 @@ enum BackupError: LocalizedError, Equatable {
         ),
         Rule(needles: ["find my", "fmip"], sentence: findMyOn),
         Rule(
-            needles: ["a backup password is required"],
-            sentence: "This copy is encrypted. Give the backup password, then try again."
-        ),
-        Rule(needles: ["password"], sentence: wrongPassword),
-        Rule(
-            needles: ["no space left", "not enough space", "enough free space", "disk full"],
-            sentence: "There is not enough free space for this copy. Make room on the disk, then try again."
-        ),
-        Rule(
             needles: ["timeout while locking"],
             sentence: "iPhone is busy with another sync. Close Finder, then try again."
         ),
@@ -136,11 +117,11 @@ enum BackupError: LocalizedError, Equatable {
         ),
         Rule(
             needles: ["device refused to start"],
-            sentence: "iPhone refused to start the copy. Unlock iPhone, then try again."
+            sentence: "iPhone refused to start the restore. Unlock iPhone, then try again."
         ),
         Rule(
             needles: ["backup directory", "does not exist"],
-            sentence: "The copy is missing. Make a new copy, then try again."
+            sentence: "The files to restore are missing. Try again."
         ),
     ]
 }

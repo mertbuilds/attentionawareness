@@ -4,7 +4,7 @@ import Testing
 /// Which iPhones the app runs on, from the version of iOS they report.
 ///
 /// On iOS 27 the restore erased the iPhone, so the rule these pin down is that
-/// only a version that reads as 26 or older ever gets a run. Everything else,
+/// only a version that reads as 26 or earlier ever gets a run. Everything else,
 /// a version that does not read included, gets the manual guide.
 struct IOSSupportTests {
     @Test(arguments: ["1.0", "9.3", "17.6.1", "26.0", "26.4", "26.2.1", "26.4.1", "26"])

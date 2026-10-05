@@ -68,6 +68,11 @@ struct ConnectStep: View {
                 Button("Manage Restrictions") {
                     model.manageRestrictions()
                 }
+            } else if model.readsSupervisionFirst {
+                // Whether it is supervised decides between the guide and
+                // Manage Restrictions, and the next read says.
+                ProgressView()
+                    .controlSize(.small)
             } else if refusal != nil {
                 PrimaryButton(title: "Open the Guide") {
                     if let url = SiteLink.guide { openURL(url) }

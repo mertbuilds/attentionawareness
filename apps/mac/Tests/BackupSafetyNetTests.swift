@@ -4,8 +4,7 @@ import Testing
 /// Whether the reader already has a backup of their own, and the one line the
 /// checks say about it.
 ///
-/// The app deletes its own backup as soon as the run is confirmed, so the way
-/// back has to be theirs. These are the rules that work out whether they have
+/// The app keeps no copy of the iPhone, so the way back has to be theirs. These are the rules that work out whether they have
 /// one, how old it is and how to say so, and none of them reads an iPhone. The
 /// clock is handed in everywhere, so the answers do not change with the day
 /// the suite runs on.
@@ -477,7 +476,7 @@ final class BackupSafetyNetTests {
         ("-٢٠٢٦٠٩٢١-٠٨٣٠٠٠", false),
     ])
     func onlyADateAndATimeAfterTheUdidNameAnArchive(_ suffix: String, _ isArchive: Bool) {
-        #expect(BackupFolder.isArchive(named: "\(Self.someUdid)\(suffix)", of: Self.someUdid) == isArchive)
+        #expect(BackupSafetyNet.isArchive(named: "\(Self.someUdid)\(suffix)", of: Self.someUdid) == isArchive)
     }
 
     @Test func aFolderThatOnlyLooksLikeAnArchiveIsNotOne() throws {

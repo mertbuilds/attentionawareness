@@ -142,8 +142,8 @@ struct CloudConfigurationEditTests {
         let edit = CloudConfigurationEdit.plan(current: current, supervised: true)
 
         #expect(edit.changes == ["IsSupervised: 1 -> true", "ConfigurationSource: false -> 0"])
-        #expect(SupervisionPatch.boolean(edit.content["IsSupervised"]) == true)
-        #expect(SupervisionPatch.boolean(edit.content["ConfigurationSource"]) == nil)
+        #expect(CloudConfigurationEdit.boolean(edit.content["IsSupervised"]) == true)
+        #expect(CloudConfigurationEdit.boolean(edit.content["ConfigurationSource"]) == nil)
         #expect(edit.content as NSDictionary == Self.supervised as NSDictionary)
     }
 

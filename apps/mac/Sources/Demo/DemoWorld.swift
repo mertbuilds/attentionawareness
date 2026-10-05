@@ -4,31 +4,17 @@ import Foundation
 /// The iPhones, profiles and backups the demo says are there.
 ///
 /// It turns one `DemoConditions` into the values the wizard reads: the phones
-/// on the cable, what MCInstall would say about them, the profiles they list
-/// and the folders this Mac is holding. Every one of them is made here out of
-/// nothing, so the window can be driven into any state without a cable.
+/// on the cable, what MCInstall would say about them and the profiles they
+/// list. Every one of them is made here out of nothing, so the window can be
+/// driven into any state without a cable.
 ///
-/// Nothing is read and nothing is written. The backup folder is a path, built
-/// the way a run would build it, and no demo ever opens it.
+/// Nothing is read and nothing is written.
 enum DemoWorld {
     /// The iPhone the demo runs are about.
     static let udid = "00008130-000000000000001C"
     /// The second phone, for the state where the Connect step has to ask which
     /// one the run is about.
     static let secondUdid = "00008120-000000000000001D"
-
-    /// Where a run would have put the backup. It is only ever shown, never
-    /// opened: the demo reads no disk.
-    static var backupFolder: URL {
-        BackupFolder.applicationSupportRoot.appendingPathComponent(udid)
-    }
-
-    /// Where the patch would have put the untouched copy of that backup. It is
-    /// shown by the Patch step and nothing more.
-    static var pristineFolder: URL {
-        SupervisionPatch.pristineRoot(forBackupRoot: BackupFolder.applicationSupportRoot)
-            .appendingPathComponent("\(udid)-20260918-074412")
-    }
 
     // MARK: - The phones
 
@@ -71,9 +57,9 @@ enum DemoWorld {
             name: "iPhone",
             productType: "iPhone17,3",
             marketingName: "iPhone 16 Pro",
-            iosVersion: "26.6.2",
+            iosVersion: conditions.ios.version,
             findMyOn: conditions.findMyOn,
-            backupEncrypted: conditions.backupsEncrypted,
+            backupEncrypted: false,
             cloudBackupOn: conditions.cloudBackups != .off,
             lastCloudBackup: lastCloudBackup(conditions),
             dataCapacity: 128_000_000_000,
@@ -206,29 +192,6 @@ enum DemoWorld {
             name: name,
             sellerUrl: sellerUrl
         )
-    }
-
-    // MARK: - The backup
-
-    /// What a run's backup measures, which is the figure a measured iPhone 16e
-    /// came to. The job screen says how long sending it back takes from it.
-    static let backupBytes: UInt64 = 67_882_442_752
-
-    /// The copy rate a real run reads from the defaults, stood in for so the
-    /// demo's copy line shows a time from the first second. It is set so the
-    /// seeded figure lands near where the demo copy's live estimate settles,
-    /// which is the copying the script stands for, about forty minutes.
-    static let copyRate: Double = 27_500_000
-
-    /// What the window shows when a backup will not leave the disk. It is the
-    /// sentence the real error writes, so the last step can be read the way it
-    /// looks when the delete fails, and the demo still touches no folder.
-    static var removalFailure: String {
-        BackupStoreError.removeFailed(backupFolder, RefusedByMacOS()).localizedDescription
-    }
-
-    private struct RefusedByMacOS: LocalizedError {
-        var errorDescription: String? { "The volume is read only." }
     }
 }
 #endif

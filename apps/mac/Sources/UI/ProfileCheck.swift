@@ -5,9 +5,9 @@ import Foundation
 /// The install service answers Acknowledged once the iPhone has taken the
 /// bytes, which is not the same as the profile being on the iPhone and saying
 /// what it was asked to say. So the iPhone is read again afterwards and its
-/// answer comes through here. It is the last thing between a run and the
-/// delete that takes the backup away, which is why it is written as a value:
-/// nothing here reaches an iPhone, so the tests run all of it.
+/// answer comes through here. It is the last thing between a run and its last
+/// screen, which is why it is written as a value: nothing here reaches an
+/// iPhone, so the tests run all of it.
 enum ProfileCheck {
     /// Why the profiles the iPhone lists are not the one the run asked for.
     enum Problem: Equatable {
@@ -19,28 +19,11 @@ enum ProfileCheck {
         /// one that cannot, or the other way round. The flag is what the run
         /// asked for.
         case wrongRemovalSetting(asked: Bool)
-
-        /// What the step shows: what the iPhone said, and then the part that
-        /// matters most to the person reading it.
-        var sentence: String { "\(whatThePhoneSaid) The copy was kept." }
-
-        private var whatThePhoneSaid: String {
-            switch self {
-            case .notThere:
-                return "iPhone took the profile and then didn't list it."
-            case .notActive:
-                return "iPhone lists the profile and hasn't turned it on."
-            case .wrongRemovalSetting(let asked):
-                return asked
-                    ? "The profile on iPhone can be removed there, and this run asked for one that can't."
-                    : "The profile on iPhone can't be removed there, and this run asked for one that can."
-            }
-        }
     }
 
     /// Whether the iPhone lists the profile the run asked for: one of ours, on,
     /// and locked or removable the way it was asked for. Nil means it does,
-    /// which is the only outcome the backup delete waits for.
+    /// which is the only outcome that ends the run.
     ///
     /// `removalDisallowed` is what the run asked for: true for a profile that
     /// cannot be taken off the iPhone, false for trial mode, and nil for a

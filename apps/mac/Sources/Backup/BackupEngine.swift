@@ -9,13 +9,10 @@ import Foundation
 /// one line with a carriage return, so both line ends are treated as line ends
 /// (see `BackupOutputParser`). `Status.plist` inside the backup folder is read
 /// on a timer as a second source of truth, because the helper can be quiet for
-/// minutes while the phone writes its snapshot.
+/// minutes while the phone works.
 ///
-/// The engine turns backup encryption on, with a password the person chose,
-/// only when the iPhone does not encrypt its backups yet. It never turns
-/// encryption off and never changes an existing password. The phone does the
-/// encrypting, and the caller passes the password down for the copy and the
-/// restore.
+/// The fast method restores its small seed backup through it, and nothing
+/// else runs the helper.
 @MainActor
 final class BackupEngine: ObservableObject {
     /// Where the helper has got to.
@@ -51,13 +48,12 @@ final class BackupEngine: ObservableObject {
 
     @Published private(set) var phase: Phase = .idle
     @Published private(set) var progress: Double = 0
-    /// What the helper said, the password taken out, oldest line first.
+    /// What the helper said, oldest line first.
     @Published private(set) var log: [String] = []
     /// The `SnapshotState` of `Status.plist`, as the phone last wrote it.
     @Published private(set) var snapshotState: String?
 
     private var process: Process?
-    private var secret: String?
     private var cancelRequested = false
     private var escalated = false
     private var escalation: Task<Void, Never>?
@@ -126,61 +122,7 @@ final class BackupEngine: ObservableObject {
         try resolvedHelper.get()
     }
 
-    // MARK: - Backup and restore
-
-    /// The helper's own argument list for turning encryption on. It is a pure
-    /// function so the shape of the command can be checked without a phone. The
-    /// helper's parser wants a trailing directory and then ignores it for the
-    /// `encryption` command, so the backup root stands in for it.
-    nonisolated static func encryptionArguments(udid: String, password: String, root: URL) -> [String] {
-        ["-u", udid, "encryption", "on", password, root.path]
-    }
-
-    /// Turn on backup encryption for one iPhone, with the password the person
-    /// chose. It runs the bundled helper's `encryption on <password>` and reads
-    /// success or failure off it the same way the copy does.
-    ///
-    /// The iPhone can ask for its passcode on screen to confirm the change. A
-    /// helper that comes back saying it could not enable encryption, or that
-    /// the iPhone must be unlocked, is surfaced as an error rather than a
-    /// crash. Encryption is only ever turned on from here, never off.
-    func enableEncryption(udid: String, password: String, root: URL) async throws {
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        let folder = root.appendingPathComponent(udid)
-        do {
-            try await run(
-                arguments: Self.encryptionArguments(udid: udid, password: password, root: root),
-                folder: folder,
-                password: password
-            )
-        } catch BackupError.failed(let sentence) {
-            // The helper stopped with a reason. It is worded for the window
-            // already; the flow turns it into "Couldn't Turn On Encryption".
-            throw BackupError.encryptionFailed(sentence)
-        }
-    }
-
-    /// Make a full backup of one iPhone under `root` and hand back the folder
-    /// it landed in, which is `root/<udid>`.
-    ///
-    /// The copy is always an encrypted one now, so a password comes down with
-    /// every call. The phone does the encrypting; this method never changes the
-    /// `com.apple.mobile.backup/WillEncrypt` flag, which `enableEncryption`
-    /// turns on beforehand when the phone did not already encrypt its backups.
-    @discardableResult
-    func backup(udid: String, into root: URL, password: String?) async throws -> URL {
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        let folder = root.appendingPathComponent(udid)
-
-        var arguments = ["-u", udid, "backup", "--full"]
-        if let password, !password.isEmpty {
-            arguments += ["--password", password]
-        }
-        arguments.append(root.path)
-
-        try await run(arguments: arguments, folder: folder, password: password)
-        return folder
-    }
+    // MARK: - Restore
 
     /// Put a backup folder back on the iPhone.
     ///
@@ -190,26 +132,25 @@ final class BackupEngine: ObservableObject {
     func restore(
         udid: String,
         from folder: URL,
-        password: String?,
-        system: Bool = true,
-        settings: Bool = true,
-        reboot: Bool = true,
-        skipApps: Bool = false
+        system: Bool,
+        settings: Bool,
+        reboot: Bool,
+        skipApps: Bool
     ) async throws {
-        let manifest = folder.appendingPathComponent(BackupFolder.manifestPlistName)
+        let manifest = folder.appendingPathComponent(SeedBackup.manifestPlistName)
         guard FileManager.default.fileExists(atPath: manifest.path) else {
             throw BackupError.noBackupFolder(path: folder.path)
         }
 
         let arguments = Self.restoreArguments(
-            udid: udid, folder: folder, password: password,
+            udid: udid, folder: folder,
             system: system, settings: settings, reboot: reboot, skipApps: skipApps
         )
-        try await run(arguments: arguments, folder: folder, password: password)
+        try await run(arguments: arguments, folder: folder)
     }
 
     nonisolated static func restoreArguments(
-        udid: String, folder: URL, password: String?,
+        udid: String, folder: URL,
         system: Bool, settings: Bool, reboot: Bool, skipApps: Bool
     ) -> [String] {
         var arguments = ["-u", udid]
@@ -220,7 +161,6 @@ final class BackupEngine: ObservableObject {
         if settings { arguments.append("--settings") }
         if skipApps { arguments.append("--skip-apps") }
         arguments.append(reboot ? "--reboot" : "--no-reboot")
-        if let password, !password.isEmpty { arguments += ["--password", password] }
         arguments.append(folder.deletingLastPathComponent().path)
         return arguments
     }
@@ -255,7 +195,7 @@ final class BackupEngine: ObservableObject {
         case exited(Int32)
     }
 
-    private func run(arguments: [String], folder: URL, password: String?) async throws {
+    private func run(arguments: [String], folder: URL) async throws {
         // A sample engine is one the window was handed to draw from. It has no
         // phone behind it, so the helper is never started from one.
         guard !isSample else {
@@ -266,7 +206,6 @@ final class BackupEngine: ObservableObject {
         }
         let helper = try Self.helper()
 
-        secret = (password?.isEmpty == false) ? password : nil
         cancelRequested = false
         escalated = false
         sawAbort = false
@@ -392,7 +331,6 @@ final class BackupEngine: ObservableObject {
             process.terminationHandler = nil
         }
         process = nil
-        secret = nil
     }
 
     private func escalate() {
@@ -449,13 +387,13 @@ final class BackupEngine: ObservableObject {
             lastErrorLine = lastErrorLine ?? "Error code \(code)"
             append("The helper failed with error code \(code).")
         case .deviceError(let code, let message):
-            lastErrorLine = redacted(message)
+            lastErrorLine = message
             append("The iPhone reported error \(code): \(message)")
         case .error(let line):
-            lastErrorLine = redacted(line)
+            lastErrorLine = line
             append(line)
         case .message(let line):
-            lastHelperLine = redacted(line)
+            lastHelperLine = line
             append(line)
         }
     }
@@ -517,29 +455,20 @@ final class BackupEngine: ObservableObject {
     // MARK: - The log
 
     private func append(_ line: String) {
-        let clean = redacted(line)
-        log.append(clean)
+        log.append(line)
         if log.count > Self.logLimit {
             log.removeFirst(log.count - Self.logLimit)
         }
-        persist(clean)
-    }
-
-    /// The backup password is passed to the helper on its command line, so it
-    /// never reaches the log, on screen or on disk, with its own letters.
-    private func redacted(_ line: String) -> String {
-        guard let secret, !secret.isEmpty else { return line }
-        return line.replacingOccurrences(of: secret, with: "****")
+        persist(line)
     }
 
     // MARK: - The debug log on disk
 
-    /// Where the on-disk debug log lives: beside the backups, under the app's
-    /// own Application Support folder.
+    /// Where the on-disk debug log lives: under the app's own Application
+    /// Support folder.
     static var logFileURL: URL {
-        BackupFolder.applicationSupportRoot
-            .deletingLastPathComponent()
-            .appendingPathComponent("Logs", isDirectory: true)
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support/attention awareness/Logs", isDirectory: true)
             .appendingPathComponent("backup.log")
     }
 
@@ -547,15 +476,15 @@ final class BackupEngine: ObservableObject {
     /// so a run is never held up by the disk.
     private static let logQueue = DispatchQueue(label: "com.attentionawareness.mac.backup-log")
 
-    /// Append one already-redacted line to the on-disk debug log, with the time
-    /// in front, so a run that failed leaves a trace after the window is gone.
+    /// Append one line to the on-disk debug log, with the time in front, so a
+    /// run that failed leaves a trace after the window is gone.
     ///
-    /// The password is never here: the caller hands in the redacted line. It is
-    /// best effort in every way. A sample engine writes nothing, and any failure
-    /// to write is swallowed, because a debug log must never break or slow a run.
-    private func persist(_ redactedLine: String) {
+    /// It is best effort in every way. A sample engine writes nothing, and any
+    /// failure to write is swallowed, because a debug log must never break or
+    /// slow a run.
+    private func persist(_ line: String) {
         guard !isSample else { return }
-        let stamped = ISO8601DateFormatter().string(from: Date()) + " " + redactedLine + "\n"
+        let stamped = ISO8601DateFormatter().string(from: Date()) + " " + line + "\n"
         let file = Self.logFileURL
         Self.logQueue.async {
             guard let data = stamped.data(using: .utf8) else { return }
@@ -575,7 +504,7 @@ final class BackupEngine: ObservableObject {
 }
 
 extension BackupEngine.Phase {
-    /// One line for the hidden `--backup` and `--restore` command line paths.
+    /// One line for the hidden `--seed` command line path.
     var summary: String {
         switch self {
         case .idle:

@@ -2,7 +2,7 @@ import Foundation
 
 /// Which iPhones the app supervises, from the iOS version they report.
 ///
-/// iOS 26 and older run the fast method. iOS 27 and later get no run at all,
+/// iOS 26 and earlier run the fast method. iOS 27 and later get no run at all,
 /// and neither does an iPhone whose version cannot be read: on an iPhone SE
 /// with iOS 27.2 the restore finished with no error and the iPhone came back
 /// erased and not supervised. Those iPhones are sent to the manual guide.
@@ -55,14 +55,14 @@ enum IOSSupport {
     }
 
     /// The newest major version of iOS the app runs on. There is no oldest
-    /// one: every version that reads as 26 or older is let through.
+    /// one: every version that reads as 26 or earlier is let through.
     static let newestSupportedMajorVersion = 26
 
     static var firstUnsupportedMajorVersion: Int { newestSupportedMajorVersion + 1 }
 
     /// Nil when the app runs on the version the iPhone reports, such as
     /// `26.2.1`, and why not otherwise. A version that is missing or does not
-    /// read is never taken for an old one.
+    /// read is never taken for an earlier one.
     static func refusal(iosVersion: String?) -> Refusal? {
         guard let major = majorVersion(of: iosVersion) else { return .iosVersionUnknown }
         return major <= newestSupportedMajorVersion ? nil : .iosNotSupportedYet

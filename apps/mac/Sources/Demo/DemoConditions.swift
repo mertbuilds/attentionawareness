@@ -3,12 +3,11 @@ import Foundation
 
 /// What the demo pretends is true about the world.
 ///
-/// The wizard reads three things it cannot be given in a demo: the iPhones on
-/// the cable, what this Mac is holding for them and how a transfer ends. Every
-/// one of those answers comes from here, so the reader can put the window into
-/// a state a real run only reaches by luck: no phone on the cable, two of
-/// them, a phone that is already supervised, a backup an earlier run left
-/// behind, a transfer that fails.
+/// The wizard reads two things it cannot be given in a demo: the iPhones on
+/// the cable and how a restore ends. Every one of those answers comes from
+/// here, so the reader can put the window into a state a real run only
+/// reaches by luck: no phone on the cable, two of them, a phone that is
+/// already supervised, one on iOS 27, a restore that fails.
 ///
 /// Nothing here reads an iPhone, a disk or a network, which is why it is the
 /// part of the demo the tests can run.
@@ -84,7 +83,35 @@ struct DemoConditions: Equatable {
         }
     }
 
-    /// How the next transfer or profile install ends. It is the one condition
+    /// The iOS version the demo iPhone says it runs. iOS 27 and a version
+    /// that does not read put the manual guide on Connect in place of
+    /// Continue.
+    enum IOS: String, CaseIterable, Identifiable {
+        case ios26
+        case ios27
+        case unknown
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .ios26: return "26"
+            case .ios27: return "27"
+            case .unknown: return "Unread"
+            }
+        }
+
+        /// What the iPhone reports, or nil for one that reports nothing.
+        var version: String? {
+            switch self {
+            case .ios26: return "26.6.2"
+            case .ios27: return "27.2"
+            case .unknown: return nil
+            }
+        }
+    }
+
+    /// How the next restore or profile install ends. It is the one condition
     /// that is about what the demo does rather than about what it says is
     /// there, and it is here so the error wording can be read without a phone
     /// going wrong.
@@ -103,38 +130,29 @@ struct DemoConditions: Equatable {
             }
         }
 
-        /// True for an outcome that stops a transfer part way through.
+        /// True for an outcome that stops a restore part way through.
         var stopsPartWay: Bool { self != .succeeds }
     }
 
     var phones: Phones = .one
+    var ios: IOS = .ios26
     var findMyOn = false
     var cloudBackups: CloudBackups = .recent
     var finderBackups: FinderBackups = .nothingHere
-    /// The iPhone encrypts what it backs up, which is what makes the wizard
-    /// ask for a backup password.
-    var backupsEncrypted = false
     var supervised = false
     /// A profile of ours is already on the phone, which is what the Profile
     /// step asks about before it offers to install another.
     var profileInstalled = false
-    /// This Mac is holding a backup folder for that phone. A run makes one on
-    /// the way through and takes it away at the end, and the switch is there
-    /// for the other way in: a folder an earlier run left behind, which the
-    /// checks say they cleared.
-    var holdingBackup = false
-    /// The next job runs for minutes rather than half a minute, so the cost
-    /// story under the bar can be watched from its first slide to its last.
+    /// The next job runs for minutes rather than seconds, so the cost story
+    /// under the bar can be watched from its first slide to its last.
     var longJob = false
     var outcome: Outcome = .succeeds
 
     /// The world as it is once a restore has gone through: the phone says what
-    /// the run asked it to say, and this Mac is holding the backup the run
-    /// made.
+    /// the run asked it to say.
     func afterRestore(target: Bool) -> DemoConditions {
         var next = self
         next.supervised = target
-        next.holdingBackup = true
         return next
     }
 

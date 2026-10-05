@@ -5,18 +5,14 @@ import Testing
 ///
 /// The whole of that screen is a bar and a sentence, so the sentence is worth
 /// a table of its own: which words each phase carries, which of them let the
-/// bar say how far along it is, which of them carry a figure for how much
-/// longer, and which of them play the cost story under it. None of it reads
+/// bar say how far along it is, and which of them play the cost story under
+/// it. None of it reads
 /// an iPhone or builds a view.
 struct JobPhaseTests {
     // MARK: - The line under the bar
 
     @Test func everyPhaseThatRunsSaysWhatIsHappening() {
-        // Encrypting and connecting are the running phases that speak through
-        // a headline and a body instead of this line; each has a test of its
-        // own below.
         let lines: [(JobPhase, String)] = [
-            (.copying, "Copying iPhone to this Mac"),
             (.preparing, "Preparing"),
             (.waitingForFindMy, "Waiting for Find My iPhone to be turned off"),
             (.restoring, "Restoring iPhone"),
@@ -36,45 +32,12 @@ struct JobPhaseTests {
         }
     }
 
-    @Test func turningOnEncryptionSendsThePersonToTheirPhone() {
-        #expect(JobPhase.encrypting.headline == "Check iPhone")
-        #expect(
-            JobPhase.encrypting.body
-                == "Enter the passcode on iPhone to turn on encryption. The prompt can take a few seconds to appear. Keep iPhone connected."
-        )
-        // The headline and the body carry the message, so the plain line
-        // steps aside the way it does on the phases that came to an end.
-        #expect(JobPhase.encrypting.line == nil)
-        #expect(JobPhase.encrypting.note == nil)
-        // It is still working, under a bar that cannot say how far along it is.
-        #expect(JobPhase.encrypting.isRunning)
-        #expect(JobPhase.encrypting.isDeterminate == false)
-    }
-
-    @Test func openingTheBackupServiceSendsThePersonToTheirPhone() {
-        #expect(JobPhase.connecting.headline == "Check iPhone")
-        #expect(
-            JobPhase.connecting.body
-                == "If iPhone asks, tap Trust This Computer and enter the passcode. Keep iPhone unlocked and connected."
-        )
-        // The headline and the body carry the message, so the plain line
-        // steps aside the way it does on the phases that came to an end.
-        #expect(JobPhase.connecting.line == nil)
-        #expect(JobPhase.connecting.note == nil)
-        // It is still working, under a bar that cannot say how far along it is,
-        // and carries no figure for how much longer.
-        #expect(JobPhase.connecting.isRunning)
-        #expect(JobPhase.connecting.isDeterminate == false)
-        #expect(JobPhase.connecting.showsEstimate == false)
-    }
-
     // MARK: - The bar
 
-    @Test func onlyTheTwoTransfersSayHowFarAlongTheyAre() {
-        #expect(JobPhase.copying.isDeterminate)
+    @Test func onlyTheRestoreSaysHowFarAlongItIs() {
         #expect(JobPhase.restoring.isDeterminate)
 
-        for phase in [JobPhase.encrypting, .connecting, .preparing, .waitingForFindMy, .finishing, .restarting, .confirming] {
+        for phase in [JobPhase.preparing, .waitingForFindMy, .finishing, .restarting, .confirming] {
             #expect(phase.isDeterminate == false, "\(phase) has nothing to measure")
         }
         for phase in ended {
@@ -106,13 +69,13 @@ struct JobPhaseTests {
     }
 
     @Test func aWholeJobNeverTakesTheStoryOffTheScreen() {
-        // A run that turns encryption on, waits for Find My before the
-        // restore and loses the phone for a while during the reboot. The
-        // story is on from the first phase to the last, so it is never
-        // started over from its first slide.
+        // A run that waits for Find My before the restore and loses the
+        // phone for a while during the restart. The story is on from the
+        // first phase to the last, so it is never started over from its first
+        // slide.
         let job: [JobPhase] = [
-            .copying, .encrypting, .connecting, .copying, .preparing, .waitingForFindMy, .restoring,
-            .finishing, .restarting, .phoneGone, .restarting, .confirming,
+            .preparing, .waitingForFindMy, .restoring, .finishing, .restarting, .phoneGone, .restarting,
+            .confirming,
         ]
 
         for phase in job {
@@ -124,7 +87,7 @@ struct JobPhaseTests {
         let ends: [JobPhase] = [
             .done,
             .checkOnIPhone(reportedSupervised: true),
-            .failed(JobFailure(title: "Copy Didn't Finish", fix: "Try again.", raw: "", retry: .copy)),
+            .failed(JobFailure(title: "Restore Didn't Finish", fix: "Try again.", raw: "", retry: .restore)),
         ]
 
         for phase in ends {
@@ -136,7 +99,7 @@ struct JobPhaseTests {
         let ends: [JobPhase] = [
             .done,
             .checkOnIPhone(reportedSupervised: true),
-            .failed(JobFailure(title: "Copy Didn't Finish", fix: "Try again.", raw: "", retry: .copy)),
+            .failed(JobFailure(title: "Restore Didn't Finish", fix: "Try again.", raw: "", retry: .restore)),
         ]
 
         for end in ends {
@@ -150,24 +113,14 @@ struct JobPhaseTests {
 
     @Test func aPhaseThatRunsIsDrawnAtOnceUnderTheStory() {
         for phase in running + [.phoneGone] {
-            #expect(JobPhase.onScreen(phase, story: .copying) == phase)
+            #expect(JobPhase.onScreen(phase, story: .restoring) == phase)
             #expect(JobPhase.onScreen(phase, story: nil) == phase)
         }
         // Off the job screen there is nothing to draw, story or not.
         #expect(JobPhase.onScreen(nil, story: .confirming) == nil)
     }
 
-    // MARK: - The figure
-
-    @Test func onlyTheCopyingCarriesAFigureForHowMuchLonger() {
-        #expect(JobPhase.copying.showsEstimate)
-
-        for phase in running where phase != .copying {
-            #expect(phase.showsEstimate == false, "\(phase) is not this Mac's work to measure")
-        }
-    }
-
-    // MARK: - The three ends
+    // MARK: - The ends
 
     @Test func theConfirmSupervisionGateAsksForALookBeforeTheRestrictions() {
         let look =
@@ -199,12 +152,10 @@ struct JobPhaseTests {
     }
 
     @Test func theRestartWaitNamesTheOneThingMissing() {
+        // The restore makes the iPhone forget this Mac, so the wait says
+        // from the start that it will ask for Trust again.
         #expect(
             JobPhase.restartHint(pairing: nil)
-                == "When it is back, unlock it with your passcode. If it asks, tap Trust."
-        )
-        #expect(
-            JobPhase.restartHint(pairing: nil, method: .seed)
                 == "When it is back, unlock it with your passcode. It then asks to trust this Mac again: tap Trust."
         )
         #expect(JobPhase.restartHint(pairing: .locked) == "Unlock iPhone.")
@@ -229,10 +180,10 @@ struct JobPhaseTests {
 
     @Test func aFailureIsItsOwnTwoSentencesWithTheLayersWordsBehindIt() {
         let failure = JobFailure(
-            title: "Copy Didn't Finish",
+            title: "Restore Didn't Finish",
             fix: "Reconnect iPhone, then try again.",
             raw: "ERROR: No device found, is it plugged in?",
-            retry: .copy
+            retry: .restore
         )
         let phase = JobPhase.failed(failure)
 
@@ -242,16 +193,13 @@ struct JobPhaseTests {
     }
 
     @Test func aFailureThatLeftNoWordsBehindShowsNoButtonForThem() {
-        let quiet = JobFailure(title: "Copy Didn't Finish", fix: "Try again.", raw: "", retry: .copy)
+        let quiet = JobFailure(title: "Restore Didn't Finish", fix: "Try again.", raw: "", retry: .restore)
 
         #expect(JobPhase.failed(quiet).note == nil)
     }
 
     @Test func aPhaseStillRunningCarriesNoHeadlineOfItsOwn() {
-        // Encrypting and connecting are the running phases that carry their own
-        // headline, so they stand apart here and are each checked in their own
-        // test.
-        for phase in running where phase != .encrypting && phase != .connecting {
+        for phase in running {
             #expect(phase.headline == nil, "\(phase) keeps the screen's title")
             #expect(phase.body == nil)
         }
@@ -264,14 +212,13 @@ struct JobPhaseTests {
     // MARK: - The two halves of the enum
 
     private let running: [JobPhase] = [
-        .encrypting, .connecting, .copying, .preparing, .waitingForFindMy, .restoring, .finishing,
-        .restarting, .confirming,
+        .preparing, .waitingForFindMy, .restoring, .finishing, .restarting, .confirming,
     ]
 
     private let ended: [JobPhase] = [
         .done,
         .checkOnIPhone(reportedSupervised: false),
         .phoneGone,
-        .failed(JobFailure(title: "Copy Didn't Finish", fix: "Try again.", raw: "", retry: .copy)),
+        .failed(JobFailure(title: "Restore Didn't Finish", fix: "Try again.", raw: "", retry: .restore)),
     ]
 }

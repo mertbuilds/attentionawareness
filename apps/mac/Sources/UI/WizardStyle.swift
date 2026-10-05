@@ -18,16 +18,6 @@ enum WizardStyle {
     /// harder to read than it should be.
     static let contentWidth: CGFloat = 480
     static let cardRadius: CGFloat = 8
-
-    /// Bytes as the size a person would say, so 76.8 GB rather than a number
-    /// of bytes.
-    static func size(_ bytes: UInt64) -> String {
-        let formatter = ByteCountFormatter()
-        formatter.allowedUnits = [.useGB]
-        formatter.countStyle = .file
-        return formatter.string(fromByteCount: Int64(bytes))
-    }
-
 }
 
 /// A small "i" holding one more sentence than the screen has room for.

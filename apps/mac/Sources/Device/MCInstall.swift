@@ -74,7 +74,7 @@ final class MCInstall {
                 fromPropertyList: configuration, format: .xml, options: 0
             )
             return CloudConfiguration(
-                isSupervised: SupervisionPatch.boolean(configuration["IsSupervised"]) ?? false,
+                isSupervised: CloudConfigurationEdit.boolean(configuration["IsSupervised"]) ?? false,
                 organizationName: configuration["OrganizationName"] as? String,
                 raw: String(decoding: data, as: UTF8.self)
             )
