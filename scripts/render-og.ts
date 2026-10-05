@@ -625,6 +625,7 @@ const POST_ART: Record<string, { art: string; width: number }> = {
   'block-adult-websites-iphone': { art: otherUseGlyph('eye'), width: 300 },
   'block-any-app-iphone': { art: otherUseGlyph('apps'), width: 300 },
   'iphone-parental-controls-kids-cannot-turn-off': { art: otherUseGlyph('lock'), width: 300 },
+  'supervise-iphone-ios-27-without-erasing': { art: phoneKept(), width: 250 },
   'turn-iphone-into-dumbphone': { art: phoneKept(), width: 250 },
   'why-screen-time-does-not-work': { art: phoneScreenTime(), width: 250 },
   'work-iphones-without-mdm': { art: otherUseGlyph('work'), width: 300 },

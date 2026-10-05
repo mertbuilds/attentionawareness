@@ -68,13 +68,13 @@ A locked profile cannot be removed on the iPhone itself. Undoing it takes erasin
 
 ## The two free ways to do it
 
-|                   | The free Mac app                                                  | Manually via Apple Configurator                    |
-| ----------------- | ----------------------------------------------------------------- | -------------------------------------------------- |
-| Data on the phone | Stays, on iOS 26 and earlier. The app does not support iOS 27 yet | Erased first. Only what syncs to iCloud comes back |
-| Good for          | Phones already in use                                             | New company phones, where erasing is normal        |
-| You need          | Mac with Apple silicon, macOS 14 or later, a cable                | Mac, Apple Configurator (free from Apple), a cable |
-| Effort            | The app does the steps                                            | You follow a written guide                         |
-| Account           | None                                                              | None                                               |
+|                   | The free Mac app                                   | Manually via Apple Configurator                    |
+| ----------------- | -------------------------------------------------- | -------------------------------------------------- |
+| Data on the phone | Stays                                              | Erased first. Only what syncs to iCloud comes back |
+| Good for          | Phones already in use                              | New company phones, where erasing is normal        |
+| You need          | Mac with Apple silicon, macOS 14 or later, a cable | Mac, Apple Configurator (free from Apple), a cable |
+| Effort            | The app does the steps                             | You follow a written guide                         |
+| Account           | None                                               | None                                               |
 
 The Mac app is at [attentionawareness.com](/). The manual steps are in [the manual guide](/guide), and the profile builder is at [/build](/build).
 
@@ -97,7 +97,7 @@ With no MDM server, nothing on the phone reports back to you or to me. The phone
 1. **Write the list.** Decide which apps and websites to block. Keep one list for all phones.
 2. **Tell the team.** Say what will be blocked and why, before you touch a phone.
 3. **Get ready.** You need the Mac, a good cable, each phone's passcode and its Apple Account password.
-4. **Pick the way.** Use the Mac app for phones with data on iOS 26 and earlier. Use Apple Configurator for new phones in the box and for phones on iOS 27.
+4. **Pick the way.** Use the Mac app for phones with data. Use Apple Configurator for new phones in the box.
 5. **Do one phone first, in trial mode.** A trial profile can be removed in Settings. Give the phone back for a day and check that every work app opens.
 6. **Fix the list.** Remove anything that blocked real work.
 7. **Do the other four.** Plug in, supervise, install the profile. Each phone takes a few minutes. It restarts and asks to trust the Mac again.
@@ -124,7 +124,7 @@ Yes. Apple Business has device management built in, and Apple lists it as free i
 
 ### Can I supervise an iPhone without MDM?
 
-Yes. Apple Configurator on a Mac can supervise an iPhone by cable with no MDM. Apple says this erases the device. The free Mac app from attention awareness supervises an iPhone on iOS 26 and earlier and keeps its data.
+Yes. Apple Configurator on a Mac can supervise an iPhone by cable with no MDM. Apple says this erases the device. The free Mac app from attention awareness supervises an iPhone and keeps its data.
 
 ### Can an employee remove the locked profile?
 
@@ -158,7 +158,7 @@ Start with one phone and trial mode. Back up each phone first. Get [the free Mac
       "url": "https://attentionawareness.com/blog/work-iphones-without-mdm",
       "mainEntityOfPage": "https://attentionawareness.com/blog/work-iphones-without-mdm",
       "datePublished": "2026-10-04",
-      "dateModified": "2026-10-04",
+      "dateModified": "2026-10-05",
       "inLanguage": "en",
       "author": {
         "@type": "Person",
@@ -211,7 +211,7 @@ Start with one phone and trial mode. Back up each phone first. Get [the free Mac
           "@type": "HowToStep",
           "position": 4,
           "name": "Pick the way",
-          "text": "Use the Mac app for phones with data on iOS 26 and earlier. Use Apple Configurator for new phones in the box and for phones on iOS 27."
+          "text": "Use the Mac app for phones with data. Use Apple Configurator for new phones in the box."
         },
         {
           "@type": "HowToStep",
@@ -262,7 +262,7 @@ Start with one phone and trial mode. Back up each phone first. Get [the free Mac
           "name": "Can I supervise an iPhone without MDM?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Yes. Apple Configurator on a Mac can supervise an iPhone by cable with no MDM. Apple says this erases the device. The free Mac app from attention awareness supervises an iPhone on iOS 26 and earlier and keeps its data."
+            "text": "Yes. Apple Configurator on a Mac can supervise an iPhone by cable with no MDM. Apple says this erases the device. The free Mac app from attention awareness supervises an iPhone and keeps its data."
           }
         },
         {
