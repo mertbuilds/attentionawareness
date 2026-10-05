@@ -27,7 +27,7 @@ const rise = keyframes({
 });
 
 /** Each part of a page's head comes in a little after the one above it. */
-const STAGGER = ['0ms', '60ms', '120ms', '180ms'];
+const STAGGER = ['0ms', '60ms', '120ms'];
 
 export const page = create({
   // A paragraph whose box sets the room around it, as in a page's head.
@@ -166,23 +166,6 @@ const styles = create({
     },
     animationTimingFunction: easing.smoothOut,
   },
-  eyebrow: {
-    alignItems: 'center',
-    color: colors.fg,
-    display: 'flex',
-    fontSize: font.sizeSm,
-    gap: spacing.s2,
-    lineHeight: 1.4,
-    margin: 0,
-  },
-  // The orange square the eyebrow hangs from, one cell of graph paper inked in.
-  eyebrowMark: {
-    backgroundColor: accent.base,
-    borderRadius: 1,
-    flexShrink: 0,
-    height: 8,
-    width: 8,
-  },
   head: {
     display: 'flex',
     flexDirection: 'column',
@@ -270,6 +253,22 @@ const styles = create({
     margin: 0,
     textWrap: 'balance',
   },
+  // The orange square the title starts from, one cell of graph paper inked in.
+  // It stands at the middle of the title's first line, and a second line
+  // starts under the first, not under the square.
+  titleMark: {
+    backgroundColor: accent.base,
+    borderRadius: 2,
+    flexShrink: 0,
+    height: '0.26em',
+    marginTop: 'calc((1lh - 0.26em) / 2)',
+    width: '0.26em',
+  },
+  titleRow: {
+    alignItems: 'flex-start',
+    display: 'flex',
+    gap: '0.32em',
+  },
 });
 
 /** The plain ground a page stands on: the band at the top, then its column. */
@@ -279,14 +278,13 @@ export function PageRoot({ children }: { children: ReactNode }) {
 
 /**
  * The head of a page: the graph paper, with a warm light in its far corner,
- * behind the eyebrow, the title, what follows it and the line of facts.
+ * behind the title, what follows it and the line of facts.
  * The paper fades before the band ends, so no line of the text under it is
  * ever drawn on the ruling.
  */
 export function PageHeader({
   centered = false,
   children,
-  eyebrow,
   fill = false,
   meta = [],
   title,
@@ -294,7 +292,6 @@ export function PageHeader({
 }: {
   centered?: boolean;
   children?: ReactNode;
-  eyebrow: ReactNode;
   /** Take every bit of the window the footer does not: for a page with nothing under its head. */
   fill?: boolean;
   meta?: ReadonlyArray<ReactNode>;
@@ -306,20 +303,20 @@ export function PageHeader({
       <div aria-hidden="true" {...props(styles.bandGlow)} />
       <div aria-hidden="true" {...props(styles.bandGrid)} />
       <div {...props(styles.head, wide && styles.headWide, centered && styles.headCentered)}>
-        <p style={{ animationDelay: STAGGER[0] }} {...props(styles.enter, styles.eyebrow)}>
-          <span aria-hidden="true" {...props(styles.eyebrowMark)} />
-          {eyebrow}
-        </p>
-        <h1 style={{ animationDelay: STAGGER[1] }} {...props(styles.enter, styles.title)}>
-          {title}
+        <h1
+          style={{ animationDelay: STAGGER[0] }}
+          {...props(styles.enter, styles.title, styles.titleRow)}
+        >
+          <span aria-hidden="true" {...props(styles.titleMark)} />
+          <span>{title}</span>
         </h1>
         {children !== undefined && (
-          <div style={{ animationDelay: STAGGER[2] }} {...props(styles.enter, styles.intro)}>
+          <div style={{ animationDelay: STAGGER[1] }} {...props(styles.enter, styles.intro)}>
             {children}
           </div>
         )}
         {meta.length > 0 && (
-          <ul style={{ animationDelay: STAGGER[3] }} {...props(styles.enter, styles.meta)}>
+          <ul style={{ animationDelay: STAGGER[2] }} {...props(styles.enter, styles.meta)}>
             {meta.map((fact, index) => (
               // The facts are fixed for the page, so their place is their key.
               <li key={index} {...props(styles.metaItem)}>

@@ -37,11 +37,7 @@ function ExtensionPrivacy() {
 
   return (
     <PageRoot>
-      <PageHeader
-        eyebrow={m.page_eyebrow_privacy()}
-        meta={[m.ext_privacy_updated()]}
-        title={m.ext_privacy_title()}
-      >
+      <PageHeader meta={[m.ext_privacy_updated()]} title={m.ext_privacy_title()}>
         <p {...props(page.flush)}>{m.ext_privacy_lead()}</p>
       </PageHeader>
 

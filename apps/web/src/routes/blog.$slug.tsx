@@ -137,7 +137,6 @@ function BlogPost() {
   return (
     <PageRoot>
       <PageHeader
-        eyebrow={<a href={BLOG_PATH}>{m.blog_title()}</a>}
         meta={[
           <time dateTime={post.date} key="day">
             {postDay(post.date)}

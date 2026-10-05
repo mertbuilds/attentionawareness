@@ -258,11 +258,7 @@ function Guide() {
 
   return (
     <PageRoot>
-      <PageHeader
-        eyebrow={m.page_eyebrow_guide()}
-        meta={[m.guide_updated()]}
-        title={m.guide_title()}
-      >
+      <PageHeader meta={[m.guide_updated()]} title={m.guide_title()}>
         <p {...props(page.flush)}>{m.guide_lead()}</p>
         <p {...props(styles.credit)}>
           {creditBefore}
