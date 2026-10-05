@@ -18,6 +18,8 @@ struct JobPhaseTests {
             (.restoring, "Restoring iPhone"),
             (.finishing, "Finishing on iPhone"),
             (.restarting, "iPhone is restarting"),
+            (.awaitingLiveConfiguration, "Waiting for iPhone to restart"),
+            (.applyingLiveConfiguration, "Sending the supervision setting to iPhone"),
             (.confirming, "Checking iPhone"),
         ]
 
@@ -37,7 +39,7 @@ struct JobPhaseTests {
     @Test func onlyTheRestoreSaysHowFarAlongItIs() {
         #expect(JobPhase.restoring.isDeterminate)
 
-        for phase in [JobPhase.preparing, .waitingForFindMy, .finishing, .restarting, .confirming] {
+        for phase in running where phase != .restoring {
             #expect(phase.isDeterminate == false, "\(phase) has nothing to measure")
         }
         for phase in ended {
@@ -76,6 +78,19 @@ struct JobPhaseTests {
         let job: [JobPhase] = [
             .preparing, .waitingForFindMy, .restoring, .finishing, .restarting, .phoneGone, .restarting,
             .confirming,
+        ]
+
+        for phase in job {
+            #expect(phase.playsStory, "\(phase) would stop the story half way")
+        }
+    }
+
+    @Test func aJobOnIOS27NeverTakesTheStoryOffTheScreenEither() {
+        // The restore restarts iPhone itself, the phone is lost for a while,
+        // and the setting is sent live once it is back.
+        let job: [JobPhase] = [
+            .preparing, .restoring, .finishing, .awaitingLiveConfiguration, .phoneGone,
+            .awaitingLiveConfiguration, .applyingLiveConfiguration, .confirming,
         ]
 
         for phase in job {
@@ -178,6 +193,53 @@ struct JobPhaseTests {
         )
     }
 
+    // MARK: - The Restore Completed screen
+
+    /// On iOS 27 or later the restore restarts iPhone itself and the setting
+    /// is sent live once it is back. The wait says what to do, in the order
+    /// it happens, and the Restore Completed screen only where it shows.
+    @Test func theWaitOnIOS27SaysWhatToDoOnTheRestoreCompletedScreen() {
+        #expect(
+            JobPhase.awaitingLiveConfiguration.restoreCompletedSteps
+                == "iPhone restarts by itself. When it is back, press the Home button or swipe up, then enter the passcode. If iPhone asks, tap Trust and enter the passcode. If iPhone shows Restore Completed, stay on it and do not tap Continue. This window says when to continue."
+        )
+        #expect(
+            JobPhase.applyingLiveConfiguration.restoreCompletedSteps
+                == "Keep iPhone unlocked. If it shows Restore Completed, do not tap Continue yet. This window says when to continue."
+        )
+    }
+
+    @Test func noOtherPhaseTalksAboutTheRestoreCompletedScreen() {
+        for phase in running + ended
+        where phase != .awaitingLiveConfiguration && phase != .applyingLiveConfiguration {
+            #expect(phase.restoreCompletedSteps == nil, "\(phase) is not on that screen")
+        }
+    }
+
+    @Test func continueOnIPhoneIsSaidOnlyOnceTheSettingWentThrough() {
+        let said = "If iPhone shows Restore Completed, tap Continue now."
+        for phase in [JobPhase.confirming, .checkOnIPhone(reportedSupervised: true), .checkOnIPhone(reportedSupervised: false)] {
+            #expect(JobPhase.restoreCompletedLine(for: phase, owed: false, applied: true) == said)
+            // A run on iOS 26 or earlier never sends the setting live.
+            #expect(JobPhase.restoreCompletedLine(for: phase, owed: false, applied: false) == nil)
+        }
+        for phase in [JobPhase.awaitingLiveConfiguration, .applyingLiveConfiguration, .phoneGone] {
+            #expect(JobPhase.restoreCompletedLine(for: phase, owed: true, applied: false) != said)
+        }
+    }
+
+    @Test func aPhoneThatDidNotComeBackOnIOS27IsStillNotToBeContinued() {
+        #expect(
+            JobPhase.restoreCompletedLine(for: .phoneGone, owed: true, applied: false)
+                == "If iPhone shows Restore Completed, stay on it and do not tap Continue."
+        )
+        #expect(JobPhase.restoreCompletedLine(for: .phoneGone, owed: false, applied: false) == nil)
+    }
+
+    @Test func theLastScreenOfARunOnIOS27SaysTheApplePasswordMayBeAsked() {
+        #expect(JobPhase.appleAccountPassword == "iPhone may ask for your Apple account password once.")
+    }
+
     @Test func aFailureIsItsOwnTwoSentencesWithTheLayersWordsBehindIt() {
         let failure = JobFailure(
             title: "Restore Didn't Finish",
@@ -212,7 +274,8 @@ struct JobPhaseTests {
     // MARK: - The two halves of the enum
 
     private let running: [JobPhase] = [
-        .preparing, .waitingForFindMy, .restoring, .finishing, .restarting, .confirming,
+        .preparing, .waitingForFindMy, .restoring, .finishing, .restarting, .awaitingLiveConfiguration,
+        .applyingLiveConfiguration, .confirming,
     ]
 
     private let ended: [JobPhase] = [

@@ -21,7 +21,8 @@ struct JobFailure: Equatable {
 
     /// Where Try Again picks the run up again. Both read the iPhone again
     /// first. `.restore` is a failure that may have reached the iPhone, so
-    /// unplugging keeps its screen and its Try Again.
+    /// unplugging keeps its screen and its Try Again. A restore on iOS 27 or
+    /// later that still owes its live step gets that step alone from either.
     enum Retry: Equatable {
         case start
         case restore
@@ -46,10 +47,17 @@ struct JobFailure: Equatable {
             switch seed {
             case .refused:
                 return JobFailure(title: "Can't Supervise This iPhone", fix: raw, raw: raw, retry: .start)
+            case .iosVersionChanged:
+                return JobFailure(title: "Couldn't Finish Supervision", fix: raw, raw: raw, retry: .start)
             case .restartFailed, .cancelled(restoreApplied: true):
                 return JobFailure(title: "Restart Needed", fix: "Reconnect and unlock iPhone, then try again to restart it.", raw: raw, retry: .restore)
             case .cancelled(restoreApplied: false):
                 return JobFailure(title: "Restore Stopped", fix: "Check iPhone before trying the restore again.", raw: raw, retry: .restore)
+            case .liveConfigurationNotTaken(let lastReason):
+                // Try Again sends the setting again and nothing else: no
+                // restore and no restart. The "i" holds what the last attempt
+                // failed with.
+                return JobFailure(title: "iPhone Didn't Take the Setting", fix: settingNotTaken, raw: lastReason ?? "", retry: .restore)
             case .alreadyRunning, .noAppliedRestore:
                 return JobFailure(title: "Couldn't Finish Supervision", fix: raw, raw: raw, retry: .restore)
             }
@@ -74,6 +82,11 @@ struct JobFailure: Equatable {
         raw: "",
         retry: .restore
     )
+
+    /// What to do when iPhone restarted on iOS 27 or later and the setting
+    /// sent live did not hold.
+    private static let settingNotTaken =
+        "iPhone restarted, but it did not take the supervision setting. Keep iPhone unlocked and on the cable. If it shows Restore Completed, do not tap Continue. Then try again."
 
     /// The one thing to do about a cable that let go, which is what nearly
     /// every failure comes down to.

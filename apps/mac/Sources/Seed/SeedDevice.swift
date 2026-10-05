@@ -26,6 +26,10 @@ enum SeedDevice {
         Data(try MCInstall(udid: udid).cloudConfiguration(requireAcknowledgement: true).raw.utf8)
     }
 
+    static func setCloudConfiguration(udid: String, content: Data) throws {
+        try MCInstall(udid: udid).setCloudConfiguration(content)
+    }
+
     static func restart(udid: String) throws {
         let session = try LockdownSession(udid: udid)
         let service = try session.startService(DIAGNOSTICS_RELAY_SERVICE_NAME)

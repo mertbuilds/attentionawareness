@@ -156,6 +156,38 @@ final class MCInstall {
         }
     }
 
+    /// Sets the cloud configuration of an iPhone that is still in Setup
+    /// Assistant. The bytes are a property list of the configuration
+    /// dictionary, XML or binary.
+    func setCloudConfiguration(_ data: Data) throws {
+        var configuration: plist_t?
+        data.withUnsafeBytes { buffer in
+            _ = plist_from_memory(
+                buffer.baseAddress?.assumingMemoryBound(to: CChar.self), UInt32(data.count), &configuration, nil
+            )
+        }
+        guard let configuration, plist_get_node_type(configuration) == PLIST_DICT else {
+            plist_free(configuration)
+            throw DeviceError.requestNotBuilt(
+                request: "SetCloudConfiguration",
+                reason: "The configuration to send is not a dictionary."
+            )
+        }
+        let request = plist_new_dict()
+        plist_dict_set_item(request, "RequestType", plist_new_string("SetCloudConfiguration"))
+        plist_dict_set_item(request, "CloudConfiguration", configuration)
+
+        let response = try send(request, named: "SetCloudConfiguration", timeout: 15_000)
+        defer { plist_free(response) }
+
+        guard Plist.string(Plist.item(response, "Status")) == "Acknowledged" else {
+            throw DeviceError.requestRefused(
+                request: "SetCloudConfiguration",
+                reason: Self.errorText(response)
+            )
+        }
+    }
+
     /// Sends one request and waits for the answer. Takes ownership of the
     /// request node and hands back an answer the caller has to free.
     private func send(_ request: plist_t?, named name: String, timeout: UInt32) throws -> plist_t {

@@ -7,7 +7,7 @@ import SwiftUI
 /// more than one it is a list of every phone on the cable, and the row the
 /// user picks is the iPhone the whole run is about.
 ///
-/// An iPhone the app does not supervise, iOS 27 and later or one whose
+/// An iPhone the app does not supervise, iOS 28 and later or one whose
 /// version could not be read, gets the manual guide here in place of
 /// Continue, so no run can start on it.
 struct ConnectStep: View {

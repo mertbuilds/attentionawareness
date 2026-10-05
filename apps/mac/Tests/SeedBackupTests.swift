@@ -146,6 +146,30 @@ final class SeedBackupTests {
         #expect(setup.values.allSatisfy { CloudConfigurationEdit.boolean($0) == true })
     }
 
+    @Test func theLiveSeedHoldsTheSupervisionDomainAlone() throws {
+        let content = try Self.supervisedContent()
+        let folder = try SeedBackup.write(
+            in: root, udid: BackupFixture.udid, content: content, mode: .live, date: Self.date, inode: Self.inode
+        )
+        let records = try Self.records(in: Data(contentsOf: folder.appendingPathComponent("Manifest.mbdb")))
+        #expect(records.map { "\($0.domain)-\($0.filename)" } == [
+            "SysSharedContainerDomain-systemgroup.com.apple.configurationprofiles-",
+            "SysSharedContainerDomain-systemgroup.com.apple.configurationprofiles-Library",
+            "SysSharedContainerDomain-systemgroup.com.apple.configurationprofiles-Library/ConfigurationProfiles",
+            "SysSharedContainerDomain-systemgroup.com.apple.configurationprofiles-Library/ConfigurationProfiles/CloudConfigurationDetails.plist",
+        ])
+        #expect(records.last?.inode == Self.inode)
+        let names = try FileManager.default.contentsOfDirectory(atPath: folder.path)
+        #expect(Set(names) == [
+            Self.contentFileName,
+            "Info.plist",
+            "Manifest.mbdb",
+            "Manifest.plist",
+            "Status.plist",
+        ])
+        #expect(try Data(contentsOf: folder.appendingPathComponent(Self.contentFileName)) == content)
+    }
+
     @Test func fileInodesRemainDistinctWhenTheFirstIsUInt64Max() throws {
         let folder = try SeedBackup.write(
             in: root, udid: BackupFixture.udid, content: try Self.supervisedContent(),

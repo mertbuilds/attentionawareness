@@ -7,42 +7,142 @@ small configuration backup and restarts the iPhone. Which iPhones get a run:
 | iOS on the iPhone | What the app does |
 | --- | --- |
 | 26 and earlier | runs the fast method |
-| 27 and later | no run: Connect shows "iOS 27 Is Not Supported Yet" and opens the manual guide or the profile builder |
+| 27 | runs the fast method with one more step, the live step |
+| 28 and later | no run: Connect shows "iOS 28 Is Not Supported Yet" and opens the manual guide or the profile builder |
 | missing or unreadable version | no run: Connect shows "Couldn't Read the iOS Version" and opens the same guide or builder |
 
 The rule is `IOSSupport` in `Sources/Seed/IOSSupport.swift`: the first number
-of the version, compared as a number, 26 or below runs. A version that is
-missing or does not read is never taken for an earlier one, because a run on iOS
-27 can erase the iPhone. In place of Continue, Connect says why and has two
-buttons. Open the Guide, the filled one, opens the manual guide with Apple
+of the version, compared as a number, 27 or below runs. A version that is
+missing or does not read is never taken for an earlier one, because the app
+is not tested on iOS 28 or later. In place of Continue, Connect says why and
+has two buttons. Open the Guide, the filled one, opens the manual guide with Apple
 Configurator on the site (`SiteLink.guide`,
 `https://attentionawareness.com/guide?utm_source=mac-app&utm_medium=referral&utm_campaign=ios27_guide`).
 That way erases the iPhone, and the screen says so.
 Open the Profile Builder, the bordered one before it, opens the profile
 builder on the site (`SiteLink.profileBuilder`,
 `https://attentionawareness.com/build?utm_source=mac-app&utm_medium=referral&utm_campaign=ios27_builder`),
-so the restrictions profile need not be made in Apple Configurator. The screen follows the
-iPhone Connect has picked: another iPhone on iOS 26 brings Continue back. An
-iPhone on iOS 27 that is already supervised, by Apple Configurator for
+so the restrictions profile need not be made in Apple Configurator. Both
+campaigns keep the name they had when the screen was for iOS 27. The screen follows the
+iPhone Connect has picked: another iPhone on iOS 27 or earlier brings Continue back. An
+iPhone on iOS 28 that is already supervised, by Apple Configurator for
 example, still gets Manage Restrictions, because the restrictions profile does
 not care how the iPhone got supervised, and that path runs no restore.
 
-Behind the screen, two guards refuse the restore on iOS 27 and on an unknown
-version, each from a fresh read of the iPhone: `WizardModel` before the job
+Behind the screen, two guards refuse the restore on iOS 28 and later and on
+an unknown version, each from a fresh read of the iPhone: `WizardModel` before the job
 (`verifyFastSupportsIOS`) and `SeedEngine` before it reads the configuration
 and again right before the restore (`gate`). `WizardModel.start()` and
 `startJob()` refuse the run as well.
 
-Why iOS 27 gets no run: on 2026-10-05 an iPhone SE on iOS 27.2 went through
+How iOS 27 got its run: on 2026-10-05 an iPhone SE on iOS 27.2 went through
 both methods the app had then. The fast restore finished with no error, and
 the iPhone came back erased and not supervised. The full copy (back up the
 whole iPhone, patch the copy, restore it) also finished with no error, and the
-iPhone also came back erased and not supervised. So no method worked on iOS
-27, and the full copy was taken out of the app. This matches
+iPhone also came back erased and not supervised. So the full copy was taken
+out of the app, and 0.4.4 and 0.4.5 refused iOS 27. This matched
 [Apple's managed-device restore documentation](https://support.apple.com/guide/deployment/restore-managed-apple-devices-depd44f04xc4/1/web/1.0)
 and [Nugget's iOS 27 data-loss warning](https://github.com/leminlimez/Nugget#readme).
-On iOS 26 and earlier the fast method supervises a real iPhone, and the app
+The same day the run below, with a different restore and the live step, kept
+all data on that iPhone, and a Release build now runs it on iOS 27.
+On iOS 26 and earlier the fast method supervises a real iPhone as before, and the app
 finds it again after the restart.
+
+What we think the first fast run was missing on iOS 27: Apple's deployment
+guide, linked above, says that on iOS 27 a restore does not bring supervision
+or management back. So we expect iOS 27 to ignore the cloud configuration the
+restore puts back and to take it only live. No run of ours tests this alone.
+A run there has one more step, the live step, and its restore is a different one. The
+seed holds the supervision domain alone (four records, no
+`com.apple.purplebuddy.plist`), and the helper runs with
+`restore --skip-apps --remove --reboot`: no system files, items that are not
+restored are removed, and the restore restarts the iPhone itself. The restore
+only has to bring the iPhone back, not supervised. In some runs the iPhone
+then shows the Setup Assistant screen "Restore Completed", and in some it
+does not. The app
+waits until this Mac has paired again (unlock, Trust, passcode), then sends
+the same configuration live over MCInstall (`SetCloudConfiguration`) and reads
+it back (`SeedEngine.applyLiveConfiguration`). Only then is Continue tapped on
+the iPhone, where it shows that screen, and the run goes on as on iOS 26: the
+look at Settings, then Restrictions. The window says each of these while it
+waits, and "If iPhone shows Restore Completed, tap Continue now." once the
+setting went through. The last screen says "iPhone may ask for your Apple
+account password once." When the iPhone did
+not take the setting within 90 seconds, the screen is "iPhone Didn't Take the
+Setting", and Try Again sends the setting again alone: no second restore and
+no restart. Cancel and Supervise again do the same, also when the iPhone left
+the cable in between and the window went back to Connect: the app keeps the
+owed step for that iPhone until the setting went through, a run on another
+iPhone starts or the app quits. A run that takes supervision off goes the
+same way.
+
+What is known about iOS 27, and no more than this:
+
+- On an iPhone SE with iOS 27.2 our earlier run (the restore with
+  `--system --no-reboot`, then our own restart) finished with no error, and
+  the iPhone came back erased and not supervised.
+- On 2026-10-05 another tool that uses this sequence (a small restore that
+  restarts the iPhone, then `SetCloudConfiguration` over MCInstall while the
+  iPhone is on Restore Completed) supervised that same iPhone SE on iOS 27.2
+  and kept its data. Its restore sends no system files and removes the items
+  it does not restore, and its seed holds the supervision domain alone.
+- On 2026-10-05 this app ran the live step on that same iPhone SE with iOS
+  27.2. The restore restarted the iPhone, the app paired again on Restore
+  Completed, and `SetCloudConfiguration` was acknowledged and read back. The
+  iPhone still came back erased. That restore sent system files
+  (`--system --skip-apps --reboot`) and a seed with the setup state.
+- So `--no-reboot` with our own restart was not the cause of the erase: a
+  restore with system files that restarts the iPhone itself erased it too.
+
+Device results from 2026-10-05, on one iPhone SE (2nd generation) with iOS
+27.2 and a Debug build of this app, in both directions: runs that supervise
+and runs that take supervision off. Each run changed at most one thing from
+the set the app sends on iOS 27 (no system files, remove, no setup file, the
+restore restarts the iPhone). The Debug build had a switch for each change
+then, and they are gone now:
+
+1. Nothing changed, a run that takes supervision off: all data kept, and the
+   iPhone ended not supervised.
+2. The restore sent no remove, a run that supervises, on an iPhone signed in
+   to an Apple account: photos, apps and the Apple account kept, and the
+   iPhone ended supervised.
+3. The seed also held the setup records and the setup file, a run that takes
+   supervision off: all data kept, not supervised. The iPhone still stopped
+   on Restore Completed.
+4. Nothing changed, a run that supervises: all data kept, supervised. The
+   iPhone did not show Restore Completed in this run. We think the setting
+   arrived first and the iPhone then skips that screen. One more such run on the iPhone that was
+   then supervised also kept all data. That time the iPhone asked for Trust
+   and showed Restore Completed and a privacy screen.
+5. The restore sent system files, a run that takes supervision off: after
+   the passcode the iPhone showed the Apple logo with a progress bar for a
+   long time. Then the Apple account was signed out and the photos were
+   gone. Apps and Safari tabs stayed.
+
+What these show: system files (`RestoreSystemFiles` true) is what loses data
+on iOS 27. Remove and the setup file do not lose data. Who restarts the
+iPhone was not tested alone: both runs with system files lost data, one with
+each way of restarting. This
+agrees with the earlier run of that day in the list above, which sent system
+files, no remove and the setup file, and lost data too. The settings of each
+mode are in one place, `SeedMode.settings`, and the `fast: restore started`
+log line gives the values a run used.
+
+Also seen in these runs:
+
+- The first screen after the restart is white and says "Press home to
+  upgrade". That is on an iPhone with a Home button; on other iPhones the
+  person swipes up. Then comes the passcode. Then, in some runs, a Trust
+  prompt, and in some runs Restore Completed with a Continue button.
+- After every run, a tap on the Apple account at the top of Settings asks for
+  the Apple account password once. The account stays.
+- With the app's profile installed on iOS 27.2, a blocked app shows no popup
+  any more: it is not on the Home Screen and cannot be opened. Website
+  blocking and the adult content filter work as before.
+
+A Release build runs this on iOS 27. Not tested: other iPhone models, iOS
+27.0.x, and iOS 26 on a device after this change (its code path is
+untouched).
 
 Back up the iPhone first, with Finder or iCloud. The app does not erase the
 iPhone, but things can go wrong, and that backup is the way back. We are not
@@ -113,13 +213,27 @@ starts on a supervised iPhone, ends once the iPhone says it is not
 supervised, skips the Restrictions step and sends no count. The window says
 so over every step. The next launch without the flag supervises again.
 
-A Debug build also takes `--debug-fast-ios27`, for testing the fast method
-on an empty test iPhone with iOS 27 or later, or one that gives no version.
-There the restore is expected to erase the iPhone. Connect then skips the
+A Debug build also takes `--debug-fast-any-ios`, for testing the fast method
+on a version the app refuses: iOS 28 or later, or an iPhone that gives no
+version. Use an iPhone whose data you can lose: no such version is tested.
+Connect then skips the
 guide screen and offers Continue, and the run goes past both version guards.
-Below iOS 27 nothing changes. The window shows a red line over every step,
+On iOS 28 or later the run takes the live step described above, as on iOS
+27; an iPhone that gives no version gets the run iOS 26 gets. That run sends
+system files, and system files lost data on iOS 27.2, so the flag can lose
+data on such an iPhone.
+On iOS 27 and earlier nothing changes. The window shows a red line over every step,
 and the launch says so in Terminal and in the log. It combines with
-`--debug-unsupervise`. A Release build has none of the three debug flags.
+`--debug-unsupervise`. A Release build has none of the debug flags.
+
+What a person does on the iPhone in a run on iOS 27: nothing
+while the restore runs. The iPhone restarts by itself. When it is back, press
+the Home button or swipe up, then enter the passcode. If it asks, tap Trust
+and enter the passcode. If it shows Restore Completed, stay on it and do not
+tap Continue. When the window says "If iPhone shows Restore Completed, tap
+Continue now.", tap Continue if that screen is there, finish the setup
+screens, and look at the top of Settings. A tap on the Apple account there
+can ask for the Apple account password once.
 
 The device layer writes every read's outcome to the Mac's log under the
 subsystem `com.attentionawareness.mac`, category `device`: pairing states,
@@ -260,15 +374,20 @@ That backup is the way back, and we are not responsible for lost data.
 
 `--seed <udid>` runs the fast method without a window. It reads the current
 cloud configuration and preserves its other policy keys, checks the live iOS
-version before restoring, writes the cloud configuration and managed
-`mobile/com.apple.purplebuddy.plist` setup-completion preferences in its own
-temporary root, then runs the bundled
-helper with `restore --system --no-reboot --skip-apps`. Only a successful restore
-is followed by a diagnostics-relay restart. Ctrl+C asks the helper to stop and
-waits for it before removing the temporary seed. If configuration was restored
-but restart fails, restart iPhone before repeating a restore. `--seed` keeps
-both version guards: it refuses iOS 27 and later and an unknown version. A
-Release build has no version override.
+version before restoring, and writes the seed in its own temporary root. On
+iOS 26 and earlier the seed holds the cloud configuration and the managed
+`mobile/com.apple.purplebuddy.plist` setup-completion preferences, and the
+bundled helper runs with `restore --system --skip-apps --no-reboot`. Only a
+successful restore is followed by a diagnostics-relay restart. If
+configuration was restored but restart fails, restart iPhone before repeating
+a restore. On iOS 27 the seed and the restore are the ones of the live mode
+above (`restore --skip-apps --remove --reboot`), and `--seed` stops there: it
+does not wait for the iPhone and does not send the setting live, so the
+iPhone is not supervised yet. It says so and exits non-zero; use the window
+for a whole run. Ctrl+C asks the helper to stop and waits for it before
+removing the temporary seed. `--seed` keeps both version guards: it refuses
+iOS 28 and later and an unknown version. A Release build has no version
+override.
 
 `--ui-smoke` builds every step of the wizard offscreen and prints the size each
 one asks for, so the window can be checked on a Mac whose display is asleep. Add
@@ -282,8 +401,8 @@ no site, with a bar under it for driving the states by hand. Every view is the
 one that ships; only the other end of it changes. A job runs in about fifteen
 seconds: the restore with its bar, the restart and the question at the end.
 The demo bar jumps to any step and sets what the wizard finds when it looks:
-how many iPhones are on the cable, the iOS version (26, 27 or one that does
-not read, which shows the guide screen on Connect), Find My on or off, a phone
+how many iPhones are on the cable, the iOS version (26, 28 or one that does
+not read; the last two show the guide screen on Connect), Find My on or off, a phone
 that is already supervised, a profile already installed, how the reader's own
 backups read in iCloud and in Finder, Full Disk Access granted, refused, or
 still refused after a trip to System Settings, and whether the next restore or
@@ -342,7 +461,8 @@ AA_SITE_URL=https://aa.localhost \
   step that caused them, never in a modal alert.
 - `Sources/Seed/` is the fast method: `IOSSupport` is which iOS versions get a
   run, `CloudConfigurationEdit`, `SeedBackup` and `Mbdb` write the small seed,
-  and `SeedEngine` reads the iPhone, restores the seed and restarts it.
+  and `SeedEngine` reads the iPhone, restores the seed and restarts it, and
+  on iOS 27 or later sends the configuration live after the restart.
   `Sources/Backup/` is `BackupEngine`, which runs the bundled `idevicebackup2`
   helper for that restore and reads what it prints.
 - Finder's backup folder is the one thing in the app that wants Full Disk

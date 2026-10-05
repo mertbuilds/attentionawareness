@@ -83,11 +83,13 @@ struct UnsuperviseRunTests {
                     options: 0
                 )
             },
-            restore: { _, folder in
+            restore: { _, folder, _ in
                 let data = try Data(contentsOf: folder.appendingPathComponent(SeedBackup.contentFileName))
                 sent.content = try SeedDevice.configuration(from: data)
             },
             restart: { _ in },
+            setConfiguration: { _, _ in },
+            sleep: { _ in },
             cancelRestore: {}
         ))
         let model = makeModel(Cable(supervised: !supervises), supervises: supervises, seedEngine: engine)
@@ -100,28 +102,40 @@ struct UnsuperviseRunTests {
         #expect((content["OrganizationMagic"] != nil) == supervises)
     }
 
-    @Test func theDebugFastValueRunsAFastRunThatTakesSupervisionOffIOS27() async throws {
+    /// iOS 27 ignores the restored configuration, so the run that takes
+    /// supervision off sends it live as well, with the same flag.
+    @Test func aFastRunThatTakesSupervisionOffIOS27SendsTheSettingLive() async throws {
         let sent = SentSeed()
         let engine = SeedEngine(operations: .init(
             readVersion: { _ in "27.0" },
             readConfiguration: { _ in
-                try PropertyListSerialization.data(fromPropertyList: ["IsSupervised": true], format: .xml, options: 0)
+                // iPhone keeps what it had until the configuration sent live.
+                try PropertyListSerialization.data(
+                    fromPropertyList: ["IsSupervised": sent.live.isEmpty], format: .xml, options: 0
+                )
             },
-            restore: { _, folder in
+            restore: { _, folder, _ in
                 let data = try Data(contentsOf: folder.appendingPathComponent(SeedBackup.contentFileName))
                 sent.content = try SeedDevice.configuration(from: data)
             },
-            restart: { _ in },
+            restart: { _ in sent.restarts += 1 },
+            setConfiguration: { _, data in sent.live.append(try SeedDevice.configuration(from: data)) },
+            sleep: { _ in },
             cancelRestore: {}
         ))
         let cable = Cable(supervised: true, iosVersion: "27.0")
-        let model = makeModel(cable, supervises: false, seedEngine: engine, allowsFastOnAnyIOS: true)
+        let model = makeModel(cable, supervises: false, seedEngine: engine)
         model.iosVersion = "27.0"
         defer { model.stopJob() }
         ready(model)
         model.startJob()
         #expect(await waitUntil { sent.content != nil })
         #expect(CloudConfigurationEdit.boolean(sent.content?["IsSupervised"]) == false)
+        #expect(await waitUntil { model.job == .confirming })
+        #expect(sent.live.count == 1)
+        #expect(CloudConfigurationEdit.boolean(sent.live.first?["IsSupervised"]) == false)
+        #expect(sent.restarts == 0)
+        #expect(model.liveConfigurationApplied)
         cable.supervised = false
         #expect(await waitUntil { model.step == .done })
     }
@@ -132,16 +146,14 @@ struct UnsuperviseRunTests {
         _ cable: Cable,
         supervises: Bool,
         sent: Sent = Sent(),
-        seedEngine: SeedEngine? = nil,
-        allowsFastOnAnyIOS: Bool = false
+        seedEngine: SeedEngine? = nil
     ) -> RunModel {
         let model = RunModel(
             watcher: DeviceWatcher(reading: { cable.read() }, passTimeout: 0.05),
             engine: BackupEngine(sample: .idle, progress: 0),
             seedEngine: seedEngine,
             finishedEvent: { sent.events.append($0) },
-            supervises: supervises,
-            allowsFastOnAnyIOS: allowsFastOnAnyIOS
+            supervises: supervises
         )
         model.useSeedEngine = seedEngine != nil
         return model
@@ -169,6 +181,9 @@ struct UnsuperviseRunTests {
 
     private final class SentSeed {
         var content: [String: Any]?
+        /// Every configuration sent live, which only a run on iOS 27 sends.
+        var live: [[String: Any]] = []
+        var restarts = 0
     }
 
     private final class Steps {

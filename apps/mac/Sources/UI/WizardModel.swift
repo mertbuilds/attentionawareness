@@ -118,6 +118,10 @@ class WizardModel: ObservableObject {
     /// found it locked, which is what tells the iPhone after the restart from
     /// the one before it.
     @Published private var phoneLeftForRestart = false
+    /// True once this run has sent the supervision setting live, on iOS 27 or
+    /// later, which is when the person may tap Continue where iPhone shows
+    /// the Restore Completed screen.
+    @Published private(set) var liveConfigurationApplied = false
     private var seedOperationRun: Int?
     /// What sends the anonymous count. Nil sends nothing, which is every
     /// model but the window's own: the demo, the smoke and the tests.
@@ -128,9 +132,9 @@ class WizardModel: ObservableObject {
     /// off, skips the Restrictions step and sends no count, which only the
     /// debug `--debug-unsupervise` flag asks for (`DebugUnsupervise`).
     let supervises: Bool
-    /// True lets the fast method run on iOS 27 and later and on an unknown
-    /// version, with the default and the tag as they are. Only the debug
-    /// `--debug-fast-ios27` flag asks for it (`DebugFastIOS27`).
+    /// True lets the fast method run on a version the app refuses and on an
+    /// unknown version, with the default and the tag as they are. Only the
+    /// debug `--debug-fast-any-ios` flag asks for it (`DebugFastAnyIOS`).
     let allowsFastOnAnyIOS: Bool
 
     /// A model that watches the real USB bus, which is what the window uses.
@@ -144,7 +148,7 @@ class WizardModel: ObservableObject {
         OldBackupCopy.removeAtLaunch()
         #if DEBUG
         let supervises = !DebugUnsupervise.isOn
-        let allowsFastOnAnyIOS = DebugFastIOS27.isOn
+        let allowsFastOnAnyIOS = DebugFastAnyIOS.isOn
         #else
         let supervises = true
         let allowsFastOnAnyIOS = false
@@ -252,6 +256,9 @@ class WizardModel: ObservableObject {
         /// True where the restart wait has already missed the iPhone, so the
         /// line it shows for an iPhone that is back and locked can be drawn.
         var phoneLeftForRestart = false
+        /// True where the setting was sent live, so the line about Continue
+        /// on iPhone can be drawn.
+        var liveConfigurationApplied = false
         var profile = ProfileState()
         /// What the search field over the blocked list is showing, so a step
         /// can be drawn with rows under it.
@@ -278,6 +285,7 @@ class WizardModel: ObservableObject {
         selectedUdid = sample.udid
         restore = sample.restore
         phoneLeftForRestart = sample.phoneLeftForRestart
+        liveConfigurationApplied = sample.liveConfigurationApplied
         job = sample.job
         profile = sample.profile
         appSearch = sample.appSearch
@@ -314,7 +322,7 @@ class WizardModel: ObservableObject {
 
     /// Why the app does not run on the iPhone this run is about, from the
     /// version it reports, or nil when it does. Only the debug
-    /// `--debug-fast-ios27` flag lets every version through.
+    /// `--debug-fast-any-ios` flag lets every version through.
     var iosRefusal: IOSSupport.Refusal? {
         IOSSupport.refusal(iosVersion: device?.iosVersion, allowsAnyIOS: allowsFastOnAnyIOS)
     }
@@ -465,6 +473,10 @@ class WizardModel: ObservableObject {
     ///
     /// The demo overrides it to stop its own work as well.
     func startOver() {
+        // A restore that still owes its live step restarted the iPhone
+        // already, and its leaving the cable is what forgets the run here. So
+        // the next wait for it does not hold for a read that misses it.
+        let leftForRestart = owesLiveConfiguration
         run += 1
         poll?.cancel()
         stopJob()
@@ -486,7 +498,8 @@ class WizardModel: ObservableObject {
         iconTask = nil
         askedForIcons = []
         errorMessage = nil
-        phoneLeftForRestart = false
+        phoneLeftForRestart = leftForRestart
+        liveConfigurationApplied = false
         step = .connect
         watcher.reload()
     }
@@ -797,12 +810,19 @@ class WizardModel: ObservableObject {
         stopJob()
         poll?.cancel()
         errorMessage = nil
-        phoneLeftForRestart = false
+        // A restore that still owes its live step restarted the iPhone
+        // already, so what an earlier wait saw of that restart still holds.
+        phoneLeftForRestart = owesLiveConfiguration && phoneLeftForRestart
+        liveConfigurationApplied = false
         // The first phase is written here rather than in the task, so no frame
         // is ever drawn with the phase the last attempt ended on.
-        switch piece {
-        case .start: job = .preparing
-        case .restore: job = .restoring
+        if owesLiveConfiguration {
+            job = .awaitingLiveConfiguration
+        } else {
+            switch piece {
+            case .start: job = .preparing
+            case .restore: job = .restoring
+            }
         }
         jobTask = Task { [weak self] in
             await self?.walkTheJob(from: piece)
@@ -814,7 +834,16 @@ class WizardModel: ObservableObject {
     /// Try Again from the restore and from the start walk the same way: the
     /// iPhone is read again, and a restore the iPhone has already taken is
     /// only restarted, never sent twice.
+    ///
+    /// A restore on iOS 27 or later that still owes its live step gets that
+    /// step and nothing else: no restart and no second restore. The iPhone is
+    /// back from its restart and may not answer yet, so nothing is read from
+    /// it first either.
     private func walkTheJob(from piece: JobFailure.Retry) async {
+        if owesLiveConfiguration {
+            restore = RestoreState(stage: .waitingForPhone)
+            return await finishAfterRestart(waiting: rebootTimeout)
+        }
         do {
             guard let udid else { return }
             try await verifyFastSupportsIOS(udid: udid)
@@ -844,7 +873,7 @@ class WizardModel: ObservableObject {
         stopJob()
         // Written here rather than in the task, as the first phase of a job
         // is, so no frame is drawn between the press and the read.
-        job = .restarting
+        job = restartWaitPhase
         jobTask = Task { [weak self] in
             guard let self else { return }
             await self.finishAfterRestart(waiting: self.checkAgainTimeout)
@@ -853,8 +882,14 @@ class WizardModel: ObservableObject {
 
     /// The end of the job, from the restart on: wait for the iPhone, ask it
     /// what it is, and put the question to the person.
+    ///
+    /// On iOS 27 or later the iPhone comes back not supervised, in some runs
+    /// on the Restore Completed screen, and the restore still owes its live
+    /// step. The
+    /// wait is the same one, paired again and MCInstall answering, and the
+    /// step runs between the wait and the ask.
     private func finishAfterRestart(waiting timeout: TimeInterval) async {
-        job = .restarting
+        job = restartWaitPhase
         if await waitForPhone(until: Date().addingTimeInterval(timeout)) == false {
             // A wait cut short by Cancel has moved the run already, and a
             // phase written now would land on the step that replaced it.
@@ -867,12 +902,28 @@ class WizardModel: ObservableObject {
             job = .phoneGone
             phoneLeftForRestart = true
             guard await waitForPhone(until: nil), !Task.isCancelled else { return }
-            job = .restarting
+            job = restartWaitPhase
         }
         guard !Task.isCancelled else { return }
-        // The iPhone restarted and is back, so the restart is no longer what
-        // is missing. Another try sends the configuration again.
-        seedEngine.forgetAppliedRestore()
+        if owesLiveConfiguration {
+            // The restore is not forgotten before this went through: a step
+            // that failed is tried again alone, with no second restore.
+            let run = self.run
+            do {
+                try await applyLiveConfiguration()
+            } catch {
+                return fail(error, in: .restoring)
+            }
+            // The setting is on the iPhone, so the restore is over, also for
+            // a job that was stopped in the meantime and started again.
+            seedEngine.forgetAppliedRestore()
+            if self.run == run { liveConfigurationApplied = true }
+            guard !Task.isCancelled else { return }
+        } else {
+            // The iPhone restarted and is back, so the restart is no longer
+            // what is missing. Another try sends the configuration again.
+            seedEngine.forgetAppliedRestore()
+        }
         job = .confirming
         // The Mac's read after a reboot is unreliable, so it no longer decides
         // the run. It settles the phone and tunes the wording, and the person
@@ -918,7 +969,7 @@ class WizardModel: ObservableObject {
     }
 
     /// What the iPhone says about its activation and Setup Assistant after a
-    /// fast run under `--debug-fast-ios27`, for the log alone. The demo and
+    /// fast run under `--debug-fast-any-ios`, for the log alone. The demo and
     /// the tests run an engine that runs nothing, so nothing is read there.
     func readSetupState(udid: String) async -> String {
         guard engine.canRunHelper else { return "setup state not read" }
@@ -942,6 +993,23 @@ class WizardModel: ObservableObject {
         seedOperationRun == run && seedEngine.restoreApplied && seedEngine.restoredUDID == udid
     }
 
+    /// True while a restore on iOS 27 or later still owes its live step on
+    /// this iPhone. A restart is no part of that path, and neither is a second
+    /// restore.
+    ///
+    /// The engine holds it and no run does: Cancel, and the iPhone leaving
+    /// the cable for its restart, forget the run, and the iPhone still waits
+    /// for the setting. It ends when the setting went through, when a run on
+    /// another iPhone starts, or with the app.
+    private var owesLiveConfiguration: Bool {
+        udid != nil && seedEngine.liveConfigurationOwed && seedEngine.restoredUDID == udid
+    }
+
+    /// The phase the wait for the iPhone runs under.
+    private var restartWaitPhase: JobPhase {
+        owesLiveConfiguration ? .awaitingLiveConfiguration : .restarting
+    }
+
     /// The phase relay belongs only to this operation and this run.
     func sendSeedConfiguration(restartingOnly: Bool) async throws {
         guard let udid else { return }
@@ -956,6 +1024,8 @@ class WizardModel: ObservableObject {
             case .preparing: self.job = .preparing
             case .restoring: self.job = .restoring
             case .restarting, .done: self.job = .restarting
+            case .awaitingLiveConfiguration: self.job = .awaitingLiveConfiguration
+            case .applyingLiveConfiguration: self.job = .applyingLiveConfiguration
             case .idle, .cancelled, .failed: break
             }
         }
@@ -980,6 +1050,27 @@ class WizardModel: ObservableObject {
         }
         guard self.run == run, self.jobGeneration == generation, self.udid == udid else { return }
         restore.stage = .waitingForPhone
+    }
+
+    /// Send the supervision setting live, the step a restore on iOS 27 or
+    /// later owes once the iPhone is back and paired. It is that step alone:
+    /// nothing is restored and nothing is restarted.
+    func applyLiveConfiguration() async throws {
+        guard let udid else { return }
+        let run = self.run
+        let generation = jobGeneration
+        job = .applyingLiveConfiguration
+        do {
+            // A run that was just stopped can still have a read of the iPhone
+            // out, and the engine runs one operation at a time.
+            while seedEngine.running {
+                try await Task.sleep(for: Self.seedIdleInterval)
+            }
+            try await seedEngine.applyLiveConfiguration(udid: udid, supervised: supervises)
+        } catch {
+            if self.run == run, self.jobGeneration == generation, self.udid == udid { restore.stage = .ready }
+            throw error
+        }
     }
 
     /// What a piece of the job that went wrong leaves on screen.
@@ -1070,6 +1161,22 @@ class WizardModel: ObservableObject {
     /// the iPhone said.
     var restartHint: String {
         JobPhase.restartHint(pairing: phoneLeftForRestart ? device?.pairingState : nil)
+    }
+
+    /// The one thing missing once the iPhone is back on the cable in the
+    /// wait of a run on iOS 27 or later. Nil while it is away, where the
+    /// steps on screen already say all of it.
+    var restoreCompletedHint: String? {
+        guard phoneLeftForRestart, let pairing = device?.pairingState else { return nil }
+        return JobPhase.restartHint(pairing: pairing)
+    }
+
+    /// What the job screen says about Continue on the Restore Completed
+    /// screen under `phase`, `JobPhase.restoreCompletedLine`.
+    func restoreCompletedLine(for phase: JobPhase) -> String? {
+        JobPhase.restoreCompletedLine(
+            for: phase, owed: owesLiveConfiguration, applied: liveConfigurationApplied
+        )
     }
 
     /// Ask the iPhone what it is now, every five seconds for three minutes,

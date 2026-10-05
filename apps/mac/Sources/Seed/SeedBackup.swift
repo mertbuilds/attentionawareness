@@ -99,6 +99,13 @@ enum SeedBackup {
     /// random inode. The setup file gets the next inode with wrapping addition,
     /// so even UInt64.max produces two distinct file inodes.
     ///
+    /// In the live mode the folder holds the supervision domain alone: no
+    /// setup records and no setup file. That restore removes the items it
+    /// does not restore, and a seed with this one domain kept all data on
+    /// iOS 27.2 in the device runs on 2026-10-05. A seed that also held the
+    /// setup file kept the data too in one run, and iPhone still stopped on
+    /// Restore Completed (`IOSSupport`).
+    ///
     /// The folder has to be new. A folder that is already there is not one
     /// this write made, so it is refused and never cleared. A write that
     /// fails part way takes its own folder away again.
@@ -107,6 +114,7 @@ enum SeedBackup {
         in root: URL,
         udid: String,
         content: Data,
+        mode: SeedMode = .restored,
         date: Date = Date(),
         inode: UInt64 = .random(in: .min ... .max)
     ) throws -> URL {
@@ -118,6 +126,7 @@ enum SeedBackup {
         guard !FileManager.default.fileExists(atPath: folder.path) else {
             throw SeedError.folderInTheWay(folder)
         }
+        let holdsSetup = mode.settings.setupFile
         let setupContent = try plist(setupConfiguration)
         let setupRecords: [MbdbRecord] = [
             .directory(domain: setupDomain, path: "", owner: owner, group: group, date: date),
@@ -127,15 +136,16 @@ enum SeedBackup {
                 owner: owner, group: group, inode: inode &+ 1, date: date
             ),
         ]
-        let manifestRecords = records(content: content, date: date, inode: inode) + setupRecords
-        let files = [
+        var manifestRecords = records(content: content, date: date, inode: inode)
+        if holdsSetup { manifestRecords += setupRecords }
+        var files = [
             contentFileName: content,
-            setupFileName: setupContent,
             Mbdb.fileName: try Mbdb.data(records: manifestRecords),
             BackupStatus.fileName: try plist(status),
             manifestPlistName: try plist(manifest),
             infoPlistName: try plist([String: Any]()),
         ]
+        if holdsSetup { files[setupFileName] = setupContent }
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         do {
             for (name, data) in files {

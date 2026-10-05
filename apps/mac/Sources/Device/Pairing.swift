@@ -28,6 +28,7 @@ enum DeviceLog {
         case .requestFailed(let request, let code): return "requestFailed \(request) \(code)"
         case .unexpectedResponse(let request): return "unexpectedResponse \(request)"
         case .requestRefused(let request, _): return "requestRefused \(request)"
+        case .requestNotBuilt(let request, _): return "requestNotBuilt \(request)"
         case .profileRejected: return "profileRejected"
         case .pairRecordRejected: return "pairRecordRejected"
         case .trustUnseen: return "trustUnseen"
