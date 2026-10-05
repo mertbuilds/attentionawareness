@@ -9,8 +9,7 @@ enum SeedError: LocalizedError, Equatable {
     /// The UDID names something other than one folder directly inside the root.
     case notAFolderName(String)
     /// The folder the seed backup goes in is already there. Nothing is written
-    /// into a folder this layer did not make, because the full copy of the
-    /// same iPhone is named the same way.
+    /// into a folder this layer did not make.
     case folderInTheWay(URL)
 
     var errorDescription: String? {

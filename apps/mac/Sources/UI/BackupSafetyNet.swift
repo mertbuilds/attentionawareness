@@ -3,11 +3,8 @@ import Foundation
 /// Whether the person at the keyboard already has a copy of the iPhone that
 /// has nothing to do with the app.
 ///
-/// The backup the app makes is scaffolding. It goes up for one run and comes
-/// down the moment the run is confirmed, so it is gone by the time anyone
-/// would want it back. That is the right shape for a tool that promises to
-/// leave nothing behind, and it means the real way back has to be the reader's
-/// own. This is where the checks find out whether they have one.
+/// The app keeps no copy of the iPhone, so the way back has to be the
+/// reader's own. This is where the checks find out whether they have one.
 ///
 /// Two places are asked. The iPhone says whether it backs itself up to iCloud
 /// and when it last finished one, which costs nothing and needs no permission.
@@ -25,9 +22,8 @@ import Foundation
 enum BackupSafetyNet {
     // MARK: - What the reader is told before every run
 
-    /// What the checks say before a run of either method can start. The app
-    /// takes its own copy away at the end of the run, and the fast method
-    /// makes none, so the way back is the reader's own backup and nothing
+    /// What the checks say before a run can start. The app makes no copy of
+    /// the iPhone, so the way back is the reader's own backup and nothing
     /// else.
     static let notice = """
         Back up your iPhone first, with Finder or iCloud. The app does not erase your iPhone, \
@@ -343,10 +339,7 @@ enum BackupSafetyNet {
         return Row(
             standing: .covered,
             line: "iPhone was backed up \(age(of: best.date, now: now, calendar: calendar))",
-            help: """
-                \(best.place.hasOne) That backup is yours. The copy the app makes is deleted \
-                when the run is confirmed.
-                """
+            help: "\(best.place.hasOne) That backup is yours. The app keeps no copy of iPhone."
         )
     }
 
@@ -387,7 +380,7 @@ enum BackupSafetyNet {
     ///
     /// Finder keeps the live backup in a folder named after the iPhone, and
     /// every backup the reader archived beside it, named after the iPhone and
-    /// the moment it was archived (see `BackupFolder.isArchive`). An archive
+    /// the moment it was archived (see `isArchive`). An archive
     /// is a whole backup of the same iPhone, so it is a way back too.
     ///
     /// This is the only thing in this file that touches the disk, and it reads
@@ -400,7 +393,7 @@ enum BackupSafetyNet {
     /// way back, because under-claiming is the safe direction to be wrong in.
     static func finderBackup(
         of udid: String,
-        in root: URL = BackupFolder.mobileSyncRoot
+        in root: URL = mobileSyncRoot
     ) -> Finder {
         // A UDID names folders directly inside that folder and nothing else,
         // so a name that could climb out of it is refused before a path is
@@ -419,7 +412,7 @@ enum BackupSafetyNet {
             return .nothingHere
         }
         let backups = names
-            .filter { $0 == udid || BackupFolder.isArchive(named: $0, of: udid) }
+            .filter { $0 == udid || isArchive(named: $0, of: udid) }
             .map { finishedBackup(at: root.appendingPathComponent($0)) }
         return newest(of: backups)
     }
@@ -443,6 +436,27 @@ enum BackupSafetyNet {
             return .nothingHere
         }
         return .made(status["Date"] as? Date)
+    }
+
+    /// Where Finder keeps its backups on this Mac.
+    static var mobileSyncRoot: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support/MobileSync/Backup")
+    }
+
+    /// True for the name Finder gives a dated copy of one iPhone's backup:
+    /// the udid, then the date and the time, `<udid>-YYYYMMDD-HHMMSS`.
+    static func isArchive(named name: String, of udid: String) -> Bool {
+        let prefix = "\(udid)-"
+        guard name.hasPrefix(prefix) else { return false }
+        let suffix = name.dropFirst(prefix.count).split(separator: "-", omittingEmptySubsequences: false)
+        return suffix.count == 2 && isDigits(suffix[0], count: 8) && isDigits(suffix[1], count: 6)
+    }
+
+    /// Exactly `count` of 0 to 9 and nothing else. `isNumber` alone also takes
+    /// other scripts' digits, fractions and numerals, which Finder never writes.
+    private static func isDigits(_ part: Substring, count: Int) -> Bool {
+        part.count == count && part.allSatisfy { $0.isASCII && $0.isNumber }
     }
 
     private static func plist(at url: URL) -> [String: Any]? {

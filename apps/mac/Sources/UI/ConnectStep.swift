@@ -6,12 +6,18 @@ import SwiftUI
 /// With one phone there is nothing to choose, so it is the plain card. With
 /// more than one it is a list of every phone on the cable, and the row the
 /// user picks is the iPhone the whole run is about.
+///
+/// An iPhone the app does not supervise, iOS 27 and later or one whose
+/// version could not be read, gets the manual guide here in place of
+/// Continue, so no run can start on it.
 struct ConnectStep: View {
     @ObservedObject var model: WizardModel
 
+    @Environment(\.openURL) private var openURL
+
     var body: some View {
         StepLayout(
-            title: WizardStep.connect.title,
+            title: refusal?.title ?? WizardStep.connect.title,
             lead: lead,
             error: model.watcher.lastError
         ) {
@@ -19,6 +25,12 @@ struct ConnectStep: View {
         } actions: {
             actions
         }
+    }
+
+    /// Why the iPhone picked here gets the manual guide, or nil when it does
+    /// not.
+    private var refusal: IOSSupport.Refusal? {
+        model.showsManualGuide ? model.iosRefusal : nil
     }
 
     @ViewBuilder
@@ -40,6 +52,11 @@ struct ConnectStep: View {
             ProgressView()
                 .controlSize(.small)
         }
+        if let refusal {
+            Text(refusal.guide)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 
     @ViewBuilder
@@ -50,6 +67,15 @@ struct ConnectStep: View {
             if model.offersManageRestrictions {
                 Button("Manage Restrictions") {
                     model.manageRestrictions()
+                }
+            } else if model.readsSupervisionFirst {
+                // Whether it is supervised decides between the guide and
+                // Manage Restrictions, and the next read says.
+                ProgressView()
+                    .controlSize(.small)
+            } else if refusal != nil {
+                PrimaryButton(title: "Open the Guide") {
+                    if let url = SiteLink.guide { openURL(url) }
                 }
             } else {
                 // Continue only moves to the checks, which send nothing to

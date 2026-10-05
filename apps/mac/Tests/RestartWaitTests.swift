@@ -9,13 +9,12 @@ import Testing
 /// disconnect is ever heard, so the wait has to ask on its own.
 @MainActor
 struct RestartWaitTests {
-    @Test(arguments: [SupervisionMethod.seed, .fullCopy])
-    func aLockedPhoneHoldsTheWaitUntilItIsUnlocked(_ method: SupervisionMethod) async {
+    @Test func aLockedPhoneHoldsTheWaitUntilItIsUnlocked() async {
         let bus = Bus(.back())
         let model = makeModel(bus)
         model.reboot = 2
         model.onSent = { bus.show(.back(.locked)) }
-        start(model, method)
+        start(model)
         #expect(await waitUntil { model.restartHint == "Unlock iPhone." })
         #expect(model.job == .restarting)
         // The read from before the restart said the iPhone was here, and it
@@ -33,7 +32,7 @@ struct RestartWaitTests {
         let model = makeModel(bus)
         model.reboot = 2
         model.onSent = { bus.show(.back(.trustPending)) }
-        start(model, .seed)
+        start(model)
         #expect(await waitUntil { model.restartHint == "Tap Trust on iPhone." })
         #expect(model.job == .restarting)
         bus.show(.back(supervised: true))
@@ -51,7 +50,7 @@ struct RestartWaitTests {
             bus.holdNextRead(returning: .unread)
             bus.show(.unread)
         }
-        start(model, .seed)
+        start(model)
         #expect(await waitUntil { bus.reads >= 4 })
         #expect(model.job == .restarting)
         #expect(model.restartHint == "When it is back, unlock it with your passcode. It then asks to trust this Mac again: tap Trust.")
@@ -73,7 +72,7 @@ struct RestartWaitTests {
         )
         model.reboot = 2
         model.onSent = { phone.restart() }
-        start(model, .seed)
+        start(model)
         #expect(await waitUntil { phone.restarted && model.restartHint.hasPrefix("When it is back") })
         phone.comeBack()
         #expect(await waitUntil { model.restartHint == "Unlock iPhone." })
@@ -87,12 +86,11 @@ struct RestartWaitTests {
         #expect(model.sends == 1)
     }
 
-    @Test(arguments: [SupervisionMethod.seed, .fullCopy])
-    func aPhoneThatNeverComesBackEndsInCheckAgain(_ method: SupervisionMethod) async {
+    @Test func aPhoneThatNeverComesBackEndsInCheckAgain() async {
         let bus = Bus(.back())
         let model = makeModel(bus)
         model.onSent = { bus.show(.away) }
-        start(model, method)
+        start(model)
         #expect(await waitUntil { model.job == .phoneGone })
         #expect(JobPhase.phoneGone.headline == "iPhone Didn't Reconnect")
         // Check Again reads for a while and comes back to the same screen.
@@ -102,12 +100,11 @@ struct RestartWaitTests {
         #expect(model.sends == 1)
     }
 
-    @Test(arguments: [SupervisionMethod.seed, .fullCopy])
-    func checkAgainGoesOnWithoutSendingOrRestartingAgain(_ method: SupervisionMethod) async {
+    @Test func checkAgainGoesOnWithoutSendingOrRestartingAgain() async {
         let bus = Bus(.back())
         let model = makeModel(bus)
         model.onSent = { bus.show(.away) }
-        start(model, method)
+        start(model)
         #expect(await waitUntil { model.job == .phoneGone })
         bus.show(.back(supervised: true))
         model.checkPhoneAgain()
@@ -130,7 +127,7 @@ struct RestartWaitTests {
         let model = makeModel(bus, seedEngine: engine)
         model.useSeedEngine = true
         model.onSent = { bus.show(.away) }
-        start(model, .seed)
+        start(model)
         #expect(await waitUntil { model.job == .phoneGone })
         bus.show(.back(supervised: true))
         model.checkPhoneAgain()
@@ -210,11 +207,8 @@ struct RestartWaitTests {
         )
     }
 
-    private func start(_ model: WaitingModel, _ method: SupervisionMethod) {
-        model.show(WizardModel.Sample(
-            step: .ready, supervisionMethod: method, backupConfirmed: true, udid: "phone"
-        ))
-        model.password = "pw"
+    private func start(_ model: WaitingModel) {
+        model.show(WizardModel.Sample(step: .ready, backupConfirmed: true, udid: "phone"))
         model.startJob()
     }
 
@@ -242,19 +236,11 @@ struct RestartWaitTests {
         /// reads the screen before it does.
         var reboot: TimeInterval = 0.4
 
-        override func rebootTimeout(for method: SupervisionMethod) -> TimeInterval { reboot }
+        override var rebootTimeout: TimeInterval { reboot }
         override var restartPollInterval: Duration { .milliseconds(10) }
         override var checkAgainTimeout: TimeInterval { 0.2 }
-        override var diskSpace: DiskSpace { DiskSpace(needed: 100, free: 1_000, assumed: false) }
         override func readFinderBackup(of udid: String) async -> BackupSafetyNet.Finder { .nothingHere }
-        override func removeBackup(of udid: String) async -> BackupRemoval { .nothingThere }
         override func readDeviceIOSVersion(udid: String) async throws -> String? { "26.0" }
-        override func copyTheIPhone() async throws {}
-        override func markTheCopy() async throws {}
-        override func sendTheCopyBack() async throws {
-            sends += 1
-            onSent()
-        }
         override func sendSeedConfiguration(restartingOnly: Bool) async throws {
             sends += 1
             if useSeedEngine { try await super.sendSeedConfiguration(restartingOnly: restartingOnly) }

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Choose the supervision method and check what it needs before starting.
+/// Check what the run needs before starting.
 ///
 /// Every row says the one thing to do about it and nothing more. The longer
 /// how-to sits in the hover help, so a reader with nothing to fix reads a few
@@ -11,38 +11,20 @@ struct ReadyStep: View {
     var body: some View {
         StepLayout(
             title: WizardStep.ready.title,
+            lead: Self.whatHappens,
             error: model.errorMessage
         ) {
             VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 6) {
-                    SectionHeading("Method")
-                    Picker("Supervision method", selection: Binding(
-                        get: { model.supervisionMethod },
-                        set: { model.selectSupervisionMethod($0) }
-                    )) {
-                        Text(methodLabel(.fullCopy)).tag(SupervisionMethod.fullCopy)
-                        Text(methodLabel(.seed)).tag(SupervisionMethod.seed)
-                    }
-                    // The heading names it on screen. VoiceOver still reads
-                    // the picker's own title.
-                    .labelsHidden()
-                    .fixedSize()
-                    .disabled(model.fastRefusal != nil && model.requiresFullCopy)
-                    if let refusal = model.fastRefusal {
-                        secondary(refusal)
-                    }
-                    if !model.requiresFullCopy {
-                        secondary(Self.fastWarning)
-                    }
-                }
-                VStack(alignment: .leading, spacing: 6) {
                     SectionHeading("Checks")
                     findMyRow
-                    if model.requiresFullCopy { spaceRow }
-                    backupRow
-                    if model.clearedLeftoverBackup {
-                        CheckLine(ok: true, text: "Leftover from an unfinished run was cleared.")
+                    // Connect sends an iPhone the app does not run on to the
+                    // guide, so this only shows when the version changed or
+                    // went unread after that.
+                    if let refusal = model.iosRefusal {
+                        CheckLine(ok: false, text: refusal.message)
                     }
+                    backupRow
                 }
                 VStack(alignment: .leading, spacing: 6) {
                     SectionHeading("Backup")
@@ -52,12 +34,8 @@ struct ReadyStep: View {
                         get: { model.backupConfirmed },
                         set: { model.confirmBackup($0) }
                     ))
-                    if model.requiresFullCopy { BackupPasswordField(model: model) }
                 }
                 VStack(alignment: .leading, spacing: 6) {
-                    if model.requiresFullCopy {
-                        secondary(TransferRate.howLong(.backup, bytes: model.backupBytes))
-                    }
                     Text(SupervisionFinishedEvent.disclosure)
                         .font(.callout)
                         .foregroundStyle(.secondary)
@@ -76,20 +54,8 @@ struct ReadyStep: View {
         }
     }
 
-    /// A line of secondary text under a group, wrapped rather than cut.
-    private func secondary(_ text: String) -> some View {
-        Text(text)
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
-    }
-
-    /// A method's name with its tag, for the iPhone this run is about.
-    private func methodLabel(_ method: SupervisionMethod) -> String {
-        SupervisionMethod.label(of: method, iosVersion: model.device?.iosVersion)
-    }
-
-    /// What the fast method is, said while it is the one picked.
-    static let fastWarning = "Fast restores a small configuration and restarts iPhone."
+    /// What the run does, in one line under the title.
+    static let whatHappens = "The app sends a small configuration to iPhone, then restarts it."
 
     /// What the run is called, which the button says and nothing else does.
     private var verb: String { "Supervise" }
@@ -123,26 +89,10 @@ struct ReadyStep: View {
         }
     }
 
-    /// A row that blocks on its own, the way Find My does. The figure is what
-    /// is missing rather than what the copy needs, because that is the number
-    /// a person acts on.
-    private var spaceRow: CheckLine {
-        let space = model.diskSpace
-        switch space.passes {
-        case true:
-            return CheckLine(ok: true, text: "Enough space on this Mac")
-        case false:
-            let missing = space.needed - (space.free ?? 0)
-            return CheckLine(ok: false, text: "Free up about \(WizardStyle.size(missing)) on this Mac.")
-        case nil:
-            return CheckLine(ok: false, text: "Couldn't read free space on this Mac.")
-        }
-    }
-
     /// Whether the reader already has a backup of their own, which is the one
-    /// thing worth having before an app copies a phone. It never blocks: the
-    /// copy the app makes comes down at the end of the run, so the way back
-    /// has to be theirs, but somebody who knows that is allowed to go on.
+    /// thing worth having before an app changes a phone. It never blocks: the
+    /// app keeps no copy of the iPhone, so the way back has to be theirs, but
+    /// somebody who knows that is allowed to go on.
     ///
     /// While Finder's folder is refused the row asks for Full Disk Access, and
     /// the button beside it is the whole of what an app can do about that:

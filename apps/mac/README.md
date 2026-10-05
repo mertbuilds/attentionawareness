@@ -1,48 +1,70 @@
 # attention awareness for Mac
 
 Native macOS app (SwiftUI, macOS 14+) that supervises a connected iPhone and
-installs restrictions over USB. There are two methods:
+installs restrictions over USB. It has one method, the fast one: it restores a
+small configuration backup and restarts the iPhone. Which iPhones get a run:
 
-| iOS on the iPhone | Full copy | Fast |
-| --- | --- | --- |
-| 26 and earlier | yes | yes, the default, "Fast (recommended)" |
-| 27 and later | yes, the default | no, shown as "Fast (experimental)" |
-| missing or unreadable version | yes, the default | no, shown as "Fast (experimental)" |
+| iOS on the iPhone | What the app does |
+| --- | --- |
+| 26 and earlier | runs the fast method |
+| 27 and later | no run: Connect shows "iOS 27 Is Not Supported Yet" and opens the manual guide |
+| missing or unreadable version | no run: Connect shows "Couldn't Read the iOS Version" and opens the same guide |
 
-The full copy backs up the iPhone, patches the copy and restores it. It is
-not held to a version. The fast method restores a small configuration backup
-and restarts the iPhone. On iOS 26 and earlier it is the default, with no
-lower limit in the code. On iOS 27 and later, and when the iPhone gives no
-version, the full copy is the default and fast is shown as experimental but
-cannot be picked, because the seed restore refuses those versions (see
-`--seed` below). The rule is `SupervisionMethod` in
-`Sources/Seed/SupervisionMethod.swift`. The default follows the version the
-iPhone reports until the person picks a method by hand, and that pick is kept
-for that iPhone.
+The rule is `IOSSupport` in `Sources/Seed/IOSSupport.swift`: the first number
+of the version, compared as a number, 26 or below runs. A version that is
+missing or does not read is never taken for an earlier one, because a run on iOS
+27 can erase the iPhone. In place of Continue, Connect says why and has one
+button, Open the Guide, which opens the manual guide with Apple Configurator
+on the site (`SiteLink.guide`,
+`https://attentionawareness.com/guide?utm_source=mac-app&utm_medium=referral&utm_campaign=ios27_guide`).
+That way erases the iPhone, and the screen says so. The screen follows the
+iPhone Connect has picked: another iPhone on iOS 26 brings Continue back. An
+iPhone on iOS 27 that is already supervised, by Apple Configurator for
+example, still gets Manage Restrictions, because the restrictions profile does
+not care how the iPhone got supervised, and that path runs no restore.
+
+Behind the screen, two guards refuse the restore on iOS 27 and on an unknown
+version, each from a fresh read of the iPhone: `WizardModel` before the job
+(`verifyFastSupportsIOS`) and `SeedEngine` before it reads the configuration
+and again right before the restore (`gate`). `WizardModel.start()` and
+`startJob()` refuse the run as well.
+
+Why iOS 27 gets no run: on 2026-10-05 an iPhone SE on iOS 27.2 went through
+both methods the app had then. The fast restore finished with no error, and
+the iPhone came back erased and not supervised. The full copy (back up the
+whole iPhone, patch the copy, restore it) also finished with no error, and the
+iPhone also came back erased and not supervised. So no method worked on iOS
+27, and the full copy was taken out of the app. This matches
+[Apple's managed-device restore documentation](https://support.apple.com/guide/deployment/restore-managed-apple-devices-depd44f04xc4/1/web/1.0)
+and [Nugget's iOS 27 data-loss warning](https://github.com/leminlimez/Nugget#readme).
+On iOS 26 and earlier the fast method supervises a real iPhone, and the app
+finds it again after the restart.
 
 Back up the iPhone first, with Finder or iCloud. The app does not erase the
 iPhone, but things can go wrong, and that backup is the way back. We are not
 responsible for lost data. The Ready screen says so, and Supervise stays off
-for both methods until the person ticks "I backed up my iPhone".
+until the person ticks "I backed up my iPhone".
 
-The fast method uses an isolated temporary seed folder, never the full-copy
-backup folder, and it makes no backup of its own. The first test on an iPhone
-SE running iOS 26.6.2 applied supervision but reopened Setup Assistant and
-redownloaded photos from iCloud. The seed now includes Nugget's setup-screen
-skip list and managed setup-completion preferences. The hardware retest of
-this correction, on the owner's iPhone on 2026-10-04 with app version 0.4.2,
-went through: the iPhone came back supervised with its data kept. One fault
-showed, in the app and not in the method: the wait after the restart did not
-find the iPhone again until the cable was pulled and put back. The restore
-resets the iPhone's pairing records, so after the restart it refuses this
-Mac's pair record (InvalidHostID). macOS pairs again only when the iPhone is
-plugged in, and right after the restart that is while it is still locked, so
-nothing paired again until the cable was pulled. 0.4.3 pairs again itself
-(see the wait below). Since that run went through, fast is the default below
-iOS 27. iOS 27 is not tested, and unit tests do not establish that local data
-survives a restore.
+The fast method uses an isolated temporary seed folder and makes no backup of
+its own. At launch the app moves the copy of iPhone that 0.4.0 to 0.4.2 kept
+under `~/Library/Application Support/attention awareness/Backups` to the Trash,
+never deletes it, and removes the two `transferRate.*` defaults
+(`OldBackupCopy`). The first test on an iPhone SE
+running iOS 26.6.2 applied supervision but reopened Setup Assistant and
+redownloaded photos from iCloud.
+The seed now includes Nugget's setup-screen skip list and managed
+setup-completion preferences. The hardware retest of this correction, on the
+owner's iPhone on 2026-10-04 with app version 0.4.2, went through: the iPhone
+came back supervised with its data kept. One fault showed, in the app and not
+in the method: the wait after the restart did not find the iPhone again until
+the cable was pulled and put back. The restore resets the iPhone's pairing
+records, so after the restart it refuses this Mac's pair record
+(InvalidHostID). macOS pairs again only when the iPhone is plugged in, and
+right after the restart that is while it is still locked, so nothing paired
+again until the cable was pulled. 0.4.3 pairs again itself (see the wait
+below). Unit tests do not establish that local data survives a restore.
 
-After the restart, for both methods, the job reads the iPhone every two
+After the restart, the job reads the iPhone every two
 seconds on its own and waits on no connect or disconnect, because a restarted
 iPhone is back on the cable before it answers. It only counts a read made
 after one that missed the iPhone, so the answer from before the restart ends
@@ -71,8 +93,7 @@ Outside the job and Ready, the wizard reads the cable every 2.5 seconds while
 an iPhone on it is locked, waits for Trust or could not be read, because an
 unlock sends no event, and reads nothing while every iPhone is paired.
 
-After 5 minutes for the fast method and 15 for the full copy the screen
-becomes "iPhone Didn't Reconnect" with Check Again, and the reading goes on
+After 5 minutes the screen becomes "iPhone Didn't Reconnect" with Check Again, and the reading goes on
 underneath. Check Again reads the iPhone and nothing else: it sends no
 configuration and restarts nothing.
 
@@ -83,19 +104,24 @@ the iPhone, and a replug lets macOS pair again.
 
 A Debug build also takes `--debug-unsupervise`, for running the supervise
 flow many times on one iPhone without erasing it. The run is the usual one,
-with either method, but the flag it writes takes supervision off, so it
+but the flag it writes takes supervision off, so it
 starts on a supervised iPhone, ends once the iPhone says it is not
 supervised, skips the Restrictions step and sends no count. The window says
 so over every step. The next launch without the flag supervises again.
+
+A Debug build also takes `--debug-fast-ios27`, for testing the fast method
+on an empty test iPhone with iOS 27 or later, or one that gives no version.
+There the restore is expected to erase the iPhone. Connect then skips the
+guide screen and offers Continue, and the run goes past both version guards.
+Below iOS 27 nothing changes. The window shows a red line over every step,
+and the launch says so in Terminal and in the log. It combines with
+`--debug-unsupervise`. A Release build has none of the three debug flags.
 
 The device layer writes every read's outcome to the Mac's log under the
 subsystem `com.attentionawareness.mac`, category `device`: pairing states,
 lockdown error codes, and the restart wait's steps, never a udid or a device
 name. To read a run back:
 `/usr/bin/log show --last 30m --info --predicate 'subsystem == "com.attentionawareness.mac"'`.
-
-The full copy's patch logic was ported from a Python tool that did the same
-thing by hand; that tool is retired and is not in this repo.
 
 The app is free. There is no license key, no price and no account. People who
 want to can support the work on a pay-what-you-want page, and the last screen
@@ -109,20 +135,17 @@ The app is open source under the GNU Affero General Public License, version 3
 licenses, is in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 The window is the wizard: Connect, Ready, Supervising, Restrictions, Done, one
-screen at a time. Both methods run on the Supervising screen; full-copy also
-copies and patches there.
+screen at a time. The fast method runs on the Supervising screen.
 
 Unplugging the iPhone a run is about takes the window back to Connect from
-any step, and unplugging any other iPhone changes nothing. A copy in progress
-is cancelled the way Cancel cancels it, and the window goes back once the
-helper has stopped. The one stretch left out is the restore: it reboots the
-iPhone, so the phone leaving the cable is part of the job, which waits for it
-to come back, and a restore that stopped part way keeps its screen, its copy
-and its Try Again, because a new run would clear that copy first. Once the
-restore is through, unplugging goes back to Connect again, so Check on iPhone
-and the Restrictions guide both ask to keep iPhone connected. The last screen
-stays up while it names a backup folder that would not go, because it is the
-one place that folder is named.
+any step, and unplugging any other iPhone changes nothing. A helper that still
+has the iPhone is cancelled the way Cancel cancels it, and the window goes
+back once it has stopped. The one stretch left out is the restore: the run
+restarts the iPhone, so the phone leaving the cable is part of the job, which
+waits for it to come back, and a restore that stopped part way keeps its
+screen and its Try Again. Once the iPhone is back, unplugging goes back to
+Connect again, so Check on iPhone and the Restrictions guide both ask to keep
+iPhone connected.
 
 ## What the app sends
 
@@ -140,8 +163,8 @@ site's own proxy in front of its PostHog project, with this body:
   "event": "supervision_finished",
   "distinct_id": "<a new random UUID for every event>",
   "properties": {
-    "app_version": "0.4.0",
-    "method": "full_copy",
+    "app_version": "0.4.3",
+    "method": "fast",
     "ios_major": 26,
     "macos_major": 15,
     "$process_person_profile": false,
@@ -150,8 +173,10 @@ site's own proxy in front of its PostHog project, with this body:
 }
 ```
 
-- `method` is `full_copy` or `fast`. `ios_major` is the first number of the
-  iOS version, and it is left out when the iPhone gave no version.
+- `method` is always `fast`, the one method the app has. Versions before
+  0.4.3 also sent `full_copy`; the key stays so the counts read the same.
+  `ios_major` is the first number of the iOS version, and it is left out when
+  the iPhone gave no version.
 - `distinct_id` is made new for each event and is not stored, so two counts
   cannot be tied to each other or to a person. `api_key` is the public key
   the website ships to every browser.
@@ -165,7 +190,7 @@ site's own proxy in front of its PostHog project, with this body:
   PostHog project ("IP data capture"), not something the app controls. It is
   set to discard, so the count holds no address.
 - The request has three headers of its own: `Content-Type: application/json`,
-  `User-Agent: attentionawareness-mac/0.4.0` (the app version, in place of the
+  `User-Agent: attentionawareness-mac/0.4.3` (the app version, in place of the
   one macOS would write, which names the Darwin build) and
   `Accept-Language: en` (in place of the languages this Mac is set to).
 - The request has a timeout of 5 seconds and is never sent again. A failure is
@@ -223,14 +248,11 @@ quick check without opening a window:
 
 It prints the number of connected iPhones and exits. `--probe` goes further and
 prints everything `Sources/Device/` reads from each connected iPhone as JSON,
-which is how the device layer is checked without the window. `--backup <udid>
-<root>` and `--restore <udid> <root>` run the backup engine from a terminal.
+which is how the device layer is checked without the window.
 
-`--restore` and `--seed` change the connected iPhone the way the window does,
-and they do not ask first. Back up the iPhone with Finder or iCloud before you
-use one. That backup is the way back, and we are not responsible for lost
-data. `--backup` only copies the iPhone. `--patch` changes a backup folder on
-this Mac and reaches no iPhone; it keeps an untouched copy and prints where.
+`--seed` changes the connected iPhone the way the window does, and it does
+not ask first. Back up the iPhone with Finder or iCloud before you use it.
+That backup is the way back, and we are not responsible for lost data.
 
 `--seed <udid>` runs the fast method without a window. It reads the current
 cloud configuration and preserves its other policy keys, checks the live iOS
@@ -240,19 +262,9 @@ temporary root, then runs the bundled
 helper with `restore --system --no-reboot --skip-apps`. Only a successful restore
 is followed by a diagnostics-relay restart. Ctrl+C asks the helper to stop and
 waits for it before removing the temporary seed. If configuration was restored
-but restart fails, restart iPhone before repeating a restore. This flag changes
-the connected phone; the corrected two-payload seed still needs a hardware retest.
-
-The fast method's iOS 27 refusal follows [Apple's managed-device restore documentation](https://support.apple.com/guide/deployment/restore-managed-apple-devices-depd44f04xc4/1/web/1.0)
-and [Nugget's iOS 27 data-loss warning](https://github.com/leminlimez/Nugget#readme).
-There is no version override for the fast method. The full copy has no version
-check: it runs on iOS 27 and later as it did before the fast method existed.
-
-`--patch <backup folder>` loads a backup folder, plans the change, applies it
-and checks it, printing the flag before and after and the folder the untouched
-copy went to, which is how the patch layer is checked against a real backup
-without the wizard. `BACKUP_PASSWORD` carries the password of an encrypted backup. Nothing
-is sent to an iPhone.
+but restart fails, restart iPhone before repeating a restore. `--seed` keeps
+both version guards: it refuses iOS 27 and later and an unknown version. A
+Release build has no version override.
 
 `--ui-smoke` builds every step of the wizard offscreen and prints the size each
 one asks for, so the window can be checked on a Mac whose display is asleep. Add
@@ -263,23 +275,22 @@ when one of them lands on a step other than the one it should.
 
 `--demo` opens the real window on a wizard that reaches no iPhone, no disk and
 no site, with a bar under it for driving the states by hand. Every view is the
-one that ships; only the other end of it changes. A transfer runs in about
-twenty five seconds and reads like the hour it stands for: the bar climbs, the
-estimate says how much longer, and the elapsed time counts the minutes a real
-cable would have taken. The demo bar jumps to any step and sets what the wizard
-finds when it looks: how many iPhones are on the cable, Find My on or off,
-backups encrypted or not, a phone that is already supervised, a profile already
-installed, what this Mac already holds, how the reader's own backups read in
-iCloud and in Finder, Full Disk Access granted, refused, or still refused after
-a trip to System Settings, and whether the next transfer or install succeeds,
-fails or is cancelled. Setting the iPhones to None at any step unplugs the one
-the run is about, and going from Two to One unplugs the other one.
+one that ships; only the other end of it changes. A job runs in about fifteen
+seconds: the restore with its bar, the restart and the question at the end.
+The demo bar jumps to any step and sets what the wizard finds when it looks:
+how many iPhones are on the cable, the iOS version (26, 27 or one that does
+not read, which shows the guide screen on Connect), Find My on or off, a phone
+that is already supervised, a profile already installed, how the reader's own
+backups read in iCloud and in Finder, Full Disk Access granted, refused, or
+still refused after a trip to System Settings, and whether the next restore or
+install succeeds, fails or is cancelled. Setting the iPhones to None at any
+step unplugs the one the run is about, and going from Two to One unplugs the
+other one.
 
 Nothing real is in reach of it. The demo is built on a watcher that reads no
-bus, an engine that refuses to start the helper and a backups list that reads
-and deletes nothing, and every method that would patch a backup, ask the site
-for a signature or send anything to a phone is replaced by one that waits a
-moment and says what the bar asked for. It writes nothing anywhere, and it is
+bus and an engine that refuses to start the helper, and every method that
+would ask the site for a signature or send anything to a phone is replaced by
+one that waits a moment and says what the bar asked for. It writes nothing anywhere, and it is
 the one hidden flag that opens a window. The one thing outside the window it
 can still reach is System Settings, when the Full Disk Access button on the
 Ready screen is pressed, which is left alone so that button can be read the way it
@@ -319,19 +330,22 @@ AA_SITE_URL=https://aa.localhost \
   which is why the tests can run it; `BackupSafetyNet` works out whether the
   reader already has a backup of their own, from what the iPhone says about its
   iCloud backups and from Finder's own folder on this Mac, where the backups
-  the reader archived count as well, and is values for the same reason; `WizardModel` holds one run of the wizard and owns the
-  device watcher, the backup engine and the list of backups on this Mac; the
-  rest is one file per screen, plus `DevicePicker` for choosing between
-  connected iPhones. Errors from
-  the three layers are shown in the step that caused them, never in a modal
-  alert.
+  the reader archived count as well, and is values for the same reason;
+  `WizardModel` holds one run of the wizard and owns the device watcher and the
+  seed engine; the rest is one file per screen, plus `DevicePicker` for
+  choosing between connected iPhones. Connect also draws the guide screen for
+  an iPhone the app does not run on. Errors from the layers are shown in the
+  step that caused them, never in a modal alert.
+- `Sources/Seed/` is the fast method: `IOSSupport` is which iOS versions get a
+  run, `CloudConfigurationEdit`, `SeedBackup` and `Mbdb` write the small seed,
+  and `SeedEngine` reads the iPhone, restores the seed and restarts it.
+  `Sources/Backup/` is `BackupEngine`, which runs the bundled `idevicebackup2`
+  helper for that restore and reads what it prints.
 - Finder's backup folder is the one thing in the app that wants Full Disk
-  Access, and the backup this app makes needs none of it: that one goes under
-  Application Support, which macOS does not protect. macOS also offers no way
-  for an app to ask for the permission, so while the folder is refused and no
-  recent iCloud backup covers the reader, the Ready screen's backup row asks
-  for Full Disk Access in words, with a button that opens the list in System
-  Settings. The app looks again the moment it is back in front. When the
+  Access. The app makes no backup of its own. macOS also offers no way for an
+  app to ask for the permission, so while the folder is refused and no recent
+  iCloud backup covers the reader, the Ready screen's backup row asks for Full
+  Disk Access in words, with a button that opens the list in System Settings. The app looks again the moment it is back in front. When the
   folder is still refused after that trip, the row asks for a reopen instead,
   because macOS can wait for an app to open again before the switch counts,
   and its Reopen button quits the app and opens it again, with Open System
@@ -339,9 +353,9 @@ AA_SITE_URL=https://aa.localhost \
   nothing: the iCloud answer is there either way and every button works the
   same.
 - `Sources/Demo/` is the `--demo` flag and nothing else, and every file of it
-  is behind `#if DEBUG`: `DemoScript` is the timeline a demo transfer runs to
+  is behind `#if DEBUG`: `DemoScript` is the timeline a demo restore runs to
   and `DemoConditions` the switches the bar writes, both plain values the tests
-  run; `DemoWorld` makes the iPhones and backups out of those switches;
+  run; `DemoWorld` makes the iPhones out of those switches;
   `DemoModel` is the wizard with every method that reaches the world replaced;
   `DemoBar` is the bar itself.
 - `Sources/Event/` is the one anonymous count: `SupervisionFinishedEvent` is

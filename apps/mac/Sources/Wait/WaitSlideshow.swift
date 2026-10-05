@@ -3,7 +3,7 @@ import SwiftUI
 
 /// The cost story, played under the bar while iPhone is supervised.
 ///
-/// The job is ten minutes to two hours of nothing to do, so the screen spends
+/// The job is a few minutes of nothing to do, so the screen spends
 /// it on the reason for the job: the site's story of what a day on the screen
 /// costs, one quiet slide at a time, round and round until the job is over.
 /// The bar stays the loud thing on the screen; this is smaller and greyer.

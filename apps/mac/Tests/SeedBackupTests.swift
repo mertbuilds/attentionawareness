@@ -49,9 +49,9 @@ final class SeedBackupTests {
         let folder = try SeedBackup.write(in: root, udid: BackupFixture.udid, content: try Self.supervisedContent())
 
         let stored = try Self.dictionary(at: folder.appendingPathComponent(Self.contentFileName))
-        #expect(SupervisionPatch.boolean(stored["IsSupervised"]) == true)
-        #expect(SupervisionPatch.boolean(stored["CloudConfigurationUIComplete"]) == true)
-        #expect(SupervisionPatch.boolean(stored["ConfigurationWasApplied"]) == true)
+        #expect(CloudConfigurationEdit.boolean(stored["IsSupervised"]) == true)
+        #expect(CloudConfigurationEdit.boolean(stored["CloudConfigurationUIComplete"]) == true)
+        #expect(CloudConfigurationEdit.boolean(stored["ConfigurationWasApplied"]) == true)
     }
 
     @Test func theStatusSaysAFinishedBackupThatIsNotAFullOne() throws {
@@ -85,11 +85,6 @@ final class SeedBackupTests {
             SHA256.hash(data: keybag).map { String(format: "%02x", $0) }.joined()
                 == "66ef3284ba61014d5943f135c258e288128dc01e2d69deb717aa411e45141045"
         )
-        // It is a keybag: a header, then the class keys 1 to 11.
-        let parsed = Keybag(blob: keybag)
-        #expect(parsed.number("VERS") == 5)
-        #expect(parsed.number("ITER") == 10000)
-        #expect(parsed.classKeys.keys.sorted() == Array(1...11))
     }
 
     @Test func theInfoPlistIsAnEmptyDictionary() throws {
@@ -144,11 +139,11 @@ final class SeedBackupTests {
         }
         #expect(SeedBackup.setupFileName == Self.setupFileName)
         let cloud = try Self.dictionary(at: folder.appendingPathComponent(Self.contentFileName))
-        #expect(SupervisionPatch.boolean(cloud["IsSupervised"]) == supervised)
+        #expect(CloudConfigurationEdit.boolean(cloud["IsSupervised"]) == supervised)
         #expect((cloud["SkipSetup"] as? [String])?.contains("RestoreCompleted") == true)
         let setup = try Self.dictionary(at: folder.appendingPathComponent(Self.setupFileName))
         #expect(Set(setup.keys) == ["SetupDone", "SetupFinishedAllSteps", "UserChoseLanguage"])
-        #expect(setup.values.allSatisfy { SupervisionPatch.boolean($0) == true })
+        #expect(setup.values.allSatisfy { CloudConfigurationEdit.boolean($0) == true })
     }
 
     @Test func fileInodesRemainDistinctWhenTheFirstIsUInt64Max() throws {
@@ -171,10 +166,12 @@ final class SeedBackupTests {
     // Refusals
 
     @Test func aFolderThatIsAlreadyThereIsLeftAlone() throws {
-        // The full copy of an iPhone is named by the same UDID, and its
-        // Manifest.plist is the one thing this would write over.
-        let existing = try BackupFixture.makeBackup(in: root)
-        let manifestBefore = try Data(contentsOf: existing.appendingPathComponent(BackupFolder.manifestPlistName))
+        // A folder this write did not make, with a Manifest.plist of its own,
+        // which is the one thing this would write over.
+        let existing = root.appendingPathComponent(BackupFixture.udid)
+        try FileManager.default.createDirectory(at: existing, withIntermediateDirectories: true)
+        let manifestBefore = Data("someone else's manifest".utf8)
+        try manifestBefore.write(to: existing.appendingPathComponent(SeedBackup.manifestPlistName))
 
         let error = try #require(throws: SeedError.self) {
             try SeedBackup.write(in: root, udid: BackupFixture.udid, content: try Self.supervisedContent())
@@ -184,7 +181,7 @@ final class SeedBackupTests {
             return
         }
         #expect(url.path == existing.path)
-        #expect(try Data(contentsOf: existing.appendingPathComponent(BackupFolder.manifestPlistName)) == manifestBefore)
+        #expect(try Data(contentsOf: existing.appendingPathComponent(SeedBackup.manifestPlistName)) == manifestBefore)
         #expect(FileManager.default.fileExists(atPath: existing.appendingPathComponent("Manifest.mbdb").path) == false)
     }
 

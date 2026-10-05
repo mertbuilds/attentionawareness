@@ -1,6 +1,7 @@
 import Foundation
 
-/// The hidden hardware-check flag follows the backup CLI's run-loop pattern.
+/// The hidden `--seed` hardware-check flag: it runs the fast method on the
+/// main run loop and prints each phase.
 enum SeedCommandLine {
     @MainActor
     static func runIfAsked(_ arguments: [String] = CommandLine.arguments) {

@@ -3,68 +3,133 @@ import Testing
 
 @MainActor
 struct SeedWizardTests {
-    @Test func fastIsTheDefaultOnEveryNewRunOfAnIOS26IPhone() {
-        let model = makeModel()
-        // No iPhone picked yet, so no version: the full copy.
-        #expect(model.supervisionMethod == .fullCopy)
-        #expect(WizardModel.Sample().supervisionMethod == .fullCopy)
-        model.start()
-        #expect(model.supervisionMethod == .seed)
-        #expect(!model.requiresFullCopy)
-        model.selectSupervisionMethod(.fullCopy)
-        model.confirmBackup(true)
-        model.back()
-        model.start()
-        #expect(model.supervisionMethod == .seed)
-        #expect(!model.backupConfirmed)
-        model.selectSupervisionMethod(.fullCopy)
-        model.startOver()
-        #expect(model.supervisionMethod == .fullCopy)
-    }
-
-    @Test func theDefaultFollowsTheVersionUntilAMethodIsPickedByHand() {
-        let model = makeModel(version: nil)
-        model.start()
-        #expect(model.supervisionMethod == .fullCopy)
-        model.watcher.show(devices: [phone(version: "26.4.1")])
-        #expect(model.supervisionMethod == .seed)
-        model.watcher.show(devices: [phone(version: "27.0")])
-        #expect(model.supervisionMethod == .fullCopy)
-        model.watcher.show(devices: [phone(version: "26.4.1")])
-        #expect(model.supervisionMethod == .seed)
-        model.selectSupervisionMethod(.fullCopy)
-        model.watcher.show(devices: [phone(version: "26.4.1")])
-        #expect(model.supervisionMethod == .fullCopy)
-    }
-
-    @Test(arguments: [SupervisionMethod.fullCopy, .seed])
-    func aPickByHandSurvivesAReReadOfTheSameIPhone(_ method: SupervisionMethod) {
+    @Test func anIOS26IPhoneGoesFromConnectToReadyToAFastRunWithNoChoice() async throws {
         let model = makeModel(version: "26.4.1")
+        model.freshVersion = "26.4.1"
+        #expect(!model.showsManualGuide)
+        #expect(model.iosRefusal == nil)
         model.start()
-        model.selectSupervisionMethod(method)
-        model.watcher.show(devices: [phone(version: "26.4.1")])
-        #expect(model.supervisionMethod == method)
-    }
-
-    @Test func seedNeedsNeitherFullCopySpaceNorPassword() {
-        let model = makeModel()
-        ready(model)
-        #expect(model.supervisionMethod == .seed)
-        #expect(!model.requiresFullCopy)
-        #expect(model.checksPass)
-        model.selectSupervisionMethod(.fullCopy)
-        #expect(model.requiresFullCopy)
+        #expect(model.step == .ready)
         #expect(!model.checksPass)
-        model.password = "backup password"
-        #expect(!model.checksPass) // the full-copy space check still blocks
+        model.confirmBackup(true)
+        #expect(model.checksPass)
+        model.startJob()
+        #expect(await waitUntil { model.job == .checkOnIPhone(reportedSupervised: true) })
+        #expect(model.events == ["version", "seed", "phone", "confirm"])
     }
 
-    @Test(arguments: [SupervisionMethod.fullCopy, .seed])
-    func neitherMethodStartsUntilTheirOwnBackupIsConfirmed(_ method: SupervisionMethod) async throws {
+    @Test(arguments: ["27", "27.0", "27.2", "30.0", nil, "", "26.x"] as [String?])
+    func anIPhoneTheAppDoesNotRunOnLandsOnTheGuideAndCannotStart(_ version: String?) {
+        let model = makeModel(version: version)
+        #expect(model.showsManualGuide)
+        #expect(model.iosRefusal == IOSSupport.refusal(iosVersion: version))
+        model.start()
+        #expect(model.step == .connect)
+        #expect(model.udid == nil)
+        #expect(model.events.isEmpty)
+    }
+
+    @Test(arguments: ["27.2", nil] as [String?])
+    func theModelRefusesARunOnAnIPhoneTheAppDoesNotRunOn(_ version: String?) {
+        let model = makeModel(version: version)
+        // Even a run put on Ready by hand never starts.
+        ready(model)
+        #expect(!model.checksPass)
+        model.startJob()
+        #expect(model.step == .ready)
+        #expect(model.errorMessage == model.iosRefusal?.message)
+        #expect(model.events.isEmpty)
+    }
+
+    @Test func pluggingInAnotherIPhoneSwitchesBetweenTheGuideAndTheRun() {
+        let model = makeModel(version: "27.2")
+        #expect(model.showsManualGuide)
+        model.watcher.show(devices: [phone(version: "26.6.2", udid: "other")], cloudConfigurations: notSupervised("other"))
+        #expect(!model.showsManualGuide)
+        model.start()
+        #expect(model.step == .ready)
+        model.back()
+        #expect(model.step == .connect)
+        model.watcher.show(devices: [phone(version: "27.0", udid: "third")], cloudConfigurations: notSupervised("third"))
+        #expect(model.showsManualGuide)
+        model.start()
+        #expect(model.step == .connect)
+    }
+
+    @Test func pickingTheOtherIPhoneOnTheCableFollowsTheScreen() {
+        let model = makeModel(version: "27.2")
+        let ios26 = phone(version: "26.6.2", udid: "other")
+        model.watcher.show(
+            devices: [phone(version: "27.2"), ios26],
+            cloudConfigurations: notSupervised("phone", "other")
+        )
+        #expect(model.showsManualGuide)
+        model.select(ios26)
+        #expect(!model.showsManualGuide)
+        model.start()
+        #expect(model.step == .ready)
+        #expect(model.udid == "other")
+    }
+
+    @Test(arguments: ["27.2", nil] as [String?])
+    func anIOS27IPhoneThatIsAlreadySupervisedStillReachesManageRestrictions(_ version: String?) {
+        let calls = SeedCalls()
+        let model = RoutingModel(
+            watcher: DeviceWatcher(
+                sample: [phone(version: version)],
+                cloudConfigurations: [
+                    "phone": CloudConfiguration(isSupervised: true, organizationName: "Me", raw: "<dict/>"),
+                ]
+            ),
+            engine: BackupEngine(sample: .idle, progress: 0),
+            seedEngine: SeedEngine(operations: calls.operations)
+        )
+        #expect(model.offersManageRestrictions)
+        #expect(!model.showsManualGuide)
+        model.manageRestrictions()
+        #expect(model.step == .profiles)
+        // The Profiles screen installs a profile over MCInstall. Nothing on
+        // the way there reads the version for a run or restores anything.
+        #expect(model.events.isEmpty)
+        #expect(calls.restoreCount == 0)
+        #expect(calls.restartCount == 0)
+    }
+
+    /// MCInstall can miss a read right after Trust. Until it answers, an
+    /// iOS 27 iPhone could be one supervised by hand, so it gets neither the
+    /// guide nor Continue, and the answer decides.
+    @Test func anIOS27IPhoneWhoseSupervisionIsUnreadWaitsForTheRead() {
+        let model = RoutingModel(
+            watcher: DeviceWatcher(sample: [phone(version: "27.2")]),
+            engine: BackupEngine(sample: .idle, progress: 0)
+        )
+        #expect(model.readsSupervisionFirst)
+        #expect(!model.showsManualGuide)
+        #expect(!model.offersManageRestrictions)
+        model.start()
+        #expect(model.step == .connect)
+        model.watcher.show(
+            devices: [phone(version: "27.2")],
+            cloudConfigurations: ["phone": CloudConfiguration(isSupervised: true, organizationName: "Me", raw: "<dict/>")]
+        )
+        #expect(!model.readsSupervisionFirst)
+        #expect(model.offersManageRestrictions)
+        #expect(!model.showsManualGuide)
+        model.watcher.show(devices: [phone(version: "27.2")], cloudConfigurations: notSupervised("phone"))
+        #expect(model.showsManualGuide)
+    }
+
+    @Test func seedNeedsOnlyTheBackupTick() {
         let model = makeModel()
-        model.freeBytesWithoutLeftover = 1_000
-        ready(model, method: method, backupConfirmed: false)
-        model.password = "pw"
+        ready(model, backupConfirmed: false)
+        #expect(!model.checksPass)
+        model.confirmBackup(true)
+        #expect(model.checksPass)
+    }
+
+    @Test func aRunDoesNotStartUntilTheOwnBackupIsConfirmed() async throws {
+        let model = makeModel()
+        ready(model, backupConfirmed: false)
         #expect(!model.checksPass)
         model.startJob()
         #expect(model.step == .ready)
@@ -84,85 +149,34 @@ struct SeedWizardTests {
         #expect(BackupSafetyNet.confirmation == "I backed up my iPhone")
     }
 
-    @Test(arguments: ["26.0", "26.6.2", "17.6.1"])
-    func iOS26AndOlderDefaultToFastWithFullCopySelectable(_ version: String) {
-        let model = makeModel(version: version)
-        model.start()
-        #expect(model.supervisionMethod == .seed)
-        #expect(model.fastRefusal == nil)
-        model.selectSupervisionMethod(.fullCopy)
-        #expect(model.supervisionMethod == .fullCopy)
-    }
-
-    @Test func startClearsALeftoverWhicheverMethodFollows() async throws {
-        let model = makeModel()
-        model.leftoverOnDisk = true
-        model.start()
-        #expect(await waitUntil { model.clearedLeftoverBackup })
-        #expect(model.removals == 1)
-        #expect(!model.leftoverOnDisk)
-    }
-
-    @Test func cancelledFullCopyLeavesSuperviseUsable() async throws {
-        let model = makeModel()
-        model.freeBytesWithoutLeftover = 1_000
-        model.holdCopy = true
-        ready(model, method: .fullCopy)
-        model.password = "pw"
-        #expect(model.checksPass)
-        model.startJob()
-        #expect(await waitUntil { model.copyCompletion != nil })
-        let finish = try #require(model.copyCompletion)
-        #expect(model.diskSpace.passes == false)
-        model.cancelJob()
-        #expect(model.step == .ready)
-        #expect(await waitUntil { model.clearedLeftoverBackup })
-        #expect(model.removals == 1)
-        #expect(model.checksPass)
-        finish.resume()
-    }
-
-    @Test func cancelKeepsAFullCopyThatFinished() async throws {
-        let model = makeModel()
-        model.leftoverOnDisk = true
-        model.show(WizardModel.Sample(
-            step: .job, supervisionMethod: .fullCopy, udid: "phone",
-            backupFolder: URL(fileURLWithPath: "/finished/phone")
-        ))
-        model.cancelJob()
-        #expect(model.step == .ready)
-        for _ in 0..<5 { await Task.yield() }
-        #expect(model.removals == 0)
-        #expect(model.leftoverOnDisk)
-    }
-
-    @Test(arguments: [nil, "", "26.x", "27.0", "30.0"] as [String?])
-    func newOrUnknownVersionsRunTheFullCopyAndAreNotOfferedFast(_ version: String?) async throws {
-        let model = makeModel(version: version)
+    @Test(arguments: ["27.0", "27.2", nil] as [String?])
+    func theDebugValueSkipsTheGuideAndLetsTheFastRunThrough(_ version: String?) async throws {
+        let model = makeModel(version: version, allowsFastOnAnyIOS: true)
         model.freshVersion = version
-        model.freeBytesWithoutLeftover = 1_000
+        #expect(!model.showsManualGuide)
+        #expect(model.iosRefusal == nil)
         model.start()
-        #expect(model.supervisionMethod == .fullCopy)
-        #expect(model.fastRefusal != nil)
-        model.selectSupervisionMethod(.seed)
-        #expect(model.supervisionMethod == .fullCopy)
-        ready(model, method: .fullCopy)
-        model.password = "pw"
+        #expect(model.step == .ready)
+        model.confirmBackup(true)
         #expect(model.checksPass)
         model.startJob()
         #expect(await waitUntil { model.job == .checkOnIPhone(reportedSupervised: true) })
-        #expect(model.events == ["copy", "patch", "full restore", "phone", "confirm"])
+        #expect(model.events == ["version", "seed", "phone", "confirm"])
     }
 
-    @Test(arguments: [nil, "", "26.x", "27.0", "30.0"] as [String?])
-    func fastNeverStartsOnANewOrUnknownVersion(_ version: String?) throws {
-        let model = makeModel(version: version)
-        ready(model, method: .seed)
-        #expect(!model.checksPass)
+    @Test func theDebugValueTakesTheFastRunThroughBothGuardsOnIOS27() async throws {
+        let calls = SeedCalls()
+        calls.failRestart = false
+        calls.version = "27.0"
+        let engine = SeedEngine(operations: calls.operations)
+        let model = makeModel(version: "27.0", seedEngine: engine, allowsFastOnAnyIOS: true)
+        model.useSeedEngine = true
+        model.freshVersion = "27.0"
+        ready(model)
         model.startJob()
-        #expect(model.step == .ready)
-        #expect(model.errorMessage == model.fastRefusal)
-        #expect(model.events.isEmpty)
+        #expect(await waitUntil { model.job == .checkOnIPhone(reportedSupervised: true) })
+        #expect(calls.restoreCount == 1)
+        #expect(calls.restartCount == 1)
     }
 
     @Test func freshVersionRefusalStopsBeforeAnyWork() async throws {
@@ -173,39 +187,17 @@ struct SeedWizardTests {
         #expect(await waitUntil { if case .failed = model.job { return true }; return false })
         #expect(model.events == ["version"])
         guard case .failed(let failure) = model.job else { Issue.record("Expected version refusal"); return }
-        #expect(failure.title == "Can't Use Fast on This iPhone")
-        #expect(failure.fix == "Fast does not work on iOS 27 or later yet. Use full copy. Nothing was sent to iPhone.")
+        #expect(failure.title == "Can't Supervise This iPhone")
+        #expect(failure.fix == "This app cannot supervise iOS 27 or later yet. Nothing was sent to iPhone.")
     }
 
-    @Test func seedRoutingSkipsCopyPatchAndFullRestoreAndRemovesNothingOfItsOwn() async throws {
+    @Test func aRunReadsTheVersionSendsTheSeedAndWaitsForThePhone() async throws {
         let model = makeModel()
-        model.start()
-        #expect(await waitUntil { model.removals == 1 })
         ready(model)
         model.startJob()
         #expect(await waitUntil { model.job == .checkOnIPhone(reportedSupervised: true) })
         #expect(model.events == ["version", "seed", "phone", "confirm"])
-        #expect(model.removals == 1)
-        #expect(model.backupFolder == nil)
         #expect(model.restore.stage == .finished)
-        #expect(model.job == .checkOnIPhone(reportedSupervised: true))
-        model.show(WizardModel.Sample(
-            step: .done, supervisionMethod: .seed, udid: "phone", backupFolder: URL(fileURLWithPath: "/leftover/phone"),
-            restore: .init(stage: .finished, supervisedAfterwards: true), profile: .init(isConfirmed: true)
-        ))
-        model.deleteBackupIfTheRunIsDone()
-        #expect(model.removals == 1)
-    }
-
-    @Test func fullCopyRoutingRetainsItsThreeOperationsAndFreezesSelection() async throws {
-        let model = makeModel()
-        ready(model, method: .fullCopy)
-        model.password = "pw"
-        model.startJob()
-        model.selectSupervisionMethod(.seed)
-        #expect(await waitUntil { model.job == .checkOnIPhone(reportedSupervised: true) })
-        #expect(model.events == ["copy", "patch", "full restore", "phone", "confirm"])
-        #expect(model.activeMethod == .fullCopy)
     }
 
     @Test func unplugDuringSeedPreparationForgetsRunAndCannotLandAnOldAnswer() async throws {
@@ -222,7 +214,6 @@ struct SeedWizardTests {
         #expect(model.step == .connect)
         #expect(model.job == nil)
         #expect(!model.events.contains("phone"))
-        #expect(model.supervisionMethod == .fullCopy)
     }
 
     @Test func failedSeedRestoreStaysRetryableWhenItsPhoneUnplugs() async throws {
@@ -333,9 +324,6 @@ struct SeedWizardTests {
         model.cancelJob()
         #expect(model.step == .ready)
         #expect(!model.isBusy)
-        model.selectSupervisionMethod(.fullCopy)
-        #expect(model.supervisionMethod == .fullCopy)
-        model.selectSupervisionMethod(.seed)
         model.holdPhone = false
         oldWait.resume(returning: true)
         model.startJob()
@@ -344,30 +332,35 @@ struct SeedWizardTests {
         #expect(calls.restartCount == 2)
     }
 
-    private func makeModel(version: String? = "26.0", seedEngine: SeedEngine? = nil) -> RoutingModel {
+    private func makeModel(
+        version: String? = "26.0", seedEngine: SeedEngine? = nil, allowsFastOnAnyIOS: Bool = false
+    ) -> RoutingModel {
         RoutingModel(
-            watcher: DeviceWatcher(sample: [phone(version: version)]),
+            watcher: DeviceWatcher(sample: [phone(version: version)], cloudConfigurations: notSupervised("phone")),
             engine: BackupEngine(sample: .idle, progress: 0),
-            seedEngine: seedEngine
+            seedEngine: seedEngine,
+            allowsFastOnAnyIOS: allowsFastOnAnyIOS
         )
     }
 
-    private func phone(version: String?) -> ConnectedDevice {
+    /// What MCInstall says about iPhones that are not supervised.
+    private func notSupervised(_ udids: String...) -> [String: CloudConfiguration] {
+        Dictionary(uniqueKeysWithValues: udids.map {
+            ($0, CloudConfiguration(isSupervised: false, organizationName: nil, raw: "<dict/>"))
+        })
+    }
+
+    private func phone(version: String?, udid: String = "phone") -> ConnectedDevice {
         ConnectedDevice(
-            udid: "phone", name: "Test iPhone", productType: nil, marketingName: nil,
+            udid: udid, name: "Test iPhone", productType: nil, marketingName: nil,
             iosVersion: version, findMyOn: false, backupEncrypted: true,
             cloudBackupOn: nil, lastCloudBackup: nil, dataCapacity: nil, dataAvailable: nil,
             pairingState: .paired
         )
     }
 
-    private func ready(
-        _ model: WizardModel, method: SupervisionMethod = .seed, backupConfirmed: Bool = true
-    ) {
-        model.show(WizardModel.Sample(
-            step: .ready, supervisionMethod: method, backupConfirmed: backupConfirmed,
-            udid: "phone"
-        ))
+    private func ready(_ model: WizardModel, backupConfirmed: Bool = true) {
+        model.show(WizardModel.Sample(step: .ready, backupConfirmed: backupConfirmed, udid: "phone"))
     }
 
     private func waitUntil(_ condition: () -> Bool) async -> Bool {
@@ -380,7 +373,6 @@ struct SeedWizardTests {
 
     private final class RoutingModel: WizardModel {
         var events: [String] = []
-        var removals = 0
         var freshVersion: String? = "26.0"
         var holdSeed = false
         var seedCompletion: CheckedContinuation<Void, Never>?
@@ -390,32 +382,9 @@ struct SeedWizardTests {
         var holdPhone = false
         var phoneCompletion: CheckedContinuation<Bool, Never>?
         var reportsSupervised = true
-        /// A copy that never finished, which takes the room the next one needs.
-        var leftoverOnDisk = false
-        var freeBytesWithoutLeftover: UInt64 = 0
-        var holdCopy = false
-        var copyCompletion: CheckedContinuation<Void, Never>?
 
-        override var diskSpace: DiskSpace {
-            DiskSpace(needed: 100, free: leftoverOnDisk ? 0 : freeBytesWithoutLeftover, assumed: false)
-        }
         override func readFinderBackup(of udid: String) async -> BackupSafetyNet.Finder { .nothingHere }
-        override func removeBackup(of udid: String) async -> BackupRemoval {
-            removals += 1
-            guard leftoverOnDisk else { return .nothingThere }
-            leftoverOnDisk = false
-            return .deleted
-        }
         override func readDeviceIOSVersion(udid: String) async throws -> String? { events.append("version"); return freshVersion }
-        override func copyTheIPhone() async throws {
-            events.append("copy")
-            guard holdCopy else { return }
-            leftoverOnDisk = true
-            await withCheckedContinuation { copyCompletion = $0 }
-            try Task.checkCancellation()
-        }
-        override func markTheCopy() async throws { events.append("patch") }
-        override func sendTheCopyBack() async throws { events.append("full restore") }
         override func sendSeedConfiguration(restartingOnly: Bool) async throws {
             defer { seedReturned = true }
             events.append(restartingOnly ? "seed restart" : "seed")
@@ -436,11 +405,12 @@ struct SeedWizardTests {
         var restoreCount = 0
         var restartCount = 0
         var failRestart = true
+        var version: String? = "26.0"
         var holdConfiguration = false
         var heldConfiguration: CheckedContinuation<Void, Never>?
         var operations: SeedEngine.Operations {
             .init(
-                readVersion: { _ in "26.0" },
+                readVersion: { _ in self.version },
                 readConfiguration: { _ in
                     if self.holdConfiguration { await withCheckedContinuation { self.heldConfiguration = $0 } }
                     return try PropertyListSerialization.data(fromPropertyList: [:], format: .xml, options: 0)

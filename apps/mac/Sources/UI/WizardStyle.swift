@@ -18,16 +18,6 @@ enum WizardStyle {
     /// harder to read than it should be.
     static let contentWidth: CGFloat = 480
     static let cardRadius: CGFloat = 8
-
-    /// Bytes as the size a person would say, so 76.8 GB rather than a number
-    /// of bytes.
-    static func size(_ bytes: UInt64) -> String {
-        let formatter = ByteCountFormatter()
-        formatter.allowedUnits = [.useGB]
-        formatter.countStyle = .file
-        return formatter.string(fromByteCount: Int64(bytes))
-    }
-
 }
 
 /// A small "i" holding one more sentence than the screen has room for.
@@ -98,6 +88,9 @@ enum ProfileGuideCopy {
 /// which is the house rule for links between our own sites.
 enum SiteLink {
     static var help: URL? { url(path: "/", campaign: "help") }
+    /// The manual guide with Apple Configurator, for an iPhone the app does
+    /// not supervise: iOS 27 and later, or a version it could not read.
+    static var guide: URL? { url(path: "/guide", campaign: "ios27_guide") }
     /// What the Share button on the last step hands on. Whoever opens it
     /// arrives from a share, so it names that as its source.
     static let share = URL(

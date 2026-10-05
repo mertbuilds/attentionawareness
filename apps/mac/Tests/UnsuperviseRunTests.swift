@@ -20,15 +20,14 @@ struct UnsuperviseRunTests {
         #expect(model.step == .ready)
     }
 
-    @Test(arguments: [SupervisionMethod.fullCopy, .seed])
-    func theRunEndsOnceIPhoneSaysItIsNoLongerSupervised(_ method: SupervisionMethod) async {
+    @Test func theRunEndsOnceIPhoneSaysItIsNoLongerSupervised() async {
         let cable = Cable(supervised: true)
         let sent = Sent()
         let model = makeModel(cable, supervises: false, sent: sent)
         let steps = Steps()
         let watch = model.$step.sink { steps.seen.append($0) }
         defer { watch.cancel() }
-        ready(model, method)
+        ready(model)
         model.startJob()
         #expect(await waitUntil { model.job == .confirming })
         // Still supervised after several reads: that is not the end.
@@ -37,7 +36,7 @@ struct UnsuperviseRunTests {
         cable.supervised = false
         #expect(await waitUntil { model.step == .done })
         #expect(!steps.seen.contains(.restrictions))
-        #expect(model.restore.supervisedAfterwards == false)
+        #expect(model.isSupervised == false)
         #expect(sent.events.isEmpty)
         // Nothing on the last screen sends the count either.
         model.advance()
@@ -48,7 +47,7 @@ struct UnsuperviseRunTests {
         let cable = Cable(supervised: false)
         let sent = Sent()
         let model = makeModel(cable, supervises: true, sent: sent)
-        ready(model, .fullCopy)
+        ready(model)
         model.startJob()
         #expect(await waitUntil { model.job == .confirming })
         await pause()
@@ -65,7 +64,7 @@ struct UnsuperviseRunTests {
         let sent = Sent()
         let model = makeModel(cable, supervises: false, sent: sent)
         model.confirmAnswer = false
-        ready(model, .fullCopy)
+        ready(model)
         model.startJob()
         #expect(await waitUntil { model.job == .failed(.stillSupervised) })
         #expect(model.step == .job)
@@ -93,35 +92,38 @@ struct UnsuperviseRunTests {
         ))
         let model = makeModel(Cable(supervised: !supervises), supervises: supervises, seedEngine: engine)
         defer { model.stopJob() }
-        ready(model, .seed)
+        ready(model)
         model.startJob()
         #expect(await waitUntil { sent.content != nil })
         let content = try #require(sent.content)
-        #expect(SupervisionPatch.boolean(content["IsSupervised"]) == supervises)
+        #expect(CloudConfigurationEdit.boolean(content["IsSupervised"]) == supervises)
         #expect((content["OrganizationMagic"] != nil) == supervises)
     }
 
-    @Test(arguments: [true, false])
-    func theFullCopyWritesTheFlagTheRunAsksFor(_ supervises: Bool) async throws {
-        let root = FileManager.default.temporaryDirectory
-            .appendingPathComponent("unsupervise-tests-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: root) }
-        var content = BackupFixture.baseContent
-        content["IsSupervised"] = !supervises
-        content["CloudConfigurationUIComplete"] = true
-        let folder = try BackupFixture.makeBackup(in: root, content: content)
-
-        let model = makeModel(Cable(supervised: !supervises), supervises: supervises)
-        defer { model.stopJob() }
-        model.show(WizardModel.Sample(
-            step: .ready, supervisionMethod: .fullCopy, backupConfirmed: true, udid: "phone", backupFolder: folder
+    @Test func theDebugFastValueRunsAFastRunThatTakesSupervisionOffIOS27() async throws {
+        let sent = SentSeed()
+        let engine = SeedEngine(operations: .init(
+            readVersion: { _ in "27.0" },
+            readConfiguration: { _ in
+                try PropertyListSerialization.data(fromPropertyList: ["IsSupervised": true], format: .xml, options: 0)
+            },
+            restore: { _, folder in
+                let data = try Data(contentsOf: folder.appendingPathComponent(SeedBackup.contentFileName))
+                sent.content = try SeedDevice.configuration(from: data)
+            },
+            restart: { _ in },
+            cancelRestore: {}
         ))
-        model.password = "pw"
+        let cable = Cable(supervised: true, iosVersion: "27.0")
+        let model = makeModel(cable, supervises: false, seedEngine: engine, allowsFastOnAnyIOS: true)
+        model.iosVersion = "27.0"
+        defer { model.stopJob() }
+        ready(model)
         model.startJob()
-        #expect(await waitUntil { model.patch.hasResult })
-        #expect(model.patch.changes == ["IsSupervised: \(!supervises) -> \(supervises)"])
-        #expect(try BackupFolder.load(at: folder).supervisionState() == supervises)
+        #expect(await waitUntil { sent.content != nil })
+        #expect(CloudConfigurationEdit.boolean(sent.content?["IsSupervised"]) == false)
+        cable.supervised = false
+        #expect(await waitUntil { model.step == .done })
     }
 
     // MARK: - The pieces
@@ -130,24 +132,23 @@ struct UnsuperviseRunTests {
         _ cable: Cable,
         supervises: Bool,
         sent: Sent = Sent(),
-        seedEngine: SeedEngine? = nil
+        seedEngine: SeedEngine? = nil,
+        allowsFastOnAnyIOS: Bool = false
     ) -> RunModel {
         let model = RunModel(
             watcher: DeviceWatcher(reading: { cable.read() }, passTimeout: 0.05),
             engine: BackupEngine(sample: .idle, progress: 0),
             seedEngine: seedEngine,
             finishedEvent: { sent.events.append($0) },
-            supervises: supervises
+            supervises: supervises,
+            allowsFastOnAnyIOS: allowsFastOnAnyIOS
         )
         model.useSeedEngine = seedEngine != nil
         return model
     }
 
-    private func ready(_ model: WizardModel, _ method: SupervisionMethod) {
-        model.show(WizardModel.Sample(
-            step: .ready, supervisionMethod: method, backupConfirmed: true, udid: "phone"
-        ))
-        model.password = "pw"
+    private func ready(_ model: WizardModel) {
+        model.show(WizardModel.Sample(step: .ready, backupConfirmed: true, udid: "phone"))
     }
 
     private func pause() async {
@@ -180,14 +181,11 @@ struct UnsuperviseRunTests {
     private final class RunModel: WizardModel {
         var useSeedEngine = false
         var confirmAnswer: Bool?
+        var iosVersion: String? = "26.0"
 
         override var confirmInterval: Duration { .milliseconds(10) }
-        override var diskSpace: DiskSpace { DiskSpace(needed: 100, free: 1_000, assumed: false) }
         override func readFinderBackup(of udid: String) async -> BackupSafetyNet.Finder { .nothingHere }
-        override func removeBackup(of udid: String) async -> BackupRemoval { .nothingThere }
-        override func readDeviceIOSVersion(udid: String) async throws -> String? { "26.0" }
-        override func copyTheIPhone() async throws {}
-        override func sendTheCopyBack() async throws {}
+        override func readDeviceIOSVersion(udid: String) async throws -> String? { iosVersion }
         override func sendSeedConfiguration(restartingOnly: Bool) async throws {
             if useSeedEngine { try await super.sendSeedConfiguration(restartingOnly: restartingOnly) }
         }
@@ -202,9 +200,11 @@ struct UnsuperviseRunTests {
     private final class Cable: @unchecked Sendable {
         private let lock = NSLock()
         private var flag: Bool
+        private let iosVersion: String?
 
-        init(supervised: Bool) {
+        init(supervised: Bool, iosVersion: String? = "26.0") {
             flag = supervised
+            self.iosVersion = iosVersion
         }
 
         var supervised: Bool {
@@ -215,7 +215,7 @@ struct UnsuperviseRunTests {
         func read() -> DeviceWatcher.Snapshot {
             let phone = ConnectedDevice(
                 udid: "phone", name: "Test iPhone", productType: nil, marketingName: nil,
-                iosVersion: "26.0", findMyOn: false, backupEncrypted: true,
+                iosVersion: iosVersion, findMyOn: false, backupEncrypted: true,
                 cloudBackupOn: nil, lastCloudBackup: nil, dataCapacity: nil, dataAvailable: nil,
                 pairingState: .paired
             )

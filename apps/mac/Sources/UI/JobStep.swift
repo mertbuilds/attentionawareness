@@ -1,8 +1,7 @@
 import SwiftUI
 
-/// The screen that holds the whole job: copying the iPhone onto this Mac,
-/// writing the flag into the copy, sending it back, and waiting for the iPhone
-/// to say what it is now.
+/// The screen that holds the whole job: reading the iPhone, sending the small
+/// seed, the restart, and waiting for the iPhone to say what it is now.
 ///
 /// One bar and one line. While the job runs there is nothing to decide and
 /// nothing to do but wait, so the screen says which piece is running and,
@@ -130,12 +129,6 @@ struct JobStep: View {
                 if case .checkOnIPhone = phase {
                     reference
                 }
-                // The one failure somebody answers by typing. The field is the
-                // same row the checks show, so the password is corrected where
-                // it is refused.
-                if case .failed(let failure) = phase, failure.needsPassword {
-                    BackupPasswordField(model: model)
-                }
                 // It fades out in place and keeps its room while it does, so
                 // nothing moves over it, and is taken away with the phase.
                 if storyPhase != nil {
@@ -152,8 +145,8 @@ struct JobStep: View {
     }
 
     /// One bar, the full width of the column. It says how far along it is only
-    /// where this Mac can know: the two transfers. Everywhere else the work
-    /// belongs to the iPhone or to the reboot.
+    /// where this Mac can know: the restore. Everywhere else the work belongs
+    /// to the iPhone or to the restart.
     @ViewBuilder
     private func bar(_ phase: JobPhase) -> some View {
         if phase.isDeterminate {
@@ -166,24 +159,17 @@ struct JobStep: View {
         }
     }
 
-    /// The phase, and how much longer the copying has where there is anything
-    /// to say. Find My carries the how-to in its hover help, because it is the
-    /// one phase somebody can do something about.
+    /// The phase. Find My carries the how-to in its hover help, because it is
+    /// the one phase somebody can do something about.
     @ViewBuilder
     private func line(_ phase: JobPhase) -> some View {
-        if let text = phaseText(phase) {
+        if let text = phase.line {
             if phase == .waitingForFindMy {
                 phaseLine(text).help(WizardGate.turnFindMyOff)
             } else {
                 phaseLine(text)
             }
         }
-    }
-
-    private func phaseText(_ phase: JobPhase) -> String? {
-        guard let text = phase.line else { return nil }
-        guard phase.showsEstimate, let estimate = model.estimateText else { return text }
-        return "\(text) · \(estimate)"
     }
 
     private func phaseLine(_ text: String) -> some View {

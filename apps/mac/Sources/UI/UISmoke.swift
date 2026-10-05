@@ -39,29 +39,13 @@ enum UISmoke {
         where step != .job && step != .done && step != .profiles {
             report(step.rawValue, WizardStepContent(step: step, model: model), into: folder)
         }
-        // The last step in each of the things it says: the plain end of a run,
-        // the reminder a phone whose Find My is still off gets, the iPhone that
-        // never said what it is now, and a copy this Mac would not let go of.
+        // The last step for a phone whose Find My is on and for one whose
+        // Find My is off.
         for sample in doneSamples() {
             report(sample.name, WizardStepContent(step: .done, model: sample.model), into: folder)
         }
-        // The checks with the line about a backup an earlier run left behind,
-        // which this one cleared on its way in.
-        report(
-            "ready-leftover-cleared",
-            WizardStepContent(step: .ready, model: clearedLeftover()),
-            into: folder
-        )
-        // The checks with the password row, which only an iPhone that encrypts
-        // what it backs up ever shows.
-        report(
-            "ready-password",
-            WizardStepContent(step: .ready, model: encryptedBackups()),
-            into: folder
-        )
-        for sample in methodSamples() {
-            report(sample.name, WizardStepContent(step: .ready, model: sample.model), into: folder)
-        }
+        // The checks for an iPhone the app runs on, with the backup ticked.
+        report("ready-fast", WizardStepContent(step: .ready, model: readyTicked()), into: folder)
         // The Restrictions screen in the three states the loop above cannot
         // draw: a profile of ours already on the iPhone, the install running,
         // and one that did not take.
@@ -106,12 +90,11 @@ enum UISmoke {
             )
         }
         // Find My is one of the checks, so they are drawn for a phone that
-        // says it is on and for one that says it is off, each with a password
-        // typed, so Find My is the one thing that keeps the button off. The one the loop above drew comes from a Mac with
-        // nothing on the cable, which is the third answer: no answer at all.
+        // says it is on and for one that says it is off. The one the loop
+        // above drew comes from a Mac with nothing on the cable, which is the
+        // third answer: no answer at all.
         for (name, findMyOn) in [("find-my-on", true), ("find-my-off", false)] {
             let model = readyToStart(findMyOn: findMyOn)
-            model.password = "hunter2"
             report("ready-\(name)", WizardStepContent(step: .ready, model: model), into: folder)
         }
         // The one row the checks show about the reader's own backups, in each
@@ -119,19 +102,14 @@ enum UISmoke {
         // one too old to lean on, none at all, and the refusal that keeps
         // Finder's own out of the app's reach until Full Disk Access is on,
         // before the trip to System Settings and after one that did not take.
-        // A Mac with too little room for the copy, which is the one check
-        // besides Find My that keeps the button off. The phone is made far
-        // bigger than any disk, so the picture is the same on every Mac.
-        report("ready-low-space", WizardStepContent(step: .ready, model: lowSpace()), into: folder)
         for sample in safetyNetSamples() {
             report("ready-\(sample.name)", WizardStepContent(step: .ready, model: sample.model), into: folder)
         }
         // The iPhone the run is about coming off the cable, from the steps
         // past Connect, drawn on whatever step the wizard lands on, which the
         // name ends with. Every one of them goes back to Connect, except while
-        // the restore has the phone or the last screen names a folder that
-        // would not go, and another iPhone coming off changes nothing. A
-        // sample that lands anywhere else fails the smoke.
+        // the restore has the phone, and another iPhone coming off changes
+        // nothing. A sample that lands anywhere else fails the smoke.
         var misplaced = 0
         for sample in unpluggedSamples() {
             report(
@@ -146,9 +124,8 @@ enum UISmoke {
             }
         }
         // Every phase of the one long job, which is one bar and one line in
-        // each of them, and the three ends it can come to.
-        let now = Date()
-        for sample in jobSamples(at: now) {
+        // each of them, and the ends it can come to.
+        for sample in jobSamples() {
             report("job-\(sample.name)", WizardStepContent(step: .job, model: sample.model), into: folder)
         }
         // The cost story the job screen plays under the bar, a picture a
@@ -197,15 +174,33 @@ enum UISmoke {
     /// The first screen in each of the things it says. Nothing on the cable is
     /// the state the loop above draws, so it is not here: what is here is a
     /// phone that has not trusted this Mac yet, one that refused, one that is
-    /// ready, one that is supervised already, and two at once.
+    /// ready, one that is supervised already, two at once, and the manual
+    /// guide for an iPhone on iOS 27 or one whose version could not be read.
     private static func connectSamples() -> [(name: String, model: WizardModel)] {
-        [
+        let ios27 = samplePhone(findMyOn: false, iosVersion: "27.2")
+        let unread = samplePhone(findMyOn: false, iosVersion: nil)
+        return [
             ("trust-pending", sampleModel([sampleSecondDevice])),
             ("untrusted", sampleModel([sampleUntrustedDevice])),
             ("one-phone", sampleModel([sampleDevice])),
             ("supervised", supervisedModel()),
             ("two-phones", sampleModel([sampleDevice, sampleSecondDevice])),
+            ("ios27", notSupervisedModel([ios27])),
+            ("ios-unknown", notSupervisedModel([unread])),
+            ("ios27-two-phones", notSupervisedModel([ios27, sampleDevice])),
+            // Its supervision not read yet, so neither the guide nor Continue.
+            ("ios27-reading", sampleModel([ios27])),
         ]
+    }
+
+    /// Phones that each say they are not supervised.
+    private static func notSupervisedModel(_ devices: [ConnectedDevice]) -> WizardModel {
+        WizardModel(
+            watcher: DeviceWatcher(
+                sample: devices,
+                cloudConfigurations: Dictionary(uniqueKeysWithValues: devices.map { ($0.udid, sampleConfiguration) })
+            )
+        )
     }
 
     /// The last screen in each of the things it says.
@@ -213,44 +208,18 @@ enum UISmoke {
         [
             ("done", done(findMyOn: true)),
             ("done-find-my-off", done(findMyOn: false)),
-            ("done-mismatch", done(findMyOn: true, supervisedAfterwards: false)),
-            (
-                "done-leftover",
-                done(findMyOn: true, backupRemovalFailure: sampleRemovalFailure)
-            ),
         ]
     }
 
-    /// What the last screen says about a backup folder macOS would not take
-    /// away.
-    private static var sampleRemovalFailure: String {
-        BackupStoreError
-            .removeFailed(
-                BackupFolder.applicationSupportRoot.appendingPathComponent(sampleDevice.udid),
-                SampleFailure()
-            )
-            .localizedDescription
-    }
-
-    /// A run that is over: the iPhone back on the cable, whatever it said about
-    /// itself when it got there, and whatever this Mac could not take away
-    /// after it.
-    private static func done(
-        findMyOn: Bool,
-        supervisedAfterwards: Bool = true,
-        backupRemovalFailure: String? = nil
-    ) -> WizardModel {
+    /// A run that is over: the iPhone back on the cable.
+    private static func done(findMyOn: Bool) -> WizardModel {
         let phone = samplePhone(findMyOn: findMyOn)
         let model = WizardModel(finished: sampleWatcher([phone]))
         model.show(
             WizardModel.Sample(
                 step: .done,
                 udid: phone.udid,
-                restore: WizardModel.RestoreState(
-                    stage: .finished,
-                    supervisedAfterwards: supervisedAfterwards
-                ),
-                backupRemovalFailure: backupRemovalFailure
+                restore: WizardModel.RestoreState(stage: .finished)
             )
         )
         return model
@@ -461,13 +430,6 @@ enum UISmoke {
             ("ready", unplugged(onStep(.ready, phone: phone)), .connect),
             ("restrictions", unplugged(onStep(.restrictions, phone: phone)), .connect),
             ("done", unplugged(onStep(.done, phone: phone)), .connect),
-            // The last screen naming a folder that would not go stays up, so
-            // the person can still read where it is.
-            (
-                "done-leftover",
-                unplugged(done(findMyOn: false, backupRemovalFailure: sampleRemovalFailure)),
-                .done
-            ),
             ("profiles", unplugged(onStep(.profiles, phone: phone)), .connect),
             ("waiting-find-my", unplugged(waiting(.waitingForFindMy, on: samplePhone(findMyOn: true))), .connect),
             (
@@ -475,8 +437,8 @@ enum UISmoke {
                 unplugged(waiting(.checkOnIPhone(reportedSupervised: true), on: phone)),
                 .connect
             ),
-            // The restore reboots the phone, so it leaving the cable is part
-            // of the job, which waits for it to come back.
+            // The run restarts the phone, so it leaving the cable is part of
+            // the job, which waits for it to come back.
             ("restarting", unplugged(waiting(.restarting, on: phone)), .job),
             // Cancel during the restart lands on the checks, and the cancelled
             // job can leave its last phase behind. It holds nothing there.
@@ -513,86 +475,39 @@ enum UISmoke {
 
     /// The job screen in every phase it has, drawn from engines that are
     /// running nothing and phones that are not there.
-    ///
-    /// `now` is the clock the whole set is built against, so the elapsed time
-    /// and the estimate agree with each other in every picture.
-    private static func jobSamples(at now: Date) -> [(name: String, model: WizardModel)] {
+    private static func jobSamples() -> [(name: String, model: WizardModel)] {
         [
-            // The first phase when the iPhone did not already encrypt its
-            // backups: the person is sent to their phone to enter the passcode.
-            ("encrypting", waiting(.encrypting, on: samplePhone(findMyOn: false))),
-            // The copy is opening the backup service: the iPhone asks to trust
-            // this Mac and for its passcode, so the person is sent to the phone
-            // until the first bytes move.
-            ("connecting", waiting(.connecting, on: samplePhone(findMyOn: false))),
-            (
-                "copying",
-                moving(
-                    .copying,
-                    phase: .transferring(
-                        progress: 0.42,
-                        filesDone: 29_104,
-                        filesTotal: nil,
-                        bytes: "18.4 MB / 44.1 MB"
-                    ),
-                    progress: 0.42,
-                    estimate: settledEstimate(endingAt: now),
-                    startedAt: now.addingTimeInterval(-720)
-                )
-            ),
-            (
-                // The same copying, too early in the run for a figure.
-                "copying-early",
-                moving(
-                    .copying,
-                    phase: .transferring(
-                        progress: 0.01,
-                        filesDone: 412,
-                        filesTotal: nil,
-                        bytes: "2.1 MB / 9.7 MB"
-                    ),
-                    progress: 0.01,
-                    estimate: youngEstimate(endingAt: now),
-                    startedAt: now.addingTimeInterval(-20)
-                )
-            ),
             ("preparing", waiting(.preparing, on: samplePhone(findMyOn: false))),
             ("waiting-find-my", waiting(.waitingForFindMy, on: samplePhone(findMyOn: true))),
             (
                 "restoring",
                 moving(
                     .restoring,
-                    phase: .transferring(
-                        progress: 0.66,
-                        filesDone: 45_800,
-                        filesTotal: nil,
-                        bytes: "9.2 MB / 128.6 MB"
-                    ),
-                    progress: 0.66,
-                    estimate: settledEstimate(endingAt: now),
-                    startedAt: now.addingTimeInterval(-1_020)
+                    phase: .transferring(progress: 0.66, filesDone: 1, filesTotal: nil, bytes: nil),
+                    progress: 0.66
                 )
             ),
             (
                 // Every file is across and the iPhone is the one working, which
                 // the screen reads off the helper rather than off the wizard.
                 "finishing",
-                moving(
-                    .restoring,
-                    phase: .finishing,
-                    progress: 1,
-                    estimate: settledEstimate(endingAt: now),
-                    startedAt: now.addingTimeInterval(-1_740)
-                )
+                moving(.restoring, phase: .finishing, progress: 1)
             ),
             ("restarting", waiting(.restarting, on: samplePhone(findMyOn: false))),
             ("restarting-locked", backLocked()),
             ("check-on-iphone", waiting(.checkOnIPhone(reportedSupervised: true), on: samplePhone(findMyOn: false))),
             ("phone-gone", waiting(.phoneGone, on: samplePhone(findMyOn: false))),
             (
-                "failed-copy",
+                "failed-read",
                 waiting(
-                    .failed(failure(BackupError.failed(DemoFailure.cableCameOut), in: .copying)),
+                    .failed(failure(DeviceError.trustPending, in: .preparing)),
+                    on: samplePhone(findMyOn: false)
+                )
+            ),
+            (
+                "failed-refused",
+                waiting(
+                    .failed(failure(SeedRunError.refused(.iosNotSupportedYet), in: .preparing)),
                     on: samplePhone(findMyOn: false)
                 )
             ),
@@ -604,31 +519,10 @@ enum UISmoke {
                 )
             ),
             (
-                "failed-no-space",
-                waiting(
-                    .failed(failure(BackupError.failed("No space left on device"), in: .copying)),
-                    on: samplePhone(findMyOn: false)
-                )
-            ),
-            (
-                "failed-encryption",
-                waiting(
-                    .failed(failure(BackupError.encryptionFailed("The iPhone is locked."), in: .copying)),
-                    on: samplePhone(findMyOn: false)
-                )
-            ),
-            (
                 "failed-restart",
                 waiting(
                     .failed(failure(SeedRunError.restartFailed("The iPhone did not answer."), in: .restoring)),
                     on: samplePhone(findMyOn: false)
-                )
-            ),
-            (
-                "failed-password",
-                waiting(
-                    .failed(failure(PatchError.wrongPassword, in: .preparing)),
-                    on: samplePhone(findMyOn: false, backupEncrypted: true)
                 )
             ),
         ]
@@ -638,7 +532,7 @@ enum UISmoke {
     /// them rather than by hand, so the pictures are of the mapping itself.
     private static func failure(_ error: Error, in piece: JobFailure.Piece) -> JobFailure {
         JobFailure.from(error, in: piece)
-            ?? JobFailure(title: "", fix: "", raw: "", retry: .copy)
+            ?? JobFailure(title: "", fix: "", raw: "", retry: .start)
     }
 
     /// What the helper prints when the cable comes out, which is the failure a
@@ -650,27 +544,20 @@ enum UISmoke {
         )
     }
 
-    /// One transfer in flight: the phase of the job, the phase and progress
-    /// the helper would be printing, and an estimate fed the readings that put
-    /// it there.
+    /// The restore in flight: the phase of the job and the phase and progress
+    /// the helper would be printing.
     private static func moving(
         _ job: JobPhase,
         phase: BackupEngine.Phase,
-        progress: Double,
-        estimate: TransferEstimate,
-        startedAt: Date
+        progress: Double
     ) -> WizardModel {
         WizardModel(
             sample: sampleWatcher([samplePhone(findMyOn: false)]),
             running: BackupEngine(sample: phase, progress: progress, log: sampleLog),
-            job: job,
-            estimate: estimate,
-            startedAt: startedAt
+            job: job
         )
     }
 
-    /// One phase with no transfer under it: the bar has nothing to measure, or
-    /// there is no bar at all.
     /// The restart wait once the iPhone is back on the cable and locked.
     private static func backLocked() -> WizardModel {
         let model = WizardModel(watcher: sampleWatcher([sampleLockedDevice]))
@@ -680,37 +567,19 @@ enum UISmoke {
         return model
     }
 
+    /// One phase with no transfer under it: the bar has nothing to measure, or
+    /// there is no bar at all.
     private static func waiting(_ job: JobPhase, on phone: ConnectedDevice) -> WizardModel {
         let model = WizardModel(watcher: sampleWatcher([phone]))
         model.show(WizardModel.Sample(step: .job, udid: phone.udid, job: job))
         return model
     }
 
-    /// An estimate fed enough of a transfer to say a figure: twelve minutes of
-    /// copying that got a little under half way, which is about fifteen
-    /// minutes left.
-    private static func settledEstimate(endingAt end: Date) -> TransferEstimate {
-        var estimate = TransferEstimate()
-        estimate.record(progress: 0, at: end.addingTimeInterval(-720))
-        estimate.record(progress: 0.42, at: end)
-        return estimate
-    }
-
-    /// An estimate from the first seconds of a transfer, which is too early to
-    /// say anything at all.
-    private static func youngEstimate(endingAt end: Date) -> TransferEstimate {
-        var estimate = TransferEstimate()
-        estimate.record(progress: 0, at: end.addingTimeInterval(-20))
-        estimate.record(progress: 0.01, at: end)
-        return estimate
-    }
-
     /// A few lines of the sort the helper prints, so the folded-away details
-    /// are drawn the way they look during a real transfer.
+    /// are drawn the way they look during a real restore.
     private static let sampleLog = [
         "Started restore, the iPhone is waiting for the files.",
-        "Sending Library/SMS/sms.db (48.2 MB)",
-        "Sending Media/DCIM/108APPLE/IMG_8123.HEIC (3.1 MB)",
+        "Sending ConfigurationProfiles/CloudConfigurationDetails.plist",
     ]
 
     /// An iPhone that is not there, so the card and the summary can be drawn
@@ -755,15 +624,12 @@ enum UISmoke {
     private nonisolated static let dayInSeconds: TimeInterval = 24 * 60 * 60
 
     /// A trusted iPhone with Find My on or off and nothing else changed between
-    /// the two, so the checks row and the restore gate can be drawn each way.
-    /// Its backups are unencrypted unless a picture asks for the password row,
-    /// which keeps that field out of the rest of them.
+    /// the two, so the checks row can be drawn each way.
     private static func samplePhone(
         findMyOn: Bool,
         cloudBackupOn: Bool? = true,
         lastCloudBackup: Date? = Date().addingTimeInterval(-dayInSeconds),
-        backupEncrypted: Bool = false,
-        iosVersion: String = "26.6.2"
+        iosVersion: String? = "26.6.2"
     ) -> ConnectedDevice {
         ConnectedDevice(
             udid: "33333333-3333333333333333",
@@ -772,7 +638,7 @@ enum UISmoke {
             marketingName: "iPhone 14 Pro",
             iosVersion: iosVersion,
             findMyOn: findMyOn,
-            backupEncrypted: backupEncrypted,
+            backupEncrypted: false,
             cloudBackupOn: cloudBackupOn,
             lastCloudBackup: lastCloudBackup,
             dataCapacity: 128_000_000_000,
@@ -870,66 +736,12 @@ enum UISmoke {
         ),
     ]
 
-    /// A run that has just started for a phone this Mac was still holding a
-    /// backup of, which the checks say in one line.
-    private static func clearedLeftover() -> WizardModel {
-        let model = WizardModel(watcher: sampleWatcher([samplePhone(findMyOn: false)]))
-        model.show(
-            WizardModel.Sample(
-                step: .ready,
-                udid: samplePhone(findMyOn: false).udid,
-                clearedLeftoverBackup: true
-            )
-        )
-        return model
-    }
-
-    /// A run whose iPhone encrypts what it backs up, which is the one thing
-    /// that puts the password row on the checks.
-    private static func encryptedBackups() -> WizardModel {
-        let phone = samplePhone(findMyOn: false, backupEncrypted: true)
-        let model = WizardModel(
-            watcher: sampleWatcher([phone]), engine: BackupEngine(sample: .idle, progress: 0)
-        )
-        model.show(WizardModel.Sample(step: .ready, supervisionMethod: .fullCopy, udid: phone.udid))
-        return model
-    }
-
-    private static func methodSamples() -> [(name: String, model: WizardModel)] {
-        [
-            ("ready-fast", "26.6.2", SupervisionMethod.seed),
-            ("ready-ios27-full-copy", "27.0", .fullCopy),
-        ].map { name, version, method in
-            let phone = samplePhone(findMyOn: false, iosVersion: version)
-            let model = WizardModel(
-                watcher: sampleWatcher([phone]), engine: BackupEngine(sample: .idle, progress: 0)
-            )
-            model.show(WizardModel.Sample(
-                step: .ready, supervisionMethod: method, backupConfirmed: true,
-                udid: phone.udid
-            ))
-            return (name, model)
-        }
-    }
-
-    /// The checks for a phone that holds more than this Mac has room for.
-    private static func lowSpace() -> WizardModel {
-        let phone = ConnectedDevice(
-            udid: "55555555-5555555555555555",
-            name: "iPhone",
-            productType: "iPhone15,2",
-            marketingName: "iPhone 14 Pro",
-            iosVersion: "26.6.2",
-            findMyOn: false,
-            backupEncrypted: false,
-            cloudBackupOn: true,
-            lastCloudBackup: Date().addingTimeInterval(-dayInSeconds),
-            dataCapacity: 900_000_000_000_000,
-            dataAvailable: 0,
-            pairingState: .paired
-        )
+    /// The checks for an iPhone the app runs on, with nothing left to fix and
+    /// the backup ticked, so Supervise is on.
+    private static func readyTicked() -> WizardModel {
+        let phone = samplePhone(findMyOn: false)
         let model = WizardModel(watcher: sampleWatcher([phone]))
-        model.show(WizardModel.Sample(step: .ready, udid: phone.udid))
+        model.show(WizardModel.Sample(step: .ready, backupConfirmed: true, udid: phone.udid))
         return model
     }
 
@@ -939,11 +751,6 @@ enum UISmoke {
         let model = WizardModel(watcher: sampleWatcher([phone]))
         model.show(WizardModel.Sample(step: .ready, udid: phone.udid))
         return model
-    }
-
-    /// What macOS says when it will not take a folder away.
-    private struct SampleFailure: LocalizedError {
-        var errorDescription: String? { "The volume is read only." }
     }
 
     /// A model whose watcher holds phones that are not there, so the Connect

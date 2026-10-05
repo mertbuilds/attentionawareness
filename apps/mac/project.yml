@@ -54,8 +54,9 @@ targets:
         type: folder
       - path: THIRD_PARTY_NOTICES.md
         buildPhase: resources
-      # The bundled backup helper runs as its own process out of
-      # Contents/Helpers, signed on copy like the embedded dylibs.
+      # The bundled helper the fast method restores its seed with runs as its
+      # own process out of Contents/Helpers, signed on copy like the embedded
+      # dylibs.
       - path: Vendor/bin/idevicebackup2
         buildPhase:
           copyFiles:
@@ -149,15 +150,14 @@ targets:
         embed: true
         codeSign: true
 
-  # The patch, backup and profile layers are compiled into the test bundle as
-  # well as into the app, so the tests need no host application and no window.
-  # libimobiledevice is linked for the wizard's model alone, and no test calls
-  # it.
+  # The backup engine, seed and profile layers are compiled into the test
+  # bundle as well as into the app, so the tests need no host application and
+  # no window. libimobiledevice is linked for the wizard's model alone, and no
+  # test calls it.
   AttentionAwarenessTests:
     type: bundle.unit-test
     platform: macOS
     sources:
-      - Sources/Patch
       - Sources/Backup
       - Sources/Profile
       # Seed writer and device integration, tested with injected operations.
@@ -167,15 +167,15 @@ targets:
       # it. No test sends one.
       - Sources/Event
       # The step order, what each step demands before it runs and what the
-      # phone has to say about the profile before the backup can go are the
-      # parts of the window that need neither SwiftUI nor an iPhone, so they
-      # are tested here with the rest. The profile as the phone lists it comes
-      # with them, because the rule that weighs one is written against it.
+      # phone has to say about the profile are the parts of the window that
+      # need neither SwiftUI nor an iPhone, so they are tested here with the
+      # rest. The profile as the phone lists it comes with them, because the
+      # rule that weighs one is written against it.
       - Sources/UI/WizardStep.swift
       - Sources/UI/WizardGate.swift
       # The phases of the one long job and the two sentences a failure shows
-      # are values as well: the words under the bar, which of them carry a
-      # figure, and what each layer's own wording turns into.
+      # are values as well: the words under the bar and what each layer's own
+      # wording turns into.
       - Sources/UI/JobPhase.swift
       - Sources/UI/JobFailure.swift
       # The body of the last screen is a value as well: three answers in, one
@@ -197,7 +197,7 @@ targets:
       - Sources/UI/ProfileDraft.swift
       - Sources/UI/RestrictionsSummary.swift
       # The demo's clock and its switches are plain values as well, so the
-      # timeline a demo transfer runs to is tested with the rest.
+      # timeline a demo restore runs to is tested with the rest.
       - Sources/Demo/DemoScript.swift
       - Sources/Demo/DemoConditions.swift
       # The demo's wizard and the world it reads, so a test can see that it
@@ -215,7 +215,9 @@ targets:
       # bus, and the files below are only what it takes to compile.
       - Sources/UI/WizardModel.swift
       - Sources/UI/DebugUnsupervise.swift
+      - Sources/UI/DebugFastIOS27.swift
       - Sources/UI/OldSupervisionKey.swift
+      - Sources/UI/OldBackupCopy.swift
       - Sources/UI/WizardStyle.swift
       - Sources/UI/StepSymbol.swift
       - Sources/UI/InfoPopover.swift

@@ -60,11 +60,7 @@ struct DemoBar: View {
                 .padding(.horizontal, 7)
                 .padding(.vertical, 2)
                 .background(WizardStyle.accent, in: Capsule())
-            Text(
-                "Nothing here touches an iPhone. "
-                    + "The whole job runs in about half a minute, and one second of it "
-                    + "stands for a few minutes on the cable."
-            )
+            Text("Nothing here touches an iPhone. The whole job runs in about fifteen seconds.")
             .foregroundStyle(.secondary)
             Spacer(minLength: 12)
             Button("Reset") {
@@ -99,6 +95,16 @@ struct DemoBar: View {
                 Picker("iPhones", selection: $model.conditions.phones) {
                     ForEach(DemoConditions.Phones.allCases) { phones in
                         Text(phones.title).tag(phones)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 150)
+            }
+            field("iOS") {
+                Picker("iOS", selection: $model.conditions.ios) {
+                    ForEach(DemoConditions.IOS.allCases) { ios in
+                        Text(ios.title).tag(ios)
                     }
                 }
                 .pickerStyle(.segmented)
@@ -143,10 +149,8 @@ struct DemoBar: View {
     private var switches: some View {
         HStack(alignment: .center, spacing: 18) {
             Toggle("Find My on", isOn: $model.conditions.findMyOn)
-            Toggle("Encrypted backups", isOn: $model.conditions.backupsEncrypted)
             Toggle("Already supervised", isOn: $model.conditions.supervised)
             Toggle("Profile installed", isOn: $model.conditions.profileInstalled)
-            Toggle("Copy on this Mac", isOn: $model.conditions.holdingBackup)
             Toggle("Long job", isOn: $model.conditions.longJob)
             Spacer(minLength: 0)
         }

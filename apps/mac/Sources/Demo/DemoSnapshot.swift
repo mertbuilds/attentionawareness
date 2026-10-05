@@ -34,8 +34,8 @@ enum DemoSnapshot {
                     model.confirmBackup(true)
                 }
             }
-            // A job runs in about half a minute in the demo, and one that is
-            // to fail fails during the copy.
+            // A job runs in about fifteen seconds in the demo, and one that is
+            // to fail fails during the restore.
             try? await Task.sleep(for: .seconds(step == .job ? 15 : 1.5))
             NSApplication.shared.activate(ignoringOtherApps: true)
             try? await Task.sleep(for: .seconds(0.5))

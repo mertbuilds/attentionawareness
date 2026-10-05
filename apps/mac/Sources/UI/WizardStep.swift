@@ -9,8 +9,8 @@ import Foundation
 enum WizardStep: String, CaseIterable, Equatable {
     case connect
     case ready
-    /// The copy, the patch and the restore, which are one piece of work for
-    /// the person waiting on them and so one screen.
+    /// Reading the iPhone, the restore and the restart, which are one piece of
+    /// work for the person waiting on them and so one screen.
     case job
     case restrictions
     case done

@@ -4,9 +4,9 @@ import Foundation
 /// The wizard, run against an iPhone that is not there.
 ///
 /// It is the model the window always has. What changes is the other end of it:
-/// every method that would reach a phone, a disk, the helper or the site is
-/// replaced by one that waits the moment the real thing would take and then
-/// says what the demo was asked to say. The steps, the stage
+/// every method that would reach a phone, the helper or the site is replaced
+/// by one that waits the moment the real thing would take and then says what
+/// the demo was asked to say. The steps, the stage
 /// machine, the gates and every sentence on screen are the ones that ship.
 ///
 /// Nothing in this file opens a file, starts a process or makes a request. It
@@ -36,8 +36,8 @@ final class DemoWizardModel: WizardModel {
         }
     }
 
-    /// The transfer, patch or install running right now. A jump cancels it, so
-    /// two of them can never run at once.
+    /// The install running right now. A jump cancels it, so two of them can
+    /// never run at once.
     private var work: Task<Void, Never>?
     /// Profiles the demo has installed from the Profiles screen this session,
     /// on top of whatever the conditions say the phone already lists. Reset
@@ -46,38 +46,21 @@ final class DemoWizardModel: WizardModel {
     /// True between Cancel and the helper stopping, so a second press does not
     /// start a second wait.
     private var cancelling = false
-    /// True once this job has refused a backup password, so Try Again gets
-    /// through rather than meeting the same wall.
-    private var refusedThePassword = false
 
-    /// How often a running transfer redraws.
+    /// How often a running restore redraws.
     private static let tick = Duration.milliseconds(100)
-    /// How long the copy takes on the clock, and the restore after it. The
-    /// script keeps its own length and is read faster than it was written, so
-    /// the whole job runs in about half a minute while the elapsed time, the
-    /// estimate and the lines under the bar stay the ones a real run shows.
-    private static let copySeconds: TimeInterval = 10
-    private static let restoreSeconds: TimeInterval = 14
-    /// How much longer both take when the bar asks for a long job: about two
-    /// minutes of copying and three of restoring, long enough for the cost
-    /// story under the bar to go round.
+    /// How much longer the restore takes when the bar asks for a long job:
+    /// about two minutes, long enough for the cost story under the bar to go
+    /// round.
     private static let longJobStretch: TimeInterval = 12
     /// The restart, and the question the wizard asks once the phone is back.
     private static let restartPause = Duration.seconds(3)
     private static let confirmPause = Duration.seconds(2)
-    /// How long each line of the patch stays on screen.
-    private static let patchStep = Duration.milliseconds(650)
-    /// Deriving the keys of an encrypted backup, which is the one part of the
-    /// patch that takes real seconds.
-    private static let keyDerivation = Duration.milliseconds(1400)
     /// How long the helper takes to stop after Cancel.
     private static let cancelPause = Duration.milliseconds(1500)
-    /// How long the store takes to answer one search.
+    /// How long the site takes to sign, and the iPhone to take the bytes.
     private static let signingPause = Duration.milliseconds(1200)
     private static let installPause = Duration.milliseconds(1600)
-    /// What the demo says this Mac has free. It is a fixed figure rather than
-    /// the volume's own, so the checks read the same on every machine.
-    private static let freeBytes: UInt64 = 248_000_000_000
 
     init() {
         super.init(
@@ -148,9 +131,12 @@ final class DemoWizardModel: WizardModel {
         // next step is drawn.
         applyConditions()
         engine.show(phase: .idle, progress: 0, log: [])
+        // An iPhone the app does not run on has no job to stand on: it gets
+        // the guide on Connect, as it would on a cable.
+        let step = step == .job && iosRefusal != nil ? .connect : step
         show(sample(for: step))
-        // The job is the one screen there is no standing on: it is an hour of
-        // work with a bar over it, so landing there starts that work.
+        // The job is the one screen there is no standing on: it is work with
+        // a bar over it, so landing there starts that work.
         if step == .job {
             startJob()
         }
@@ -179,24 +165,15 @@ final class DemoWizardModel: WizardModel {
     /// What a run standing on one step would be holding.
     private func sample(for step: WizardStep) -> Sample {
         var sample = Sample(step: step)
-        sample.supervisionMethod = supervisionMethod
         // A run past the checks has ticked the backup box on its way there.
         sample.backupConfirmed = step == .ready ? backupConfirmed : true
         sample.finderBackup = DemoWorld.finderBackup(conditions)
         sample.fullDiskAccess = fullDiskAccess
         guard step != .connect else { return sample }
         sample.udid = DemoWorld.udid
-        // The job screen is landed on where it starts, on the copy, so it is
-        // holding no folder yet either. The Profiles screen is not a run, so it
-        // holds no folder either: it needs only the phone it manages.
-        guard step != .ready, step != .job, step != .profiles else { return sample }
-        sample.backupFolder = DemoWorld.backupFolder
-        // A run that reached the restore has a measured folder behind it, so
-        // the step can say how long sending it back will take.
-        sample.restoreBytes = DemoWorld.backupBytes
         switch step {
         case .restrictions, .done:
-            sample.restore = RestoreState(stage: .finished, supervisedAfterwards: true)
+            sample.restore = RestoreState(stage: .finished)
         case .connect, .ready, .job, .profiles:
             break
         }
@@ -208,22 +185,14 @@ final class DemoWizardModel: WizardModel {
     private var currentSample: Sample {
         Sample(
             step: step,
-            supervisionMethod: supervisionMethod,
             backupConfirmed: backupConfirmed,
             udid: udid,
-            backupFolder: backupFolder,
-            restoreBytes: restoreBytes,
-            transferStartedAt: transferStartedAt,
-            estimate: estimate,
-            patch: patch,
             restore: restore,
             job: job,
             profile: profile,
             appSearch: appSearch,
             finderBackup: finderBackup,
             fullDiskAccess: fullDiskAccess,
-            clearedLeftoverBackup: clearedLeftoverBackup,
-            backupRemovalFailure: backupRemovalFailure,
             errorMessage: errorMessage
         )
     }
@@ -237,120 +206,22 @@ final class DemoWizardModel: WizardModel {
 
     // MARK: - The job
 
-    /// The wizard's own job, with one thing of the demo's in front of it: a
-    /// password the demo refused once is let through on the next attempt, and
-    /// a new job forgets that it ever refused one.
-    override func startJob() {
-        refusedThePassword = false
-        super.startJob()
-    }
-
-    /// How the next demo transfer ends.
-    ///
-    /// A run whose iPhone encrypts its backups puts its failure on the
-    /// password instead of on the cable, because the password is the only
-    /// thing about an encrypted copy that can be wrong. Both transfers have to
-    /// go through for that screen to be reached at all.
-    private var transferOutcome: DemoConditions.Outcome {
-        guard conditions.outcome == .fails, conditions.backupsEncrypted else {
-            return conditions.outcome
-        }
-        return .succeeds
-    }
-
-    /// The real model runs the helper here. The demo runs the script instead,
-    /// and leaves this Mac holding a copy at the end of it.
-    override func copyTheIPhone() async throws {
-        var sample = currentSample
-        sample.backupFolder = nil
-        sample.restoreBytes = nil
-        sample.patch = PatchState()
-        sample.restore = RestoreState()
-        sample.transferStartedAt = Date()
-        sample.estimate = TransferEstimate()
-        show(sample)
-        try await runTransfer(.backup, in: onTheClock(Self.copySeconds))
-        engine.show(phase: .done, progress: 1, log: engine.log)
-        var done = currentSample
-        done.backupFolder = DemoWorld.backupFolder
-        done.restoreBytes = DemoWorld.backupBytes
-        show(done)
-        // This Mac is holding the copy now, which is what the end of the run
-        // takes away again.
-        conditions.holdingBackup = true
-    }
-
-    /// The real model writes the flag into the copy on this Mac. The demo
-    /// writes nothing and says the same lines at the same pace. It is also
-    /// where a copy the demo was asked to refuse ends the job, because an
-    /// encrypted copy is the only one a password can be wrong about.
-    override func markTheCopy() async throws {
-        var sample = currentSample
-        sample.patch = PatchState(status: "Reading the copy", isRunning: true)
-        show(sample)
-        try await Task.sleep(for: Self.patchStep)
-        if conditions.backupsEncrypted {
-            patchStatus("Deriving the backup keys, up to ten seconds")
-            try await Task.sleep(for: Self.keyDerivation)
-            // The demo holds no right password to weigh one against, so it
-            // refuses the first attempt and lets the next through, which is
-            // the shape of getting it wrong and then typing the right one.
-            if conditions.outcome == .fails, !refusedThePassword {
-                refusedThePassword = true
-                var refused = currentSample
-                refused.patch = PatchState()
-                show(refused)
-                throw PatchError.wrongPassword
-            }
-        }
-        // The copy says what the phone says, so a phone that is already
-        // supervised leaves the patch with nothing to write.
-        guard !conditions.supervised else {
-            var nothingToDo = currentSample
-            nothingToDo.patch = PatchState(isRunning: false, alreadyCorrect: true)
-            return show(nothingToDo)
-        }
-        patchStatus("Writing the flag")
-        try await Task.sleep(for: Self.patchStep)
-        patchStatus("Checking")
-        try await Task.sleep(for: Self.patchStep)
-        var done = currentSample
-        done.patch = PatchState(
-            changes: ["IsSupervised: false -> true", "CloudConfigurationUIComplete: false -> true"],
-            pristinePath: DemoWorld.pristineFolder.path,
-            isRunning: false
-        )
-        show(done)
-    }
-
     override func readDeviceIOSVersion(udid: String) async throws -> String? {
         watcher.devices.first(where: { $0.udid == udid })?.iosVersion
     }
 
-    /// The seed demo reuses the scripted transfer without reaching SeedDevice.
+    /// The real model sends the seed through the engine. The demo runs the
+    /// restore script, which ends with the phone leaving the cable to
+    /// restart, and reaches no `SeedDevice`.
     override func sendSeedConfiguration(restartingOnly: Bool) async throws {
-        try await sendTheCopyBack()
-    }
-
-    /// The real model sends the copy over the cable. The demo runs the restore
-    /// script, which ends with the phone leaving the cable to restart.
-    override func sendTheCopyBack() async throws {
         var sample = currentSample
         sample.restore = RestoreState(stage: .running)
-        sample.transferStartedAt = Date()
-        sample.estimate = TransferEstimate()
         show(sample)
-        try await runTransfer(.restore, in: onTheClock(Self.restoreSeconds))
-    }
-
-    /// How long a transfer runs on the clock, stretched when the bar asks for
-    /// a long job.
-    private func onTheClock(_ seconds: TimeInterval) -> TimeInterval {
-        conditions.longJob ? seconds * Self.longJobStretch : seconds
+        try await runRestore()
     }
 
     /// The real model reads the bus until the phone is back. The demo has no
-    /// bus: the phone went off the cable when the restore rebooted it, and it
+    /// bus: the phone went off the cable when the run restarted it, and it
     /// comes back here saying what the run asked it to say.
     override func waitForPhone(until deadline: Date?) async -> Bool {
         do {
@@ -376,7 +247,7 @@ final class DemoWizardModel: WizardModel {
 
     /// The real model tells the helper to stop, and the helper takes a moment
     /// over it. Nothing here has a helper, so the moment is a pause the
-    /// transfer loop below keeps.
+    /// restore loop below keeps.
     override func cancelTransfer() {
         guard engine.phase.isRunning, !cancelling else { return }
         cancelling = true
@@ -387,14 +258,14 @@ final class DemoWizardModel: WizardModel {
         )
     }
 
-    /// Walk one demo transfer from the first beat to the last, in the seconds
-    /// a demo is worth rather than the hour the script is written at.
+    /// Walk the demo restore from the first beat to the last, stretched when
+    /// the bar asks for a long job.
     ///
     /// It throws what the helper would have thrown, so the wizard's own job
     /// lands on the same screen a real failure lands on.
-    private func runTransfer(_ kind: DemoScript.Kind, in seconds: TimeInterval) async throws {
-        let script = DemoScript(kind: kind, outcome: transferOutcome)
-        let scale = script.duration / seconds
+    private func runRestore() async throws {
+        let script = DemoScript(outcome: conditions.outcome)
+        let scale = conditions.longJob ? 1 / Self.longJobStretch : 1
         let started = Date()
         while true {
             if cancelling {
@@ -435,52 +306,34 @@ final class DemoWizardModel: WizardModel {
         }
     }
 
-    /// One beat of a transfer, in the two places the window reads it from: the
-    /// engine, and the clock and estimate the model holds.
+    /// One beat of the restore, in the two places the window reads it from:
+    /// the engine, and the phase of the job the model holds.
     private func draw(_ beat: DemoScript.Beat, lines: [String]) {
+        var sample = currentSample
         switch beat.stage {
         case .starting:
             engine.show(phase: .starting, progress: 0, log: lines)
         case .transferring:
             engine.show(
-                phase: .transferring(
-                    progress: beat.progress,
-                    filesDone: beat.files,
-                    filesTotal: nil,
-                    bytes: beat.bytes
-                ),
+                phase: .transferring(progress: beat.progress, filesDone: beat.files, filesTotal: nil, bytes: nil),
                 progress: beat.progress,
                 log: lines
             )
+            sample.job = .restoring
         case .finishing:
             engine.show(phase: .finishing, progress: 1, log: lines)
+            sample.job = .restoring
         case .waitingForPhone:
             engine.show(phase: .done, progress: 1, log: lines)
-            // The restore reboots the phone, so it goes off the cable here and
+            // The run restarts the phone, so it goes off the cable here and
             // comes back when the wizard waits for it.
             if !watcher.devices.isEmpty {
                 watcher.show(devices: [])
             }
+            sample.restore.stage = .waitingForPhone
         case .finished, .stopped:
             return
         }
-        // The engine's progress feeds the model's own estimate off the real
-        // clock, so the reading the window shows is written afterwards: it is
-        // the one a transfer of this length would be holding, and it is what
-        // makes ten seconds read like the hour they stand for.
-        let now = Date()
-        var sample = currentSample
-        sample.transferStartedAt = now.addingTimeInterval(-beat.elapsed)
-        sample.estimate = beat.estimate(at: now)
-        if beat.stage == .waitingForPhone {
-            sample.restore.stage = .waitingForPhone
-        }
-        show(sample)
-    }
-
-    private func patchStatus(_ line: String) {
-        var sample = currentSample
-        sample.patch.status = line
         show(sample)
     }
 
@@ -566,38 +419,8 @@ final class DemoWizardModel: WizardModel {
     // question the real app asks and draws the same icons. Judging a search
     // against thirteen written-down rows tells you nothing about how it feels,
     // and a demo that cannot find an app the real one finds is misleading.
-    // Everything that could reach the phone, the helper or the backups stays
-    // overridden below.
-
-    // MARK: - What the demo says about this Mac
-
-    /// The rate a real run reads from the defaults, answered from a figure
-    /// instead, so the copy line shows a time from the first second without a
-    /// prior run behind it. It stands for what this Mac would have measured, so
-    /// the seeded figure lands near the live estimate the demo transfer settles
-    /// to.
-    override var rememberedCopyRate: Double? { DemoWorld.copyRate }
-
-    /// The free space check, answered from a figure rather than from the
-    /// volume, so the checks read the same on a full Mac and an empty one.
-    override var diskSpace: DiskSpace {
-        var needed = UInt64(Double(67_882_442_752) * 1.2)
-        if let capacity = device?.dataCapacity, let available = device?.dataAvailable, capacity >= available {
-            needed = UInt64(Double(capacity - available) * 1.2)
-        }
-        return DiskSpace(needed: needed, free: Self.freeBytes, assumed: false)
-    }
-
-    /// The real model takes the folder off the disk here. The demo has no
-    /// folder and reaches nothing, so it answers from the switches: a Mac that
-    /// is holding one loses it, a Mac that is not was never holding anything,
-    /// and a demo asked for a failure says what a refused delete says.
-    override func removeBackup(of udid: String) async -> BackupRemoval {
-        guard conditions.holdingBackup else { return .nothingThere }
-        guard conditions.outcome != .fails else { return .failed(DemoWorld.removalFailure) }
-        conditions.holdingBackup = false
-        return .deleted
-    }
+    // Everything that could reach the phone or the helper stays overridden
+    // above.
 }
 
 #endif

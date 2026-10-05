@@ -3,10 +3,9 @@ import Foundation
 /// What the seed method writes into the cloud configuration, worked out
 /// before anything is sent.
 ///
-/// The full copy patches the file inside a backup and has to keep the size
-/// Manifest.db records for it. The seed method sends a whole new file, so
-/// there is no size to keep: it takes the configuration the iPhone holds now,
-/// keeps every key in it and sets the flags Nugget sets in `add_skip_setup`.
+/// The seed method sends a whole new file: it takes the configuration the
+/// iPhone holds now, keeps every key in it and sets the flags Nugget sets in
+/// `add_skip_setup`.
 ///
 /// Setup suppression also applies after restoring onto an already configured
 /// iPhone. Existing supervising identity keys stay on a supervising run and
@@ -125,12 +124,12 @@ struct CloudConfigurationEdit {
         var changes: [String] = []
 
         let flags = [("IsSupervised", supervised)] + appliedFlags.map { ($0, true) }
-        for (key, target) in flags where SupervisionPatch.boolean(content[key]) != target {
-            changes.append("\(key): \(SupervisionPatch.label(content[key])) -> \(target)")
+        for (key, target) in flags where boolean(content[key]) != target {
+            changes.append("\(key): \(label(content[key])) -> \(target)")
             content[key] = target
         }
         if !isZero(content["ConfigurationSource"]) {
-            changes.append("ConfigurationSource: \(SupervisionPatch.label(content["ConfigurationSource"])) -> 0")
+            changes.append("ConfigurationSource: \(label(content["ConfigurationSource"])) -> 0")
             content["ConfigurationSource"] = 0
         }
         let existingPanes = (content["SkipSetup"] as? [Any] ?? []).compactMap { $0 as? String }
@@ -158,7 +157,25 @@ struct CloudConfigurationEdit {
     /// A plist integer that is zero. A plist boolean is a number to Foundation
     /// as well, and false would pass for zero without the first check.
     private static func isZero(_ value: Any?) -> Bool {
-        guard SupervisionPatch.boolean(value) == nil, let number = value as? NSNumber else { return false }
+        guard boolean(value) == nil, let number = value as? NSNumber else { return false }
         return number == NSNumber(value: 0)
+    }
+
+    /// A plist boolean, and nothing else. An integer is not a boolean here,
+    /// which is what the Python `is True` comparison says too.
+    static func boolean(_ value: Any?) -> Bool? {
+        guard let value, CFGetTypeID(value as CFTypeRef) == CFBooleanGetTypeID() else { return nil }
+        return (value as? NSNumber)?.boolValue
+    }
+
+    /// How a flag is named in the list of changes.
+    static func label(_ value: Any?) -> String {
+        switch boolean(value) {
+        case true: return "true"
+        case false: return "false"
+        case nil:
+            guard let value else { return "missing" }
+            return String(describing: value)
+        }
     }
 }
