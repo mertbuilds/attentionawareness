@@ -1,4 +1,3 @@
-import { accent } from '@attentionawareness/ui/accent.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { useEffect, useRef, useState } from 'react';
 import { Heart } from 'reicon-react';
@@ -20,10 +19,6 @@ const SHARE_URL = shareUrl('thanks');
 const HEART_SIZE = 20;
 
 const styles = create({
-  // The heart, in the one orange, before the words.
-  heart: {
-    color: accent.base,
-  },
   // The heart and the words after it, on one line.
   title: {
     alignItems: 'center',
@@ -62,7 +57,7 @@ export function ThanksPopup({ onShown, show }: { onShown: () => void; show: bool
       open={open}
       title={
         <span {...props(styles.title)}>
-          <span {...props(popupHeart, styles.heart)}>
+          <span {...props(popupHeart)}>
             <Heart aria-hidden="true" size={HEART_SIZE} weight="Filled" />
           </span>
           {m.thanks_popup_title()}

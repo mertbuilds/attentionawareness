@@ -1,4 +1,5 @@
 import { Button, Dialog, DialogClose, DialogContent, DialogTitle } from '@attentionawareness/ui';
+import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
@@ -94,8 +95,9 @@ const styles = create({
     position: 'absolute',
     width: 32,
   },
-  // The heart beats once, after the panel has settled. It sits in a wrapper
-  // because a browser draws a scaled icon soft where the icon itself is scaled.
+  // The heart, in the one orange whatever it stands on, beats once, after the
+  // panel has settled. It sits in a wrapper because a browser draws a scaled
+  // icon soft where the icon itself is scaled.
   heart: {
     animationDelay: duration.slow,
     animationDuration: duration.verySlow,
@@ -105,6 +107,7 @@ const styles = create({
       default: beat,
     },
     animationTimingFunction: easing.bounce,
+    color: accent.base,
     display: 'flex',
   },
   // The panel: it rises a little into the middle of the window, out of a blur
