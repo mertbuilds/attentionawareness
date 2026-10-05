@@ -128,14 +128,16 @@ final class BackupEngine: ObservableObject {
     ///
     /// `folder` is the backup itself, `root/<udid>`. The helper takes the root
     /// and finds the backup under it, so `--source` is only needed when the
-    /// folder was made by another phone.
+    /// folder was made by another phone. `remove` tells the iPhone to remove
+    /// the items the backup does not restore (`RemoveItemsNotRestored`).
     func restore(
         udid: String,
         from folder: URL,
         system: Bool,
         settings: Bool,
         reboot: Bool,
-        skipApps: Bool
+        skipApps: Bool,
+        remove: Bool
     ) async throws {
         let manifest = folder.appendingPathComponent(SeedBackup.manifestPlistName)
         guard FileManager.default.fileExists(atPath: manifest.path) else {
@@ -144,14 +146,14 @@ final class BackupEngine: ObservableObject {
 
         let arguments = Self.restoreArguments(
             udid: udid, folder: folder,
-            system: system, settings: settings, reboot: reboot, skipApps: skipApps
+            system: system, settings: settings, reboot: reboot, skipApps: skipApps, remove: remove
         )
         try await run(arguments: arguments, folder: folder)
     }
 
     nonisolated static func restoreArguments(
         udid: String, folder: URL,
-        system: Bool, settings: Bool, reboot: Bool, skipApps: Bool
+        system: Bool, settings: Bool, reboot: Bool, skipApps: Bool, remove: Bool
     ) -> [String] {
         var arguments = ["-u", udid]
         let sourceUdid = folder.lastPathComponent
@@ -160,6 +162,7 @@ final class BackupEngine: ObservableObject {
         if system { arguments.append("--system") }
         if settings { arguments.append("--settings") }
         if skipApps { arguments.append("--skip-apps") }
+        if remove { arguments.append("--remove") }
         arguments.append(reboot ? "--reboot" : "--no-reboot")
         arguments.append(folder.deletingLastPathComponent().path)
         return arguments

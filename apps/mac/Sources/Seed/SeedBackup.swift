@@ -99,6 +99,12 @@ enum SeedBackup {
     /// random inode. The setup file gets the next inode with wrapping addition,
     /// so even UInt64.max produces two distinct file inodes.
     ///
+    /// In the live mode the folder holds the supervision domain alone: no
+    /// setup records and no setup file. That restore removes the items it
+    /// does not restore, and the seed confirmed to keep the data on iOS 27.2
+    /// lists this one domain. A restored `SetupDone` would also work against
+    /// the stop on the Restore Completed screen that the live step needs.
+    ///
     /// The folder has to be new. A folder that is already there is not one
     /// this write made, so it is refused and never cleared. A write that
     /// fails part way takes its own folder away again.
@@ -107,6 +113,7 @@ enum SeedBackup {
         in root: URL,
         udid: String,
         content: Data,
+        mode: SeedMode = .restored,
         date: Date = Date(),
         inode: UInt64 = .random(in: .min ... .max)
     ) throws -> URL {
@@ -127,15 +134,16 @@ enum SeedBackup {
                 owner: owner, group: group, inode: inode &+ 1, date: date
             ),
         ]
-        let manifestRecords = records(content: content, date: date, inode: inode) + setupRecords
-        let files = [
+        var manifestRecords = records(content: content, date: date, inode: inode)
+        if mode == .restored { manifestRecords += setupRecords }
+        var files = [
             contentFileName: content,
-            setupFileName: setupContent,
             Mbdb.fileName: try Mbdb.data(records: manifestRecords),
             BackupStatus.fileName: try plist(status),
             manifestPlistName: try plist(manifest),
             infoPlistName: try plist([String: Any]()),
         ]
+        if mode == .restored { files[setupFileName] = setupContent }
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         do {
             for (name, data) in files {

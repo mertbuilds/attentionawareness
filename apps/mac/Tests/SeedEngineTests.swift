@@ -18,7 +18,7 @@ struct SeedEngineTests {
         let engine = SeedEngine(operations: phone.operations)
         try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
         #expect(phone.events == ["version", "configuration", "version", "restore", "restart"])
-        #expect(phone.reboots == [false])
+        #expect(phone.modes == [.restored])
         #expect(engine.phase == .done)
     }
 
@@ -28,21 +28,27 @@ struct SeedEngineTests {
         let engine = SeedEngine(operations: phone.operations)
         try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
         #expect(phone.events == ["version", "configuration", "version", "restore"])
-        #expect(phone.reboots == [true])
+        #expect(phone.modes == [.live])
+        #expect(phone.seedFileNames == Set([
+            SeedBackup.contentFileName, Mbdb.fileName, "Status.plist", "Manifest.plist", "Info.plist"
+        ]))
         #expect(engine.restoreApplied)
         #expect(engine.restoredUDID == "phone")
         #expect(engine.liveConfigurationOwed)
         #expect(engine.phase == .awaitingLiveConfiguration)
     }
 
-    @Test func theVersionReadBeforeTheRestoreDecidesWhoRestartsIPhone() async throws {
-        let phone = Phone(version: "26.4")
-        phone.versions = ["26.4", "27.0"]
+    @Test(arguments: [["26.4", "27.0"], ["27.0", "26.4"]])
+    func aVersionThatChangesTheModeBeforeTheRestoreStopsTheRun(_ versions: [String]) async throws {
+        let phone = Phone(version: versions[0])
+        phone.versions = versions
         let engine = SeedEngine(operations: phone.operations)
-        try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
-        #expect(phone.reboots == [true])
-        #expect(!phone.events.contains("restart"))
-        #expect(engine.phase == .awaitingLiveConfiguration)
+        await #expect(throws: SeedRunError.iosVersionChanged) {
+            try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
+        }
+        #expect(phone.events == ["version", "configuration", "version"])
+        #expect(!engine.restoreApplied)
+        #expect(!engine.liveConfigurationOwed)
     }
 
     @Test func aRestartIsNoRecoveryWhileTheLiveStepIsOwed() async throws {
@@ -410,17 +416,17 @@ struct SeedEngineTests {
     @Test func seedRestoreArgumentsCannotRequestFullRestoreOrReboot() {
         let arguments = BackupEngine.restoreArguments(
             udid: "phone", folder: URL(fileURLWithPath: "/isolated/phone"),
-            system: true, settings: false, reboot: false, skipApps: true
+            system: true, settings: false, reboot: false, skipApps: true, remove: false
         )
         #expect(arguments == ["-u", "phone", "restore", "--system", "--skip-apps", "--no-reboot", "/isolated"])
     }
 
-    @Test func aSeedRestoreOnIOS27LetsTheHelperRestartIPhone() {
+    @Test func aSeedRestoreOnIOS27SendsNoSystemFilesRemovesAndLetsTheHelperRestartIPhone() {
         let arguments = BackupEngine.restoreArguments(
             udid: "phone", folder: URL(fileURLWithPath: "/isolated/phone"),
-            system: true, settings: false, reboot: true, skipApps: true
+            system: false, settings: false, reboot: true, skipApps: true, remove: true
         )
-        #expect(arguments == ["-u", "phone", "restore", "--system", "--skip-apps", "--reboot", "/isolated"])
+        #expect(arguments == ["-u", "phone", "restore", "--skip-apps", "--remove", "--reboot", "/isolated"])
     }
 
     @Test func configurationResponseRequiresADictionaryAndValidAcknowledgement() throws {
@@ -467,8 +473,8 @@ struct SeedEngineTests {
         var restartError = false
         var afterConfiguration: (() -> Void)?
         var duringRestore: (() -> Void)?
-        /// Whether each restore was told to restart iPhone itself.
-        var reboots: [Bool] = []
+        /// The mode each restore was run in.
+        var modes: [SeedMode] = []
         /// Every configuration a live set carried.
         var sent: [[String: Any]] = []
         var slept: [Duration] = []
@@ -495,9 +501,9 @@ struct SeedEngineTests {
                     self.afterConfiguration?()
                     return try PropertyListSerialization.data(fromPropertyList: self.policy, format: .xml, options: 0)
                 },
-                restore: { _, folder, reboot in
+                restore: { _, folder, mode in
                     self.events.append("restore")
-                    self.reboots.append(reboot)
+                    self.modes.append(mode)
                     self.folder = folder
                     self.seedFileNames = Set(try FileManager.default.contentsOfDirectory(atPath: folder.path))
                     let data = try Data(contentsOf: folder.appendingPathComponent(SeedBackup.contentFileName))

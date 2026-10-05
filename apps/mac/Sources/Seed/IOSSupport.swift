@@ -4,18 +4,24 @@ import Foundation
 ///
 /// iOS 26 and earlier run the fast method. iOS 27 and later get no run in a
 /// Release build, and neither does an iPhone whose version cannot be read: on
-/// an iPhone SE with iOS 27.2 our earlier run (the restore with `--no-reboot`,
-/// then our own restart) finished with no error and the iPhone came back
-/// erased and not supervised. Those iPhones are sent to the manual guide.
+/// an iPhone SE with iOS 27.2 our earlier run (the restore with system files
+/// and `--no-reboot`, then our own restart) finished with no error and the
+/// iPhone came back erased and not supervised. Those iPhones are sent to the
+/// manual guide.
 ///
-/// We expect that iOS 27 takes the cloud configuration only live, so a run
-/// there owes one more step: the same configuration sent live while iPhone is
-/// on the Restore Completed screen (`needsLiveConfiguration`). On 2026-10-05
-/// another tool that uses this sequence supervised that same iPhone SE on iOS
-/// 27.2 and kept its data. This app has not run the step on a device yet. That
-/// `--no-reboot` with our own restart caused the earlier erase is a
-/// hypothesis, not a finding. Only the debug `--debug-fast-ios27` flag reaches
-/// the step, until a run of this app on a device confirms it.
+/// iOS 27 takes the cloud configuration only live, so a run there owes one
+/// more step: the same configuration sent live while iPhone is on the Restore
+/// Completed screen (`needsLiveConfiguration`). On 2026-10-05 this app ran the
+/// step on that iPhone SE with iOS 27.2: the restore restarted iPhone itself,
+/// the setting was acknowledged and read back, and iPhone still came back
+/// erased. That restore sent system files, so `--no-reboot` was not the cause
+/// of the erase: a restore with system files erases there with or without
+/// it. Another tool supervised that same iPhone and kept its data with a
+/// restore that sends no system files and removes the items it does not
+/// restore, from a seed that holds the supervision domain alone. `SeedMode`
+/// now sends the same. With this app that is not yet confirmed to keep the
+/// data. Only the debug `--debug-fast-ios27` flag reaches the step, until a
+/// run of this app on a device confirms it.
 ///
 /// Nothing here touches the iPhone, a backup or the window, which is why the
 /// tests can run it.
@@ -108,5 +114,35 @@ enum IOSSupport {
             return nil
         }
         return major
+    }
+}
+
+/// The two ways a seed run goes. The iOS version decides, and the seed, the
+/// restore options and who restarts iPhone all follow this one value.
+enum SeedMode: Equatable {
+    /// iOS 26 and earlier. The seed holds the configuration and the setup
+    /// state, the restore sends system files and does not restart iPhone, and
+    /// the app restarts it.
+    case restored
+    /// iOS 27 and later. The seed holds the supervision domain alone, the
+    /// restore sends no system files, removes the items it does not restore
+    /// and restarts iPhone itself, and the configuration is sent live after.
+    ///
+    /// Why: on iOS 27.2 a restore with system files erased iPhone in our
+    /// device test on 2026-10-05. This option set and this seed are the ones
+    /// confirmed to keep the data on that iPhone with another tool. With this
+    /// app that is not yet confirmed.
+    case live
+
+    init(iosVersion: String?) {
+        self = IOSSupport.needsLiveConfiguration(iosVersion: iosVersion) ? .live : .restored
+    }
+
+    /// The restore options this mode sends, for the log.
+    var restoreOptionsLogText: String {
+        switch self {
+        case .restored: "system files, no remove, no reboot"
+        case .live: "no system files, remove, reboot"
+        }
     }
 }

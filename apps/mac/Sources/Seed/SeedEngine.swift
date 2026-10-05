@@ -14,8 +14,9 @@ final class SeedEngine: ObservableObject {
     struct Operations {
         var readVersion: (String) async throws -> String?
         var readConfiguration: (String) async throws -> Data
-        /// The last value is whether the restore restarts iPhone itself.
-        var restore: (String, URL, Bool) async throws -> Void
+        /// The last value picks the restore options. In the live mode the
+        /// restore restarts iPhone itself.
+        var restore: (String, URL, SeedMode) async throws -> Void
         var restart: (String) async throws -> Void
         var setConfiguration: (String, Data) async throws -> Void
         var sleep: (Duration) async throws -> Void
@@ -54,15 +55,21 @@ final class SeedEngine: ObservableObject {
             readConfiguration: { udid in
                 try await Task.detached { try SeedDevice.cloudConfiguration(udid: udid) }.value
             },
-            restore: { udid, folder, reboot in
+            restore: { udid, folder, mode in
                 try Task.checkCancellation()
+                // On iOS 27.2 a restore with system files erased iPhone in our
+                // device test on 2026-10-05. The live mode sends the option
+                // set confirmed to keep the data on that iPhone with another
+                // tool: no system files, remove, and the restore restarts
+                // iPhone. With this app that is not yet confirmed.
+                let live = mode == .live
                 // Wait for the helper to stop before the temporary seed goes away.
                 // Cancelling its AsyncStream consumer directly would stop draining
                 // the pipes while the helper still has the device open.
                 let transfer = Task { @MainActor in
                     try await backupEngine.restore(
                         udid: udid, from: folder,
-                        system: true, settings: false, reboot: reboot, skipApps: true
+                        system: !live, settings: false, reboot: live, skipApps: true, remove: live
                     )
                 }
                 do {
@@ -103,7 +110,9 @@ final class SeedEngine: ObservableObject {
         defer { running = false }
         do {
             try checkCancellation()
-            try await gate(udid: udid, allowsFastOnAnyIOS: allowsFastOnAnyIOS)
+            // iOS 27 takes the configuration only live, after a restore that
+            // restarts iPhone itself. The mode also decides what the seed holds.
+            let mode = SeedMode(iosVersion: try await gate(udid: udid, allowsFastOnAnyIOS: allowsFastOnAnyIOS))
             DeviceLog.logger.notice("fast: reading the cloud configuration")
             let current = try await operations.readConfiguration(udid)
             DeviceLog.logger.notice("fast: cloud configuration read")
@@ -116,17 +125,17 @@ final class SeedEngine: ObservableObject {
                 .appendingPathComponent("attentionawareness-seed-\(UUID().uuidString)")
             try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
             defer { try? FileManager.default.removeItem(at: root) }
-            let folder = try SeedBackup.write(in: root, udid: udid, content: edit.plistData())
-            // Re-read the phone immediately before the first write to it.
+            let folder = try SeedBackup.write(in: root, udid: udid, content: edit.plistData(), mode: mode)
+            // Re-read the phone immediately before the first write to it. A
+            // seed made for the other mode is never sent.
             let version = try await gate(udid: udid, allowsFastOnAnyIOS: allowsFastOnAnyIOS)
-            // iOS 27 takes the configuration only live, after a restore that
-            // restarts iPhone itself.
-            let live = IOSSupport.needsLiveConfiguration(iosVersion: version)
+            guard SeedMode(iosVersion: version) == mode else { throw SeedRunError.iosVersionChanged }
+            let live = mode == .live
             try checkCancellation()
             phase = .restoring
-            DeviceLog.logger.notice("fast: restore started, supervised \(supervised, privacy: .public), restore restarts iPhone \(live, privacy: .public)")
+            DeviceLog.logger.notice("fast: restore started, supervised \(supervised, privacy: .public), options: \(mode.restoreOptionsLogText, privacy: .public)")
             do {
-                try await operations.restore(udid, folder, live)
+                try await operations.restore(udid, folder, mode)
             } catch BackupError.cancelled {
                 DeviceLog.logger.notice("fast: restore cancelled")
                 throw SeedRunError.cancelled(restoreApplied: false)
@@ -323,6 +332,8 @@ enum SeedRunError: LocalizedError, Equatable {
     case restartFailed(String)
     /// `lastReason` is what the last attempt failed with, for the "i".
     case liveConfigurationNotTaken(lastReason: String?)
+    /// The two version reads of one run put it in different modes.
+    case iosVersionChanged
 
     var isCancellation: Bool {
         if case .cancelled = self { return true }
@@ -341,6 +352,8 @@ enum SeedRunError: LocalizedError, Equatable {
         case .noAppliedRestore: return "No successful seed restore for this iPhone is waiting for a restart."
         case .restartFailed(let reason):
             return "The configuration was restored, but iPhone could not be restarted. Restart iPhone to finish. \(reason)"
+        case .iosVersionChanged:
+            return "The iOS version iPhone gave changed during the run. Nothing was sent to iPhone. Try again."
         case .liveConfigurationNotTaken:
             return "iPhone restarted, but it did not take the supervision setting. Keep iPhone on the Restore Completed screen, unlocked and on the cable, and try again."
         }

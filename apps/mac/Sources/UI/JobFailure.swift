@@ -47,6 +47,8 @@ struct JobFailure: Equatable {
             switch seed {
             case .refused:
                 return JobFailure(title: "Can't Supervise This iPhone", fix: raw, raw: raw, retry: .start)
+            case .iosVersionChanged:
+                return JobFailure(title: "Couldn't Finish Supervision", fix: raw, raw: raw, retry: .start)
             case .restartFailed, .cancelled(restoreApplied: true):
                 return JobFailure(title: "Restart Needed", fix: "Reconnect and unlock iPhone, then try again to restart it.", raw: raw, retry: .restore)
             case .cancelled(restoreApplied: false):

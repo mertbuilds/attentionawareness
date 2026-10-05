@@ -44,11 +44,15 @@ and [Nugget's iOS 27 data-loss warning](https://github.com/leminlimez/Nugget#rea
 On iOS 26 and earlier the fast method supervises a real iPhone, and the app
 finds it again after the restart.
 
-What we expect the fast run was missing on iOS 27: we expect that iOS 27
-ignores the cloud configuration the restore puts back and takes it only live.
-So a run there has one more step, the live step. The restore restarts the
-iPhone itself, and we expect the iPhone to come back on the Setup Assistant
-screen "Restore Completed", not supervised. The app
+What the fast run was missing on iOS 27: iOS 27 ignores the cloud
+configuration the restore puts back and takes it only live. So a run there
+has one more step, the live step, and its restore is a different one. The
+seed holds the supervision domain alone (four records, no
+`com.apple.purplebuddy.plist`), and the helper runs with
+`restore --skip-apps --remove --reboot`: no system files, items that are not
+restored are removed, and the restore restarts the iPhone itself. The restore
+only has to bring the iPhone to the Setup Assistant screen "Restore
+Completed", not supervised. The app
 waits until this Mac has paired again (unlock, Trust, passcode), then sends
 the same configuration live over MCInstall (`SetCloudConfiguration`) and reads
 it back (`SeedEngine.applyLiveConfiguration`). Only then is Continue tapped on
@@ -65,19 +69,26 @@ same way.
 
 What is known about iOS 27, and no more than this:
 
-- This app has not run the live step on a device yet.
 - On an iPhone SE with iOS 27.2 our earlier run (the restore with
-  `--no-reboot`, then our own restart) finished with no error, and the iPhone
-  came back erased and not supervised.
+  `--system --no-reboot`, then our own restart) finished with no error, and
+  the iPhone came back erased and not supervised.
 - On 2026-10-05 another tool that uses this sequence (a small restore that
   restarts the iPhone, then `SetCloudConfiguration` over MCInstall while the
   iPhone is on Restore Completed) supervised that same iPhone SE on iOS 27.2
-  and kept its data.
-- That `--no-reboot` with our own restart caused the earlier erase is a
-  hypothesis, not a finding.
+  and kept its data. Its restore sends no system files and removes the items
+  it does not restore, and its seed holds the supervision domain alone.
+- On 2026-10-05 this app ran the live step on that same iPhone SE with iOS
+  27.2. The restore restarted the iPhone, the app paired again on Restore
+  Completed, and `SetCloudConfiguration` was acknowledged and read back. The
+  iPhone still came back erased. That restore sent system files
+  (`--system --skip-apps --reboot`) and a seed with the setup state.
+- So `--no-reboot` with our own restart was not the cause of the erase: a
+  restore with system files that restarts the iPhone itself erased it too.
 
-So we expect the live step to supervise an iPhone on iOS 27 and keep its
-data, and that is not yet seen with this app. A Release build still refuses
+The working assumption now: the restore with system files is what erases the
+iPhone on iOS 27. The app sends the option set and the seed of the run that
+kept the data, as said above. With this app that is not yet seen to keep the
+data. A Release build still refuses
 iOS 27 at both guards and shows the guide screen, and only a Debug build with
 `--debug-fast-ios27` reaches the step. That stays so until a run of this app
 on a device with iOS 27 confirms it.
@@ -312,7 +323,7 @@ cloud configuration and preserves its other policy keys, checks the live iOS
 version before restoring, writes the cloud configuration and managed
 `mobile/com.apple.purplebuddy.plist` setup-completion preferences in its own
 temporary root, then runs the bundled
-helper with `restore --system --no-reboot --skip-apps`. Only a successful restore
+helper with `restore --system --skip-apps --no-reboot`. Only a successful restore
 is followed by a diagnostics-relay restart. Ctrl+C asks the helper to stop and
 waits for it before removing the temporary seed. If configuration was restored
 but restart fails, restart iPhone before repeating a restore. `--seed` keeps
