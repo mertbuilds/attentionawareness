@@ -190,6 +190,10 @@ const styles = create({
     lineHeight: `${MARK_SIZE}px`,
     margin: 0,
   },
+  // The heart before the support link, in the one orange beside gray words.
+  heart: {
+    color: accent.base,
+  },
   // Waits out of sight for its rise.
   hidden: {
     filter: `blur(${blur.medium})`,
@@ -465,7 +469,12 @@ function Column({ links, title }: { links: ReadonlyArray<FooterLink>; title: str
               {...props(styles.link)}
             >
               {link.heart && (
-                <Heart aria-hidden="true" size={ICON_SIZE} strokeWidth={ICON_STROKE} />
+                <Heart
+                  aria-hidden="true"
+                  size={ICON_SIZE}
+                  strokeWidth={ICON_STROKE}
+                  {...props(styles.heart)}
+                />
               )}
               {link.label}
             </a>

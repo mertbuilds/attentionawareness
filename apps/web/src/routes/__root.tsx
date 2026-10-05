@@ -1,11 +1,11 @@
 import { fontUrls } from '@attentionawareness/ui/fonts';
 import { Tooltip } from '@base-ui/react/tooltip';
 import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-router';
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import type { FC, ReactNode } from 'react';
 import { NotFound } from '../components/not-found.tsx';
 import { SiteHeader } from '../components/site-header.tsx';
-import { startAnalytics } from '../lib/analytics.ts';
+import { posthog, startAnalytics } from '../lib/analytics.ts';
 import { posts } from '../lib/blog.ts';
 import { CANONICAL_HOST, isLiveHost } from '../lib/canonical.ts';
 import { clientEnv } from '../lib/env.ts';
@@ -13,6 +13,7 @@ import { useIdle } from '../lib/idle.ts';
 import { MOBILE_SCRIPT } from '../lib/mobile.ts';
 import { OG_SIZE, ogImage } from '../lib/og.ts';
 import { openPanelReplay, posthogReplay } from '../lib/replay.ts';
+import { sendWithoutPopup } from '../lib/send-to-mac.ts';
 import { SITE_URL } from '../lib/structured-data.ts';
 import { THEME_GROUND, THEME_SCRIPT } from '../lib/theme.ts';
 import { m } from '../paraglide/messages.js';
@@ -64,14 +65,37 @@ if (
 }
 
 /**
- * The popup after a download is fetched once the page is up: no page needs it
- * to draw, and a download that starts before it is in waits for it
- * (`lib/download-started.ts`). A chunk that does not load leaves no popup.
+ * The popups a download button opens are fetched once the page is up: no page
+ * needs them to draw, and a press before they are in waits for them
+ * (`lib/download-started.ts`). A chunk that does not load leaves no popup. On
+ * a computer the file has started all the same. On a phone the popup is all a
+ * press does, so `PhoneDownloadFallback` stands in for it.
  */
+/**
+ * The phone's download without its popup: a press hands the link straight to
+ * the share sheet, or copies it.
+ */
+function PhoneDownloadFallback() {
+  useEffect(
+    () =>
+      sendWithoutPopup(navigator, m.site_name(), (event, properties) =>
+        posthog.capture(event, properties),
+      ),
+    [],
+  );
+  return null;
+}
+
 const SupportPopup = lazy((): Promise<{ default: FC }> =>
   import('../components/support-popup.tsx').then(
     (popup) => ({ default: popup.SupportPopup }),
     () => ({ default: () => null }),
+  ),
+);
+const PhoneDownloadPopup = lazy((): Promise<{ default: FC }> =>
+  import('../components/phone-download-popup.tsx').then(
+    (popup) => ({ default: popup.PhoneDownloadPopup }),
+    () => ({ default: PhoneDownloadFallback }),
   ),
 );
 
@@ -212,12 +236,17 @@ function Providers({ children }: { children: ReactNode }) {
   );
 }
 
-function LaterSupportPopup() {
+function LaterDownloadPopups() {
   const idle = useIdle();
   return idle ? (
-    <Suspense fallback={null}>
-      <SupportPopup />
-    </Suspense>
+    <>
+      <Suspense fallback={null}>
+        <SupportPopup />
+      </Suspense>
+      <Suspense fallback={null}>
+        <PhoneDownloadPopup />
+      </Suspense>
+    </>
   ) : null;
 }
 
@@ -252,7 +281,7 @@ function RootDocument({ children }: { children: ReactNode }) {
         <Providers>
           <SiteHeader />
           {children}
-          <LaterSupportPopup />
+          <LaterDownloadPopups />
         </Providers>
         <Scripts />
       </body>

@@ -54,7 +54,7 @@ export function SupportPopup() {
         shown.current = true;
         setOpen(true);
         posthog.capture('support_popup_shown', { placement: download.placement });
-      }),
+      }, true),
     [],
   );
 

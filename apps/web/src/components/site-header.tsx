@@ -295,7 +295,7 @@ const styles = create({
  * opens. The download starts the file at once, as every download on the site
  * does; a phone or a tablet, which cannot run the app, has a support button
  * there instead, at the top of the page and in the pill, to the support
- * section, and the menu sends the link on to a Mac.
+ * section, and the download in the menu.
  */
 export function SiteHeader() {
   const [pill, setPill] = useState(false);
@@ -357,7 +357,7 @@ export function SiteHeader() {
         {m.mac_download_unreleased()}
       </Button>
     );
-  } else if (download.kind === 'send') {
+  } else if (download.kind === 'phone') {
     // A phone has the support button in its place.
     downloadButton = null;
   } else if (download.kind === 'reading') {

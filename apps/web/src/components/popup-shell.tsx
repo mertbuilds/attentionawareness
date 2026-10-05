@@ -1,4 +1,5 @@
 import { Button, Dialog, DialogClose, DialogContent, DialogTitle } from '@attentionawareness/ui';
+import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
@@ -9,8 +10,8 @@ import { blur, distance, duration, easing, scale } from '../lib/motion.stylex.ts
 import { shareSheet } from '../lib/share.ts';
 import { m } from '../paraglide/messages.js';
 
-/** How long the share button says the link was copied, in milliseconds. */
-const COPIED_MS = 2000;
+/** How long a button says the link was copied, in milliseconds. */
+export const COPIED_MS = 2000;
 /** An icon on a popup's button, as tall as the button's letters are set. */
 export const POPUP_ICON_SIZE = 14;
 
@@ -94,8 +95,9 @@ const styles = create({
     position: 'absolute',
     width: 32,
   },
-  // The heart beats once, after the panel has settled. It sits in a wrapper
-  // because a browser draws a scaled icon soft where the icon itself is scaled.
+  // The heart, in the one orange whatever it stands on, beats once, after the
+  // panel has settled. It sits in a wrapper because a browser draws a scaled
+  // icon soft where the icon itself is scaled.
   heart: {
     animationDelay: duration.slow,
     animationDuration: duration.verySlow,
@@ -105,6 +107,7 @@ const styles = create({
       default: beat,
     },
     animationTimingFunction: easing.bounce,
+    color: accent.base,
     display: 'flex',
   },
   // The panel: it rises a little into the middle of the window, out of a blur

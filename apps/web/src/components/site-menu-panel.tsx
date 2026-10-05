@@ -3,7 +3,7 @@ import { Popover } from '@base-ui/react/popover';
 import { create, defaultMarker, keyframes, props } from '@stylexjs/stylex';
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { onDownloadStarted } from '../lib/download-started.ts';
+import { onDownloadStarted, onPhoneDownload } from '../lib/download-started.ts';
 import { blur, distance, duration, easing, scale } from '../lib/motion.stylex.ts';
 import { WIDE_QUERY } from '../lib/wide.ts';
 import { m } from '../paraglide/messages.js';
@@ -36,8 +36,7 @@ const styles = create({
   after: (ms: number) => ({
     animationDelay: `${ms}ms`,
   }),
-  // The download, or on a phone the way to send the link on, as wide as the
-  // menu so it is the plainest thing to press.
+  // The download, as wide as the menu so it is the plainest thing to press.
   download: {
     alignItems: 'stretch',
     marginBlockStart: spacing.s2,
@@ -176,7 +175,7 @@ function Item({
  * The header's menu on a phone, with its button: the button of two lines at
  * the header's far edge, and the panel it opens under the header, in the open
  * strip and in the pill alike. The panel holds the header's links, the blog,
- * the download, which on a phone sends the link on to a Mac, and the theme
+ * the download, which on a phone opens the popup that sends the link on to a Mac, and the theme
  * control, which leaves the panel open. The lines cross as it opens, the panel comes down from the button and
  * its items follow a step apart; it closes quicker than it opens. A link,
  * Escape, a press outside it, the page running on under it or a wider window
@@ -211,12 +210,14 @@ export function SiteMenuPanel({
     const wide = window.matchMedia(WIDE_QUERY);
     window.addEventListener('scroll', onScroll, { passive: true });
     wide.addEventListener('change', close);
-    // A download that starts from the menu puts the menu away.
-    const stop = onDownloadStarted(close);
+    // A press on the menu's download puts the menu away, whatever it opens.
+    const stop = onDownloadStarted(close, false);
+    const stopPhone = onPhoneDownload(close, false);
     return () => {
       window.removeEventListener('scroll', onScroll);
       wide.removeEventListener('change', close);
       stop();
+      stopPhone();
     };
   }, [open]);
 

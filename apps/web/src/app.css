@@ -143,8 +143,8 @@ summary::-webkit-details-marker {
 /*
  * What stands only on a computer or only on a phone, decided before the page
  * has told a phone apart: the script in the head marks a phone's root before
- * first paint (`lib/mobile.ts`), so a phone is never shown a download it
- * cannot run, and nothing changes width as the page comes alive.
+ * first paint (`lib/mobile.ts`), so a phone's header has its support button
+ * from the start, and nothing changes width as the page comes alive.
  */
 html[data-aa-mobile] [data-aa-computer],
 html:not([data-aa-mobile]) [data-aa-phone] {

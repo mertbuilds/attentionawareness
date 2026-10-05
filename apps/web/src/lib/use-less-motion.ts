@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 
 /** The media query a reader who asked for less motion matches. */
-const LESS_MOTION = '(prefers-reduced-motion: reduce)';
+export const LESS_MOTION = '(prefers-reduced-motion: reduce)';
 
 function subscribeLessMotion(onChange: () => void): () => void {
   const query = window.matchMedia(LESS_MOTION);
