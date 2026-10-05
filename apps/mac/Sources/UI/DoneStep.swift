@@ -17,6 +17,11 @@ struct DoneStep: View {
                 if model.supervises {
                     Text(result)
                 }
+                // A run that took supervision off on iOS 27 or later ends
+                // here with iPhone still on the Restore Completed screen.
+                if !model.supervises, model.liveConfigurationApplied {
+                    Text(JobPhase.continueOnIPhone)
+                }
                 Text(DoneCopy.disconnect)
                     .foregroundStyle(.secondary)
             }

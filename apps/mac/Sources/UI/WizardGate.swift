@@ -71,7 +71,8 @@ enum WizardGate {
     /// what it is now, and a restore that stopped part way.
     private static func restoreHasThePhone(_ job: JobPhase) -> Bool {
         switch job {
-        case .restoring, .finishing, .restarting, .confirming, .phoneGone:
+        case .restoring, .finishing, .restarting, .awaitingLiveConfiguration, .applyingLiveConfiguration,
+             .confirming, .phoneGone:
             return true
         case .failed(let failure):
             return failure.retry == .restore

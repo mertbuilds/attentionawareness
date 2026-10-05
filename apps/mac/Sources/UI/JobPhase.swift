@@ -25,6 +25,13 @@ enum JobPhase: Equatable {
     case finishing
     /// The iPhone was restarted and is not back on the cable yet.
     case restarting
+    /// On iOS 27 or later the restore restarted iPhone itself, and the job
+    /// waits for it to come back on the Restore Completed screen and pair
+    /// again.
+    case awaitingLiveConfiguration
+    /// The iPhone is back, and the supervision setting is being sent to it
+    /// live.
+    case applyingLiveConfiguration
     /// The iPhone is back and is being asked what it is now.
     case confirming
     /// It said what the run asked for.
@@ -41,7 +48,8 @@ enum JobPhase: Equatable {
     /// and Cancel is the only button.
     var isRunning: Bool {
         switch self {
-        case .preparing, .waitingForFindMy, .restoring, .finishing, .restarting, .confirming:
+        case .preparing, .waitingForFindMy, .restoring, .finishing, .restarting, .awaitingLiveConfiguration,
+             .applyingLiveConfiguration, .confirming:
             return true
         case .done, .checkOnIPhone, .phoneGone, .failed:
             return false
@@ -55,7 +63,8 @@ enum JobPhase: Equatable {
     /// screen or starts it over. Only the ends the job comes to stop it.
     var playsStory: Bool {
         switch self {
-        case .preparing, .waitingForFindMy, .restoring, .finishing, .restarting, .confirming, .phoneGone:
+        case .preparing, .waitingForFindMy, .restoring, .finishing, .restarting, .awaitingLiveConfiguration,
+             .applyingLiveConfiguration, .confirming, .phoneGone:
             return true
         case .done, .checkOnIPhone, .failed:
             return false
@@ -79,8 +88,8 @@ enum JobPhase: Equatable {
         switch self {
         case .restoring:
             return true
-        case .preparing, .waitingForFindMy, .finishing, .restarting, .confirming, .done, .checkOnIPhone,
-             .phoneGone, .failed:
+        case .preparing, .waitingForFindMy, .finishing, .restarting, .awaitingLiveConfiguration,
+             .applyingLiveConfiguration, .confirming, .done, .checkOnIPhone, .phoneGone, .failed:
             return false
         }
     }
@@ -99,6 +108,10 @@ enum JobPhase: Equatable {
             return "Finishing on iPhone"
         case .restarting:
             return "iPhone is restarting"
+        case .awaitingLiveConfiguration:
+            return "Waiting for iPhone to restart"
+        case .applyingLiveConfiguration:
+            return "Sending the supervision setting to iPhone"
         case .confirming:
             return "Checking iPhone"
         case .done, .checkOnIPhone, .phoneGone, .failed:
@@ -116,7 +129,8 @@ enum JobPhase: Equatable {
             return "iPhone Didn't Reconnect"
         case .failed(let failure):
             return failure.title
-        case .preparing, .waitingForFindMy, .restoring, .finishing, .restarting, .confirming, .done:
+        case .preparing, .waitingForFindMy, .restoring, .finishing, .restarting, .awaitingLiveConfiguration,
+             .applyingLiveConfiguration, .confirming, .done:
             return nil
         }
     }
@@ -132,7 +146,8 @@ enum JobPhase: Equatable {
             return "Unlock iPhone with your passcode. If it asks, tap Trust. Still nothing? Unplug iPhone and plug it in again."
         case .failed(let failure):
             return failure.fix
-        case .preparing, .waitingForFindMy, .restoring, .finishing, .restarting, .confirming, .done:
+        case .preparing, .waitingForFindMy, .restoring, .finishing, .restarting, .awaitingLiveConfiguration,
+             .applyingLiveConfiguration, .confirming, .done:
             return nil
         }
     }
@@ -160,6 +175,41 @@ enum JobPhase: Equatable {
         }
     }
 
+    /// What a run on iOS 27 or later asks of the person while it waits for
+    /// the iPhone and sends the setting, under the line. The restore there
+    /// restarts iPhone itself and leaves it on the Restore Completed screen,
+    /// where the setting has to arrive before anybody taps Continue.
+    var restoreCompletedSteps: String? {
+        switch self {
+        case .awaitingLiveConfiguration:
+            return "iPhone restarts by itself. When it is back, unlock it. If iPhone asks, tap Trust and enter the passcode. Stay on the Restore Completed screen and do not tap Continue. This window says when to continue."
+        case .applyingLiveConfiguration:
+            return "Keep iPhone unlocked and on the Restore Completed screen. Do not tap Continue yet. This window says when to continue."
+        case .preparing, .waitingForFindMy, .restoring, .finishing, .restarting, .confirming, .done,
+             .checkOnIPhone, .phoneGone, .failed:
+            return nil
+        }
+    }
+
+    /// What the job says about the Continue button of the Restore Completed
+    /// screen outside those two phases, or nil where it says nothing. `owed`
+    /// is a restore whose setting has not been sent live yet, and `applied`
+    /// is one whose setting went through.
+    static func restoreCompletedLine(for phase: JobPhase, owed: Bool, applied: Bool) -> String? {
+        switch phase {
+        case .phoneGone:
+            return owed ? stayOnRestoreCompleted : nil
+        case .confirming, .checkOnIPhone:
+            return applied ? continueOnIPhone : nil
+        case .preparing, .waitingForFindMy, .restoring, .finishing, .restarting, .awaitingLiveConfiguration,
+             .applyingLiveConfiguration, .done, .failed:
+            return nil
+        }
+    }
+
+    static let stayOnRestoreCompleted = "Stay on the Restore Completed screen and do not tap Continue."
+    static let continueOnIPhone = "You can tap Continue on iPhone now."
+
     /// What the "i" beside that sentence holds: the same words again on the
     /// confirm screen, and the layer's own words where a failure left some. The
     /// confirm screen shows its picture inline rather than behind an "i", so
@@ -170,8 +220,8 @@ enum JobPhase: Equatable {
             return body
         case .failed(let failure):
             return failure.raw.isEmpty ? nil : failure.raw
-        case .preparing, .waitingForFindMy, .restoring, .finishing, .restarting, .confirming, .done,
-             .phoneGone:
+        case .preparing, .waitingForFindMy, .restoring, .finishing, .restarting, .awaitingLiveConfiguration,
+             .applyingLiveConfiguration, .confirming, .done, .phoneGone:
             return nil
         }
     }

@@ -119,8 +119,10 @@ struct RestartWaitTests {
         let engine = SeedEngine(operations: .init(
             readVersion: { _ in "26.0" },
             readConfiguration: { _ in try PropertyListSerialization.data(fromPropertyList: [:], format: .xml, options: 0) },
-            restore: { _, _ in restores += 1 },
+            restore: { _, _, _ in restores += 1 },
             restart: { _ in restarts += 1 },
+            setConfiguration: { _, _ in },
+            sleep: { _ in },
             cancelRestore: {}
         ))
         let bus = Bus(.back())
@@ -134,6 +136,94 @@ struct RestartWaitTests {
         #expect(await waitUntil { model.job == .checkOnIPhone(reportedSupervised: true) })
         #expect(restores == 1)
         #expect(restarts == 1)
+    }
+
+    /// iOS 27 ignores the restored configuration. The restore restarts
+    /// iPhone itself, and it comes back on the Restore Completed screen, not
+    /// supervised. The wait holds until this Mac has paired again, and only
+    /// then is the setting sent live.
+    @Test func anIOS27PhoneThatComesBackNotSupervisedIsSentTheSettingLive() async {
+        let bus = Bus(.back())
+        let phone = IOS27Phone()
+        let model = makeModel(bus, seedEngine: phone.engine, allowsFastOnAnyIOS: true)
+        model.useSeedEngine = true
+        model.reboot = 2
+        model.onSent = { bus.show(.back(.locked)) }
+        start(model)
+        #expect(await waitUntil { model.restoreCompletedHint == "Unlock iPhone." })
+        #expect(model.job == .awaitingLiveConfiguration)
+        await pause()
+        #expect(model.job == .awaitingLiveConfiguration)
+        #expect(phone.sets == 0)
+        bus.show(.back(.trustPending))
+        #expect(await waitUntil { model.restoreCompletedHint == "Tap Trust on iPhone." })
+        #expect(phone.sets == 0)
+        // Paired again, and still not supervised: that is no failure here.
+        bus.show(.back())
+        #expect(await waitUntil { if case .checkOnIPhone = model.job { return true }; return false })
+        #expect(phone.sets == 1)
+        #expect(phone.restores == 1)
+        #expect(phone.restarts == 0)
+        #expect(!phone.engine.restoreApplied)
+        #expect(
+            model.restoreCompletedLine(for: .checkOnIPhone(reportedSupervised: true))
+                == "You can tap Continue on iPhone now."
+        )
+    }
+
+    @Test func anIOS27PhoneThatNeverComesBackKeepsTheLiveStepForCheckAgain() async {
+        let bus = Bus(.back())
+        let phone = IOS27Phone()
+        let model = makeModel(bus, seedEngine: phone.engine, allowsFastOnAnyIOS: true)
+        model.useSeedEngine = true
+        model.onSent = { bus.show(.away) }
+        start(model)
+        #expect(await waitUntil { model.job == .phoneGone })
+        #expect(phone.engine.liveConfigurationOwed)
+        #expect(
+            model.restoreCompletedLine(for: .phoneGone)
+                == "Stay on the Restore Completed screen and do not tap Continue."
+        )
+        #expect(phone.sets == 0)
+        bus.show(.back())
+        model.checkPhoneAgain()
+        #expect(await waitUntil { if case .checkOnIPhone = model.job { return true }; return false })
+        #expect(phone.sets == 1)
+        #expect(phone.restores == 1)
+        #expect(phone.restarts == 0)
+    }
+
+    /// Cancel in the wait, while iPhone is off the cable for its restart. The
+    /// window goes back to Connect and the run is forgotten, but the restore
+    /// still owes its live step. The next run on that iPhone sends the
+    /// setting alone, and never a second restore.
+    @Test func cancelWhileAnIOS27PhoneIsAwayThenSuperviseAgainSendsOnlyTheLiveStep() async {
+        let bus = Bus(.back())
+        let phone = IOS27Phone()
+        let model = makeModel(bus, seedEngine: phone.engine, allowsFastOnAnyIOS: true)
+        model.useSeedEngine = true
+        model.reboot = 2
+        model.onSent = { bus.show(.away) }
+        start(model)
+        #expect(await waitUntil { model.job == .awaitingLiveConfiguration && model.device == nil })
+        model.cancelJob()
+        #expect(await waitUntil { model.step == .connect })
+        #expect(model.udid == nil)
+        #expect(phone.engine.liveConfigurationOwed)
+        bus.show(.back())
+        #expect(await waitUntil {
+            model.watcher.reload()
+            return model.device?.pairingState == .paired
+        })
+        model.start()
+        model.confirmBackup(true)
+        model.startJob()
+        #expect(model.job == .awaitingLiveConfiguration)
+        #expect(await waitUntil { if case .checkOnIPhone = model.job { return true }; return false })
+        #expect(phone.restores == 1)
+        #expect(phone.restarts == 0)
+        #expect(phone.sets == 1)
+        #expect(!phone.engine.liveConfigurationOwed)
     }
 
     @Test func checkAgainDoesNothingAnywhereElse() {
@@ -199,12 +289,38 @@ struct RestartWaitTests {
 
     // MARK: - The pieces
 
-    private func makeModel(_ bus: Bus, seedEngine: SeedEngine? = nil) -> WaitingModel {
+    private func makeModel(
+        _ bus: Bus, seedEngine: SeedEngine? = nil, allowsFastOnAnyIOS: Bool = false
+    ) -> WaitingModel {
         WaitingModel(
             watcher: DeviceWatcher(reading: { bus.read() }, passTimeout: 0.05),
             engine: BackupEngine(sample: .idle, progress: 0),
-            seedEngine: seedEngine
+            seedEngine: seedEngine,
+            allowsFastOnAnyIOS: allowsFastOnAnyIOS
         )
+    }
+
+    /// What the fast method's engine reaches on iOS 27: a restore that
+    /// restarts iPhone itself, and a configuration iPhone takes only live.
+    @MainActor
+    private final class IOS27Phone {
+        var restores = 0
+        var restarts = 0
+        var sets = 0
+
+        private(set) lazy var engine = SeedEngine(operations: .init(
+            readVersion: { _ in "27.0" },
+            readConfiguration: { _ in
+                try PropertyListSerialization.data(
+                    fromPropertyList: self.sets > 0 ? ["IsSupervised": true] : [:], format: .xml, options: 0
+                )
+            },
+            restore: { _, _, _ in self.restores += 1 },
+            restart: { _ in self.restarts += 1 },
+            setConfiguration: { _, _ in self.sets += 1 },
+            sleep: { _ in },
+            cancelRestore: {}
+        ))
     }
 
     private func start(_ model: WaitingModel) {

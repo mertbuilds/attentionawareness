@@ -31,6 +31,9 @@ enum DeviceError: LocalizedError, Equatable {
     /// The iPhone answered a request with an error. The reason comes from the
     /// iPhone.
     case requestRefused(request: String, reason: String)
+    /// The app could not build a request, so nothing was sent to the iPhone.
+    /// Sending it again changes nothing.
+    case requestNotBuilt(request: String, reason: String)
     /// The iPhone rejected a profile. The reason comes from the iPhone.
     case profileRejected(reason: String)
 
@@ -62,6 +65,8 @@ enum DeviceError: LocalizedError, Equatable {
             return "iPhone answered the \(request) request with something the app can't read."
         case .requestRefused(let request, let reason):
             return "iPhone refused the \(request) request. \(reason)"
+        case .requestNotBuilt(let request, let reason):
+            return "The app could not build the \(request) request. \(reason)"
         case .profileRejected(let reason):
             return "iPhone refused the profile. \(reason)"
         }

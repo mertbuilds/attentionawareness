@@ -38,6 +38,16 @@ struct IOSSupportTests {
         #expect(IOSSupport.majorVersion(of: nil) == nil)
     }
 
+    /// iOS 27 ignores the restored configuration, so a run there sends it
+    /// live as well. A version that does not read gets the run iOS 26 gets.
+    @Test(arguments: [
+        ("27.2", true), ("27.0.1", true), ("27", true), ("30.1", true),
+        ("26.4", false), ("17.6.1", false), (nil, false), ("abc", false), ("", false), ("27.x", false),
+    ] as [(String?, Bool)])
+    func onlyIOS27AndLaterNeedTheLiveConfiguration(_ version: String?, _ needed: Bool) {
+        #expect(IOSSupport.needsLiveConfiguration(iosVersion: version) == needed)
+    }
+
     /// `allowsAnyIOS` is the debug `--debug-fast-ios27` value.
     @Test(arguments: ["27.0", "27.2", "27", nil, "", "abc"] as [String?])
     func theDebugValueLetsEveryVersionThrough(_ version: String?) {

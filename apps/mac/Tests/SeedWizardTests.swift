@@ -176,7 +176,132 @@ struct SeedWizardTests {
         model.startJob()
         #expect(await waitUntil { model.job == .checkOnIPhone(reportedSupervised: true) })
         #expect(calls.restoreCount == 1)
+        // On iOS 27 the restore restarts iPhone itself.
+        #expect(calls.restartCount == 0)
+        // The setting is sent live once iPhone is back, and the run then ends
+        // where a run on iOS 26 ends.
+        #expect(model.events == ["version", "seed", "phone", "live", "confirm"])
+        #expect(calls.liveCount == 1)
+        #expect(model.liveConfigurationApplied)
+        #expect(model.restore.stage == .finished)
+        model.advance()
+        #expect(model.step == .restrictions)
+    }
+
+    /// The restore is what a failed live step is tried again from, so it is
+    /// not forgotten before that step went through.
+    @Test func theRestoreIsNotForgottenBeforeTheLiveStepWentThrough() async throws {
+        let calls = SeedCalls()
+        calls.version = "27.0"
+        let engine = SeedEngine(operations: calls.operations)
+        calls.engine = engine
+        let model = makeModel(version: "27.0", seedEngine: engine, allowsFastOnAnyIOS: true)
+        model.useSeedEngine = true
+        model.freshVersion = "27.0"
+        ready(model)
+        model.startJob()
+        #expect(await waitUntil { model.job == .checkOnIPhone(reportedSupervised: true) })
+        #expect(calls.owedAtLiveStep == [true])
+        // Once it went through, another try sends the configuration again.
+        #expect(!engine.restoreApplied)
+        #expect(!engine.liveConfigurationOwed)
+    }
+
+    @Test func aLiveStepIPhoneDidNotTakeIsTriedAgainAloneWithNoRestoreAndNoRestart() async throws {
+        let calls = SeedCalls()
+        calls.version = "27.0"
+        calls.takesLiveConfiguration = false
+        let engine = SeedEngine(operations: calls.operations)
+        let model = makeModel(version: "27.0", seedEngine: engine, allowsFastOnAnyIOS: true)
+        model.useSeedEngine = true
+        model.freshVersion = "27.0"
+        ready(model)
+        model.startJob()
+        #expect(await waitUntil { if case .failed = model.job { return true }; return false })
+        guard case .failed(let failure) = model.job else { Issue.record("Expected the live step to fail"); return }
+        #expect(failure.title == "iPhone Didn't Take the Setting")
+        #expect(engine.restoreApplied)
+        #expect(engine.liveConfigurationOwed)
+        #expect(!model.liveConfigurationApplied)
+        #expect(calls.liveCount == SeedEngine.liveConfigurationAttemptLimit)
+        calls.takesLiveConfiguration = true
+        model.retryJob(from: failure.retry)
+        #expect(model.job == .awaitingLiveConfiguration)
+        #expect(await waitUntil { model.job == .checkOnIPhone(reportedSupervised: true) })
+        // Try Again read no version and sent no seed: the wait and the live
+        // step, nothing else.
+        #expect(model.events == ["version", "seed", "phone", "live", "phone", "live", "confirm"])
+        #expect(calls.restoreCount == 1)
+        #expect(calls.restartCount == 0)
+        #expect(calls.liveCount == SeedEngine.liveConfigurationAttemptLimit + 1)
+        #expect(model.liveConfigurationApplied)
+    }
+
+    @Test func cancelWhileTheLiveStepIsOwedThenSuperviseAgainSendsOnlyTheLiveStep() async throws {
+        let calls = SeedCalls()
+        calls.version = "27.0"
+        let engine = SeedEngine(operations: calls.operations)
+        let model = makeModel(version: "27.0", seedEngine: engine, allowsFastOnAnyIOS: true)
+        model.useSeedEngine = true
+        model.freshVersion = "27.0"
+        model.holdPhone = true
+        ready(model)
+        model.startJob()
+        #expect(await waitUntil { model.phoneCompletion != nil })
+        #expect(model.job == .awaitingLiveConfiguration)
+        let oldWait = try #require(model.phoneCompletion)
+        model.cancelJob()
+        #expect(model.step == .ready)
+        #expect(!model.isBusy)
+        #expect(engine.liveConfigurationOwed)
+        model.holdPhone = false
+        oldWait.resume(returning: true)
+        model.startJob()
+        #expect(await waitUntil { model.job == .checkOnIPhone(reportedSupervised: true) })
+        #expect(calls.restoreCount == 1)
+        #expect(calls.restartCount == 0)
+        #expect(calls.liveCount == 1)
+    }
+
+    /// Cancel landed while the set was out, and iPhone took that set. The
+    /// next Supervise sends the setting again and never a second restore.
+    @Test func cancelWhileASetIsOutThenSuperviseAgainNeverRestoresAgain() async throws {
+        let calls = SeedCalls()
+        calls.version = "27.0"
+        let engine = SeedEngine(operations: calls.operations)
+        let model = makeModel(version: "27.0", seedEngine: engine, allowsFastOnAnyIOS: true)
+        model.useSeedEngine = true
+        model.freshVersion = "27.0"
+        calls.duringLive = {
+            calls.duringLive = nil
+            model.cancelJob()
+        }
+        ready(model)
+        model.startJob()
+        #expect(await waitUntil { model.step == .ready && !engine.running })
+        #expect(calls.liveCount == 1)
+        model.startJob()
+        #expect(await waitUntil { model.job == .checkOnIPhone(reportedSupervised: true) })
+        #expect(calls.restoreCount == 1)
+        #expect(calls.restartCount == 0)
+        #expect(calls.liveCount == 2)
+    }
+
+    @Test func aRunOnIOS26NeverSendsTheSettingLive() async throws {
+        let calls = SeedCalls()
+        calls.failRestart = false
+        let engine = SeedEngine(operations: calls.operations)
+        let model = makeModel(seedEngine: engine)
+        model.useSeedEngine = true
+        ready(model)
+        model.startJob()
+        #expect(await waitUntil { model.job == .checkOnIPhone(reportedSupervised: true) })
+        #expect(model.events == ["version", "seed", "phone", "confirm"])
+        #expect(calls.restoreCount == 1)
         #expect(calls.restartCount == 1)
+        #expect(calls.liveCount == 0)
+        #expect(!model.liveConfigurationApplied)
+        #expect(model.restoreCompletedLine(for: .checkOnIPhone(reportedSupervised: true)) == nil)
     }
 
     @Test func freshVersionRefusalStopsBeforeAnyWork() async throws {
@@ -398,9 +523,14 @@ struct SeedWizardTests {
             if holdPhone { return await withCheckedContinuation { phoneCompletion = $0 } }
             return true
         }
+        override func applyLiveConfiguration() async throws {
+            events.append("live")
+            try await super.applyLiveConfiguration()
+        }
         override func confirmWhatTheIPhoneIs() async -> Bool { events.append("confirm"); return reportsSupervised }
     }
 
+    @MainActor
     private final class SeedCalls {
         var restoreCount = 0
         var restartCount = 0
@@ -408,18 +538,39 @@ struct SeedWizardTests {
         var version: String? = "26.0"
         var holdConfiguration = false
         var heldConfiguration: CheckedContinuation<Void, Never>?
+        /// How often a configuration was sent live, which only a run on iOS
+        /// 27 does, and whether iPhone takes it.
+        var liveCount = 0
+        var takesLiveConfiguration = true
+        var duringLive: (() -> Void)?
+        private var supervisedLive = false
+        /// Whether the engine still held the restore each time the live step
+        /// reached iPhone.
+        var owedAtLiveStep: [Bool] = []
+        weak var engine: SeedEngine?
         var operations: SeedEngine.Operations {
             .init(
                 readVersion: { _ in self.version },
                 readConfiguration: { _ in
                     if self.holdConfiguration { await withCheckedContinuation { self.heldConfiguration = $0 } }
-                    return try PropertyListSerialization.data(fromPropertyList: [:], format: .xml, options: 0)
+                    return try PropertyListSerialization.data(
+                        fromPropertyList: self.supervisedLive ? ["IsSupervised": true] : [:], format: .xml, options: 0
+                    )
                 },
-                restore: { _, _ in self.restoreCount += 1 },
+                restore: { _, _, _ in self.restoreCount += 1 },
                 restart: { _ in
                     self.restartCount += 1
                     if self.failRestart { throw DeviceError.requestFailed(request: "Restart", code: -1) }
                 },
+                setConfiguration: { _, _ in
+                    self.liveCount += 1
+                    if let engine = self.engine {
+                        self.owedAtLiveStep.append(engine.restoreApplied && engine.liveConfigurationOwed)
+                    }
+                    if self.takesLiveConfiguration { self.supervisedLive = true }
+                    self.duringLive?()
+                },
+                sleep: { _ in },
                 cancelRestore: {}
             )
         }

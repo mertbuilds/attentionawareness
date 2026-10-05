@@ -58,6 +58,26 @@ struct JobFailureTests {
         #expect(failure?.retry == .restore)
     }
 
+    /// iOS 27 or later: iPhone restarted from the restore and the setting
+    /// sent live did not hold. Try Again sends it again alone.
+    @Test func aSettingIPhoneDidNotTakeAsksToStayOnRestoreCompletedAndTryAgain() {
+        let failure = JobFailure.from(
+            SeedRunError.liveConfigurationNotTaken(lastReason: "iPhone refused the SetCloudConfiguration request. Test"),
+            in: .restoring
+        )
+
+        #expect(failure?.title == "iPhone Didn't Take the Setting")
+        #expect(
+            failure?.fix
+                == "iPhone restarted, but it did not take the supervision setting. Keep iPhone on the Restore Completed screen, unlocked and on the cable, then try again."
+        )
+        // What iPhone said is behind the "i", and the fix stays the plain one.
+        #expect(failure?.raw == "iPhone refused the SetCloudConfiguration request. Test")
+        #expect(JobFailure.from(SeedRunError.liveConfigurationNotTaken(lastReason: nil), in: .restoring)?.raw == "")
+        // The restore reached the iPhone, so unplugging keeps this screen.
+        #expect(failure?.retry == .restore)
+    }
+
     // MARK: - What the layer said
 
     @Test func theLayersOwnWordsAreKeptForTheButtonBehindTheFix() {

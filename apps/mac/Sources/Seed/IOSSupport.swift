@@ -2,10 +2,20 @@ import Foundation
 
 /// Which iPhones the app supervises, from the iOS version they report.
 ///
-/// iOS 26 and earlier run the fast method. iOS 27 and later get no run at all,
-/// and neither does an iPhone whose version cannot be read: on an iPhone SE
-/// with iOS 27.2 the restore finished with no error and the iPhone came back
+/// iOS 26 and earlier run the fast method. iOS 27 and later get no run in a
+/// Release build, and neither does an iPhone whose version cannot be read: on
+/// an iPhone SE with iOS 27.2 our earlier run (the restore with `--no-reboot`,
+/// then our own restart) finished with no error and the iPhone came back
 /// erased and not supervised. Those iPhones are sent to the manual guide.
+///
+/// We expect that iOS 27 takes the cloud configuration only live, so a run
+/// there owes one more step: the same configuration sent live while iPhone is
+/// on the Restore Completed screen (`needsLiveConfiguration`). On 2026-10-05
+/// another tool that uses this sequence supervised that same iPhone SE on iOS
+/// 27.2 and kept its data. This app has not run the step on a device yet. That
+/// `--no-reboot` with our own restart caused the earlier erase is a
+/// hypothesis, not a finding. Only the debug `--debug-fast-ios27` flag reaches
+/// the step, until a run of this app on a device confirms it.
 ///
 /// Nothing here touches the iPhone, a backup or the window, which is why the
 /// tests can run it.
@@ -76,6 +86,13 @@ enum IOSSupport {
     /// with it nothing is refused.
     static func refusal(iosVersion: String?, allowsAnyIOS: Bool) -> Refusal? {
         allowsAnyIOS ? nil : refusal(iosVersion: iosVersion)
+    }
+
+    /// Whether a run on this version has to send the configuration live after
+    /// the restore: iOS 27 and later. A version that does not read needs none.
+    static func needsLiveConfiguration(iosVersion: String?) -> Bool {
+        guard let major = majorVersion(of: iosVersion) else { return false }
+        return major > newestSupportedMajorVersion
     }
 
     /// The first number of a version, compared as a number. Every part has

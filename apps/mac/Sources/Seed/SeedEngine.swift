@@ -5,21 +5,36 @@ import Foundation
 final class SeedEngine: ObservableObject {
     enum Phase: Equatable {
         case idle, preparing, restoring, restarting, done, cancelled
+        /// The restore restarted iPhone itself. `applyLiveConfiguration` is owed.
+        case awaitingLiveConfiguration
+        case applyingLiveConfiguration
         case failed(String)
     }
 
     struct Operations {
         var readVersion: (String) async throws -> String?
         var readConfiguration: (String) async throws -> Data
-        var restore: (String, URL) async throws -> Void
+        /// The last value is whether the restore restarts iPhone itself.
+        var restore: (String, URL, Bool) async throws -> Void
         var restart: (String) async throws -> Void
+        var setConfiguration: (String, Data) async throws -> Void
+        var sleep: (Duration) async throws -> Void
         var cancelRestore: () -> Void
     }
+
+    /// How long the live step keeps trying. Right after the restart MCInstall
+    /// can refuse or fail for some seconds.
+    static let liveConfigurationRetryInterval: Duration = .seconds(2)
+    static let liveConfigurationTimeout: TimeInterval = 90
+    static let liveConfigurationAttemptLimit = 45
 
     @Published private(set) var phase: Phase = .idle
     /// A restart can be retried without resending a configuration already restored.
     @Published private(set) var restoreApplied = false
     private(set) var restoredUDID: String?
+    /// True after a restore on iOS 27 or later until the live step went
+    /// through. A restart is no recovery then: retry `applyLiveConfiguration`.
+    @Published private(set) var liveConfigurationOwed = false
     private let operations: Operations
     /// True from the start of an operation until it has returned, which can
     /// be a while after `cancel()` when a device read is still out.
@@ -39,7 +54,7 @@ final class SeedEngine: ObservableObject {
             readConfiguration: { udid in
                 try await Task.detached { try SeedDevice.cloudConfiguration(udid: udid) }.value
             },
-            restore: { udid, folder in
+            restore: { udid, folder, reboot in
                 try Task.checkCancellation()
                 // Wait for the helper to stop before the temporary seed goes away.
                 // Cancelling its AsyncStream consumer directly would stop draining
@@ -47,7 +62,7 @@ final class SeedEngine: ObservableObject {
                 let transfer = Task { @MainActor in
                     try await backupEngine.restore(
                         udid: udid, from: folder,
-                        system: true, settings: false, reboot: false, skipApps: true
+                        system: true, settings: false, reboot: reboot, skipApps: true
                     )
                 }
                 do {
@@ -67,6 +82,10 @@ final class SeedEngine: ObservableObject {
             restart: { udid in
                 try await Task.detached { try SeedDevice.restart(udid: udid) }.value
             },
+            setConfiguration: { udid, content in
+                try await Task.detached { try SeedDevice.setCloudConfiguration(udid: udid, content: content) }.value
+            },
+            sleep: { try await Task.sleep(for: $0) },
             cancelRestore: { backupEngine.cancel() }
         ))
     }
@@ -79,6 +98,7 @@ final class SeedEngine: ObservableObject {
         cancelRequested = false
         restoreApplied = false
         restoredUDID = nil
+        liveConfigurationOwed = false
         phase = .preparing
         defer { running = false }
         do {
@@ -98,12 +118,15 @@ final class SeedEngine: ObservableObject {
             defer { try? FileManager.default.removeItem(at: root) }
             let folder = try SeedBackup.write(in: root, udid: udid, content: edit.plistData())
             // Re-read the phone immediately before the first write to it.
-            try await gate(udid: udid, allowsFastOnAnyIOS: allowsFastOnAnyIOS)
+            let version = try await gate(udid: udid, allowsFastOnAnyIOS: allowsFastOnAnyIOS)
+            // iOS 27 takes the configuration only live, after a restore that
+            // restarts iPhone itself.
+            let live = IOSSupport.needsLiveConfiguration(iosVersion: version)
             try checkCancellation()
             phase = .restoring
-            DeviceLog.logger.notice("fast: restore started, supervised \(supervised, privacy: .public)")
+            DeviceLog.logger.notice("fast: restore started, supervised \(supervised, privacy: .public), restore restarts iPhone \(live, privacy: .public)")
             do {
-                try await operations.restore(udid, folder)
+                try await operations.restore(udid, folder, live)
             } catch BackupError.cancelled {
                 DeviceLog.logger.notice("fast: restore cancelled")
                 throw SeedRunError.cancelled(restoreApplied: false)
@@ -111,6 +134,14 @@ final class SeedEngine: ObservableObject {
             DeviceLog.logger.notice("fast: restore finished")
             restoreApplied = true
             restoredUDID = udid
+            if live {
+                // The restore has restarted iPhone already, and that cannot
+                // be withdrawn, so Cancel has nothing left to stop here.
+                liveConfigurationOwed = true
+                DeviceLog.logger.notice("fast: iPhone restarts from the restore, live configuration owed")
+                phase = .awaitingLiveConfiguration
+                return
+            }
             try checkCancellation()
             try await performRestart(udid: udid)
         } catch {
@@ -123,7 +154,9 @@ final class SeedEngine: ObservableObject {
     /// Retry only the restart after a successful restore, on the same phone.
     func restart(udid: String, allowsFastOnAnyIOS: Bool = false) async throws {
         guard !running else { throw SeedRunError.alreadyRunning }
-        guard restoreApplied, restoredUDID == udid else { throw SeedRunError.noAppliedRestore }
+        guard restoreApplied, restoredUDID == udid, !liveConfigurationOwed else {
+            throw SeedRunError.noAppliedRestore
+        }
         running = true
         cancelRequested = false
         defer { running = false }
@@ -138,12 +171,59 @@ final class SeedEngine: ObservableObject {
         }
     }
 
+    /// The step a restore on iOS 27 or later still owes: send the
+    /// configuration live and read it back. iPhone has to be back from the
+    /// restart, paired again and still on the Restore Completed screen. It can
+    /// be called again alone after it failed.
+    func applyLiveConfiguration(udid: String, supervised: Bool = true) async throws {
+        guard !running else { throw SeedRunError.alreadyRunning }
+        guard restoreApplied, restoredUDID == udid, liveConfigurationOwed else {
+            throw SeedRunError.noAppliedRestore
+        }
+        running = true
+        cancelRequested = false
+        phase = .applyingLiveConfiguration
+        defer { running = false }
+        do {
+            let deadline = Date().addingTimeInterval(Self.liveConfigurationTimeout)
+            var lastReason: String?
+            for attempt in 1...Self.liveConfigurationAttemptLimit {
+                try checkLiveCancellation()
+                do {
+                    try await sendLiveConfiguration(udid: udid, supervised: supervised)
+                    // A Cancel that landed while the set was out leaves the
+                    // step owed, so the next run sends the setting again and
+                    // never a second restore.
+                    try checkLiveCancellation()
+                    liveConfigurationOwed = false
+                    phase = .done
+                    return
+                } catch {
+                    try checkLiveCancellation()
+                    DeviceLog.logger.notice("fast: live configuration attempt \(attempt, privacy: .public) failed: \(Self.logText(error, udid: udid), privacy: .public)")
+                    lastReason = Self.reasonText(error, udid: udid)
+                    // A request the app could not build fails the same way
+                    // every time.
+                    if case DeviceError.requestNotBuilt = error { break }
+                }
+                guard attempt < Self.liveConfigurationAttemptLimit, Date() < deadline else { break }
+                try await operations.sleep(Self.liveConfigurationRetryInterval)
+            }
+            throw SeedRunError.liveConfigurationNotTaken(lastReason: lastReason)
+        } catch {
+            DeviceLog.logger.notice("fast: live configuration stopped: \(Self.logText(error, udid: udid), privacy: .public)")
+            failed(error)
+            throw error
+        }
+    }
+
     /// Forget a restore the iPhone has restarted into, so the next attempt
     /// sends the configuration again instead of only restarting.
     func forgetAppliedRestore() {
         guard !running else { return }
         restoreApplied = false
         restoredUDID = nil
+        liveConfigurationOwed = false
     }
 
     func cancel() {
@@ -152,7 +232,30 @@ final class SeedEngine: ObservableObject {
         if phase == .restoring { operations.cancelRestore() }
     }
 
-    private func gate(udid: String, allowsFastOnAnyIOS: Bool) async throws {
+    /// One try of the live step: read, set, read back.
+    private func sendLiveConfiguration(udid: String, supervised: Bool) async throws {
+        DeviceLog.logger.notice("fast: live configuration: reading the cloud configuration")
+        let current = try await operations.readConfiguration(udid)
+        try checkLiveCancellation()
+        let edit = CloudConfigurationEdit.plan(
+            current: try SeedDevice.configuration(from: current), supervised: supervised
+        )
+        DeviceLog.logger.notice("fast: live configuration: sending, supervised \(supervised, privacy: .public)")
+        try await operations.setConfiguration(udid, try edit.plistData())
+        DeviceLog.logger.notice("fast: live configuration: acknowledged, reading it back")
+        let after = try SeedDevice.configuration(from: try await operations.readConfiguration(udid))
+        let reads = CloudConfigurationEdit.boolean(after["IsSupervised"]) ?? false
+        guard reads == supervised else {
+            throw SeedRunError.liveConfigurationNotTaken(
+                lastReason: "iPhone acknowledged the setting, but it still reads as \(reads ? "supervised" : "not supervised")."
+            )
+        }
+        DeviceLog.logger.notice("fast: live configuration: iPhone reads supervised \(reads, privacy: .public)")
+    }
+
+    /// The version the iPhone reports, for a run the gate lets through.
+    @discardableResult
+    private func gate(udid: String, allowsFastOnAnyIOS: Bool) async throws -> String? {
         let version = try await operations.readVersion(udid)
         try checkCancellation()
         DeviceLog.logger.notice("fast gate: iOS \(version ?? "not given", privacy: .public)")
@@ -160,6 +263,7 @@ final class SeedEngine: ObservableObject {
             guard allowsFastOnAnyIOS else { throw SeedRunError.refused(refusal) }
             DeviceLog.logger.notice("fast gate: \(String(describing: refusal), privacy: .public) let through by the debug flag")
         }
+        return version
     }
 
     private func performRestart(udid: String) async throws {
@@ -184,8 +288,21 @@ final class SeedEngine: ObservableObject {
         return error.localizedDescription.replacingOccurrences(of: udid, with: "<udid>")
     }
 
+    /// What an attempt of the live step failed with, in the layer's own words
+    /// for the "i" of the failure, with the udid taken out.
+    private static func reasonText(_ error: Error, udid: String) -> String {
+        if case SeedRunError.liveConfigurationNotTaken(let reason?) = error { return reason }
+        return error.localizedDescription.replacingOccurrences(of: udid, with: "<udid>")
+    }
+
     private func checkCancellation() throws {
         if cancelRequested || Task.isCancelled { throw SeedRunError.cancelled(restoreApplied: restoreApplied) }
+    }
+
+    /// A stop in the live step is not a restart that was cancelled, so it
+    /// does not carry that error's words.
+    private func checkLiveCancellation() throws {
+        if cancelRequested || Task.isCancelled { throw CancellationError() }
     }
 
     private func failed(_ error: Error) {
@@ -204,6 +321,8 @@ enum SeedRunError: LocalizedError, Equatable {
     case alreadyRunning
     case noAppliedRestore
     case restartFailed(String)
+    /// `lastReason` is what the last attempt failed with, for the "i".
+    case liveConfigurationNotTaken(lastReason: String?)
 
     var isCancellation: Bool {
         if case .cancelled = self { return true }
@@ -222,6 +341,8 @@ enum SeedRunError: LocalizedError, Equatable {
         case .noAppliedRestore: return "No successful seed restore for this iPhone is waiting for a restart."
         case .restartFailed(let reason):
             return "The configuration was restored, but iPhone could not be restarted. Restart iPhone to finish. \(reason)"
+        case .liveConfigurationNotTaken:
+            return "iPhone restarted, but it did not take the supervision setting. Keep iPhone on the Restore Completed screen, unlocked and on the cable, and try again."
         }
     }
 }

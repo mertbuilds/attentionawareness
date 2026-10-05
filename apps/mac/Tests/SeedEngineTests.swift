@@ -12,13 +12,49 @@ struct SeedEngineTests {
         #expect(!engine.restoreApplied)
     }
 
-    @Test(arguments: ["27.0", "27.1", nil, "26.0"] as [String?])
+    @Test(arguments: [nil, "26.0"] as [String?])
     func theDebugValueLetsBothGateReadsThrough(_ version: String?) async throws {
         let phone = Phone(version: version)
         let engine = SeedEngine(operations: phone.operations)
         try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
         #expect(phone.events == ["version", "configuration", "version", "restore", "restart"])
+        #expect(phone.reboots == [false])
         #expect(engine.phase == .done)
+    }
+
+    @Test(arguments: ["27.0", "27.1", "27.2", "30.1"])
+    func onIOS27TheRestoreRestartsIPhoneAndTheLiveStepIsOwed(_ version: String) async throws {
+        let phone = Phone(version: version)
+        let engine = SeedEngine(operations: phone.operations)
+        try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
+        #expect(phone.events == ["version", "configuration", "version", "restore"])
+        #expect(phone.reboots == [true])
+        #expect(engine.restoreApplied)
+        #expect(engine.restoredUDID == "phone")
+        #expect(engine.liveConfigurationOwed)
+        #expect(engine.phase == .awaitingLiveConfiguration)
+    }
+
+    @Test func theVersionReadBeforeTheRestoreDecidesWhoRestartsIPhone() async throws {
+        let phone = Phone(version: "26.4")
+        phone.versions = ["26.4", "27.0"]
+        let engine = SeedEngine(operations: phone.operations)
+        try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
+        #expect(phone.reboots == [true])
+        #expect(!phone.events.contains("restart"))
+        #expect(engine.phase == .awaitingLiveConfiguration)
+    }
+
+    @Test func aRestartIsNoRecoveryWhileTheLiveStepIsOwed() async throws {
+        let phone = Phone(version: "27.2")
+        let engine = SeedEngine(operations: phone.operations)
+        try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
+        let events = phone.events
+        await #expect(throws: SeedRunError.noAppliedRestore) {
+            try await engine.restart(udid: "phone", allowsFastOnAnyIOS: true)
+        }
+        #expect(phone.events == events)
+        #expect(engine.liveConfigurationOwed)
     }
 
     @Test func theDebugValueSendsUnsupervisedOnIOS27() async throws {
@@ -27,16 +63,223 @@ struct SeedEngineTests {
         let engine = SeedEngine(operations: phone.operations)
         try await engine.supervise(udid: "phone", supervised: false, allowsFastOnAnyIOS: true)
         #expect(phone.content?["IsSupervised"] as? Bool == false)
+        #expect(engine.phase == .awaitingLiveConfiguration)
+        phone.events = []
+        try await engine.applyLiveConfiguration(udid: "phone", supervised: false)
+        #expect(phone.events == ["configuration", "set", "configuration"])
+        #expect(phone.sent.last?["IsSupervised"] as? Bool == false)
         #expect(engine.phase == .done)
     }
 
-    @Test func aRestartRetryOnIOS27IsHeldToTheValueItIsGiven() async throws {
-        let phone = Phone(version: "27.0")
+    @Test func theLiveStepReadsSetsAndReadsBack() async throws {
+        let phone = Phone(version: "27.2")
+        phone.policy = ["OrganizationName": "Existing"]
+        let engine = SeedEngine(operations: phone.operations)
+        try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
+        phone.events = []
+        try await engine.applyLiveConfiguration(udid: "phone")
+        #expect(phone.events == ["configuration", "set", "configuration"])
+        #expect(phone.sent.count == 1)
+        #expect(phone.sent.last?["IsSupervised"] as? Bool == true)
+        #expect(phone.sent.last?["OrganizationName"] as? String == "Existing")
+        #expect(!engine.liveConfigurationOwed)
+        #expect(engine.phase == .done)
+        await #expect(throws: SeedRunError.noAppliedRestore) {
+            try await engine.applyLiveConfiguration(udid: "phone")
+        }
+    }
+
+    @Test func theLiveStepTriesAgainAfterASetThatFailed() async throws {
+        let phone = Phone(version: "27.2")
+        let engine = SeedEngine(operations: phone.operations)
+        try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
+        phone.events = []
+        phone.setErrors = 2
+        try await engine.applyLiveConfiguration(udid: "phone")
+        #expect(phone.events == [
+            "configuration", "set", "sleep", "configuration", "set", "sleep",
+            "configuration", "set", "configuration",
+        ])
+        #expect(phone.slept == [SeedEngine.liveConfigurationRetryInterval, SeedEngine.liveConfigurationRetryInterval])
+        #expect(engine.phase == .done)
+    }
+
+    @Test func theLiveStepTriesAgainAfterAReadBackThatIsNotSupervised() async throws {
+        let phone = Phone(version: "27.2")
+        let engine = SeedEngine(operations: phone.operations)
+        try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
+        phone.events = []
+        phone.ignoredSets = 1
+        try await engine.applyLiveConfiguration(udid: "phone")
+        #expect(phone.events == [
+            "configuration", "set", "configuration", "sleep", "configuration", "set", "configuration",
+        ])
+        #expect(engine.phase == .done)
+    }
+
+    @Test func theLiveStepTriesAgainAfterAReadThatFailed() async throws {
+        let phone = Phone(version: "27.2")
+        let engine = SeedEngine(operations: phone.operations)
+        try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
+        phone.events = []
+        phone.configurationError = true
+        phone.afterSleep = { phone.configurationError = false }
+        try await engine.applyLiveConfiguration(udid: "phone")
+        #expect(phone.events == ["configuration", "sleep", "configuration", "set", "configuration"])
+        #expect(engine.phase == .done)
+    }
+
+    @Test func theLiveStepGivesUpAfterItsLimitAndCanBeTriedAgainAlone() async throws {
+        let phone = Phone(version: "27.2")
+        let engine = SeedEngine(operations: phone.operations)
+        try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
+        phone.events = []
+        phone.setErrors = .max
+        let notTaken = SeedRunError.liveConfigurationNotTaken(
+            lastReason: "iPhone refused the SetCloudConfiguration request. Test"
+        )
+        await #expect(throws: notTaken) {
+            try await engine.applyLiveConfiguration(udid: "phone")
+        }
+        #expect(phone.events.filter { $0 == "set" }.count == SeedEngine.liveConfigurationAttemptLimit)
+        #expect(phone.events.filter { $0 == "sleep" }.count == SeedEngine.liveConfigurationAttemptLimit - 1)
+        // The reason stays behind the "i": the main message is the plain one.
+        #expect(notTaken.localizedDescription == SeedRunError.liveConfigurationNotTaken(lastReason: nil).localizedDescription)
+        #expect(engine.phase == .failed(notTaken.localizedDescription))
+        #expect(engine.restoreApplied)
+        #expect(engine.liveConfigurationOwed)
+
+        phone.setErrors = 0
+        phone.events = []
+        try await engine.applyLiveConfiguration(udid: "phone")
+        #expect(phone.events == ["configuration", "set", "configuration"])
+        #expect(!phone.events.contains("restore"))
+        #expect(engine.phase == .done)
+    }
+
+    @Test func theLiveStepCarriesTheLastReasonWithoutTheUdid() async throws {
+        let udid = "00008030-TEST"
+        let phone = Phone(version: "27.2")
+        let engine = SeedEngine(operations: phone.operations)
+        try await engine.supervise(udid: udid, allowsFastOnAnyIOS: true)
+        phone.setError = DeviceError.deviceUnavailable(udid: udid)
+        await #expect(throws: SeedRunError.liveConfigurationNotTaken(
+            lastReason: "iPhone <udid> is no longer connected. Plug it back in with a cable."
+        )) {
+            try await engine.applyLiveConfiguration(udid: udid)
+        }
+    }
+
+    @Test func theLiveStepCarriesAReadBackThatDidNotChange() async throws {
+        let phone = Phone(version: "27.2")
+        let engine = SeedEngine(operations: phone.operations)
+        try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
+        phone.ignoredSets = .max
+        await #expect(throws: SeedRunError.liveConfigurationNotTaken(
+            lastReason: "iPhone acknowledged the setting, but it still reads as not supervised."
+        )) {
+            try await engine.applyLiveConfiguration(udid: "phone")
+        }
+    }
+
+    @Test func aRequestTheAppCouldNotBuildIsNotTriedAgain() async throws {
+        let phone = Phone(version: "27.2")
+        let engine = SeedEngine(operations: phone.operations)
+        try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
+        phone.events = []
+        phone.setError = DeviceError.requestNotBuilt(request: "SetCloudConfiguration", reason: "Test")
+        await #expect(throws: SeedRunError.liveConfigurationNotTaken(
+            lastReason: "The app could not build the SetCloudConfiguration request. Test"
+        )) {
+            try await engine.applyLiveConfiguration(udid: "phone")
+        }
+        #expect(phone.events == ["configuration", "set"])
+        #expect(engine.liveConfigurationOwed)
+    }
+
+    /// Cancel landed while a set was out, and iPhone took that set. The step
+    /// stays owed, so the next run sends the setting again and no restore.
+    @Test func cancelWhileASetThatIPhoneTakesIsOutLeavesTheStepOwed() async throws {
+        let phone = Phone(version: "27.2")
+        let engine = SeedEngine(operations: phone.operations)
+        try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
+        phone.events = []
+        phone.duringSet = { engine.cancel() }
+        await #expect(throws: CancellationError.self) {
+            try await engine.applyLiveConfiguration(udid: "phone")
+        }
+        #expect(engine.phase == .cancelled)
+        #expect(engine.restoreApplied)
+        #expect(engine.liveConfigurationOwed)
+        phone.duringSet = nil
+        try await engine.applyLiveConfiguration(udid: "phone")
+        #expect(!phone.events.contains("restore"))
+        #expect(!engine.liveConfigurationOwed)
+    }
+
+    @Test func cancelStopsTheLiveStepAndLeavesItOwed() async throws {
+        let phone = Phone(version: "27.2")
+        let engine = SeedEngine(operations: phone.operations)
+        try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
+        phone.events = []
+        phone.setErrors = .max
+        phone.afterSleep = { engine.cancel() }
+        await #expect(throws: CancellationError.self) {
+            try await engine.applyLiveConfiguration(udid: "phone")
+        }
+        #expect(phone.events == ["configuration", "set", "sleep"])
+        #expect(engine.phase == .cancelled)
+        #expect(engine.liveConfigurationOwed)
+    }
+
+    @Test func cancelWhileASetIsOutSendsNothingMore() async throws {
+        let phone = Phone(version: "27.2")
+        let engine = SeedEngine(operations: phone.operations)
+        try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
+        phone.events = []
+        phone.setErrors = .max
+        phone.duringSet = { engine.cancel() }
+        await #expect(throws: CancellationError.self) {
+            try await engine.applyLiveConfiguration(udid: "phone")
+        }
+        #expect(phone.events == ["configuration", "set"])
+        #expect(engine.phase == .cancelled)
+    }
+
+    @Test func theLiveStepNeedsARestoreThatOwesItOnTheSameIPhone() async throws {
+        let phone = Phone(version: "26.4")
+        let engine = SeedEngine(operations: phone.operations)
+        await #expect(throws: SeedRunError.noAppliedRestore) {
+            try await engine.applyLiveConfiguration(udid: "phone")
+        }
+        try await engine.supervise(udid: "phone")
+        await #expect(throws: SeedRunError.noAppliedRestore) {
+            try await engine.applyLiveConfiguration(udid: "phone")
+        }
+        #expect(!phone.events.contains("set"))
+
+        let later = Phone(version: "27.2")
+        let laterEngine = SeedEngine(operations: later.operations)
+        try await laterEngine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
+        await #expect(throws: SeedRunError.noAppliedRestore) {
+            try await laterEngine.applyLiveConfiguration(udid: "other")
+        }
+        laterEngine.forgetAppliedRestore()
+        await #expect(throws: SeedRunError.noAppliedRestore) {
+            try await laterEngine.applyLiveConfiguration(udid: "phone")
+        }
+        #expect(!later.events.contains("set"))
+    }
+
+    @Test func aRestartRetryIsHeldToTheValueItIsGiven() async throws {
+        let phone = Phone(version: "26.0")
+        phone.versions = ["26.0", "26.0"]
         phone.restartError = true
         let engine = SeedEngine(operations: phone.operations)
         await #expect(throws: SeedRunError.self) { try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true) }
         #expect(engine.restoreApplied)
         phone.restartError = false
+        phone.version = "27.0"
         await #expect(throws: SeedRunError.refused(.iosNotSupportedYet)) { try await engine.restart(udid: "phone") }
         try await engine.restart(udid: "phone", allowsFastOnAnyIOS: true)
         #expect(phone.events.filter { $0 == "restart" }.count == 2)
@@ -172,6 +415,14 @@ struct SeedEngineTests {
         #expect(arguments == ["-u", "phone", "restore", "--system", "--skip-apps", "--no-reboot", "/isolated"])
     }
 
+    @Test func aSeedRestoreOnIOS27LetsTheHelperRestartIPhone() {
+        let arguments = BackupEngine.restoreArguments(
+            udid: "phone", folder: URL(fileURLWithPath: "/isolated/phone"),
+            system: true, settings: false, reboot: true, skipApps: true
+        )
+        #expect(arguments == ["-u", "phone", "restore", "--system", "--skip-apps", "--reboot", "/isolated"])
+    }
+
     @Test func configurationResponseRequiresADictionaryAndValidAcknowledgement() throws {
         let empty = try plist(["Status": "Acknowledged"])
         #expect(try SeedDevice.configuration(from: empty).isEmpty)
@@ -216,6 +467,19 @@ struct SeedEngineTests {
         var restartError = false
         var afterConfiguration: (() -> Void)?
         var duringRestore: (() -> Void)?
+        /// Whether each restore was told to restart iPhone itself.
+        var reboots: [Bool] = []
+        /// Every configuration a live set carried.
+        var sent: [[String: Any]] = []
+        var slept: [Duration] = []
+        /// How many live sets fail before one is acknowledged.
+        var setErrors = 0
+        /// What every live set fails with, in place of the refusal.
+        var setError: Error?
+        /// How many acknowledged live sets iPhone does not keep.
+        var ignoredSets = 0
+        var duringSet: (() -> Void)?
+        var afterSleep: (() -> Void)?
 
         init(version: String?) { self.version = version }
 
@@ -231,8 +495,9 @@ struct SeedEngineTests {
                     self.afterConfiguration?()
                     return try PropertyListSerialization.data(fromPropertyList: self.policy, format: .xml, options: 0)
                 },
-                restore: { _, folder in
+                restore: { _, folder, reboot in
                     self.events.append("restore")
+                    self.reboots.append(reboot)
                     self.folder = folder
                     self.seedFileNames = Set(try FileManager.default.contentsOfDirectory(atPath: folder.path))
                     let data = try Data(contentsOf: folder.appendingPathComponent(SeedBackup.contentFileName))
@@ -243,6 +508,27 @@ struct SeedEngineTests {
                 restart: { _ in
                     self.events.append("restart")
                     if self.restartError { throw DeviceError.requestFailed(request: "Restart", code: -1) }
+                },
+                setConfiguration: { _, data in
+                    self.events.append("set")
+                    let content = try SeedDevice.configuration(from: data)
+                    self.sent.append(content)
+                    self.duringSet?()
+                    if let error = self.setError { throw error }
+                    if self.setErrors > 0 {
+                        self.setErrors -= 1
+                        throw DeviceError.requestRefused(request: "SetCloudConfiguration", reason: "Test")
+                    }
+                    if self.ignoredSets > 0 {
+                        self.ignoredSets -= 1
+                    } else {
+                        self.policy = content
+                    }
+                },
+                sleep: { duration in
+                    self.events.append("sleep")
+                    self.slept.append(duration)
+                    self.afterSleep?()
                 },
                 cancelRestore: { self.events.append("cancel") }
             )

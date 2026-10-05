@@ -95,6 +95,8 @@ struct WizardGateTests {
         JobPhase.restoring,
         .finishing,
         .restarting,
+        .awaitingLiveConfiguration,
+        .applyingLiveConfiguration,
         .confirming,
         .phoneGone,
         .failed(JobFailure(title: "Restore Didn't Finish", fix: "Try again.", raw: "", retry: .restore)),
@@ -117,7 +119,9 @@ struct WizardGateTests {
         }
     }
 
-    @Test(arguments: [JobPhase.restarting, .confirming, .phoneGone])
+    @Test(arguments: [
+        JobPhase.restarting, .awaitingLiveConfiguration, .applyingLiveConfiguration, .confirming, .phoneGone,
+    ])
     func aRestorePhaseLeftBehindOnTheChecksHoldsNothing(_ job: JobPhase) {
         // Cancel during the restart lands on Ready, and the cancelled job can
         // still write the phase it woke up to. Off the job screen that phase

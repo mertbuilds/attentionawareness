@@ -440,6 +440,8 @@ enum UISmoke {
             // The run restarts the phone, so it leaving the cable is part of
             // the job, which waits for it to come back.
             ("restarting", unplugged(waiting(.restarting, on: phone)), .job),
+            // On iOS 27 or later the restore restarts the phone itself.
+            ("awaiting-live-configuration", unplugged(waiting(.awaitingLiveConfiguration, on: phone)), .job),
             // Cancel during the restart lands on the checks, and the cancelled
             // job can leave its last phase behind. It holds nothing there.
             ("ready-after-cancelled-restart", unplugged(onStep(.ready, phone: phone, job: .phoneGone)), .connect),
@@ -495,7 +497,12 @@ enum UISmoke {
             ),
             ("restarting", waiting(.restarting, on: samplePhone(findMyOn: false))),
             ("restarting-locked", backLocked()),
+            // The run on iOS 27 or later: the wait on the Restore Completed
+            // screen, the setting sent live, and the end that says Continue.
+            ("awaiting-live-configuration", waiting(.awaitingLiveConfiguration, on: samplePhone(findMyOn: false))),
+            ("applying-live-configuration", waiting(.applyingLiveConfiguration, on: samplePhone(findMyOn: false))),
             ("check-on-iphone", waiting(.checkOnIPhone(reportedSupervised: true), on: samplePhone(findMyOn: false))),
+            ("check-on-iphone-continue", sentLive()),
             ("phone-gone", waiting(.phoneGone, on: samplePhone(findMyOn: false))),
             (
                 "failed-read",
@@ -563,6 +570,18 @@ enum UISmoke {
         let model = WizardModel(watcher: sampleWatcher([sampleLockedDevice]))
         model.show(WizardModel.Sample(
             step: .job, udid: sampleLockedDevice.udid, job: .restarting, phoneLeftForRestart: true
+        ))
+        return model
+    }
+
+    /// The confirm screen of a run on iOS 27 or later, whose setting was
+    /// sent live.
+    private static func sentLive() -> WizardModel {
+        let phone = samplePhone(findMyOn: false)
+        let model = WizardModel(watcher: sampleWatcher([phone]))
+        model.show(WizardModel.Sample(
+            step: .job, udid: phone.udid, job: .checkOnIPhone(reportedSupervised: true),
+            liveConfigurationApplied: true
         ))
         return model
     }
