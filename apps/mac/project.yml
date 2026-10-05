@@ -215,7 +215,7 @@ targets:
       # bus, and the files below are only what it takes to compile.
       - Sources/UI/WizardModel.swift
       - Sources/UI/DebugUnsupervise.swift
-      - Sources/UI/DebugFastIOS27.swift
+      - Sources/UI/DebugFastAnyIOS.swift
       - Sources/UI/OldSupervisionKey.swift
       - Sources/UI/OldBackupCopy.swift
       - Sources/UI/WizardStyle.swift

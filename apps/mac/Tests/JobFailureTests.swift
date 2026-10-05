@@ -51,6 +51,19 @@ struct JobFailureTests {
         #expect(failure?.retry == .start)
     }
 
+    /// The two version reads of one run put it in different modes, before
+    /// anything was sent.
+    @Test func aVersionThatChangedDuringTheRunStartsFromTheTop() {
+        let failure = JobFailure.from(SeedRunError.iosVersionChanged, in: .preparing)
+
+        #expect(failure?.title == "Couldn't Finish Supervision")
+        #expect(
+            failure?.fix
+                == "The iOS version iPhone gave changed during the run. Nothing was sent to iPhone. Try again."
+        )
+        #expect(failure?.retry == .start)
+    }
+
     @Test func aRestartThatFailedAsksOnlyForTheRestart() {
         let failure = JobFailure.from(SeedRunError.restartFailed("No answer."), in: .restoring)
 
@@ -69,7 +82,7 @@ struct JobFailureTests {
         #expect(failure?.title == "iPhone Didn't Take the Setting")
         #expect(
             failure?.fix
-                == "iPhone restarted, but it did not take the supervision setting. Keep iPhone on the Restore Completed screen, unlocked and on the cable, then try again."
+                == "iPhone restarted, but it did not take the supervision setting. Keep iPhone unlocked and on the cable. If it shows Restore Completed, do not tap Continue. Then try again."
         )
         // What iPhone said is behind the "i", and the fix stays the plain one.
         #expect(failure?.raw == "iPhone refused the SetCloudConfiguration request. Test")

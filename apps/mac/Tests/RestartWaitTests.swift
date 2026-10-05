@@ -145,7 +145,7 @@ struct RestartWaitTests {
     @Test func anIOS27PhoneThatComesBackNotSupervisedIsSentTheSettingLive() async {
         let bus = Bus(.back())
         let phone = IOS27Phone()
-        let model = makeModel(bus, seedEngine: phone.engine, allowsFastOnAnyIOS: true)
+        let model = makeModel(bus, seedEngine: phone.engine)
         model.useSeedEngine = true
         model.reboot = 2
         model.onSent = { bus.show(.back(.locked)) }
@@ -167,14 +167,14 @@ struct RestartWaitTests {
         #expect(!phone.engine.restoreApplied)
         #expect(
             model.restoreCompletedLine(for: .checkOnIPhone(reportedSupervised: true))
-                == "You can tap Continue on iPhone now."
+                == "If iPhone shows Restore Completed, tap Continue now."
         )
     }
 
     @Test func anIOS27PhoneThatNeverComesBackKeepsTheLiveStepForCheckAgain() async {
         let bus = Bus(.back())
         let phone = IOS27Phone()
-        let model = makeModel(bus, seedEngine: phone.engine, allowsFastOnAnyIOS: true)
+        let model = makeModel(bus, seedEngine: phone.engine)
         model.useSeedEngine = true
         model.onSent = { bus.show(.away) }
         start(model)
@@ -182,7 +182,7 @@ struct RestartWaitTests {
         #expect(phone.engine.liveConfigurationOwed)
         #expect(
             model.restoreCompletedLine(for: .phoneGone)
-                == "Stay on the Restore Completed screen and do not tap Continue."
+                == "If iPhone shows Restore Completed, stay on it and do not tap Continue."
         )
         #expect(phone.sets == 0)
         bus.show(.back())
@@ -200,7 +200,7 @@ struct RestartWaitTests {
     @Test func cancelWhileAnIOS27PhoneIsAwayThenSuperviseAgainSendsOnlyTheLiveStep() async {
         let bus = Bus(.back())
         let phone = IOS27Phone()
-        let model = makeModel(bus, seedEngine: phone.engine, allowsFastOnAnyIOS: true)
+        let model = makeModel(bus, seedEngine: phone.engine)
         model.useSeedEngine = true
         model.reboot = 2
         model.onSent = { bus.show(.away) }
@@ -289,14 +289,11 @@ struct RestartWaitTests {
 
     // MARK: - The pieces
 
-    private func makeModel(
-        _ bus: Bus, seedEngine: SeedEngine? = nil, allowsFastOnAnyIOS: Bool = false
-    ) -> WaitingModel {
+    private func makeModel(_ bus: Bus, seedEngine: SeedEngine? = nil) -> WaitingModel {
         WaitingModel(
             watcher: DeviceWatcher(reading: { bus.read() }, passTimeout: 0.05),
             engine: BackupEngine(sample: .idle, progress: 0),
-            seedEngine: seedEngine,
-            allowsFastOnAnyIOS: allowsFastOnAnyIOS
+            seedEngine: seedEngine
         )
     }
 

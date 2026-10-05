@@ -57,19 +57,20 @@ final class SeedEngine: ObservableObject {
             },
             restore: { udid, folder, mode in
                 try Task.checkCancellation()
-                // On iOS 27.2 a restore with system files erased iPhone in our
-                // device test on 2026-10-05. The live mode sends the option
-                // set confirmed to keep the data on that iPhone with another
-                // tool: no system files, remove, and the restore restarts
-                // iPhone. With this app that is not yet confirmed.
-                let live = mode == .live
+                // On iOS 27.2 a restore with system files lost data in our
+                // device runs on 2026-10-05 (iPhone SE, 2nd generation). The
+                // live mode sends no system files, remove, and the restore
+                // restarts iPhone: that set kept all data in those runs. See
+                // `IOSSupport`.
+                let settings = mode.settings
                 // Wait for the helper to stop before the temporary seed goes away.
                 // Cancelling its AsyncStream consumer directly would stop draining
                 // the pipes while the helper still has the device open.
                 let transfer = Task { @MainActor in
                     try await backupEngine.restore(
                         udid: udid, from: folder,
-                        system: !live, settings: false, reboot: live, skipApps: true, remove: live
+                        system: settings.systemFiles, settings: false, reboot: settings.reboot,
+                        skipApps: true, remove: settings.remove
                     )
                 }
                 do {
@@ -98,7 +99,7 @@ final class SeedEngine: ObservableObject {
     }
 
     /// `allowsFastOnAnyIOS` lets the gate through on every version; only the
-    /// debug `--debug-fast-ios27` flag sets it (`DebugFastIOS27`).
+    /// debug `--debug-fast-any-ios` flag sets it (`DebugFastAnyIOS`).
     func supervise(udid: String, supervised: Bool = true, allowsFastOnAnyIOS: Bool = false) async throws {
         guard !running else { throw SeedRunError.alreadyRunning }
         running = true
@@ -133,7 +134,8 @@ final class SeedEngine: ObservableObject {
             let live = mode == .live
             try checkCancellation()
             phase = .restoring
-            DeviceLog.logger.notice("fast: restore started, supervised \(supervised, privacy: .public), options: \(mode.restoreOptionsLogText, privacy: .public)")
+            let options = mode.settings.logText
+            DeviceLog.logger.notice("fast: restore started, supervised \(supervised, privacy: .public), options: \(options, privacy: .public)")
             do {
                 try await operations.restore(udid, folder, mode)
             } catch BackupError.cancelled {
@@ -182,8 +184,8 @@ final class SeedEngine: ObservableObject {
 
     /// The step a restore on iOS 27 or later still owes: send the
     /// configuration live and read it back. iPhone has to be back from the
-    /// restart, paired again and still on the Restore Completed screen. It can
-    /// be called again alone after it failed.
+    /// restart and paired again, and where it shows the Restore Completed
+    /// screen, still on it. It can be called again alone after it failed.
     func applyLiveConfiguration(udid: String, supervised: Bool = true) async throws {
         guard !running else { throw SeedRunError.alreadyRunning }
         guard restoreApplied, restoredUDID == udid, liveConfigurationOwed else {
@@ -355,7 +357,7 @@ enum SeedRunError: LocalizedError, Equatable {
         case .iosVersionChanged:
             return "The iOS version iPhone gave changed during the run. Nothing was sent to iPhone. Try again."
         case .liveConfigurationNotTaken:
-            return "iPhone restarted, but it did not take the supervision setting. Keep iPhone on the Restore Completed screen, unlocked and on the cable, and try again."
+            return "iPhone restarted, but it did not take the supervision setting. Keep iPhone unlocked and on the cable. If it shows Restore Completed, do not tap Continue. Then try again."
         }
     }
 }

@@ -1,7 +1,9 @@
 import Foundation
 
 /// The hidden `--seed` hardware-check flag: it runs the fast method on the
-/// main run loop and prints each phase.
+/// main run loop and prints each phase. On iOS 27 or later it stops after
+/// the restore: it does not wait for iPhone and does not send the setting
+/// live, so iPhone is not supervised yet, and it says so and exits non-zero.
 enum SeedCommandLine {
     @MainActor
     static func runIfAsked(_ arguments: [String] = CommandLine.arguments) {
@@ -23,8 +25,12 @@ enum SeedCommandLine {
         Task { @MainActor in
             do {
                 try await engine.supervise(udid: arguments[index + 1])
-                print("Restart requested. Keep iPhone connected and check supervision after it returns.")
-                state.code = 0
+                if engine.liveConfigurationOwed {
+                    print("iPhone restarts by itself. On iOS 27 or later --seed does not send the supervision setting, so iPhone is not supervised yet. Use the window to finish.")
+                } else {
+                    print("Restart requested. Keep iPhone connected and check supervision after it returns.")
+                    state.code = 0
+                }
             } catch {
                 print(error.localizedDescription)
                 if engine.restoreApplied { print("The configuration was already restored; do not repeat the restore just to restart.") }

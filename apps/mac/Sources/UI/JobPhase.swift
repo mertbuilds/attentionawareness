@@ -26,8 +26,8 @@ enum JobPhase: Equatable {
     /// The iPhone was restarted and is not back on the cable yet.
     case restarting
     /// On iOS 27 or later the restore restarted iPhone itself, and the job
-    /// waits for it to come back on the Restore Completed screen and pair
-    /// again.
+    /// waits for it to come back and pair again. Some runs come back on the
+    /// Restore Completed screen and some do not.
     case awaitingLiveConfiguration
     /// The iPhone is back, and the supervision setting is being sent to it
     /// live.
@@ -177,14 +177,16 @@ enum JobPhase: Equatable {
 
     /// What a run on iOS 27 or later asks of the person while it waits for
     /// the iPhone and sends the setting, under the line. The restore there
-    /// restarts iPhone itself and leaves it on the Restore Completed screen,
-    /// where the setting has to arrive before anybody taps Continue.
+    /// restarts iPhone itself. It comes back on a screen that asks for the
+    /// Home button or a swipe up, then the passcode, and in some runs it then
+    /// shows the Restore Completed screen, where the setting has to arrive
+    /// before anybody taps Continue.
     var restoreCompletedSteps: String? {
         switch self {
         case .awaitingLiveConfiguration:
-            return "iPhone restarts by itself. When it is back, unlock it. If iPhone asks, tap Trust and enter the passcode. Stay on the Restore Completed screen and do not tap Continue. This window says when to continue."
+            return "iPhone restarts by itself. When it is back, press the Home button or swipe up, then enter the passcode. If iPhone asks, tap Trust and enter the passcode. If iPhone shows Restore Completed, stay on it and do not tap Continue. This window says when to continue."
         case .applyingLiveConfiguration:
-            return "Keep iPhone unlocked and on the Restore Completed screen. Do not tap Continue yet. This window says when to continue."
+            return "Keep iPhone unlocked. If it shows Restore Completed, do not tap Continue yet. This window says when to continue."
         case .preparing, .waitingForFindMy, .restoring, .finishing, .restarting, .confirming, .done,
              .checkOnIPhone, .phoneGone, .failed:
             return nil
@@ -207,8 +209,12 @@ enum JobPhase: Equatable {
         }
     }
 
-    static let stayOnRestoreCompleted = "Stay on the Restore Completed screen and do not tap Continue."
-    static let continueOnIPhone = "You can tap Continue on iPhone now."
+    static let stayOnRestoreCompleted = "If iPhone shows Restore Completed, stay on it and do not tap Continue."
+    static let continueOnIPhone = "If iPhone shows Restore Completed, tap Continue now."
+    /// What the last screen says after a run on iOS 27 or later, in both
+    /// directions: Settings asked for the password once after every such run
+    /// on a device, and the account stayed.
+    static let appleAccountPassword = "iPhone may ask for your Apple account password once."
 
     /// What the "i" beside that sentence holds: the same words again on the
     /// confirm screen, and the layer's own words where a failure left some. The

@@ -118,7 +118,7 @@ struct DemoConditionsTests {
 
     @Test func theIOSSwitchReachesBothSidesOfTheRule() {
         #expect(IOSSupport.refusal(iosVersion: DemoConditions.IOS.ios26.version) == nil)
-        #expect(IOSSupport.refusal(iosVersion: DemoConditions.IOS.ios27.version) == .iosNotSupportedYet)
+        #expect(IOSSupport.refusal(iosVersion: DemoConditions.IOS.ios28.version) == .iosNotSupportedYet)
         #expect(IOSSupport.refusal(iosVersion: DemoConditions.IOS.unknown.version) == .iosVersionUnknown)
     }
 
@@ -142,11 +142,11 @@ struct DemoConditionsTests {
     @Test func nothingElseChangesWhenOneThingDoes() {
         var conditions = DemoConditions()
         conditions.findMyOn = true
-        conditions.ios = .ios27
+        conditions.ios = .ios28
 
         let after = conditions.afterProfileInstall()
 
         #expect(after.findMyOn)
-        #expect(after.ios == .ios27)
+        #expect(after.ios == .ios28)
     }
 }

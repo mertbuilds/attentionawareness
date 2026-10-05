@@ -86,7 +86,7 @@ struct JobFailure: Equatable {
     /// What to do when iPhone restarted on iOS 27 or later and the setting
     /// sent live did not hold.
     private static let settingNotTaken =
-        "iPhone restarted, but it did not take the supervision setting. Keep iPhone on the Restore Completed screen, unlocked and on the cable, then try again."
+        "iPhone restarted, but it did not take the supervision setting. Keep iPhone unlocked and on the cable. If it shows Restore Completed, do not tap Continue. Then try again."
 
     /// The one thing to do about a cable that let go, which is what nearly
     /// every failure comes down to.

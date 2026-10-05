@@ -34,6 +34,7 @@ struct DoneCopyTests {
 
     @Test func theOneThingLeftToDoIsToDisconnect() {
         #expect(DoneCopy.disconnect == "You can disconnect iPhone.")
+        #expect(DoneCopy.disconnectAfter == "Then you can disconnect iPhone.")
     }
 
     // MARK: - What to do next

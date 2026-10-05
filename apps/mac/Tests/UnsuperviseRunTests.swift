@@ -104,7 +104,7 @@ struct UnsuperviseRunTests {
 
     /// iOS 27 ignores the restored configuration, so the run that takes
     /// supervision off sends it live as well, with the same flag.
-    @Test func theDebugFastValueRunsAFastRunThatTakesSupervisionOffIOS27() async throws {
+    @Test func aFastRunThatTakesSupervisionOffIOS27SendsTheSettingLive() async throws {
         let sent = SentSeed()
         let engine = SeedEngine(operations: .init(
             readVersion: { _ in "27.0" },
@@ -124,7 +124,7 @@ struct UnsuperviseRunTests {
             cancelRestore: {}
         ))
         let cable = Cable(supervised: true, iosVersion: "27.0")
-        let model = makeModel(cable, supervises: false, seedEngine: engine, allowsFastOnAnyIOS: true)
+        let model = makeModel(cable, supervises: false, seedEngine: engine)
         model.iosVersion = "27.0"
         defer { model.stopJob() }
         ready(model)
@@ -146,16 +146,14 @@ struct UnsuperviseRunTests {
         _ cable: Cable,
         supervises: Bool,
         sent: Sent = Sent(),
-        seedEngine: SeedEngine? = nil,
-        allowsFastOnAnyIOS: Bool = false
+        seedEngine: SeedEngine? = nil
     ) -> RunModel {
         let model = RunModel(
             watcher: DeviceWatcher(reading: { cable.read() }, passTimeout: 0.05),
             engine: BackupEngine(sample: .idle, progress: 0),
             seedEngine: seedEngine,
             finishedEvent: { sent.events.append($0) },
-            supervises: supervises,
-            allowsFastOnAnyIOS: allowsFastOnAnyIOS
+            supervises: supervises
         )
         model.useSeedEngine = seedEngine != nil
         return model

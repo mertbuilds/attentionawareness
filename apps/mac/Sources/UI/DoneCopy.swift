@@ -32,6 +32,8 @@ enum DoneCopy {
 
     /// The one practical thing left to do.
     static let disconnect = "You can disconnect iPhone."
+    /// The same thing under a line that asks for a tap on iPhone first.
+    static let disconnectAfter = "Then you can disconnect iPhone."
 
     /// The heading over the two things somebody can do after the run.
     static let next = "Next"

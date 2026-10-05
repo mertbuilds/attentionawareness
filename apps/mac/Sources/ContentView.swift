@@ -37,7 +37,7 @@ struct ContentView: View {
             if !model.supervises || model.allowsFastOnAnyIOS {
                 VStack(spacing: 2) {
                     if !model.supervises { Text(DebugUnsupervise.label) }
-                    if model.allowsFastOnAnyIOS { Text(DebugFastIOS27.label) }
+                    if model.allowsFastOnAnyIOS { Text(DebugFastAnyIOS.label) }
                 }
                 .font(.caption)
                 .foregroundStyle(.red)

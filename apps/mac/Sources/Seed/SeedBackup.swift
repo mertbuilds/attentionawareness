@@ -101,9 +101,10 @@ enum SeedBackup {
     ///
     /// In the live mode the folder holds the supervision domain alone: no
     /// setup records and no setup file. That restore removes the items it
-    /// does not restore, and the seed confirmed to keep the data on iOS 27.2
-    /// lists this one domain. A restored `SetupDone` would also work against
-    /// the stop on the Restore Completed screen that the live step needs.
+    /// does not restore, and a seed with this one domain kept all data on
+    /// iOS 27.2 in the device runs on 2026-10-05. A seed that also held the
+    /// setup file kept the data too in one run, and iPhone still stopped on
+    /// Restore Completed (`IOSSupport`).
     ///
     /// The folder has to be new. A folder that is already there is not one
     /// this write made, so it is refused and never cleared. A write that
@@ -125,6 +126,7 @@ enum SeedBackup {
         guard !FileManager.default.fileExists(atPath: folder.path) else {
             throw SeedError.folderInTheWay(folder)
         }
+        let holdsSetup = mode.settings.setupFile
         let setupContent = try plist(setupConfiguration)
         let setupRecords: [MbdbRecord] = [
             .directory(domain: setupDomain, path: "", owner: owner, group: group, date: date),
@@ -135,7 +137,7 @@ enum SeedBackup {
             ),
         ]
         var manifestRecords = records(content: content, date: date, inode: inode)
-        if mode == .restored { manifestRecords += setupRecords }
+        if holdsSetup { manifestRecords += setupRecords }
         var files = [
             contentFileName: content,
             Mbdb.fileName: try Mbdb.data(records: manifestRecords),
@@ -143,7 +145,7 @@ enum SeedBackup {
             manifestPlistName: try plist(manifest),
             infoPlistName: try plist([String: Any]()),
         ]
-        if mode == .restored { files[setupFileName] = setupContent }
+        if holdsSetup { files[setupFileName] = setupContent }
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         do {
             for (name, data) in files {

@@ -116,9 +116,10 @@ struct JobStep: View {
                 if phase == .restarting {
                     body(model.restartHint, note: nil)
                 }
-                // On iOS 27 or later the iPhone comes back on the Restore
-                // Completed screen, and what to do there is on screen for the
-                // whole wait, with the one thing missing under it.
+                // On iOS 27 or later the iPhone comes back from the restore's
+                // restart, in some runs on the Restore Completed screen, and
+                // what to do is on screen for the whole wait, with the one
+                // thing missing under it.
                 if let steps = phase.restoreCompletedSteps {
                     body(steps, note: nil)
                     if phase == .awaitingLiveConfiguration, let hint = model.restoreCompletedHint {

@@ -175,9 +175,9 @@ enum UISmoke {
     /// the state the loop above draws, so it is not here: what is here is a
     /// phone that has not trusted this Mac yet, one that refused, one that is
     /// ready, one that is supervised already, two at once, and the manual
-    /// guide for an iPhone on iOS 27 or one whose version could not be read.
+    /// guide for an iPhone on iOS 28 or one whose version could not be read.
     private static func connectSamples() -> [(name: String, model: WizardModel)] {
-        let ios27 = samplePhone(findMyOn: false, iosVersion: "27.2")
+        let ios28 = samplePhone(findMyOn: false, iosVersion: "28.0")
         let unread = samplePhone(findMyOn: false, iosVersion: nil)
         return [
             ("trust-pending", sampleModel([sampleSecondDevice])),
@@ -185,11 +185,11 @@ enum UISmoke {
             ("one-phone", sampleModel([sampleDevice])),
             ("supervised", supervisedModel()),
             ("two-phones", sampleModel([sampleDevice, sampleSecondDevice])),
-            ("ios27", notSupervisedModel([ios27])),
+            ("ios28", notSupervisedModel([ios28])),
             ("ios-unknown", notSupervisedModel([unread])),
-            ("ios27-two-phones", notSupervisedModel([ios27, sampleDevice])),
+            ("ios28-two-phones", notSupervisedModel([ios28, sampleDevice])),
             // Its supervision not read yet, so neither the guide nor Continue.
-            ("ios27-reading", sampleModel([ios27])),
+            ("ios28-reading", sampleModel([ios28])),
         ]
     }
 
@@ -497,8 +497,8 @@ enum UISmoke {
             ),
             ("restarting", waiting(.restarting, on: samplePhone(findMyOn: false))),
             ("restarting-locked", backLocked()),
-            // The run on iOS 27 or later: the wait on the Restore Completed
-            // screen, the setting sent live, and the end that says Continue.
+            // The run on iOS 27 or later: the wait for iPhone to come back,
+            // the setting sent live, and the end that says Continue.
             ("awaiting-live-configuration", waiting(.awaitingLiveConfiguration, on: samplePhone(findMyOn: false))),
             ("applying-live-configuration", waiting(.applyingLiveConfiguration, on: samplePhone(findMyOn: false))),
             ("check-on-iphone", waiting(.checkOnIPhone(reportedSupervised: true), on: samplePhone(findMyOn: false))),

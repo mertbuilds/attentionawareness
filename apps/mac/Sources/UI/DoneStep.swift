@@ -18,12 +18,18 @@ struct DoneStep: View {
                     Text(result)
                 }
                 // A run that took supervision off on iOS 27 or later ends
-                // here with iPhone still on the Restore Completed screen.
-                if !model.supervises, model.liveConfigurationApplied {
+                // here, and iPhone can still be on the Restore Completed
+                // screen. Continue comes before the cable.
+                if continuesFirst {
                     Text(JobPhase.continueOnIPhone)
                 }
-                Text(DoneCopy.disconnect)
+                Text(continuesFirst ? DoneCopy.disconnectAfter : DoneCopy.disconnect)
                     .foregroundStyle(.secondary)
+                // Every run on iOS 27 or later, in both directions.
+                if model.liveConfigurationApplied {
+                    Text(JobPhase.appleAccountPassword)
+                        .foregroundStyle(.secondary)
+                }
             }
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -37,6 +43,10 @@ struct DoneStep: View {
             }
             .keyboardShortcut(.defaultAction)
         }
+    }
+
+    private var continuesFirst: Bool {
+        !model.supervises && model.liveConfigurationApplied
     }
 
     /// The result line, worked out from the profile the person built: how many

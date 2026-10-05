@@ -89,7 +89,8 @@ enum ProfileGuideCopy {
 enum SiteLink {
     static var help: URL? { url(path: "/", campaign: "help") }
     /// The manual guide with Apple Configurator, for an iPhone the app does
-    /// not supervise: iOS 27 and later, or a version it could not read.
+    /// not supervise: iOS 28 and later, or a version it could not read. The
+    /// campaign keeps the name it had when that was iOS 27.
     static var guide: URL? { url(path: "/guide", campaign: "ios27_guide") }
     /// The profile builder on the site, offered beside the guide so the
     /// restrictions profile need not be made in Apple Configurator.

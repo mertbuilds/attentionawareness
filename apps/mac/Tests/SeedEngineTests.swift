@@ -3,7 +3,7 @@ import Testing
 
 @MainActor
 struct SeedEngineTests {
-    @Test(arguments: [nil, "", "invalid", "26.x", "27.0", "30.1"] as [String?])
+    @Test(arguments: [nil, "", "invalid", "26.x", "28.0", "30.1"] as [String?])
     func refusedVersionNeverReadsPolicyOrRestores(_ version: String?) async throws {
         let phone = Phone(version: version)
         let engine = SeedEngine(operations: phone.operations)
@@ -22,11 +22,13 @@ struct SeedEngineTests {
         #expect(engine.phase == .done)
     }
 
-    @Test(arguments: ["27.0", "27.1", "27.2", "30.1"])
-    func onIOS27TheRestoreRestartsIPhoneAndTheLiveStepIsOwed(_ version: String) async throws {
+    /// iOS 27 is a normal run. A later version gets one only with the debug
+    /// value, and it takes the same mode.
+    @Test(arguments: [("27.0", false), ("27.1", false), ("27.2", false), ("28.0", true), ("30.1", true)])
+    func onIOS27AndLaterTheRestoreRestartsIPhoneAndTheLiveStepIsOwed(_ version: String, _ debug: Bool) async throws {
         let phone = Phone(version: version)
         let engine = SeedEngine(operations: phone.operations)
-        try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
+        try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: debug)
         #expect(phone.events == ["version", "configuration", "version", "restore"])
         #expect(phone.modes == [.live])
         #expect(phone.seedFileNames == Set([
@@ -44,7 +46,7 @@ struct SeedEngineTests {
         phone.versions = versions
         let engine = SeedEngine(operations: phone.operations)
         await #expect(throws: SeedRunError.iosVersionChanged) {
-            try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
+            try await engine.supervise(udid: "phone")
         }
         #expect(phone.events == ["version", "configuration", "version"])
         #expect(!engine.restoreApplied)
@@ -54,10 +56,10 @@ struct SeedEngineTests {
     @Test func aRestartIsNoRecoveryWhileTheLiveStepIsOwed() async throws {
         let phone = Phone(version: "27.2")
         let engine = SeedEngine(operations: phone.operations)
-        try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
+        try await engine.supervise(udid: "phone")
         let events = phone.events
         await #expect(throws: SeedRunError.noAppliedRestore) {
-            try await engine.restart(udid: "phone", allowsFastOnAnyIOS: true)
+            try await engine.restart(udid: "phone")
         }
         #expect(phone.events == events)
         #expect(engine.liveConfigurationOwed)
@@ -67,7 +69,7 @@ struct SeedEngineTests {
         let phone = Phone(version: "27.0")
         phone.policy = ["IsSupervised": true]
         let engine = SeedEngine(operations: phone.operations)
-        try await engine.supervise(udid: "phone", supervised: false, allowsFastOnAnyIOS: true)
+        try await engine.supervise(udid: "phone", supervised: false)
         #expect(phone.content?["IsSupervised"] as? Bool == false)
         #expect(engine.phase == .awaitingLiveConfiguration)
         phone.events = []
@@ -81,7 +83,7 @@ struct SeedEngineTests {
         let phone = Phone(version: "27.2")
         phone.policy = ["OrganizationName": "Existing"]
         let engine = SeedEngine(operations: phone.operations)
-        try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
+        try await engine.supervise(udid: "phone")
         phone.events = []
         try await engine.applyLiveConfiguration(udid: "phone")
         #expect(phone.events == ["configuration", "set", "configuration"])
@@ -98,7 +100,7 @@ struct SeedEngineTests {
     @Test func theLiveStepTriesAgainAfterASetThatFailed() async throws {
         let phone = Phone(version: "27.2")
         let engine = SeedEngine(operations: phone.operations)
-        try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
+        try await engine.supervise(udid: "phone")
         phone.events = []
         phone.setErrors = 2
         try await engine.applyLiveConfiguration(udid: "phone")
@@ -113,7 +115,7 @@ struct SeedEngineTests {
     @Test func theLiveStepTriesAgainAfterAReadBackThatIsNotSupervised() async throws {
         let phone = Phone(version: "27.2")
         let engine = SeedEngine(operations: phone.operations)
-        try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
+        try await engine.supervise(udid: "phone")
         phone.events = []
         phone.ignoredSets = 1
         try await engine.applyLiveConfiguration(udid: "phone")
@@ -126,7 +128,7 @@ struct SeedEngineTests {
     @Test func theLiveStepTriesAgainAfterAReadThatFailed() async throws {
         let phone = Phone(version: "27.2")
         let engine = SeedEngine(operations: phone.operations)
-        try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
+        try await engine.supervise(udid: "phone")
         phone.events = []
         phone.configurationError = true
         phone.afterSleep = { phone.configurationError = false }
@@ -138,7 +140,7 @@ struct SeedEngineTests {
     @Test func theLiveStepGivesUpAfterItsLimitAndCanBeTriedAgainAlone() async throws {
         let phone = Phone(version: "27.2")
         let engine = SeedEngine(operations: phone.operations)
-        try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
+        try await engine.supervise(udid: "phone")
         phone.events = []
         phone.setErrors = .max
         let notTaken = SeedRunError.liveConfigurationNotTaken(
@@ -167,7 +169,7 @@ struct SeedEngineTests {
         let udid = "00008030-TEST"
         let phone = Phone(version: "27.2")
         let engine = SeedEngine(operations: phone.operations)
-        try await engine.supervise(udid: udid, allowsFastOnAnyIOS: true)
+        try await engine.supervise(udid: udid)
         phone.setError = DeviceError.deviceUnavailable(udid: udid)
         await #expect(throws: SeedRunError.liveConfigurationNotTaken(
             lastReason: "iPhone <udid> is no longer connected. Plug it back in with a cable."
@@ -179,7 +181,7 @@ struct SeedEngineTests {
     @Test func theLiveStepCarriesAReadBackThatDidNotChange() async throws {
         let phone = Phone(version: "27.2")
         let engine = SeedEngine(operations: phone.operations)
-        try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
+        try await engine.supervise(udid: "phone")
         phone.ignoredSets = .max
         await #expect(throws: SeedRunError.liveConfigurationNotTaken(
             lastReason: "iPhone acknowledged the setting, but it still reads as not supervised."
@@ -191,7 +193,7 @@ struct SeedEngineTests {
     @Test func aRequestTheAppCouldNotBuildIsNotTriedAgain() async throws {
         let phone = Phone(version: "27.2")
         let engine = SeedEngine(operations: phone.operations)
-        try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
+        try await engine.supervise(udid: "phone")
         phone.events = []
         phone.setError = DeviceError.requestNotBuilt(request: "SetCloudConfiguration", reason: "Test")
         await #expect(throws: SeedRunError.liveConfigurationNotTaken(
@@ -208,7 +210,7 @@ struct SeedEngineTests {
     @Test func cancelWhileASetThatIPhoneTakesIsOutLeavesTheStepOwed() async throws {
         let phone = Phone(version: "27.2")
         let engine = SeedEngine(operations: phone.operations)
-        try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
+        try await engine.supervise(udid: "phone")
         phone.events = []
         phone.duringSet = { engine.cancel() }
         await #expect(throws: CancellationError.self) {
@@ -226,7 +228,7 @@ struct SeedEngineTests {
     @Test func cancelStopsTheLiveStepAndLeavesItOwed() async throws {
         let phone = Phone(version: "27.2")
         let engine = SeedEngine(operations: phone.operations)
-        try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
+        try await engine.supervise(udid: "phone")
         phone.events = []
         phone.setErrors = .max
         phone.afterSleep = { engine.cancel() }
@@ -241,7 +243,7 @@ struct SeedEngineTests {
     @Test func cancelWhileASetIsOutSendsNothingMore() async throws {
         let phone = Phone(version: "27.2")
         let engine = SeedEngine(operations: phone.operations)
-        try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
+        try await engine.supervise(udid: "phone")
         phone.events = []
         phone.setErrors = .max
         phone.duringSet = { engine.cancel() }
@@ -266,7 +268,7 @@ struct SeedEngineTests {
 
         let later = Phone(version: "27.2")
         let laterEngine = SeedEngine(operations: later.operations)
-        try await laterEngine.supervise(udid: "phone", allowsFastOnAnyIOS: true)
+        try await laterEngine.supervise(udid: "phone")
         await #expect(throws: SeedRunError.noAppliedRestore) {
             try await laterEngine.applyLiveConfiguration(udid: "other")
         }
@@ -285,7 +287,7 @@ struct SeedEngineTests {
         await #expect(throws: SeedRunError.self) { try await engine.supervise(udid: "phone", allowsFastOnAnyIOS: true) }
         #expect(engine.restoreApplied)
         phone.restartError = false
-        phone.version = "27.0"
+        phone.version = "28.0"
         await #expect(throws: SeedRunError.refused(.iosNotSupportedYet)) { try await engine.restart(udid: "phone") }
         try await engine.restart(udid: "phone", allowsFastOnAnyIOS: true)
         #expect(phone.events.filter { $0 == "restart" }.count == 2)
@@ -294,7 +296,7 @@ struct SeedEngineTests {
 
     @Test func versionIsRecheckedImmediatelyBeforeRestore() async throws {
         let phone = Phone(version: "26.1")
-        phone.versions = ["26.1", "27.0"]
+        phone.versions = ["26.1", "28.0"]
         let engine = SeedEngine(operations: phone.operations)
         await #expect(throws: SeedRunError.refused(.iosNotSupportedYet)) {
             try await engine.supervise(udid: "phone")
@@ -414,19 +416,30 @@ struct SeedEngineTests {
     }
 
     @Test func seedRestoreArgumentsCannotRequestFullRestoreOrReboot() {
-        let arguments = BackupEngine.restoreArguments(
-            udid: "phone", folder: URL(fileURLWithPath: "/isolated/phone"),
-            system: true, settings: false, reboot: false, skipApps: true, remove: false
-        )
-        #expect(arguments == ["-u", "phone", "restore", "--system", "--skip-apps", "--no-reboot", "/isolated"])
+        let settings = SeedMode.restored.settings
+        #expect(settings == SeedSettings(systemFiles: true, remove: false, setupFile: true, reboot: false))
+        #expect(settings.logText == "system files yes, remove no, setup file yes, reboot no")
+        #expect(Self.restoreArguments(settings) == [
+            "-u", "phone", "restore", "--system", "--skip-apps", "--no-reboot", "/isolated",
+        ])
     }
 
     @Test func aSeedRestoreOnIOS27SendsNoSystemFilesRemovesAndLetsTheHelperRestartIPhone() {
-        let arguments = BackupEngine.restoreArguments(
+        let settings = SeedMode.live.settings
+        #expect(settings == SeedSettings(systemFiles: false, remove: true, setupFile: false, reboot: true))
+        #expect(settings.logText == "system files no, remove yes, setup file no, reboot yes")
+        #expect(Self.restoreArguments(settings) == [
+            "-u", "phone", "restore", "--skip-apps", "--remove", "--reboot", "/isolated",
+        ])
+    }
+
+    /// The helper's arguments for these settings, built as `SeedEngine` builds them.
+    private static func restoreArguments(_ settings: SeedSettings) -> [String] {
+        BackupEngine.restoreArguments(
             udid: "phone", folder: URL(fileURLWithPath: "/isolated/phone"),
-            system: false, settings: false, reboot: true, skipApps: true, remove: true
+            system: settings.systemFiles, settings: false, reboot: settings.reboot,
+            skipApps: true, remove: settings.remove
         )
-        #expect(arguments == ["-u", "phone", "restore", "--skip-apps", "--remove", "--reboot", "/isolated"])
     }
 
     @Test func configurationResponseRequiresADictionaryAndValidAcknowledgement() throws {

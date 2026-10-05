@@ -7,7 +7,7 @@ import Foundation
 /// the cable and how a restore ends. Every one of those answers comes from
 /// here, so the reader can put the window into a state a real run only
 /// reaches by luck: no phone on the cable, two of them, a phone that is
-/// already supervised, one on iOS 27, a restore that fails.
+/// already supervised, one on iOS 28, a restore that fails.
 ///
 /// Nothing here reads an iPhone, a disk or a network, which is why it is the
 /// part of the demo the tests can run.
@@ -83,12 +83,12 @@ struct DemoConditions: Equatable {
         }
     }
 
-    /// The iOS version the demo iPhone says it runs. iOS 27 and a version
+    /// The iOS version the demo iPhone says it runs. iOS 28 and a version
     /// that does not read put the manual guide on Connect in place of
     /// Continue.
     enum IOS: String, CaseIterable, Identifiable {
         case ios26
-        case ios27
+        case ios28
         case unknown
 
         var id: String { rawValue }
@@ -96,7 +96,7 @@ struct DemoConditions: Equatable {
         var title: String {
             switch self {
             case .ios26: return "26"
-            case .ios27: return "27"
+            case .ios28: return "28"
             case .unknown: return "Unread"
             }
         }
@@ -105,7 +105,7 @@ struct DemoConditions: Equatable {
         var version: String? {
             switch self {
             case .ios26: return "26.6.2"
-            case .ios27: return "27.2"
+            case .ios28: return "28.0"
             case .unknown: return nil
             }
         }

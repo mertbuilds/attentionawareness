@@ -196,16 +196,16 @@ struct JobPhaseTests {
     // MARK: - The Restore Completed screen
 
     /// On iOS 27 or later the restore restarts iPhone itself and the setting
-    /// is sent live while iPhone is on the Restore Completed screen. The wait
-    /// says what to do there, in the order it happens.
+    /// is sent live once it is back. The wait says what to do, in the order
+    /// it happens, and the Restore Completed screen only where it shows.
     @Test func theWaitOnIOS27SaysWhatToDoOnTheRestoreCompletedScreen() {
         #expect(
             JobPhase.awaitingLiveConfiguration.restoreCompletedSteps
-                == "iPhone restarts by itself. When it is back, unlock it. If iPhone asks, tap Trust and enter the passcode. Stay on the Restore Completed screen and do not tap Continue. This window says when to continue."
+                == "iPhone restarts by itself. When it is back, press the Home button or swipe up, then enter the passcode. If iPhone asks, tap Trust and enter the passcode. If iPhone shows Restore Completed, stay on it and do not tap Continue. This window says when to continue."
         )
         #expect(
             JobPhase.applyingLiveConfiguration.restoreCompletedSteps
-                == "Keep iPhone unlocked and on the Restore Completed screen. Do not tap Continue yet. This window says when to continue."
+                == "Keep iPhone unlocked. If it shows Restore Completed, do not tap Continue yet. This window says when to continue."
         )
     }
 
@@ -217,7 +217,7 @@ struct JobPhaseTests {
     }
 
     @Test func continueOnIPhoneIsSaidOnlyOnceTheSettingWentThrough() {
-        let said = "You can tap Continue on iPhone now."
+        let said = "If iPhone shows Restore Completed, tap Continue now."
         for phase in [JobPhase.confirming, .checkOnIPhone(reportedSupervised: true), .checkOnIPhone(reportedSupervised: false)] {
             #expect(JobPhase.restoreCompletedLine(for: phase, owed: false, applied: true) == said)
             // A run on iOS 26 or earlier never sends the setting live.
@@ -231,9 +231,13 @@ struct JobPhaseTests {
     @Test func aPhoneThatDidNotComeBackOnIOS27IsStillNotToBeContinued() {
         #expect(
             JobPhase.restoreCompletedLine(for: .phoneGone, owed: true, applied: false)
-                == "Stay on the Restore Completed screen and do not tap Continue."
+                == "If iPhone shows Restore Completed, stay on it and do not tap Continue."
         )
         #expect(JobPhase.restoreCompletedLine(for: .phoneGone, owed: false, applied: false) == nil)
+    }
+
+    @Test func theLastScreenOfARunOnIOS27SaysTheApplePasswordMayBeAsked() {
+        #expect(JobPhase.appleAccountPassword == "iPhone may ask for your Apple account password once.")
     }
 
     @Test func aFailureIsItsOwnTwoSentencesWithTheLayersWordsBehindIt() {

@@ -122,7 +122,7 @@ struct SupervisionFinishedEventTests {
     @Test func aRunThatFailsSendsNothing() async {
         let sent = Sent()
         let model = makeModel(sent)
-        model.freshVersion = "27.0"
+        model.freshVersion = "28.0"
         ready(model)
         model.startJob()
         #expect(await waitUntil { if case .failed = model.job { return true }; return false })

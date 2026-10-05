@@ -119,8 +119,8 @@ class WizardModel: ObservableObject {
     /// the one before it.
     @Published private var phoneLeftForRestart = false
     /// True once this run has sent the supervision setting live, on iOS 27 or
-    /// later, which is when the person may tap Continue on the Restore
-    /// Completed screen.
+    /// later, which is when the person may tap Continue where iPhone shows
+    /// the Restore Completed screen.
     @Published private(set) var liveConfigurationApplied = false
     private var seedOperationRun: Int?
     /// What sends the anonymous count. Nil sends nothing, which is every
@@ -132,9 +132,9 @@ class WizardModel: ObservableObject {
     /// off, skips the Restrictions step and sends no count, which only the
     /// debug `--debug-unsupervise` flag asks for (`DebugUnsupervise`).
     let supervises: Bool
-    /// True lets the fast method run on iOS 27 and later and on an unknown
-    /// version, with the default and the tag as they are. Only the debug
-    /// `--debug-fast-ios27` flag asks for it (`DebugFastIOS27`).
+    /// True lets the fast method run on a version the app refuses and on an
+    /// unknown version, with the default and the tag as they are. Only the
+    /// debug `--debug-fast-any-ios` flag asks for it (`DebugFastAnyIOS`).
     let allowsFastOnAnyIOS: Bool
 
     /// A model that watches the real USB bus, which is what the window uses.
@@ -148,7 +148,7 @@ class WizardModel: ObservableObject {
         OldBackupCopy.removeAtLaunch()
         #if DEBUG
         let supervises = !DebugUnsupervise.isOn
-        let allowsFastOnAnyIOS = DebugFastIOS27.isOn
+        let allowsFastOnAnyIOS = DebugFastAnyIOS.isOn
         #else
         let supervises = true
         let allowsFastOnAnyIOS = false
@@ -322,7 +322,7 @@ class WizardModel: ObservableObject {
 
     /// Why the app does not run on the iPhone this run is about, from the
     /// version it reports, or nil when it does. Only the debug
-    /// `--debug-fast-ios27` flag lets every version through.
+    /// `--debug-fast-any-ios` flag lets every version through.
     var iosRefusal: IOSSupport.Refusal? {
         IOSSupport.refusal(iosVersion: device?.iosVersion, allowsAnyIOS: allowsFastOnAnyIOS)
     }
@@ -837,8 +837,8 @@ class WizardModel: ObservableObject {
     ///
     /// A restore on iOS 27 or later that still owes its live step gets that
     /// step and nothing else: no restart and no second restore. The iPhone is
-    /// on the Restore Completed screen and may not answer yet, so nothing is
-    /// read from it first either.
+    /// back from its restart and may not answer yet, so nothing is read from
+    /// it first either.
     private func walkTheJob(from piece: JobFailure.Retry) async {
         if owesLiveConfiguration {
             restore = RestoreState(stage: .waitingForPhone)
@@ -883,8 +883,9 @@ class WizardModel: ObservableObject {
     /// The end of the job, from the restart on: wait for the iPhone, ask it
     /// what it is, and put the question to the person.
     ///
-    /// On iOS 27 or later the iPhone comes back on the Restore Completed
-    /// screen, not supervised, and the restore still owes its live step. The
+    /// On iOS 27 or later the iPhone comes back not supervised, in some runs
+    /// on the Restore Completed screen, and the restore still owes its live
+    /// step. The
     /// wait is the same one, paired again and MCInstall answering, and the
     /// step runs between the wait and the ask.
     private func finishAfterRestart(waiting timeout: TimeInterval) async {
@@ -968,7 +969,7 @@ class WizardModel: ObservableObject {
     }
 
     /// What the iPhone says about its activation and Setup Assistant after a
-    /// fast run under `--debug-fast-ios27`, for the log alone. The demo and
+    /// fast run under `--debug-fast-any-ios`, for the log alone. The demo and
     /// the tests run an engine that runs nothing, so nothing is read there.
     func readSetupState(udid: String) async -> String {
         guard engine.canRunHelper else { return "setup state not read" }
