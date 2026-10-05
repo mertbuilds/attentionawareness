@@ -7,7 +7,7 @@
 - [Home page](https://attentionawareness.com/): The free Mac app, how it works, and answers to common questions.
 - [Manual guide](https://attentionawareness.com/guide): Supervise your iPhone with Apple Configurator on a Mac, then install a profile that blocks addictive feeds. It is free, and it erases the iPhone.
 - [Profile builder](https://attentionawareness.com/build): Pick the apps and websites to block on a supervised iPhone, then download a signed profile.
-- [Open numbers](https://attentionawareness.com/open): The real numbers of the website, shown to everyone: visitors, page views, where visitors come from, Mac downloads and support clicks.
+- [Open numbers](https://attentionawareness.com/open): The real numbers of the website, shown to everyone: visitors, page views, bounce rate, session length, where visitors come from and Mac downloads.
 - [Extension privacy](https://attentionawareness.com/extension/privacy): The browser extension hides addictive feeds with CSS. It collects nothing.
 
 ## Blog

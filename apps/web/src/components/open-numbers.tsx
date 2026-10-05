@@ -1,17 +1,20 @@
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
-import { useId, useState } from 'react';
+import { Fragment, useId, useState } from 'react';
 import type { KeyboardEvent, PointerEvent } from 'react';
 import { posthog } from '../lib/analytics.ts';
 import { layout } from '../lib/layout.ts';
 import { distance, duration, easing } from '../lib/motion.stylex.ts';
-import { DASHBOARD_URL, DIRECT } from '../lib/open-numbers.ts';
-import type { OpenDay, OpenNumbersAnswer, OpenRow } from '../lib/open-numbers.ts';
+import { DASHBOARD_URL, DIRECT, durationParts } from '../lib/open-numbers.ts';
+import type { DurationPart, OpenDay, OpenNumbersAnswer, OpenRow } from '../lib/open-numbers.ts';
 import { m } from '../paraglide/messages.js';
 import { card } from './page.tsx';
 
 const NUMBER = new Intl.NumberFormat('en-US');
+const PERCENT = new Intl.NumberFormat('en-US', { style: 'percent' });
+/** The space between two units of a length of time. */
+const GAP = ' ';
 /** A day as the reader says it, in the UTC the days are counted in. */
 const DAY = new Intl.DateTimeFormat('en-US', { day: 'numeric', month: 'long', timeZone: 'UTC' });
 /** Where the link stands in the sentence, as the footer does it. */
@@ -168,9 +171,10 @@ const styles = create({
   stat: {
     display: 'flex',
     // The number over its name, though the name comes first for a reader.
+    // The name keeps to the foot, so the names line up when a value wraps.
     flexDirection: 'column-reverse',
     gap: spacing.s1,
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
     margin: 0,
   },
   statLabel: {
@@ -184,10 +188,21 @@ const styles = create({
       '@media (min-width: 640px)': 'repeat(3, minmax(0, 1fr))',
       default: 'repeat(2, minmax(0, 1fr))',
     },
+    // Every row as tall as the tallest, so all the cards are one height.
+    gridAutoRows: '1fr',
     margin: 0,
     rowGap: spacing.s3,
   },
   // The numbers are what the page is for, so they carry the orange.
+  // A number and its unit word, kept together on one line.
+  statPart: {
+    whiteSpace: 'nowrap',
+  },
+  // Unit words sit on the number's baseline at the label's size.
+  statUnit: {
+    fontSize: font.sizeSm,
+    letterSpacing: 0,
+  },
   statValue: {
     color: accent.base,
     fontSize: 32,
@@ -229,6 +244,39 @@ function updated(minutes: number): string {
   return hours === 1
     ? m.open_numbers_updated_hour()
     : m.open_numbers_updated_hours({ count: hours });
+}
+
+/** One unit of a length of time, in the page's words: "1 minute", "42 seconds". */
+function durationWords(count: number | string, unit: DurationPart['unit'], one: boolean): string {
+  if (unit === 'hour') {
+    return one ? m.open_duration_hour({ count }) : m.open_duration_hours({ count });
+  }
+  if (unit === 'minute') {
+    return one ? m.open_duration_minute({ count }) : m.open_duration_minutes({ count });
+  }
+  return one ? m.open_duration_second({ count }) : m.open_duration_seconds({ count });
+}
+
+/**
+ * Whole seconds in words, units written out: "4 minutes 52 seconds". The
+ * numbers stand at the stat's size and the words beside them are smaller, so
+ * on a wide card the value keeps to one line. On a narrow one it breaks
+ * between the units, never inside one.
+ */
+function Duration({ seconds }: { seconds: number }) {
+  return durationParts(seconds).map(({ count, unit }, index) => {
+    const [before, after] = durationWords(LINK_SLOT, unit, count === 1).split(LINK_SLOT);
+    return (
+      <Fragment key={unit}>
+        {index > 0 && GAP}
+        <span {...props(styles.statPart)}>
+          {before}
+          {NUMBER.format(count)}
+          <span {...props(styles.statUnit)}>{after}</span>
+        </span>
+      </Fragment>
+    );
+  });
 }
 
 /** One line through the days, in the plot's own square. */
@@ -442,12 +490,12 @@ export function OpenNumbers({ answer }: { answer: OpenNumbersAnswer }) {
 
   const { ageMinutes, numbers } = answer;
   const stats = [
-    { label: m.open_stat_visitors(), value: numbers.visitors },
-    { label: m.open_stat_views(), value: numbers.views },
-    { label: m.open_stat_downloads(), value: numbers.downloads },
-    { label: m.open_stat_supervisions(), value: numbers.supervisions },
-    { label: m.open_stat_support(), value: numbers.supportClicks },
-    { label: m.open_stat_reads(), value: numbers.reads },
+    { label: m.open_stat_visitors(), value: NUMBER.format(numbers.visitors) },
+    { label: m.open_stat_views(), value: NUMBER.format(numbers.views) },
+    { label: m.open_stat_bounce(), value: PERCENT.format(numbers.bounceRate / 100) },
+    { label: m.open_stat_session(), value: <Duration seconds={numbers.sessionSeconds} /> },
+    { label: m.open_stat_downloads(), value: NUMBER.format(numbers.downloads) },
+    { label: m.open_stat_reads(), value: NUMBER.format(numbers.reads) },
   ];
   const [checkBefore, checkAfter] = m.open_numbers_check({ dashboard: LINK_SLOT }).split(LINK_SLOT);
 
@@ -457,7 +505,7 @@ export function OpenNumbers({ answer }: { answer: OpenNumbersAnswer }) {
         {stats.map((stat) => (
           <div key={stat.label} {...props(card, styles.stat)}>
             <dt {...props(styles.statLabel)}>{stat.label}</dt>
-            <dd {...props(styles.statValue)}>{NUMBER.format(stat.value)}</dd>
+            <dd {...props(styles.statValue)}>{stat.value}</dd>
           </div>
         ))}
       </dl>
