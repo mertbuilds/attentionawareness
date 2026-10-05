@@ -39,20 +39,28 @@
 #      generate_appcast cannot sign an update and no shipped copy of the app
 #      will accept one.
 #   4. `cf auth login` with the Cloudflare account that holds the bucket. cf is
-#      Cloudflare's cf cli, and it makes every R2 call here.
+#      Cloudflare's cf cli, and on a Mac it makes every R2 call here. On the
+#      runner curl makes them over S3: see R2_S3_ENDPOINT below.
 #   5. Put the bucket name in ~/.config/attentionawareness/release.env (mode
 #      600), as R2_BUCKET=<bucket>.
 #
 # GitHub Actions runs this script too (.github/workflows/mac-release.yml), on a
-# runner that has none of that setup, so four things can come from the
-# environment. With none of them set the script runs as it always has:
+# runner that has none of that setup, so these can come from the environment.
+# With none of them set the script runs as it always has:
 #   NOTARY_KEYCHAIN       the keychain that holds the notary profile, when it
 #                         is not the login keychain.
 #   SPARKLE_ED_KEY_FILE   the Sparkle private key file, when it is not the one
 #                         in ~/.config/attentionawareness.
 #   R2_BUCKET             the bucket, when release.env is not there.
-#   CLOUDFLARE_API_TOKEN  read by cf in place of `cf auth login`, with
-#                         CLOUDFLARE_ACCOUNT_ID beside it.
+#   R2_S3_ACCESS_KEY_ID, R2_S3_SECRET_ACCESS_KEY, R2_S3_ENDPOINT
+#                         the S3 key pair of an R2 API token for the one bucket
+#                         and https://<account id>.r2.cloudflarestorage.com.
+#                         With all three set, curl makes every bucket call
+#                         with --aws-sigv4 and cf is not needed. The option
+#                         is in curl since 7.75; this is tested with 8.7.1,
+#                         the curl of macOS. cf cannot use such a token: its
+#                         calls go to the Cloudflare REST API, which refuses a
+#                         token that is scoped to one bucket.
 
 set -euo pipefail
 
@@ -106,7 +114,73 @@ if [ "$NOTARIZE" = 1 ] && ! NOTARY_OUT=$(notary_tool history --keychain-profile 
   exit 1
 fi
 
-if [ "$DRY_RUN" = 0 ]; then
+# The bucket is reached through cf, or through its S3 endpoint when the key pair
+# is in the environment. r2_get and r2_put below are the only two callers.
+R2_TRANSPORT=cf
+if [ -n "${R2_S3_ACCESS_KEY_ID:-}${R2_S3_SECRET_ACCESS_KEY:-}${R2_S3_ENDPOINT:-}" ]; then
+  if [ -z "${R2_S3_ACCESS_KEY_ID:-}" ] || [ -z "${R2_S3_SECRET_ACCESS_KEY:-}" ] || [ -z "${R2_S3_ENDPOINT:-}" ]; then
+    echo "error: set all three of R2_S3_ACCESS_KEY_ID, R2_S3_SECRET_ACCESS_KEY and" >&2
+    echo "       R2_S3_ENDPOINT, or none of them." >&2
+    exit 2
+  fi
+  # The key pair signs requests to this host, so it is R2's own or nothing.
+  if ! [[ "$R2_S3_ENDPOINT" =~ ^https://[0-9a-f]{32}(\.(eu|fedramp))?\.r2\.cloudflarestorage\.com$ ]]; then
+    echo "error: R2_S3_ENDPOINT is not https://<account id>.r2.cloudflarestorage.com" >&2
+    echo "       (or its .eu or .fedramp form)." >&2
+    exit 2
+  fi
+  R2_TRANSPORT=s3
+  # What the bucket answered, kept to show the reason when a request fails.
+  S3_BODY=$(mktemp)
+  trap 'rm -f "$S3_BODY"' EXIT
+fi
+
+# One signed request to the S3 endpoint. It prints the http status and nothing
+# else. The key pair goes to curl as a config on stdin, so it is in no argument
+# list and no log. curl signs again on every retry. --retry-all-errors is there
+# because without it a dropped connection is not tried again; a 4xx never is.
+s3_curl() {
+  printf 'user = "%s:%s"\n' "$R2_S3_ACCESS_KEY_ID" "$R2_S3_SECRET_ACCESS_KEY" \
+    | curl -sS -K - --proto '=https' --aws-sigv4 "aws:amz:auto:s3" \
+      --connect-timeout 20 --retry 3 --retry-all-errors -w '%{http_code}' "$@"
+}
+
+# The first 500 bytes of the bucket's answer, which name the reason.
+s3_reason() {
+  if [ -s "$1" ]; then
+    head -c 500 "$1" >&2
+    echo >&2
+  fi
+}
+
+# Writes the object to a file. Returns 1 when it could not be read: through cf
+# that is any failure, through S3 only a 404, and any other answer stops the
+# script.
+r2_get() {
+  key="$1"
+  file="$2"
+  if [ "$R2_TRANSPORT" = cf ]; then
+    cf r2 objects get "$key" --bucket-name "$R2_BUCKET" > "$file" 2> /dev/null
+    return
+  fi
+  body="$file"
+  if [ "$file" = /dev/null ]; then
+    body="$S3_BODY"
+  fi
+  : > "$body"
+  STATUS=$(s3_curl -o "$body" "$R2_S3_ENDPOINT/$R2_BUCKET/$key") || STATUS="no response"
+  case "$STATUS" in
+    200) return 0 ;;
+    404) return 1 ;;
+    *)
+      echo "error: could not read $key from the bucket over S3 ($STATUS)." >&2
+      s3_reason "$body"
+      exit 1
+      ;;
+  esac
+}
+
+if [ "$DRY_RUN" = 0 ] && [ "$R2_TRANSPORT" = cf ]; then
   if ! command -v cf > /dev/null 2>&1; then
     echo "error: Cloudflare's cf cli is not installed, so the release cannot be" >&2
     echo "       uploaded. install it, or run this script with --dry-run." >&2
@@ -115,12 +189,7 @@ if [ "$DRY_RUN" = 0 ]; then
   # whoami exits 0 when nobody is logged in, so its answer is what is checked.
   echo "==> cloudflare login"
   WHOAMI=$(cf auth whoami 2>&1) || true
-  # tokenValid only says that cf could read the user or the account list. An
-  # API token scoped to one bucket can read neither, so with a token from the
-  # environment it is no reason to stop. Such a token is tested against the
-  # bucket below, once the bucket name is known.
-  if ! grep -q '"authenticated": true' <<< "$WHOAMI" \
-    || { [ -z "${CLOUDFLARE_API_TOKEN:-}" ] && grep -q '"tokenValid": false' <<< "$WHOAMI"; }; then
+  if ! grep -q '"authenticated": true' <<< "$WHOAMI" || grep -q '"tokenValid": false' <<< "$WHOAMI"; then
     printf '%s\n' "$WHOAMI" >&2
     echo "error: cf is not logged in, so the release cannot reach the bucket." >&2
     echo "       run cf auth login, or run this script with --dry-run." >&2
@@ -148,14 +217,12 @@ if [ -z "${R2_BUCKET:-}" ]; then
   exit 1
 fi
 
-# whoami cannot tell a dead token from a scoped one, so a token from the
-# environment has to read the bucket before anything is built or notarized.
-if [ "$DRY_RUN" = 0 ] && [ -n "${CLOUDFLARE_API_TOKEN:-}" ]; then
-  echo "==> check that the token reaches the bucket"
-  if ! cf r2 objects get mac/latest.json --bucket-name "$R2_BUCKET" > /dev/null; then
-    echo "error: CLOUDFLARE_API_TOKEN could not read mac/latest.json from the" >&2
-    echo "       bucket, so the release could not be uploaded. check the token," >&2
-    echo "       CLOUDFLARE_ACCOUNT_ID and R2_BUCKET." >&2
+# The key pair has to read the bucket before anything is built or notarized.
+if [ "$DRY_RUN" = 0 ] && [ "$R2_TRANSPORT" = s3 ]; then
+  echo "==> check that the S3 key pair reaches the bucket"
+  if ! r2_get mac/latest.json /dev/null; then
+    echo "error: the bucket has no mac/latest.json (404 over S3), so the release" >&2
+    echo "       was not started. check R2_S3_ENDPOINT and R2_BUCKET." >&2
     exit 1
   fi
 fi
@@ -171,7 +238,7 @@ mkdir -p "$BUILD_DIR"
 # new feed: any other failure stops the release rather than lose the history.
 echo "==> fetch the published appcast"
 PUBLISHED_APPCAST="$BUILD_DIR/appcast.published.xml"
-if cf r2 objects get mac/appcast.xml --bucket-name "$R2_BUCKET" > "$PUBLISHED_APPCAST" 2> /dev/null \
+if r2_get mac/appcast.xml "$PUBLISHED_APPCAST" \
   && [ -s "$PUBLISHED_APPCAST" ]; then
   echo "    from r2: $R2_BUCKET/mac/appcast.xml"
 else
@@ -208,7 +275,7 @@ dmg_name() {
 # The name a person should get on disk: the version alone. The build number in
 # the stored name is only there to keep every url new, and next to the version
 # it reads like a second version. `cf r2 objects put` cannot store a
-# Content-Disposition, so the name travels in latest.json as `filename` and the
+# Content-Disposition and the S3 upload sends none, so the name travels in latest.json as `filename` and the
 # download link on the site hands it to the browser.
 download_name() {
   echo "attention-awareness-$1.dmg"
@@ -431,12 +498,35 @@ r2_put() {
   key="$1"
   file="$2"
   type="$3"
-  if [ "$DRY_RUN" = 1 ]; then
-    echo "    would run: cf r2 objects put $key --bucket-name $R2_BUCKET --file \"$file\" --content-type $type"
-  else
-    echo "    $R2_BUCKET/$key"
-    cf r2 objects put "$key" --bucket-name "$R2_BUCKET" --file "$file" --content-type "$type"
+  if [ "$R2_TRANSPORT" = cf ]; then
+    if [ "$DRY_RUN" = 1 ]; then
+      echo "    would run: cf r2 objects put $key --bucket-name $R2_BUCKET --file \"$file\" --content-type $type"
+    else
+      echo "    $R2_BUCKET/$key"
+      cf r2 objects put "$key" --bucket-name "$R2_BUCKET" --file "$file" --content-type "$type"
+    fi
+    return
   fi
+  url="$R2_S3_ENDPOINT/$R2_BUCKET/$key"
+  if [ "$DRY_RUN" = 1 ]; then
+    echo "    would run: curl --aws-sigv4 aws:amz:auto:s3 --upload-file \"$file\" -H \"Content-Type: $type\" $url"
+    return
+  fi
+  echo "    $R2_BUCKET/$key"
+  # The Content-Type is all that is stored beside the object, as with cf. The
+  # hash goes into the signature, so the bucket refuses any other bytes.
+  sha=$(/usr/bin/shasum -a 256 "$file" | cut -d' ' -f1)
+  : > "$S3_BODY"
+  STATUS=$(s3_curl -o "$S3_BODY" --upload-file "$file" -H "Content-Type: $type" \
+    -H "x-amz-content-sha256: $sha" "$url") || STATUS="no response"
+  case "$STATUS" in
+    2??) ;;
+    *)
+      echo "error: could not upload $key to the bucket over S3 ($STATUS)." >&2
+      s3_reason "$S3_BODY"
+      exit 1
+      ;;
+  esac
 }
 
 # The dmg goes up first and the feed last, so neither small file ever points at
