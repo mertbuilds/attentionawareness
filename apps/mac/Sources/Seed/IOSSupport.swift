@@ -37,10 +37,13 @@ enum IOSSupport {
             }
         }
 
-        /// What that screen says, ending on the manual way the guide shows.
+        /// What that screen says, ending on the manual way the guide shows
+        /// and the profile builder that saves making the profile by hand.
         var guide: String {
             let manual = "You can still supervise it by hand with Apple Configurator. "
-                + "That way erases iPhone, so back up first."
+                + "That way erases iPhone, so back up first. "
+                + "You do not need to make the profile in Configurator. "
+                + "The profile builder on the site makes it for you, for free."
             switch self {
             case .iosNotSupportedYet:
                 return "This app cannot supervise an iPhone on iOS \(IOSSupport.firstUnsupportedMajorVersion) yet. "
