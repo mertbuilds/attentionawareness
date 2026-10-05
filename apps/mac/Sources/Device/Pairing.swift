@@ -123,11 +123,12 @@ enum Pairing {
             return .locked
         // The Trust dialog is up, or the iPhone does not know this Mac and
         // has not been asked yet, or the record is half written. Each one is
-        // a wait for the person, and the next read asks again.
+        // a wait for the person, and the next read asks again. MuxError is
+        // not one of them: it is the connection dropping, which is what an
+        // iPhone that restarts answers on its way down, with no Trust on it.
         case LOCKDOWN_E_PAIRING_DIALOG_RESPONSE_PENDING,
              LOCKDOWN_E_INVALID_HOST_ID,
              LOCKDOWN_E_INVALID_CONF,
-             LOCKDOWN_E_MUX_ERROR,
              LOCKDOWN_E_SSL_ERROR,
              LOCKDOWN_E_NO_RUNNING_SESSION:
             return .trustPending

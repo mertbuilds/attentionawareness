@@ -227,6 +227,50 @@ struct PairingTests {
         #expect(Pairing.error(for: LOCKDOWN_E_RECEIVE_TIMEOUT).pairingState == nil)
     }
 
+    /// The run on iOS 27.2: the handshake failed with MuxError while iPhone
+    /// went down for its restart, and the window said "Tap Trust".
+    @Test func aConnectionThatDropsIsNotAWaitForTrust() {
+        #expect(Pairing.error(for: LOCKDOWN_E_MUX_ERROR) == .lockdownFailed(code: LOCKDOWN_E_MUX_ERROR.rawValue))
+        #expect(Pairing.error(for: LOCKDOWN_E_MUX_ERROR).pairingState == nil)
+        let phone = FakeLockdown()
+        phone.forget()
+        phone.dropping = true
+        for _ in 0..<5 {
+            #expect(throws: DeviceError.lockdownFailed(code: LOCKDOWN_E_MUX_ERROR.rawValue)) { try phone.open() }
+        }
+        #expect(phone.pairs == 0)
+        #expect(!phone.dialogShown)
+        // Back up and unlocked, it is asked to pair as if nothing had dropped.
+        phone.dropping = false
+        #expect(throws: DeviceError.trustPending) { try phone.open() }
+        #expect(phone.pairs == 1)
+        #expect(phone.dialogShown)
+    }
+
+    /// A Pair that the dropping connection ate goes again on the same clock
+    /// as any other Pair that failed.
+    @Test func aPairLostToADroppedConnectionGoesAgainAfterTwoSeconds() {
+        let trust = TrustWatch()
+        let start = Date(timeIntervalSinceReferenceDate: 0)
+        var pairs = 0
+        func open(at seconds: TimeInterval) throws {
+            try Pairing.open(
+                udid: "phone", trust: trust, now: start + seconds,
+                handshake: { LOCKDOWN_E_INVALID_HOST_ID },
+                pair: {
+                    pairs += 1
+                    return LOCKDOWN_E_MUX_ERROR
+                }
+            )
+        }
+        let dropped = DeviceError.lockdownFailed(code: LOCKDOWN_E_MUX_ERROR.rawValue)
+        #expect(throws: dropped) { try open(at: 0) }
+        #expect(throws: dropped) { try open(at: 1) }
+        #expect(pairs == 1)
+        #expect(throws: dropped) { try open(at: 2) }
+        #expect(pairs == 2)
+    }
+
     @Test func theLogNeverCarriesAUdid() {
         #expect(DeviceLog.text(DeviceError.deviceUnavailable(udid: "00008030-0001")) == "deviceUnavailable")
         #expect(DeviceLog.text(DeviceError.lockdownFailed(code: -21)) == "lockdownFailed -21")
@@ -274,7 +318,14 @@ final class FakeLockdown: @unchecked Sendable {
     private var refuseSavedRecord = false
     private var observing = true
     private var observers = 0
+    private var isDropping = false
 
+    /// The iPhone is going down for a restart: the connection to lockdown
+    /// drops before it answers anything.
+    var dropping: Bool {
+        get { lock.withLock { isDropping } }
+        set { lock.withLock { isDropping = newValue } }
+    }
     var locked: Bool {
         get { lock.withLock { isLocked } }
         set { lock.withLock { isLocked = newValue } }
@@ -349,6 +400,7 @@ final class FakeLockdown: @unchecked Sendable {
     /// `lockdownd_client_new_with_handshake`: pairs on its own only when the
     /// Mac has no record, and otherwise starts a session with the one it has.
     func handshake() -> lockdownd_error_t {
+        if dropping { return LOCKDOWN_E_MUX_ERROR }
         let record = lock.withLock { self.record }
         guard let record else { return pair() }
         return lock.withLock { known.contains(record) } ? LOCKDOWN_E_SUCCESS : LOCKDOWN_E_INVALID_HOST_ID
