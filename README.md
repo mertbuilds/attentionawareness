@@ -25,8 +25,8 @@ See [apps/extension/README.md](apps/extension/README.md).
 ### `apps/mac`
 
 The Mac app. Native Swift and SwiftUI, macOS 14 and later, Apple silicon. It
-supervises a connected iPhone on iOS 26 or earlier over USB without erasing it,
-and installs the restrictions. It does not support iOS 27 yet. It is free, with no account and no key. It is
+supervises a connected iPhone on iOS 27 or earlier over USB without erasing it,
+and installs the restrictions. It is free, with no account and no key. It is
 not part of the pnpm workspace: Xcode builds it. See
 [apps/mac/README.md](apps/mac/README.md).
 
@@ -39,8 +39,8 @@ not part of the pnpm workspace: Xcode builds it. See
   hide or block apps, and it can be removed in Settings.
 - Apple's own path to supervision is Apple Configurator's Prepare action, which
   erases the phone first.
-- The Mac app supervises the phone without erasing it, on iOS 26 and earlier.
-  The guide uses Apple Configurator, which erases it, and is the way on iOS 27.
+- The Mac app supervises the phone without erasing it, on iOS 27 and earlier.
+  The guide uses Apple Configurator, which erases it.
   Both are free.
 - Profiles are signed on the server with a Developer ID certificate and carry a
   unique identifier per install, so a second profile stacks on the first
