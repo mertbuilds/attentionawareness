@@ -717,6 +717,18 @@ function homeQuestions(): ReadonlyArray<{
       question: m.home_faq_needs_term(),
     },
     {
+      answer: [
+        text(m.home_faq_ios27_a1()),
+        {
+          kind: 'text',
+          link: { href: '/guide', label: m.home_faq_manual_a1_link() },
+          text: m.home_faq_ios27_a2({ guide: ANSWER_LINK }),
+        },
+        text(m.home_faq_ios27_a3()),
+      ],
+      question: m.home_faq_ios27_term(),
+    },
+    {
       anchor: FAQ_DATA_ID,
       answer: [
         text(m.home_faq_data_a1()),
@@ -752,14 +764,7 @@ function homeQuestions(): ReadonlyArray<{
           mark: 'check',
         },
         text(m.home_faq_data_changes()),
-        dots(
-          [
-            m.home_faq_data_before_find_my(),
-            m.home_faq_data_before_space(),
-            m.home_faq_data_before_password(),
-          ],
-          m.home_faq_data_before(),
-        ),
+        dots([m.home_faq_data_before_find_my()], m.home_faq_data_before()),
       ],
       question: m.home_faq_data_term(),
     },
