@@ -1,0 +1,63 @@
+name: Mac CI
+
+on:
+  pull_request:
+    paths:
+      - apps/mac/**
+      - .github/workflows/mac-ci.yml
+  push:
+    branches: [main]
+    paths:
+      - apps/mac/**
+      - .github/workflows/mac-ci.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mac-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  HOMEBREW_NO_AUTO_UPDATE: 1
+  HOMEBREW_NO_INSTALL_CLEANUP: 1
+
+jobs:
+  test:
+    # Apple Silicon. Keep the image and the Xcode the same as in mac-release.yml.
+    runs-on: macos-26
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: apps/mac
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Select Xcode 26.6
+        run: sudo xcode-select --switch /Applications/Xcode_26.6.app
+      # Only Vendor/prefix is kept: vendor.sh fills the rest from it in seconds,
+      # and Vendor/include holds a tracked file a cache must not write over.
+      - name: Cache libimobiledevice
+        id: vendor
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: apps/mac/Vendor/prefix
+          key: mac-vendor-macos-26-${{ runner.arch }}-${{ hashFiles('apps/mac/scripts/build-libimobiledevice.sh', 'apps/mac/scripts/vendor.sh') }}
+      - name: Build libimobiledevice
+        if: steps.vendor.outputs.cache-hit != 'true'
+        run: bash scripts/build-libimobiledevice.sh
+      - run: bash scripts/vendor.sh
+      # The release binary of the version the project is generated with on the
+      # owner's Mac, checked against its sha256. Homebrew has only the newest.
+      - name: Install xcodegen 2.45.4
+        run: |
+          set -euo pipefail
+          curl -fsSL -o "$RUNNER_TEMP/xcodegen.zip" https://github.com/yonaskolb/XcodeGen/releases/download/2.45.4/xcodegen.zip
+          echo "090ec29491aad50aec10631bf6e62253fed733c50f3aab0f5ffc86bc170bdbef  $RUNNER_TEMP/xcodegen.zip" | shasum -a 256 -c -
+          unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/xcodegen/bin" >> "$GITHUB_PATH"
+      - run: xcodegen generate
+      # A Debug build signs ad hoc, so the tests need no certificate.
+      - name: Test
+        run: xcodebuild test -project AttentionAwareness.xcodeproj -scheme AttentionAwareness -destination 'platform=macOS,arch=arm64'

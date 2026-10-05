@@ -9,9 +9,13 @@ options:
 packages:
   # Auto-update. The binary target ships Sparkle.framework, which Xcode embeds
   # in Contents/Frameworks and signs with the app's identity.
+  # Pinned to the commit of the tag 2.10.0, not to a version range: the
+  # framework is signed into the app and its tools sign the update feed, so a
+  # build must not take a newer Sparkle by itself. To move it, see "Auto-update"
+  # in README.md.
   Sparkle:
     url: https://github.com/sparkle-project/Sparkle
-    majorVersion: 2.10.0
+    revision: eef1a539a373c1f1a320624b1130fc5de7b2e100
 
 settings:
   base:
