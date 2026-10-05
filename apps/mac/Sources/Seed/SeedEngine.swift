@@ -156,7 +156,7 @@ final class SeedEngine: ObservableObject {
         let version = try await operations.readVersion(udid)
         try checkCancellation()
         DeviceLog.logger.notice("fast gate: iOS \(version ?? "not given", privacy: .public)")
-        if let refusal = SupervisionMethod.fastRefusal(iosVersion: version) {
+        if let refusal = IOSSupport.refusal(iosVersion: version) {
             guard allowsFastOnAnyIOS else { throw SeedRunError.refused(refusal) }
             DeviceLog.logger.notice("fast gate: \(String(describing: refusal), privacy: .public) let through by the debug flag")
         }
@@ -199,7 +199,7 @@ final class SeedEngine: ObservableObject {
 }
 
 enum SeedRunError: LocalizedError, Equatable {
-    case refused(SupervisionMethod.Refusal)
+    case refused(IOSSupport.Refusal)
     case cancelled(restoreApplied: Bool)
     case alreadyRunning
     case noAppliedRestore
@@ -217,7 +217,7 @@ enum SeedRunError: LocalizedError, Equatable {
         case .cancelled(let applied):
             return applied
                 ? "The configuration was restored, but the restart was cancelled. Restart iPhone to finish."
-                : "The seed restore was cancelled. If the restore had begun, it may have applied part of the configuration. Check iPhone before trying again."
+                : "The restore was cancelled. If the restore had begun, it may have applied part of the configuration. Check iPhone before trying again."
         case .alreadyRunning: return "A seed operation is already running."
         case .noAppliedRestore: return "No successful seed restore for this iPhone is waiting for a restart."
         case .restartFailed(let reason):

@@ -117,14 +117,12 @@ struct SupervisionFinishedEventTests {
         model.startOver()
         model.start()
         #expect(model.step == .ready)
-        model.selectSupervisionMethod(.fullCopy)
         model.confirmBackup(true)
-        model.password = "pw"
         model.startJob()
         #expect(await waitUntil { model.job == .checkOnIPhone(reportedSupervised: true) })
         model.advance()
         #expect(sent.events.count == 2)
-        #expect(sent.events.map(\.method) == [.seed, .fullCopy])
+        #expect(sent.events.map(\.method) == [.seed, .seed])
     }
 
     @Test func aRunThatFailsSendsNothing() async {

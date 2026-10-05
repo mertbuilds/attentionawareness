@@ -3,9 +3,9 @@ import Foundation
 
 /// `--debug-fast-ios27` (Debug builds only) lets the fast method run on iOS
 /// 27 and later, and on an iPhone that gives no version, for a test on an
-/// empty test iPhone. There the restore is expected to erase the iPhone. The
-/// default and the "(experimental)" tag stay as they are, so fast is picked
-/// by hand. It combines with `--debug-unsupervise`.
+/// empty test iPhone. There the restore is expected to erase the iPhone.
+/// Connect skips the manual guide for such an iPhone and offers Continue. It
+/// combines with `--debug-unsupervise`.
 /// `WizardModel.allowsFastOnAnyIOS` is the one value it sets.
 enum DebugFastIOS27 {
     static let flag = "--debug-fast-ios27"

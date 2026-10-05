@@ -17,7 +17,7 @@ struct WizardModelTests {
         name: "iPhone",
         productType: nil,
         marketingName: nil,
-        iosVersion: nil,
+        iosVersion: "26.6.2",
         findMyOn: false,
         backupEncrypted: true,
         cloudBackupOn: nil,
@@ -35,6 +35,7 @@ struct WizardModelTests {
     /// backup is taken away.
     private static let done = WizardModel.Sample(
         step: .done,
+        supervisionMethod: .fullCopy,
         udid: udid,
         backupFolder: folder,
         restore: WizardModel.RestoreState(stage: .finished, supervisedAfterwards: true),

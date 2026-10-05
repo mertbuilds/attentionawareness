@@ -60,11 +60,9 @@ class WizardModel: ObservableObject {
     let watcher: DeviceWatcher
     let engine: BackupEngine
     let seedEngine: SeedEngine
-    @Published private(set) var supervisionMethod = SupervisionMethod.defaultMethod(iosVersion: nil)
-    /// The method the person picked by hand on Ready for this iPhone. Nil
-    /// until they pick one, and while it is nil the method follows the
-    /// version the iPhone reports.
-    private var methodPickedByHand: SupervisionMethod?
+    /// The method a run uses, which is the fast method for every run the
+    /// window starts.
+    @Published private(set) var supervisionMethod = SupervisionMethod.seed
     /// The person has said they backed up the iPhone themselves, with Finder
     /// or iCloud. No run of either method starts until they have.
     @Published private(set) var backupConfirmed = false
@@ -260,11 +258,6 @@ class WizardModel: ObservableObject {
             watcher.$onCable.sink { [weak self] onCable in
                 self?.cableRead(onCable)
             },
-            // A version that arrives or changes after Ready is on screen moves
-            // the method with it, unless the person picked one by hand.
-            watcher.$devices.sink { [weak self] devices in
-                self?.followDefaultMethod(devices)
-            },
             engine.$phase.sink { [weak self] phase in
                 self?.helperMoved(to: phase)
             },
@@ -320,7 +313,7 @@ class WizardModel: ObservableObject {
     /// network, and nothing here starts any work.
     struct Sample {
         var step: WizardStep = .connect
-        var supervisionMethod = SupervisionMethod.defaultMethod(iosVersion: nil)
+        var supervisionMethod = SupervisionMethod.seed
         var backupConfirmed = false
         var udid: String?
         var backupFolder: URL?
@@ -363,7 +356,6 @@ class WizardModel: ObservableObject {
     func show(_ sample: Sample) {
         step = sample.step
         supervisionMethod = sample.supervisionMethod
-        methodPickedByHand = sample.supervisionMethod
         backupConfirmed = sample.backupConfirmed
         udid = sample.udid
         selectedUdid = sample.udid
@@ -409,6 +401,24 @@ class WizardModel: ObservableObject {
     /// phone is supervised already, so a supervising run has nothing to do.
     /// A run that takes supervision off starts from exactly that phone.
     var offersManageRestrictions: Bool { supervises && isSupervised == true }
+
+    /// Why the app does not run on the iPhone this run is about, from the
+    /// version it reports, or nil when it does. Only the debug
+    /// `--debug-fast-ios27` flag lets every version through.
+    var iosRefusal: IOSSupport.Refusal? {
+        IOSSupport.refusal(iosVersion: device?.iosVersion, allowsAnyIOS: allowsFastOnAnyIOS)
+    }
+
+    /// Whether Connect shows the manual guide in place of Continue: the
+    /// iPhone has trusted this Mac and been read, it is not supervised yet,
+    /// and the app does not run on its iOS. A supervised one still gets
+    /// Manage Restrictions, because the profile does not care how it got
+    /// supervised. It follows whatever iPhone Connect has picked, so another
+    /// iPhone on a version the app runs on brings Continue back.
+    var showsManualGuide: Bool {
+        guard let device, device.pairingState == .paired, !offersManageRestrictions else { return false }
+        return iosRefusal != nil
+    }
 
     /// What MCInstall last said about the chosen phone.
     var cloudConfiguration: CloudConfiguration? {
@@ -465,7 +475,7 @@ class WizardModel: ObservableObject {
 
     /// Pick the iPhone on the cable, then start the checks.
     func start() {
-        guard let device, device.pairingState == .paired else { return }
+        guard let device, device.pairingState == .paired, iosRefusal == nil else { return }
         udid = device.udid
         // Stepping back to Connect clears `udid`, so the pick is kept here as
         // well and the same phone comes back highlighted.
@@ -474,8 +484,7 @@ class WizardModel: ObservableObject {
         // may be another iPhone.
         finderBackup = .notLooked
         backupRemovalFailure = nil
-        methodPickedByHand = nil
-        supervisionMethod = .defaultMethod(iosVersion: device.iosVersion)
+        supervisionMethod = .seed
         backupConfirmed = false
         jobMethod = nil
         finishedEventSent = false
@@ -579,8 +588,7 @@ class WizardModel: ObservableObject {
         udid = nil
         selectedUdid = nil
         password = ""
-        methodPickedByHand = nil
-        supervisionMethod = .defaultMethod(iosVersion: nil)
+        supervisionMethod = .seed
         backupConfirmed = false
         jobMethod = nil
         seedOperationRun = nil
@@ -899,12 +907,11 @@ class WizardModel: ObservableObject {
 
     /// Every check that can be read says yes.
     ///
-    /// Both methods require the tick that says the person backed up the
-    /// iPhone themselves, and wait while Find My is on. Only
-    /// full-copy requires a backup password and enough space for the copy,
-    /// and only the fast method requires an iOS version it works on.
+    /// A run needs the tick that says the person backed up the iPhone
+    /// themselves and an iOS version the app runs on, and waits while Find My
+    /// is on.
     var checksPass: Bool {
-        guard backupConfirmed, requiresFullCopy || fastRefusal == nil else { return false }
+        guard backupConfirmed, requiresFullCopy || iosRefusal == nil else { return false }
         return WizardGate.checksPass(
             diskSpacePasses: requiresFullCopy ? diskSpace.passes : true,
             findMyOn: device?.findMyOn,
@@ -912,38 +919,7 @@ class WizardModel: ObservableObject {
         )
     }
 
-    /// Why the fast method is not offered for this iPhone, in one line. Nil
-    /// when it is. The full copy is offered whatever the version.
-    var fastRefusal: String? {
-        SupervisionMethod.fastRefusal(
-            iosVersion: device?.iosVersion, allowsFastOnAnyIOS: allowsFastOnAnyIOS
-        )?.message
-    }
-
     var requiresFullCopy: Bool { supervisionMethod == .fullCopy }
-
-    func selectSupervisionMethod(_ method: SupervisionMethod) {
-        guard step == .ready, !isBusy else { return }
-        guard SupervisionMethod.offered(
-            iosVersion: device?.iosVersion, allowsFastOnAnyIOS: allowsFastOnAnyIOS
-        ).contains(method) else { return }
-        methodPickedByHand = method
-        supervisionMethod = method
-        jobMethod = nil
-    }
-
-    /// Put Ready on the method for the version the iPhone this run is about
-    /// now reports, keeping a pick made by hand while that version offers it.
-    /// `devices` is the read that is landing, which `device` does not hold yet.
-    private func followDefaultMethod(_ devices: [ConnectedDevice]) {
-        guard step == .ready, !isBusy, let udid,
-              let phone = devices.first(where: { $0.udid == udid })
-        else { return }
-        supervisionMethod = SupervisionMethod.method(
-            pickedByHand: methodPickedByHand, iosVersion: phone.iosVersion,
-            allowsFastOnAnyIOS: allowsFastOnAnyIOS
-        )
-    }
 
     /// Take the tick that says the person backed up the iPhone themselves.
     func confirmBackup(_ confirmed: Bool) {
@@ -994,8 +970,8 @@ class WizardModel: ObservableObject {
     func startJob() {
         guard udid != nil else { return }
         guard backupConfirmed else { return }
-        if !requiresFullCopy, let fastRefusal {
-            errorMessage = fastRefusal
+        if !requiresFullCopy, let iosRefusal {
+            errorMessage = iosRefusal.message
             return
         }
         guard !isBusy else { return }
@@ -1206,7 +1182,7 @@ class WizardModel: ObservableObject {
         let version = try await readDeviceIOSVersion(udid: udid)
         try Task.checkCancellation()
         DeviceLog.logger.notice("fast check: iOS \(version ?? "not given", privacy: .public)")
-        if let refusal = SupervisionMethod.fastRefusal(iosVersion: version) {
+        if let refusal = IOSSupport.refusal(iosVersion: version) {
             guard allowsFastOnAnyIOS else { throw SeedRunError.refused(refusal) }
             DeviceLog.logger.notice("fast check: \(String(describing: refusal), privacy: .public) let through by the debug flag")
         }

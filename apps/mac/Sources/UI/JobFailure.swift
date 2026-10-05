@@ -57,7 +57,7 @@ struct JobFailure: Equatable {
             let raw = seed.localizedDescription
             switch seed {
             case .refused:
-                return JobFailure(title: "Can't Use Fast on This iPhone", fix: raw, raw: raw, retry: .copy)
+                return JobFailure(title: "Can't Supervise This iPhone", fix: raw, raw: raw, retry: .copy)
             case .restartFailed, .cancelled(restoreApplied: true):
                 return JobFailure(title: "Restart Needed", fix: "Reconnect and unlock iPhone, then try again to restart it.", raw: raw, retry: .restore)
             case .cancelled(restoreApplied: false):

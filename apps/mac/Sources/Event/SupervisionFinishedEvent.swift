@@ -24,7 +24,7 @@ struct SupervisionFinishedEvent: Equatable, Sendable {
     init(appVersion: String, method: SupervisionMethod, iosVersion: String?, macosMajor: Int) {
         self.appVersion = appVersion
         self.method = method
-        self.iosMajor = SupervisionMethod.majorVersion(of: iosVersion)
+        self.iosMajor = IOSSupport.majorVersion(of: iosVersion)
         self.macosMajor = macosMajor
     }
 

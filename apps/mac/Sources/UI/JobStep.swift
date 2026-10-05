@@ -130,12 +130,6 @@ struct JobStep: View {
                 if case .checkOnIPhone = phase {
                     reference
                 }
-                // The one failure somebody answers by typing. The field is the
-                // same row the checks show, so the password is corrected where
-                // it is refused.
-                if case .failed(let failure) = phase, failure.needsPassword {
-                    BackupPasswordField(model: model)
-                }
                 // It fades out in place and keeps its room while it does, so
                 // nothing moves over it, and is taken away with the phase.
                 if storyPhase != nil {

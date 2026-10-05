@@ -98,6 +98,9 @@ enum ProfileGuideCopy {
 /// which is the house rule for links between our own sites.
 enum SiteLink {
     static var help: URL? { url(path: "/", campaign: "help") }
+    /// The manual guide with Apple Configurator, for an iPhone the app does
+    /// not supervise: iOS 27 and later, or a version it could not read.
+    static var guide: URL? { url(path: "/guide", campaign: "ios27_guide") }
     /// What the Share button on the last step hands on. Whoever opens it
     /// arrives from a share, so it names that as its source.
     static let share = URL(

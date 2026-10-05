@@ -45,23 +45,8 @@ enum UISmoke {
         for sample in doneSamples() {
             report(sample.name, WizardStepContent(step: .done, model: sample.model), into: folder)
         }
-        // The checks with the line about a backup an earlier run left behind,
-        // which this one cleared on its way in.
-        report(
-            "ready-leftover-cleared",
-            WizardStepContent(step: .ready, model: clearedLeftover()),
-            into: folder
-        )
-        // The checks with the password row, which only an iPhone that encrypts
-        // what it backs up ever shows.
-        report(
-            "ready-password",
-            WizardStepContent(step: .ready, model: encryptedBackups()),
-            into: folder
-        )
-        for sample in methodSamples() {
-            report(sample.name, WizardStepContent(step: .ready, model: sample.model), into: folder)
-        }
+        // The checks for an iPhone the app runs on, with the backup ticked.
+        report("ready-fast", WizardStepContent(step: .ready, model: readyTicked()), into: folder)
         // The Restrictions screen in the three states the loop above cannot
         // draw: a profile of ours already on the iPhone, the install running,
         // and one that did not take.
@@ -106,12 +91,11 @@ enum UISmoke {
             )
         }
         // Find My is one of the checks, so they are drawn for a phone that
-        // says it is on and for one that says it is off, each with a password
-        // typed, so Find My is the one thing that keeps the button off. The one the loop above drew comes from a Mac with
-        // nothing on the cable, which is the third answer: no answer at all.
+        // says it is on and for one that says it is off. The one the loop
+        // above drew comes from a Mac with nothing on the cable, which is the
+        // third answer: no answer at all.
         for (name, findMyOn) in [("find-my-on", true), ("find-my-off", false)] {
             let model = readyToStart(findMyOn: findMyOn)
-            model.password = "hunter2"
             report("ready-\(name)", WizardStepContent(step: .ready, model: model), into: folder)
         }
         // The one row the checks show about the reader's own backups, in each
@@ -119,10 +103,6 @@ enum UISmoke {
         // one too old to lean on, none at all, and the refusal that keeps
         // Finder's own out of the app's reach until Full Disk Access is on,
         // before the trip to System Settings and after one that did not take.
-        // A Mac with too little room for the copy, which is the one check
-        // besides Find My that keeps the button off. The phone is made far
-        // bigger than any disk, so the picture is the same on every Mac.
-        report("ready-low-space", WizardStepContent(step: .ready, model: lowSpace()), into: folder)
         for sample in safetyNetSamples() {
             report("ready-\(sample.name)", WizardStepContent(step: .ready, model: sample.model), into: folder)
         }
@@ -197,14 +177,20 @@ enum UISmoke {
     /// The first screen in each of the things it says. Nothing on the cable is
     /// the state the loop above draws, so it is not here: what is here is a
     /// phone that has not trusted this Mac yet, one that refused, one that is
-    /// ready, one that is supervised already, and two at once.
+    /// ready, one that is supervised already, two at once, and the manual
+    /// guide for an iPhone on iOS 27 or one whose version could not be read.
     private static func connectSamples() -> [(name: String, model: WizardModel)] {
-        [
+        let ios27 = samplePhone(findMyOn: false, iosVersion: "27.2")
+        let unread = samplePhone(findMyOn: false, iosVersion: nil)
+        return [
             ("trust-pending", sampleModel([sampleSecondDevice])),
             ("untrusted", sampleModel([sampleUntrustedDevice])),
             ("one-phone", sampleModel([sampleDevice])),
             ("supervised", supervisedModel()),
             ("two-phones", sampleModel([sampleDevice, sampleSecondDevice])),
+            ("ios27", sampleModel([ios27])),
+            ("ios-unknown", sampleModel([unread])),
+            ("ios27-two-phones", sampleModel([ios27, sampleDevice])),
         ]
     }
 
@@ -763,7 +749,7 @@ enum UISmoke {
         cloudBackupOn: Bool? = true,
         lastCloudBackup: Date? = Date().addingTimeInterval(-dayInSeconds),
         backupEncrypted: Bool = false,
-        iosVersion: String = "26.6.2"
+        iosVersion: String? = "26.6.2"
     ) -> ConnectedDevice {
         ConnectedDevice(
             udid: "33333333-3333333333333333",
@@ -870,66 +856,12 @@ enum UISmoke {
         ),
     ]
 
-    /// A run that has just started for a phone this Mac was still holding a
-    /// backup of, which the checks say in one line.
-    private static func clearedLeftover() -> WizardModel {
-        let model = WizardModel(watcher: sampleWatcher([samplePhone(findMyOn: false)]))
-        model.show(
-            WizardModel.Sample(
-                step: .ready,
-                udid: samplePhone(findMyOn: false).udid,
-                clearedLeftoverBackup: true
-            )
-        )
-        return model
-    }
-
-    /// A run whose iPhone encrypts what it backs up, which is the one thing
-    /// that puts the password row on the checks.
-    private static func encryptedBackups() -> WizardModel {
-        let phone = samplePhone(findMyOn: false, backupEncrypted: true)
-        let model = WizardModel(
-            watcher: sampleWatcher([phone]), engine: BackupEngine(sample: .idle, progress: 0)
-        )
-        model.show(WizardModel.Sample(step: .ready, supervisionMethod: .fullCopy, udid: phone.udid))
-        return model
-    }
-
-    private static func methodSamples() -> [(name: String, model: WizardModel)] {
-        [
-            ("ready-fast", "26.6.2", SupervisionMethod.seed),
-            ("ready-ios27-full-copy", "27.0", .fullCopy),
-        ].map { name, version, method in
-            let phone = samplePhone(findMyOn: false, iosVersion: version)
-            let model = WizardModel(
-                watcher: sampleWatcher([phone]), engine: BackupEngine(sample: .idle, progress: 0)
-            )
-            model.show(WizardModel.Sample(
-                step: .ready, supervisionMethod: method, backupConfirmed: true,
-                udid: phone.udid
-            ))
-            return (name, model)
-        }
-    }
-
-    /// The checks for a phone that holds more than this Mac has room for.
-    private static func lowSpace() -> WizardModel {
-        let phone = ConnectedDevice(
-            udid: "55555555-5555555555555555",
-            name: "iPhone",
-            productType: "iPhone15,2",
-            marketingName: "iPhone 14 Pro",
-            iosVersion: "26.6.2",
-            findMyOn: false,
-            backupEncrypted: false,
-            cloudBackupOn: true,
-            lastCloudBackup: Date().addingTimeInterval(-dayInSeconds),
-            dataCapacity: 900_000_000_000_000,
-            dataAvailable: 0,
-            pairingState: .paired
-        )
+    /// The checks for an iPhone the app runs on, with nothing left to fix and
+    /// the backup ticked, so Supervise is on.
+    private static func readyTicked() -> WizardModel {
+        let phone = samplePhone(findMyOn: false)
         let model = WizardModel(watcher: sampleWatcher([phone]))
-        model.show(WizardModel.Sample(step: .ready, udid: phone.udid))
+        model.show(WizardModel.Sample(step: .ready, backupConfirmed: true, udid: phone.udid))
         return model
     }
 
