@@ -117,8 +117,8 @@ if [ "$DRY_RUN" = 0 ]; then
   WHOAMI=$(cf auth whoami 2>&1) || true
   # tokenValid only says that cf could read the user or the account list. An
   # API token scoped to one bucket can read neither, so with a token from the
-  # environment it is no reason to stop. The workflow reads the bucket once
-  # before it comes here, which is the test of such a token.
+  # environment it is no reason to stop. Such a token is tested against the
+  # bucket below, once the bucket name is known.
   if ! grep -q '"authenticated": true' <<< "$WHOAMI" \
     || { [ -z "${CLOUDFLARE_API_TOKEN:-}" ] && grep -q '"tokenValid": false' <<< "$WHOAMI"; }; then
     printf '%s\n' "$WHOAMI" >&2
@@ -146,6 +146,18 @@ if [ -z "${R2_BUCKET:-}" ]; then
   echo "       in $RELEASE_ENV (mode 600):" >&2
   echo "         R2_BUCKET=<bucket>" >&2
   exit 1
+fi
+
+# whoami cannot tell a dead token from a scoped one, so a token from the
+# environment has to read the bucket before anything is built or notarized.
+if [ "$DRY_RUN" = 0 ] && [ -n "${CLOUDFLARE_API_TOKEN:-}" ]; then
+  echo "==> check that the token reaches the bucket"
+  if ! cf r2 objects get mac/latest.json --bucket-name "$R2_BUCKET" > /dev/null; then
+    echo "error: CLOUDFLARE_API_TOKEN could not read mac/latest.json from the" >&2
+    echo "       bucket, so the release could not be uploaded. check the token," >&2
+    echo "       CLOUDFLARE_ACCOUNT_ID and R2_BUCKET." >&2
+    exit 1
+  fi
 fi
 
 echo "==> clean build"

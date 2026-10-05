@@ -70,12 +70,11 @@ License texts, by file name in `Resources/Licenses/`:
 | libusbmuxd            | 2.1.1                 | LGPL-2.1-or-later | `Contents/Frameworks/libusbmuxd-2.0.7.dylib`                                  | <https://github.com/libimobiledevice/libusbmuxd/tree/2.1.1>                              |
 | libtatsu              | 1.0.5                 | LGPL-2.1-or-later | `Contents/Frameworks/libtatsu.0.dylib`                                        | <https://github.com/libimobiledevice/libtatsu/tree/1.0.5>                                |
 | OpenSSL               | 3.6.3                 | Apache-2.0        | `Contents/Frameworks/libssl.3.dylib`, `Contents/Frameworks/libcrypto.3.dylib` | <https://github.com/openssl/openssl/tree/openssl-3.6.3>                                  |
-| Sparkle               | 2.10.0 or a later 2.x | MIT               | `Contents/Frameworks/Sparkle.framework`                                       | <https://github.com/sparkle-project/Sparkle/tree/2.10.0>                                 |
+| Sparkle               | 2.10.0                | MIT               | `Contents/Frameworks/Sparkle.framework`                                       | <https://github.com/sparkle-project/Sparkle/tree/2.10.0>                                 |
 
 The versions of the C libraries are the release tags in
 `scripts/build-libimobiledevice.sh`. Sparkle comes in as a Swift package:
-`project.yml` asks for 2.10.0 up to the next major, and the version a build
-resolved is in its `Package.resolved`.
+`project.yml` pins it to the commit of the tag 2.10.0.
 
 License texts, by file name in `Resources/Licenses/`:
 

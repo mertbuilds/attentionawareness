@@ -45,18 +45,24 @@ if [ "$(uname -m)" != "$ARCH" ]; then
   exit 1
 fi
 
-# <name>:<repo>:<tag>. Release tags matching the Homebrew versions, built in
-# dependency order: openssl and libplist stand alone, glue and libusbmuxd need
-# libplist, libtatsu needs libplist and the system libcurl, libimobiledevice
-# needs all of them plus openssl.
+# <name>:<repo>:<tag>:<commit>. Release tags matching the Homebrew versions,
+# built in dependency order: openssl and libplist stand alone, glue and
+# libusbmuxd need libplist, libtatsu needs libplist and the system libcurl,
+# libimobiledevice needs all of them plus openssl.
+#
+# The commit is the one the tag pointed at when it was put here. A tag is only
+# a name and its owner can move it, and what is built here is signed and
+# shipped, so a clone whose HEAD is another commit stops the script. For a new
+# tag, read its commit with `git ls-remote <repo> 'refs/tags/<tag>^{}'` (or
+# without ^{} for a tag that has no object of its own) and change both.
 GIT_BASE="https://github.com/libimobiledevice"
 COMPONENTS=(
-  "openssl:https://github.com/openssl/openssl.git:openssl-3.6.3"
-  "libplist:$GIT_BASE/libplist.git:2.7.0"
-  "libimobiledevice-glue:$GIT_BASE/libimobiledevice-glue.git:1.3.2"
-  "libusbmuxd:$GIT_BASE/libusbmuxd.git:2.1.1"
-  "libtatsu:$GIT_BASE/libtatsu.git:1.0.5"
-  "libimobiledevice:$GIT_BASE/libimobiledevice.git:1.4.0"
+  "openssl:https://github.com/openssl/openssl.git:openssl-3.6.3:aae016bfd52fcad2bc9657c2c782cfdf73b1ed5f"
+  "libplist:$GIT_BASE/libplist.git:2.7.0:cf5897a71ea412ea2aeb1e2f6b5ea74d4fabfd8c"
+  "libimobiledevice-glue:$GIT_BASE/libimobiledevice-glue.git:1.3.2:aef2bf0f5bfe961ad83d224166462d87b1df2b00"
+  "libusbmuxd:$GIT_BASE/libusbmuxd.git:2.1.1:adf9c22b9010490e4b55eaeb14731991db1c172c"
+  "libtatsu:$GIT_BASE/libtatsu.git:1.0.5:42329cb756682535c7c0f087987b78d1dd5b16c8"
+  "libimobiledevice:$GIT_BASE/libimobiledevice.git:1.4.0:149f7623c672c1fa73122c7119a12bfc0012f2ac"
 )
 
 # What vendor.sh and project.yml expect to find afterwards.
@@ -123,15 +129,22 @@ EOF
 }
 
 clone() {
-  local name="$1" url="$2" tag="$3" dir="$SRC_DIR/$name"
-  if [ -d "$dir/.git" ]; then
-    if [ "$(git -C "$dir" describe --tags --exact-match 2>/dev/null || true)" = "$tag" ]; then
-      return 0
-    fi
+  local name="$1" url="$2" tag="$3" commit="$4" dir="$SRC_DIR/$name" head
+  if [ -d "$dir/.git" ] \
+    && [ "$(git -C "$dir" describe --tags --exact-match 2>/dev/null || true)" != "$tag" ]; then
     rm -rf "$dir"
   fi
-  echo "    clone $name $tag"
-  git clone --quiet --depth 1 --branch "$tag" "$url" "$dir"
+  if [ ! -d "$dir/.git" ]; then
+    echo "    clone $name $tag"
+    git clone --quiet --depth 1 --branch "$tag" "$url" "$dir"
+  fi
+  head="$(git -C "$dir" rev-parse HEAD)"
+  if [ "$head" != "$commit" ]; then
+    echo "error: $name $tag is at commit $head," >&2
+    echo "       not at $commit, the one this script expects." >&2
+    echo "       the tag has moved or the clone was changed, so nothing is built." >&2
+    exit 1
+  fi
 }
 
 # A component counts as built when its pkg-config file is in the prefix.
@@ -189,8 +202,10 @@ minos() {
 echo "==> clone sources into Vendor/src"
 for entry in "${COMPONENTS[@]}"; do
   name="${entry%%:*}"
+  commit="${entry##*:}"
   rest="${entry#*:}"
-  clone "$name" "${rest%:*}" "${rest##*:}"
+  rest="${rest%:*}"
+  clone "$name" "${rest%:*}" "${rest##*:}" "$commit"
 done
 
 write_libcurl_pc

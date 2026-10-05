@@ -48,7 +48,15 @@ jobs:
         if: steps.vendor.outputs.cache-hit != 'true'
         run: bash scripts/build-libimobiledevice.sh
       - run: bash scripts/vendor.sh
-      - run: brew install xcodegen
+      # The release binary of the version the project is generated with on the
+      # owner's Mac, checked against its sha256. Homebrew has only the newest.
+      - name: Install xcodegen 2.45.4
+        run: |
+          set -euo pipefail
+          curl -fsSL -o "$RUNNER_TEMP/xcodegen.zip" https://github.com/yonaskolb/XcodeGen/releases/download/2.45.4/xcodegen.zip
+          echo "090ec29491aad50aec10631bf6e62253fed733c50f3aab0f5ffc86bc170bdbef  $RUNNER_TEMP/xcodegen.zip" | shasum -a 256 -c -
+          unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/xcodegen/bin" >> "$GITHUB_PATH"
       - run: xcodegen generate
       # A Debug build signs ad hoc, so the tests need no certificate.
       - name: Test

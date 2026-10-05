@@ -1,0 +1,40 @@
+# ADR-0011: The Mac release keys are held in a GitHub environment
+
+Date: 2026-10-05. Status: accepted.
+
+## Why
+
+- A Mac release was one script on the owner's Mac (`apps/mac/scripts/release.sh`), so no release could be made without that Mac.
+- The owner wants a release to need a tag and one approval, from any device.
+
+## Decision
+
+- GitHub Actions runs the same script on a macOS runner (`.github/workflows/mac-release.yml`), started by a tag `mac-v<version>` or by hand on `main` as a dry run.
+- The environment `mac-release` holds what the script needs: the Developer ID certificate with its private key, an App Store Connect API key for the notary service, the Sparkle EdDSA private key and a Cloudflare API token for the one R2 bucket. They are environment secrets, so no other workflow can read them.
+- The script still runs on the owner's Mac with its own keychain and files. The setup and the list of secrets are in `apps/mac/README.md`, "Release".
+
+## The guards
+
+- The environment has one required reviewer, the owner, and no bypass for administrators. Every run waits for the approval.
+- The environment accepts the branch `main` and tags `mac-v*` only.
+- A tag ruleset on `mac-v*` restricts creation, update and deletion, with the owner as the only bypass. It is needed because, for a tag, GitHub runs the workflow file of the tagged commit: without it a writer could tag a commit of their own whose workflow sends the secrets out.
+- The reviewer confirms before approving that the run's commit is on `main` and is the bump commit. The run's name says whether it is a dry run or a real release.
+- The workflow checks the tag name and that the commit is on `main`. This only stops an honest mistake, since the workflow file comes from the tagged commit.
+- The tests run before any key is on the runner. The keys go into a keychain and files made for the run and are deleted in a last step that always runs.
+- The job reads no cache. libimobiledevice and OpenSSL are built from source on every run, at commits written in `scripts/build-libimobiledevice.sh`. Sparkle is pinned to a commit, the actions to commit SHAs, `cf` by the lockfile, dmgbuild by hashes and xcodegen by a sha256.
+- A dry run is not handed the Cloudflare token.
+- No agent creates a `mac-v*` tag or approves a `mac-release` deployment (`AGENTS.md`).
+
+## The risk that remains
+
+- The Sparkle key and the bucket token together can ship an update to every installed copy of the app. With the Developer ID certificate that update also passes Gatekeeper.
+- Whoever can approve a run, change the environment or change the tag ruleset can ship. That is the owner's GitHub account, so that account is now as valuable as the keys. It needs a hardware key or passkey as its second factor.
+- An approved run executes code we do not write: the runner image, Homebrew's autotools, the pinned actions and the pinned sources. A fault in one of them at the pinned version reaches the keys.
+- GitHub itself holds the secrets.
+
+## If a key leaks
+
+- Developer ID certificate: revoke it at developer.apple.com, Certificates, IDs & Profiles. Make a new one in Xcode, export it and replace the two `.p12` secrets. Ask Apple before revoking when a release is in use, because a revoked certificate can stop copies signed with it from opening.
+- App Store Connect API key: revoke it in App Store Connect, Users and Access, Integrations. Make a new key and replace the three notary secrets.
+- Cloudflare token: delete it in the Cloudflare dashboard, R2, Manage API tokens. Make a new one for the same bucket and replace the secret. Then check `mac/appcast.xml` and `mac/latest.json` in the bucket against the last release.
+- Sparkle key: it cannot be revoked, because its public half (`SUPublicEDKey`) is inside every installed copy. Alone it ships nothing: an update also has to be served from `attentionawareness.com/mac/`, so first make sure the bucket token is safe. Then make a new pair with Sparkle's `generate_keys`, put the new public key in `project.yml` and ship one release signed with the old key and the Developer ID. Copies that take that release trust the new key from then on. Copies that never take it keep trusting the old one.
