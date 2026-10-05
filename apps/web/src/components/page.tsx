@@ -123,7 +123,7 @@ const styles = create({
     },
   },
   card: {
-    backgroundColor: colors.bg,
+    backgroundColor: colors.raised,
     borderColor: colors.border,
     borderRadius: radius.base,
     borderStyle: 'solid',

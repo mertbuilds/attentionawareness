@@ -24,13 +24,13 @@ const PAPER_GRAIN =
 
 /**
  * The paper the shader draws, one pair per theme. `back` is what PAPER above
- * resolves to (`--kya-bg` mixed 92% with `--kya-fg`): #ebebeb on light, #141414
+ * resolves to (`--kya-bg` mixed 92% with `--kya-fg`): #e5e5e3 on light, #141414
  * on dark. `front` is the light a fold catches, one shade over it. Both are
  * written out because a shader takes a color, not a `color-mix()`.
  */
 const PAPER_SHADER = {
   dark: { back: '#141414', front: '#262626' },
-  light: { back: '#ebebeb', front: '#ffffff' },
+  light: { back: '#e5e5e3', front: '#ffffff' },
 } as const;
 /** One sheet, milled the same way every time. */
 const PAPER_SEED = 5.8;

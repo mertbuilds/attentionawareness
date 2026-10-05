@@ -412,7 +412,7 @@ const styles = create({
     },
     animationName: resultsEnter,
     animationTimingFunction: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
-    backgroundColor: colors.bg,
+    backgroundColor: colors.raised,
     borderColor: colors.border,
     borderRadius: 12,
     borderStyle: 'solid',
@@ -667,7 +667,7 @@ const styles = create({
     lineHeight: 1,
   },
   storefrontList: {
-    backgroundColor: colors.bg,
+    backgroundColor: colors.raised,
     borderColor: colors.border,
     borderRadius: radius.base,
     borderStyle: 'solid',

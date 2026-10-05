@@ -29,7 +29,7 @@ const styles = create({
     width: 32,
   },
   content: {
-    backgroundColor: colors.bg,
+    backgroundColor: colors.raised,
     borderTopColor: colors.border,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
