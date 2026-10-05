@@ -135,10 +135,13 @@ class WizardModel: ObservableObject {
 
     /// A model that watches the real USB bus, which is what the window uses.
     /// It is the only one that sends the anonymous count, and the only one
-    /// that takes the key of a paid version out of the Keychain.
+    /// that takes the key of a paid version out of the Keychain and the copy
+    /// of iPhone an older version kept off the disk.
     convenience init() {
         // Can be removed in a later version, with `OldSupervisionKey`.
         OldSupervisionKey.remove()
+        // Can be removed in a later version, with `OldBackupCopy`.
+        OldBackupCopy.removeAtLaunch()
         #if DEBUG
         let supervises = !DebugUnsupervise.isOn
         let allowsFastOnAnyIOS = DebugFastIOS27.isOn

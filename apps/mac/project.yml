@@ -217,6 +217,7 @@ targets:
       - Sources/UI/DebugUnsupervise.swift
       - Sources/UI/DebugFastIOS27.swift
       - Sources/UI/OldSupervisionKey.swift
+      - Sources/UI/OldBackupCopy.swift
       - Sources/UI/WizardStyle.swift
       - Sources/UI/StepSymbol.swift
       - Sources/UI/InfoPopover.swift

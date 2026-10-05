@@ -46,8 +46,11 @@ responsible for lost data. The Ready screen says so, and Supervise stays off
 until the person ticks "I backed up my iPhone".
 
 The fast method uses an isolated temporary seed folder and makes no backup of
-its own. The first test on an iPhone SE running iOS 26.6.2 applied
-supervision but reopened Setup Assistant and redownloaded photos from iCloud.
+its own. At launch the app deletes the copy of iPhone that 0.4.0 to 0.4.2 kept
+under `~/Library/Application Support/attention awareness/Backups`, and the two
+`transferRate.*` defaults (`OldBackupCopy`). The first test on an iPhone SE
+running iOS 26.6.2 applied supervision but reopened Setup Assistant and
+redownloaded photos from iCloud.
 The seed now includes Nugget's setup-screen skip list and managed
 setup-completion preferences. The hardware retest of this correction, on the
 owner's iPhone on 2026-10-04 with app version 0.4.2, went through: the iPhone
