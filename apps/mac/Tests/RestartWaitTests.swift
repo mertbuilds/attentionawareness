@@ -86,6 +86,58 @@ struct RestartWaitTests {
         #expect(model.sends == 1)
     }
 
+    /// The run on iOS 27.2 that said "Tap Trust" at the Apple logo. iPhone
+    /// stays on the cable while it goes down, and every read of it ends in a
+    /// dropped connection. That is no Trust prompt, and the wait says what
+    /// it says while iPhone is away. Trust still shows the moment it is up.
+    @Test func aPhoneGoingDownForItsRestartIsNotAskedForTrust() async {
+        let phone = PhoneOnCable()
+        let model = WaitingModel(
+            watcher: DeviceWatcher(reading: { phone.read() }, passTimeout: 0.05),
+            engine: BackupEngine(sample: .idle, progress: 0),
+            seedEngine: nil
+        )
+        model.reboot = 2
+        model.onSent = { phone.goDown() }
+        start(model)
+        #expect(await waitUntil { phone.readsGoingDown >= 4 })
+        #expect(model.job == .restarting)
+        #expect(model.device == nil)
+        #expect(model.restartHint == "When it is back, unlock it with your passcode. It then asks to trust this Mac again: tap Trust.")
+        #expect(phone.lockdown.pairs == 0)
+        phone.comeBack()
+        #expect(await waitUntil { model.restartHint == "Unlock iPhone." })
+        phone.lockdown.locked = false
+        #expect(await waitUntil { model.restartHint == "Tap Trust on iPhone." })
+        #expect(phone.lockdown.dialogShown)
+        phone.lockdown.accept()
+        #expect(await waitUntil { model.job == .checkOnIPhone(reportedSupervised: true) })
+    }
+
+    /// The same on iOS 27 or later, where the restore restarts iPhone: the
+    /// steps on screen stand alone until iPhone is back and answers.
+    @Test func anIOS27PhoneGoingDownGetsNoHintUntilItIsBack() async {
+        let phone = PhoneOnCable()
+        let ios27 = IOS27Phone()
+        let model = WaitingModel(
+            watcher: DeviceWatcher(reading: { phone.read() }, passTimeout: 0.05),
+            engine: BackupEngine(sample: .idle, progress: 0),
+            seedEngine: ios27.engine
+        )
+        model.useSeedEngine = true
+        model.reboot = 2
+        model.onSent = { phone.goDown() }
+        start(model)
+        #expect(await waitUntil { phone.readsGoingDown >= 4 })
+        #expect(model.job == .awaitingLiveConfiguration)
+        #expect(model.restoreCompletedHint == nil)
+        phone.comeBack()
+        #expect(await waitUntil { model.restoreCompletedHint == "Unlock iPhone." })
+        phone.lockdown.locked = false
+        #expect(await waitUntil { model.restoreCompletedHint == "Tap Trust on iPhone." })
+        #expect(ios27.sets == 0)
+    }
+
     @Test func aPhoneThatNeverComesBackEndsInCheckAgain() async {
         let bus = Bus(.back())
         let model = makeModel(bus)
@@ -432,8 +484,11 @@ private final class PhoneOnCable: @unchecked Sendable {
     private let lock = NSLock()
     private var plugged = true
     private var restartedOnce = false
+    private var downReads = 0
 
     var restarted: Bool { lock.withLock { restartedOnce } }
+    /// How many reads found the iPhone on the cable and going down.
+    var readsGoingDown: Int { lock.withLock { downReads } }
 
     /// The fast method's restore and restart: the iPhone leaves the cable,
     /// forgets this Mac and comes back locked.
@@ -446,12 +501,23 @@ private final class PhoneOnCable: @unchecked Sendable {
         }
     }
 
+    /// The same restart on an iPhone that stays on the cable while it shuts
+    /// down: every read reaches it and loses the connection.
+    func goDown() {
+        lockdown.forget()
+        lockdown.locked = true
+        lockdown.dropping = true
+        lock.withLock { restartedOnce = true }
+    }
+
     func comeBack() {
+        lockdown.dropping = false
         lock.withLock { plugged = true }
     }
 
     func read() -> DeviceWatcher.Snapshot {
         guard lock.withLock({ plugged }) else { return .away }
+        if lockdown.dropping { lock.withLock { downReads += 1 } }
         do {
             try lockdown.open()
             return .back(supervised: true)
