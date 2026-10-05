@@ -96,7 +96,7 @@ Use both. Keep Ask to Buy on, and use the profile for the few apps and websites 
 
 There are two free ways to do it:
 
-1. **The attention awareness Mac app.** [The Mac app](/) supervises the iPhone without erasing it. It makes a fresh backup, changes one setting in it and restores it. Photos, messages and apps stay. It needs a Mac with Apple silicon and macOS 14 or later, and no account.
+1. **The attention awareness Mac app.** [The Mac app](/) supervises the iPhone without erasing it, on iOS 26 and older. It sends a small set of settings to the iPhone and restarts it. Photos, messages and apps stay. It needs a Mac with Apple silicon and macOS 14 or later, and no account. It does not support iOS 27 yet.
 2. **Manually via Apple Configurator**, Apple's own Mac tool. [The manual guide](/guide) erases the iPhone first. Only what syncs to iCloud comes back.
 
 I use this setup on my own iPhone. My screen time went from more than 5 hours a day to 1 hour 45 minutes.
@@ -104,8 +104,8 @@ I use this setup on my own iPhone. My screen time went from more than 5 hours a 
 ## What to know before you lock your child's iPhone
 
 - **Talk to your child first.** Say what you will block and why. A lock that arrives as a surprise damages trust.
-- **Plan one afternoon.** You need the Mac, a cable and the child's iPhone. The backup and restore take time.
-- **Back up first.** Use Finder or iCloud. The app does not erase the iPhone, but things can go wrong, and the backup is the way back.
+- **Plan a few minutes.** You need the Mac, a cable and the child's iPhone. The iPhone restarts and asks to trust the Mac again.
+- **Back up first.** Use Finder or iCloud. On iOS 26 and older the app does not erase the iPhone, but things can go wrong, and the backup is the way back.
 - **Test before you lock.** In trial mode the profile can be removed in Settings. Making it permanent later takes one more plug-in.
 - **It is hard to undo by design.** It cannot be removed on the iPhone itself. To remove it you erase the iPhone, or use a Mac with Apple Configurator.
 - **Nobody can watch the phone.** No app is installed on the iPhone, and the phone is not connected to any server. The profile blocks things. It does not report anything.

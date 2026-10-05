@@ -71,10 +71,10 @@ Supervision is a mode Apple built for schools and companies. A supervised iPhone
 
 ### Option 1: the free Mac app, which does not erase your iPhone
 
-My [free Mac app](/) puts your iPhone into supervised mode without erasing it. It makes a fresh backup, changes one setting in that backup, and restores it. Your photos, messages and apps stay. Back up your iPhone first, with Finder or iCloud.
+My [free Mac app](/) puts your iPhone into supervised mode without erasing it, on iOS 26 and older. It sends a small set of settings to the iPhone and restarts it. Your photos, messages and apps stay. Back up your iPhone first, with Finder or iCloud. Do not use the app on iOS 27: there it cannot supervise the iPhone, and the iPhone can be erased. On iOS 27, use the manual guide below.
 
 1. Download the app on a Mac with Apple silicon and macOS 14 or later, and connect the iPhone with a cable.
-2. Let the app back up and restore the phone. Plan for about one afternoon.
+2. Let the app supervise the phone. It takes a few minutes. The iPhone restarts and asks to trust the Mac again.
 3. Choose your rules: Apple's adult website filter, websites to block, and apps to hide.
 4. Start in trial mode. You can still remove the profile in Settings, so you can test it first.
 5. When you are sure, plug in one more time and lock the profile.
@@ -90,7 +90,7 @@ The [manual guide](/guide) does the same with Apple Configurator, Apple's own fr
 |                               | Screen Time            | DNS filter                               | Free Mac app                                           | Manually via Apple Configurator                        |
 | ----------------------------- | ---------------------- | ---------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------ |
 | Needs a Mac                   | No                     | No                                       | Yes                                                    | Yes                                                    |
-| Erases the iPhone             | No                     | No                                       | No                                                     | Yes                                                    |
+| Erases the iPhone             | No                     | No                                       | No, on iOS 26 and older                                | Yes                                                    |
 | Can be turned off in Settings | Yes, with the passcode | Yes                                      | No, once locked                                        | No, once locked                                        |
 | How to undo                   | Change the setting     | Switch off the app or remove the profile | Erase the iPhone, or use a Mac with Apple Configurator | Erase the iPhone, or use a Mac with Apple Configurator |
 
