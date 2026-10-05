@@ -1,5 +1,6 @@
 import { Button } from '@attentionawareness/ui';
-import { props } from '@stylexjs/stylex';
+import { spacing } from '@attentionawareness/ui/tokens.stylex';
+import { create, props } from '@stylexjs/stylex';
 import { useEffect, useRef, useState } from 'react';
 import { Share } from 'reicon-react';
 import { posthog } from '../lib/analytics.ts';
@@ -9,17 +10,29 @@ import { SECTION } from '../lib/sections.ts';
 import { canShare, copyLink, shareLink } from '../lib/send-to-mac.ts';
 import { shareSheet, shareUrl } from '../lib/share.ts';
 import { m } from '../paraglide/messages.js';
-import {
-  COPIED_MS,
-  POPUP_ICON_SIZE,
-  PopupShell,
-  popupActions,
-  popupBody,
-  popupWhy,
-} from './popup-shell.tsx';
+import { COPIED_MS, POPUP_ICON_SIZE, PopupShell, popupBody, popupWhy } from './popup-shell.tsx';
 
 /** The link a phone sends on to a Mac: the site, open where the download stands on the home page. */
 const SEND_URL = shareUrl('phone', SECTION.wayOut);
+
+const styles = create({
+  // One button of the row. Each takes an equal share of it whatever its label
+  // says, so the copy's change of words moves nothing, and a button alone
+  // takes it all.
+  action: {
+    flexBasis: 0,
+    flexGrow: 1,
+    flexShrink: 1,
+    minWidth: 'min-content',
+  },
+  // The two ways to send the link on, side by side in every window, as far
+  // apart as the buttons of the other popups are on a computer.
+  actions: {
+    display: 'flex',
+    gap: spacing.s2,
+    marginBlockStart: spacing.s2,
+  },
+});
 
 const track: Track = (event, properties) => posthog.capture(event, properties);
 
@@ -56,14 +69,18 @@ function SendActions() {
   }
 
   return (
-    <div {...props(popupActions)}>
+    <div {...props(styles.actions)}>
       {sheet && (
-        <Button onClick={() => void share()}>
+        <Button onClick={() => void share()} style={styles.action}>
           <Share aria-hidden="true" size={POPUP_ICON_SIZE} />
           {m.support_popup_share()}
         </Button>
       )}
-      <Button onClick={() => void copy()} variant={sheet ? 'outline' : 'default'}>
+      <Button
+        onClick={() => void copy()}
+        style={styles.action}
+        variant={sheet ? 'outline' : 'default'}
+      >
         <span aria-live="polite">{copied ? m.mac_download_copied() : m.mac_download_copy()}</span>
       </Button>
     </div>
