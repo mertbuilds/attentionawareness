@@ -1,16 +1,15 @@
 import { Button } from '@attentionawareness/ui';
-import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
+import { spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import type { MouseEvent, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { posthog } from '../lib/analytics.ts';
-import { announceDownload } from '../lib/download-started.ts';
+import { downloadFor } from '../lib/download-press.ts';
+import type { Download, Placement } from '../lib/download-press.ts';
 import { parseRelease } from '../lib/mac-release.ts';
 import type { Release } from '../lib/mac-release.ts';
 import { isMobileAgent } from '../lib/mobile.ts';
-import { SECTION } from '../lib/sections.ts';
-import { shareUrl } from '../lib/share.ts';
 import { m } from '../paraglide/messages.js';
 
 /**
@@ -19,28 +18,6 @@ import { m } from '../paraglide/messages.js';
  * download.
  */
 const LATEST_URL = '/mac/latest.json';
-/** The link a phone sends on to a Mac: the site, open where the download stands on the home page. */
-const SEND_URL = shareUrl('phone', SECTION.wayOut);
-
-/** Where on the site a download stands, which its event carries. */
-type Placement = 'blog' | 'closing' | 'download' | 'header' | 'hero';
-
-/**
- * What a download does: nothing before the first release, nothing yet while
- * `latest.json` is read, send the link on to a Mac from a phone or a tablet,
- * and on a computer start the file.
- */
-type Download =
-  | { kind: 'unreleased' }
-  | { kind: 'reading' }
-  | { kind: 'send' }
-  | {
-      /** The name the browser saves the file under. */
-      filename: string;
-      kind: 'file';
-      start: (event: MouseEvent<HTMLElement>) => void;
-      url: string;
-    };
 
 const styles = create({
   // The Apple mark on the download button, sized to the label.
@@ -69,14 +46,6 @@ const styles = create({
     lineHeight: 1,
     transform: 'translateY(1px)',
   },
-  // What a phone is told in place of the download it cannot run.
-  note: {
-    color: colors.muted,
-    fontSize: font.sizeSm,
-    lineHeight: 1.5,
-    margin: 0,
-    textWrap: 'pretty',
-  },
 });
 
 /**
@@ -92,17 +61,6 @@ export function MacCta({ label }: { label: string }) {
       <span {...props(styles.label)}>{label}</span>
     </span>
   );
-}
-
-/**
- * What a phone's button says: share, where the phone has a share sheet, else
- * copy, and once copied, that it is.
- */
-function sendLabel(copied: boolean): string {
-  if ('share' in navigator) {
-    return m.mac_download_share();
-  }
-  return copied ? m.mac_download_copied() : m.mac_download_copy();
 }
 
 /**
@@ -171,98 +129,35 @@ function subscribeNever() {
 
 /**
  * Whether the reader is on a phone or a tablet. The server cannot tell, so it
- * and the first client render answer `false` and the page corrects itself
- * once it is up.
+ * and the first client render answer `false`. Both draw the same button, off
+ * while `latest.json` is read, so nothing on the page changes when the answer
+ * comes.
  */
 function useIsMobile(): boolean {
   return useSyncExternalStore(subscribeNever, isMobile, () => false);
 }
 
 /**
- * What the download at `placement` does, the same wherever it stands. The
- * file is only offered once `latest.json` has been read, which happens after
- * the page is up, and by then a phone or a tablet has been told apart: the
- * server's page and a click before it comes alive carry no link to start.
+ * What the download at `placement` does, the same wherever it stands. It does
+ * nothing until `latest.json` has been read, which happens after the page is
+ * up, and by then a phone or a tablet has been told apart: the server's page
+ * and a click before it comes alive carry no link to start.
  */
 export function useMacDownload(placement: Placement): Download {
   const release = useLatestRelease();
   const mobile = useIsMobile();
-
-  if (release === null) {
-    return { kind: 'unreleased' };
-  }
-  if (mobile) {
-    return { kind: 'send' };
-  }
-  if (release === undefined) {
-    return { kind: 'reading' };
-  }
-  return {
-    filename: release.filename,
-    kind: 'file',
-    // The click goes on to the file untouched. The page is only told that it
-    // has started, and by which button.
-    start: (event) => {
-      posthog.capture('mac_download_started', { placement });
-      announceDownload({ button: event.currentTarget, placement });
-    },
-    url: release.url,
-  };
-}
-
-/**
- * Sends the download on from a phone, which cannot run it, to a Mac. The
- * share sheet reaches a Mac by AirDrop or a message; without one, the link
- * goes to the clipboard, and `copied` says it is there. Every download on the
- * site sends the same link.
- */
-export function useSendToMac(): { copied: boolean; send: () => Promise<void> } {
-  const [copied, setCopied] = useState(false);
-
-  async function send() {
-    const canShare = 'share' in navigator;
-    if (canShare) {
-      try {
-        await navigator.share({ url: SEND_URL });
-        posthog.capture('mac_download_link_shared', { share_method: 'share_sheet' });
-      } catch {
-        // The sheet was closed. Nothing to say.
-      }
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(SEND_URL);
-      setCopied(true);
-      posthog.capture('mac_download_link_shared', { share_method: 'clipboard' });
-    } catch {
-      // The clipboard refused. The button keeps offering it.
-    }
-  }
-
-  return { copied, send };
-}
-
-/**
- * The download on a phone: where to open the page instead, and the button
- * that sends the link there.
- */
-function SendToMac() {
-  const { copied, send } = useSendToMac();
-  const label = sendLabel(copied);
-
-  return (
-    <>
-      <p {...props(styles.note)}>{m.mac_download_on_mac()}</p>
-      <Button onClick={() => void send()}>{label}</Button>
-    </>
+  return downloadFor(release, mobile, placement, (event, properties) =>
+    posthog.capture(event, properties),
   );
 }
 
 /**
- * The download, wherever the page asks for it. While `latest.json` is being
- * read the button stands as it will, only off. Before the first release there
- * is no file to read, so the button says so and does nothing. On a phone, the
- * page says where to open it instead.
+ * The download, wherever the page asks for it, the same button on every
+ * device. While `latest.json` is being read the button stands as it will, only
+ * off. Before the first release there is no file to read, so the button says
+ * so and does nothing. On a computer it is a link to the file. On a phone or a
+ * tablet it is a button that opens the popup that sends the link on to a Mac
+ * (`phone-download-popup.tsx`).
  */
 export function MacDownload({ placement, style }: { placement: Placement; style?: StyleXStyles }) {
   const download = useMacDownload(placement);
@@ -272,10 +167,14 @@ export function MacDownload({ placement, style }: { placement: Placement; style?
   let action: ReactNode;
   if (download.kind === 'unreleased') {
     action = <Button disabled>{m.mac_download_unreleased()}</Button>;
-  } else if (download.kind === 'send') {
-    action = <SendToMac />;
   } else if (download.kind === 'reading') {
     action = <Button disabled>{cta}</Button>;
+  } else if (download.kind === 'phone') {
+    action = (
+      <Button aria-haspopup="dialog" onClick={download.open}>
+        {cta}
+      </Button>
+    );
   } else {
     action = (
       <Button

@@ -10,8 +10,8 @@ import { blur, distance, duration, easing, scale } from '../lib/motion.stylex.ts
 import { shareSheet } from '../lib/share.ts';
 import { m } from '../paraglide/messages.js';
 
-/** How long the share button says the link was copied, in milliseconds. */
-const COPIED_MS = 2000;
+/** How long a button says the link was copied, in milliseconds. */
+export const COPIED_MS = 2000;
 /** An icon on a popup's button, as tall as the button's letters are set. */
 export const POPUP_ICON_SIZE = 14;
 

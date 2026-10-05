@@ -64,13 +64,19 @@ if (
 }
 
 /**
- * The popup after a download is fetched once the page is up: no page needs it
- * to draw, and a download that starts before it is in waits for it
+ * The popups a download button opens are fetched once the page is up: no page
+ * needs them to draw, and a press before they are in waits for them
  * (`lib/download-started.ts`). A chunk that does not load leaves no popup.
  */
 const SupportPopup = lazy((): Promise<{ default: FC }> =>
   import('../components/support-popup.tsx').then(
     (popup) => ({ default: popup.SupportPopup }),
+    () => ({ default: () => null }),
+  ),
+);
+const PhoneDownloadPopup = lazy((): Promise<{ default: FC }> =>
+  import('../components/phone-download-popup.tsx').then(
+    (popup) => ({ default: popup.PhoneDownloadPopup }),
     () => ({ default: () => null }),
   ),
 );
@@ -212,12 +218,17 @@ function Providers({ children }: { children: ReactNode }) {
   );
 }
 
-function LaterSupportPopup() {
+function LaterDownloadPopups() {
   const idle = useIdle();
   return idle ? (
-    <Suspense fallback={null}>
-      <SupportPopup />
-    </Suspense>
+    <>
+      <Suspense fallback={null}>
+        <SupportPopup />
+      </Suspense>
+      <Suspense fallback={null}>
+        <PhoneDownloadPopup />
+      </Suspense>
+    </>
   ) : null;
 }
 
@@ -252,7 +263,7 @@ function RootDocument({ children }: { children: ReactNode }) {
         <Providers>
           <SiteHeader />
           {children}
-          <LaterSupportPopup />
+          <LaterDownloadPopups />
         </Providers>
         <Scripts />
       </body>
