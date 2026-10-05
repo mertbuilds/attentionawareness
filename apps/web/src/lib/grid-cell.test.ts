@@ -69,6 +69,65 @@ test('squares are counted from the origin, and the edge cuts the one before it',
   });
 });
 
+test('a ruling that stands on the bottom edge counts its rows from there', () => {
+  // 620 tall: the last whole square starts at 580, and the first row is half a square.
+  const originY = gridOrigin('100%', BOX.height, CELL) ?? 0;
+  assert.equal(originY, 580);
+  const fromBottom = { cell: CELL, originX: 0, originY };
+  assert.deepEqual(cellAt({ x: 100, y: 50 + 619 }, BOX, fromBottom), {
+    col: 0,
+    height: CELL,
+    left: 0,
+    row: 0,
+    top: 580,
+    width: CELL,
+  });
+  assert.deepEqual(cellAt({ x: 100, y: 50 + 579 }, BOX, fromBottom), {
+    col: 0,
+    height: CELL,
+    left: 0,
+    row: -1,
+    top: 540,
+    width: CELL,
+  });
+  assert.deepEqual(cellAt({ x: 100, y: 50 + 5 }, BOX, fromBottom), {
+    col: 0,
+    height: 20,
+    left: 0,
+    row: -15,
+    top: 0,
+    width: CELL,
+  });
+});
+
+test('a ruling centred both ways starts a part of a square from each edge', () => {
+  const box = { height: 150, left: 0, top: 0, width: 150 };
+  const origin = gridOrigin('50%', 150, CELL) ?? 0;
+  assert.equal(origin, 55);
+  const centred = { cell: CELL, originX: origin, originY: origin };
+  assert.deepEqual(cellAt({ x: 60, y: 10 }, box, centred), {
+    col: 0,
+    height: 15,
+    left: 55,
+    row: -2,
+    top: 0,
+    width: CELL,
+  });
+});
+
+test('a box shorter than a square holds a part of one row', () => {
+  const box = { height: 24, left: 0, top: 0, width: 200 };
+  assert.deepEqual(cellAt({ x: 50, y: 23 }, box, FROM_CORNER), {
+    col: 1,
+    height: 24,
+    left: 40,
+    row: 0,
+    top: 0,
+    width: CELL,
+  });
+  assert.equal(cellAt({ x: 50, y: 24 }, box, FROM_CORNER), undefined);
+});
+
 test('the right and bottom edges cut the last square', () => {
   // 1000 is 25 squares exactly; 620 is 15 squares and half of one more.
   const last = cellAt({ x: 100 + 999, y: 50 + 619 }, BOX, FROM_CORNER);

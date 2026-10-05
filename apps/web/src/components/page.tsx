@@ -6,11 +6,9 @@ import type { ReactNode } from 'react';
 import { brandBar } from '../lib/brand-bar.stylex.ts';
 import { distance, duration, easing } from '../lib/motion.stylex.ts';
 import { ink } from '../lib/reading.stylex.ts';
+import { GridTexture } from './grid-texture.tsx';
 import { SiteFooter } from './site-footer.tsx';
 
-/** The home page's graph paper: the same hairline and the same 40px square. */
-const LINE = `color-mix(in srgb, ${colors.fg} 8%, transparent)`;
-const SQUARE = '40px 40px';
 /**
  * The ruling is full under the title and gone before the band ends, so the
  * first line of the page's own text always stands on plain ground.
@@ -100,16 +98,14 @@ const styles = create({
     position: 'absolute',
     zIndex: -1,
   },
+  // The home page's graph paper, the size of the band and no more, its
+  // squares centred on the page.
   bandGrid: {
-    backgroundImage: `linear-gradient(${LINE} 1px, transparent 1px), linear-gradient(90deg, ${LINE} 1px, transparent 1px)`,
     backgroundPosition: 'center top',
-    backgroundSize: SQUARE,
-    inset: 0,
+    height: 'auto',
+    insetBlockEnd: 0,
     maskImage: MASK,
-    pointerEvents: 'none',
-    position: 'absolute',
     WebkitMaskImage: MASK,
-    zIndex: -1,
   },
   callout: {
     backgroundColor: `color-mix(in srgb, ${accent.base} 6%, ${colors.bg})`,
@@ -301,7 +297,7 @@ export function PageHeader({
   return (
     <header {...props(styles.band, fill && styles.bandFill)}>
       <div aria-hidden="true" {...props(styles.bandGlow)} />
-      <div aria-hidden="true" {...props(styles.bandGrid)} />
+      <GridTexture style={styles.bandGrid} />
       <div {...props(styles.head, wide && styles.headWide, centered && styles.headCentered)}>
         <h1
           style={{ animationDelay: STAGGER[0] }}

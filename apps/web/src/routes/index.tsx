@@ -879,7 +879,7 @@ function HomePage() {
     <main {...props(styles.page)}>
       {/* The graph paper the first screen stands on, fading out before the
       first section. */}
-      <GridTexture interactive style={styles.heroPaper} />
+      <GridTexture style={styles.heroPaper} />
       {/* The first screen: the claim, why it lasts, and the download with its
       price, next to the phone the feeds leave. */}
       <header {...props(styles.hero)}>

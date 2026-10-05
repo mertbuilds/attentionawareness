@@ -83,6 +83,59 @@ const styles = create({
 
 const CANVAS_CLASS = props(styles.canvas).className ?? '';
 
+/** What one grid wants to hear of: the mouse moving, going, and the page shifting under it. */
+type Watcher = { leave: () => void; move: (event: PointerEvent) => void; shift: () => void };
+
+/** The grids in the window now. They share one set of listeners, however many they are. */
+const watchers = new Set<Watcher>();
+
+function onPointerMove(event: PointerEvent) {
+  if (event.pointerType !== 'mouse') {
+    return;
+  }
+  for (const watcher of watchers) {
+    watcher.move(event);
+  }
+}
+
+function onPointerLeave() {
+  for (const watcher of watchers) {
+    watcher.leave();
+  }
+}
+
+function onShift() {
+  for (const watcher of watchers) {
+    watcher.shift();
+  }
+}
+
+/**
+ * Tells `watcher` of the mouse until what it returns is called. The listeners
+ * are on the window, since a grid lies under the words, the buttons and the
+ * drawings and is itself unclickable; they go on with the first grid and come
+ * off with the last. The page moving under a still pointer changes the square
+ * as well, and a window of a new size moves the grid.
+ */
+function watchPointer(watcher: Watcher): () => void {
+  if (watchers.size === 0) {
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
+    window.addEventListener('scroll', onShift, { passive: true });
+    window.addEventListener('resize', onShift, { passive: true });
+    document.documentElement.addEventListener('pointerleave', onPointerLeave, { passive: true });
+  }
+  watchers.add(watcher);
+  return () => {
+    watchers.delete(watcher);
+    if (watchers.size === 0) {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('scroll', onShift);
+      window.removeEventListener('resize', onShift);
+      document.documentElement.removeEventListener('pointerleave', onPointerLeave);
+    }
+  };
+}
+
 /**
  * Lights the square of `grid` under the mouse and lets the ones it left go
  * out, until what it returns is called. The squares are painted on one canvas
@@ -159,6 +212,10 @@ function lightSquares(grid: HTMLElement): () => void {
     }
     const cell =
       point === undefined ? undefined : cellAt(point, box, { cell: GRID_CELL, originX, originY });
+    // The pointer is over another grid, or over none, and nothing is alight here.
+    if (cell === undefined && lit === undefined && glows.size === 0) {
+      return;
+    }
     const key = cell === undefined ? undefined : `${cell.col}:${cell.row}`;
     if (key !== lit) {
       const last = lit === undefined ? undefined : glows.get(lit);
@@ -218,45 +275,36 @@ function lightSquares(grid: HTMLElement): () => void {
       queue();
     }
   };
-  const onMove = (event: PointerEvent) => {
-    if (event.pointerType !== 'mouse') {
-      return;
-    }
-    point = { x: event.clientX, y: event.clientY };
-    movedAt = event.timeStamp;
-    queue();
-  };
-  const onLeave = () => {
-    point = undefined;
-    queue();
-  };
-
-  // On the window, since the grid lies under the words, the buttons and the
-  // phone and is itself unclickable. The page moving under a still pointer
-  // changes the square as well, and a window of a new size moves the grid.
-  window.addEventListener('pointermove', onMove, { passive: true });
-  window.addEventListener('scroll', queue, { passive: true });
-  window.addEventListener('resize', queue, { passive: true });
-  document.documentElement.addEventListener('pointerleave', onLeave, { passive: true });
+  // A stroke belongs to the grid it is on: the pointer going to another grid
+  // leaves this one, and comes into that one with no square behind it.
+  const stopWatching = watchPointer({
+    leave: () => {
+      point = undefined;
+      queue();
+    },
+    move: (event) => {
+      point = { x: event.clientX, y: event.clientY };
+      movedAt = event.timeStamp;
+      queue();
+    },
+    shift: queue,
+  });
   return () => {
-    window.removeEventListener('pointermove', onMove);
-    window.removeEventListener('scroll', queue);
-    window.removeEventListener('resize', queue);
-    document.documentElement.removeEventListener('pointerleave', onLeave);
+    stopWatching();
     cancelAnimationFrame(frame);
     canvas.remove();
   };
 }
 
 /**
- * Runs `lightSquares` on the grid in `ref` while `interactive` is set, the
- * grid is in the window, the reader has a mouse and did not ask for less
- * motion. Otherwise nothing listens and the grid holds no canvas.
+ * Runs `lightSquares` on the grid in `ref` while the grid is in the window,
+ * the reader has a mouse and did not ask for less motion. Otherwise it does
+ * not listen and the grid holds no canvas.
  */
-function useLitSquares(ref: RefObject<HTMLElement | null>, interactive: boolean): void {
+function useLitSquares(ref: RefObject<HTMLElement | null>): void {
   useEffect(() => {
     const grid = ref.current;
-    if (!interactive || grid === null) {
+    if (grid === null) {
       return;
     }
     const hover = window.matchMedia(HOVER_QUERY);
@@ -285,27 +333,21 @@ function useLitSquares(ref: RefObject<HTMLElement | null>, interactive: boolean)
       lessMotion.removeEventListener('change', sync);
       stop?.();
     };
-  }, [interactive, ref]);
+  }, [ref]);
 }
 
 /**
  * The share card's graph paper, in the page's own colours, behind the first
- * screen of a page. It is a background and nothing else: out of flow, unclickable
+ * screen of a page, or wherever `style` puts it. It is a background and nothing else: out of flow, unclickable
  * and unreadable, so it moves nothing on the page it sits behind. It goes first
  * inside a page root that is `position: relative` and `isolation: isolate`,
  * or inside any other positioned box that `style` sizes it to.
  *
- * With `interactive`, the square under a mouse lights in the accent and goes
- * out behind it. The server draws the same empty element either way.
+ * The square under a mouse lights in the accent and goes out behind it, so a
+ * moving pointer draws on the paper. The server draws the empty element.
  */
-export function GridTexture({
-  interactive = false,
-  style,
-}: {
-  interactive?: boolean;
-  style?: StyleXStyles;
-}) {
+export function GridTexture({ style }: { style?: StyleXStyles }) {
   const ref = useRef<HTMLDivElement>(null);
-  useLitSquares(ref, interactive);
+  useLitSquares(ref);
   return <div aria-hidden="true" ref={ref} {...props(styles.grid, style)} />;
 }
