@@ -29,13 +29,22 @@ const NOT_REFERRERS = new Set([
  * Everything the page shows in one query, so one ask costs one request. The
  * filters are the public dashboard's own: page views on the live host, in the
  * dashboard's window, and visitors counted as distinct persons. The Mac app's
- * event has no host, so it is counted wherever it came from.
+ * event has no host, so it is counted wherever it came from. Visits are
+ * PostHog's sessions that hold one of those page views, as its web analytics
+ * counts them: one row with the visits and the bounced ones, one with the
+ * visits and their seconds added up. `abs` keeps the seconds an unsigned count,
+ * as every other row's, since a union needs one type for each column.
  */
 const QUERY = `
 with views as (
-  select person_id, timestamp, properties.$referring_domain as referrer, properties.$pathname as path, properties.$geoip_country_name as country
+  select person_id, timestamp, $session_id as session, properties.$referring_domain as referrer, properties.$pathname as path, properties.$geoip_country_name as country
   from events
   where event = '$pageview' and properties.$host = 'attentionawareness.com' and timestamp >= toStartOfDay(now() - interval ${DAYS_BACK} day)
+),
+visits as (
+  select $is_bounce as bounced, $session_duration as seconds
+  from sessions
+  where $start_timestamp >= toStartOfDay(now() - interval ${DAYS_BACK} day) and session_id in (select session from views)
 )
 select 'total' as kind, '' as label, count(distinct person_id) as visitors, count() as hits from views
 union all
@@ -49,6 +58,10 @@ select kind, label, visitors, hits from (select 'country' as kind, ifNull(countr
 union all
 select 'reads' as kind, '' as label, count(distinct person_id) as visitors, count() as hits from views where match(path, '^/(guide|blog)')
 union all
+select 'visits' as kind, 'bounced' as label, count() as visitors, countIf(bounced) as hits from visits
+union all
+select 'visits' as kind, 'seconds' as label, count() as visitors, sum(abs(seconds)) as hits from visits
+union all
 select 'event' as kind, event as label, count(distinct person_id) as visitors, count() as hits from events
 where timestamp >= toStartOfDay(now() - interval ${DAYS_BACK} day)
   and ((event in ('mac_download_started', 'support_clicked') and properties.$host = 'attentionawareness.com') or event = 'supervision_finished')
@@ -56,7 +69,7 @@ group by label
 limit 200`;
 
 /** One row of the query: what it counts, of what, and the two counts. */
-type Row = { hits: number; kind: string; label: string; visitors: number };
+export type Row = { hits: number; kind: string; label: string; visitors: number };
 
 /** The rows PostHog last gave, when, and when it was last asked. */
 type Held = { fetchedAt: number; rows: Array<Row> | null; triedAt: number };
@@ -215,11 +228,20 @@ function everyDay(rows: Array<Row>, fetchedAt: number): Array<OpenDay> {
   return days;
 }
 
-function shape(rows: Array<Row>, fetchedAt: number): OpenNumbers {
+/** A part of a whole, and zero when there is no whole. */
+function share(part: number, whole: number): number {
+  return whole === 0 ? 0 : part / whole;
+}
+
+/** The numbers out of the query's rows. A row PostHog left out counts as zero. */
+export function shape(rows: Array<Row>, fetchedAt: number): OpenNumbers {
   const one = (kind: string, label: string) =>
     rows.find((row) => row.kind === kind && row.label === label);
   const total = one('total', '');
+  const bounced = one('visits', 'bounced');
+  const seconds = one('visits', 'seconds');
   return {
+    bounceRate: Math.round(share(bounced?.hits ?? 0, bounced?.visitors ?? 0) * 100),
     countries: top(rows, 'country', 'visitors'),
     days: everyDay(rows, fetchedAt),
     downloads: one('event', 'mac_download_started')?.hits ?? 0,
@@ -231,6 +253,7 @@ function shape(rows: Array<Row>, fetchedAt: number): OpenNumbers {
       'referrer',
       'visitors',
     ),
+    sessionSeconds: Math.round(share(seconds?.hits ?? 0, seconds?.visitors ?? 0)),
     supervisions: one('event', 'supervision_finished')?.hits ?? 0,
     supportClicks: one('event', 'support_clicked')?.hits ?? 0,
     views: total?.hits ?? 0,

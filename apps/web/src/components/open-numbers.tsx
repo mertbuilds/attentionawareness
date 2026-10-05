@@ -6,12 +6,13 @@ import type { KeyboardEvent, PointerEvent } from 'react';
 import { posthog } from '../lib/analytics.ts';
 import { layout } from '../lib/layout.ts';
 import { distance, duration, easing } from '../lib/motion.stylex.ts';
-import { DASHBOARD_URL, DIRECT } from '../lib/open-numbers.ts';
-import type { OpenDay, OpenNumbersAnswer, OpenRow } from '../lib/open-numbers.ts';
+import { DASHBOARD_URL, DIRECT, durationParts } from '../lib/open-numbers.ts';
+import type { DurationPart, OpenDay, OpenNumbersAnswer, OpenRow } from '../lib/open-numbers.ts';
 import { m } from '../paraglide/messages.js';
 import { card } from './page.tsx';
 
 const NUMBER = new Intl.NumberFormat('en-US');
+const PERCENT = new Intl.NumberFormat('en-US', { style: 'percent' });
 /** A day as the reader says it, in the UTC the days are counted in. */
 const DAY = new Intl.DateTimeFormat('en-US', { day: 'numeric', month: 'long', timeZone: 'UTC' });
 /** Where the link stands in the sentence, as the footer does it. */
@@ -231,6 +232,23 @@ function updated(minutes: number): string {
     : m.open_numbers_updated_hours({ count: hours });
 }
 
+/** One unit of a length of time, in the page's words. */
+function durationWord({ count, unit }: DurationPart): string {
+  const many = NUMBER.format(count);
+  if (unit === 'hour') {
+    return count === 1 ? m.open_duration_hour() : m.open_duration_hours({ count: many });
+  }
+  if (unit === 'minute') {
+    return count === 1 ? m.open_duration_minute() : m.open_duration_minutes({ count: many });
+  }
+  return count === 1 ? m.open_duration_second() : m.open_duration_seconds({ count: many });
+}
+
+/** Whole seconds in words, units written out: "1 minute 42 seconds". */
+function spokenDuration(seconds: number): string {
+  return durationParts(seconds).map(durationWord).join(' ');
+}
+
 /** One line through the days, in the plot's own square. */
 function points(days: ReadonlyArray<OpenDay>, pick: (day: OpenDay) => number, top: number): string {
   const last = Math.max(1, days.length - 1);
@@ -442,12 +460,14 @@ export function OpenNumbers({ answer }: { answer: OpenNumbersAnswer }) {
 
   const { ageMinutes, numbers } = answer;
   const stats = [
-    { label: m.open_stat_visitors(), value: numbers.visitors },
-    { label: m.open_stat_views(), value: numbers.views },
-    { label: m.open_stat_downloads(), value: numbers.downloads },
-    { label: m.open_stat_supervisions(), value: numbers.supervisions },
-    { label: m.open_stat_support(), value: numbers.supportClicks },
-    { label: m.open_stat_reads(), value: numbers.reads },
+    { label: m.open_stat_visitors(), value: NUMBER.format(numbers.visitors) },
+    { label: m.open_stat_views(), value: NUMBER.format(numbers.views) },
+    { label: m.open_stat_downloads(), value: NUMBER.format(numbers.downloads) },
+    { label: m.open_stat_supervisions(), value: NUMBER.format(numbers.supervisions) },
+    { label: m.open_stat_support(), value: NUMBER.format(numbers.supportClicks) },
+    { label: m.open_stat_reads(), value: NUMBER.format(numbers.reads) },
+    { label: m.open_stat_bounce(), value: PERCENT.format(numbers.bounceRate / 100) },
+    { label: m.open_stat_session(), value: spokenDuration(numbers.sessionSeconds) },
   ];
   const [checkBefore, checkAfter] = m.open_numbers_check({ dashboard: LINK_SLOT }).split(LINK_SLOT);
 
@@ -457,7 +477,7 @@ export function OpenNumbers({ answer }: { answer: OpenNumbersAnswer }) {
         {stats.map((stat) => (
           <div key={stat.label} {...props(card, styles.stat)}>
             <dt {...props(styles.statLabel)}>{stat.label}</dt>
-            <dd {...props(styles.statValue)}>{NUMBER.format(stat.value)}</dd>
+            <dd {...props(styles.statValue)}>{stat.value}</dd>
           </div>
         ))}
       </dl>
