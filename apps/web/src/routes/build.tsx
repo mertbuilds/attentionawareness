@@ -1658,7 +1658,7 @@ function BuildPage() {
   return (
     // Everything here may name what the visitor blocks: replay masks it all.
     <main {...replayMask} {...props(styles.page)}>
-      <PageHeader eyebrow={m.page_eyebrow_build()} title={m.gen_step2_title()} wide>
+      <PageHeader title={m.gen_step2_title()} wide>
         <p {...props(page.flush)}>{m.build_lead()}</p>
         <p {...props(styles.headNote)}>
           {guideBefore}

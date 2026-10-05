@@ -9,7 +9,7 @@ import { PageColumn, PageFoot, PageHeader, PageRoot } from './page.tsx';
 export function NotFound() {
   return (
     <PageRoot>
-      <PageHeader centered eyebrow={m.page_eyebrow_not_found()} fill title={m.not_found_title()}>
+      <PageHeader centered fill title={m.not_found_title()}>
         <div>
           <Button render={<a href="/" />} variant="outline">
             {m.not_found_home()}

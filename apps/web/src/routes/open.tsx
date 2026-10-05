@@ -47,7 +47,7 @@ function Open() {
 
   return (
     <PageRoot>
-      <PageHeader eyebrow={m.page_eyebrow_open()} title={m.open_title()} wide>
+      <PageHeader title={m.open_title()} wide>
         <p {...props(page.flush)}>{m.open_lead()}</p>
       </PageHeader>
 

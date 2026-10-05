@@ -123,7 +123,7 @@ function OgPreview() {
   const { drawn } = Route.useLoaderData();
   return (
     <PageRoot>
-      <PageHeader eyebrow={m.og_preview_eyebrow()} title={m.og_preview_title()} wide>
+      <PageHeader title={m.og_preview_title()} wide>
         <p {...props(page.flush)}>{m.og_preview_lead()}</p>
       </PageHeader>
       <div {...props(styles.cards)}>

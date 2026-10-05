@@ -40,7 +40,7 @@ const styles = create({
 function Blog() {
   return (
     <PageRoot>
-      <PageHeader eyebrow={m.page_eyebrow_blog()} title={m.blog_title()} wide>
+      <PageHeader title={m.blog_title()} wide>
         <p {...props(page.flush)}>{m.blog_lead()}</p>
       </PageHeader>
       <PageColumn width="wide">
