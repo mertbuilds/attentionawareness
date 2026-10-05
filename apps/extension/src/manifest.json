@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "attention awareness",
   "description": "Hides the addictive feeds on YouTube, Instagram and X. Add your own CSS for other websites.",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "action": {
     "default_popup": "popup.html"
   },
