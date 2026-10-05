@@ -18,6 +18,8 @@ const SUPPORT_URL = supportUrl('support-section');
 const HEART_SIZE = 14;
 /** One part of the section after the one before it, in milliseconds, as they rise. */
 const STAGGER = 80;
+/** Where the orange word stands inside the title, so the words around it keep their own order in every language. */
+const WORD_SLOT = '\u0000';
 
 /**
  * The stamp's drawing, in its own units: the sheet it is drawn on, the stamp
@@ -439,6 +441,10 @@ const styles = create({
     fontSize: 11,
     fontWeight: font.weightMedium,
   },
+  // The word the title turns on, in the one orange.
+  accentWord: {
+    color: accent.base,
+  },
   // The title, a step clear of the lines under it.
   title: {
     marginBlockEnd: spacing.s2,
@@ -644,6 +650,8 @@ export function SupportSection({ titleStyle }: { titleStyle: StyleXStyles }) {
     setBelow(top !== undefined && top > window.innerHeight);
   }, []);
 
+  const [titleBefore, titleAfter] = m.home_support_title({ free: WORD_SLOT }).split(WORD_SLOT);
+
   const moving = below && !reduced;
   // A part's rise, by its place in the order: out of sight until the section
   // is seen, then up, a step after the part before it.
@@ -653,7 +661,11 @@ export function SupportSection({ titleStyle }: { titleStyle: StyleXStyles }) {
   return (
     <div ref={section} {...props(styles.section)}>
       <div {...props(styles.words)}>
-        <h2 {...props(titleStyle, styles.title, part(0))}>{m.home_support_title()}</h2>
+        <h2 {...props(titleStyle, styles.title, part(0))}>
+          {titleBefore}
+          <span {...props(styles.accentWord)}>{m.home_support_title_free()}</span>
+          {titleAfter}
+        </h2>
         <p {...props(styles.line, part(1))}>{m.home_support_free()}</p>
         <p {...props(styles.line, part(2))}>{m.home_support_ask()}</p>
         <Button
