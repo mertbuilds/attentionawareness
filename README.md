@@ -51,17 +51,17 @@ not part of the pnpm workspace: Xcode builds it. See
 
 ## Stack
 
-| Layer       | Choice                                                                   |
-| ----------- | ------------------------------------------------------------------------ |
-| Monorepo    | pnpm workspaces + Turborepo, Node 24, TypeScript 7                       |
-| Web         | TanStack Start (React 19 + Compiler) on Cloudflare Workers               |
-| Extension   | Chromium MV3, React 19 popup, three Vite builds                          |
-| Styling     | StyleX tokens (black/white, 4px radius) + Base UI components + Storybook |
-| i18n        | Paraglide v2 (English + Turkish catalogs)                                |
-| Analytics   | PostHog EU (replay + heatmaps) and OpenPanel (`/op` proxy)               |
-| Errors      | Sentry                                                                   |
-| Logging     | evlog wide events to an Axiom drain                                      |
-| Lint/format | oxlint (`@nkzw/oxlint-config`, type-aware) + oxfmt, no ESLint/Prettier   |
+| Layer       | Choice                                                                                                                |
+| ----------- | --------------------------------------------------------------------------------------------------------------------- |
+| Monorepo    | pnpm workspaces + Turborepo, Node 24, TypeScript 7                                                                    |
+| Web         | TanStack Start (React 19 + Compiler) on Cloudflare Workers                                                            |
+| Extension   | Chromium MV3, React 19 popup, three Vite builds                                                                       |
+| Styling     | StyleX tokens (near-black on off-white in light, white on black in dark, 4px radius) + Base UI components + Storybook |
+| i18n        | Paraglide v2 (English + Turkish catalogs)                                                                             |
+| Analytics   | PostHog EU (replay + heatmaps) and OpenPanel (`/op` proxy)                                                            |
+| Errors      | Sentry                                                                                                                |
+| Logging     | evlog wide events to an Axiom drain                                                                                   |
+| Lint/format | oxlint (`@nkzw/oxlint-config`, type-aware) + oxfmt, no ESLint/Prettier                                                |
 
 ## Develop
 

@@ -417,7 +417,7 @@ const styles = create({
       '@media (min-width: 768px)': 'end',
       default: 'start',
     },
-    backgroundColor: `color-mix(in srgb, ${accent.base} 6%, ${colors.bg})`,
+    backgroundColor: `color-mix(in srgb, ${accent.base} 6%, ${colors.raised})`,
     borderColor: accent.base,
     borderRadius: radius.base,
     borderStyle: 'solid',
