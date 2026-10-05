@@ -17,25 +17,27 @@ type Listener = (press: DownloadPress) => void;
 
 function channel(): {
   announce: (press: DownloadPress) => void;
-  listen: (listener: Listener) => () => void;
+  listen: (listener: Listener, takesUnheard: boolean) => () => void;
 } {
-  const listeners = new Set<Listener>();
-  /** A press before anyone listened, kept for the first to come. */
+  /** Each listener, and whether it answers a press or only hears of it. */
+  const listeners = new Map<Listener, boolean>();
+  /** A press nobody has answered yet, kept for the first who can. */
   let unheard: DownloadPress | undefined;
 
   return {
     announce(press) {
-      if (listeners.size === 0) {
-        unheard = press;
-        return;
-      }
-      for (const listener of listeners) {
+      let taken = false;
+      for (const [listener, takes] of listeners) {
         listener(press);
+        taken ||= takes;
+      }
+      if (!taken) {
+        unheard = press;
       }
     },
-    listen(listener) {
-      listeners.add(listener);
-      if (unheard !== undefined) {
+    listen(listener, takesUnheard) {
+      listeners.set(listener, takesUnheard);
+      if (takesUnheard && unheard !== undefined) {
         const press = unheard;
         unheard = undefined;
         listener(press);
@@ -53,7 +55,11 @@ const phone = channel();
 export const announceDownload = started.announce;
 /**
  * Calls `listener` for every download that starts, until the returned
- * function is called, and at once for one that started before anyone listened.
+ * function is called. A popup, which answers the press, passes `true` for
+ * `takesUnheard`: it is called at once for a press nobody has answered, and
+ * a press it hears is answered. Whoever only needs to know of a press, as the
+ * phone menu does to close, passes `false`: a press waits for a popup still,
+ * and one that waits is never handed to it.
  */
 export const onDownloadStarted = started.listen;
 

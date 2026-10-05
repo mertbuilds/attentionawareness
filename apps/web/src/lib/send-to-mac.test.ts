@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { Track } from './download-press.ts';
-import { canShare, copyLink, shareLink } from './send-to-mac.ts';
+import { announcePhoneDownload } from './download-started.ts';
+import { canShare, copyLink, SEND_URL, sendWithoutPopup, shareLink } from './send-to-mac.ts';
 import type { Sender } from './send-to-mac.ts';
 
 const URL =
@@ -88,4 +89,32 @@ test('a clipboard that refuses sends nothing', async () => {
   };
   assert.equal(await copyLink(sender, URL, track), undefined);
   assert.deepEqual(events, []);
+});
+
+test('the link a phone sends is the site with its tags, open at the download', () => {
+  assert.equal(SEND_URL, URL);
+});
+
+test('without its popup a press hands the link straight to the share sheet', async () => {
+  const shared: Array<{ title: string; url: string }> = [];
+  const { events, sender, track } = browser(async (sheet) => {
+    shared.push(sheet);
+  });
+  const stop = sendWithoutPopup(sender, 'attention awareness', track);
+  // @ts-expect-error No document here: any object stands for the button.
+  announcePhoneDownload({ button: new EventTarget(), placement: 'hero' });
+  stop();
+  await Promise.resolve();
+  assert.deepEqual(shared, [{ title: 'attention awareness', url: SEND_URL }]);
+  assert.deepEqual(events, [['mac_download_link_shared', { share_method: 'share_sheet' }]]);
+});
+
+test('without its popup a press that was waiting copies where there is no share sheet', async () => {
+  const { copied, events, sender, track } = browser();
+  // @ts-expect-error The same.
+  announcePhoneDownload({ button: new EventTarget(), placement: 'hero' });
+  sendWithoutPopup(sender, 'attention awareness', track)();
+  await Promise.resolve();
+  assert.deepEqual(copied, [SEND_URL]);
+  assert.deepEqual(events, [['mac_download_link_shared', { share_method: 'clipboard' }]]);
 });

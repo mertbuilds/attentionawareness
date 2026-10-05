@@ -6,14 +6,10 @@ import { Share } from 'reicon-react';
 import { posthog } from '../lib/analytics.ts';
 import type { Track } from '../lib/download-press.ts';
 import { onPhoneDownload } from '../lib/download-started.ts';
-import { SECTION } from '../lib/sections.ts';
-import { canShare, copyLink, shareLink } from '../lib/send-to-mac.ts';
-import { shareSheet, shareUrl } from '../lib/share.ts';
+import { canShare, copyLink, SEND_URL, shareLink } from '../lib/send-to-mac.ts';
+import { shareSheet } from '../lib/share.ts';
 import { m } from '../paraglide/messages.js';
 import { COPIED_MS, POPUP_ICON_SIZE, PopupShell, popupBody, popupWhy } from './popup-shell.tsx';
-
-/** The link a phone sends on to a Mac: the site, open where the download stands on the home page. */
-const SEND_URL = shareUrl('phone', SECTION.wayOut);
 
 const styles = create({
   // One button of the row. Each takes an equal share of it whatever its label
@@ -114,7 +110,7 @@ export function PhoneDownloadPopup() {
         shown.current = true;
         setOpen(true);
         posthog.capture('phone_download_modal_shown', { placement: press.placement });
-      }),
+      }, true),
     [],
   );
 

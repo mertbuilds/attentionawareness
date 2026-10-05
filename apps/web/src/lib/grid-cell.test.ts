@@ -26,19 +26,11 @@ test('a position that is neither a percentage nor a length has no origin', () =>
 test('a point is in the square it stands on', () => {
   assert.deepEqual(cellAt({ x: 100, y: 50 }, BOX, FROM_CORNER), {
     col: 0,
-    height: CELL,
-    left: 0,
     row: 0,
-    top: 0,
-    width: CELL,
   });
   assert.deepEqual(cellAt({ x: 100 + 95, y: 50 + 130 }, BOX, FROM_CORNER), {
     col: 2,
-    height: CELL,
-    left: 80,
     row: 3,
-    top: 120,
-    width: CELL,
   });
 });
 
@@ -47,25 +39,17 @@ test('a point on a line is in the square the line starts', () => {
   assert.equal(cellAt({ x: 100 + 80, y: 50 }, BOX, FROM_CORNER)?.col, 2);
 });
 
-test('squares are counted from the origin, and the edge cuts the one before it', () => {
+test('squares are counted from the origin, and the one before it is numbered below zero', () => {
   // A centred ruling in a box 1013 wide: its squares start 6.5 from the edge.
   const box = { ...BOX, width: 1013 };
   const centred = { cell: CELL, originX: gridOrigin('50%', 1013, CELL) ?? 0, originY: 0 };
   assert.deepEqual(cellAt({ x: 100 + 3, y: 50 + 10 }, box, centred), {
     col: -13,
-    height: CELL,
-    left: 0,
     row: 0,
-    top: 0,
-    width: 6.5,
   });
   assert.deepEqual(cellAt({ x: 100 + 7, y: 50 + 10 }, box, centred), {
     col: -12,
-    height: CELL,
-    left: 6.5,
     row: 0,
-    top: 0,
-    width: CELL,
   });
 });
 
@@ -76,27 +60,15 @@ test('a ruling that stands on the bottom edge counts its rows from there', () =>
   const fromBottom = { cell: CELL, originX: 0, originY };
   assert.deepEqual(cellAt({ x: 100, y: 50 + 619 }, BOX, fromBottom), {
     col: 0,
-    height: CELL,
-    left: 0,
     row: 0,
-    top: 580,
-    width: CELL,
   });
   assert.deepEqual(cellAt({ x: 100, y: 50 + 579 }, BOX, fromBottom), {
     col: 0,
-    height: CELL,
-    left: 0,
     row: -1,
-    top: 540,
-    width: CELL,
   });
   assert.deepEqual(cellAt({ x: 100, y: 50 + 5 }, BOX, fromBottom), {
     col: 0,
-    height: 20,
-    left: 0,
     row: -15,
-    top: 0,
-    width: CELL,
   });
 });
 
@@ -107,33 +79,25 @@ test('a ruling centred both ways starts a part of a square from each edge', () =
   const centred = { cell: CELL, originX: origin, originY: origin };
   assert.deepEqual(cellAt({ x: 60, y: 10 }, box, centred), {
     col: 0,
-    height: 15,
-    left: 55,
     row: -2,
-    top: 0,
-    width: CELL,
   });
 });
 
-test('a box shorter than a square holds a part of one row', () => {
+test('a box shorter than a square holds one row', () => {
   const box = { height: 24, left: 0, top: 0, width: 200 };
   assert.deepEqual(cellAt({ x: 50, y: 23 }, box, FROM_CORNER), {
     col: 1,
-    height: 24,
-    left: 40,
     row: 0,
-    top: 0,
-    width: CELL,
   });
   assert.equal(cellAt({ x: 50, y: 24 }, box, FROM_CORNER), undefined);
 });
 
-test('the right and bottom edges cut the last square', () => {
+test('a point by the right and bottom edges is in the last square', () => {
   // 1000 is 25 squares exactly; 620 is 15 squares and half of one more.
   const last = cellAt({ x: 100 + 999, y: 50 + 619 }, BOX, FROM_CORNER);
-  assert.deepEqual(last, { col: 24, height: 20, left: 960, row: 15, top: 600, width: CELL });
+  assert.deepEqual(last, { col: 24, row: 15 });
   const narrow = cellAt({ x: 100 + 989, y: 50 }, { ...BOX, width: 990 }, FROM_CORNER);
-  assert.deepEqual(narrow, { col: 24, height: CELL, left: 960, row: 0, top: 0, width: 30 });
+  assert.deepEqual(narrow, { col: 24, row: 0 });
 });
 
 test('a point outside the hero is in no square', () => {

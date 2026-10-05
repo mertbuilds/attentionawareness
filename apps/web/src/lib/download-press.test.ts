@@ -22,8 +22,8 @@ function press(mobile: boolean): {
   const phone: Array<DownloadPress> = [];
   const track: Track = (event, properties) => events.push([event, properties]);
   // The popup after a download listens to the first, the phone's popup to the second.
-  const stopStarted = onDownloadStarted((heard) => started.push(heard));
-  const stopPhone = onPhoneDownload((heard) => phone.push(heard));
+  const stopStarted = onDownloadStarted((heard) => started.push(heard), true);
+  const stopPhone = onPhoneDownload((heard) => phone.push(heard), true);
   const download = downloadFor(RELEASE, mobile, 'hero', track);
   const event = { currentTarget: new EventTarget() };
   try {

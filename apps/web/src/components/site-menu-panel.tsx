@@ -211,8 +211,8 @@ export function SiteMenuPanel({
     window.addEventListener('scroll', onScroll, { passive: true });
     wide.addEventListener('change', close);
     // A press on the menu's download puts the menu away, whatever it opens.
-    const stop = onDownloadStarted(close);
-    const stopPhone = onPhoneDownload(close);
+    const stop = onDownloadStarted(close, false);
+    const stopPhone = onPhoneDownload(close, false);
     return () => {
       window.removeEventListener('scroll', onScroll);
       wide.removeEventListener('change', close);

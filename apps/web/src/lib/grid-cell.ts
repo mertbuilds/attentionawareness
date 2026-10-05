@@ -8,19 +8,6 @@ export type GridBox = { height: number; left: number; top: number; width: number
 export type GridRule = { cell: number; originX: number; originY: number };
 
 /**
- * One square of the ruling: which one, and the part of it that is inside the
- * box, measured from the box's left and top edges.
- */
-export type GridCell = {
-  col: number;
-  height: number;
-  left: number;
-  row: number;
-  top: number;
-  width: number;
-};
-
-/**
  * How far a repeated background of `cell` starts from the edge of a box of
  * `box`, from one axis of its computed `background-position`: a percentage is
  * of the room the square leaves, as CSS has it, and a length is itself.
@@ -38,29 +25,21 @@ export function gridOrigin(position: string, box: number, cell: number): number 
 /**
  * The square under a point of the window, or nothing when the point is not
  * over the box. Squares are counted from the rule's origin, so those before
- * it have negative numbers, and one the box's edge cuts is given cut.
+ * it have negative numbers.
  */
 export function cellAt(
   point: { x: number; y: number },
   box: GridBox,
   rule: GridRule,
-): GridCell | undefined {
+): { col: number; row: number } | undefined {
   const x = point.x - box.left;
   const y = point.y - box.top;
   if (x < 0 || y < 0 || x >= box.width || y >= box.height) {
     return undefined;
   }
-  const col = Math.floor((x - rule.originX) / rule.cell);
-  const row = Math.floor((y - rule.originY) / rule.cell);
-  const left = Math.max(0, rule.originX + col * rule.cell);
-  const top = Math.max(0, rule.originY + row * rule.cell);
   return {
-    col,
-    height: Math.min(box.height, rule.originY + (row + 1) * rule.cell) - top,
-    left,
-    row,
-    top,
-    width: Math.min(box.width, rule.originX + (col + 1) * rule.cell) - left,
+    col: Math.floor((x - rule.originX) / rule.cell),
+    row: Math.floor((y - rule.originY) / rule.cell),
   };
 }
 

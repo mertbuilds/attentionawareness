@@ -1,4 +1,10 @@
 import type { Track } from './download-press.ts';
+import { onPhoneDownload } from './download-started.ts';
+import { SECTION } from './sections.ts';
+import { shareSheet, shareUrl } from './share.ts';
+
+/** The link a phone sends on to a Mac: the site, open where the download stands on the home page. */
+export const SEND_URL = shareUrl('phone', SECTION.wayOut);
 
 /** How a link left a phone for a Mac: the system's share sheet, or the clipboard. */
 export type ShareMethod = 'clipboard' | 'share_sheet';
@@ -55,4 +61,16 @@ export async function shareLink(
     }
   }
   return copyLink(sender, sheet.url, track);
+}
+
+/**
+ * What a press on a phone's download does when its popup did not load: the
+ * link goes straight to the share sheet, or to the clipboard, so the button
+ * is never dead. It answers every press until the returned function is
+ * called, and one that was waiting.
+ */
+export function sendWithoutPopup(sender: Sender, title: string, track: Track): () => void {
+  return onPhoneDownload(() => {
+    void shareLink(sender, shareSheet(SEND_URL, title), track);
+  }, true);
 }
