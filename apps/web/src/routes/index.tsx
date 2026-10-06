@@ -118,11 +118,17 @@ const CHECK_SIZE = 16;
 /** The arrow after the link to the source code, in pixels: its words' size. */
 const SOURCE_ARROW_SIZE = 14;
 /**
- * The arrow's box in its 24-unit grid: the shaft runs corner to corner, and
- * each leg of the head runs this far along a side from the top right corner,
- * about two thirds of the side.
+ * The arrow in its 24-unit grid, on a square from `from` to `to` with the
+ * arrow's point at its top right corner. Each leg of the head runs `leg`
+ * along a side from that corner, nearly the whole side. The shaft runs down
+ * the diagonal from it for `shaft` along each side, 70% of the diagonal.
  */
-const SOURCE_ARROW = { from: 6, leg: 8, to: 18 };
+const SOURCE_ARROW = { from: 6, leg: 11, shaft: 8.4, to: 18 };
+/**
+ * How far the arrow's middle stands right of and above the middle of that
+ * grid. Its box is moved by as much, so the arrow is in the middle of it.
+ */
+const SOURCE_ARROW_OFF = SOURCE_ARROW.to - SOURCE_ARROW.leg / 2 - 12;
 /** The tick's 1.5px line, in the arrow's grid at the arrow's size. */
 const SOURCE_ARROW_STROKE = (CHEVRON_STROKE * CHECK_SIZE) / SOURCE_ARROW_SIZE;
 
@@ -584,12 +590,12 @@ const styles = create({
 });
 
 /**
- * The arrow after the link to the source code, up and to the right: the
- * diagonal of a square, and the two sides that meet at its top right corner,
- * each cut short.
+ * The arrow after the link to the source code, up and to the right: a short
+ * way down a square's diagonal from its top right corner, and the two sides
+ * that meet at that corner, each cut a little short.
  */
 function SourceArrow() {
-  const { from, leg, to } = SOURCE_ARROW;
+  const { from, leg, shaft, to } = SOURCE_ARROW;
   return (
     <svg
       aria-hidden="true"
@@ -599,11 +605,13 @@ function SourceArrow() {
       strokeLinecap="round"
       strokeLinejoin="round"
       strokeWidth={SOURCE_ARROW_STROKE}
-      viewBox="0 0 24 24"
+      viewBox={`${SOURCE_ARROW_OFF} ${-SOURCE_ARROW_OFF} 24 24`}
       width={SOURCE_ARROW_SIZE}
       {...props(styles.planLinkArrow)}
     >
-      <path d={`M${from} ${to}L${to} ${from}M${to - leg} ${from}H${to}V${from + leg}`} />
+      <path
+        d={`M${to - shaft} ${from + shaft}L${to} ${from}M${to - leg} ${from}H${to}V${from + leg}`}
+      />
     </svg>
   );
 }
