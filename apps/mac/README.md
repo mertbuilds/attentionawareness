@@ -570,22 +570,38 @@ step done by hand.
    starts nothing, and when it is already there the job leaves it and says so.
 
 `detect` holds no secret and has no environment. It stops, and decides
-nothing, when `latest.json` cannot be read or one of the two build numbers is
-not a whole number. Its rule is `scripts/release-request.sh`, which also runs
-on a Mac and changes nothing: `bash scripts/release-request.sh`.
+nothing, when `latest.json` cannot be read over https, is not one JSON object,
+or one of the two build numbers is not a whole number of at most 9 digits. Its
+rule is `scripts/release-request.sh`, which also runs on a Mac and changes
+nothing: `bash scripts/release-request.sh`.
 
 The job `release` checks again before it reads a secret: the ref is `main`,
 the commit is on `main`, and the build number is still above the published
 one. `release.sh` then holds the build number and the dmg name as it does on a
-Mac (see below).
+Mac (see below). After the build it also stops when the built app's version or
+build number is not the one read from `project.yml`, so what the approver was
+shown is what was built.
 
-One release runs at a time and a started one is never cancelled. When two
-bumps are merged close together, each gets a run of its own. The second waits
-for the first and then asks for its own approval. GitHub keeps one waiting job
-per group, so a third request takes the place of the second, whose run shows
-as cancelled; the third is a later commit of `main` and holds the second's
-bump. A request for a build number that went out in the meantime stops at the
-second check, so no build is released twice.
+One release runs at a time and a started one is never cancelled (the
+concurrency group `mac-release` on the job `release`). When two bumps are
+merged close together, each gets a run of its own, and GitHub's documents do
+not say which of two things then happens. The first real run will show it.
+
+- A job that waits for its approval holds the group. The second request then
+  waits behind the first and asks for its approval when the first has ended.
+- Or a job that waits for its approval counts as waiting in the group. GitHub
+  keeps one waiting job per group, so the second request takes the place of
+  the first, whose run shows as cancelled.
+
+Both are safe. A request that was replaced is not lost: the one that took its
+place is a later commit of `main`, which holds the earlier bump, so the newest
+build goes out. And no build goes out twice: a request for a build number that
+was released in the meantime stops at the second check, and `release.sh` holds
+the same rule. In both cases a third request replaces a second one that still
+waits. GitHub's `queue: max`, which keeps every waiting request, is not used:
+its documents show it for a whole workflow only, and `actionlint` 1.7.12
+refuses the key. A cancelled request is asked again with Re-run on its run, or
+with a manual run.
 
 A dry run: Actions → Mac release → Run workflow, on `main`, with `dry_run`
 ticked (the default). It needs the same approval and does everything but the
@@ -612,6 +628,12 @@ three to the owner. The reasons and how to revoke each key are in
 `docs/adr/0011-mac-release-keys-in-github.md` at the root of the repo.
 
 ### One-time setup in GitHub
+
+When this repo moves from the tag flow, the order matters: first take the tag
+pattern `mac-v*` out of the environment, then relax the tag ruleset. In the
+other order there is a moment when anyone who can write to the repo can push a
+`mac-v*` tag that the environment still accepts, on a commit whose workflow
+file is their own.
 
 In the repo's Settings → Environments, create `mac-release` with:
 
