@@ -93,8 +93,6 @@ const LETTER_FACE = "'Special Elite', 'Courier New', ui-monospace, monospace";
 const HERO_WIDTH = 1040;
 /** The phone's column beside the words, as wide as the phone is drawn there. */
 const HERO_PHONE_WIDTH = 272;
-/** The manual way out, on a page of its own. */
-const GUIDE_URL = '/guide';
 /** Every link off this site carries utm tags, so the visit is traced to this page. */
 const STORE_URL =
   'https://chromewebstore.google.com/detail/attention-awareness/lgcijcijcndmggjiioibfcmppndfakee?utm_source=attentionawareness.com&utm_medium=referral&utm_campaign=home';
@@ -132,7 +130,7 @@ const styles = create({
     scrollMarginBlockStart: `calc(${brandBar.height} + ${spacing.s6})`,
   },
   // The last word before the footer: one line, the download under it, then
-  // its price and the guide, all in the middle of the column.
+  // its price, all in the middle of the column.
   closing: {
     alignItems: 'center',
     display: 'flex',
@@ -146,10 +144,7 @@ const styles = create({
   },
   closingNote: {
     color: colors.muted,
-    display: 'flex',
-    flexDirection: 'column',
     fontSize: font.sizeSm,
-    gap: spacing.s2,
     lineHeight: 1.5,
     margin: 0,
   },
@@ -1061,10 +1056,7 @@ function HomePage() {
             {closeAfter}
           </h2>
           <MacDownload placement="closing" style={styles.downloadCentered} />
-          <p {...props(styles.closingNote)}>
-            <span>{m.home_hero_price()}</span>
-            <a href={GUIDE_URL}>{m.home_close_diy()}</a>
-          </p>
+          <p {...props(styles.closingNote)}>{m.home_hero_price()}</p>
         </section>
 
         <SiteFooter />
