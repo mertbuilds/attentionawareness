@@ -407,40 +407,35 @@ const styles = create({
     textAlign: 'center',
   },
   // The way out: the app's card, in the orange the page recommends it by.
-  // Its name, what it is and what it keeps, with its button beside them at
-  // the card's foot on a wide window, and under them on a narrow one.
+  // Its name, what it is, what it keeps and its button, one under the other
+  // down the middle. The card is as wide as its words and stands in the
+  // middle of the column.
   plan: {
-    alignItems: {
-      '@media (min-width: 768px)': 'end',
-      default: 'start',
-    },
+    alignItems: 'center',
+    alignSelf: 'center',
     backgroundColor: `color-mix(in srgb, ${accent.base} 6%, ${colors.raised})`,
     borderColor: accent.base,
     borderRadius: radius.base,
     borderStyle: 'solid',
     borderWidth: '1px',
     boxSizing: 'border-box',
-    display: 'grid',
-    gap: spacing.s6,
-    gridTemplateColumns: {
-      '@media (min-width: 768px)': 'minmax(0, 1fr) auto',
-      default: 'minmax(0, 1fr)',
-    },
-    padding: spacing.s6,
-    position: 'relative',
-  },
-  // The words of a card, held to a short measure where the card runs wide.
-  planBody: {
     display: 'flex',
     flexDirection: 'column',
-    gap: spacing.s4,
-    maxWidth: '40ch',
+    gap: spacing.s6,
+    maxWidth: '100%',
+    paddingBlock: spacing.s8,
+    paddingInline: {
+      '@media (min-width: 768px)': spacing.s12,
+      default: spacing.s6,
+    },
+    position: 'relative',
   },
   // The name, and what it is close under it.
   planHead: {
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s1,
+    textAlign: 'center',
   },
   // The app's price is in its card's orange.
   planPrice: {
@@ -869,15 +864,13 @@ function HomePage() {
           <HowItWorks />
           <div id={SECTION.download} {...props(styles.plan, styles.anchor)}>
             {/* Where links from before the two ways were named the download
-            still land. Out of the card's grid, so it takes no cell. */}
+            still land. Out of the card's flow, so it takes no room. */}
             <span id={OLD_DOWNLOAD_ID} {...props(styles.anchor, styles.outOfFlow)} />
-            <div {...props(styles.planBody)}>
-              <div {...props(styles.planHead)}>
-                <h3 {...props(styles.planTitle, styles.planPrice)}>{m.home_how_app_price()}</h3>
-                <p {...props(styles.planSub)}>{m.home_how_app_sub()}</p>
-              </div>
-              <Promises promises={promises} />
+            <div {...props(styles.planHead)}>
+              <h3 {...props(styles.planTitle, styles.planPrice)}>{m.home_how_app_price()}</h3>
+              <p {...props(styles.planSub)}>{m.home_how_app_sub()}</p>
             </div>
+            <Promises promises={promises} />
             <MacDownload placement="download" />
           </div>
         </section>
