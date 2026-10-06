@@ -23,6 +23,7 @@ import type { ThanksPopup as ThanksPopupComponent } from '../components/thanks-p
 import { UsesGrid } from '../components/uses-grid.tsx';
 import { posthog } from '../lib/analytics.ts';
 import { brandBar } from '../lib/brand-bar.stylex.ts';
+import { REPO_URL } from '../lib/github.ts';
 import { duration, easing } from '../lib/motion.stylex.ts';
 import { SECTION } from '../lib/sections.ts';
 import { homeSchema, schemaMeta } from '../lib/structured-data.ts';
@@ -868,7 +869,16 @@ function HomePage() {
             <span id={OLD_DOWNLOAD_ID} {...props(styles.anchor, styles.outOfFlow)} />
             <div {...props(styles.planHead)}>
               <h3 {...props(styles.planTitle, styles.planPrice)}>{m.home_how_app_price()}</h3>
-              <p {...props(styles.planSub)}>{m.home_how_app_sub()}</p>
+              <p {...props(styles.planSub)}>
+                <a
+                  href={REPO_URL}
+                  onClick={() => posthog.capture('github_clicked', { placement: 'plan' })}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  {m.home_how_app_sub()}
+                </a>
+              </p>
             </div>
             <Promises promises={promises} />
             <MacDownload placement="download" />
