@@ -1,14 +1,21 @@
 name: Mac release
-run-name: ${{ github.ref_name }} ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && '(dry run)' || '(REAL RELEASE)' }}
+run-name: "${{ github.event_name == 'push' && format('Release request at {0}', github.sha) || format('{0} {1}', github.ref_name, inputs.dry_run && '(dry run)' || '(REAL RELEASE)') }}"
 
 # Builds, signs, notarizes and uploads the Mac app with apps/mac/scripts/release.sh.
 # The uploads are live at once. Every secret is a secret of the environment
 # mac-release, whose required reviewer approves each run. Setup and the list of
 # secrets: apps/mac/README.md, "Release".
+#
+# A release is asked for by a push to main that raises the build number in
+# apps/mac/project.yml above the published one. No tag starts a run: the job
+# `tag` writes mac-v<version> after a release, as a record. There is no
+# pull_request trigger, and there must never be one.
 
 on:
   push:
-    tags: ['mac-v*']
+    branches: [main]
+    paths:
+      - apps/mac/project.yml
   workflow_dispatch:
     inputs:
       dry_run:
@@ -19,20 +26,79 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: mac-release
-  cancel-in-progress: false
-
 env:
   HOMEBREW_NO_AUTO_UPDATE: 1
   HOMEBREW_NO_INSTALL_CLEANUP: 1
   DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
 
 jobs:
+  # No environment and no secret. It decides whether the push asks for a
+  # release, so that a change to project.yml with no newer build number never
+  # asks the owner for an approval: that request is made when `release` starts.
+  detect:
+    name: Detect a release request
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.request.outputs.version }}
+      build: ${{ steps.request.outputs.build }}
+      should_release: ${{ steps.request.outputs.should_release }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Compare the build number with the published one
+        id: request
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] && [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::a manual run must be on main, not on $GITHUB_REF"
+            exit 1
+          fi
+          bash apps/mac/scripts/release-request.sh
+
+      # The run's page shows this before anyone approves.
+      - name: Say what the run will do
+        env:
+          VERSION: ${{ steps.request.outputs.version }}
+          BUILD: ${{ steps.request.outputs.build }}
+          SHOULD_RELEASE: ${{ steps.request.outputs.should_release }}
+          DECISION: ${{ steps.request.outputs.decision }}
+        run: |
+          set -euo pipefail
+          what="attention awareness for Mac $VERSION (build $BUILD), commit $GITHUB_SHA"
+          {
+            if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] && [ "$DRY_RUN" = "true" ]; then
+              echo "### Dry run: $what"
+              echo "Nothing is uploaded. The run waits for the approval of the environment mac-release."
+            elif [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+              echo "### REAL RELEASE, started by hand: $what"
+              echo "The run waits for the approval of the environment mac-release. The uploads are live at once."
+            elif [ "$SHOULD_RELEASE" = "true" ]; then
+              echo "### REAL RELEASE: $what"
+              echo "The run waits for the approval of the environment mac-release. The uploads are live at once."
+            else
+              echo "### No release"
+              echo "No approval is asked for."
+            fi
+            echo ""
+            echo "$DECISION"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   release:
+    name: Release ${{ needs.detect.outputs.version }} (${{ needs.detect.outputs.build }}) ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && '(dry run)' || '(REAL RELEASE)' }}
+    needs: detect
+    if: needs.detect.outputs.should_release == 'true' || github.event_name == 'workflow_dispatch'
     # Apple Silicon. Keep the image and the Xcode the same as in mac-ci.yml.
     runs-on: macos-26
     environment: mac-release
+    # One release at a time, and a run that has started is never cancelled. A
+    # dry run uploads nothing, so it has a group of its own and does not wait
+    # behind a release that is waiting for its approval.
+    concurrency:
+      group: mac-release${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && '-dry-run' || '' }}
+      cancel-in-progress: false
     timeout-minutes: 90
     defaults:
       run:
@@ -47,18 +113,25 @@ jobs:
       - name: Check the ref
         run: |
           set -euo pipefail
-          version=$(grep -E "^ *MARKETING_VERSION: " project.yml | sed -E "s/^ *MARKETING_VERSION: *'?([^']*)'?.*$/\1/")
-          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
-            if [ "$GITHUB_REF" != "refs/heads/main" ]; then
-              echo "::error::a manual run must be on main, not on $GITHUB_REF"
-              exit 1
-            fi
-          elif [ "$GITHUB_REF" != "refs/tags/mac-v$version" ]; then
-            echo "::error::the tag must be mac-v$version, the MARKETING_VERSION in apps/mac/project.yml"
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::a release runs on main, not on $GITHUB_REF"
             exit 1
           fi
           if ! git merge-base --is-ancestor HEAD origin/main; then
             echo "::error::this commit is not on main"
+            exit 1
+          fi
+
+      # The job can wait a long time for its approval, and another release can
+      # go out in between. Asked again here, before the long build and before
+      # any key is on the runner. release.sh holds the same rule once more.
+      - name: Check the build number again
+        run: |
+          set -euo pipefail
+          if [ "$DRY_RUN" = "true" ]; then
+            bash scripts/release-request.sh
+          elif ! bash scripts/release-request.sh --require-newer; then
+            echo "::error::the build number in apps/mac/project.yml is not above the published one, or it could not be compared, so nothing is released"
             exit 1
           fi
 
@@ -211,3 +284,54 @@ jobs:
         run: |
           security delete-keychain "$RUNNER_TEMP/mac-release.keychain-db" 2> /dev/null || true
           rm -f "$RUNNER_TEMP/developer-id.p12" "$RUNNER_TEMP/notary-key.p8" "$RUNNER_TEMP/sparkle-ed25519.key"
+
+  # The tag is a record of what was released, written after the fact. It starts
+  # no workflow: a tag pushed with the built-in token never does. This job
+  # checks out nothing and runs no code from the repo.
+  tag:
+    name: Tag mac-v${{ needs.detect.outputs.version }}
+    needs: [detect, release]
+    if: needs.release.result == 'success' && !(github.event_name == 'workflow_dispatch' && inputs.dry_run)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Write the tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.detect.outputs.version }}
+          BUILD: ${{ needs.detect.outputs.build }}
+        run: |
+          set -euo pipefail
+          tag="mac-v$VERSION"
+          repo="repos/$GITHUB_REPOSITORY"
+          if ref=$(gh api "$repo/git/ref/tags/$tag" 2> "$RUNNER_TEMP/ref-error"); then
+            sha=$(printf '%s' "$ref" | jq -r '.object.sha')
+            if [ "$(printf '%s' "$ref" | jq -r '.object.type')" = "tag" ]; then
+              sha=$(gh api "$repo/git/tags/$sha" --jq '.object.sha')
+            fi
+            if [ "$sha" = "$GITHUB_SHA" ]; then
+              echo "::notice::the tag $tag is already on this commit, so it was left as it is"
+            else
+              echo "::warning::the tag $tag is already there, on $sha and not on the released commit $GITHUB_SHA. It was left as it is"
+            fi
+            exit 0
+          fi
+          message="attention awareness for Mac $VERSION (build $BUILD)"
+          by_hand="The release is live; only the record tag is missing. The owner can add it: git tag -a $tag $GITHUB_SHA -m \"$message\" && git push origin $tag"
+          if ! grep -q "HTTP 404" "$RUNNER_TEMP/ref-error"; then
+            cat "$RUNNER_TEMP/ref-error" >&2
+            echo "::error::could not ask whether the tag $tag is there. $by_hand"
+            exit 1
+          fi
+          if ! object=$(gh api "$repo/git/tags" -f tag="$tag" -f type=commit -f object="$GITHUB_SHA" \
+            -f message="$message" --jq '.sha'); then
+            echo "::error::could not make the tag object for $tag. $by_hand"
+            exit 1
+          fi
+          if ! gh api "$repo/git/refs" -f ref="refs/tags/$tag" -f sha="$object" --silent; then
+            echo "::error::could not write the tag $tag. The tag ruleset on mac-v* must not restrict creation: apps/mac/README.md, \"Release\". $by_hand"
+            exit 1
+          fi
+          echo "::notice::wrote the tag $tag on $GITHUB_SHA"

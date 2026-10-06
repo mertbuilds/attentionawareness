@@ -266,6 +266,13 @@ if [ -f "$PUBLISHED_APPCAST" ]; then
     | grep -oE '[0-9]+' | sort -n | tail -1 || true)
   PUBLISHED_BUILD="${PUBLISHED_BUILD:-0}"
 fi
+# 9 digits at most: `[ -le ]` fails on a number past the limit of shell
+# arithmetic, and a failed test must never read as "the build is new".
+if ! [[ "$PUBLISHED_BUILD" =~ ^[0-9]{1,9}$ ]]; then
+  echo "error: the highest build in the published appcast, '$PUBLISHED_BUILD', is not a" >&2
+  echo "       whole number of at most 9 digits." >&2
+  exit 1
+fi
 echo "    highest published build: $PUBLISHED_BUILD"
 
 dmg_name() {
@@ -287,8 +294,8 @@ download_name() {
 check_new_release() {
   version="$1"
   build="$2"
-  if ! printf '%s' "$build" | grep -qE '^[0-9]+$'; then
-    echo "error: build number '$build' is not a whole number" >&2
+  if ! [[ "$build" =~ ^[0-9]{1,9}$ ]]; then
+    echo "error: build number '$build' is not a whole number of at most 9 digits" >&2
     exit 1
   fi
   if [ "$build" -le "$PUBLISHED_BUILD" ]; then
@@ -311,7 +318,9 @@ read_key() {
 }
 
 echo "==> check the build number"
-check_new_release "$(read_key MARKETING_VERSION)" "$(read_key CURRENT_PROJECT_VERSION)"
+YML_VERSION=$(read_key MARKETING_VERSION)
+YML_BUILD=$(read_key CURRENT_PROJECT_VERSION)
+check_new_release "$YML_VERSION" "$YML_BUILD"
 
 echo "==> vendor libimobiledevice"
 # A no-op once Vendor/prefix is there, and the only thing that keeps a release
@@ -342,6 +351,14 @@ APP="$BUILD_DIR/Build/Products/$CONFIG/${APP_NAME}.app"
 VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist")
 BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APP/Contents/Info.plist")
 echo "==> check the built app's build number"
+# The numbers read from project.yml are the ones the approver of a release was
+# shown, so the built app has to carry the same two.
+if [ "$VERSION" != "$YML_VERSION" ] || [ "$BUILD" != "$YML_BUILD" ]; then
+  echo "error: the built app is $VERSION (build $BUILD), but project.yml reads as" >&2
+  echo "       $YML_VERSION (build $YML_BUILD). MARKETING_VERSION and" >&2
+  echo "       CURRENT_PROJECT_VERSION must be set once, under settings.base." >&2
+  exit 1
+fi
 check_new_release "$VERSION" "$BUILD"
 DMG_NAME=$(dmg_name "$VERSION" "$BUILD")
 DMG_URL="$SITE_URL/$DMG_NAME"

@@ -26,6 +26,18 @@ Date: 2026-10-05. Status: accepted.
 - A dry run is not handed the bucket's key pair.
 - No agent creates a `mac-v*` tag or approves a `mac-release` deployment (`AGENTS.md`).
 
+## Update 2026-10-06: the tag trigger is removed
+
+- The owner wants no step by hand but the approval. A tag pushed by hand was a second step, and it was the weak one: for a tag, GitHub runs the workflow file of the tagged commit, so the whole design rested on a tag ruleset.
+- A release is now asked for by a push to `main` that raises `CURRENT_PROJECT_VERSION` in `apps/mac/project.yml` above the published build. The job `detect` decides that with no secret and no environment, so a change to `project.yml` with no newer build asks for no approval.
+- The approval of the environment `mac-release` is the gate. The reviewer confirms the version and the build in the run's summary, and that the commit is the bump on `main`.
+- The environment accepts the branch `main` only. The tag pattern `mac-v*` is removed from it, so no run on a tag can reach the secrets.
+- `main` has a ruleset: a pull request is required, no force push, no deletion, the owner as the only bypass. It now does the work the tag ruleset did, because the workflow file that runs is the one on `main`.
+- The workflow writes the tag `mac-v<version>` after a release, as a record, with the built-in token. A tag pushed with that token starts no workflow. The tag ruleset keeps update and deletion restricted and no longer restricts creation: the GitHub Actions app cannot be put on the bypass list of a ruleset here, and a bypass would also let it move and delete tags. A tag made by someone else ships nothing.
+- The workflow has no `pull_request` trigger and must never get one.
+- No agent approves a `mac-release` deployment or makes a `mac-v*` tag by hand. An agent merges a Mac version bump only when the owner asked for that release (`AGENTS.md`).
+- This replaces, above: "started by a tag" in the decision, and the guards about the tag pattern of the environment, the tag ruleset, the check of the tag name and the agents' rule. In "The risk that remains", read "bypass the ruleset on `main`" for "change the tag ruleset".
+
 ## The risk that remains
 
 - The Sparkle key and the bucket's key pair together can ship an update to every installed copy of the app. With the Developer ID certificate that update also passes Gatekeeper.

@@ -542,29 +542,66 @@ AA_SITE_URL=https://aa.localhost \
 ## Release
 
 A release is made by GitHub Actions (`.github/workflows/mac-release.yml`) on a
-macOS runner, so it needs no Mac of the owner's:
+macOS runner, so it needs no Mac of the owner's. Nobody makes a tag: the merge
+of a version bump asks for the release, and the owner's approval is the only
+step done by hand.
 
 1. In a pull request, run `bash scripts/bump.sh <version>` and write
-   `release-notes/<version>.md`. Merge it.
-2. Push the tag `mac-v<version>` on that commit of `main`:
-   `git tag mac-v0.5.1 && git push origin mac-v0.5.1`. Only the owner can: a
-   tag ruleset stops everyone else (see the setup below).
-3. Look before you approve. The workflow waits for the reviewer of the
-   environment `mac-release`, and the run's name says what it is, for example
-   `mac-v0.5.1 (REAL RELEASE)` or `main (dry run)`. On the run's page, open
-   the commit and confirm two things: it is on `main`, and it is the bump
-   commit you merged. Reject the run when either is not so, or when you did
-   not push the tag yourself.
+   `release-notes/<version>.md`.
+2. Merge it. The merge is the request: a push to `main` that changes
+   `project.yml` starts the workflow, and its first job, `detect`, compares
+   `CURRENT_PROJECT_VERSION` with the `build` in the published
+   `https://attentionawareness.com/mac/latest.json`. Only a build number above
+   the published one goes on to the job `release`, and only that job asks for
+   an approval. Any other change to `project.yml` ends there, with "No
+   release" in the run's summary. So merge a bump only when the release is
+   wanted.
+3. Look before you approve. The job `release` waits for the reviewer of the
+   environment `mac-release`. The run's summary says what it will do, for
+   example `REAL RELEASE: attention awareness for Mac 0.5.2 (build 12), commit
+   <sha>`, and the waiting job is named `Release 0.5.2 (12) (REAL RELEASE)`.
+   Confirm three things: the version and the build are the ones you mean to
+   ship, the commit is on `main`, and it is the bump you merged. Reject the
+   run when one is not so.
 4. Approve. The run then does the tests and `scripts/release.sh`, and the
    uploads are live at once.
+5. After a release the job `tag` writes the annotated tag `mac-v<version>` on
+   the released commit, with the workflow's own token. The tag is a record. It
+   starts nothing, and when it is already there the job leaves it and says so.
 
-The workflow also checks the ref itself: it stops before it reads a secret when the tag is not
-`mac-v<MARKETING_VERSION>` of `project.yml`, or when the commit is not on
-`main`. That check only stops an honest mistake. For a tag, GitHub runs the
-workflow file of the tagged commit, not the one on `main`, so a tag on a commit
-off `main` can carry a workflow with no check at all, one that sends the
-secrets out. This is why step 3 is not optional. `release.sh` then holds the
-build number and the dmg name as it does on a Mac (see below).
+`detect` holds no secret and has no environment. It stops, and decides
+nothing, when `latest.json` cannot be read over https, is not one JSON object,
+or one of the two build numbers is not a whole number of at most 9 digits. Its
+rule is `scripts/release-request.sh`, which also runs on a Mac and changes
+nothing: `bash scripts/release-request.sh`.
+
+The job `release` checks again before it reads a secret: the ref is `main`,
+the commit is on `main`, and the build number is still above the published
+one. `release.sh` then holds the build number and the dmg name as it does on a
+Mac (see below). After the build it also stops when the built app's version or
+build number is not the one read from `project.yml`, so what the approver was
+shown is what was built.
+
+One release runs at a time and a started one is never cancelled (the
+concurrency group `mac-release` on the job `release`). When two bumps are
+merged close together, each gets a run of its own, and GitHub's documents do
+not say which of two things then happens. The first real run will show it.
+
+- A job that waits for its approval holds the group. The second request then
+  waits behind the first and asks for its approval when the first has ended.
+- Or a job that waits for its approval counts as waiting in the group. GitHub
+  keeps one waiting job per group, so the second request takes the place of
+  the first, whose run shows as cancelled.
+
+Both are safe. A request that was replaced is not lost: the one that took its
+place is a later commit of `main`, which holds the earlier bump, so the newest
+build goes out. And no build goes out twice: a request for a build number that
+was released in the meantime stops at the second check, and `release.sh` holds
+the same rule. In both cases a third request replaces a second one that still
+waits. GitHub's `queue: max`, which keeps every waiting request, is not used:
+its documents show it for a whole workflow only, and `actionlint` 1.7.12
+refuses the key. A cancelled request is asked again with Re-run on its run, or
+with a manual run.
 
 A dry run: Actions → Mac release → Run workflow, on `main`, with `dry_run`
 ticked (the default). It needs the same approval and does everything but the
@@ -572,40 +609,66 @@ uploads, the notary service included. It is not handed the bucket's key pair,
 and it reads the published appcast from the site. The dmg, `appcast.xml` and `latest.json`
 are kept for 7 days as the artifact `mac-release-dry-run`, which anyone signed
 in to GitHub can download, as with every artifact of a public repo. It only passes
-between the merge of a bump and its tag, because `release.sh` refuses a build
-number the site already has. A manual run with `dry_run` unticked is a real
-release of `main` without a tag.
+while `main` holds a build number the site does not have, so between the merge
+of a bump and its approval, because `release.sh` refuses a build number the
+site already has. It does not wait behind the release that waits for its
+approval, and it writes no tag. A manual run with `dry_run` unticked is a real
+release of `main`: it is the way to ask again for a build that is on `main`
+and was not released.
 
 The risk, plainly: the Sparkle private key and the Developer ID certificate
 are in GitHub, and the two together can ship an update to every installed copy
-of the app. Two things are the guard, and both are needed: the tag ruleset,
-which lets only the owner make a `mac-v*` tag, and the reviewer, who looks at
-the commit before approving. Protecting `main` is not the guard, because a
-tag's run takes its workflow file from the tagged commit. Whoever can approve
-a run of `mac-release`, change that environment's settings or change the tag
-ruleset can ship. Keep all three to the owner. The reasons and how to revoke
-each key are in `docs/adr/0011-mac-release-keys-in-github.md` at the root of
-the repo.
+of the app. Two things are the guard, and both are needed: the rules on
+`main`, which decide what can ask for a release, and the reviewer, who looks
+at the version and the commit before approving. What runs is the workflow file
+of the commit on `main`, and the environment gives its secrets to no other
+branch and to no tag. Whoever can approve a run of `mac-release`, change that
+environment's settings or bypass the ruleset on `main` can ship. Keep all
+three to the owner. The reasons and how to revoke each key are in
+`docs/adr/0011-mac-release-keys-in-github.md` at the root of the repo.
 
 ### One-time setup in GitHub
+
+When this repo moves from the tag flow, the order matters: first take the tag
+pattern `mac-v*` out of the environment, then relax the tag ruleset. In the
+other order there is a moment when anyone who can write to the repo can push a
+`mac-v*` tag that the environment still accepts, on a commit whose workflow
+file is their own.
 
 In the repo's Settings → Environments, create `mac-release` with:
 
 - Required reviewers: the owner. Leave "Prevent self-review" off when the
-  owner is the only reviewer, or no one can approve the owner's own tag.
-- Deployment branches and tags: selected only, the branch `main` and the tag
-  pattern `mac-v*`.
+  owner is the only reviewer, or no one can approve a release the owner
+  merged.
+- Deployment branches and tags: selected only, the branch `main` and nothing
+  else. No tag pattern: a run on a tag takes its workflow file from the tagged
+  commit, so a tag must never reach the secrets.
 - "Allow administrators to bypass configured protection rules" off.
 
-In Settings → Rules → Rulesets, add a tag ruleset. It is required: without it
-anyone who can write to the repo, a leaked token with contents write included,
-can push a `mac-v*` tag on a commit of their own, and the environment's tag
-rule accepts it.
+In Settings → Rules → Rulesets, two rulesets.
+
+A branch ruleset on `main`. It is required: a push to `main` is what asks for
+a release, and the workflow file that runs is the one on `main`.
+
+- Enforcement: active. Target: the default branch.
+- Rules: require a pull request before merging, block force pushes, restrict
+  deletions.
+- Bypass list: the owner alone.
+
+A tag ruleset on `mac-v*`, so that a release's record cannot be moved or
+removed.
 
 - Enforcement: active. Target tags: the pattern `mac-v*`.
-- Rules: restrict creations, restrict updates, restrict deletions.
-- Bypass list: the owner alone, set to always allow. Nobody else, no app and
-  no deploy key.
+- Rules: restrict updates, restrict deletions. Not "restrict creations": the
+  job `tag` creates the tag with the workflow's own token, and that token
+  cannot be put on a bypass list here. A bypass would also let it move and
+  delete the tags.
+- Bypass list: the owner alone. Nobody else, no app and no deploy key.
+
+Anyone who can write to the repo can then create a `mac-v*` tag. That ships
+nothing, because no tag starts the workflow and the environment accepts no
+tag. When the tag of a release is already there on another commit, the job
+`tag` leaves it and warns.
 
 Then the environment's secrets. They are environment secrets and not repo
 secrets, so no other workflow can read them:
