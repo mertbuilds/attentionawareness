@@ -6,7 +6,7 @@ import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { lazy, Suspense, useId, useState } from 'react';
 import type { ComponentProps, FC } from 'react';
-import { AngleDown, Check } from 'reicon-react';
+import { AngleDown, ArrowUpRight, Check } from 'reicon-react';
 import { PaperLetter } from '../components/bill-paper.tsx';
 import { ExtensionBrowser } from '../components/extension-browser.tsx';
 import { ANSWER_LINK, FaqAnswer } from '../components/faq-answer.tsx';
@@ -117,6 +117,8 @@ const CHEVRON_SIZE = 16;
 const CHEVRON_STROKE = 2.25;
 /** The tick before a promise, in pixels, drawn with the chevron's line. */
 const CHECK_SIZE = 16;
+/** The arrow after the link to the source code, in pixels: its words' size. */
+const SOURCE_ARROW_SIZE = 14;
 
 /** The hero's paper is centred on the hero, reaches toward its edges and is gone before the corners. */
 const HERO_PAPER_MASK = 'radial-gradient(ellipse at 50% 45%, black 40%, transparent 92%)';
@@ -437,6 +439,37 @@ const styles = create({
     flexDirection: 'column',
     gap: spacing.s1,
     textAlign: 'center',
+  },
+  // The way to the source code: its words and the arrow after them, on one
+  // line, with no line under them. Quiet at rest, it steps to the page's ink
+  // under a pointer, and wears the ring every link wears under the keyboard.
+  planLink: {
+    alignItems: 'center',
+    borderRadius: 2,
+    color: {
+      ':hover': {
+        '@media (hover: hover)': colors.fg,
+        default: null,
+      },
+      default: colors.muted,
+    },
+    display: 'inline-flex',
+    gap: spacing.s1,
+    outlineColor: colors.muted,
+    outlineOffset: 2,
+    outlineStyle: {
+      ':focus-visible': 'solid',
+      default: 'none',
+    },
+    outlineWidth: 1,
+    textDecorationLine: 'none',
+    transitionDuration: duration.quick,
+    transitionProperty: 'color',
+    transitionTimingFunction: easing.out,
+    whiteSpace: 'nowrap',
+  },
+  planLinkArrow: {
+    flexShrink: 0,
   },
   // The app's price is in its card's orange.
   planPrice: {
@@ -871,12 +904,20 @@ function HomePage() {
               <h3 {...props(styles.planTitle, styles.planPrice)}>{m.home_how_app_price()}</h3>
               <p {...props(styles.planSub)}>
                 <a
+                  data-plain=""
                   href={REPO_URL}
                   onClick={() => posthog.capture('github_clicked', { placement: 'plan' })}
                   rel="noreferrer"
                   target="_blank"
+                  {...props(styles.planLink)}
                 >
                   {m.home_how_app_sub()}
+                  <ArrowUpRight
+                    aria-hidden="true"
+                    size={SOURCE_ARROW_SIZE}
+                    strokeWidth={CHEVRON_STROKE}
+                    {...props(styles.planLinkArrow)}
+                  />
                 </a>
               </p>
             </div>
