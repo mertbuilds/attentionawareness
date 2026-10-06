@@ -121,9 +121,9 @@ const SOURCE_ARROW_SIZE = 14;
  * The arrow in its 24-unit grid, on a square from `from` to `to` with the
  * arrow's point at its top right corner. Each leg of the head runs `leg`
  * along a side from that corner, nearly the whole side. The shaft runs down
- * the diagonal from it for `shaft` along each side, 70% of the diagonal.
+ * the diagonal from it for `shaft` along each side, 85% of the diagonal.
  */
-const SOURCE_ARROW = { from: 6, leg: 11, shaft: 8.4, to: 18 };
+const SOURCE_ARROW = { from: 6, leg: 11, shaft: 10.2, to: 18 };
 /**
  * How far the arrow's middle stands right of and above the middle of that
  * grid. Its box is moved by as much, so the arrow is in the middle of it.
@@ -610,7 +610,7 @@ function SourceArrow() {
       {...props(styles.planLinkArrow)}
     >
       <path
-        d={`M${to - shaft} ${from + shaft}L${to} ${from}M${to - leg} ${from}H${to}V${from + leg}`}
+        d={`M${(to - shaft).toFixed(1)} ${(from + shaft).toFixed(1)}L${to} ${from}M${to - leg} ${from}H${to}V${from + leg}`}
       />
     </svg>
   );

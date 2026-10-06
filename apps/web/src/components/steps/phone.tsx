@@ -26,8 +26,11 @@ const DOCK = { height: 18, inset: 3, radius: 6, y: 143 };
  * drawing is large.
  */
 const HAIRLINE = 'non-scaling-stroke';
-/** The line an app's square is drawn with. With `hairline`, its glyph's line too. */
-const APP_LINE = 1;
+/**
+ * The line a kept app's glyph is drawn with on a phone drawn with `hairline`,
+ * in pixels on the page: half as wide again as its square's.
+ */
+const HERO_GLYPH_LINE = 1.5;
 /**
  * The feeds chosen on the Mac, in the order they are chosen, by bundle id:
  * TikTok, Instagram, YouTube and X. Their icons are in `public/media/apps`.
@@ -114,7 +117,7 @@ const styles = create({
   app: {
     fill: 'none',
     stroke: colors.muted,
-    strokeWidth: APP_LINE,
+    strokeWidth: 1,
   },
   body: {
     fill: 'none',
@@ -139,10 +142,10 @@ const styles = create({
     strokeLinejoin: 'round',
     strokeWidth: 0.8,
   },
-  // On a phone drawn large the glyph's line is as wide as its square's. At a
+  // On a phone drawn large the glyph's line is wider than its square's. At a
   // step's size a line that wide would close the glyph's small shapes.
   glyphHairline: {
-    strokeWidth: APP_LINE,
+    strokeWidth: HERO_GLYPH_LINE,
   },
   // The glass and the island on it, a step fainter than the body.
   screen: {
