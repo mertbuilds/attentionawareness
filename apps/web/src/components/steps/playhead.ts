@@ -46,9 +46,12 @@ export function usePlayhead(play: boolean, seconds: number): { at: number; opaci
     if (play) {
       played.current = true;
       clock.set(0);
-      veil.set(1);
+      const shown = animate(veil, 1, { duration: drawing.stepFade, ease: easeInOut });
       const playing = animate(clock, 1, { duration: seconds, ease: 'linear' });
-      return () => playing.stop();
+      return () => {
+        playing.stop();
+        shown.stop();
+      };
     }
     if (!played.current) {
       clock.set(0);
