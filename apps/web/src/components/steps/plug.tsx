@@ -82,7 +82,7 @@ export function PlugGraphic({
   play: boolean;
   ref?: Ref<SVGSVGElement> | undefined;
 }) {
-  const at = usePlayhead(play, drawing.stepPlug);
+  const { at, opacity } = usePlayhead(play, drawing.stepPlug);
   const macPlug = stretch(at, 0, 0.08);
   // Whatever runs along the cable eases in as well as out, so it is seen to
   // travel the whole way rather than leap most of it at once.
@@ -100,7 +100,13 @@ export function PlugGraphic({
   const port = PHONE.x + PHONE.width / 2;
 
   return (
-    <svg aria-hidden="true" ref={ref} viewBox={`0 0 ${WIDTH} ${HEIGHT}`} {...props(styles.graphic)}>
+    <svg
+      aria-hidden="true"
+      opacity={opacity}
+      ref={ref}
+      viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+      {...props(styles.graphic)}
+    >
       <Laptop plugged={macPlug}>
         <MacApp found={lit} screen="connect" />
       </Laptop>

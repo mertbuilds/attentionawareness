@@ -4,7 +4,7 @@ import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.sty
 import { create, defaultMarker, props, when } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
-import { lazy, Suspense, useEffect, useId, useState } from 'react';
+import { lazy, Suspense, useId, useState } from 'react';
 import type { ComponentProps, FC } from 'react';
 import { AngleDown, Check } from 'reicon-react';
 import { PaperLetter } from '../components/bill-paper.tsx';
@@ -23,6 +23,7 @@ import type { ThanksPopup as ThanksPopupComponent } from '../components/thanks-p
 import { UsesGrid } from '../components/uses-grid.tsx';
 import { posthog } from '../lib/analytics.ts';
 import { brandBar } from '../lib/brand-bar.stylex.ts';
+import { REPO_URL } from '../lib/github.ts';
 import { duration, easing } from '../lib/motion.stylex.ts';
 import { SECTION } from '../lib/sections.ts';
 import { homeSchema, schemaMeta } from '../lib/structured-data.ts';
@@ -76,8 +77,6 @@ function signLines(text: string): Array<string> {
 }
 /** The brand in prose, the way the root document spells it. */
 const SITE_NAME = 'attention awareness';
-/** The question about losing data, which the line under the download goes to. */
-const FAQ_DATA_ID = 'faq-data';
 /** The id the download's section had, kept as an empty anchor for old links. */
 const OLD_DOWNLOAD_ID = 'pricing';
 /** The extension's privacy page. */
@@ -94,8 +93,6 @@ const LETTER_FACE = "'Special Elite', 'Courier New', ui-monospace, monospace";
 const HERO_WIDTH = 1040;
 /** The phone's column beside the words, as wide as the phone is drawn there. */
 const HERO_PHONE_WIDTH = 272;
-/** The manual way out, on a page of its own. */
-const GUIDE_URL = '/guide';
 /** Every link off this site carries utm tags, so the visit is traced to this page. */
 const STORE_URL =
   'https://chromewebstore.google.com/detail/attention-awareness/lgcijcijcndmggjiioibfcmppndfakee?utm_source=attentionawareness.com&utm_medium=referral&utm_campaign=home';
@@ -118,6 +115,22 @@ const CHEVRON_SIZE = 16;
 const CHEVRON_STROKE = 2.25;
 /** The tick before a promise, in pixels, drawn with the chevron's line. */
 const CHECK_SIZE = 16;
+/** The arrow after the link to the source code, in pixels: its words' size. */
+const SOURCE_ARROW_SIZE = 14;
+/**
+ * The arrow in its 24-unit grid, on a square from `from` to `to` with the
+ * arrow's point at its top right corner. Each leg of the head runs `leg`
+ * along a side from that corner, nearly the whole side. The shaft runs down
+ * the diagonal from it for `shaft` along each side, 85% of the diagonal.
+ */
+const SOURCE_ARROW = { from: 6, leg: 11, shaft: 10.2, to: 18 };
+/**
+ * How far the arrow's middle stands right of and above the middle of that
+ * grid. Its box is moved by as much, so the arrow is in the middle of it.
+ */
+const SOURCE_ARROW_OFF = SOURCE_ARROW.to - SOURCE_ARROW.leg / 2 - 12;
+/** The tick's 1.5px line, in the arrow's grid at the arrow's size. */
+const SOURCE_ARROW_STROKE = (CHEVRON_STROKE * CHECK_SIZE) / SOURCE_ARROW_SIZE;
 
 /** The hero's paper is centred on the hero, reaches toward its edges and is gone before the corners. */
 const HERO_PAPER_MASK = 'radial-gradient(ellipse at 50% 45%, black 40%, transparent 92%)';
@@ -131,7 +144,7 @@ const styles = create({
     scrollMarginBlockStart: `calc(${brandBar.height} + ${spacing.s6})`,
   },
   // The last word before the footer: one line, the download under it, then
-  // its price and the guide, all in the middle of the column.
+  // its price, all in the middle of the column.
   closing: {
     alignItems: 'center',
     display: 'flex',
@@ -145,10 +158,7 @@ const styles = create({
   },
   closingNote: {
     color: colors.muted,
-    display: 'flex',
-    flexDirection: 'column',
     fontSize: font.sizeSm,
-    gap: spacing.s2,
     lineHeight: 1.5,
     margin: 0,
   },
@@ -409,49 +419,66 @@ const styles = create({
     textAlign: 'center',
   },
   // The way out: the app's card, in the orange the page recommends it by.
-  // Its name, what it is and what it keeps, with its button and the line
-  // about backing up beside them at the card's foot on a wide window, and
-  // under them on a narrow one.
+  // Its name, what it is, what it keeps and its button, one under the other
+  // down the middle. The card is as wide as its words and stands in the
+  // middle of the column.
   plan: {
-    alignItems: {
-      '@media (min-width: 768px)': 'end',
-      default: 'start',
-    },
+    alignItems: 'center',
+    alignSelf: 'center',
     backgroundColor: `color-mix(in srgb, ${accent.base} 6%, ${colors.raised})`,
     borderColor: accent.base,
     borderRadius: radius.base,
     borderStyle: 'solid',
     borderWidth: '1px',
     boxSizing: 'border-box',
-    display: 'grid',
+    display: 'flex',
+    flexDirection: 'column',
     gap: spacing.s6,
-    gridTemplateColumns: {
-      '@media (min-width: 768px)': 'minmax(0, 1fr) auto',
-      default: 'minmax(0, 1fr)',
+    maxWidth: '100%',
+    paddingBlock: spacing.s8,
+    paddingInline: {
+      '@media (min-width: 768px)': spacing.s12,
+      default: spacing.s6,
     },
-    padding: spacing.s6,
     position: 'relative',
-  },
-  // The words of a card, held to a short measure where the card runs wide.
-  planBody: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s4,
-    maxWidth: '40ch',
-  },
-  // The card's button with the line about backing up under it.
-  planFoot: {
-    alignItems: 'flex-start',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s3,
-    maxWidth: '32ch',
   },
   // The name, and what it is close under it.
   planHead: {
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s1,
+    textAlign: 'center',
+  },
+  // The way to the source code: its words and the arrow after them, on one
+  // line, with no line under them. Quiet at rest, it steps to the page's ink
+  // under a pointer, and wears the ring every link wears under the keyboard.
+  planLink: {
+    alignItems: 'center',
+    borderRadius: 2,
+    color: {
+      ':hover': {
+        '@media (hover: hover)': colors.fg,
+        default: null,
+      },
+      default: colors.muted,
+    },
+    display: 'inline-flex',
+    gap: spacing.s1,
+    outlineColor: colors.muted,
+    outlineOffset: 2,
+    outlineStyle: {
+      ':focus-visible': 'solid',
+      default: 'none',
+    },
+    outlineWidth: 1,
+    textDecorationLine: 'none',
+    transitionDuration: duration.quick,
+    transitionProperty: 'color',
+    transitionTimingFunction: easing.out,
+    whiteSpace: 'nowrap',
+  },
+  planLinkArrow: {
+    flexShrink: 0,
   },
   // The app's price is in its card's orange.
   planPrice: {
@@ -562,14 +589,31 @@ const styles = create({
   },
 });
 
-/** The questions that can be asked for by name, each told when one is. */
-const askers = new Set<(anchor: string) => void>();
-
-/** Opens the question with that anchor, as a link to it does when pressed. */
-function askQuestion(anchor: string) {
-  for (const asker of askers) {
-    asker(anchor);
-  }
+/**
+ * The arrow after the link to the source code, up and to the right: a short
+ * way down a square's diagonal from its top right corner, and the two sides
+ * that meet at that corner, each cut a little short.
+ */
+function SourceArrow() {
+  const { from, leg, shaft, to } = SOURCE_ARROW;
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height={SOURCE_ARROW_SIZE}
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={SOURCE_ARROW_STROKE}
+      viewBox={`${SOURCE_ARROW_OFF} ${-SOURCE_ARROW_OFF} 24 24`}
+      width={SOURCE_ARROW_SIZE}
+      {...props(styles.planLinkArrow)}
+    >
+      <path
+        d={`M${(to - shaft).toFixed(1)} ${(from + shaft).toFixed(1)}L${to} ${from}M${to - leg} ${from}H${to}V${from + leg}`}
+      />
+    </svg>
+  );
 }
 
 /**
@@ -578,48 +622,15 @@ function askQuestion(anchor: string) {
  * is inert: out of the tab order and unread by a screen reader, though it
  * stays in the page to animate.
  */
-function Question({
-  anchor,
-  answer,
-  question,
-}: {
-  /** The id a link elsewhere on the page goes to. Gone to, the answer opens. */
-  anchor?: string | undefined;
-  answer: ReadonlyArray<AnswerBlock>;
-  question: string;
-}) {
+function Question({ answer, question }: { answer: ReadonlyArray<AnswerBlock>; question: string }) {
   const id = useId();
   const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    if (anchor === undefined) {
-      return;
-    }
-    const openIfHere = () => {
-      if (window.location.hash === `#${anchor}`) {
-        setOpen(true);
-      }
-    };
-    // A link to it that is pressed asks for it by name: with the address
-    // already here, the press changes nothing the browser would tell of.
-    const openIfAsked = (asked: string) => {
-      if (asked === anchor) {
-        setOpen(true);
-      }
-    };
-    openIfHere();
-    window.addEventListener('hashchange', openIfHere);
-    askers.add(openIfAsked);
-    return () => {
-      window.removeEventListener('hashchange', openIfHere);
-      askers.delete(openIfAsked);
-    };
-  }, [anchor]);
   const questionId = `${id}-question`;
   const answerId = `${id}-answer`;
 
   return (
-    <div id={anchor} {...props(styles.faqItem, anchor !== undefined && styles.anchor)}>
+    <div {...props(styles.faqItem)}>
       <h3 {...props(styles.faqHeading)}>
         <button
           aria-controls={answerId}
@@ -688,7 +699,6 @@ function Promises({ promises, style }: { promises: ReadonlyArray<string>; style?
  * same ones.
  */
 function homeQuestions(): ReadonlyArray<{
-  anchor?: string;
   answer: ReadonlyArray<AnswerBlock>;
   question: string;
 }> {
@@ -733,7 +743,6 @@ function homeQuestions(): ReadonlyArray<{
       question: m.home_faq_ios27_term(),
     },
     {
-      anchor: FAQ_DATA_ID,
       answer: [
         text(m.home_faq_data_a1()),
         {
@@ -925,24 +934,26 @@ function HomePage() {
           <HowItWorks />
           <div id={SECTION.download} {...props(styles.plan, styles.anchor)}>
             {/* Where links from before the two ways were named the download
-            still land. Out of the card's grid, so it takes no cell. */}
+            still land. Out of the card's flow, so it takes no room. */}
             <span id={OLD_DOWNLOAD_ID} {...props(styles.anchor, styles.outOfFlow)} />
-            <div {...props(styles.planBody)}>
-              <div {...props(styles.planHead)}>
-                <h3 {...props(styles.planTitle, styles.planPrice)}>{m.home_how_app_price()}</h3>
-                <p {...props(styles.planSub)}>{m.home_how_app_sub()}</p>
-              </div>
-              <Promises promises={promises} />
-            </div>
-            <div {...props(styles.planFoot)}>
-              <MacDownload placement="download" />
+            <div {...props(styles.planHead)}>
+              <h3 {...props(styles.planTitle, styles.planPrice)}>{m.home_how_app_price()}</h3>
               <p {...props(styles.planSub)}>
-                <a href={`#${FAQ_DATA_ID}`} onClick={() => askQuestion(FAQ_DATA_ID)}>
-                  {m.home_how_backup_note_link()}
+                <a
+                  data-plain=""
+                  href={REPO_URL}
+                  onClick={() => posthog.capture('github_clicked', { placement: 'plan' })}
+                  rel="noreferrer"
+                  target="_blank"
+                  {...props(styles.planLink)}
+                >
+                  {m.home_how_app_sub()}
+                  <SourceArrow />
                 </a>
-                {m.home_how_backup_note({ link: LINK_SLOT }).split(LINK_SLOT)[1]}
               </p>
             </div>
+            <Promises promises={promises} />
+            <MacDownload placement="download" />
           </div>
         </section>
 
@@ -1068,12 +1079,7 @@ function HomePage() {
           <h2 {...props(styles.sectionTitle)}>{m.home_faq_title()}</h2>
           <div>
             {questions.map((entry) => (
-              <Question
-                anchor={entry.anchor}
-                answer={entry.answer}
-                key={entry.question}
-                question={entry.question}
-              />
+              <Question answer={entry.answer} key={entry.question} question={entry.question} />
             ))}
           </div>
         </section>
@@ -1086,10 +1092,7 @@ function HomePage() {
             {closeAfter}
           </h2>
           <MacDownload placement="closing" style={styles.downloadCentered} />
-          <p {...props(styles.closingNote)}>
-            <span>{m.home_hero_price()}</span>
-            <a href={GUIDE_URL}>{m.home_close_diy()}</a>
-          </p>
+          <p {...props(styles.closingNote)}>{m.home_hero_price()}</p>
         </section>
 
         <SiteFooter />

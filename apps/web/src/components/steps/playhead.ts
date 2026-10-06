@@ -14,44 +14,65 @@ import { useLessMotion } from '../../lib/use-less-motion.ts';
 const smoothOut = cubicBezier(0.22, 1, 0.36, 1);
 
 /**
- * How far a step has played, from 0 to 1, over `seconds`. It plays once from
- * the start each time `play` turns on. When `play` turns off it goes back to
- * the start: at once before it has ever played, and wound back over
- * `drawing.stepBack` after, so a drawing that plays again is seen to be
- * undone first. It stands at the end for a reader who asked for less motion,
- * and for a page that has not run its script.
+ * How far a step has played, from 0 to 1, over `seconds`, and how much of
+ * the drawing shows, from 0 to 1. It plays once from the start each time
+ * `play` turns on. When `play` turns off it goes back to the start: at once
+ * before it has ever played, and after that with nothing seen to move. The
+ * drawing fades out over `drawing.stepFade`, is put at its start while it
+ * does not show, and fades back in over the same. It stands at the end, all
+ * of it showing, for a reader who asked for less motion, and for a page that
+ * has not run its script.
  */
-export function usePlayhead(play: boolean, seconds: number): number {
+export function usePlayhead(play: boolean, seconds: number): { at: number; opacity: number } {
   const reduced = useLessMotion();
   const clock = useMotionValue(1);
+  const veil = useMotionValue(1);
   const [at, setAt] = useState(1);
+  const [opacity, setOpacity] = useState(1);
   // Until it has played, it stands at the end only because the server drew
-  // it there, and there is nothing to wind back.
+  // it there, and there is nothing to fade away.
   const played = useRef(false);
   useMotionValueEvent(clock, 'change', setAt);
+  useMotionValueEvent(veil, 'change', setOpacity);
 
   // Before the browser paints, so a step put on the page never shows its end
   // for a frame before it starts.
   useLayoutEffect(() => {
     if (reduced) {
       clock.set(1);
+      veil.set(1);
       return;
     }
     if (play) {
       played.current = true;
       clock.set(0);
+      const shown = animate(veil, 1, { duration: drawing.stepFade, ease: easeInOut });
       const playing = animate(clock, 1, { duration: seconds, ease: 'linear' });
-      return () => playing.stop();
+      return () => {
+        playing.stop();
+        shown.stop();
+      };
     }
     if (!played.current) {
       clock.set(0);
       return;
     }
-    const back = animate(clock, 0, { duration: drawing.stepBack, ease: easeInOut });
-    return () => back.stop();
-  }, [clock, play, reduced, seconds]);
+    const fade = { duration: drawing.stepFade, ease: easeInOut };
+    let back: ReturnType<typeof animate> | undefined;
+    const out = animate(veil, 0, {
+      ...fade,
+      onComplete: () => {
+        clock.set(0);
+        back = animate(veil, 1, fade);
+      },
+    });
+    return () => {
+      out.stop();
+      back?.stop();
+    };
+  }, [clock, play, reduced, seconds, veil]);
 
-  return reduced ? 1 : at;
+  return reduced ? { at: 1, opacity: 1 } : { at, opacity };
 }
 
 /**
