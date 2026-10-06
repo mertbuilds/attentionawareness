@@ -145,14 +145,20 @@ export function ChooseGraphic({
   play: boolean;
   ref?: Ref<SVGSVGElement> | undefined;
 }) {
-  const at = usePlayhead(play, drawing.stepChoose);
+  const { at, opacity } = usePlayhead(play, drawing.stepChoose);
   const picks = new Map(
     PICKS.map((row, order) => [row, { feed: FEEDS[order], ...tickAt(at, order) }]),
   );
   const pointer = pointerAt(at);
 
   return (
-    <svg aria-hidden="true" ref={ref} viewBox={`0 0 ${WIDTH} ${HEIGHT}`} {...props(styles.graphic)}>
+    <svg
+      aria-hidden="true"
+      opacity={opacity}
+      ref={ref}
+      viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+      {...props(styles.graphic)}
+    >
       <rect
         height={WINDOW.height}
         rx={WINDOW.radius}

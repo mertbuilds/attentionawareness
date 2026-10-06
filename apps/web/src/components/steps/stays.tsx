@@ -152,13 +152,19 @@ export function StaysGraphic({
   play: boolean;
   ref?: Ref<SVGSVGElement> | undefined;
 }) {
-  const at = usePlayhead(play, drawing.stepStays);
+  const { at, opacity } = usePlayhead(play, drawing.stepStays);
   const travel = stretch(at, TRAVEL.from, TRAVEL.to, easeInOut);
   const shown = stretch(at, BADGE_FROM, BADGE_FROM + 0.18);
   const shut = stretch(at, BADGE_FROM + 0.12, BADGE_FROM + 0.28, backOut);
 
   return (
-    <svg aria-hidden="true" ref={ref} viewBox={`0 0 ${WIDTH} ${HEIGHT}`} {...props(styles.graphic)}>
+    <svg
+      aria-hidden="true"
+      opacity={opacity}
+      ref={ref}
+      viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+      {...props(styles.graphic)}
+    >
       <g transform={transform(MAC)}>
         <Laptop plugged={1}>
           <MacApp progress={travel} screen="sending" />

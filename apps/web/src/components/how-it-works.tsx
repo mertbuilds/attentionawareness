@@ -17,7 +17,7 @@ import { ChooseGraphic, PlugGraphic, StaysGraphic } from './steps/index.ts';
  * step did before `SEEN`.
  */
 const WIDE_SEEN: WideLine = { amount: 0.6 };
-/** The turn in which every step goes back to its start, before the first plays again. */
+/** The turn in which every step fades out and back in at its start, before the first plays again. */
 const BACK = -1;
 /** The last run of non-blank characters in a title: its last word. */
 const LAST_WORD = /\S*$/u;
@@ -113,7 +113,8 @@ const styles = create({
 /**
  * The turn after `turn`, and how many seconds until it. A step on screen
  * plays to its end and one off screen gives up its turn at once. Once every
- * step on screen has played they rest, and then go back to their start.
+ * step on screen has played they rest, and then fade out and back in at
+ * their start.
  */
 function following(
   turn: number,
@@ -124,7 +125,7 @@ function following(
     return { next: 0, wait: 0 };
   }
   if (turn === BACK) {
-    return { next: 0, wait: drawing.stepBack };
+    return { next: 0, wait: 2 * drawing.stepFade };
   }
   if (seen.some((on, index) => on && index >= turn)) {
     return { next: turn + 1, wait: seen[turn] === true ? (seconds[turn] ?? 0) : 0 };
@@ -136,7 +137,8 @@ function following(
  * Which steps play: each while it is on screen, though not before the one
  * whose turn it is has played to its end, so steps that come on screen
  * together play one after another. Once every step on screen has played they
- * stand finished for a rest, go back to their start together and play again,
+ * stand finished for a rest, fade out and back in at their start together
+ * and play again,
  * over and over while one is on screen. A step off screen gives up its turn
  * at once, and once none is on screen the turn goes back to the first.
  */

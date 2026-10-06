@@ -6,7 +6,7 @@ import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { lazy, Suspense, useId, useState } from 'react';
 import type { ComponentProps, FC } from 'react';
-import { AngleDown, ArrowUpRight, Check } from 'reicon-react';
+import { AngleDown, Check } from 'reicon-react';
 import { PaperLetter } from '../components/bill-paper.tsx';
 import { ExtensionBrowser } from '../components/extension-browser.tsx';
 import { ANSWER_LINK, FaqAnswer } from '../components/faq-answer.tsx';
@@ -117,6 +117,14 @@ const CHEVRON_STROKE = 2.25;
 const CHECK_SIZE = 16;
 /** The arrow after the link to the source code, in pixels: its words' size. */
 const SOURCE_ARROW_SIZE = 14;
+/**
+ * The arrow's box in its 24-unit grid: the shaft runs corner to corner, and
+ * each leg of the head runs this far along a side from the top right corner,
+ * about two thirds of the side.
+ */
+const SOURCE_ARROW = { from: 6, leg: 8, to: 18 };
+/** The tick's 1.5px line, in the arrow's grid at the arrow's size. */
+const SOURCE_ARROW_STROKE = (CHEVRON_STROKE * CHECK_SIZE) / SOURCE_ARROW_SIZE;
 
 /** The hero's paper is centred on the hero, reaches toward its edges and is gone before the corners. */
 const HERO_PAPER_MASK = 'radial-gradient(ellipse at 50% 45%, black 40%, transparent 92%)';
@@ -576,6 +584,31 @@ const styles = create({
 });
 
 /**
+ * The arrow after the link to the source code, up and to the right: the
+ * diagonal of a square, and the two sides that meet at its top right corner,
+ * each cut short.
+ */
+function SourceArrow() {
+  const { from, leg, to } = SOURCE_ARROW;
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height={SOURCE_ARROW_SIZE}
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={SOURCE_ARROW_STROKE}
+      viewBox="0 0 24 24"
+      width={SOURCE_ARROW_SIZE}
+      {...props(styles.planLinkArrow)}
+    >
+      <path d={`M${from} ${to}L${to} ${from}M${to - leg} ${from}H${to}V${from + leg}`} />
+    </svg>
+  );
+}
+
+/**
  * One question, closed until it is pressed. Its answer opens under it and
  * leaves the others as they are, so two can be read at once. A closed answer
  * is inert: out of the tab order and unread by a screen reader, though it
@@ -907,12 +940,7 @@ function HomePage() {
                   {...props(styles.planLink)}
                 >
                   {m.home_how_app_sub()}
-                  <ArrowUpRight
-                    aria-hidden="true"
-                    size={SOURCE_ARROW_SIZE}
-                    strokeWidth={CHEVRON_STROKE}
-                    {...props(styles.planLinkArrow)}
-                  />
+                  <SourceArrow />
                 </a>
               </p>
             </div>

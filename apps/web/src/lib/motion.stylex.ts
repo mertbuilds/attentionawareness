@@ -66,13 +66,14 @@ export const scale = defineConsts({
  * above fits them; they are kept together here so they can be slowed or
  * quickened at once. The way out's three steps play over `stepPlug`,
  * `stepChoose` and `stepStays`, one after another, stand finished for
- * `stepRest`, go back to their start over `stepBack` and play again. In the
+ * `stepRest`, fade out over `stepFade`, stand at their start unseen, fade
+ * back in over `stepFade` and play again. In the
  * uses, a loss's icon moves and the loss is struck through over `loss`.
  */
 export const drawing = defineConsts({
   loss: 2.4,
-  stepBack: 0.4,
   stepChoose: 3.2,
+  stepFade: 0.2,
   stepPlug: 3.4,
   stepRest: 1.8,
   stepStays: 3,
