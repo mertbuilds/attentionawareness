@@ -4,7 +4,7 @@ import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.sty
 import { create, defaultMarker, props, when } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
-import { lazy, Suspense, useEffect, useId, useState } from 'react';
+import { lazy, Suspense, useId, useState } from 'react';
 import type { ComponentProps, FC } from 'react';
 import { AngleDown, Check } from 'reicon-react';
 import { PaperLetter } from '../components/bill-paper.tsx';
@@ -76,8 +76,6 @@ function signLines(text: string): Array<string> {
 }
 /** The brand in prose, the way the root document spells it. */
 const SITE_NAME = 'attention awareness';
-/** The question about losing data, which the line under the download goes to. */
-const FAQ_DATA_ID = 'faq-data';
 /** The id the download's section had, kept as an empty anchor for old links. */
 const OLD_DOWNLOAD_ID = 'pricing';
 /** The extension's privacy page. */
@@ -409,9 +407,8 @@ const styles = create({
     textAlign: 'center',
   },
   // The way out: the app's card, in the orange the page recommends it by.
-  // Its name, what it is and what it keeps, with its button and the line
-  // about backing up beside them at the card's foot on a wide window, and
-  // under them on a narrow one.
+  // Its name, what it is and what it keeps, with its button beside them at
+  // the card's foot on a wide window, and under them on a narrow one.
   plan: {
     alignItems: {
       '@media (min-width: 768px)': 'end',
@@ -438,14 +435,6 @@ const styles = create({
     flexDirection: 'column',
     gap: spacing.s4,
     maxWidth: '40ch',
-  },
-  // The card's button with the line about backing up under it.
-  planFoot: {
-    alignItems: 'flex-start',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s3,
-    maxWidth: '32ch',
   },
   // The name, and what it is close under it.
   planHead: {
@@ -562,64 +551,21 @@ const styles = create({
   },
 });
 
-/** The questions that can be asked for by name, each told when one is. */
-const askers = new Set<(anchor: string) => void>();
-
-/** Opens the question with that anchor, as a link to it does when pressed. */
-function askQuestion(anchor: string) {
-  for (const asker of askers) {
-    asker(anchor);
-  }
-}
-
 /**
  * One question, closed until it is pressed. Its answer opens under it and
  * leaves the others as they are, so two can be read at once. A closed answer
  * is inert: out of the tab order and unread by a screen reader, though it
  * stays in the page to animate.
  */
-function Question({
-  anchor,
-  answer,
-  question,
-}: {
-  /** The id a link elsewhere on the page goes to. Gone to, the answer opens. */
-  anchor?: string | undefined;
-  answer: ReadonlyArray<AnswerBlock>;
-  question: string;
-}) {
+function Question({ answer, question }: { answer: ReadonlyArray<AnswerBlock>; question: string }) {
   const id = useId();
   const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    if (anchor === undefined) {
-      return;
-    }
-    const openIfHere = () => {
-      if (window.location.hash === `#${anchor}`) {
-        setOpen(true);
-      }
-    };
-    // A link to it that is pressed asks for it by name: with the address
-    // already here, the press changes nothing the browser would tell of.
-    const openIfAsked = (asked: string) => {
-      if (asked === anchor) {
-        setOpen(true);
-      }
-    };
-    openIfHere();
-    window.addEventListener('hashchange', openIfHere);
-    askers.add(openIfAsked);
-    return () => {
-      window.removeEventListener('hashchange', openIfHere);
-      askers.delete(openIfAsked);
-    };
-  }, [anchor]);
   const questionId = `${id}-question`;
   const answerId = `${id}-answer`;
 
   return (
-    <div id={anchor} {...props(styles.faqItem, anchor !== undefined && styles.anchor)}>
+    <div {...props(styles.faqItem)}>
       <h3 {...props(styles.faqHeading)}>
         <button
           aria-controls={answerId}
@@ -688,7 +634,6 @@ function Promises({ promises, style }: { promises: ReadonlyArray<string>; style?
  * same ones.
  */
 function homeQuestions(): ReadonlyArray<{
-  anchor?: string;
   answer: ReadonlyArray<AnswerBlock>;
   question: string;
 }> {
@@ -733,7 +678,6 @@ function homeQuestions(): ReadonlyArray<{
       question: m.home_faq_ios27_term(),
     },
     {
-      anchor: FAQ_DATA_ID,
       answer: [
         text(m.home_faq_data_a1()),
         {
@@ -934,15 +878,7 @@ function HomePage() {
               </div>
               <Promises promises={promises} />
             </div>
-            <div {...props(styles.planFoot)}>
-              <MacDownload placement="download" />
-              <p {...props(styles.planSub)}>
-                <a href={`#${FAQ_DATA_ID}`} onClick={() => askQuestion(FAQ_DATA_ID)}>
-                  {m.home_how_backup_note_link()}
-                </a>
-                {m.home_how_backup_note({ link: LINK_SLOT }).split(LINK_SLOT)[1]}
-              </p>
-            </div>
+            <MacDownload placement="download" />
           </div>
         </section>
 
@@ -1068,12 +1004,7 @@ function HomePage() {
           <h2 {...props(styles.sectionTitle)}>{m.home_faq_title()}</h2>
           <div>
             {questions.map((entry) => (
-              <Question
-                anchor={entry.anchor}
-                answer={entry.answer}
-                key={entry.question}
-                question={entry.question}
-              />
+              <Question answer={entry.answer} key={entry.question} question={entry.question} />
             ))}
           </div>
         </section>
