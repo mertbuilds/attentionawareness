@@ -23,8 +23,9 @@ const beat = keyframes({
 });
 
 const styles = create({
-  // The two ways to support, side by side. In a narrow window they stand one
-  // under the other, each as wide as the panel.
+  // The ways to support, side by side, and on to a second line where the
+  // panel is too narrow for them all. In a narrow window they stand one under
+  // the other, each as wide as the panel.
   actions: {
     alignItems: {
       '@media (max-width: 479px)': 'stretch',
@@ -35,6 +36,7 @@ const styles = create({
       '@media (max-width: 479px)': 'column',
       default: 'row',
     },
+    flexWrap: 'wrap',
     gap: spacing.s2,
     marginBlockStart: spacing.s2,
   },
@@ -153,6 +155,14 @@ const styles = create({
     lineHeight: 1.2,
     paddingInlineEnd: spacing.s8,
   },
+  // A panel with three buttons in its row: wide enough for them side by side,
+  // and never wider than the window less its gutters.
+  wide: {
+    maxWidth: {
+      '@media (min-width: 640px)': '30rem',
+      default: 'calc(100% - 2rem)',
+    },
+  },
   // Why the popup is here, in the ink, where the line above it is muted.
   why: {
     color: colors.fg,
@@ -173,7 +183,8 @@ export const popupWhy: StyleXStyles = styles.why;
  * The panel the site's popups share: it opens over the dimmed page in the
  * middle of the window, with its title and a close button in its corner.
  * Escape, a press outside it and the close button close it. `finalFocus` says
- * where focus goes then; left out, it goes back to where it was.
+ * where focus goes then; left out, it goes back to where it was. `wide` is
+ * for a popup whose row of buttons needs more room than the panel has.
  */
 export function PopupShell({
   children,
@@ -181,12 +192,14 @@ export function PopupShell({
   onClose,
   open,
   title,
+  wide = false,
 }: {
   children: ReactNode;
   finalFocus?: ComponentProps<typeof DialogContent>['finalFocus'];
   onClose: () => void;
   open: boolean;
   title: ReactNode;
+  wide?: boolean;
 }) {
   return (
     <Dialog
@@ -203,7 +216,7 @@ export function PopupShell({
         {...(finalFocus === undefined ? {} : { finalFocus })}
         overlayStyle={styles.backdrop}
         showCloseButton={false}
-        style={styles.panel}
+        style={[styles.panel, wide && styles.wide]}
       >
         <DialogTitle style={styles.title}>{title}</DialogTitle>
         {children}
