@@ -39,7 +39,9 @@ path that keeps the data. Both are free, and so is the extension: the Mac app
 has had no license key step since 0.4.0, and people can support the work on a
 pay-what-you-want Polar checkout, which the home page links. The Mac app is
 open source under AGPL-3.0 and lives in `apps/mac`. The site, the extension
-and the shared packages are MIT. The site names the licences only in the FAQ.
+and the shared packages are MIT. The home page no longer names the licences:
+its plan card links the code, and `LICENSE` and `apps/mac/LICENSE` hold the
+texts.
 Why: `docs/adr/0006-free-with-support.md`.
 
 ## Commands

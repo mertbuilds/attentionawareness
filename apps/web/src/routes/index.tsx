@@ -733,14 +733,6 @@ function objectionQuestions(): ReadonlyArray<Entry> {
 function homeQuestions(): ReadonlyArray<Entry> {
   return [
     {
-      answer: [text(m.home_faq_free_a1()), text(m.home_faq_free_a2())],
-      question: m.home_faq_free_term(),
-    },
-    {
-      answer: [text(m.home_faq_supervision_a1()), text(m.home_faq_supervision_a2())],
-      question: m.home_faq_supervision_term(),
-    },
-    {
       answer: [
         text(m.home_faq_needs_a1()),
         dots([
@@ -806,11 +798,6 @@ function homeQuestions(): ReadonlyArray<Entry> {
       ],
       question: m.home_faq_data_term(),
     },
-    { answer: [text(m.home_faq_time_a1())], question: m.home_faq_time_term() },
-    {
-      answer: [text(m.home_faq_fail_a1()), text(m.home_faq_fail_a2())],
-      question: m.home_faq_fail_term(),
-    },
     {
       answer: [text(m.home_faq_trial_a1()), text(m.home_faq_trial_a2())],
       question: m.home_faq_trial_term(),
@@ -824,33 +811,8 @@ function homeQuestions(): ReadonlyArray<Entry> {
       question: m.home_faq_undo_term(),
     },
     {
-      answer: [
-        text(m.home_faq_apps_a1()),
-        dots([m.home_faq_apps_item_store(), m.home_faq_apps_item_rest()]),
-      ],
-      question: m.home_faq_apps_term(),
-    },
-    {
       answer: [text(m.home_faq_see_a1()), text(m.home_faq_see_a2())],
       question: m.home_faq_see_term(),
-    },
-    {
-      answer: [
-        text(m.home_faq_source_a1()),
-        dots([m.home_faq_source_item_mac(), m.home_faq_source_item_rest()]),
-      ],
-      question: m.home_faq_source_term(),
-    },
-    {
-      answer: [
-        {
-          kind: 'text',
-          link: { href: '/guide', label: m.home_faq_manual_a1_link() },
-          text: m.home_faq_manual_a1({ guide: ANSWER_LINK }),
-        },
-        text(m.home_faq_manual_a2()),
-      ],
-      question: m.home_faq_manual_term(),
     },
     {
       answer: [text(m.home_faq_other_platforms_a1()), text(m.home_faq_other_platforms_a2())],
