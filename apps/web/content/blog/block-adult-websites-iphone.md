@@ -109,7 +109,7 @@ It is a filter. It does not catch everything.
 - **Other browsers may behave differently.** A browser that does not use the system web view may not follow the filter.
 - **It only covers this iPhone.** Other devices need their own setup. The Mac app supports iPhone only today.
 
-So pair the filter with two more rules. Block the specific websites you know about, and hide the apps that are a problem for you. See [how to block any app on an iPhone](/blog/block-any-app-iphone).
+So pair the filter with two more rules. Block the specific websites you know about, and hide the apps that are a problem for you. See [how to block websites on an iPhone](/blog/block-websites-iphone) and [how to block any app on an iPhone](/blog/block-any-app-iphone).
 
 A filter is a tool, not treatment. If this topic affects your daily life, a doctor or a licensed therapist can help.
 

@@ -624,7 +624,10 @@ const pages: Array<Card> = [
 const POST_ART: Record<string, { art: string; width: number }> = {
   'block-adult-websites-iphone': { art: otherUseGlyph('eye'), width: 300 },
   'block-any-app-iphone': { art: otherUseGlyph('apps'), width: 300 },
+  'block-websites-iphone': { art: browserWindow(), width: 300 },
+  'block-youtube-iphone': { art: phoneStruck(), width: 250 },
   'iphone-parental-controls-kids-cannot-turn-off': { art: otherUseGlyph('lock'), width: 300 },
+  'lock-apps-iphone': { art: otherUseGlyph('lock'), width: 300 },
   'supervise-iphone-ios-27-without-erasing': { art: phoneKept(), width: 250 },
   'turn-iphone-into-dumbphone': { art: phoneKept(), width: 250 },
   'why-screen-time-does-not-work': { art: phoneScreenTime(), width: 250 },
