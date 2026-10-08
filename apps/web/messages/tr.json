@@ -6,8 +6,8 @@
   "not_found_head_title": "Bulunamadı",
   "not_found_title": "Böyle bir sayfa yok",
   "not_found_home": "Ana sayfaya git",
-  "home_head_title": "iPhone'da dikkat dağıtanları kalıcı olarak engelle",
-  "home_meta_description": "iPhone'unda her şeyi engellemene yardım eden ücretsiz bir Mac uygulaması: uygulamalar, siteler ve bağımlılık yapan akışlar. Daha az ekran süresi, kalıcı olarak. iPhone'a hiçbir şey kurulmaz. iPhone silinmez.",
+  "home_head_title": "iPhone'da uygulamaları ve siteleri engelle, kalıcı olarak",
+  "home_meta_description": "iPhone'undaki her uygulamayı ve siteyi kalıcı olarak engelleyen ücretsiz bir Mac uygulaması. iPhone'a hiçbir şey kurulmaz ve iPhone silinmez.",
   "home_hero_title": "iPhone'unda {distraction} engelle {permanently}",
   "home_hero_title_distraction": "dikkat dağıtanları",
   "home_hero_title_accent": "Kalıcı olarak",
@@ -227,5 +227,6 @@
   "gen_web_row_delete_confirm": "{site} adresini kaldır, onaylamak için tekrar tıkla",
   "gen_web_row_edit": "{site} adresini düzenle",
   "gen_web_title": "Web siteleri",
-  "footer_tagline": "iPhone'unda her şeyi engellemene yardım eden ücretsiz bir Mac uygulaması. Kalıcı olarak."
+  "footer_tagline": "iPhone'unda her şeyi engellemene yardım eden ücretsiz bir Mac uygulaması. Kalıcı olarak.",
+  "footer_post_ios27": "iOS 27'de denetim"
 }

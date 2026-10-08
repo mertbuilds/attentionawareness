@@ -54,6 +54,7 @@ const POSTS = [
   { label: m.footer_post_screen_time, slug: 'why-screen-time-does-not-work' },
   { label: m.footer_post_any_app, slug: 'block-any-app-iphone' },
   { label: m.footer_post_adult, slug: 'block-adult-websites-iphone' },
+  { label: m.footer_post_ios27, slug: 'supervise-iphone-ios-27-without-erasing' },
   { label: m.footer_post_parental, slug: 'iphone-parental-controls-kids-cannot-turn-off' },
   { label: m.footer_post_work, slug: 'work-iphones-without-mdm' },
 ] as const;
