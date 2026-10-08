@@ -30,7 +30,7 @@ Limit Adult Websites also turns on Apple's filter for adult websites. That filte
 
 ### On iOS 27
 
-1. Open the Settings app and tap Screen Time. For a child in your Family Sharing group, tap Family and then your child's name.
+1. Open the Settings app and tap Screen Time. For a child in your Family Sharing group, tap Family in Settings instead, and then your child's name.
 2. Open Apps & Websites. Enter your Screen Time passcode if the iPhone asks for it.
 3. Tap the Add button and enter the name of the website. Choose to block it.
 4. To check the list, open the Blocked tab. To block a website that is already on the Allowed list, select it and tap Block Website, then tap again to confirm.
