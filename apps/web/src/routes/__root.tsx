@@ -23,7 +23,7 @@ import '../app.css';
 
 if (import.meta.env.DEV && typeof window !== 'undefined') {
   // Dev-only: the knobs panel emulates scheme, motion, locale and width in place. It also
-  // provides grab: hold cmd+C to pick an element and copy its context.
+  // provides grab: press shift+G to pick an element and copy its context.
   const knobs = await import('devknobs');
   knobs.mount();
   // Dev-only: StyleX HMR runtime injects styles; production CSS is emitted into app.css at build.
