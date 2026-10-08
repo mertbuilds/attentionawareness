@@ -46,6 +46,11 @@ const styles = create({
     lineHeight: 1,
     transform: 'translateY(1px)',
   },
+  // The button while it has no address: nothing on it answers a pointer.
+  reading: {
+    cursor: 'default',
+    pointerEvents: 'none',
+  },
 });
 
 /**
@@ -170,7 +175,11 @@ export function MacDownload({ placement, style }: { placement: Placement; style?
   if (download.kind === 'unreleased') {
     action = <Button disabled>{m.mac_download_unreleased()}</Button>;
   } else if (download.kind === 'reading') {
-    action = <Button render={<a />}>{cta}</Button>;
+    action = (
+      <Button render={<a aria-disabled="true" role="link" />} style={styles.reading}>
+        {cta}
+      </Button>
+    );
   } else if (download.kind === 'phone') {
     action = (
       <Button aria-haspopup="dialog" onClick={download.open}>

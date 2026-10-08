@@ -236,7 +236,7 @@ function phoneKept(): string {
   return svg(phoneBox(), phoneFrame() + apps.join(''));
 }
 
-/** The phone's Screen Time as the hero leaves it: the lower average, what it was, and the week's bars. */
+/** The phone's Screen Time as the profile leaves it: the lower average, what it was, and the week's bars. */
 function phoneScreenTime(): string {
   const panel = { height: 86, inset: 6, radius: 6, width: 64, x: PHONE.x + 8, y: 42 };
   const textX = panel.x + panel.inset;
@@ -265,15 +265,15 @@ function phoneScreenTime(): string {
   return svg(
     phoneBox(),
     phoneFrame(0) +
-      `<text x="${panel.x + 1}" y="${panel.y - 6}" font-size="5.5" fill="${FG}" font-weight="500">${escape(message('hero_phone_panel'))}</text>` +
+      `<text x="${panel.x + 1}" y="${panel.y - 6}" font-size="5.5" fill="${FG}" font-weight="500">${escape(message('og_screen_time_panel'))}</text>` +
       `<rect x="${panel.x}" y="${panel.y}" width="${panel.width}" height="${panel.height}" rx="${panel.radius}" ${line(BORDER, FAINT)}/>` +
-      text(4.2, panel.y + 11, MUTED, message('hero_phone_average')) +
-      `<text x="${textX}" y="${panel.y + 25}" font-size="12" fill="${FG}" font-weight="500" letter-spacing="-0.24">${escape(message('hero_phone_after'))}</text>` +
+      text(4.2, panel.y + 11, MUTED, message('og_screen_time_average')) +
+      `<text x="${textX}" y="${panel.y + 25}" font-size="12" fill="${FG}" font-weight="500" letter-spacing="-0.24">${escape(message('og_screen_time_after'))}</text>` +
       text(
         4.2,
         panel.y + 32.5,
         ORANGE,
-        message('hero_phone_was').replace('{time}', message('hero_phone_before')),
+        message('og_screen_time_was').replace('{time}', message('og_screen_time_before')),
       ) +
       week.join(''),
   );

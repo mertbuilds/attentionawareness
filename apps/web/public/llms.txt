@@ -4,7 +4,7 @@
 
 ## Product
 
-- [Home page](https://attentionawareness.com/): The free Mac app that blocks any app or website on an iPhone, how it works, and answers to common questions.
+- [Home page](https://attentionawareness.com/): The free Mac app that blocks any app or website on an iPhone, how it works, the maker's screen time before and after (more than 5 hours a day, now 1 hour 45 minutes), why Screen Time and self-control are not enough, the browser extension, how to support the work, and seven common questions.
 - [Manual guide](https://attentionawareness.com/guide): Supervise your iPhone with Apple Configurator on a Mac, then install a profile that blocks addictive feeds. It is free, and it erases the iPhone.
 - [Profile builder](https://attentionawareness.com/build): Pick the apps and websites to block on a supervised iPhone, then download a signed profile.
 - [Open numbers](https://attentionawareness.com/open): The real numbers of the website, shown to everyone: visitors, page views, bounce rate, session length, where visitors come from and Mac downloads.

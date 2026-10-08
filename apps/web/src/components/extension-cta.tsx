@@ -26,8 +26,8 @@ const styles = create({
 
 /**
  * The extension's label after the mark of the reader's own browser, when it
- * is one the extension installs in. Chrome's mark stands for every other one,
- * and for the server, which cannot tell.
+ * is one whose mark `lib/browser.ts` has. Chrome's mark stands for every
+ * other one, Edge among them, and for the server, which cannot tell.
  */
 export function ExtensionCta({ label }: { label: string }) {
   const browser = useBrowser();

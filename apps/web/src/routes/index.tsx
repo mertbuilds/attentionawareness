@@ -711,8 +711,9 @@ type Entry = { answer: ReadonlyArray<AnswerBlock>; question: string };
 
 /**
  * The three doubts a reader has once the way is told: Screen Time,
- * self-control and the fear of an erased iPhone. They stand under what it
- * blocks, and the head tells search engines them with the questions below.
+ * self-control and the fear of an erased iPhone. They stand under what the
+ * hours are for, and the head tells search engines them with the questions
+ * below.
  */
 function objectionQuestions(): ReadonlyArray<Entry> {
   return [

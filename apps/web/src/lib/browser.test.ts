@@ -20,9 +20,9 @@ test('Chrome is told by its brand, or by its agent alone', () => {
   assert.equal(detectBrowser(signs({})), 'chrome');
 });
 
-test('Edge is told by its brand, or by its agent', () => {
-  assert.equal(detectBrowser(signs({ brands: ['Chromium', 'Microsoft Edge'] })), 'edge');
-  assert.equal(detectBrowser(signs({ userAgent: `${CHROME_AGENT} Edg/140.0.0.0` })), 'edge');
+test('Edge has no mark, and counts as Chrome by its agent', () => {
+  assert.equal(detectBrowser(signs({ brands: ['Chromium', 'Microsoft Edge'] })), 'chrome');
+  assert.equal(detectBrowser(signs({ userAgent: `${CHROME_AGENT} Edg/140.0.0.0` })), 'chrome');
 });
 
 test('Brave is told by its own object, though its brands say Chromium', () => {
