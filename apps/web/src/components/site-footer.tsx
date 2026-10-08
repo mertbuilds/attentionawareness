@@ -3,7 +3,7 @@ import { colors, font, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, defaultMarker, firstThatWorks, keyframes, props, when } from '@stylexjs/stylex';
 import { useLocation } from '@tanstack/react-router';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
-import type { ReactNode, RefObject } from 'react';
+import type { ReactNode } from 'react';
 import { Heart, Star } from 'reicon-react';
 import { posthog } from '../lib/analytics.ts';
 import { posts } from '../lib/blog.ts';
@@ -32,13 +32,6 @@ const BUILDER_URL =
 const STORE_URL =
   'https://chromewebstore.google.com/detail/attention-awareness/lgcijcijcndmggjiioibfcmppndfakee?utm_source=attentionawareness.com&utm_medium=referral&utm_campaign=footer';
 const SUPPORT_URL = supportUrl('footer');
-/** What GitHub tells anyone about the repo, its stars among it. */
-const REPO_API = 'https://api.github.com/repos/mertbuilds/attentionawareness';
-/** Where the star count is kept for the rest of a tab's session. */
-const STARS_KEY = 'aa-github-stars';
-/** How far under the window the footer is when the star count is asked for. */
-const STARS_MARGIN = '400px';
-const STAR_COUNT = new Intl.NumberFormat('en-US');
 /** The mark on the brand's line, as large as the header draws it. */
 const MARK_SIZE = 24;
 /** An icon before a link, as tall as the link's letters are set. */
@@ -151,10 +144,6 @@ const styles = create({
       default: 'minmax(0, 1fr)',
     },
     rowGap: spacing.s8,
-  },
-  // The star count after the ask, in figures that keep one width.
-  count: {
-    fontVariantNumeric: 'tabular-nums',
   },
   // Who made this. It gives way to the controls beside it and wraps, and on a
   // phone takes the row to itself.
@@ -367,87 +356,6 @@ type FooterLink = {
   onClick?: () => void;
 };
 
-/**
- * The repo's star count, asked of GitHub once a page and kept for the tab's
- * session. Only a count GitHub gave is kept: an answer that failed is not, so
- * the next page asks again.
- */
-let starsAsked: Promise<number> | undefined;
-
-async function askStars(): Promise<number> {
-  try {
-    const kept = sessionStorage.getItem(STARS_KEY);
-    if (kept !== null) {
-      return Number(kept) || 0;
-    }
-  } catch {
-    // No storage to read: GitHub is asked.
-  }
-  let count: number | undefined;
-  try {
-    const response = await fetch(REPO_API);
-    const repo: unknown = response.ok ? await response.json() : undefined;
-    if (
-      typeof repo === 'object' &&
-      repo !== null &&
-      'stargazers_count' in repo &&
-      typeof repo.stargazers_count === 'number'
-    ) {
-      count = repo.stargazers_count;
-    }
-  } catch {
-    // GitHub did not answer. The count stays off the page.
-  }
-  if (count === undefined) {
-    starsAsked = undefined;
-    return 0;
-  }
-  try {
-    sessionStorage.setItem(STARS_KEY, String(count));
-  } catch {
-    // A private window keeps nothing. The next page asks again.
-  }
-  return count;
-}
-
-/**
- * How many stars the repo has, or zero until GitHub has answered and for good
- * where it does not. GitHub is asked only once the element in `near` is close
- * to the window, so a reader who never reaches the footer sends it nothing.
- */
-function useStars(near: RefObject<Element | null>): number {
-  const [stars, setStars] = useState(0);
-
-  useEffect(() => {
-    const element = near.current;
-    if (element === null) {
-      return;
-    }
-    let live = true;
-    const watch = new IntersectionObserver(
-      async (entries) => {
-        if (!entries.some((entry) => entry.isIntersecting)) {
-          return;
-        }
-        watch.disconnect();
-        starsAsked ??= askStars();
-        const count = await starsAsked;
-        if (live) {
-          setStars(count);
-        }
-      },
-      { rootMargin: STARS_MARGIN },
-    );
-    watch.observe(element);
-    return () => {
-      live = false;
-      watch.disconnect();
-    };
-  }, [near]);
-
-  return stars;
-}
-
 /** A column of links under its name. */
 function Column({ links, title }: { links: ReadonlyArray<FooterLink>; title: string }) {
   const heading = useId();
@@ -502,7 +410,6 @@ const onGitHub = () => posthog.capture('github_clicked', { placement: 'footer' }
 export function SiteFooter({ children }: { children?: ReactNode | undefined }) {
   const footer = useRef<HTMLElement>(null);
   const stage = useRef<HTMLDivElement>(null);
-  const stars = useStars(footer);
   const reduced = useLessMotion();
   const seen = useSeen(stage, { once: true });
   // Whether the name was under the window as the page came alive.
@@ -620,7 +527,6 @@ export function SiteFooter({ children }: { children?: ReactNode | undefined }) {
                   />
                 </span>
                 {m.footer_star()}
-                {stars > 0 && <span {...props(styles.count)}>{STAR_COUNT.format(stars)}</span>}
               </a>
             </li>
           </ul>
