@@ -312,13 +312,19 @@ const styles = create({
     display: 'flex',
     flexDirection: 'column',
     maxWidth: HERO_WIDTH,
-    paddingBlockEnd: spacing.s8,
+    // More air under the price than the gap between two sections gives by
+    // itself, so the claim stands apart from how it works. A phone's gap is
+    // wide enough with the small step.
+    paddingBlockEnd: {
+      '@media (min-width: 640px)': `calc(${spacing.s16} + ${spacing.s12})`,
+      default: spacing.s8,
+    },
     // Clear of the header strip over the top of the window, and wide air
-    // under it before the claim: two of the scale's largest steps, one on a
-    // phone.
+    // under it before the claim: three of the scale's largest steps, one and
+    // a half on a phone.
     paddingBlockStart: {
-      '@media (min-width: 640px)': `calc(${brandBar.height} + 2 * ${spacing.s16})`,
-      default: `calc(${brandBar.height} + ${spacing.s16})`,
+      '@media (min-width: 640px)': `calc(${brandBar.height} + 3 * ${spacing.s16})`,
+      default: `calc(${brandBar.height} + ${spacing.s16} + ${spacing.s8})`,
     },
     width: '100%',
   },
