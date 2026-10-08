@@ -2,7 +2,6 @@ import { Button } from '@attentionawareness/ui';
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, defaultMarker, props, when } from '@stylexjs/stylex';
-import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { lazy, Suspense, useId, useState } from 'react';
 import type { ComponentProps, FC } from 'react';
@@ -68,7 +67,7 @@ export const Route = createFileRoute('/')({
  * them, so the page's widest gap is the one measure written out here.
  */
 const SECTION_GAP = '96px';
-/** The column every section stands in, and the first screen too once it is stacked. */
+/** The column every section stands in. */
 const COLUMN_WIDTH = 760;
 /** The sign-off's lines: the name before its first comma, the place and date after it. */
 function signLines(text: string): Array<string> {
@@ -87,12 +86,10 @@ const EXTENSION_PRIVACY_PATH = '/extension/privacy';
  */
 const LETTER_FACE = "'Special Elite', 'Courier New', ui-monospace, monospace";
 /**
- * The first screen side by side: wider than the column, so the words keep a
- * readable measure next to the scene.
+ * The first screen: wider than the column, so the scene under the words is
+ * drawn large, the whole of this width.
  */
 const HERO_WIDTH = 1160;
-/** The scene's column beside the words, as wide as the scene is drawn there. */
-const HERO_SCENE_WIDTH = 520;
 /** Every link off this site carries utm tags, so the visit is traced to this page. */
 const STORE_URL =
   'https://chromewebstore.google.com/detail/attention-awareness/lgcijcijcndmggjiioibfcmppndfakee?utm_source=attentionawareness.com&utm_medium=referral&utm_campaign=home';
@@ -202,8 +199,7 @@ const styles = create({
     margin: 0,
     textWrap: 'balance',
   },
-  // A phone's note and its button stand in the middle, under the words above
-  // them.
+  // A download's button stands in the middle, under the words above it.
   downloadCentered: {
     alignItems: 'center',
   },
@@ -314,36 +310,21 @@ const styles = create({
     textWrap: 'pretty',
     width: '100%',
   },
-  // The first screen: the claim, what makes it last and the download beside
-  // the scene: the Mac app, the cable and the phone the blocked apps leave.
-  // Too narrow for two columns, the scene stands under the words and the hero
-  // narrows to the column, so every left edge lines up. It fills the window
-  // under the work-in-progress strip, so the first section waits below the
-  // fold, and stands in the middle of the room under the header. `svh` so a
-  // phone's collapsing toolbar does not move it, `vh` where a browser has no
-  // `svh`.
+  // The first screen, in one column down the middle: the claim, what the
+  // product is and the download, then the scene across the hero's whole
+  // width: the MacBook with the app on it, the cable and the phone the
+  // blocked apps leave. It starts close under the header strip and its parts
+  // stand close together, so the words, the button and most of the MacBook
+  // are on the first screen of a laptop.
   hero: {
-    alignContent: 'center',
     alignItems: 'center',
     boxSizing: 'border-box',
-    columnGap: spacing.s16,
-    display: 'grid',
-    gridTemplateColumns: {
-      '@media (min-width: 1100px)': `minmax(0, 1fr) ${HERO_SCENE_WIDTH}px`,
-      default: 'minmax(0, 1fr)',
-    },
-    maxWidth: {
-      '@media (min-width: 1100px)': HERO_WIDTH,
-      default: COLUMN_WIDTH,
-    },
-    minHeight: {
-      '@supports (height: 100svh)': '100svh',
-      default: '100vh',
-    },
-    paddingBlockEnd: spacing.s12,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s8,
+    maxWidth: HERO_WIDTH,
     // Clear of the header strip over the top of the window, and a step more.
-    paddingBlockStart: `calc(${brandBar.height} + ${spacing.s12})`,
-    rowGap: spacing.s12,
+    paddingBlockStart: `calc(${brandBar.height} + ${spacing.s8})`,
     width: '100%',
   },
   // A word a sentence turns on, in the one orange.
@@ -361,13 +342,13 @@ const styles = create({
   },
   // The download, and the price close under it.
   heroAction: {
-    alignItems: 'flex-start',
+    alignItems: 'center',
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s3,
   },
   // What the product is, in one line under the claim: larger than the
-  // promises, far smaller than the claim.
+  // page's prose, far smaller than the claim.
   heroLead: {
     fontSize: font.sizeLg,
     fontWeight: font.weightRegular,
@@ -381,14 +362,13 @@ const styles = create({
     lineHeight: 1.5,
     margin: 0,
   },
-  // Why it lasts, under the claim: the price box's ticked list, a step quieter.
-  heroPromises: {
-    color: colors.muted,
-  },
+  // The hero's words, each line in the middle of the hero.
   heroText: {
+    alignItems: 'center',
     display: 'flex',
     flexDirection: 'column',
-    gap: spacing.s6,
+    gap: spacing.s4,
+    textAlign: 'center',
   },
   page: {
     alignItems: 'center',
@@ -702,9 +682,9 @@ function dots(items: ReadonlyArray<string>, label?: string): AnswerBlock {
 }
 
 /** Promises in a list, each after its tick. */
-function Promises({ promises, style }: { promises: ReadonlyArray<string>; style?: StyleXStyles }) {
+function Promises({ promises }: { promises: ReadonlyArray<string> }) {
   return (
-    <ul {...props(styles.promises, style)}>
+    <ul {...props(styles.promises)}>
       {promises.map((promise) => (
         <li key={promise} {...props(styles.promise)}>
           <Check
@@ -894,13 +874,6 @@ function HomePage() {
     .home_hero_title({ permanently: SECOND_SLOT, screen_time: LINK_SLOT })
     .split(SLOTS);
 
-  // Why the lock lasts, each with its tick.
-  const heroPromises = [
-    m.home_hero_promise_install(),
-    m.home_hero_promise_keep(),
-    m.home_hero_promise_sticks(),
-  ];
-
   // What the browser extension does: a short name each, and a line under it.
   // The post the story links out to, in the middle of the sentence that tells
   // it, so the words around it keep their own order in every language.
@@ -935,9 +908,9 @@ function HomePage() {
       {/* The graph paper the first screen stands on, fading out before the
       first section. */}
       <GridTexture style={styles.heroPaper} />
-      {/* The first screen: the claim, what the product is, why it lasts, and
-      the download with its price, next to the Mac app, the cable and the
-      phone the blocked apps leave. */}
+      {/* The first screen: the claim, what the product is and the download
+      with its price, in the middle, and under them the MacBook with the app
+      on it, the cable and the phone the blocked apps leave. */}
       <header {...props(styles.hero)}>
         <div {...props(styles.heroText)}>
           <h1 {...props(styles.displayTitle)}>
@@ -958,9 +931,8 @@ function HomePage() {
             })}
           </h1>
           <p {...props(styles.heroLead)}>{m.home_hero_lead()}</p>
-          <Promises promises={heroPromises} style={styles.heroPromises} />
           <div {...props(styles.heroAction)}>
-            <MacDownload placement="hero" />
+            <MacDownload placement="hero" style={styles.downloadCentered} />
             <p {...props(styles.heroPrice)}>{m.home_hero_price()}</p>
           </div>
         </div>

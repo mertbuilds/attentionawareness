@@ -27,8 +27,8 @@ import { stretch } from './steps/playhead.ts';
  * what it is. A feed is an app, drawn by its bundle id, and `slot` is where
  * its icon stands on the phone's home screen (`APPS`). The last is a website,
  * by its address. Both names are the same in every language. The list in the
- * Mac app's window, the phone's home screen and the daily average all come
- * from this table, the feeds first.
+ * Mac app's window, on a wide window and on a phone, the phone's home screen
+ * and the daily average all come from this table, the feeds first.
  */
 type Row = { minutes: number } & ({ feed: string; name: string; slot: number } | { site: string });
 const ROWS: ReadonlyArray<Row> = [
@@ -130,34 +130,40 @@ const STILL = [
 ] as const;
 
 /**
- * The scene on a wide window, in pixels at its full size: the Mac app's
- * window at the left, the iPhone in front of it over its right edge and a
- * step lower, and the cable hanging from the window's lower edge to the plug
- * in the phone's foot (`plug`, the middle of its top). The scene is as wide
- * as `width` at most, less on a short window, and never under `SCENE_MIN`.
- * `SCENE_CLEARANCE` is the height around it on the first screen: the header,
- * the hero's padding and room under its foot.
+ * The scene on a wide window, in pixels at its full size, the hero's whole
+ * width: the MacBook in the middle with the app's window on its display, the
+ * iPhone standing in front of its right edge and a step lower, and the cable
+ * from the port in the left end of the MacBook's base (`port`, the plug's
+ * outer end), along the desk under it and up into the plug in the phone's
+ * foot (`plug`, the middle of its top). `mac` and `phone` are where the two
+ * stand and how wide they are.
  */
 const WIDE = {
-  cable: 'M96 432 C96 540 406 566 406 512',
-  height: 538,
-  plug: { x: 406, y: 500 },
-  width: 520,
+  cable: 'M66 555 C6 555 6 628 120 628 H900 C975 628 975 628 975 605',
+  height: 636,
+  mac: { width: 900, x: 80 },
+  phone: { width: 210, x: 870, y: 173 },
+  plug: { x: 975, y: 593 },
+  port: { x: 66, y: 555 },
+  width: 1160,
 };
-const SCENE_MIN = 380;
-const SCENE_CLEARANCE = 176;
 /**
- * The scene on a phone, where the two cannot stand side by side with their
- * words still large enough to read: the window above, the iPhone under it
- * over its lower left corner, and the cable from under the window's button
- * down past the phone and round into its foot.
+ * The scene on a phone, the same three things in the column's width: the
+ * MacBook across it, the iPhone in front of its right third and a step
+ * lower, far larger against the MacBook than on a wide window so its screen
+ * time still reads, and the cable the same way round.
  */
 const NARROW = {
-  cable: 'M294 432 V690 C294 830 100 850 100 796',
-  height: 828,
-  plug: { x: 100, y: 784 },
+  cable: 'M0 210 C-14 210 -10 236 0 250 C40 310 290 366 290 322',
+  height: 344,
+  mac: { width: 340, x: 10 },
+  phone: { width: 140, x: 220, y: 30 },
+  plug: { x: 290, y: 310 },
+  port: { x: 0, y: 210 },
   width: 360,
 };
+/** A phone's scene is drawn no wider than this, in the middle of the column. */
+const NARROW_MAX = 480;
 type Layout = typeof WIDE;
 /**
  * The pulse, as shares of the cable: a short bright head and the fainter
@@ -166,15 +172,66 @@ type Layout = typeof WIDE;
 const PULSE = { head: 0.03, trail: 0.2 };
 /** The plug at the cable's end, under the phone's foot. */
 const PLUG = { height: 12, radius: 3, width: 14 };
+/** The plug at the cable's start, in the end of the MacBook's base. */
+const PORT = { height: 9, radius: 2.5, width: 14 };
+
+/**
+ * The MacBook, seen from the front, in units of its own: the lid, 280
+ * across, with the display a thin bezel inside it, the notch with the camera
+ * in the middle of the display's top, the menu bar as deep as the notch, and
+ * under the lid the front edge of the base, wider than the lid by `over` at
+ * each end, with the lip a thumb opens the lid by.
+ */
+const LID = { bezel: 3, height: 181, radius: 6, width: 280 };
+const GLASS = {
+  height: LID.height - 2 * LID.bezel,
+  width: LID.width - 2 * LID.bezel,
+  x: LID.bezel,
+  y: LID.bezel,
+};
+const NOTCH = { height: 5.5, lens: 0.9, radius: 2, width: 28 };
+const MENU_Y = 10;
+const DECK = { height: 8, lip: 40, over: 10, radius: 6 };
+const LID_PATH = `M0 ${LID.height} V${LID.radius} Q0 0 ${LID.radius} 0 H${LID.width - LID.radius} Q${LID.width} 0 ${LID.width} ${LID.radius} V${LID.height}`;
+const NOTCH_PATH = (() => {
+  const left = (LID.width - NOTCH.width) / 2;
+  const right = left + NOTCH.width;
+  const foot = GLASS.y + NOTCH.height;
+  return `M${left} ${GLASS.y - 0.5} V${foot - NOTCH.radius} Q${left} ${foot} ${left + NOTCH.radius} ${foot} H${right - NOTCH.radius} Q${right} ${foot} ${right} ${foot - NOTCH.radius} V${GLASS.y - 0.5}`;
+})();
+const DECK_PATH = (() => {
+  const left = -DECK.over;
+  const right = LID.width + DECK.over;
+  const foot = LID.height + DECK.height;
+  return `M${left} ${LID.height} H${right} V${foot - DECK.radius} Q${right} ${foot} ${right - DECK.radius} ${foot} H${left + DECK.radius} Q${left} ${foot} ${left} ${foot - DECK.radius} Z`;
+})();
+const LIP_PATH = (() => {
+  const left = (LID.width - DECK.lip) / 2;
+  const right = left + DECK.lip;
+  const foot = LID.height + 3;
+  return `M${left} ${LID.height} Q${left} ${foot} ${left + 3} ${foot} H${right - 3} Q${right} ${foot} ${right} ${LID.height}`;
+})();
+/** The MacBook's whole drawing: the base's width, and the lid over the base. */
+const MAC = {
+  height: LID.height + DECK.height,
+  width: LID.width + 2 * DECK.over,
+  x: -DECK.over,
+};
 
 /** The app's name, on its window's bar. A brand, the same in every language. */
 const APP_NAME = 'attention awareness';
 /**
- * The Mac app's window on its Choose Restrictions step, in units of its own,
- * 104 across: the bar with the three buttons and the app's name, then the
- * column the step stands in, `inset` from the window's sides.
+ * The Mac app's window on its Choose Restrictions step, on a wide window, in
+ * the MacBook's units: in the middle of the desktop under the menu bar, clear
+ * of the iPhone in front of the display's right edge. The bar with the three
+ * buttons and the app's name, then the column the step stands in, `inset`
+ * from the window's sides.
  */
-const WINDOW = { height: 144, inset: 9, radius: 3.5, width: 104 };
+const WINDOW = { height: 144, inset: 9, radius: 3.5, width: 172 };
+const WINDOW_AT = {
+  x: (LID.width - WINDOW.width) / 2,
+  y: (MENU_Y + GLASS.y + GLASS.height - WINDOW.height) / 2,
+};
 const COLUMN = WINDOW.width - 2 * WINDOW.inset;
 const BAR = { height: 10, light: 1.7, lights: [7, 12.6, 18.2], size: 3.6 };
 /** The step's title, and the name over each part of it. */
@@ -189,16 +246,53 @@ const CARD_HEIGHT = 2 * CARD.pad + FEEDS * CARD.pitch;
 const SITES_NAME_Y = CARD.y + CARD_HEIGHT + 11;
 const SITE_CARD = { height: 13, y: SITES_NAME_Y + 3.5 };
 /**
- * A row, around its own middle: the icon, the name beside it, and at the
- * row's end the button that adds it, which gives way to a tick and a word
- * once it is added.
+ * A row's measures, from where the row starts: the icon, the name beside it,
+ * and at the row's end the button that adds it (`add`), which gives way to a
+ * tick, `tick` times its drawn size, and a word once it is added.
  */
-const LINE = { icon: 7, inset: 4, name: 15, size: 4.4 };
-const ADD = { height: 6.6, radius: 1.8, size: 3.6, width: 13 };
+type Line = {
+  add: { height: number; radius: number; size: number; width: number };
+  icon: number;
+  name: number;
+  size: number;
+  tick: number;
+};
+const LINE: Line = {
+  add: { height: 6.6, radius: 1.8, size: 3.6, width: 13 },
+  icon: 7,
+  name: 11,
+  size: 4.4,
+  tick: 1,
+};
+/** How far a row stands inside its card. */
+const LINE_INSET = 4;
 const TICK = 'M-1.5 0.1 L-0.4 1.2 L1.6 -1.2';
-const ADDED_GAP = 5;
+/** How far before the row's end the tick's middle and the word's end stand, at the tick's drawn size. */
+const ADDED = { tick: 1.6, word: 5 };
 /** The app's one filled button, at the end of the column's foot. */
 const BUTTON = { height: 10, size: 4.2, width: 27, y: 128 };
+/**
+ * The window on a phone, where the step's own words would be too small to
+ * read: the bar, then only the rows, fewer things and each far larger, in
+ * the part of the display the iPhone leaves free. In the MacBook's units.
+ */
+const SHORT = {
+  height: 158,
+  inset: 7,
+  pad: 1.5,
+  pitch: 29,
+  radius: 4,
+  width: 161,
+  x: 9,
+  y: 16,
+};
+const SHORT_LINE: Line = {
+  add: { height: 14, radius: 4, size: 8.5, width: 30 },
+  icon: 15,
+  name: 21,
+  size: 10.5,
+  tick: 2.2,
+};
 
 /**
  * The Screen Time widget on the phone's home screen, in the phone's units,
@@ -278,8 +372,24 @@ const styles = create({
   ended: {
     textAnchor: 'end',
   },
-  // The page's ground inside the phone and the window, so the hero's paper
-  // stops at their edges.
+  // The MacBook's desktop behind the app's window, a step off the page's
+  // ground so the window stands out on it, a hairline where the bezel ends.
+  desktop: {
+    fill: `color-mix(in srgb, ${colors.fg} 6%, ${colors.bg})`,
+    stroke: colors.border,
+    strokeWidth: 1,
+    vectorEffect: 'non-scaling-stroke',
+  },
+  // The outline of what stands on the desk: the MacBook's lid and base, and
+  // the app's window, as dark as the phone's.
+  edge: {
+    stroke: colors.muted,
+    strokeLinejoin: 'round',
+    strokeWidth: 1,
+    vectorEffect: 'non-scaling-stroke',
+  },
+  // The page's ground inside the phone, the MacBook and the window, so the
+  // hero's paper stops at their edges.
   ground: {
     fill: colors.bg,
   },
@@ -289,11 +399,13 @@ const styles = create({
     flexDirection: 'column',
     width: '100%',
   },
-  // The three buttons on the window's bar, as quiet dots.
+  // The three buttons on the window's bar and the camera in the notch, as
+  // quiet dots.
   light: {
     fill: colors.border,
   },
-  // A quiet line: the bar's edge and a button's outline.
+  // A quiet line: the bar's edge, the menu bar's, a button's outline and the
+  // lip in the base.
   line: {
     fill: 'none',
     stroke: colors.border,
@@ -318,10 +430,23 @@ const styles = create({
     fill: colors.fg,
     fontWeight: font.weightRegular,
   },
-  // On a phone only, and on a wide window only: the cable is drawn for both.
+  // The MacBook: in the middle of the scene, as wide as each layout draws it.
+  mac: {
+    insetBlockStart: 0,
+    insetInlineStart: {
+      '@media (min-width: 900px)': `${(WIDE.mac.x / WIDE.width) * 100}%`,
+      default: `${(NARROW.mac.x / NARROW.width) * 100}%`,
+    },
+    width: {
+      '@media (min-width: 900px)': `${(WIDE.mac.width / WIDE.width) * 100}%`,
+      default: `${(NARROW.mac.width / NARROW.width) * 100}%`,
+    },
+  },
+  // On a phone only, and on a wide window only: the cable and the app's
+  // window are drawn for both.
   narrowOnly: {
     display: {
-      '@media (min-width: 600px)': 'none',
+      '@media (min-width: 900px)': 'none',
       default: 'block',
     },
   },
@@ -342,20 +467,19 @@ const styles = create({
     overflow: 'visible',
     position: 'absolute',
   },
-  // The iPhone: in front of the window's right edge on a wide window, under
-  // its lower left corner on a phone.
+  // The iPhone: in front of the MacBook's right edge and a step lower.
   phone: {
     insetBlockStart: {
-      '@media (min-width: 600px)': `${(44 / WIDE.height) * 100}%`,
-      default: `${(384 / NARROW.height) * 100}%`,
+      '@media (min-width: 900px)': `${(WIDE.phone.y / WIDE.height) * 100}%`,
+      default: `${(NARROW.phone.y / NARROW.height) * 100}%`,
     },
     insetInlineStart: {
-      '@media (min-width: 600px)': `${(292 / WIDE.width) * 100}%`,
-      default: 0,
+      '@media (min-width: 900px)': `${(WIDE.phone.x / WIDE.width) * 100}%`,
+      default: `${(NARROW.phone.x / NARROW.width) * 100}%`,
     },
     width: {
-      '@media (min-width: 600px)': `${(228 / WIDE.width) * 100}%`,
-      default: `${(200 / NARROW.width) * 100}%`,
+      '@media (min-width: 900px)': `${(WIDE.phone.width / WIDE.width) * 100}%`,
+      default: `${(NARROW.phone.width / NARROW.width) * 100}%`,
     },
   },
   plug: {
@@ -375,17 +499,16 @@ const styles = create({
     strokeOpacity: 0.5,
     strokeWidth: 2,
   },
-  // The whole scene, the box its parts are placed in. As wide as the column
-  // lets it, up to its full size. On a wide window it is also held short
-  // enough to clear the fold.
+  // The whole scene, the box its parts are placed in: as wide as the hero
+  // lets it, up to its full size, and the same shape at every width.
   scene: {
     aspectRatio: {
-      '@media (min-width: 600px)': `${WIDE.width} / ${WIDE.height}`,
+      '@media (min-width: 900px)': `${WIDE.width} / ${WIDE.height}`,
       default: `${NARROW.width} / ${NARROW.height}`,
     },
     maxWidth: {
-      '@media (min-width: 600px)': `clamp(${SCENE_MIN}px, calc((100svh - ${SCENE_CLEARANCE}px) * ${WIDE.width / WIDE.height}), ${WIDE.width}px)`,
-      default: NARROW.width,
+      '@media (min-width: 900px)': WIDE.width,
+      default: NARROW_MAX,
     },
     position: 'relative',
     width: '100%',
@@ -412,28 +535,9 @@ const styles = create({
   },
   wideOnly: {
     display: {
-      '@media (min-width: 600px)': 'block',
+      '@media (min-width: 900px)': 'block',
       default: 'none',
     },
-  },
-  // The Mac app's window: at the scene's left on a wide window, at its right
-  // on a phone, where the iPhone stands under its left.
-  window: {
-    insetBlockStart: 0,
-    insetInlineStart: {
-      '@media (min-width: 600px)': 0,
-      default: `${(48 / NARROW.width) * 100}%`,
-    },
-    width: {
-      '@media (min-width: 600px)': `${(312 / WIDE.width) * 100}%`,
-      default: `${(312 / NARROW.width) * 100}%`,
-    },
-  },
-  // The window's own edge, as dark as the phone's.
-  windowEdge: {
-    stroke: colors.muted,
-    strokeWidth: 1,
-    vectorEffect: 'non-scaling-stroke',
   },
 });
 
@@ -501,26 +605,104 @@ function time(minutes: number, pad = '0'): string {
 }
 
 /**
- * The Mac app's window as it stands at `now`, on the step that chooses what
- * to block: the search over the apps it found, the website under them, each
- * with the button that adds it, and the button that installs the lot. A row
- * whose beat has come is added: its button gives way to a tick and the word.
+ * One row of the list, around its own middle, from `start` to `end`: the
+ * icon, the name and the button that adds it. Added as far as `on`, the
+ * button gives way to a tick and the word.
  */
-function MacWindow({ now }: { now: number }) {
-  const end = WINDOW.width - WINDOW.inset;
-  const controlX = end - LINE.inset;
+function Entry({
+  end,
+  line,
+  on,
+  row,
+  start,
+}: {
+  end: number;
+  line: Line;
+  on: number;
+  row: Row;
+  start: number;
+}) {
+  const { add } = line;
   return (
     <>
-      <rect
-        height={WINDOW.height}
-        rx={WINDOW.radius}
-        width={WINDOW.width}
-        {...props(styles.ground, styles.windowEdge)}
-      />
-      <path d={`M0 ${BAR.height} H${WINDOW.width}`} {...props(styles.line)} />
+      <g transform={`translate(${start + line.icon / 2} 0) scale(${line.icon / ICON})`}>
+        {'feed' in row ? (
+          <FeedIcon bundleId={row.feed} hairline />
+        ) : (
+          <>
+            <AppSquare hairline />
+            <AppGlyph glyph="browser" hairline />
+          </>
+        )}
+      </g>
+      <text fontSize={line.size} x={start + line.name} y={line.size * 0.35} {...props(styles.name)}>
+        {'feed' in row ? row.name : row.site}
+      </text>
+      {on < 1 ? (
+        <g opacity={1 - on}>
+          <rect
+            height={add.height}
+            rx={add.radius}
+            width={add.width}
+            x={end - add.width}
+            y={-add.height / 2}
+            {...props(styles.line)}
+          />
+          <text
+            fontSize={add.size}
+            x={end - add.width / 2}
+            y={add.size * 0.35}
+            {...props(styles.name, styles.centered)}
+          >
+            {m.hero_phone_add()}
+          </text>
+        </g>
+      ) : null}
+      {on > 0 ? (
+        <g opacity={on}>
+          <path
+            d={TICK}
+            transform={`translate(${end - ADDED.tick * line.tick} 0) scale(${line.tick})`}
+            {...props(styles.mark)}
+          />
+          <text
+            fontSize={add.size}
+            x={end - ADDED.word * line.tick}
+            y={add.size * 0.35}
+            {...props(styles.accentWord, styles.ended)}
+          >
+            {m.hero_phone_added()}
+          </text>
+        </g>
+      ) : null}
+    </>
+  );
+}
+
+/** A window's own outline and its bar, with the three buttons on it. */
+function WindowFrame({ height, radius, width }: { height: number; radius: number; width: number }) {
+  return (
+    <>
+      <rect height={height} rx={radius} width={width} {...props(styles.ground, styles.edge)} />
+      <path d={`M0 ${BAR.height} H${width}`} {...props(styles.line)} />
       {BAR.lights.map((x) => (
         <circle cx={x} cy={BAR.height / 2} key={x} r={BAR.light} {...props(styles.light)} />
       ))}
+    </>
+  );
+}
+
+/**
+ * The Mac app's window as it stands at `now`, on the step that chooses what
+ * to block: the search over the apps it found, the website under them, each
+ * with the button that adds it, and the button that installs the lot. A row
+ * whose beat has come is added.
+ */
+function MacWindow({ now }: { now: number }) {
+  const end = WINDOW.width - WINDOW.inset;
+  return (
+    <>
+      <WindowFrame height={WINDOW.height} radius={WINDOW.radius} width={WINDOW.width} />
       <text
         fontSize={BAR.size}
         x={WINDOW.width / 2}
@@ -571,70 +753,19 @@ function MacWindow({ now }: { now: number }) {
         {...props(styles.card)}
       />
       {ROWS.map((row, index) => {
-        const on = beat(now, index, BEAT.on);
         const y =
           'feed' in row
             ? CARD.y + CARD.pad + (index + 0.5) * CARD.pitch
             : SITE_CARD.y + SITE_CARD.height / 2;
         return (
           <g key={'feed' in row ? row.feed : row.site} transform={`translate(0 ${y})`}>
-            <g
-              transform={`translate(${WINDOW.inset + LINE.inset + LINE.icon / 2} 0) scale(${LINE.icon / ICON})`}
-            >
-              {'feed' in row ? (
-                <FeedIcon bundleId={row.feed} hairline />
-              ) : (
-                <>
-                  <AppSquare hairline />
-                  <AppGlyph glyph="browser" hairline />
-                </>
-              )}
-            </g>
-            <text
-              fontSize={LINE.size}
-              x={WINDOW.inset + LINE.name}
-              y={LINE.size * 0.35}
-              {...props(styles.name)}
-            >
-              {'feed' in row ? row.name : row.site}
-            </text>
-            {on < 1 ? (
-              <g opacity={1 - on}>
-                <rect
-                  height={ADD.height}
-                  rx={ADD.radius}
-                  width={ADD.width}
-                  x={controlX - ADD.width}
-                  y={-ADD.height / 2}
-                  {...props(styles.line)}
-                />
-                <text
-                  fontSize={ADD.size}
-                  x={controlX - ADD.width / 2}
-                  y={ADD.size * 0.35}
-                  {...props(styles.name, styles.centered)}
-                >
-                  {m.hero_phone_add()}
-                </text>
-              </g>
-            ) : null}
-            {on > 0 ? (
-              <g opacity={on}>
-                <path
-                  d={TICK}
-                  transform={`translate(${controlX - 1.6} 0)`}
-                  {...props(styles.mark)}
-                />
-                <text
-                  fontSize={ADD.size}
-                  x={controlX - ADDED_GAP}
-                  y={ADD.size * 0.35}
-                  {...props(styles.accentWord, styles.ended)}
-                >
-                  {m.hero_phone_added()}
-                </text>
-              </g>
-            ) : null}
+            <Entry
+              end={end - LINE_INSET}
+              line={LINE}
+              on={beat(now, index, BEAT.on)}
+              row={row}
+              start={WINDOW.inset + LINE_INSET}
+            />
           </g>
         );
       })}
@@ -654,6 +785,73 @@ function MacWindow({ now }: { now: number }) {
       >
         {m.hero_phone_install()}
       </text>
+    </>
+  );
+}
+
+/**
+ * The same window on a phone, as it stands at `now`: under its bar only the
+ * rows, one under another with a line between two, each with the button that
+ * adds it. A row whose beat has come is added.
+ */
+function ShortWindow({ now }: { now: number }) {
+  return (
+    <>
+      <WindowFrame height={SHORT.height} radius={SHORT.radius} width={SHORT.width} />
+      {ROWS.map((row, index) => {
+        const top = BAR.height + SHORT.pad + index * SHORT.pitch;
+        return (
+          <g key={'feed' in row ? row.feed : row.site}>
+            {index > 0 ? (
+              <path
+                d={`M${SHORT.inset} ${top} H${SHORT.width - SHORT.inset}`}
+                {...props(styles.line)}
+              />
+            ) : null}
+            <g transform={`translate(0 ${top + SHORT.pitch / 2})`}>
+              <Entry
+                end={SHORT.width - SHORT.inset}
+                line={SHORT_LINE}
+                on={beat(now, index, BEAT.on)}
+                row={row}
+                start={SHORT.inset}
+              />
+            </g>
+          </g>
+        );
+      })}
+    </>
+  );
+}
+
+/**
+ * The MacBook itself, open on the desk and seen from the front, with nothing
+ * on its display yet: the lid, the desktop inside its bezel, the menu bar's
+ * line, the notch and its camera, and the front edge of the base with its
+ * lip. The page's ground fills it, so the hero's paper stops at its edge.
+ */
+function MacBook() {
+  return (
+    <>
+      <path d={LID_PATH} {...props(styles.ground, styles.edge)} />
+      <rect
+        height={GLASS.height}
+        rx={LID.radius - LID.bezel}
+        width={GLASS.width}
+        x={GLASS.x}
+        y={GLASS.y}
+        {...props(styles.desktop)}
+      />
+      <path d={`M${GLASS.x} ${MENU_Y} H${GLASS.x + GLASS.width}`} {...props(styles.line)} />
+      <path d={NOTCH_PATH} {...props(styles.ground, styles.line)} />
+      <circle
+        cx={LID.width / 2}
+        cy={GLASS.y + NOTCH.height / 2 - 0.4}
+        r={NOTCH.lens}
+        {...props(styles.light)}
+      />
+      <path d={DECK_PATH} {...props(styles.ground, styles.edge)} />
+      <path d={LIP_PATH} {...props(styles.line)} />
     </>
   );
 }
@@ -745,9 +943,9 @@ function Home({ now }: { now: number }) {
                     {...props(styles.mark)}
                   />
                   <text
-                    fontSize={ADD.size}
+                    fontSize={LINE.add.size}
                     x={LOCK_X - 3.6}
-                    y={PILL_Y + ADD.size * 0.35}
+                    y={PILL_Y + LINE.add.size * 0.35}
                     {...props(styles.accentWord, styles.ended)}
                   >
                     {m.hero_phone_blocked()}
@@ -797,10 +995,11 @@ function Home({ now }: { now: number }) {
 }
 
 /**
- * The cable from the Mac app's window to the iPhone, for one of the scene's
- * two layouts, in a box that is the whole scene, with the plug at its end.
- * While a row's pulse is on its way, a small orange head and its trail run
- * the cable's length.
+ * The cable from the MacBook to the iPhone, for one of the scene's two
+ * layouts, in a box that is the whole scene, with a plug at each end: one in
+ * the end of the MacBook's base, one under the phone's foot. While a row's
+ * pulse is on its way, a small orange head and its trail run the cable's
+ * length.
  */
 function Cable({ layout, now, style }: { layout: Layout; now: number; style: StyleXStyles }) {
   return (
@@ -810,6 +1009,14 @@ function Cable({ layout, now, style }: { layout: Layout; now: number; style: Sty
       {...props(styles.part, styles.whole, style)}
     >
       <path d={layout.cable} {...props(styles.cable)} />
+      <rect
+        height={PORT.height}
+        rx={PORT.radius}
+        width={PORT.width}
+        x={layout.port.x}
+        y={layout.port.y - PORT.height / 2}
+        {...props(styles.plug)}
+      />
       <rect
         height={PLUG.height}
         rx={PLUG.radius}
@@ -880,6 +1087,10 @@ function macWindow(now: number): ReactNode {
   return <MacWindow now={now} />;
 }
 
+function shortWindow(now: number): ReactNode {
+  return <ShortWindow now={now} />;
+}
+
 function home(now: number): ReactNode {
   return <Home now={now} />;
 }
@@ -888,16 +1099,21 @@ function home(now: number): ReactNode {
 const WIDE_SEEN: WideLine = {};
 
 /**
- * The hero's drawing and what the page promises, in one scene: the Mac app's
- * window with the list of what to block, the cable, and the iPhone it acts
- * on. The four feeds and one website are added on the Mac one after another.
- * Each sends a pulse down the cable. On the phone a feed's icon is struck
- * through and goes, leaving its empty square; the website's address is
- * struck through and locked, and the browser stays. With each, the daily
- * average on the phone's Screen Time widget falls by that row's time, from
- * five and a half hours to an hour and three quarters. The result stands a
- * moment with what the average was under it, then crossfades back to the
- * start and it plays again.
+ * The hero's drawing and what the page promises, in one scene as wide as the
+ * hero: a MacBook with the Mac app's window on its display, the list of what
+ * to block in it, the iPhone it acts on standing in front, and the cable
+ * between the two. The four feeds and one website are added on the Mac one
+ * after another. Each sends a pulse down the cable. On the phone a feed's
+ * icon is struck through and goes, leaving its empty square; the website's
+ * address is struck through and locked, and the browser stays. With each,
+ * the daily average on the phone's Screen Time widget falls by that row's
+ * time, from five and a half hours to an hour and three quarters. The result
+ * stands a moment with what the average was under it, then crossfades back
+ * to the start and it plays again.
+ *
+ * On a phone the scene is the same, drawn for the column: the iPhone larger
+ * against the MacBook, and the window down to its rows, so both still read.
+ * The window is drawn for both widths and the styles show the one that fits.
  *
  * Until the scene is first in view it stands at the start of the turn, which
  * is what the server draws and what a page without scripts keeps. The loop
@@ -925,10 +1141,16 @@ export function HeroScene() {
         <Cable layout={NARROW} now={now} style={styles.narrowOnly} />
         <svg
           aria-hidden="true"
-          viewBox={`0 0 ${WINDOW.width} ${WINDOW.height}`}
-          {...props(styles.part, styles.window)}
+          viewBox={`${MAC.x} 0 ${MAC.width} ${MAC.height}`}
+          {...props(styles.part, styles.mac)}
         >
-          <Turn back={back} now={now} part={macWindow} waiting={waiting} />
+          <MacBook />
+          <g transform={`translate(${WINDOW_AT.x} ${WINDOW_AT.y})`} {...props(styles.wideOnly)}>
+            <Turn back={back} now={now} part={macWindow} waiting={waiting} />
+          </g>
+          <g transform={`translate(${SHORT.x} ${SHORT.y})`} {...props(styles.narrowOnly)}>
+            <Turn back={back} now={now} part={shortWindow} waiting={waiting} />
+          </g>
         </svg>
         <svg
           aria-hidden="true"
