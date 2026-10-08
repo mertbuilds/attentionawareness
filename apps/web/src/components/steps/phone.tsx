@@ -54,6 +54,7 @@ const SCREEN = {
 /** An app the reader keeps, by the line drawn on its square. */
 export type Glyph =
   | 'bank'
+  | 'browser'
   | 'camera'
   | 'clock'
   | 'contacts'
@@ -71,14 +72,17 @@ export type Glyph =
  * Contributors; `clock` and `music` come to it from Feather, MIT License,
  * Copyright (c) Cole Bemis): each icon's 24 grid with its middle on the
  * origin, at 0.36 of its size, so the widest of them leaves the square room
- * on every side. The bank is `landmark`, the contacts `user-round`, the maps
- * `map`, the messages `message-circle` and the photos `image`; the rest go
+ * on every side. The bank is `landmark`, the browser `compass`, the contacts
+ * `user-round`, the maps `map`, the messages `message-circle` and the photos
+ * `image`; the rest go
  * by their own names, but for the notes, which are Tabler's `notes`
  * (https://tabler.io/icons, MIT License, Copyright (c) Paweł Kuna) at 0.4 of
  * its size, as tall as Lucide's tallest.
  */
 const GLYPHS: Record<Glyph, string> = {
   bank: 'M-0.72 2.16 V-0.36 M-0.32 -3.53 A0.72 0.72 0 0 1 0.32 -3.53 L3.14 -2.14 A0.18 0.18 0 0 1 3.06 -1.8 H-3.06 A0.18 0.18 0 0 1 -3.14 -2.14 Z M0.72 2.16 V-0.36 M2.16 2.16 V-0.36 M-3.24 3.6 H3.24 M-2.16 2.16 V-0.36',
+  browser:
+    'M3.6 0 A3.6 3.6 0 1 1 -3.6 0 A3.6 3.6 0 1 1 3.6 0 Z M1.53 -1.53 L0.76 0.76 L-1.53 1.53 L-0.76 -0.76 Z',
   camera:
     'M0.72 -2.88 A0.72 0.72 0 0 1 1.35 -2.5 L1.53 -2.18 A0.72 0.72 0 0 0 2.16 -1.8 H2.88 A0.72 0.72 0 0 1 3.6 -1.08 V2.16 A0.72 0.72 0 0 1 2.88 2.88 H-2.88 A0.72 0.72 0 0 1 -3.6 2.16 V-1.08 A0.72 0.72 0 0 1 -2.88 -1.8 H-2.16 A0.72 0.72 0 0 0 -1.53 -2.18 L-1.35 -2.5 A0.72 0.72 0 0 1 -0.72 -2.88 Z M1.08 0.36 A1.08 1.08 0 1 1 -1.08 0.36 A1.08 1.08 0 1 1 1.08 0.36 Z',
   clock: 'M3.6 0 A3.6 3.6 0 1 1 -3.6 0 A3.6 3.6 0 1 1 3.6 0 Z M0 -2.16 V0 L1.44 0.72',

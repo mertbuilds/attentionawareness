@@ -12,7 +12,7 @@ import { ExtensionBrowser } from '../components/extension-browser.tsx';
 import { ANSWER_LINK, FaqAnswer } from '../components/faq-answer.tsx';
 import type { AnswerBlock } from '../components/faq-answer.tsx';
 import { GridTexture } from '../components/grid-texture.tsx';
-import { HeroPhone } from '../components/hero-phone.tsx';
+import { HeroScene } from '../components/hero-scene.tsx';
 import { HowItWorks } from '../components/how-it-works.tsx';
 import { MacDownload } from '../components/mac-download.tsx';
 import { OtherUses } from '../components/other-uses.tsx';
@@ -88,11 +88,11 @@ const EXTENSION_PRIVACY_PATH = '/extension/privacy';
 const LETTER_FACE = "'Special Elite', 'Courier New', ui-monospace, monospace";
 /**
  * The first screen side by side: wider than the column, so the words keep a
- * readable measure next to the phone.
+ * readable measure next to the scene.
  */
-const HERO_WIDTH = 1040;
-/** The phone's column beside the words, as wide as the phone is drawn there. */
-const HERO_PHONE_WIDTH = 272;
+const HERO_WIDTH = 1160;
+/** The scene's column beside the words, as wide as the scene is drawn there. */
+const HERO_SCENE_WIDTH = 520;
 /** Every link off this site carries utm tags, so the visit is traced to this page. */
 const STORE_URL =
   'https://chromewebstore.google.com/detail/attention-awareness/lgcijcijcndmggjiioibfcmppndfakee?utm_source=attentionawareness.com&utm_medium=referral&utm_campaign=home';
@@ -315,12 +315,13 @@ const styles = create({
     width: '100%',
   },
   // The first screen: the claim, what makes it last and the download beside
-  // the phone the blocked apps leave. Too narrow for two columns, the phone
-  // stands under the words and the hero narrows to the column, so every left
-  // edge lines up. It fills the window under the work-in-progress strip, so the
-  // first section waits below the fold, and stands in the middle of the room
-  // under the header. `svh` so a phone's collapsing toolbar does not move it,
-  // `vh` where a browser has no `svh`.
+  // the scene: the Mac app, the cable and the phone the blocked apps leave.
+  // Too narrow for two columns, the scene stands under the words and the hero
+  // narrows to the column, so every left edge lines up. It fills the window
+  // under the work-in-progress strip, so the first section waits below the
+  // fold, and stands in the middle of the room under the header. `svh` so a
+  // phone's collapsing toolbar does not move it, `vh` where a browser has no
+  // `svh`.
   hero: {
     alignContent: 'center',
     alignItems: 'center',
@@ -328,11 +329,11 @@ const styles = create({
     columnGap: spacing.s16,
     display: 'grid',
     gridTemplateColumns: {
-      '@media (min-width: 900px)': `minmax(0, 1fr) ${HERO_PHONE_WIDTH}px`,
+      '@media (min-width: 1100px)': `minmax(0, 1fr) ${HERO_SCENE_WIDTH}px`,
       default: 'minmax(0, 1fr)',
     },
     maxWidth: {
-      '@media (min-width: 900px)': HERO_WIDTH,
+      '@media (min-width: 1100px)': HERO_WIDTH,
       default: COLUMN_WIDTH,
     },
     minHeight: {
@@ -935,7 +936,8 @@ function HomePage() {
       first section. */}
       <GridTexture style={styles.heroPaper} />
       {/* The first screen: the claim, what the product is, why it lasts, and
-      the download with its price, next to the phone the blocked apps leave. */}
+      the download with its price, next to the Mac app, the cable and the
+      phone the blocked apps leave. */}
       <header {...props(styles.hero)}>
         <div {...props(styles.heroText)}>
           <h1 {...props(styles.displayTitle)}>
@@ -962,7 +964,7 @@ function HomePage() {
             <p {...props(styles.heroPrice)}>{m.home_hero_price()}</p>
           </div>
         </div>
-        <HeroPhone />
+        <HeroScene />
       </header>
 
       <div {...props(styles.content)}>
