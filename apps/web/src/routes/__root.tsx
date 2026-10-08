@@ -140,11 +140,8 @@ export const Route = createRootRoute({
     const named = matches.at(-1)?.pathname ?? '/';
     const path = named.length > 1 && named.endsWith('/') ? named.slice(0, -1) : named;
     const url = match._notFound ? undefined : `${SITE_URL}${path}`;
-    // What the site promises, in the hero's own words. The share cards lead with it.
-    const tagline = m.home_hero_title({
-      permanently: m.home_hero_title_accent(),
-      screen_time: m.home_hero_title_screen_time(),
-    });
+    // What the site promises, the hero's claim on one line. The share cards lead with it.
+    const tagline = m.home_share_title();
     const description = m.home_meta_description();
     // Every page shows its own share card, and a path with none the home
     // page's. A page names what its card says in its own head (`og:image:alt`).

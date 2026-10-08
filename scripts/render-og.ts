@@ -159,7 +159,7 @@ const GLYPHS = {
 } as const;
 type Glyph = keyof typeof GLYPHS;
 
-/** The hero's home screen, a row at a time: the four feeds among the seven apps that stay. */
+/** The phone's home screen, a row at a time: the four feeds among the seven apps that stay. */
 const HOME: ReadonlyArray<{ feed: string } | { glyph: Glyph }> = [
   { feed: 'com.zhiliaoapp.musically' },
   { glyph: 'camera' },
@@ -218,7 +218,7 @@ function phoneFrame(dock = 1): string {
 const phoneBox = (pad = 4) =>
   `${PHONE.x - pad} ${PHONE.y - pad} ${PHONE.width + 2 * pad} ${PHONE.height + 2 * pad}`;
 
-/** The hero's home screen as the profile leaves it: the feeds struck out, the rest in place. */
+/** The phone's home screen as the profile leaves it: the feeds struck out, the rest in place. */
 function phoneStruck(): string {
   const apps = HOME.map((app, index) => {
     const at = slot(index);
@@ -585,7 +585,7 @@ const pages: Array<Card> = [
     artWidth: 250,
     file: file('/'),
     title: message('home_hero_title')
-      .replace('{screen_time}', `**${message('home_hero_title_screen_time')}**`)
+      .replace('{screen_time}', message('home_hero_title_screen_time').replaceAll(' ', '\u00a0'))
       .replace('{permanently}', `**${message('home_hero_title_accent')}**`),
   },
   {

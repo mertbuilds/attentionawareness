@@ -349,8 +349,13 @@ const styles = create({
   accentWord: {
     color: accent.base,
   },
-  // The claim's two orange words are one thing, never broken over two lines.
-  accentPhrase: {
+  // The claim's last word stands on a line of its own: no full stop parts it
+  // from the words before it.
+  accentLine: {
+    display: 'block',
+  },
+  // The claim's two words in the middle are one thing, never broken over two lines.
+  phrase: {
     whiteSpace: 'nowrap',
   },
   // The download, and the price close under it.
@@ -878,8 +883,8 @@ function HomePage() {
   // Kept for the visit: the popup takes the mark off the address as it opens.
   const [thanked] = useState(thanks === 1);
   const navigate = Route.useNavigate();
-  // The two words the claim turns on, in orange wherever a language puts
-  // them, so the words around them keep their own order in every language.
+  // The phrase the claim keeps whole and the word it turns on, wherever a
+  // language puts them, so the words around them keep their own order.
   const titleWords = new Map([
     [LINK_SLOT, m.home_hero_title_screen_time()],
     [SECOND_SLOT, m.home_hero_title_accent()],
@@ -941,7 +946,9 @@ function HomePage() {
               ) : (
                 <span
                   key={part}
-                  {...props(styles.accentWord, part === LINK_SLOT && styles.accentPhrase)}
+                  {...props(
+                    part === LINK_SLOT ? styles.phrase : [styles.accentWord, styles.accentLine],
+                  )}
                 >
                   {word}
                 </span>
