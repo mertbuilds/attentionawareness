@@ -13,10 +13,14 @@ import { InfoTip } from './info-tip.tsx';
 import { ChooseGraphic, PlugGraphic, StaysGraphic } from './steps/index.ts';
 
 /**
- * On a wide window a drawing plays once this much of it is on screen, as a
- * step did before `SEEN`.
+ * On a wide window a drawing plays once its middle has come up to six tenths
+ * of the way down the window: half of it over a line that far down. The steps
+ * are the first thing under the page's opening words, and their drawings are
+ * on screen, low down, while those are read. By this rule they wait for the
+ * reader to scroll to them, and start at once only in a window so tall that
+ * they stand above the line as the page opens.
  */
-const WIDE_SEEN: WideLine = { amount: 0.6 };
+const WIDE_SEEN: WideLine = { amount: 0.5, margin: '0px 0px -40% 0px' };
 /** The turn in which every step fades out and back in at its start, before the first plays again. */
 const BACK = -1;
 /** The last run of non-blank characters in a title: its last word. */
@@ -181,8 +185,9 @@ function StepTitle({ mark, text }: { mark: ReactNode; text: string }) {
 /**
  * How the Mac app works, in three steps, each with its drawing over its
  * title and line. A step is on screen while its drawing is, whatever of its
- * words still shows. A drawing plays as it comes on screen, steps on screen
- * together play in order, and they play again after a rest for as long as
+ * words still shows. A drawing plays once it is well up the window (`SEEN`
+ * on a phone, `WIDE_SEEN` on a wide window), steps on screen together play in
+ * order, and they play again after a rest for as long as
  * they are on screen. Off screen, or with the tab put away, a step goes back
  * to its start, so it plays from there when it is back. With less motion
  * every drawing stands finished.
