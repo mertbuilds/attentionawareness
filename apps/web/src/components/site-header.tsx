@@ -131,6 +131,11 @@ const styles = create({
   download: {
     justifySelf: 'end',
   },
+  // The download while it has no address: nothing on it answers a pointer.
+  downloadReading: {
+    cursor: 'default',
+    pointerEvents: 'none',
+  },
   // A narrow window's open strip has room for the name or the download, not
   // both. The name stays; the download is in the menu there, and comes back
   // in the pill, which has no name.
@@ -361,8 +366,13 @@ export function SiteHeader() {
     // A phone has the support button in its place.
     downloadButton = null;
   } else if (download.kind === 'reading') {
+    // The link it becomes, with no address yet, so it never changes look.
     downloadButton = (
-      <Button data-morph="header-download" disabled style={morphStyle}>
+      <Button
+        data-morph="header-download"
+        render={<a aria-disabled="true" role="link" />}
+        style={[morphStyle, styles.downloadReading]}
+      >
         <MacCta label={m.nav_download()} />
       </Button>
     );

@@ -46,6 +46,11 @@ const styles = create({
     lineHeight: 1,
     transform: 'translateY(1px)',
   },
+  // The button while it has no address: nothing on it answers a pointer.
+  reading: {
+    cursor: 'default',
+    pointerEvents: 'none',
+  },
 });
 
 /**
@@ -129,9 +134,9 @@ function subscribeNever() {
 
 /**
  * Whether the reader is on a phone or a tablet. The server cannot tell, so it
- * and the first client render answer `false`. Both draw the same button, off
- * while `latest.json` is read, so nothing on the page changes when the answer
- * comes.
+ * and the first client render answer `false`. Both draw the same button, with
+ * no address while `latest.json` is read, so nothing on the page changes when
+ * the answer comes.
  */
 function useIsMobile(): boolean {
   return useSyncExternalStore(subscribeNever, isMobile, () => false);
@@ -153,11 +158,13 @@ export function useMacDownload(placement: Placement): Download {
 
 /**
  * The download, wherever the page asks for it, the same button on every
- * device. While `latest.json` is being read the button stands as it will, only
- * off. Before the first release there is no file to read, so the button says
- * so and does nothing. On a computer it is a link to the file. On a phone or a
- * tablet it is a button that opens the popup that sends the link on to a Mac
- * (`phone-download-popup.tsx`).
+ * device. While `latest.json` is being read the button stands as it will on a
+ * computer, the same link with no address yet: the server draws it so, and
+ * the read only adds the address, so the button never changes size or look as
+ * the page comes alive. Before the first release there is no file to read, so
+ * the button says so and does nothing. On a computer it is a link to the
+ * file. On a phone or a tablet it is a button that opens the popup that sends
+ * the link on to a Mac (`phone-download-popup.tsx`).
  */
 export function MacDownload({ placement, style }: { placement: Placement; style?: StyleXStyles }) {
   const download = useMacDownload(placement);
@@ -168,7 +175,11 @@ export function MacDownload({ placement, style }: { placement: Placement; style?
   if (download.kind === 'unreleased') {
     action = <Button disabled>{m.mac_download_unreleased()}</Button>;
   } else if (download.kind === 'reading') {
-    action = <Button disabled>{cta}</Button>;
+    action = (
+      <Button render={<a aria-disabled="true" role="link" />} style={styles.reading}>
+        {cta}
+      </Button>
+    );
   } else if (download.kind === 'phone') {
     action = (
       <Button aria-haspopup="dialog" onClick={download.open}>

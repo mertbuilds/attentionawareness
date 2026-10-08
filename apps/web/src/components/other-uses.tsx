@@ -206,7 +206,7 @@ function UseCard({ place, use }: { place: number; use: Use }) {
 }
 
 /**
- * What else the same setup blocks, past the feeds: Apple's adult website
+ * What the setup blocks, past the feeds it starts with: Apple's adult website
  * filter, any app or website, a child's iPhone and a work iPhone, each a
  * quiet card, with a link to the post that shows how.
  */

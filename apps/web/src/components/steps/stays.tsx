@@ -18,7 +18,7 @@ import {
   PHONE,
   PhoneFrame,
 } from './phone.tsx';
-import { stretch, usePlayhead } from './playhead.ts';
+import { type FrameProps, copies, stretch, usePlayhead } from './playhead.ts';
 
 /**
  * The apps that show which app they are, no two alike, by their place on the
@@ -141,18 +141,11 @@ const styles = create({
  * them, the feeds chosen on the Mac by their own icons on the phone's home
  * screen among the apps the reader keeps: a pulse runs down the
  * cable as the Mac app on the laptop fills its bar, the chosen feeds go one after another while everything else stays,
- * and an orange lock comes up over the phone's corner and shuts. It plays
- * once each time `play` turns on and stands with the chosen feeds still there
- * while it is off. With less motion it stands locked.
+ * and an orange lock comes up over the phone's corner and shuts. This is the
+ * drawing `at` into its play: the chosen feeds still there at 0, gone and
+ * locked at 1.
  */
-export function StaysGraphic({
-  play,
-  ref,
-}: {
-  play: boolean;
-  ref?: Ref<SVGSVGElement> | undefined;
-}) {
-  const { at, opacity } = usePlayhead(play, drawing.stepStays);
+function StaysFrame({ at, opacity, ref, style }: FrameProps) {
   const travel = stretch(at, TRAVEL.from, TRAVEL.to, easeInOut);
   const shown = stretch(at, BADGE_FROM, BADGE_FROM + 0.18);
   const shut = stretch(at, BADGE_FROM + 0.12, BADGE_FROM + 0.28, backOut);
@@ -163,7 +156,7 @@ export function StaysGraphic({
       opacity={opacity}
       ref={ref}
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-      {...props(styles.graphic)}
+      {...props(styles.graphic, style)}
     >
       <g transform={transform(MAC)}>
         <Laptop plugged={1}>
@@ -231,5 +224,27 @@ export function StaysGraphic({
         </g>
       ) : null}
     </svg>
+  );
+}
+
+/**
+ * The third step's drawing. It plays once each time `play` turns on and stands
+ * with the chosen feeds still there while it is off. With less motion it stands locked. Until
+ * the page knows which the reader asked for it is drawn both ways, and
+ * `copies` shows one of the two.
+ */
+export function StaysGraphic({
+  play,
+  ref,
+}: {
+  play: boolean;
+  ref?: Ref<SVGSVGElement> | undefined;
+}) {
+  const { at, both, opacity } = usePlayhead(play, drawing.stepStays);
+  return (
+    <>
+      <StaysFrame at={at} opacity={opacity} ref={ref} style={both ? copies.start : undefined} />
+      {both ? <StaysFrame at={1} opacity={1} style={copies.end} /> : null}
+    </>
   );
 }

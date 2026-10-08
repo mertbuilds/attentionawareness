@@ -59,8 +59,7 @@ const VIEWS = {
 };
 /**
  * The drawings are drawn larger or smaller with their tile, so their lines
- * keep the page's own width, as the hero's phone does, rather than growing
- * and shrinking with them.
+ * keep the page's own width, rather than growing and shrinking with them.
  */
 const HAIRLINE = 'non-scaling-stroke';
 

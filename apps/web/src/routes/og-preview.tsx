@@ -103,10 +103,7 @@ const styles = create({
 /** Each page's path and the words on its card, the home page first, then the posts. */
 function cards(): Array<{ path: string; title: string }> {
   const titles: Record<keyof typeof OG_PAGES, string> = {
-    '/': m.home_hero_title({
-      distraction: m.home_hero_title_distraction(),
-      permanently: m.home_hero_title_accent(),
-    }),
+    '/': m.home_share_title(),
     '/blog': m.blog_og_title(),
     '/build': m.gen_step2_title(),
     '/extension/privacy': m.ext_privacy_title(),

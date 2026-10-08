@@ -23,19 +23,8 @@ const BODY_Y = HEAD_Y + MARK / 2 + 4;
 /** The app's one filled button, at the foot of the column, and the word on it as a bar. */
 const BUTTON = { height: 8, width: 28, x: INSET, y: SCREEN.height - 14 };
 const BUTTON_WORD = 16;
-/**
- * The hero's Mac is read at a glance, so its screen holds two things, each
- * large enough to read there: the mark, and under it the one button.
- */
-const BIG_MARK = 18;
-const BIG_BUTTON = { height: 14, width: 52, x: (SCREEN.width - 52) / 2, y: 41 };
-/** How far the button gives under the press, and the ring the press sends out. */
-const DIP = 0.06;
-const RING_GROW = 0.5;
-const RING_OPACITY = 0.5;
-/** The button's orange wash at rest, and once it is pressed. */
+/** The orange wash on the button and on a ticked box. */
 const WASH = 0.12;
-const WASH_PRESSED = 0.4;
 
 /** The list of apps: one row a pitch, an app's square at this share of a home screen's. */
 const ROW_PITCH = 8;
@@ -95,11 +84,6 @@ const styles = create({
     strokeLinecap: 'round',
     strokeWidth: 2,
   },
-  ring: {
-    fill: 'none',
-    stroke: accent.base,
-    strokeWidth: 1,
-  },
   tick: {
     fill: 'none',
     stroke: accent.base,
@@ -126,54 +110,27 @@ const styles = create({
   },
 });
 
-/** Which of the app's steps is on the screen, or `press`, the hero's mark and button alone. */
-export type MacAppScreen = 'apps' | 'connect' | 'press' | 'sending';
+/** Which of the app's steps is on the screen. */
+export type MacAppScreen = 'apps' | 'connect' | 'sending';
 
-/**
- * The app's one button, at `box`, orange at rest. `pressed` deepens its wash
- * from `WASH` to `WASH_PRESSED`; it sinks `dip` of the way under the press
- * and sends out a ring as `ring` goes from 0 to 1. `word` is the length of
- * the bar that stands for the word on it; the hero's large button has none.
- */
-function PrimaryButton({
-  box = BUTTON,
-  dip,
-  pressed,
-  ring,
-  word = BUTTON_WORD,
-}: {
-  box?: { height: number; width: number; x: number; y: number };
-  dip: number;
-  pressed: number;
-  ring: number;
-  word?: number;
-}) {
-  const middle = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-  const shape = {
-    height: box.height,
-    rx: box.height / 2,
-    width: box.width,
-    x: -box.width / 2,
-    y: -box.height / 2,
-  };
+/** The app's one button, orange, and the bar that stands for the word on it. */
+function PrimaryButton() {
+  const middle = { x: BUTTON.x + BUTTON.width / 2, y: BUTTON.y + BUTTON.height / 2 };
   return (
     <>
-      <g transform={`translate(${middle.x} ${middle.y}) scale(${1 - DIP * dip})`}>
-        <rect
-          fillOpacity={WASH + (WASH_PRESSED - WASH) * pressed}
-          {...shape}
-          {...props(styles.button)}
-        />
-        {word > 0 ? <path d={`M${-word / 2} 0 h${word}`} {...props(styles.word)} /> : null}
-      </g>
-      {ring > 0 && ring < 1 ? (
-        <rect
-          opacity={RING_OPACITY * (1 - ring)}
-          transform={`translate(${middle.x} ${middle.y}) scale(${1 + RING_GROW * ring})`}
-          {...shape}
-          {...props(styles.ring)}
-        />
-      ) : null}
+      <rect
+        fillOpacity={WASH}
+        height={BUTTON.height}
+        rx={BUTTON.height / 2}
+        width={BUTTON.width}
+        x={BUTTON.x}
+        y={BUTTON.y}
+        {...props(styles.button)}
+      />
+      <path
+        d={`M${middle.x - BUTTON_WORD / 2} ${middle.y} h${BUTTON_WORD}`}
+        {...props(styles.word)}
+      />
     </>
   );
 }
@@ -261,37 +218,19 @@ function Progress({ progress }: { progress: number }) {
  * units: its window with the mark and the step's title at the top of its
  * column, and under them the step on `screen`. `connect` waits for the
  * iPhone and shows its card as far as `found`; `apps` is the list with the
- * feeds ticked. Both end in the button, `pressed`, given `dip` and sending
- * out `ring` as the press lands. `sending` fills its bar as far as `progress`
- * in the button's place. Lines stand for the words, which no screen this
- * small could hold. `press` is the hero's: the mark and the button, large,
- * and nothing else.
+ * feeds ticked. Both end in the button. `sending` fills its bar as far as
+ * `progress` in the button's place. Lines stand for the words, which no
+ * screen this small could hold.
  */
 export function MacApp({
-  dip = 0,
   found = 1,
-  pressed = 0,
   progress = 0,
-  ring = 0,
   screen,
 }: {
-  dip?: number;
   found?: number;
-  pressed?: number;
   progress?: number;
-  ring?: number;
   screen: MacAppScreen;
 }) {
-  if (screen === 'press') {
-    return (
-      <>
-        <g transform={`translate(${(SCREEN.width - BIG_MARK) / 2} 12)`}>
-          <BrandMark size={BIG_MARK} />
-        </g>
-        <PrimaryButton box={BIG_BUTTON} dip={dip} pressed={pressed} ring={ring} word={0} />
-      </>
-    );
-  }
   return (
     <>
       <path d={`M0 ${TITLE_BAR} H${SCREEN.width}`} {...props(styles.faint)} />
@@ -311,7 +250,7 @@ export function MacApp({
       {screen === 'connect' ? <PhoneCard found={found} /> : null}
       {screen === 'apps' ? <AppRows /> : null}
       {screen === 'sending' ? <Progress progress={progress} /> : null}
-      {screen === 'sending' ? null : <PrimaryButton dip={dip} pressed={pressed} ring={ring} />}
+      {screen === 'sending' ? null : <PrimaryButton />}
     </>
   );
 }

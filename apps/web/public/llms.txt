@@ -1,10 +1,10 @@
 # attention awareness
 
-> A free Mac app that blocks addictive feed apps and websites on an iPhone for good. It supervises an iPhone on iOS 27 or earlier and installs a locked profile, without erasing the iPhone. On iOS 27 it is tested on one iPhone model with iOS 27.2. No app is installed on the iPhone. There is also a free browser extension that hides the addictive feeds on YouTube, Instagram and X, a manual guide, a profile builder and a blog. Everything is free. The Mac app is open source under AGPL-3.0. The browser extension and the website are MIT.
+> A free Mac app that helps you block anything on an iPhone for good: any app, any website and the addictive feeds, for less screen time. It supervises an iPhone on iOS 27 or earlier and installs a locked profile, without erasing the iPhone. On iOS 27 it is tested on one iPhone model with iOS 27.2. No app is installed on the iPhone. There is also a free browser extension that hides the addictive feeds on YouTube, Instagram and X, a manual guide, a profile builder and a blog. Everything is free. The Mac app is open source under AGPL-3.0. The browser extension and the website are MIT.
 
 ## Product
 
-- [Home page](https://attentionawareness.com/): The free Mac app, how it works, and answers to common questions.
+- [Home page](https://attentionawareness.com/): The free Mac app that blocks any app or website on an iPhone, how it works, the maker's screen time before and after (more than 5 hours a day, now 1 hour 45 minutes), why Screen Time and self-control are not enough, the browser extension, how to support the work, and seven common questions.
 - [Manual guide](https://attentionawareness.com/guide): Supervise your iPhone with Apple Configurator on a Mac, then install a profile that blocks addictive feeds. It is free, and it erases the iPhone.
 - [Profile builder](https://attentionawareness.com/build): Pick the apps and websites to block on a supervised iPhone, then download a signed profile.
 - [Open numbers](https://attentionawareness.com/open): The real numbers of the website, shown to everyone: visitors, page views, bounce rate, session length, where visitors come from and Mac downloads.

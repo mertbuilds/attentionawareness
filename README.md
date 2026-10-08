@@ -1,6 +1,6 @@
 # attention awareness
 
-Block distraction from your iPhone. Permanently. A free Mac app, a browser extension and the site, all open source. <https://attentionawareness.com>
+Block distraction from your iPhone. Permanently. A free Mac app that helps you block anything on your iPhone, a browser extension and the site, all open source. <https://attentionawareness.com>
 
 The product is three parts: the site, the browser extension and the Mac app.
 All three live here. The Mac app ships from the site.

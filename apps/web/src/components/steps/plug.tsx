@@ -8,7 +8,7 @@ import { HEIGHT, WIDTH } from './box.ts';
 import { Cable } from './cable.tsx';
 import { Laptop } from './laptop.tsx';
 import { MacApp } from './mac-app.tsx';
-import { stretch, usePlayhead } from './playhead.ts';
+import { type FrameProps, copies, stretch, usePlayhead } from './playhead.ts';
 
 /** The phone beside the laptop, its screen and island, and the plug in the port under it. */
 const PHONE = { height: 80, radius: 8, width: 40, x: 186, y: 42 };
@@ -72,17 +72,10 @@ const styles = create({
  * A laptop and an iPhone side by side, and the cable between them: it draws
  * itself out of the laptop and into the phone, a small orange pulse runs down
  * it, and the phone's screen lights. The Mac app on the laptop waits for the
- * iPhone and shows its card once the phone is lit. It plays once each time `play` turns on
- * and stands unplugged while it is off. With less motion it stands lit.
+ * iPhone and shows its card once the phone is lit. This is the drawing `at`
+ * into its play: unplugged at 0, lit at 1.
  */
-export function PlugGraphic({
-  play,
-  ref,
-}: {
-  play: boolean;
-  ref?: Ref<SVGSVGElement> | undefined;
-}) {
-  const { at, opacity } = usePlayhead(play, drawing.stepPlug);
+function PlugFrame({ at, opacity, ref, style }: FrameProps) {
   const macPlug = stretch(at, 0, 0.08);
   // Whatever runs along the cable eases in as well as out, so it is seen to
   // travel the whole way rather than leap most of it at once.
@@ -105,7 +98,7 @@ export function PlugGraphic({
       opacity={opacity}
       ref={ref}
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-      {...props(styles.graphic)}
+      {...props(styles.graphic, style)}
     >
       <Laptop plugged={macPlug}>
         <MacApp found={lit} screen="connect" />
@@ -164,5 +157,27 @@ export function PlugGraphic({
       />
       <Cable d={CABLE} drawn={drawn} travel={travel} />
     </svg>
+  );
+}
+
+/**
+ * The first step's drawing. It plays once each time `play` turns on and stands
+ * unplugged while it is off. With less motion it stands lit. Until
+ * the page knows which the reader asked for it is drawn both ways, and
+ * `copies` shows one of the two.
+ */
+export function PlugGraphic({
+  play,
+  ref,
+}: {
+  play: boolean;
+  ref?: Ref<SVGSVGElement> | undefined;
+}) {
+  const { at, both, opacity } = usePlayhead(play, drawing.stepPlug);
+  return (
+    <>
+      <PlugFrame at={at} opacity={opacity} ref={ref} style={both ? copies.start : undefined} />
+      {both ? <PlugFrame at={1} opacity={1} style={copies.end} /> : null}
+    </>
   );
 }

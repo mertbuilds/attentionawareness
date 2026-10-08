@@ -2,17 +2,16 @@ import { Button } from '@attentionawareness/ui';
 import { accent } from '@attentionawareness/ui/accent.stylex';
 import { colors, font, radius, spacing } from '@attentionawareness/ui/tokens.stylex';
 import { create, defaultMarker, props, when } from '@stylexjs/stylex';
-import type { StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { lazy, Suspense, useId, useState } from 'react';
 import type { ComponentProps, FC } from 'react';
 import { AngleDown, Check } from 'reicon-react';
 import { PaperLetter } from '../components/bill-paper.tsx';
 import { ExtensionBrowser } from '../components/extension-browser.tsx';
+import { ExtensionCta } from '../components/extension-cta.tsx';
 import { ANSWER_LINK, FaqAnswer } from '../components/faq-answer.tsx';
 import type { AnswerBlock } from '../components/faq-answer.tsx';
 import { GridTexture } from '../components/grid-texture.tsx';
-import { HeroPhone } from '../components/hero-phone.tsx';
 import { HowItWorks } from '../components/how-it-works.tsx';
 import { MacDownload } from '../components/mac-download.tsx';
 import { OtherUses } from '../components/other-uses.tsx';
@@ -51,7 +50,7 @@ export const Route = createFileRoute('/')({
         homeSchema({
           description: m.home_meta_description(),
           name: SITE_NAME,
-          questions: homeQuestions(),
+          questions: [...objectionQuestions(), ...homeQuestions()],
         }),
       ),
     ],
@@ -68,7 +67,7 @@ export const Route = createFileRoute('/')({
  * them, so the page's widest gap is the one measure written out here.
  */
 const SECTION_GAP = '96px';
-/** The column every section stands in, and the first screen too once it is stacked. */
+/** The column every section stands in. */
 const COLUMN_WIDTH = 760;
 /** The sign-off's lines: the name before its first comma, the place and date after it. */
 function signLines(text: string): Array<string> {
@@ -79,20 +78,13 @@ function signLines(text: string): Array<string> {
 const SITE_NAME = 'attention awareness';
 /** The id the download's section had, kept as an empty anchor for old links. */
 const OLD_DOWNLOAD_ID = 'pricing';
-/** The extension's privacy page. */
-const EXTENSION_PRIVACY_PATH = '/extension/privacy';
 /**
  * The face the letter is typed in: Special Elite, a worn typewriter's, which
  * the site serves itself, then a typewriter face the reader's own system has.
  */
 const LETTER_FACE = "'Special Elite', 'Courier New', ui-monospace, monospace";
-/**
- * The first screen side by side: wider than the column, so the words keep a
- * readable measure next to the phone.
- */
-const HERO_WIDTH = 1040;
-/** The phone's column beside the words, as wide as the phone is drawn there. */
-const HERO_PHONE_WIDTH = 272;
+/** The first screen: wider than the column, so the claim's first line stays whole on a computer. */
+const HERO_WIDTH = 1160;
 /** Every link off this site carries utm tags, so the visit is traced to this page. */
 const STORE_URL =
   'https://chromewebstore.google.com/detail/attention-awareness/lgcijcijcndmggjiioibfcmppndfakee?utm_source=attentionawareness.com&utm_medium=referral&utm_campaign=home';
@@ -202,8 +194,7 @@ const styles = create({
     margin: 0,
     textWrap: 'balance',
   },
-  // A phone's note and its button stand in the middle, under the words above
-  // them.
+  // A download's button stands in the middle, under the words above it.
   downloadCentered: {
     alignItems: 'center',
   },
@@ -212,12 +203,9 @@ const styles = create({
   extension: {
     gap: spacing.s8,
   },
-  // The way to it, on one line with what it costs, right under the lead.
+  // The way to it, right under the lead and no wider than its words.
   extensionAction: {
-    alignItems: 'center',
     display: 'flex',
-    flexWrap: 'wrap',
-    gap: spacing.s3,
   },
   // The title, the lead and the action, close together as one block.
   extensionHead: {
@@ -314,47 +302,65 @@ const styles = create({
     textWrap: 'pretty',
     width: '100%',
   },
-  // The first screen: the claim, what makes it last and the download beside
-  // the phone the feeds leave. Too narrow for two columns, the phone stands
-  // under the words and the hero narrows to the column, so every left edge
-  // lines up. It fills the window under the work-in-progress strip, so the
-  // first section waits below the fold, and stands in the middle of the room
-  // under the header. `svh` so a phone's collapsing toolbar does not move it,
-  // `vh` where a browser has no `svh`.
+  // The first screen, words only, in one column down the middle: the claim,
+  // what the product is, the two buttons and the price. It has room over and
+  // under it, but not a whole screen: the top of how it works shows at the
+  // foot of a laptop's window.
   hero: {
-    alignContent: 'center',
     alignItems: 'center',
     boxSizing: 'border-box',
-    columnGap: spacing.s16,
-    display: 'grid',
-    gridTemplateColumns: {
-      '@media (min-width: 900px)': `minmax(0, 1fr) ${HERO_PHONE_WIDTH}px`,
-      default: 'minmax(0, 1fr)',
+    display: 'flex',
+    flexDirection: 'column',
+    maxWidth: HERO_WIDTH,
+    // More air under the price than the gap between two sections gives by
+    // itself, so the claim stands apart from how it works. A phone's gap is
+    // wide enough with the small step.
+    paddingBlockEnd: {
+      '@media (min-width: 640px)': `calc(${spacing.s16} + ${spacing.s12})`,
+      default: spacing.s8,
     },
-    maxWidth: {
-      '@media (min-width: 900px)': HERO_WIDTH,
-      default: COLUMN_WIDTH,
+    // Clear of the header strip over the top of the window, and wide air
+    // under it before the claim: three of the scale's largest steps, one and
+    // a half on a phone.
+    paddingBlockStart: {
+      '@media (min-width: 640px)': `calc(${brandBar.height} + 3 * ${spacing.s16})`,
+      default: `calc(${brandBar.height} + ${spacing.s16} + ${spacing.s8})`,
     },
-    minHeight: {
-      '@supports (height: 100svh)': '100svh',
-      default: '100vh',
-    },
-    paddingBlockEnd: spacing.s12,
-    // Clear of the header strip over the top of the window, and a step more.
-    paddingBlockStart: `calc(${brandBar.height} + ${spacing.s12})`,
-    rowGap: spacing.s12,
     width: '100%',
   },
   // A word a sentence turns on, in the one orange.
   accentWord: {
     color: accent.base,
   },
-  // The download, and the price close under it.
+  // The claim's last word stands on a line of its own: no full stop parts it
+  // from the words before it.
+  accentLine: {
+    display: 'block',
+  },
+  // The two buttons, and the price close under them.
   heroAction: {
-    alignItems: 'flex-start',
+    alignItems: 'center',
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s3,
+  },
+  // The download first, the way down to how it works beside it. They stay in
+  // the middle, and the second goes under the first where both do not fit.
+  heroButtons: {
+    alignItems: 'center',
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: spacing.s3,
+    justifyContent: 'center',
+  },
+  // What the product is, in one line under the claim: larger than the
+  // page's prose, far smaller than the claim.
+  heroLead: {
+    fontSize: font.sizeLg,
+    fontWeight: font.weightRegular,
+    lineHeight: 1.4,
+    margin: 0,
+    textWrap: 'balance',
   },
   heroPrice: {
     color: colors.muted,
@@ -362,14 +368,13 @@ const styles = create({
     lineHeight: 1.5,
     margin: 0,
   },
-  // Why it lasts, under the claim: the price box's ticked list, a step quieter.
-  heroPromises: {
-    color: colors.muted,
-  },
+  // The hero's words, each line in the middle of the hero.
   heroText: {
+    alignItems: 'center',
     display: 'flex',
     flexDirection: 'column',
-    gap: spacing.s6,
+    gap: spacing.s4,
+    textAlign: 'center',
   },
   page: {
     alignItems: 'center',
@@ -617,14 +622,22 @@ function SourceArrow() {
 }
 
 /**
- * One question, closed until it is pressed. Its answer opens under it and
- * leaves the others as they are, so two can be read at once. A closed answer
- * is inert: out of the tab order and unread by a screen reader, though it
- * stays in the page to animate.
+ * One question, closed until it is pressed unless it starts open
+ * (`defaultOpen`). Its answer opens under it and leaves the others as they
+ * are, so two can be read at once. A closed answer is inert: out of the tab
+ * order and unread by a screen reader, though it stays in the page to animate.
  */
-function Question({ answer, question }: { answer: ReadonlyArray<AnswerBlock>; question: string }) {
+function Question({
+  answer,
+  defaultOpen = false,
+  question,
+}: {
+  answer: ReadonlyArray<AnswerBlock>;
+  defaultOpen?: boolean;
+  question: string;
+}) {
   const id = useId();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
 
   const questionId = `${id}-question`;
   const answerId = `${id}-answer`;
@@ -675,9 +688,9 @@ function dots(items: ReadonlyArray<string>, label?: string): AnswerBlock {
 }
 
 /** Promises in a list, each after its tick. */
-function Promises({ promises, style }: { promises: ReadonlyArray<string>; style?: StyleXStyles }) {
+function Promises({ promises }: { promises: ReadonlyArray<string> }) {
   return (
-    <ul {...props(styles.promises, style)}>
+    <ul {...props(styles.promises)}>
       {promises.map((promise) => (
         <li key={promise} {...props(styles.promise)}>
           <Check
@@ -693,28 +706,39 @@ function Promises({ promises, style }: { promises: ReadonlyArray<string>; style?
   );
 }
 
+/** A question and its answer, block under block. */
+type Entry = { answer: ReadonlyArray<AnswerBlock>; question: string };
+
 /**
- * The questions in the order a new visitor asks them, each answer block
- * under block. The page draws them, and its head tells search engines the
- * same ones.
+ * The three doubts a reader has once the way is told: Screen Time,
+ * self-control and the fear of an erased iPhone. They stand under what the
+ * hours are for, and the head tells search engines them with the questions
+ * below.
  */
-function homeQuestions(): ReadonlyArray<{
-  answer: ReadonlyArray<AnswerBlock>;
-  question: string;
-}> {
+function objectionQuestions(): ReadonlyArray<Entry> {
   return [
-    {
-      answer: [text(m.home_faq_free_a1()), text(m.home_faq_free_a2())],
-      question: m.home_faq_free_term(),
-    },
     {
       answer: [text(m.home_faq_screen_time_a1()), text(m.home_faq_screen_time_a2())],
       question: m.home_faq_screen_time_term(),
     },
     {
-      answer: [text(m.home_faq_supervision_a1()), text(m.home_faq_supervision_a2())],
-      question: m.home_faq_supervision_term(),
+      answer: [text(m.home_objection_willpower_a1()), text(m.home_objection_willpower_a2())],
+      question: m.home_objection_willpower_term(),
     },
+    {
+      answer: [text(m.home_objection_erase_a1()), text(m.home_objection_erase_a2())],
+      question: m.home_objection_erase_term(),
+    },
+  ];
+}
+
+/**
+ * The questions in the order a new visitor asks them, each answer block
+ * under block. The page draws them, and its head tells search engines the
+ * same ones.
+ */
+function homeQuestions(): ReadonlyArray<Entry> {
+  return [
     {
       answer: [
         text(m.home_faq_needs_a1()),
@@ -781,11 +805,6 @@ function homeQuestions(): ReadonlyArray<{
       ],
       question: m.home_faq_data_term(),
     },
-    { answer: [text(m.home_faq_time_a1())], question: m.home_faq_time_term() },
-    {
-      answer: [text(m.home_faq_fail_a1()), text(m.home_faq_fail_a2())],
-      question: m.home_faq_fail_term(),
-    },
     {
       answer: [text(m.home_faq_trial_a1()), text(m.home_faq_trial_a2())],
       question: m.home_faq_trial_term(),
@@ -799,33 +818,8 @@ function homeQuestions(): ReadonlyArray<{
       question: m.home_faq_undo_term(),
     },
     {
-      answer: [
-        text(m.home_faq_apps_a1()),
-        dots([m.home_faq_apps_item_store(), m.home_faq_apps_item_rest()]),
-      ],
-      question: m.home_faq_apps_term(),
-    },
-    {
       answer: [text(m.home_faq_see_a1()), text(m.home_faq_see_a2())],
       question: m.home_faq_see_term(),
-    },
-    {
-      answer: [
-        text(m.home_faq_source_a1()),
-        dots([m.home_faq_source_item_mac(), m.home_faq_source_item_rest()]),
-      ],
-      question: m.home_faq_source_term(),
-    },
-    {
-      answer: [
-        {
-          kind: 'text',
-          link: { href: '/guide', label: m.home_faq_manual_a1_link() },
-          text: m.home_faq_manual_a1({ guide: ANSWER_LINK }),
-        },
-        text(m.home_faq_manual_a2()),
-      ],
-      question: m.home_faq_manual_term(),
     },
     {
       answer: [text(m.home_faq_other_platforms_a1()), text(m.home_faq_other_platforms_a2())],
@@ -840,7 +834,7 @@ function HomePage() {
   const [thanked] = useState(thanks === 1);
   const navigate = Route.useNavigate();
   // The two words the claim turns on, in orange wherever a language puts
-  // them, so the words around them keep their own order in every language.
+  // them, so the words around them keep their own order.
   const titleWords = new Map([
     [LINK_SLOT, m.home_hero_title_distraction()],
     [SECOND_SLOT, m.home_hero_title_accent()],
@@ -848,13 +842,6 @@ function HomePage() {
   const titleParts = m
     .home_hero_title({ distraction: LINK_SLOT, permanently: SECOND_SLOT })
     .split(SLOTS);
-
-  // Why the lock lasts, each with its tick.
-  const heroPromises = [
-    m.home_hero_promise_install(),
-    m.home_hero_promise_keep(),
-    m.home_hero_promise_sticks(),
-  ];
 
   // What the browser extension does: a short name each, and a line under it.
   // The post the story links out to, in the middle of the sentence that tells
@@ -882,6 +869,7 @@ function HomePage() {
   // The word the closing line turns on, in orange wherever a language puts it.
   const [closeBefore, closeAfter] = m.home_close_title({ better: LINK_SLOT }).split(LINK_SLOT);
 
+  const objections = objectionQuestions();
   const questions = homeQuestions();
 
   return (
@@ -889,8 +877,8 @@ function HomePage() {
       {/* The graph paper the first screen stands on, fading out before the
       first section. */}
       <GridTexture style={styles.heroPaper} />
-      {/* The first screen: the claim, why it lasts, and the download with its
-      price, next to the phone the feeds leave. */}
+      {/* The first screen, words only: the claim, what the product is, the
+      download beside the way down to how it works, and the price. */}
       <header {...props(styles.hero)}>
         <div {...props(styles.heroText)}>
           <h1 {...props(styles.displayTitle)}>
@@ -899,34 +887,31 @@ function HomePage() {
               return word === undefined ? (
                 part
               ) : (
-                <span key={part} {...props(styles.accentWord)}>
+                <span
+                  key={part}
+                  {...props(styles.accentWord, part === SECOND_SLOT && styles.accentLine)}
+                >
                   {word}
                 </span>
               );
             })}
           </h1>
-          <Promises promises={heroPromises} style={styles.heroPromises} />
+          <p {...props(styles.heroLead)}>{m.home_hero_lead()}</p>
           <div {...props(styles.heroAction)}>
-            <MacDownload placement="hero" />
+            <div {...props(styles.heroButtons)}>
+              <MacDownload placement="hero" />
+              <Button render={<a href={`#${SECTION.wayOut}`} />} variant="outline">
+                {m.home_hero_how()}
+              </Button>
+            </div>
             <p {...props(styles.heroPrice)}>{m.home_hero_price()}</p>
           </div>
         </div>
-        <HeroPhone />
       </header>
 
       <div {...props(styles.content)}>
-        {/* What the feeds take, and what the phone is for once they are off
-        it: everything else it does, which is why the rest of it stays. */}
-        <section {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_uses_title()}</h2>
-          <UsesGrid />
-          <p {...props(styles.sectionBody, styles.sectionLines)}>
-            <span>{m.home_uses_kept()}</span>
-            <span>{m.home_uses_gone()}</span>
-          </p>
-        </section>
-
-        {/* How it works: what the Mac app does, in three steps, then the app
+        {/* How it works, first under the claim, where the hero's second
+        button lands: what the Mac app does, in three steps, then the app
         itself, free, with what it keeps and its download. */}
         <section {...props(styles.section, styles.anchor)} id={SECTION.wayOut}>
           <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
@@ -957,8 +942,8 @@ function HomePage() {
           </div>
         </section>
 
-        {/* That it works, once the way is told: the before in words, my own
-        screen time after. */}
+        {/* The result, once the way is told: my own screen time, before in
+        words and after in the screenshots. */}
         <section {...props(styles.section, styles.anchor)} id={SECTION.proof}>
           <h2 {...props(styles.sectionTitle)}>{m.home_proof_title()}</h2>
           <p {...props(styles.sectionBody)}>{m.home_proof_lead()}</p>
@@ -983,12 +968,32 @@ function HomePage() {
           />
         </section>
 
-        {/* What else the same setup blocks: any app or website, not only the
-        feeds. */}
+        {/* What the hours that come back are for, and what they went to
+        before. The rest of the phone stays. */}
         <section {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_other_title()}</h2>
-          <p {...props(styles.sectionBody)}>{m.home_other_lead()}</p>
-          <OtherUses />
+          <h2 {...props(styles.sectionTitle)}>{m.home_uses_title()}</h2>
+          <UsesGrid />
+          <p {...props(styles.sectionBody, styles.sectionLines)}>
+            <span>{m.home_uses_kept()}</span>
+            <span>{m.home_uses_gone()}</span>
+          </p>
+        </section>
+
+        {/* The doubts a reader has once the way and what the hours are for
+        are told, as three questions drawn like the ones at the foot of the
+        page, but open from the start: their answers are read without a press. */}
+        <section {...props(styles.section)}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_objections_title()}</h2>
+          <div>
+            {objections.map((entry) => (
+              <Question
+                answer={entry.answer}
+                defaultOpen
+                key={entry.question}
+                question={entry.question}
+              />
+            ))}
+          </div>
         </section>
 
         {/* The same idea on the computer: the browser extension and the way
@@ -1006,14 +1011,20 @@ function HomePage() {
                 }
                 render={<a href={STORE_URL} rel="noreferrer" target="_blank" />}
               >
-                {m.home_ext_cta()}
+                <ExtensionCta label={m.home_ext_cta()} />
               </Button>
-              <p {...props(styles.heroPrice)}>
-                <a href={EXTENSION_PRIVACY_PATH}>{m.home_ext_privacy()}</a>
-              </p>
             </div>
           </div>
           <ExtensionBrowser />
+        </section>
+
+        {/* Back on the iPhone, after the computer: what it blocks is any app
+        or website. The addictive feeds are where it starts, the rest is the
+        reader's choice. */}
+        <section {...props(styles.section)}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_other_title()}</h2>
+          <p {...props(styles.sectionBody)}>{m.home_other_lead()}</p>
+          <OtherUses />
         </section>
 
         {/* Why everything is free, and the way to support the work: the
