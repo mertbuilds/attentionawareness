@@ -972,17 +972,9 @@ function HomePage() {
           </p>
         </section>
 
-        {/* What it blocks: any app or website. The addictive feeds are where
-        it starts, the rest is the reader's choice. */}
-        <section {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_other_title()}</h2>
-          <p {...props(styles.sectionBody)}>{m.home_other_lead()}</p>
-          <OtherUses />
-        </section>
-
-        {/* The doubts a reader has once the way and what it blocks are told,
-        as three questions drawn like the ones at the foot of the page, but open from
-        the start: their answers are read without a press. */}
+        {/* The doubts a reader has once the way and what the hours are for
+        are told, as three questions drawn like the ones at the foot of the
+        page, but open from the start: their answers are read without a press. */}
         <section {...props(styles.section)}>
           <h2 {...props(styles.sectionTitle)}>{m.home_objections_title()}</h2>
           <div>
@@ -1017,6 +1009,15 @@ function HomePage() {
             </div>
           </div>
           <ExtensionBrowser />
+        </section>
+
+        {/* Back on the iPhone, after the computer: what it blocks is any app
+        or website. The addictive feeds are where it starts, the rest is the
+        reader's choice. */}
+        <section {...props(styles.section)}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_other_title()}</h2>
+          <p {...props(styles.sectionBody)}>{m.home_other_lead()}</p>
+          <OtherUses />
         </section>
 
         {/* Why everything is free, and the way to support the work: the
