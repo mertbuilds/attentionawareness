@@ -18,6 +18,10 @@ function lessMotionOnServer(): boolean {
   return false;
 }
 
+function unknownOnServer(): undefined {
+  return undefined;
+}
+
 /**
  * Whether the reader asked for less motion. The server cannot know, so the
  * page is first drawn the way the server drew it and changes once it has come
@@ -25,4 +29,18 @@ function lessMotionOnServer(): boolean {
  */
 export function useLessMotion(): boolean {
   return useSyncExternalStore(subscribeLessMotion, prefersLessMotion, lessMotionOnServer);
+}
+
+/**
+ * Whether the reader asked for less motion, or `undefined` while that is not
+ * known: on the server, and in the first draw over the server's markup. A
+ * drawing that must look the same before and after the page comes alive
+ * draws both answers while it is `undefined` and lets a media query show one.
+ */
+export function useLessMotionOnceKnown(): boolean | undefined {
+  return useSyncExternalStore<boolean | undefined>(
+    subscribeLessMotion,
+    prefersLessMotion,
+    unknownOnServer,
+  );
 }

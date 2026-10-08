@@ -6,7 +6,7 @@ import type { Ref } from 'react';
 import { drawing } from '../../lib/motion.stylex.ts';
 import { HEIGHT, WIDTH } from './box.ts';
 import { AppGlyph, AppSquare, FEEDS, FeedIcon, type Glyph, ICON } from './phone.tsx';
-import { stretch, usePlayhead } from './playhead.ts';
+import { type FrameProps, copies, stretch, usePlayhead } from './playhead.ts';
 
 /** The Mac app's window, the bar along its top, and the three buttons at the bar's left. */
 const WINDOW = { height: 144, radius: 6, width: 184, x: 28, y: 18 };
@@ -135,17 +135,10 @@ function pointerAt(at: number): { x: number; y: number } {
  * The Mac app's window and the list of apps in it, a few of them feeds shown
  * by their own icons, and a pointer that goes down the list ticking the feeds
  * in orange one after another, then steps back, while the rest stay as they
- * are. It plays once each time `play` turns on and stands with nothing ticked
- * while it is off. With less motion it stands ticked.
+ * are. This is the drawing `at` into its play: nothing ticked at 0, the
+ * feeds ticked at 1.
  */
-export function ChooseGraphic({
-  play,
-  ref,
-}: {
-  play: boolean;
-  ref?: Ref<SVGSVGElement> | undefined;
-}) {
-  const { at, opacity } = usePlayhead(play, drawing.stepChoose);
+function ChooseFrame({ at, opacity, ref, style }: FrameProps) {
   const picks = new Map(
     PICKS.map((row, order) => [row, { feed: FEEDS[order], ...tickAt(at, order) }]),
   );
@@ -157,7 +150,7 @@ export function ChooseGraphic({
       opacity={opacity}
       ref={ref}
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-      {...props(styles.graphic)}
+      {...props(styles.graphic, style)}
     >
       <rect
         height={WINDOW.height}
@@ -240,5 +233,27 @@ export function ChooseGraphic({
         {...props(styles.pointer)}
       />
     </svg>
+  );
+}
+
+/**
+ * The second step's drawing. It plays once each time `play` turns on and stands
+ * with nothing ticked while it is off. With less motion it stands ticked. Until
+ * the page knows which the reader asked for it is drawn both ways, and
+ * `copies` shows one of the two.
+ */
+export function ChooseGraphic({
+  play,
+  ref,
+}: {
+  play: boolean;
+  ref?: Ref<SVGSVGElement> | undefined;
+}) {
+  const { at, both, opacity } = usePlayhead(play, drawing.stepChoose);
+  return (
+    <>
+      <ChooseFrame at={at} opacity={opacity} ref={ref} style={both ? copies.start : undefined} />
+      {both ? <ChooseFrame at={1} opacity={1} style={copies.end} /> : null}
+    </>
   );
 }
