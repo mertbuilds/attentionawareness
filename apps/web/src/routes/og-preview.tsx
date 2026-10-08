@@ -104,8 +104,8 @@ const styles = create({
 function cards(): Array<{ path: string; title: string }> {
   const titles: Record<keyof typeof OG_PAGES, string> = {
     '/': m.home_hero_title({
-      distraction: m.home_hero_title_distraction(),
       permanently: m.home_hero_title_accent(),
+      screen_time: m.home_hero_title_screen_time(),
     }),
     '/blog': m.blog_og_title(),
     '/build': m.gen_step2_title(),

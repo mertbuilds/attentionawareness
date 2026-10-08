@@ -51,7 +51,7 @@ export const Route = createFileRoute('/')({
         homeSchema({
           description: m.home_meta_description(),
           name: SITE_NAME,
-          questions: homeQuestions(),
+          questions: [...objectionQuestions(), ...homeQuestions()],
         }),
       ),
     ],
@@ -315,9 +315,9 @@ const styles = create({
     width: '100%',
   },
   // The first screen: the claim, what makes it last and the download beside
-  // the phone the feeds leave. Too narrow for two columns, the phone stands
-  // under the words and the hero narrows to the column, so every left edge
-  // lines up. It fills the window under the work-in-progress strip, so the
+  // the phone the blocked apps leave. Too narrow for two columns, the phone
+  // stands under the words and the hero narrows to the column, so every left
+  // edge lines up. It fills the window under the work-in-progress strip, so the
   // first section waits below the fold, and stands in the middle of the room
   // under the header. `svh` so a phone's collapsing toolbar does not move it,
   // `vh` where a browser has no `svh`.
@@ -349,12 +349,25 @@ const styles = create({
   accentWord: {
     color: accent.base,
   },
+  // The claim's two orange words are one thing, never broken over two lines.
+  accentPhrase: {
+    whiteSpace: 'nowrap',
+  },
   // The download, and the price close under it.
   heroAction: {
     alignItems: 'flex-start',
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s3,
+  },
+  // What the product is, in one line under the claim: larger than the
+  // promises, far smaller than the claim.
+  heroLead: {
+    fontSize: font.sizeLg,
+    fontWeight: font.weightRegular,
+    lineHeight: 1.4,
+    margin: 0,
+    textWrap: 'balance',
   },
   heroPrice: {
     color: colors.muted,
@@ -617,14 +630,22 @@ function SourceArrow() {
 }
 
 /**
- * One question, closed until it is pressed. Its answer opens under it and
- * leaves the others as they are, so two can be read at once. A closed answer
- * is inert: out of the tab order and unread by a screen reader, though it
- * stays in the page to animate.
+ * One question, closed until it is pressed unless it starts open
+ * (`defaultOpen`). Its answer opens under it and leaves the others as they
+ * are, so two can be read at once. A closed answer is inert: out of the tab
+ * order and unread by a screen reader, though it stays in the page to animate.
  */
-function Question({ answer, question }: { answer: ReadonlyArray<AnswerBlock>; question: string }) {
+function Question({
+  answer,
+  defaultOpen = false,
+  question,
+}: {
+  answer: ReadonlyArray<AnswerBlock>;
+  defaultOpen?: boolean;
+  question: string;
+}) {
   const id = useId();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
 
   const questionId = `${id}-question`;
   const answerId = `${id}-answer`;
@@ -693,23 +714,41 @@ function Promises({ promises, style }: { promises: ReadonlyArray<string>; style?
   );
 }
 
+/** A question and its answer, block under block. */
+type Entry = { answer: ReadonlyArray<AnswerBlock>; question: string };
+
+/**
+ * The three doubts a reader has right after the way is told: Screen Time,
+ * self-control and the fear of an erased iPhone. They stand under how it
+ * works, and the head tells search engines them with the questions below.
+ */
+function objectionQuestions(): ReadonlyArray<Entry> {
+  return [
+    {
+      answer: [text(m.home_faq_screen_time_a1()), text(m.home_faq_screen_time_a2())],
+      question: m.home_faq_screen_time_term(),
+    },
+    {
+      answer: [text(m.home_objection_willpower_a1()), text(m.home_objection_willpower_a2())],
+      question: m.home_objection_willpower_term(),
+    },
+    {
+      answer: [text(m.home_objection_erase_a1()), text(m.home_objection_erase_a2())],
+      question: m.home_objection_erase_term(),
+    },
+  ];
+}
+
 /**
  * The questions in the order a new visitor asks them, each answer block
  * under block. The page draws them, and its head tells search engines the
  * same ones.
  */
-function homeQuestions(): ReadonlyArray<{
-  answer: ReadonlyArray<AnswerBlock>;
-  question: string;
-}> {
+function homeQuestions(): ReadonlyArray<Entry> {
   return [
     {
       answer: [text(m.home_faq_free_a1()), text(m.home_faq_free_a2())],
       question: m.home_faq_free_term(),
-    },
-    {
-      answer: [text(m.home_faq_screen_time_a1()), text(m.home_faq_screen_time_a2())],
-      question: m.home_faq_screen_time_term(),
     },
     {
       answer: [text(m.home_faq_supervision_a1()), text(m.home_faq_supervision_a2())],
@@ -842,11 +881,11 @@ function HomePage() {
   // The two words the claim turns on, in orange wherever a language puts
   // them, so the words around them keep their own order in every language.
   const titleWords = new Map([
-    [LINK_SLOT, m.home_hero_title_distraction()],
+    [LINK_SLOT, m.home_hero_title_screen_time()],
     [SECOND_SLOT, m.home_hero_title_accent()],
   ]);
   const titleParts = m
-    .home_hero_title({ distraction: LINK_SLOT, permanently: SECOND_SLOT })
+    .home_hero_title({ permanently: SECOND_SLOT, screen_time: LINK_SLOT })
     .split(SLOTS);
 
   // Why the lock lasts, each with its tick.
@@ -882,6 +921,7 @@ function HomePage() {
   // The word the closing line turns on, in orange wherever a language puts it.
   const [closeBefore, closeAfter] = m.home_close_title({ better: LINK_SLOT }).split(LINK_SLOT);
 
+  const objections = objectionQuestions();
   const questions = homeQuestions();
 
   return (
@@ -889,8 +929,8 @@ function HomePage() {
       {/* The graph paper the first screen stands on, fading out before the
       first section. */}
       <GridTexture style={styles.heroPaper} />
-      {/* The first screen: the claim, why it lasts, and the download with its
-      price, next to the phone the feeds leave. */}
+      {/* The first screen: the claim, what the product is, why it lasts, and
+      the download with its price, next to the phone the blocked apps leave. */}
       <header {...props(styles.hero)}>
         <div {...props(styles.heroText)}>
           <h1 {...props(styles.displayTitle)}>
@@ -899,12 +939,16 @@ function HomePage() {
               return word === undefined ? (
                 part
               ) : (
-                <span key={part} {...props(styles.accentWord)}>
+                <span
+                  key={part}
+                  {...props(styles.accentWord, part === LINK_SLOT && styles.accentPhrase)}
+                >
                   {word}
                 </span>
               );
             })}
           </h1>
+          <p {...props(styles.heroLead)}>{m.home_hero_lead()}</p>
           <Promises promises={heroPromises} style={styles.heroPromises} />
           <div {...props(styles.heroAction)}>
             <MacDownload placement="hero" />
@@ -915,8 +959,34 @@ function HomePage() {
       </header>
 
       <div {...props(styles.content)}>
-        {/* What the feeds take, and what the phone is for once they are off
-        it: everything else it does, which is why the rest of it stays. */}
+        {/* The result first, right under the claim: my own screen time, before
+        in words and after in the screenshots. */}
+        <section {...props(styles.section, styles.anchor)} id={SECTION.proof}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_proof_title()}</h2>
+          <p {...props(styles.sectionBody)}>{m.home_proof_lead()}</p>
+          <ScreenShots
+            caption={m.home_proof_caption()}
+            shots={[
+              {
+                alt: m.home_proof_shot_time(),
+                height: 672,
+                padded: true,
+                src: '/media/screentime-mert/mert-after-screen-time.webp',
+                width: 800,
+              },
+              {
+                alt: m.home_proof_shot_pickups(),
+                height: 672,
+                padded: true,
+                src: '/media/screentime-mert/mert-after-pickups.webp',
+                width: 800,
+              },
+            ]}
+          />
+        </section>
+
+        {/* What the hours that come back are for, and what they went to
+        before. The rest of the phone stays. */}
         <section {...props(styles.section)}>
           <h2 {...props(styles.sectionTitle)}>{m.home_uses_title()}</h2>
           <UsesGrid />
@@ -926,8 +996,17 @@ function HomePage() {
           </p>
         </section>
 
-        {/* How it works: what the Mac app does, in three steps, then the app
-        itself, free, with what it keeps and its download. */}
+        {/* What it blocks: any app or website. The addictive feeds are where
+        it starts, the rest is the reader's choice. */}
+        <section {...props(styles.section)}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_other_title()}</h2>
+          <p {...props(styles.sectionBody)}>{m.home_other_lead()}</p>
+          <OtherUses />
+        </section>
+
+        {/* How it works, once the reader knows what it blocks: what the Mac
+        app does, in three steps, then the app itself, free, with what it
+        keeps and its download. */}
         <section {...props(styles.section, styles.anchor)} id={SECTION.wayOut}>
           <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
           <p {...props(styles.sectionBody)}>{m.home_how_lead()}</p>
@@ -957,38 +1036,21 @@ function HomePage() {
           </div>
         </section>
 
-        {/* That it works, once the way is told: the before in words, my own
-        screen time after. */}
-        <section {...props(styles.section, styles.anchor)} id={SECTION.proof}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_proof_title()}</h2>
-          <p {...props(styles.sectionBody)}>{m.home_proof_lead()}</p>
-          <ScreenShots
-            caption={m.home_proof_caption()}
-            shots={[
-              {
-                alt: m.home_proof_shot_time(),
-                height: 672,
-                padded: true,
-                src: '/media/screentime-mert/mert-after-screen-time.webp',
-                width: 800,
-              },
-              {
-                alt: m.home_proof_shot_pickups(),
-                height: 672,
-                padded: true,
-                src: '/media/screentime-mert/mert-after-pickups.webp',
-                width: 800,
-              },
-            ]}
-          />
-        </section>
-
-        {/* What else the same setup blocks: any app or website, not only the
-        feeds. */}
+        {/* The doubts that come up right after the way is told, as three
+        questions drawn like the ones at the foot of the page, but open from
+        the start: their answers are read without a press. */}
         <section {...props(styles.section)}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_other_title()}</h2>
-          <p {...props(styles.sectionBody)}>{m.home_other_lead()}</p>
-          <OtherUses />
+          <h2 {...props(styles.sectionTitle)}>{m.home_objections_title()}</h2>
+          <div>
+            {objections.map((entry) => (
+              <Question
+                answer={entry.answer}
+                defaultOpen
+                key={entry.question}
+                question={entry.question}
+              />
+            ))}
+          </div>
         </section>
 
         {/* The same idea on the computer: the browser extension and the way

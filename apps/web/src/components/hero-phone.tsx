@@ -46,50 +46,66 @@ const GOING = HOME.flatMap((app, slot) => ('feed' in app ? [{ bundleId: app.feed
 const STAYING = HOME.flatMap((app, slot) => ('glyph' in app ? [{ glyph: app.glyph, slot }] : []));
 
 /**
- * The loop, a little under twelve seconds a turn, and when each part of it
- * plays, in milliseconds from the start of the turn. It tells rather than
- * responds, so like the steps' drawings it keeps its own times rather than
- * the page's motion scale. The phone stands full, feeds and all. A small Mac
- * comes up in front of it, the app's mark and its button on its screen, and
- * the cable runs from the Mac into the phone. The button is pressed and a
- * pulse runs down the cable. The feeds go one after another, the apps that
- * stay close up, the cable comes out and the Mac goes. Then the home screen
- * gives way to the phone's Screen Time, where the daily average counts down
- * and the week's bars shrink with it. The result stands, with what it was
- * under it, before the full home screen crossfades back in.
+ * The loop, ten seconds a turn, and when each part of it plays, in
+ * milliseconds from the start of the turn. It tells rather than responds, so
+ * like the steps' drawings it keeps its own times rather than the page's
+ * motion scale. It shows the result first and how it came about after. The
+ * turn starts on the phone's Screen Time, the daily average at what it was,
+ * which is the frame the server draws, so the loop sets off from what is
+ * already on the page. After a short beat the average counts down and the week's bars shrink with
+ * it, done well inside three seconds, and what it was comes up under it. The
+ * result stands. Then Screen Time gives way to the full home screen, feeds
+ * and all. A small Mac comes up in front of the phone, the app's mark and its
+ * button on its screen, and the cable runs from the Mac into the phone. The
+ * button is pressed and a pulse runs down the cable. The feeds go one after
+ * another, the apps that stay close up, the cable comes out and the Mac goes.
+ * The home screen that is left stands a moment before Screen Time crossfades
+ * back in, at what the average was.
  */
-const LOOP = 11_600;
+const LOOP = 10_000;
 const AT = {
-  back: [11_200, 11_600],
-  cableIn: [2250, 2900],
-  cableOut: [6100, 6600],
-  dip: [3200, 3280],
-  drop: [7900, 9700],
-  macIn: [1800, 2300],
-  macOut: [6500, 7000],
-  macPlug: [2200, 2300],
-  panelIn: [7000, 7600],
-  phonePlugIn: [2800, 2950],
-  phonePlugOut: [6100, 6250],
-  press: [3200, 3300],
-  ring: [3200, 3700],
-  travel: [3400, 3900],
-  undip: [3280, 3440],
-  was: [9700, 10_000],
+  back: [9500, 10_000],
+  cableIn: [5050, 5600],
+  cableOut: [8200, 8650],
+  dip: [5800, 5880],
+  drop: [600, 2400],
+  macIn: [4600, 5100],
+  macOut: [8550, 9050],
+  macPlug: [5000, 5100],
+  panelOut: [4200, 4700],
+  phonePlugIn: [5500, 5650],
+  phonePlugOut: [8200, 8350],
+  press: [5800, 5900],
+  ring: [5800, 6300],
+  travel: [5950, 6400],
+  undip: [5880, 6040],
+  was: [2400, 2700],
 } as const;
 /** The feeds go one after another, each over `fade`; the apps that stay close up `stagger` apart. */
-const FEEDS_GO = { fade: 400, from: 3850, stagger: 150 };
-const APPS_CLOSE = { from: 4950, slide: 700, stagger: 40 };
+const FEEDS_GO = { fade: 400, from: 6350, stagger: 130 };
+const APPS_CLOSE = { from: 7200, slide: 650, stagger: 40 };
 /**
- * Where the phone stands for a reader who asked for less motion: the result,
- * the lower screen time with what it was under it. Nobody else is shown it
- * before the loop has played up to it.
+ * Where the phone stands until the loop first sets off: the start of the
+ * turn, the average at what it was. It is what the server draws and what a
+ * page without scripts keeps.
  */
-const REST = 10_200;
-/** The stretches where nothing moves: the full phone before the Mac, and the result. */
+const START = 0;
+/**
+ * Where the phone stands for good for a reader who asked for less motion: the
+ * result, the lower screen time with what it was under it. The server cannot
+ * know who asked, so until the loop sets off it draws this frame too, under
+ * the one at `START`, and the page's styles show whichever fits the reader
+ * (`atStart`, `atRest`).
+ */
+const REST = 3500;
+/**
+ * The stretches where nothing moves: the average at what it was, the result,
+ * and the home screen that is left once the Mac has gone.
+ */
 const STILL = [
-  [0, AT.macIn[0]],
-  [AT.was[1], AT.back[0]],
+  [0, AT.drop[0]],
+  [AT.was[1], AT.panelOut[0]],
+  [AT.macOut[1], AT.back[0]],
 ] as const;
 /**
  * The phone's width on a wide window: at most `PHONE_MAX`, less on a short
@@ -104,7 +120,7 @@ const PHONE_CLEARANCE = 176;
 /** How blurred a feed is, and how small, by the time it is gone. */
 const GONE_BLUR = 3;
 const GONE_SCALE = 0.85;
-/** How small the home screen is by the time it has given way to Screen Time. */
+/** How small the home screen is while Screen Time stands in its place. */
 const BACK_SCALE = 0.94;
 
 /**
@@ -175,14 +191,20 @@ const PANEL = { height: 86, inset: 6, radius: 6, width: 64, x: PHONE.x + 8, y: 4
 const TEXT_X = PANEL.x + PANEL.inset;
 const TITLE = { size: 5.5, y: PANEL.y - 6 };
 const LABEL = { size: 4.2, y: PANEL.y + 11 };
-const NUMBER = { size: 12, y: PANEL.y + 25 };
-const WAS = { size: 4.2, y: PANEL.y + 32.5 };
+/**
+ * The daily average is as large as the card lets it be: with every digit at
+ * the widest one's width it runs from one inset to the other, over the bars.
+ */
+const NUMBER = { size: 14, y: PANEL.y + 26.5 };
+const WAS = { size: 4.2, y: PANEL.y + 34 };
 /** The bars stand on a line near the card's foot, the tallest this high. */
 const BARS = { base: PANEL.y + PANEL.height - 8, max: 34, width: 5 };
 const BAR_PITCH = (PANEL.width - 2 * PANEL.inset - BARS.width) / 6;
 /** The daily average before and after, in minutes: 5 hours 30 and 1 hour 45. */
 const BEFORE = 330;
 const AFTER = 105;
+/** A space as wide as a figure, where the tens of the minutes are missing. */
+const FIGURE_SPACE = '\u2007';
 /**
  * Each day's bar as a share of the tallest, before and after. The week's
  * average falls by the same share as the number over it.
@@ -198,10 +220,25 @@ const DAYS = [
 ] as const;
 /** One day's bar starts to shrink this much of the drop after the day before it. */
 const DAY_AFTER = 0.05;
-/** How far below its place the panel starts as it rises in. */
+/** How far below its place the panel sinks as it gives way, and rises from as it comes back. */
 const PANEL_RISE = 6;
 
 const styles = create({
+  // Until the loop sets off, Screen Time is drawn twice, and which one shows
+  // is the reader's own setting, known to the styles before any script: the
+  // result with less motion, the start of the turn otherwise.
+  atRest: {
+    display: {
+      '@media (prefers-reduced-motion: reduce)': 'inline',
+      default: 'none',
+    },
+  },
+  atStart: {
+    display: {
+      '@media (prefers-reduced-motion: reduce)': 'none',
+      default: 'inline',
+    },
+  },
   // An app's box, put in place by its transform.
   app: {
     insetBlockStart: 0,
@@ -266,11 +303,12 @@ const styles = create({
     fill: colors.muted,
     fontWeight: font.weightRegular,
   },
-  // The daily average, the one thing on the panel to read. Its digits keep
-  // their own widths: it is a number being read, not a column of them.
+  // The daily average, the one thing on the panel to read. Its digits are all
+  // one width and its minutes always take two figures' room (`average`), so
+  // the words after them hold still while it counts down.
   number: {
     fill: colors.fg,
-    fontVariantNumeric: 'proportional-nums',
+    fontVariantNumeric: 'tabular-nums',
     fontWeight: font.weightMedium,
     letterSpacing: '-0.02em',
   },
@@ -315,15 +353,17 @@ const styles = create({
 });
 
 /**
- * How far into its turn the loop is, in milliseconds. It starts from the
- * start of the turn, the full home screen, which is what the server draws,
- * so the page a script comes alive on is the page the server sent. It moves
- * with the clock only while `running` and holds where it is otherwise, so it
- * goes on from there rather than leaping ahead by the time it stood. While
- * the phone stands still the page is not drawn again.
+ * How far into its turn the loop is, in milliseconds. Until it first runs it
+ * stands at `START`, the average at what it was, which is what the server
+ * draws, so the page a script comes alive on is the page the server sent. The
+ * first time it runs it sets off from that same frame, so nothing jumps and
+ * the count down is the first thing that moves. It moves with the clock only
+ * while `running` and holds where it is otherwise, so it goes on from there
+ * rather than leaping ahead by the time it stood. While the phone stands
+ * still the page is not drawn again.
  */
 function useLoop(running: boolean): number {
-  const [now, setNow] = useState(0);
+  const [now, setNow] = useState<number>(START);
   const clock = useRef(0);
 
   useEffect(() => {
@@ -403,7 +443,11 @@ function KeptIcon({ glyph }: { glyph: Glyph }) {
   );
 }
 
-/** A daily average of `minutes`, in the words the phone's own Screen Time uses. */
+/**
+ * A daily average of `minutes`, in the words the phone's own Screen Time uses.
+ * Minutes under ten stand after a figure space, as wide as the figure that is
+ * not there, so the string is as long as with two.
+ */
 function average(minutes: number): string {
   const whole = Math.round(minutes);
   if (whole === BEFORE) {
@@ -412,7 +456,10 @@ function average(minutes: number): string {
   if (whole === AFTER) {
     return m.hero_phone_after();
   }
-  return m.hero_phone_time({ hours: Math.floor(whole / 60), minutes: whole % 60 });
+  return m.hero_phone_time({
+    hours: Math.floor(whole / 60),
+    minutes: String(whole % 60).padStart(2, FIGURE_SPACE),
+  });
 }
 
 /**
@@ -470,22 +517,26 @@ function ScreenTime({ dropped, was }: { dropped: number; was: number }) {
 const WIDE_SEEN: WideLine = {};
 
 /**
- * The hero's iPhone and what the page promises, told on it: the full home
- * screen, then a small Mac in front of it with the cable run into the phone,
- * its button pressed, the four feeds blurring away one after another and the
- * apps that stay sliding up to close the gaps. The cable comes out and the
- * Mac goes. Then the home screen gives way to the phone's Screen Time, and
- * the daily average counts down from five and a half hours to an hour and
- * three quarters as the week's bars shrink. The result stands a moment before
- * the full home screen crossfades back and it plays again.
+ * The hero's iPhone and what the page promises, told on it, the result
+ * first: the phone's Screen Time, where the daily average counts down from
+ * five and a half hours to an hour and three quarters as the week's bars
+ * shrink, and stands a moment with what it was under it. Then how: Screen
+ * Time gives way to the full home screen, a small Mac comes up in front of it
+ * with the cable run into the phone, its button is pressed, the four feeds
+ * blur away one after another and the apps that stay slide up to close the
+ * gaps. The cable comes out and the Mac goes. Screen Time crossfades back
+ * over the home screen that is left and it plays again.
  *
- * The home screen is put back where it started while Screen Time stands over
- * it, unseen, so the full one is what crossfades back in. The loop sets off
- * once the phone is in view and holds while it is off screen or the tab is
- * put away. It starts from the full home screen, which is what the server
- * draws and what a page without scripts keeps. With less motion the phone
- * stands at the result instead, the lower screen time and what it was, once
- * the page has come alive.
+ * Screen Time is put back at what the average was while the home screen
+ * stands over it, unseen, so that is what crossfades back in. Until the phone
+ * is first in view it stands at the start of the turn, the average at what it
+ * was, which is what the server draws and what a page without scripts keeps.
+ * The loop sets off from that frame once the phone is in view and holds where
+ * it is while it is off screen or the tab is put away. With less motion the
+ * phone stays at the result, the lower screen time and what it was. The
+ * server cannot know that, so while the phone waits at the start the result
+ * is drawn with it and the styles show the one the reader's setting asks for:
+ * a reader with less motion sees the result from the first paint on.
  */
 export function HeroPhone() {
   const phone = useRef<HTMLDivElement>(null);
@@ -494,14 +545,14 @@ export function HeroPhone() {
   const reduced = useLessMotion();
   const looped = useLoop(seen && !hidden && !reduced);
   const now = reduced ? REST : looped;
+  const waiting = now === START && !reduced;
 
-  // Until Screen Time has come in over it the home screen plays. From then on
-  // it waits at the start, unseen, until it crossfades back in.
-  const playing = now < AT.panelIn[1];
-  const panelIn = within(now, AT.panelIn);
-  const back = within(now, AT.back);
-  const home = playing ? 1 - panelIn : back;
-  const panel = panelIn * (1 - back);
+  // Until the home screen has come in over it Screen Time shows the count
+  // down. From then on it waits at the start, unseen, until it crossfades
+  // back in.
+  const counting = now < AT.panelOut[1];
+  const home = within(now, AT.panelOut) * (1 - within(now, AT.back));
+  const panel = 1 - home;
   const mac = within(now, AT.macIn) * (1 - within(now, AT.macOut));
   const rise = RISE * (1 - within(now, AT.macIn));
   const aside = within(now, AT.macIn, easeInOut) * (1 - within(now, AT.macOut, easeInOut));
@@ -535,8 +586,21 @@ export function HeroPhone() {
           />
           <PhoneFrame dock={1 - panel} hairline />
           {panel > 0 ? (
-            <g opacity={panel} transform={`translate(0 ${PANEL_RISE * (1 - panelIn)})`}>
-              <ScreenTime dropped={within(now, AT.drop, easeInOut)} was={within(now, AT.was)} />
+            <g opacity={panel} transform={`translate(0 ${PANEL_RISE * home})`}>
+              <g {...props(waiting && styles.atStart)}>
+                <ScreenTime
+                  dropped={counting ? within(now, AT.drop, easeInOut) : 0}
+                  was={counting ? within(now, AT.was) : 0}
+                />
+              </g>
+              {waiting ? (
+                <g {...props(styles.atRest)}>
+                  <ScreenTime
+                    dropped={within(REST, AT.drop, easeInOut)}
+                    was={within(REST, AT.was)}
+                  />
+                </g>
+              ) : null}
             </g>
           ) : null}
           {cable > 0 || phonePlug > 0 ? (
@@ -564,14 +628,11 @@ export function HeroPhone() {
         </svg>
         {home > 0 ? (
           <div
-            {...props(
-              styles.layer,
-              styles.layerAt(home, `scale(${1 - (1 - BACK_SCALE) * (playing ? panelIn : 0)})`),
-            )}
+            {...props(styles.layer, styles.layerAt(home, `scale(${1 - (1 - BACK_SCALE) * panel})`))}
           >
             {GOING.map((app, order) => {
               const start = FEEDS_GO.from + order * FEEDS_GO.stagger;
-              const gone = playing ? stretch(now, start, start + FEEDS_GO.fade) : 0;
+              const gone = stretch(now, start, start + FEEDS_GO.fade);
               return (
                 <div
                   key={app.bundleId}
@@ -593,7 +654,7 @@ export function HeroPhone() {
             })}
             {STAYING.map((app, place) => {
               const start = APPS_CLOSE.from + place * APPS_CLOSE.stagger;
-              const moved = playing ? stretch(now, start, start + APPS_CLOSE.slide) : 0;
+              const moved = stretch(now, start, start + APPS_CLOSE.slide);
               return (
                 <div
                   key={app.glyph}

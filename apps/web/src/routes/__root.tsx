@@ -142,8 +142,8 @@ export const Route = createRootRoute({
     const url = match._notFound ? undefined : `${SITE_URL}${path}`;
     // What the site promises, in the hero's own words. The share cards lead with it.
     const tagline = m.home_hero_title({
-      distraction: m.home_hero_title_distraction(),
       permanently: m.home_hero_title_accent(),
+      screen_time: m.home_hero_title_screen_time(),
     });
     const description = m.home_meta_description();
     // Every page shows its own share card, and a path with none the home

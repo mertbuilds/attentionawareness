@@ -585,7 +585,7 @@ const pages: Array<Card> = [
     artWidth: 250,
     file: file('/'),
     title: message('home_hero_title')
-      .replace('{distraction}', `**${message('home_hero_title_distraction')}**`)
+      .replace('{screen_time}', `**${message('home_hero_title_screen_time')}**`)
       .replace('{permanently}', `**${message('home_hero_title_accent')}**`),
   },
   {
