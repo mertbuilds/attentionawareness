@@ -361,8 +361,9 @@ export function SiteHeader() {
     // A phone has the support button in its place.
     downloadButton = null;
   } else if (download.kind === 'reading') {
+    // The link it becomes, with no address yet, so it never changes look.
     downloadButton = (
-      <Button data-morph="header-download" disabled style={morphStyle}>
+      <Button data-morph="header-download" render={<a />} style={morphStyle}>
         <MacCta label={m.nav_download()} />
       </Button>
     );
