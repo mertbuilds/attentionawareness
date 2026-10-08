@@ -11,7 +11,6 @@ import { ExtensionBrowser } from '../components/extension-browser.tsx';
 import { ANSWER_LINK, FaqAnswer } from '../components/faq-answer.tsx';
 import type { AnswerBlock } from '../components/faq-answer.tsx';
 import { GridTexture } from '../components/grid-texture.tsx';
-import { HeroScene } from '../components/hero-scene.tsx';
 import { HowItWorks } from '../components/how-it-works.tsx';
 import { MacDownload } from '../components/mac-download.tsx';
 import { OtherUses } from '../components/other-uses.tsx';
@@ -85,10 +84,7 @@ const EXTENSION_PRIVACY_PATH = '/extension/privacy';
  * the site serves itself, then a typewriter face the reader's own system has.
  */
 const LETTER_FACE = "'Special Elite', 'Courier New', ui-monospace, monospace";
-/**
- * The first screen: wider than the column, so the scene under the words is
- * drawn large, the whole of this width.
- */
+/** The first screen: wider than the column, so the claim's first line stays whole on a computer. */
 const HERO_WIDTH = 1160;
 /** Every link off this site carries utm tags, so the visit is traced to this page. */
 const STORE_URL =
@@ -310,21 +306,24 @@ const styles = create({
     textWrap: 'pretty',
     width: '100%',
   },
-  // The first screen, in one column down the middle: the claim, what the
-  // product is and the download, then the scene across the hero's whole
-  // width: the MacBook with the app on it, the cable and the phone the
-  // blocked apps leave. It starts close under the header strip and its parts
-  // stand close together, so the words, the button and most of the MacBook
-  // are on the first screen of a laptop.
+  // The first screen, words only, in one column down the middle: the claim,
+  // what the product is, the two buttons and the price. It has room over and
+  // under it, but not a whole screen: the top of how it works shows at the
+  // foot of a laptop's window.
   hero: {
     alignItems: 'center',
     boxSizing: 'border-box',
     display: 'flex',
     flexDirection: 'column',
-    gap: spacing.s8,
     maxWidth: HERO_WIDTH,
-    // Clear of the header strip over the top of the window, and a step more.
-    paddingBlockStart: `calc(${brandBar.height} + ${spacing.s8})`,
+    paddingBlockEnd: spacing.s8,
+    // Clear of the header strip over the top of the window, and wide air
+    // under it before the claim: two of the scale's largest steps, one on a
+    // phone.
+    paddingBlockStart: {
+      '@media (min-width: 640px)': `calc(${brandBar.height} + 2 * ${spacing.s16})`,
+      default: `calc(${brandBar.height} + ${spacing.s16})`,
+    },
     width: '100%',
   },
   // A word a sentence turns on, in the one orange.
@@ -336,16 +335,21 @@ const styles = create({
   accentLine: {
     display: 'block',
   },
-  // The claim's two words in the middle are one thing, never broken over two lines.
-  phrase: {
-    whiteSpace: 'nowrap',
-  },
-  // The download, and the price close under it.
+  // The two buttons, and the price close under them.
   heroAction: {
     alignItems: 'center',
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s3,
+  },
+  // The download first, the way down to how it works beside it. They stay in
+  // the middle, and the second goes under the first where both do not fit.
+  heroButtons: {
+    alignItems: 'center',
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: spacing.s3,
+    justifyContent: 'center',
   },
   // What the product is, in one line under the claim: larger than the
   // page's prose, far smaller than the claim.
@@ -704,9 +708,9 @@ function Promises({ promises }: { promises: ReadonlyArray<string> }) {
 type Entry = { answer: ReadonlyArray<AnswerBlock>; question: string };
 
 /**
- * The three doubts a reader has right after the way is told: Screen Time,
- * self-control and the fear of an erased iPhone. They stand under how it
- * works, and the head tells search engines them with the questions below.
+ * The three doubts a reader has once the way is told: Screen Time,
+ * self-control and the fear of an erased iPhone. They stand under what it
+ * blocks, and the head tells search engines them with the questions below.
  */
 function objectionQuestions(): ReadonlyArray<Entry> {
   return [
@@ -864,14 +868,14 @@ function HomePage() {
   // Kept for the visit: the popup takes the mark off the address as it opens.
   const [thanked] = useState(thanks === 1);
   const navigate = Route.useNavigate();
-  // The phrase the claim keeps whole and the word it turns on, wherever a
-  // language puts them, so the words around them keep their own order.
+  // The two words the claim turns on, in orange wherever a language puts
+  // them, so the words around them keep their own order.
   const titleWords = new Map([
-    [LINK_SLOT, m.home_hero_title_screen_time()],
+    [LINK_SLOT, m.home_hero_title_distraction()],
     [SECOND_SLOT, m.home_hero_title_accent()],
   ]);
   const titleParts = m
-    .home_hero_title({ permanently: SECOND_SLOT, screen_time: LINK_SLOT })
+    .home_hero_title({ distraction: LINK_SLOT, permanently: SECOND_SLOT })
     .split(SLOTS);
 
   // What the browser extension does: a short name each, and a line under it.
@@ -908,9 +912,8 @@ function HomePage() {
       {/* The graph paper the first screen stands on, fading out before the
       first section. */}
       <GridTexture style={styles.heroPaper} />
-      {/* The first screen: the claim, what the product is and the download
-      with its price, in the middle, and under them the MacBook with the app
-      on it, the cable and the phone the blocked apps leave. */}
+      {/* The first screen, words only: the claim, what the product is, the
+      download beside the way down to how it works, and the price. */}
       <header {...props(styles.hero)}>
         <div {...props(styles.heroText)}>
           <h1 {...props(styles.displayTitle)}>
@@ -921,9 +924,7 @@ function HomePage() {
               ) : (
                 <span
                   key={part}
-                  {...props(
-                    part === LINK_SLOT ? styles.phrase : [styles.accentWord, styles.accentLine],
-                  )}
+                  {...props(styles.accentWord, part === SECOND_SLOT && styles.accentLine)}
                 >
                   {word}
                 </span>
@@ -932,16 +933,52 @@ function HomePage() {
           </h1>
           <p {...props(styles.heroLead)}>{m.home_hero_lead()}</p>
           <div {...props(styles.heroAction)}>
-            <MacDownload placement="hero" style={styles.downloadCentered} />
+            <div {...props(styles.heroButtons)}>
+              <MacDownload placement="hero" />
+              <Button render={<a href={`#${SECTION.wayOut}`} />} variant="outline">
+                {m.home_hero_how()}
+              </Button>
+            </div>
             <p {...props(styles.heroPrice)}>{m.home_hero_price()}</p>
           </div>
         </div>
-        <HeroScene />
       </header>
 
       <div {...props(styles.content)}>
-        {/* The result first, right under the claim: my own screen time, before
-        in words and after in the screenshots. */}
+        {/* How it works, first under the claim, where the hero's second
+        button lands: what the Mac app does, in three steps, then the app
+        itself, free, with what it keeps and its download. */}
+        <section {...props(styles.section, styles.anchor)} id={SECTION.wayOut}>
+          <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
+          <p {...props(styles.sectionBody)}>{m.home_how_lead()}</p>
+          <HowItWorks />
+          <div id={SECTION.download} {...props(styles.plan, styles.anchor)}>
+            {/* Where links from before the two ways were named the download
+            still land. Out of the card's flow, so it takes no room. */}
+            <span id={OLD_DOWNLOAD_ID} {...props(styles.anchor, styles.outOfFlow)} />
+            <div {...props(styles.planHead)}>
+              <h3 {...props(styles.planTitle, styles.planPrice)}>{m.home_how_app_price()}</h3>
+              <p {...props(styles.planSub)}>
+                <a
+                  data-plain=""
+                  href={REPO_URL}
+                  onClick={() => posthog.capture('github_clicked', { placement: 'plan' })}
+                  rel="noreferrer"
+                  target="_blank"
+                  {...props(styles.planLink)}
+                >
+                  {m.home_how_app_sub()}
+                  <SourceArrow />
+                </a>
+              </p>
+            </div>
+            <Promises promises={promises} />
+            <MacDownload placement="download" />
+          </div>
+        </section>
+
+        {/* The result, once the way is told: my own screen time, before in
+        words and after in the screenshots. */}
         <section {...props(styles.section, styles.anchor)} id={SECTION.proof}>
           <h2 {...props(styles.sectionTitle)}>{m.home_proof_title()}</h2>
           <p {...props(styles.sectionBody)}>{m.home_proof_lead()}</p>
@@ -985,40 +1022,8 @@ function HomePage() {
           <OtherUses />
         </section>
 
-        {/* How it works, once the reader knows what it blocks: what the Mac
-        app does, in three steps, then the app itself, free, with what it
-        keeps and its download. */}
-        <section {...props(styles.section, styles.anchor)} id={SECTION.wayOut}>
-          <h2 {...props(styles.sectionTitle)}>{m.home_how_title()}</h2>
-          <p {...props(styles.sectionBody)}>{m.home_how_lead()}</p>
-          <HowItWorks />
-          <div id={SECTION.download} {...props(styles.plan, styles.anchor)}>
-            {/* Where links from before the two ways were named the download
-            still land. Out of the card's flow, so it takes no room. */}
-            <span id={OLD_DOWNLOAD_ID} {...props(styles.anchor, styles.outOfFlow)} />
-            <div {...props(styles.planHead)}>
-              <h3 {...props(styles.planTitle, styles.planPrice)}>{m.home_how_app_price()}</h3>
-              <p {...props(styles.planSub)}>
-                <a
-                  data-plain=""
-                  href={REPO_URL}
-                  onClick={() => posthog.capture('github_clicked', { placement: 'plan' })}
-                  rel="noreferrer"
-                  target="_blank"
-                  {...props(styles.planLink)}
-                >
-                  {m.home_how_app_sub()}
-                  <SourceArrow />
-                </a>
-              </p>
-            </div>
-            <Promises promises={promises} />
-            <MacDownload placement="download" />
-          </div>
-        </section>
-
-        {/* The doubts that come up right after the way is told, as three
-        questions drawn like the ones at the foot of the page, but open from
+        {/* The doubts a reader has once the way and what it blocks are told,
+        as three questions drawn like the ones at the foot of the page, but open from
         the start: their answers are read without a press. */}
         <section {...props(styles.section)}>
           <h2 {...props(styles.sectionTitle)}>{m.home_objections_title()}</h2>
