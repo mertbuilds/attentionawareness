@@ -228,5 +228,8 @@
   "gen_web_row_edit": "{site} adresini düzenle",
   "gen_web_title": "Web siteleri",
   "footer_tagline": "iPhone'unda her şeyi engellemene yardım eden ücretsiz bir Mac uygulaması. Kalıcı olarak.",
-  "footer_post_ios27": "iOS 27'de denetim"
+  "footer_post_ios27": "iOS 27'de denetim",
+  "footer_post_websites": "Siteleri engelle",
+  "footer_post_lock_apps": "Uygulamaları kilitle",
+  "footer_post_youtube": "YouTube'u engelle"
 }

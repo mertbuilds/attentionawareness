@@ -50,13 +50,13 @@ const LINK_SLOT = '\u0000';
  * ahead of its post is left out instead of linking to a page that is not there.
  */
 const POSTS = [
-  { label: m.footer_post_dumbphone, slug: 'turn-iphone-into-dumbphone' },
-  { label: m.footer_post_screen_time, slug: 'why-screen-time-does-not-work' },
+  { label: m.footer_post_websites, slug: 'block-websites-iphone' },
   { label: m.footer_post_any_app, slug: 'block-any-app-iphone' },
+  { label: m.footer_post_lock_apps, slug: 'lock-apps-iphone' },
+  { label: m.footer_post_youtube, slug: 'block-youtube-iphone' },
   { label: m.footer_post_adult, slug: 'block-adult-websites-iphone' },
-  { label: m.footer_post_ios27, slug: 'supervise-iphone-ios-27-without-erasing' },
   { label: m.footer_post_parental, slug: 'iphone-parental-controls-kids-cannot-turn-off' },
-  { label: m.footer_post_work, slug: 'work-iphones-without-mdm' },
+  { label: m.footer_post_ios27, slug: 'supervise-iphone-ios-27-without-erasing' },
 ] as const;
 /**
  * The name set large across the foot of the page, in Suisse Intl Regular,

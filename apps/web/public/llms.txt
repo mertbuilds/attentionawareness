@@ -14,7 +14,10 @@
 
 - [How to block porn on an iPhone for good](https://attentionawareness.com/blog/block-adult-websites-iphone): Turn on Apple's adult website filter in Screen Time, and lock it on a supervised iPhone so it cannot be switched off.
 - [How to block an app on an iPhone so it can't come back](https://attentionawareness.com/blog/block-any-app-iphone): Six ways to block an app on an iPhone, and what each way leaves open.
+- [How to block websites on an iPhone, and keep them blocked](https://attentionawareness.com/blog/block-websites-iphone): Block a website on an iPhone with Screen Time, which browsers the block covers, and how to lock the list on a supervised iPhone.
+- [How to block YouTube on an iPhone (app and website)](https://attentionawareness.com/blog/block-youtube-iphone): Block the YouTube app and youtube.com with Apple's settings, for a child or for yourself, and the block that stays.
 - [iPhone parental controls your child can't turn off](https://attentionawareness.com/blog/iphone-parental-controls-kids-cannot-turn-off): Apple's parental controls set up the right way, where kids get around them, and a locked profile they cannot remove.
+- [How to lock apps on an iPhone, from others or yourself](https://attentionawareness.com/blog/lock-apps-iphone): Lock an app with Face ID, hide it, or use Guided Access, and how to lock an app away from yourself.
 - [Supervise an iPhone on iOS 27 without erasing it](https://attentionawareness.com/blog/supervise-iphone-ios-27-without-erasing): What changed in iOS 27, the steps that supervise an iPhone on iOS 27 and keep its data, and how the fix works.
 - [How to turn your iPhone into a dumb phone](https://attentionawareness.com/blog/turn-iphone-into-dumbphone): Five ways to make an iPhone a dumb phone, compared. Keep camera, maps, bank and messages.
 - [Why Screen Time doesn't work, and what does](https://attentionawareness.com/blog/why-screen-time-does-not-work): Why Screen Time limits fail for adults, and the one setup with no button to skip them.

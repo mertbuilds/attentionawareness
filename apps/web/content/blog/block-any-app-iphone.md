@@ -98,7 +98,7 @@ Guided Access is an accessibility feature. Apple says it can "temporarily restri
 
 To end it, triple-click the side button (or the Home button) and enter the passcode.
 
-What it leaves open: you set the passcode, so you can end the session at any time. Emergency calls do not work during a session. Guided Access is good when you hand the phone to a child for one game or one video. It is not a way to block an app for yourself. For a child's own iPhone, see [iPhone parental controls kids cannot turn off](/blog/iphone-parental-controls-kids-cannot-turn-off).
+What it leaves open: you set the passcode, so you can end the session at any time. Emergency calls do not work during a session. Guided Access is good when you hand the phone to a child for one game or one video. It is not a way to block an app for yourself. To keep other people out of one app with Face ID, see [how to lock apps on an iPhone](/blog/lock-apps-iphone). For a child's own iPhone, see [iPhone parental controls kids cannot turn off](/blog/iphone-parental-controls-kids-cannot-turn-off).
 
 ## How to block YouTube, Instagram, TikTok and X
 
@@ -106,7 +106,7 @@ For each one, block the app and the website. If you block only the app, the webs
 
 ### YouTube
 
-Block the YouTube app and youtube.com. If you need YouTube for work, keep it on the computer. Our free browser extension hides Shorts there.
+Block the YouTube app and youtube.com. If you need YouTube for work, keep it on the computer. Our free browser extension hides Shorts there. The full steps are in [how to block YouTube on an iPhone](/blog/block-youtube-iphone).
 
 ### Instagram
 
@@ -245,7 +245,7 @@ For company phones, see [how to lock down work iPhones without an MDM server](/b
 - [Apple, "Block apps, app downloads, websites, and purchases" (iOS 26)](https://support.apple.com/guide/iphone/block-apps-app-downloads-websites-purchases-iph3ff83f3b1/26/ios/26)
 - [Apple, "Change settings and restrictions in the App Store on iPhone"](https://support.apple.com/guide/iphone/iph3dfd91de/ios)
 - [Apple, "Create, change, or remove a Screen Time passcode" (iOS 27)](https://support.apple.com/guide/iphone/create-change-remove-a-screen-time-passcode-iph272b4c4bd/27/ios/27)
-- [Apple, "If you forgot your Screen Time passcode"](https://support.apple.com/en-us/102677)
+- [Apple, "Change your Screen Time passcode on an iPhone or iPad"](https://support.apple.com/en-us/102677)
 - [Apple, "Set up parental controls to manage your child's iPhone or iPad"](https://support.apple.com/en-us/105121)
 - [Apple, "Manage your child's access to apps and app requests"](https://support.apple.com/en-us/125399)
 - [Apple, "Allow and deny apps and binaries on Apple devices"](https://support.apple.com/guide/deployment/allow-and-deny-apps-and-binaries-dep001044b08/web)
