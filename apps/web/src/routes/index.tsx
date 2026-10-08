@@ -8,6 +8,7 @@ import type { ComponentProps, FC } from 'react';
 import { AngleDown, Check } from 'reicon-react';
 import { PaperLetter } from '../components/bill-paper.tsx';
 import { ExtensionBrowser } from '../components/extension-browser.tsx';
+import { ExtensionCta } from '../components/extension-cta.tsx';
 import { ANSWER_LINK, FaqAnswer } from '../components/faq-answer.tsx';
 import type { AnswerBlock } from '../components/faq-answer.tsx';
 import { GridTexture } from '../components/grid-texture.tsx';
@@ -77,8 +78,6 @@ function signLines(text: string): Array<string> {
 const SITE_NAME = 'attention awareness';
 /** The id the download's section had, kept as an empty anchor for old links. */
 const OLD_DOWNLOAD_ID = 'pricing';
-/** The extension's privacy page. */
-const EXTENSION_PRIVACY_PATH = '/extension/privacy';
 /**
  * The face the letter is typed in: Special Elite, a worn typewriter's, which
  * the site serves itself, then a typewriter face the reader's own system has.
@@ -204,12 +203,9 @@ const styles = create({
   extension: {
     gap: spacing.s8,
   },
-  // The way to it, on one line with what it costs, right under the lead.
+  // The way to it, right under the lead and no wider than its words.
   extensionAction: {
-    alignItems: 'center',
     display: 'flex',
-    flexWrap: 'wrap',
-    gap: spacing.s3,
   },
   // The title, the lead and the action, close together as one block.
   extensionHead: {
@@ -1054,11 +1050,8 @@ function HomePage() {
                 }
                 render={<a href={STORE_URL} rel="noreferrer" target="_blank" />}
               >
-                {m.home_ext_cta()}
+                <ExtensionCta label={m.home_ext_cta()} />
               </Button>
-              <p {...props(styles.heroPrice)}>
-                <a href={EXTENSION_PRIVACY_PATH}>{m.home_ext_privacy()}</a>
-              </p>
             </div>
           </div>
           <ExtensionBrowser />
