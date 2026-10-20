@@ -1,9 +1,10 @@
 import { Button } from '@attentionawareness/ui';
 import { props } from '@stylexjs/stylex';
 import { useEffect, useRef, useState } from 'react';
-import { Heart } from 'reicon-react';
+import { Heart, Star } from 'reicon-react';
 import { posthog } from '../lib/analytics.ts';
 import { onDownloadStarted } from '../lib/download-started.ts';
+import { REPO_URL } from '../lib/github.ts';
 import { shareUrl } from '../lib/share.ts';
 import { supportUrl } from '../lib/support.ts';
 import { m } from '../paraglide/messages.js';
@@ -22,14 +23,15 @@ const SHARE_URL = shareUrl('popup');
 const SUPPORT_URL = supportUrl('download-popup');
 
 /**
- * The thank-you after a download has started, with two ways to support the
- * work: the checkout, and sharing the site. One of it stands on every page,
- * and any download button on a computer opens it in the same press. The
- * button is a link to the file and the press goes on to it untouched, so the
- * popup never stands between the reader and the file. It opens after every
- * download, and nothing is kept of it: a download that starts while it is open
- * leaves it as it is. Escape, a press outside it and its close button close
- * it, and focus goes back to the button that started the download.
+ * The thank-you after a download has started, with three ways to support the
+ * work: the checkout, a star on the repo, and sharing the site. One of it
+ * stands on every page, and any download button on a computer opens it in the
+ * same press. The button is a link to the file and the press goes on to it
+ * untouched, so the popup never stands between the reader and the file. It
+ * opens after every download, and nothing is kept of it: a download that
+ * starts while it is open leaves it as it is. Escape, a press outside it and
+ * its close button close it, and focus goes back to the button that started
+ * the download.
  *
  * The panel and the share button are the ones every popup has
  * (`popup-shell.tsx`).
@@ -74,6 +76,7 @@ export function SupportPopup() {
       }}
       open={open}
       title={m.support_popup_title()}
+      wide
     >
       <p {...props(popupBody)}>{m.support_popup_next()}</p>
       <p {...props(popupWhy)}>{m.support_popup_body()}</p>
@@ -89,6 +92,17 @@ export function SupportPopup() {
             <Heart aria-hidden="true" size={POPUP_ICON_SIZE} weight="Filled" />
           </span>
           {m.home_support_cta()}
+        </Button>
+        <Button
+          onClick={() => {
+            posthog.capture('support_popup_star_clicked', { placement: placement.current });
+            close();
+          }}
+          render={<a href={REPO_URL} rel="noreferrer" target="_blank" />}
+          variant="outline"
+        >
+          <Star aria-hidden="true" size={POPUP_ICON_SIZE} />
+          {m.footer_star()}
         </Button>
         <ShareButton
           onShare={(method) => posthog.capture('support_popup_share_clicked', { method })}
